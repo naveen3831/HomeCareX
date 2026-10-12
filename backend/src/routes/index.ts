@@ -40,6 +40,10 @@ import {
 } from '../modules/marketing/marketing.routes';
 
 import refundsRoutes from '../modules/refunds/refunds.routes';
+<<<<<<< Updated upstream
+=======
+import { pricingRoutes, adminPricingRoutes } from '../modules/pricing/pricing.routes';
+>>>>>>> Stashed changes
 
 export const rootRouter = Router();
 
@@ -185,6 +189,22 @@ rootRouter.use(
 rootRouter.use(
   '/admin/customers',
   adminCustomersRoutes,
+);
+
+// =========================================================
+// Pricing
+// =========================================================
+
+// GET / PUT / DELETE /api/v1/admin/pricing (admin + pricing:manage)
+rootRouter.use(
+  '/admin/pricing',
+  adminPricingRoutes,
+);
+
+// POST /api/v1/pricing/quote
+rootRouter.use(
+  '/pricing',
+  pricingRoutes,
 );
 
 // =========================================================

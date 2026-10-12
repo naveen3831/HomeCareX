@@ -170,3 +170,89 @@ describe('Admin pricing page', () => {
     expect(within(table).queryByRole('button', { name: /edit rule/i })).not.toBeInTheDocument();
   });
 });
+
+describe('Admin pricing page: filters and server quote', () => {
+  it('filters the table by status, mode and city', async () => {
+    renderPage();
+    const table = await screen.findByRole('table', { name: /pricing rules/i });
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(2);
+
+    await userEvent.click(screen.getByRole('radio', { name: /^Inactive/ }));
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1);
+    expect(within(table).getByText('Hyderabad')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 rules')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('radio', { name: /^All/ }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Hourly' }));
+    expect(within(table).getAllByRole('row').slice(1)).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Fixed' }));
+    await userEvent.selectOptions(screen.getByLabelText('City'), 'Hyderabad');
+    // the only Hyderabad rule is HOURLY, so Fixed + Hyderabad matches nothing
+    expect(await screen.findByText(/no rules match your filters/i)).toBeInTheDocument();
+    await userEvent.click(screen.getAllByRole('button', { name: /clear filters/i })[0]); // toolbar + empty state both offer it
+    expect(within(await screen.findByRole('table', { name: /pricing rules/i })).getAllByRole('row').slice(1)).toHaveLength(2);
+  });
+
+  it('asks POST /pricing/quote and shows total, coupon, quote id and expiry', async () => {
+    rules = [rule({ addOns: [{ id: 'ad1', name: 'Priority slot', price: 99 }] })];
+    const quote = {
+      quoteId: 'abcd1234-0000-4000-8000-000000000000', expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(), currency: 'INR', mode: 'FIXED',
+      cancellationFee: 99, lines: [{ kind: 'BASE', refId: 's1', name: 'Deep Cleaning', unitPrice: 599, quantity: 1, amount: 599 }, { kind: 'ADDON', refId: 'ad1', name: 'Priority slot', unitPrice: 99, quantity: 1, amount: 99 }],
+      addOnsTotal: 99, surge: 70, surgeLabel: 'Evening', subtotal: 768, discount: 100, convenienceFee: 29, gst: 123, total: 820,
+      coupon: { code: 'SAVE100', discount: 100 }, computedAt: new Date().toISOString(),
+    };
+    h.post.mockImplementation(() => ok(quote));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getByRole('button', { name: /edit rule for/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit pricing rule/i });
+    await userEvent.click(within(dialog).getByRole('tab', { name: /server quote/i }));
+    await userEvent.click(within(dialog).getByRole('checkbox', { name: /priority slot/i }));
+    await userEvent.type(within(dialog).getByLabelText('Coupon'), 'save100');
+    await userEvent.click(within(dialog).getByRole('button', { name: /get server quote/i }));
+
+    expect(await within(dialog).findByText('₹820')).toBeInTheDocument();
+    expect(within(dialog).getByText(/− ₹100/)).toBeInTheDocument();
+    expect(within(dialog).getByText('#abcd1234')).toBeInTheDocument();
+    expect(within(dialog).getByText(/valid for/i)).toBeInTheDocument();
+    // the request carries ids and quantities only, with the coupon upper-cased
+    expect(h.post).toHaveBeenCalledWith('/pricing/quote', expect.objectContaining({
+      serviceId: 's1', quantity: 1, slot: '08:00-10:00', couponCode: 'SAVE100', addOns: [{ addOnId: 'ad1', quantity: 1 }],
+    }));
+  });
+
+  it('explains a coupon the server rejected without hiding the price', async () => {
+    h.post.mockImplementation(() => ok({
+      quoteId: 'q1q1q1q1', expiresAt: new Date(Date.now() + 60_000).toISOString(), currency: 'INR', mode: 'FIXED', cancellationFee: 0,
+      lines: [{ kind: 'BASE', refId: 's1', name: 'Deep Cleaning', unitPrice: 599, quantity: 1, amount: 599 }],
+      addOnsTotal: 0, surge: 0, subtotal: 599, discount: 0, convenienceFee: 29, gst: 113, total: 741, coupon: null,
+      couponError: { code: 'COUPON_EXPIRED' }, computedAt: new Date().toISOString(),
+    }));
+    renderPage();
+    await screen.findByRole('table');
+    await userEvent.click(screen.getAllByRole('button', { name: /edit rule for/i })[0]);
+    const dialog = await screen.findByRole('dialog', { name: /edit pricing rule/i });
+    await userEvent.click(within(dialog).getByRole('tab', { name: /server quote/i }));
+    await userEvent.type(within(dialog).getByLabelText('Coupon'), 'OLD');
+    await userEvent.click(within(dialog).getByRole('button', { name: /get server quote/i }));
+    expect(await within(dialog).findByText('₹741')).toBeInTheDocument();
+    expect(within(dialog).getByText(/coupon has expired/i)).toBeInTheDocument();
+  });
+
+  it('in demo mode the server quote is unavailable and says why', async () => {
+    h.get.mockImplementation((url: string) => {
+      if (url.includes('pricing')) return Promise.reject({ message: 'Not found', status: 404 });
+      if (url.includes('categories')) return ok(CATS);
+      return ok(SERVICES);
+    });
+    renderPage();
+    await screen.findByText(/backend not reachable/i);
+    await userEvent.click(screen.getByRole('button', { name: /create rule/i }));
+    const dialog = await screen.findByRole('dialog', { name: /create pricing rule/i });
+    await userEvent.click(within(dialog).getByRole('tab', { name: /server quote/i }));
+    expect(within(dialog).getByRole('button', { name: /get server quote/i })).toBeDisabled();
+    expect(within(dialog).getByText(/no server quote/i)).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+});
