@@ -2,6 +2,7 @@ import { useState, type ComponentType, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
+  Activity,
   ArrowLeft,
   CalendarDays,
   CalendarClock,
@@ -12,10 +13,10 @@ import {
   MapPin,
   Navigation,
   RotateCw,
-  Sparkles,
   Star,
   Trash2,
   Users,
+  Wrench,
   Zap,
 } from "lucide-react";
 import BookingThumb from "@/pages/customer/Dashboard/sections/BookingThumb";
@@ -35,7 +36,9 @@ import { PILL_CLASS, formatSlot } from "../Bookings/bookingModel";
 import {
   buildPriceBreakdown,
   buildTimeline,
+  canCancelBooking,
   canDecideExtraCharges,
+  canRescheduleBooking,
   formatBookedOn,
   formatDuration,
   formatPlainDate,
@@ -47,11 +50,13 @@ import {
   statusPill,
   weekdayOf,
 } from "./bookingDetailModel";
+import CancelDialog from "./components/CancelDialog";
 import ExtraChargeApproval from "./components/ExtraChargeApproval";
 import InvoiceButton from "./components/InvoiceButton";
 import OtpDisplay from "./components/OtpDisplay";
 import PartnerCard from "./components/PartnerCard";
 import PriceBreakdown from "./components/PriceBreakdown";
+import RescheduleDialog from "./components/RescheduleDialog";
 import StatusTimeline from "./components/StatusTimeline";
 
 const LINK_BUTTON =
@@ -77,15 +82,22 @@ function Section({
     <section
       aria-labelledby={id}
       className={clsx(
-        "min-w-0 rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-5",
+        "min-w-0 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6",
         className,
       )}
     >
       <h2
         id={id}
-        className="mb-4 flex items-center gap-2 text-sm font-bold text-ink"
+        className="mb-5 flex items-center gap-2.5 text-[15px] font-bold text-ink"
       >
-        {Icon && <Icon className="h-4 w-4 text-brand" aria-hidden="true" />}
+        {Icon && (
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand"
+          >
+            <Icon className="h-4 w-4" />
+          </span>
+        )}
         {title}
       </h2>
       {children}
@@ -116,7 +128,7 @@ function Tile({
   hint?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-slate-50 p-3.5">
+    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-canvas p-3.5 ring-1 ring-line">
       <Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
       <div className="min-w-0">
         <p className="text-xs text-muted">{label}</p>
@@ -141,13 +153,13 @@ function DetailsSkeleton() {
           <Skeleton className="h-3 w-1/3" />
         </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
           <Skeleton className="h-56 w-full rounded-2xl" />
           <Skeleton className="h-32 w-full rounded-2xl" />
         </div>
         <div className="space-y-4">
-          <Skeleton className="h-28 w-full rounded-2xl" />
+          <Skeleton className="h-56 w-full rounded-2xl" />
           <Skeleton className="h-48 w-full rounded-2xl" />
         </div>
       </div>
@@ -224,6 +236,7 @@ function DetailsBody({
   decide: DecideMutation;
 }) {
   const [imgFailed, setImgFailed] = useState(false);
+  const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
 
   const pill = statusPill(booking.status);
   const code =
@@ -237,7 +250,12 @@ function DetailsBody({
   const cancelled = isCancelledStatus(booking.status);
   const finished = booking.status === "completed" || booking.status === "rated";
   const active = !finished && !cancelled && booking.status !== "disputed";
-  const canChange = active && booking.status !== "in_progress";
+  // Same guards as the server's state machine; the server still has the final say.
+  const canCancel = active && canCancelBooking(booking.status);
+  const canReschedule =
+    active &&
+    canRescheduleBooking(booking.status) &&
+    Boolean(booking.serviceId && booking.date && booking.slot);
   const showOtp =
     Boolean(booking.partnerId) && (active || Boolean(booking.startOtp));
   const isPaid = booking.paymentStatus === "PAID";
@@ -274,11 +292,11 @@ function DetailsBody({
 
   return (
     <>
-      {/* Back link sits above both columns so the title and the Price Breakdown card start on the same line. */}
+      {/* Back link and header sit above both columns. */}
       <Link
         to={customerPath("/bookings")}
         className={clsx(
-          "mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline",
+          "mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline",
           FOCUS_RING,
         )}
       >
@@ -286,76 +304,75 @@ function DetailsBody({
         Back to My Bookings
       </Link>
 
-      <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      {/* Header spans both columns, so Booking Status and Price Breakdown below start on the same line. */}
+      <header className="mb-5 sm:mb-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
+            Booking Details
+          </h1>
+          <span
+            className={clsx(
+              "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
+              PILL_CLASS[pill.tone],
+            )}
+          >
+            {pill.dot ? (
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 rounded-full bg-current"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-4 w-4 items-center justify-center rounded-full bg-current"
+              >
+                <svg
+                  viewBox="0 0 12 12"
+                  className="h-2.5 w-2.5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M2.5 6.5l2.2 2.2L9.5 3.8" />
+                </svg>
+              </span>
+            )}
+            {pill.label}
+          </span>
+        </div>
+        <p className="mt-1.5 text-sm text-muted">
+          Booking ID: {code}
+          {bookedOn && <span className="mx-2">•</span>}
+          {bookedOn && <>Booked on {bookedOn}</>}
+        </p>
+      </header>
+
+      {refetchFailed && (
+        <p
+          role="status"
+          className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800"
+        >
+          {online
+            ? "We couldn't refresh this booking just now. Showing the last version we have."
+            : "You're offline. Showing the last version we have."}
+        </p>
+      )}
+
+      {cancelled && booking.cancellationReason && (
+        <p className="mb-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+          Reason: {booking.cancellationReason}
+        </p>
+      )}
+
+      {/* Row one: Booking Status and Price Breakdown share the same top edge. */}
+      <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left column */}
         <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-          {/* Header */}
-          <header>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold leading-tight text-ink sm:text-3xl">
-                  Booking Details
-                </h1>
-                <p className="mt-1 text-sm text-muted">
-                  Booking ID: {code}
-                  {bookedOn && <span className="mx-2">•</span>}
-                  {bookedOn && <>Booked on {bookedOn}</>}
-                </p>
-              </div>
-              <span
-                className={clsx(
-                  "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
-                  PILL_CLASS[pill.tone],
-                )}
-              >
-                {pill.dot ? (
-                  <span
-                    aria-hidden="true"
-                    className="h-2 w-2 rounded-full bg-current"
-                  />
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className="flex h-4 w-4 items-center justify-center rounded-full bg-current"
-                  >
-                    <svg
-                      viewBox="0 0 12 12"
-                      className="h-2.5 w-2.5 text-white"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="M2.5 6.5l2.2 2.2L9.5 3.8" />
-                    </svg>
-                  </span>
-                )}
-                {pill.label}
-              </span>
-            </div>
-          </header>
-
-          {refetchFailed && (
-            <p
-              role="status"
-              className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800"
-            >
-              {online
-                ? "We couldn't refresh this booking just now. Showing the last version we have."
-                : "You're offline. Showing the last version we have."}
-            </p>
-          )}
-
-          {cancelled && booking.cancellationReason && (
-            <p className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-              Reason: {booking.cancellationReason}
-            </p>
-          )}
-
-          <Section id="timeline-heading" title="Booking Status" icon={Sparkles}>
+          <Section id="timeline-heading" title="Booking Status" icon={Activity}>
             <StatusTimeline items={timeline} />
           </Section>
 
-          <Section id="service-heading" title="Service Details" icon={Sparkles}>
+          <Section id="service-heading" title="Service Details" icon={Wrench}>
             <div className="flex flex-col gap-4 sm:flex-row">
               {service?.image && !imgFailed ? (
                 <img
@@ -558,9 +575,10 @@ function DetailsBody({
                   Live Tracking
                 </Link>
               )}
-              {canChange && (
-                <Link
-                  to={supportHref}
+              {canReschedule && (
+                <button
+                  type="button"
+                  onClick={() => setDialog("reschedule")}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",
@@ -569,11 +587,12 @@ function DetailsBody({
                 >
                   <CalendarClock className="h-4 w-4" aria-hidden="true" />
                   Reschedule Booking
-                </Link>
+                </button>
               )}
-              {canChange && (
-                <Link
-                  to={supportHref}
+              {canCancel && (
+                <button
+                  type="button"
+                  onClick={() => setDialog("cancel")}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-danger/40 bg-panel text-danger",
@@ -582,7 +601,7 @@ function DetailsBody({
                 >
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                   Cancel Booking
-                </Link>
+                </button>
               )}
               <Link
                 to={`${customerPath("/services")}?q=${encodeURIComponent(name)}`}
@@ -598,7 +617,7 @@ function DetailsBody({
             </div>
           </Section>
 
-          <section className="rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-5">
+          <section className="rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6">
             <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
               <Headset className="h-5 w-5 text-brand" aria-hidden="true" />
               Need Help?
@@ -620,7 +639,7 @@ function DetailsBody({
           </section>
 
           {!cancelled && (
-            <section className="rounded-2xl border border-line bg-panel p-4 shadow-sm sm:p-5">
+            <section className="rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6">
               <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
                 <Star className="h-4 w-4 text-brand" aria-hidden="true" />
                 Rate Your Experience
@@ -666,6 +685,18 @@ function DetailsBody({
         </div>
       </div>
 
+      {dialog === "cancel" && (
+        <CancelDialog bookingId={booking._id} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "reschedule" && (
+        <RescheduleDialog
+          bookingId={booking._id}
+          serviceId={booking.serviceId}
+          date={booking.date}
+          slot={booking.slot}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </>
   );
 }

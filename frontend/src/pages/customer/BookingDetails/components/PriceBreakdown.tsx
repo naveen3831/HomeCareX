@@ -1,4 +1,3 @@
-import clsx from "clsx";
 import { Tag } from "lucide-react";
 import { rupees } from "../../Bookings/bookingModel";
 import type { PriceBreakdownModel } from "../bookingDetailModel";
@@ -8,6 +7,10 @@ export default function PriceBreakdown({
 }: {
   model: PriceBreakdownModel;
 }) {
+  const visibleRows = model.rows.filter(
+    (row) => row.key !== "discount" && row.key !== "gst",
+  );
+
   if (model.rows.length === 0) {
     return (
       <div className="space-y-3 text-sm">
@@ -20,9 +23,9 @@ export default function PriceBreakdown({
   }
 
   return (
-    <dl className="space-y-3 text-sm">
+    <dl className="space-y-3.5 text-sm">
       {/* Standard Line Items */}
-      {model.rows.map((row) => (
+      {visibleRows.map((row) => (
         <div key={row.key} className="flex items-center justify-between gap-3">
           <dt className="min-w-0 break-words text-muted">{row.label}</dt>
           <dd className="shrink-0 tabular-nums text-ink">
@@ -71,7 +74,7 @@ export default function PriceBreakdown({
         </>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-line pt-3 text-lg font-bold text-ink">
+      <div className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-brand-soft px-4 py-3 text-lg font-bold text-ink">
         <dt>
           {model.extraApproved > 0 ? "Total with extras" : "Total Amount"}
         </dt>
@@ -84,7 +87,7 @@ export default function PriceBreakdown({
 function Total({ model }: { model: PriceBreakdownModel }) {
   return (
     <dl>
-      <div className="flex items-center justify-between gap-3 border-t border-line pt-3 text-lg font-bold text-ink">
+      <div className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-brand-soft px-4 py-3 text-lg font-bold text-ink">
         <dt>Total Amount</dt>
         <dd className="tabular-nums">{rupees(model.grandTotal)}</dd>
       </div>
