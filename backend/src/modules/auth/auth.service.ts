@@ -909,7 +909,8 @@ export const authService = {
     if (user && user.status !== 'blocked') {
       await issuePasswordResetOtp(user);
     }
-
+ 
+ 
     return {
       success: true,
       message: OTP_SENT_MESSAGE,
@@ -1322,4 +1323,3 @@ export const authService = {
   },
 
 };
- 
