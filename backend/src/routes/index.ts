@@ -1,14 +1,6 @@
-
 import { Router } from 'express';
-
 import paymentRoutes from '../modules/payments/payments.routes';
 import walletRoutes from '../modules/wallet/wallet.routes';
-
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
-
 import { authRoutes } from '../modules/auth/auth.routes';
 import { auditRoutes } from '../modules/audit/audit.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
@@ -30,10 +22,10 @@ import { adminCustomersRoutes } from '../modules/admin-customers/admin-customers
 import leadsRoutes from '../modules/leads/leads.routes';
 import { bookingsRoutes } from '../modules/bookings/bookings.routes';
 import customerDashboardRoutes from '../modules/customer-dashboard/customer-dashboard.routes';
+import { customerPreferencesRoutes, customerProfileRoutes } from '../modules/customer-profile/customer-profile.routes';
 import { addressesRoutes, serviceabilityRoutes } from '../modules/addresses/addresses.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
 import { partnerJobsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
-
 import {
   couponsRoutes,
   couponCustomerRoutes,
@@ -47,10 +39,6 @@ import {
 import refundsRoutes from '../modules/refunds/refunds.routes';
 import partnerWalletRoutes, { partnerWalletSummaryRoutes } from '../modules/partner-wallet/partner-wallet.routes';
 
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
 
 export const rootRouter = Router();
 
@@ -130,6 +118,16 @@ rootRouter.use(
   '/customer/dashboard',
   customerDashboardRoutes,
 ); // GET /customer/dashboard
+
+rootRouter.use(
+  '/customer/profile',
+  customerProfileRoutes,
+); // GET/PATCH /customer/profile, POST/DELETE /customer/profile/avatar
+
+rootRouter.use(
+  '/customer/preferences',
+  customerPreferencesRoutes,
+); // GET/PATCH /customer/preferences
 
 rootRouter.use('/serviceability', serviceabilityRoutes);
 rootRouter.use(

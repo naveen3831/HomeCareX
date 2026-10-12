@@ -14,6 +14,8 @@ import { authService } from './auth.service';
  
 import {
 
+  changePasswordSchema,
+
   forgotPasswordSchema,
 
   loginSchema,
@@ -65,7 +67,13 @@ const cookieOptions = (): CookieOptions => ({
  
   secure: process.env.NODE_ENV === 'production',
  
-  sameSite: 'strict',
+  sameSite:
+
+    process.env.NODE_ENV === 'production'
+
+      ? 'strict'
+
+      : 'lax',
  
   path: REFRESH_COOKIE_PATH,
  
@@ -459,6 +467,12 @@ export const authController = {
 
    */
 
+  /** POST /api/v1/auth/change-password (signed in) */
+  changePassword: wrap(async (req, res) => {
+    const data = await authService.changePassword(res.locals.auth.sub, parseBody(changePasswordSchema, req.body));
+    res.json({ success: true, data, message: 'Password updated' });
+  }),
+
   me: wrap(async (_req, res) => {
 
     res.json({
@@ -584,4 +598,3 @@ export const authController = {
   }),
 
 };
- 

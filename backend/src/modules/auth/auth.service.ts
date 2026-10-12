@@ -194,59 +194,29 @@ export const authService = {
     return toAuthUser(user);
   },
  
+  /**
+   * Change password (signed in): checks the current password, then stores the new one.
+   * A wrong current password is a 400, not a 401, so the client does not treat it as an expired session.
+   */
+  async changePassword(userId: string, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+    const user = await authRepository.findByIdWithPassword(userId);
+    if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
+ 
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      const err = new HttpError(400, 'Your current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
+      err.details = [{ field: 'currentPassword', message: 'Current password is incorrect' }];
+      throw err;
+    }
+ 
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+    return { changed: true };
+  },
+ 
   /** Generates and dispatches a secure 6-digit OTP for password reset. */
   async forgotPassword({ email }: ForgotPasswordInput) {
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await authRepository.findByEmail(normalizedEmail);
- 
-    if (user && user.status !== 'blocked') {
-      await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
- 
-  /**
-
-   * Forgot password: emails a 6-digit OTP (valid for 10 minutes).
-
-   * Always returns the same message, so accounts cannot be enumerated.
-
-   */
-
-  async forgotPassword({
-    email,
-  }: ForgotPasswordInput) {
-    const user = await authRepository.findByEmail(email);
-
-    if (user && user.status !== 'blocked') {
-      await issuePasswordResetOtp(user);
-    }
- 
-    // Critical security: Generic message to prevent account enumeration
-    return {
-      success: true,
-      message: OTP_SENT_MESSAGE,
-    };
-  },
- 
-  /**
-
-   * Verify the emailed OTP and hand back a single-use reset token.
-
-   */
-
-  async verifyOtp({
-    email,
-
-    otp,
-  }: VerifyOtpInput) {
-    if (!/^\d{6}$/.test(otp)) {
-      throw new HttpError(
-        400,
-
-        "Enter a valid 6-digit verification code.",
-
-        "INVALID_OTP_FORMAT",
-      );
-    }
- 
     const user = await authRepository.findByEmail(normalizedEmail);
  
     if (user && user.status !== 'blocked') {
@@ -283,6 +253,19 @@ export const authService = {
       success: true,
       message: 'If an account exists, a verification code has been sent.',
     };
+  },
+ 
+  /** Sends a fresh code at most once every 30 seconds per email (reuses forgotPassword for the actual sending). */
+  async resendOtp({ email }: ResendOtpInput) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const latest = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
+    const lastSentAt = (latest as { createdAt?: Date } | null)?.createdAt;
+ 
+    if (lastSentAt && Date.now() - lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+      throw new HttpError(429, 'Please wait 30 seconds before requesting another code.', 'RATE_LIMITED');
+    }
+ 
+    return authService.forgotPassword({ email: normalizedEmail });
   },
  
   /** Verifies a 6-digit OTP, marks it used, and returns a single-use reset token. */
