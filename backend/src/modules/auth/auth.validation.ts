@@ -66,10 +66,32 @@ export const resetPasswordSchema = z
     path: ['resetToken'],
   });
 
+/** Signed-in password change: current + new (same strength rules as register / reset). */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password needs an uppercase letter')
+      .regex(/[0-9]/, 'Password needs a number')
+      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((d) => d.confirmPassword === undefined || d.confirmPassword === d.newPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((d) => d.currentPassword !== d.newPassword, {
+    message: 'New password must be different from your current password',
+    path: ['newPassword'],
+  });
+
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 /** Parses a body or throws a 400 with per-field details. */
 export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {

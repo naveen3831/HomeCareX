@@ -6,12 +6,13 @@ import Dashboard from "../pages/customer/Dashboard";
 import Addresses from "../pages/customer/Addresses";
 import SetupAddress from "../pages/customer/SetupAddress";
 import Bookings from "../pages/customer/Bookings";
-// ✅ Correct import targeting the new details component inside Bookings/
-import BookingDetails from "../pages/customer/BookingDetails";
 import Categories from "../pages/customer/Categories";
 import Notifications from "../pages/customer/Notifications";
 import Payments from "../pages/customer/Payments";
 import Profile from "../pages/customer/Profile";
+import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
+import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
+import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
 import Referrals from "../pages/customer/Referrals";
 import Reviews from "../pages/customer/Reviews";
 import Services from "../pages/customer/Services";
@@ -22,11 +23,11 @@ import Wallet from "../pages/customer/Wallet";
 
 import Tickets from "@/pages/customer/Tickets";
 import BookServiceShell from "../pages/customer/Book";
-import EditProfile from "@/pages/customer/Profile/EditProfile";
 
 import BookingSuccess from "../pages/customer/BookingSuccess";
 import BookingFailed from "../pages/customer/BookingFailed";
 import ServiceBooked from "../pages/customer/BookingSuccess/ServiceBooked";
+import BookingDetails from "@/pages/customer/BookingDetails";
 
 /**
  * CustomerRoutes — every route the Customer Dashboard serves,
@@ -51,7 +52,9 @@ export default function CustomerRoutes() {
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route path="/profile/edit" element={<EditProfilePage />} />
+        <Route path="/profile/password" element={<ChangePasswordPage />} />
+        <Route path="/profile/notifications" element={<NotificationsPage />} />
 
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/reviews" element={<Reviews />} />
