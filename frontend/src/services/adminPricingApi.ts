@@ -1,5 +1,6 @@
 import http, { type ApiResponse } from '@/lib/http';
 import type { PricingAuditEntry, PricingRule, PricingRuleInput } from '@/types/adminPricing';
+import type { QuoteRequest, ServerPriceQuote } from '@/types/pricing';
 
 /**
  * Admin pricing client for /api/v1/admin/pricing.
@@ -49,7 +50,7 @@ function read<T>(key: string, fallback: () => T): T {
 interface RawRule extends Partial<Omit<PricingRule, 'addOns'>> {
   id?: string;
   _id?: string;
-  addOns?: { name: string; price: number }[];
+  addOns?: { id?: string; _id?: string; name: string; price: number }[];
 }
 export function toRule(raw: RawRule): PricingRule {
   return {
@@ -60,7 +61,7 @@ export function toRule(raw: RawRule): PricingRule {
     mode: raw.mode === 'HOURLY' ? 'HOURLY' : 'FIXED',
     basePrice: Number(raw.basePrice ?? 0) || 0,
     durationMinutes: Number(raw.durationMinutes ?? 60) || 60,
-    addOns: (raw.addOns ?? []).map((a) => ({ name: a.name, price: Number(a.price) || 0 })),
+    addOns: (raw.addOns ?? []).map((a) => ({ ...(a.id ?? a._id ? { id: String(a.id ?? a._id) } : {}), name: a.name, price: Number(a.price) || 0 })),
     surgeWindows: (raw.surgeWindows ?? []).map((w) => ({ label: w.label, startTime: w.startTime, endTime: w.endTime, percent: Number(w.percent) || 0 })),
     cancellationFee: Number(raw.cancellationFee ?? 0) || 0,
     active: raw.active ?? true,
@@ -70,7 +71,7 @@ export function toRule(raw: RawRule): PricingRule {
 
 export const toInput = (r: PricingRule): PricingRuleInput => ({
   categoryId: r.categoryId, serviceId: r.serviceId, city: r.city, mode: r.mode, basePrice: r.basePrice,
-  durationMinutes: r.durationMinutes, addOns: r.addOns, surgeWindows: r.surgeWindows, cancellationFee: r.cancellationFee, active: r.active,
+  durationMinutes: r.durationMinutes, addOns: r.addOns.map((a) => ({ name: a.name, price: a.price })), surgeWindows: r.surgeWindows, cancellationFee: r.cancellationFee, active: r.active,
 });
 
 /** Trim and collapse inner spaces: " new   delhi " -> "new delhi". */
@@ -225,4 +226,26 @@ export const adminPricingApi = {
   setActive: (rule: PricingRule, active: boolean, label: string) => run(() => (mode === 'demo' ? demo : live).setActive(rule, active, label)),
   remove: (rule: PricingRule, label: string) => run(() => (mode === 'demo' ? demo : live).remove(rule, label)),
   auditLog: () => run(async () => read<PricingAuditEntry[]>(AUDIT_KEY, () => [])),
+  /**
+   * POST /pricing/quote: the real server price (base + add-ons + surge - coupon + GST, quoteId + expiry).
+   * Needs the live backend and a rule that is already saved; in demo mode there is nothing to ask.
+   */
+  quote: (req: QuoteRequest) =>
+    run(async () => {
+      if (mode === 'demo') throw { message: 'The backend is not reachable, so there is no server quote. Use the estimate.', status: 503 } satisfies PricingApiError;
+      return unwrap(http.post<ApiResponse<ServerPriceQuote>>('/pricing/quote', req));
+    }),
+  /**
+   * When a coupon was applied to the quote, look up its end date (GET /admin/coupons?search=CODE) so the
+   * preview can show when the coupon stops working. Best effort: returns null if it cannot be found.
+   */
+  couponEndAt: async (code: string): Promise<string | null> => {
+    try {
+      const res = await http.get<ApiResponse<{ code: string; endAt: string }[]>>('/admin/coupons', { params: { search: code } });
+      const hit = (res.data.data ?? []).find((c) => c.code.toUpperCase() === code.toUpperCase());
+      return hit?.endAt ?? null;
+    } catch {
+      return null;
+    }
+  },
 };

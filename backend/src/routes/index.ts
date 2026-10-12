@@ -54,6 +54,7 @@ import {
 
 import refundsRoutes from "../modules/refunds/refunds.routes";
 
+
 export const rootRouter = Router();
 
 // Routes are registered under /api/v1.
@@ -133,17 +134,25 @@ rootRouter.use("/addresses", addressesRoutes);
 // Payment APIs and webhooks
 rootRouter.use("/payments", paymentRoutes);
 
-// Customer wallet
-rootRouter.use("/wallet", walletRoutes);
+// =========================================================
+// Pricing
+// =========================================================
 
-// Reviews and admin review routes
-rootRouter.use(reviewsRoutes);
+// GET / PUT / DELETE /api/v1/admin/pricing (admin + pricing:manage)
+rootRouter.use(
+  '/admin/pricing',
+  adminPricingRoutes,
+);
 
-// Partner incentives
-rootRouter.use("/partner/incentives", incentivesRoutes);
+// POST /api/v1/pricing/quote
+rootRouter.use(
+  '/pricing',
+  pricingRoutes,
+);
 
-// Admin customers
-rootRouter.use("/admin/customers", adminCustomersRoutes);
+// =========================================================
+// Coupons
+// =========================================================
 
 // Admin coupon CRUD
 rootRouter.use("/admin/coupons", couponsRoutes);

@@ -8,7 +8,8 @@ import type { GetPricingQuery, PutPricingBody } from './pricing.validation';
 
 export const pricingController = {
   async quote(req: Request, res: Response) {
-    const quote = await pricingService.quote(req.body as QuoteInput);
+    const user = getAuthUser(req);
+    const quote = await pricingService.quote(req.body as QuoteInput, user.id);
     res.json({ success: true, data: quote });
   },
 

@@ -8,6 +8,8 @@ export interface SurgeWindow {
 }
 
 export interface PricingAddOn {
+  /** Server-issued. Missing on rules that are not saved yet. Changes whenever the rule is saved. */
+  id?: string;
   name: string;
   price: number;
 }

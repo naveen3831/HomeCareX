@@ -10,11 +10,12 @@ import { getPricingQuerySchema, pricingIdParamSchema, putPricingBodySchema, quot
 /** Mounted at /api/v1/pricing */
 export const pricingRoutes = Router();
 
-// POST /pricing/quote: the price the customer will be charged for this exact order
+// POST /pricing/quote: the price the customer will be charged for this exact order.
+// Admins may call it too (the Pricing page's quote preview); same maths, same response.
 pricingRoutes.post(
   '/quote',
   authMiddleware,
-  roleMiddleware('customer'),
+  roleMiddleware('customer', 'admin'),
   validationMiddleware({ body: quoteBodySchema }),
   asyncHandler(async (req, res) => pricingController.quote(req, res)),
 );
