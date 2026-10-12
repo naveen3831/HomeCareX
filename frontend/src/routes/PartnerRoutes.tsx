@@ -14,11 +14,11 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-import ProfileMenu from "../pages/partner/Profile";
+
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
-import ProfileMenu from "@/components/partner/ProfileMenu";
+
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
