@@ -62,6 +62,12 @@ export interface PartnerMutationResult {
 const STORAGE_PREFIX = "homecarex:partner:";
 
 /* =========================================================
+   STORAGE
+
+// const STORAGE_PREFIX =
+//   "homecarex:partner:";
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -323,8 +329,20 @@ export async function recordPartnerAudit(
 }
 
 /* =========================================================
-   PARTNER API
-   ========================================================= */
+
+const USE_MOCKS =
+  String(
+    import.meta.env
+      .VITE_USE_MOCKS ?? "true",
+  ) !== "false";
+
+// /* =========================================================
+//    PARTNER API
+
+// export const partnerApi = {
+//   /* DASHBOARD */
+//    P02 - Partner Jobs / My Jobs
+//    ========================================================= */
 
 /**
  * Mocks are ON unless VITE_USE_MOCKS=false.
