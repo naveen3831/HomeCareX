@@ -81,20 +81,9 @@ export const adminRoutes: AdminRoute[] = [
   },
 
   // Catalog
-  {
-    path: 'categories',
-    element: <AdminCategoriesPage />,
-    permission: 'catalog:manage',
-  },
-  {
-    path: 'services',
-    element: <AdminServicesPage />,
-    permission: 'catalog:manage',
-  },
-  {
-    path: 'pricing',
-    element: <AdminPricingPage />,
-  },
+  { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
+  { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
+  { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:manage' },
 
   // Coupons
   {

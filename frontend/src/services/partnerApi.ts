@@ -66,8 +66,14 @@ export interface PartnerMutationResult {
 
 const STORAGE_PREFIX = "homecarex:partner:";
 
-const USE_MOCKS =
-  String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
+/* =========================================================
+   STORAGE
+
+// const STORAGE_PREFIX =
+//   "homecarex:partner:";
+
+/* =========================================================
+   HELPERS
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise<void>((resolve) => {
@@ -242,8 +248,20 @@ export async function recordPartnerAudit(
 }
 
 /* =========================================================
-   P02 - Partner Jobs / My Jobs mock data
-   ========================================================= */
+
+const USE_MOCKS =
+  String(
+    import.meta.env
+      .VITE_USE_MOCKS ?? "true",
+  ) !== "false";
+
+// /* =========================================================
+//    PARTNER API
+
+// export const partnerApi = {
+//   /* DASHBOARD */
+//    P02 - Partner Jobs / My Jobs
+//    ========================================================= */
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
   {
