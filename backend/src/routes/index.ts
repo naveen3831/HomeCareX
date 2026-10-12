@@ -52,6 +52,7 @@ import {
   partnerWalletSummaryRoutes,
 } from '../modules/partner-wallet/partner-wallet.routes';
 
+
 export const rootRouter = Router();
 
 // Routes are registered under /api/v1.
@@ -197,6 +198,22 @@ rootRouter.use(
 rootRouter.use(
   '/admin/customers',
   adminCustomersRoutes,
+);
+
+// =========================================================
+// Pricing
+// =========================================================
+
+// GET / PUT / DELETE /api/v1/admin/pricing (admin + pricing:manage)
+rootRouter.use(
+  '/admin/pricing',
+  adminPricingRoutes,
+);
+
+// POST /api/v1/pricing/quote
+rootRouter.use(
+  '/pricing',
+  pricingRoutes,
 );
 
 // =========================================================

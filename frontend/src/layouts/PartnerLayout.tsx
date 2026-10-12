@@ -1,11 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
+
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import {
-  NavLink,
-  Outlet,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
 import {
   Home,
   Briefcase,

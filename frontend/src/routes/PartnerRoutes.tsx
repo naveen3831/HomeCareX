@@ -2,7 +2,7 @@ import { Routes, Route } from "react-router-dom";
 
 import ProfileMenu from "../components/partner/ProfileMenu";
 import PartnerLayout from "../layouts/PartnerLayout";
-
+import ProfileMenu from "../pages/partner/Profile";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import PartnerJobsPage from "../pages/partner/Jobs";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
@@ -14,7 +14,7 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-import ProfileMenu from "../pages/partner/Profile";
+
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
