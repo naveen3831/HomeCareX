@@ -4,11 +4,6 @@ import { Router } from 'express';
 import paymentRoutes from '../modules/payments/payments.routes';
 import walletRoutes from '../modules/wallet/wallet.routes';
 
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
-
 import { authRoutes } from '../modules/auth/auth.routes';
 import { auditRoutes } from '../modules/audit/audit.routes';
 import { adminRoutes } from '../modules/admin/admin.routes';
@@ -33,6 +28,7 @@ import customerDashboardRoutes from '../modules/customer-dashboard/customer-dash
 import { addressesRoutes, serviceabilityRoutes } from '../modules/addresses/addresses.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
 import { partnerJobsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
+import { payoutsRoutes } from '../modules/payouts/payouts.routes';
 
 import {
   couponsRoutes,
@@ -45,8 +41,6 @@ import {
 } from '../modules/marketing/marketing.routes';
 
 import refundsRoutes from '../modules/refunds/refunds.routes';
-import partnerWalletRoutes, { partnerWalletSummaryRoutes } from '../modules/partner-wallet/partner-wallet.routes';
-
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
@@ -230,6 +224,12 @@ rootRouter.use(
   '/banners',
   publicMarketingRoutes,
 );
+
+
+/* ========================================================
+   Admin Payouts
+   ======================================================== */
+rootRouter.use('/admin', payoutsRoutes);
 
 rootRouter.use('/partner/jobs', partnerJobsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
