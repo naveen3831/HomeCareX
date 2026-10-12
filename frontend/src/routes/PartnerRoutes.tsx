@@ -17,6 +17,7 @@ import ProfileMenu from "../pages/partner/Profile";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
+import ProfileMenu from "@/components/partner/ProfileMenu";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
