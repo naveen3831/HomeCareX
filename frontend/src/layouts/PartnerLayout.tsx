@@ -1,9 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
-<<<<<<< Updated upstream
-=======
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
->>>>>>> Stashed changes
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Briefcase,

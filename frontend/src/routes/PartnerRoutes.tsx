@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import PartnerLayout from "../layouts/PartnerLayout";
-
+import ProfileMenu from "../pages/partner/Profile";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import PartnerJobsPage from "../pages/partner/Jobs";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
@@ -17,10 +17,6 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (

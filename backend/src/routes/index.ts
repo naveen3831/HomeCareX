@@ -40,10 +40,7 @@ import {
 } from '../modules/marketing/marketing.routes';
 
 import refundsRoutes from '../modules/refunds/refunds.routes';
-<<<<<<< Updated upstream
-=======
-import { pricingRoutes, adminPricingRoutes } from '../modules/pricing/pricing.routes';
->>>>>>> Stashed changes
+
 
 export const rootRouter = Router();
 
