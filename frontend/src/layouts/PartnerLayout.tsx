@@ -26,8 +26,6 @@ import "@/styles/admin.css";
 import OnlineIndicator from "../components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "../components/partner/PartnerErrorBoundary";
 
-import "@/styles/admin.css";
-
 // -----------------------------------------------------------------------------
 // Navigation
 // -----------------------------------------------------------------------------
