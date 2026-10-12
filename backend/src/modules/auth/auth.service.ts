@@ -233,25 +233,18 @@ export const authService = {
    */
 
   async verifyOtp({
-
     email,
 
     otp,
-
   }: VerifyOtpInput) {
- 
     if (!/^\d{6}$/.test(otp)) {
-
       throw new HttpError(
-
         400,
 
-        'Enter a valid 6-digit verification code.',
+        "Enter a valid 6-digit verification code.",
 
-        'INVALID_OTP_FORMAT',
-
+        "INVALID_OTP_FORMAT",
       );
-
     }
  
     const user = await authRepository.findByEmail(normalizedEmail);
