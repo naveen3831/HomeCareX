@@ -189,70 +189,24 @@ export const authService = {
   },
  
   async me(userId: string) {
-    const user = await authRepository.findById(userId);
-    if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
-    return toAuthUser(user);
-  },
- 
-  /**
-   * Change password (signed in): checks the current password, then stores the new one.
-   * A wrong current password is a 400, not a 401, so the client does not treat it as an expired session.
-   */
-  async changePassword(userId: string, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
-    const user = await authRepository.findByIdWithPassword(userId);
-    if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
- 
-    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!matches) {
-      const err = new HttpError(400, 'Your current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
-      err.details = [{ field: 'currentPassword', message: 'Current password is incorrect' }];
-      throw err;
-    }
- 
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    await user.save();
-    return { changed: true };
+   const user = await authRepository.findById(userId);
+   if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
+   return toAuthUser(user);
   },
  
   /** Generates and dispatches a secure 6-digit OTP for password reset. */
   async forgotPassword({ email }: ForgotPasswordInput) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await authRepository.findByEmail(normalizedEmail);
+   const normalizedEmail = email.trim().toLowerCase();
+   const user = await authRepository.findByEmail(normalizedEmail);
  
-    if (user && user.status !== 'blocked') {
-      await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
+   if (user && user.status !== 'blocked') {
+     await issuePasswordResetOtp(user);
+   }
  
-      const otp = generateSecureOtp();
-      const hashedCode = hashSecret(otp);
-      const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
- 
-      await authRepository.createOtp({
-        userId: user.id,
-        identifier: user.email,
-        hashedCode,
-        purpose: 'PASSWORD_RESET',
-        expiresAt,
-      });
- 
-      if (process.env.NODE_ENV !== 'production') {
-        console.log(`[DEV ONLY] Password reset OTP generated for ${maskEmail(user.email)}: ${otp}`);
-      }
- 
-      try {
-        await mailService.sendPasswordResetOtpEmail({
-          name: user.name,
-          email: user.email,
-          otp,
-        });
-      } catch (err) {
-        console.error('Password-reset OTP email failed for user', user.id, err);
-      }
-    }
- 
-    return {
-      success: true,
-      message: 'If an account exists, a verification code has been sent.',
-    };
+   return {
+     success: true,
+     message: 'If an account exists, a verification code has been sent.',
+   };
   },
  
   /** Sends a fresh code at most once every 30 seconds per email (reuses forgotPassword for the actual sending). */
@@ -270,90 +224,138 @@ export const authService = {
  
   /** Verifies a 6-digit OTP, marks it used, and returns a single-use reset token. */
   async verifyOtp({ email, otp }: VerifyOtpInput) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const cleanedOtp = otp.trim();
+   const normalizedEmail = email.trim().toLowerCase();
+   const cleanedOtp = otp.trim();
  
-    if (!/^\d{6}$/.test(cleanedOtp)) {
-      throw new HttpError(400, 'Enter a valid 6-digit verification code.', 'INVALID_OTP_FORMAT');
-    }
+   if (!/^\d{6}$/.test(cleanedOtp)) {
+     throw new HttpError(400, 'Enter a valid 6-digit verification code.', 'INVALID_OTP_FORMAT');
+   }
  
-    const otpDoc = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
+   const otpDoc = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
  
-    if (!otpDoc || otpDoc.expiresAt <= new Date()) {
-      throw new HttpError(400, 'This verification code has expired. Please request a new code.', 'OTP_EXPIRED');
-    }
+   if (!otpDoc || otpDoc.expiresAt <= new Date()) {
+     throw new HttpError(400, 'This verification code has expired. Please request a new code.', 'OTP_EXPIRED');
+   }
  
-    if (otpDoc.usedAt) {
-      throw new HttpError(400, 'This verification code has already been used. Please request a new code.', 'OTP_ALREADY_USED');
-    }
+   if (otpDoc.usedAt) {
+     throw new HttpError(400, 'This verification code has already been used. Please request a new code.', 'OTP_ALREADY_USED');
+   }
  
-    if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
-      throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
-    }
+   if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
+     throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
+   }
  
-    const submittedHash = hashSecret(cleanedOtp);
-    if (submittedHash !== otpDoc.hashedCode) {
-      otpDoc.attempts += 1;
-      await otpDoc.save();
+   const submittedHash = hashSecret(cleanedOtp);
+   if (submittedHash !== otpDoc.hashedCode) {
+     otpDoc.attempts += 1;
+     await otpDoc.save();
  
-      if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
-        throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
-      }
+     if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
+       throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
+     }
  
-      throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
-    }
+     throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
+   }
  
-    // Mark OTP as single-use consumed
-    otpDoc.usedAt = new Date();
-    await otpDoc.save();
+   otpDoc.usedAt = new Date();
+   await otpDoc.save();
  
-    const user = await authRepository.findByEmail(normalizedEmail);
-    if (!user || user.status === 'blocked') {
-      throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
-    }
+   const user = await authRepository.findByEmail(normalizedEmail);
+   if (!user || user.status === 'blocked') {
+     throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
+   }
  
-    // Issue single-use password reset token with short TTL
-    const rawResetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = hashSecret(rawResetToken);
+   const rawResetToken = crypto.randomBytes(32).toString('hex');
+   const resetTokenHash = hashSecret(rawResetToken);
  
-    user.passwordResetTokenHash = resetTokenHash;
-    user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
-    await user.save();
+   user.passwordResetTokenHash = resetTokenHash;
+   user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
+   await user.save();
  
-    return {
-      success: true,
-      resetToken: rawResetToken,
-      data: { resetToken: rawResetToken },
-      message: 'Code verified successfully.',
-    };
+   return {
+     success: true,
+     resetToken: rawResetToken,
+     data: { resetToken: rawResetToken },
+     message: 'Code verified successfully.',
+   };
+  },
+ 
+  /** Resends a fresh OTP after the cooldown window, returning the same generic message as forgotPassword. */
+  async resendOtp({ email }: ResendOtpInput) {
+   const normalizedEmail = email.trim().toLowerCase();
+   const latestOtp = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
+ 
+   if (latestOtp && Date.now() - new Date(latestOtp.createdAt).getTime() < RESEND_COOLDOWN_MS) {
+     throw new HttpError(429, 'Please wait 30 seconds before requesting another code.', 'RATE_LIMITED');
+   }
+ 
+   const user = await authRepository.findByEmail(normalizedEmail);
+   if (user && user.status !== 'blocked') {
+     await issuePasswordResetOtp(user);
+   }
+ 
+   return {
+     success: true,
+     message: 'If an account exists, a verification code has been sent.',
+   };
   },
  
   /** Consumes the single-use reset token, resets password, and revokes all active sessions. */
   async resetPassword({ resetToken, token, newPassword }: ResetPasswordInput) {
-    const tokenToVerify = (resetToken || token)?.trim();
-    if (!tokenToVerify) {
-      throw new HttpError(400, 'Reset token is required.', 'INVALID_RESET_TOKEN');
-    }
+   const tokenToVerify = (resetToken || token)?.trim();
+   if (!tokenToVerify) {
+     throw new HttpError(400, 'Reset token is required.', 'INVALID_RESET_TOKEN');
+   }
  
-    const tokenHash = hashSecret(tokenToVerify);
-    const user = await authRepository.findByResetTokenHash(tokenHash);
+   const tokenHash = hashSecret(tokenToVerify);
+   const user = await authRepository.findByResetTokenHash(tokenHash);
  
-    if (!user || user.status === 'blocked') {
-      throw new HttpError(400, 'This password reset link is invalid or has expired.', 'INVALID_RESET_TOKEN');
-    }
+   if (!user || user.status === 'blocked') {
+     throw new HttpError(400, 'This password reset link is invalid or has expired.', 'INVALID_RESET_TOKEN');
+   }
  
-    const passwordHash = await bcrypt.hash(newPassword, 12);
-    user.passwordHash = passwordHash;
-    user.passwordResetTokenHash = undefined;
-    user.passwordResetExpiresAt = undefined;
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1; // Invalidate all previous sessions
-    user.failedLogins = 0;
-    user.lockedUntil = undefined;
-    await user.save();
+   const passwordHash = await bcrypt.hash(newPassword, 12);
+   user.passwordHash = passwordHash;
+   user.passwordResetTokenHash = undefined;
+   user.passwordResetExpiresAt = undefined;
+   user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+   user.failedLogins = 0;
+   user.lockedUntil = undefined;
+   await user.save();
  
-    return {
-      success: true,
-      message: 'Your password has been reset successfully. Please log in with your new password.',
-    };
+   return {
+     success: true,
+     message: 'Your password has been reset successfully. Please log in with your new password.',
+   };
   },
 };
+ 
+async function issuePasswordResetOtp(user: UserDoc) {
+  await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
+ 
+  const otp = generateSecureOtp();
+  const hashedCode = hashSecret(otp);
+  const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+ 
+  await authRepository.createOtp({
+   userId: user.id,
+   identifier: user.email,
+   hashedCode,
+   purpose: 'PASSWORD_RESET',
+   expiresAt,
+  });
+ 
+  if (process.env.NODE_ENV !== 'production') {
+   console.log(`[DEV ONLY] Password reset OTP generated for ${maskEmail(user.email)}: ${otp}`);
+  }
+ 
+  try {
+   await mailService.sendPasswordResetOtpEmail({
+     name: user.name,
+     email: user.email,
+     otp,
+   });
+  } catch (err) {
+   console.error('Password-reset OTP email failed for user', user.id, err);
+  }
+}

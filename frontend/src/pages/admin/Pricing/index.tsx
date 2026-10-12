@@ -98,9 +98,13 @@ export const AdminPricingPage: React.FC = () => {
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
-    if (!needle) return rules;
-    return rules.filter((r) => [serviceName(r.serviceId), categoryName(r.categoryId), r.city || 'all cities', r.mode].some((v) => v.toLowerCase().includes(needle)));
+    return rules.filter((r) => {
+      if (!needle) return true;
+      return [serviceName(r.serviceId), categoryName(r.categoryId), r.city || 'all cities', r.mode].some((v) => v.toLowerCase().includes(needle));
+    });
   }, [rules, search, serviceName, categoryName]);
+  const filtering = search.trim() !== '';
+  const clearFilters = () => setPageSearch('');
 
   const stats = useMemo(() => ({
     total: rules.length, active: rules.filter((r) => r.active).length, inactive: rules.filter((r) => !r.active).length,
@@ -208,11 +212,11 @@ export const AdminPricingPage: React.FC = () => {
       ) : visible.length === 0 ? (
         <div className="cat-empty">
           <Tag size={34} aria-hidden />
-          <h3>{rules.length === 0 ? 'No pricing rules yet' : 'No rules match your search'}</h3>
-          <p>{rules.length === 0 ? 'Create a rule to set the price, add-ons and surge windows for a category or service.' : 'Try a different search.'}</p>
+          <h3>{rules.length === 0 ? 'No pricing rules yet' : 'No rules match your filters'}</h3>
+          <p>{rules.length === 0 ? 'Create a rule to set the price, add-ons and surge windows for a category or service.' : 'Try a different search or clear the filters.'}</p>
           {rules.length === 0
             ? <PermissionGate permission={PRICING_MANAGE}><button type="button" className="hcx-btn hcx-btn--primary" onClick={openCreate} disabled={!online || noCatalog}><Plus size={16} /> Create rule</button></PermissionGate>
-            : <button type="button" className="hcx-btn" onClick={() => setPageSearch('')}>Clear search</button>}
+            : <button type="button" className="hcx-btn" onClick={clearFilters}>Clear filters</button>}
         </div>
       ) : (
         <div className="hcx-table-card">
