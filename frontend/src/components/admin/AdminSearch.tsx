@@ -14,6 +14,9 @@ const PAGE_SEARCH: Record<string, string> = {
   '/admin/services': 'Search name, slug or category…',
 };
 
+/** True on the pages whose own table is filtered by the bar under the header. */
+export const hasPageSearch = (pathname: string): boolean => Boolean(PAGE_SEARCH[pathname.replace(/\/+$/, '')]);
+
 /** Search bar shown in the row below the header. */
 export const AdminSearch: React.FC = () => {
   const navigate = useNavigate();

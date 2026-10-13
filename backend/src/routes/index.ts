@@ -8,6 +8,11 @@ import {
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
 
+import {
+  pricingRoutes,
+  adminPricingRoutes,
+} from "../modules/pricing/pricing.routes";
+
 import { authRoutes } from "../modules/auth/auth.routes";
 import { auditRoutes } from "../modules/audit/audit.routes";
 import { adminRoutes } from "../modules/admin/admin.routes";
@@ -26,6 +31,7 @@ import { servicesRoutes } from "../modules/services/services.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import { incentivesRoutes } from "../modules/incentives/incentives.routes";
 import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
+import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
 
 import leadsRoutes from "../modules/leads/leads.routes";
 import { bookingsRoutes } from "../modules/bookings/bookings.routes";
@@ -87,6 +93,12 @@ rootRouter.use(catalogRoutes);
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
 
+// Admin customers (GET /admin/customers, GET /admin/customers/:id ...)
+rootRouter.use("/admin/customers", adminCustomersRoutes);
+
+// Admin payments (read-only: GET /admin/payments)
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
+
 // Admin audit logs
 rootRouter.use("/admin", auditRoutes);
 
@@ -137,6 +149,9 @@ rootRouter.use("/partner/transactions", partnerWalletRoutes);
 
 // Partner wallet summary
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
+
+// Partner incentives
+rootRouter.use("/partner/incentives", incentivesRoutes);
 
 // Customer addresses
 rootRouter.use("/addresses", addressesRoutes);
