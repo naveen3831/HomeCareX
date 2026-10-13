@@ -13,7 +13,9 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-
+import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
+import PartnerNavigationPage from "../pages/partner/Navigation";
+import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
@@ -27,7 +29,10 @@ const Placeholder = ({ title }: { title: string }) => (
 );
 
 // Placeholder routes and dashboard index.
-export const PARTNER_PAGES: { path: string; title: string }[] = [
+export const PARTNER_PAGES: {
+  path: string;
+  title: string;
+}[] = [
   // Work
   { path: "work", title: "Work" },
   { path: "work/requests", title: "Job requests" },
@@ -41,75 +46,132 @@ export const PARTNER_PAGES: { path: string; title: string }[] = [
   { path: "services", title: "Services" },
   { path: "services/categories", title: "My categories" },
   { path: "services/radius", title: "Service radius" },
-  { path: "services/training", title: "Training & certifications" },
+  {
+    path: "services/training",
+    title: "Training & certifications",
+  },
 
   // Earnings
   { path: "earnings/payouts", title: "Payout history" },
-  { path: "earnings/statements", title: "Earnings statements" },
-  { path: "earnings/bank-details", title: "Bank / UPI details" },
+  {
+    path: "earnings/statements",
+    title: "Earnings statements",
+  },
+  {
+    path: "earnings/bank-details",
+    title: "Bank / UPI details",
+  },
 
   // Performance
   { path: "performance", title: "Performance" },
-  { path: "performance/reviews", title: "Customer reviews" },
-  { path: "performance/improvement", title: "Improvement tips" },
+  {
+    path: "performance/reviews",
+    title: "Customer reviews",
+  },
+  {
+    path: "performance/improvement",
+    title: "Improvement tips",
+  },
 
   // Profile
   { path: "profile", title: "Profile" },
   { path: "profile/edit", title: "Edit profile" },
   { path: "profile/documents", title: "Documents" },
-  { path: "profile/verification", title: "Verification status" },
+  {
+    path: "profile/verification",
+    title: "Verification status",
+  },
   { path: "profile/preferences", title: "Preferences" },
 
   // Support
   { path: "support", title: "Support" },
   { path: "support/tickets", title: "My tickets" },
-  { path: "support/tickets/new", title: "Raise a ticket" },
-  { path: "support/tickets/:ticketId", title: "Ticket details" },
+  {
+    path: "support/tickets/new",
+    title: "Raise a ticket",
+  },
+  {
+    path: "support/tickets/:ticketId",
+    title: "Ticket details",
+  },
   { path: "support/safety", title: "Safety & SOS" },
 
   // System
   { path: "system", title: "System settings" },
-  { path: "system/notifications", title: "Notification settings" },
+  {
+    path: "system/notifications",
+    title: "Notification settings",
+  },
 ];
 
 // Mounted by AppRoutes at /partner/*.
 // Authentication and role protection are handled by AppRoutes.
+
 export default function PartnerRoutes() {
   return (
     <Routes>
       <Route element={<PartnerLayout />}>
-        {/* Partner Dashboard */}
+        {/* =====================================================
+            Partner Dashboard
+        ===================================================== */}
         <Route index element={<PartnerDashboard />} />
 
-        {/* Profile */}
-        <Route path="profile" element={<PartnerProfilePage />} />
+        {/* =====================================================
+            Partner Profile - FIXED
+        ===================================================== */}
+        <Route path="profile" element={<ProfileMenu />} />
 
-        {/* Availability */}
+        {/* =====================================================
+            Availability
+        ===================================================== */}
         <Route path="availability" element={<PartnerAvailabilityPage />} />
+
         <Route path="working-hours" element={<PartnerWorkingHoursPage />} />
+
         <Route
           path="availability/hours"
           element={<PartnerWorkingHoursPage />}
         />
+
         <Route path="blackout-dates" element={<PartnerBlackoutDatesPage />} />
+
         <Route
           path="availability/blackout-dates"
           element={<PartnerBlackoutDatesPage />}
         />
+
         <Route path="schedule" element={<PartnerSchedulePage />} />
-        {/* Earnings */}
+
+        {/* =====================================================
+            Earnings
+        ===================================================== */}
         <Route path="earnings" element={<PartnerEarningsPage />} />
+
         <Route path="incentives" element={<PartnerIncentivesPage />} />
+
         <Route path="earnings/incentives" element={<PartnerIncentivesPage />} />
+
         <Route path="payouts" element={<PartnerPayoutsPage />} />
+
         <Route path="earnings/payouts" element={<PartnerPayoutsPage />} />
-        {/* Wallet and transactions */}
+
+        {/* =====================================================
+            Wallet and Transactions
+        ===================================================== */}
         <Route path="wallet" element={<PartnerWalletPage />} />
+
         <Route path="transactions" element={<PartnerTransactionsPage />} />
-        {/* P02 - Job Requests and My Jobs */}
+
+        {/* =====================================================
+            Job Requests and My Jobs
+        ===================================================== */}
         <Route path="jobs" element={<PartnerJobsPage />} />
+
         <Route path="jobs/requests" element={<PartnerJobsPage />} />
-        {/* Remaining placeholder pages */}
+
+        {/* =====================================================
+            Remaining Placeholder Pages
+        ===================================================== */}
         {PARTNER_PAGES.filter(
           ({ path }) =>
             path !== "earnings/payouts" &&
@@ -123,7 +185,18 @@ export default function PartnerRoutes() {
             element={<Placeholder title={title} />}
           />
         ))}
-        {/* Catch-all */}
+
+        {/* Partner job: details, navigation + chat + call, location sharing */}
+        <Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
+        <Route path="jobs/:id/navigation" element={<PartnerNavigationPage />} />
+        <Route
+          path="jobs/:id/location"
+          element={<PartnerLocationSharingPage />}
+        />
+
+        {/* =====================================================
+            Catch-all Route
+        ===================================================== */}
         <Route path="*" element={<Placeholder title="Page not found" />} />
       </Route>
     </Routes>
