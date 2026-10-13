@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 
 import PartnerLayout from "../layouts/PartnerLayout";
-
+import ProfileMenu from "../pages/partner/Profile";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import PartnerJobsPage from "../pages/partner/Jobs";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
@@ -13,7 +13,7 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-import PartnerProfile from "../pages/partner/Profile";
+
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
@@ -22,9 +22,7 @@ import "../styles/mobile-plain.css";
 const Placeholder = ({ title }: { title: string }) => (
   <div className="rounded border border-dashed border-line bg-panel p-8 text-center">
     <h2 className="text-lg font-semibold text-brand">{title}</h2>
-    <p className="mt-1 text-sm text-muted">
-      This page is coming soon.
-    </p>
+    <p className="mt-1 text-sm text-muted">This page is coming soon.</p>
   </div>
 );
 
@@ -83,96 +81,41 @@ export default function PartnerRoutes() {
         {/* Partner Dashboard */}
         <Route index element={<PartnerDashboard />} />
 
+        {/* Profile */}
+        <Route path="profile" element={<PartnerProfilePage />} />
+
         {/* Availability */}
-        <Route
-          path="availability"
-          element={<PartnerAvailabilityPage />}
-        />
-
-        <Route
-          path="working-hours"
-          element={<PartnerWorkingHoursPage />}
-        />
-
+        <Route path="availability" element={<PartnerAvailabilityPage />} />
+        <Route path="working-hours" element={<PartnerWorkingHoursPage />} />
         <Route
           path="availability/hours"
           element={<PartnerWorkingHoursPage />}
         />
-
-        <Route
-          path="blackout-dates"
-          element={<PartnerBlackoutDatesPage />}
-        />
-
+        <Route path="blackout-dates" element={<PartnerBlackoutDatesPage />} />
         <Route
           path="availability/blackout-dates"
           element={<PartnerBlackoutDatesPage />}
         />
-
-        <Route
-          path="schedule"
-          element={<PartnerSchedulePage />}
-        />
-
+        <Route path="schedule" element={<PartnerSchedulePage />} />
         {/* Earnings */}
-        <Route
-          path="earnings"
-          element={<PartnerEarningsPage />}
-        />
-
-        <Route
-          path="incentives"
-          element={<PartnerIncentivesPage />}
-        />
-
-        <Route
-          path="earnings/incentives"
-          element={<PartnerIncentivesPage />}
-        />
-
-        <Route
-          path="payouts"
-          element={<PartnerPayoutsPage />}
-        />
-
-        <Route
-          path="earnings/payouts"
-          element={<PartnerPayoutsPage />}
-        />
-
+        <Route path="earnings" element={<PartnerEarningsPage />} />
+        <Route path="incentives" element={<PartnerIncentivesPage />} />
+        <Route path="earnings/incentives" element={<PartnerIncentivesPage />} />
+        <Route path="payouts" element={<PartnerPayoutsPage />} />
+        <Route path="earnings/payouts" element={<PartnerPayoutsPage />} />
         {/* Wallet and transactions */}
-        <Route
-          path="wallet"
-          element={<PartnerWalletPage />}
-        />
-
-        <Route
-          path="transactions"
-          element={<PartnerTransactionsPage />}
-        />
-
-        {/* Jobs */}
-        <Route
-          path="jobs"
-          element={<PartnerJobsPage />}
-        />
-
-        <Route
-          path="jobs/requests"
-          element={<PartnerJobsPage />}
-        />
-
-        {/* Partner Profile */}
-        <Route
-          path="profile"
-          element={<PartnerProfile />}
-        />
-
+        <Route path="wallet" element={<PartnerWalletPage />} />
+        <Route path="transactions" element={<PartnerTransactionsPage />} />
+        {/* P02 - Job Requests and My Jobs */}
+        <Route path="jobs" element={<PartnerJobsPage />} />
+        <Route path="jobs/requests" element={<PartnerJobsPage />} />
         {/* Remaining placeholder pages */}
         {PARTNER_PAGES.filter(
           ({ path }) =>
             path !== "earnings/payouts" &&
-            path !== "profile"
+            path !== "profile" &&
+            path !== "work/requests" &&
+            path !== "work",
         ).map(({ path, title }) => (
           <Route
             key={path}
@@ -180,12 +123,8 @@ export default function PartnerRoutes() {
             element={<Placeholder title={title} />}
           />
         ))}
-
         {/* Catch-all */}
-        <Route
-          path="*"
-          element={<Placeholder title="Page not found" />}
-        />
+        <Route path="*" element={<Placeholder title="Page not found" />} />
       </Route>
     </Routes>
   );

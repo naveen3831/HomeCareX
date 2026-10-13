@@ -22,6 +22,12 @@ const UserSchema = new Schema(
     /** Bumped on logout / password change to invalidate every refresh token. */
     tokenVersion: { type: Number, default: 0 },
     lastLoginAt: { type: Date },
+    /** Profile photo as a small data URL (the client downsizes it). Never selected by default so auth/admin reads stay light. */
+    avatar: { type: String, select: false },
+    /** Customer UI language (en | hi | te). */
+    language: { type: String },
+    /** Customer notification matrix: { booking: { push, sms, email, inApp }, ... }. Missing = defaults. */
+    notificationPrefs: { type: Schema.Types.Mixed },
     /** SHA-256 hash of password reset token. */
     passwordResetTokenHash: { type: String, select: false },
     /** Expiration date for password reset token (30m). */

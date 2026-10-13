@@ -209,6 +209,19 @@ export const authService = {
    };
   },
  
+  /** Sends a fresh code at most once every 30 seconds per email (reuses forgotPassword for the actual sending). */
+  async resendOtp({ email }: ResendOtpInput) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const latest = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
+    const lastSentAt = (latest as { createdAt?: Date } | null)?.createdAt;
+ 
+    if (lastSentAt && Date.now() - lastSentAt.getTime() < RESEND_COOLDOWN_MS) {
+      throw new HttpError(429, 'Please wait 30 seconds before requesting another code.', 'RATE_LIMITED');
+    }
+ 
+    return authService.forgotPassword({ email: normalizedEmail });
+  },
+ 
   /** Verifies a 6-digit OTP, marks it used, and returns a single-use reset token. */
   async verifyOtp({ email, otp }: VerifyOtpInput) {
    const normalizedEmail = email.trim().toLowerCase();

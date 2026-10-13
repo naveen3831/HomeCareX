@@ -17,6 +17,8 @@ export interface QuoteRequest {
   addOns: BookingAddOnInput[];
   date: string;
   slot: string;
+  /** Optional: picks a city-specific PricingRule. */
+  city?: string;
   couponCode?: string;
 }
 
@@ -59,6 +61,16 @@ export interface PriceQuote {
   /** Set when the request carried a coupon the server no longer accepts (it was dropped). */
   couponError?: { code: CouponErrorCode; minOrder?: number };
   computedAt: string;
+}
+
+/** What the real POST /pricing/quote returns: a PriceQuote plus the fields the server adds. */
+export interface ServerPriceQuote extends PriceQuote {
+  /** Server-issued id; the quote is valid until expiresAt. */
+  quoteId: string;
+  expiresAt: string;
+  mode: "FIXED" | "HOURLY";
+  /** Fee charged if the customer cancels late. */
+  cancellationFee: number;
 }
 
 export interface CouponValidateRequest extends QuoteRequest {

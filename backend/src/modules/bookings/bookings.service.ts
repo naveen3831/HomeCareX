@@ -8,11 +8,14 @@ import { bookingSettings } from './bookings.settings';
 import { withSlotLock } from './bookings.lock';
 import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
 import { PaymentModel } from '../../models/Payment';
+import { applyTransition, canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
+import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
   BOOKING_WINDOW_DAYS,
   PRICE_CHANGED_TOLERANCE,
+  RESCHEDULABLE_STATUSES,
   SERVICE_SLOTS,
   START_OTP_STATUS,
 } from './bookings.constants';
@@ -133,6 +136,22 @@ function slotStartDate(date: string, slot: string): Date {
 function isDuplicateKey(err: unknown, indexName: string): boolean {
   const e = err as { code?: number; message?: string };
   return e?.code === 11000 && String(e.message ?? '').includes(indexName);
+}
+
+export interface CancellationSummary extends CancellationQuote {
+  /** How the money goes back: a refund request the admin team processes, or none when nothing was paid. */
+  refundMethod: 'RAZORPAY' | null;
+  refundStatus: 'requested' | 'none';
+}
+
+/** The slot start instant of a stored booking: scheduledAt when valid, else rebuilt from date + slot. */
+function bookingSlotStart(booking: { scheduledAt?: Date; date?: string; slot?: string }): Date | null {
+  if (booking.scheduledAt instanceof Date && !Number.isNaN(booking.scheduledAt.getTime())) return booking.scheduledAt;
+  if (booking.date && booking.slot) {
+    const d = slotStartDate(booking.date, booking.slot);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return null;
 }
 
 export const BookingService = {
@@ -390,6 +409,170 @@ export const BookingService = {
       );
     }
 
+    return BookingService.getBooking(customerId, bookingId);
+  },
+
+  /**
+   * What cancelling this booking would cost right now: the fee and the refund, from the Settings policy.
+   * The Cancel dialog shows exactly this before the customer confirms, and cancelBooking charges the same.
+   * 404 for someone else's booking; 409 when the booking's status does not allow the customer to cancel.
+   */
+  async getCancelQuote(customerId: string, bookingId: string, now: Date = new Date()) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+
+    // The state machine decides: after in_progress only an admin may cancel. Whatever the reason it
+    // refuses (wrong status, or a customer not allowed that move), the customer sees one clear 409.
+    if (!canTransition(booking.status, BOOKING_STATUS.CANCELLED_BY_CUSTOMER, 'customer')) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking can't be cancelled while it is ${booking.status}`);
+    }
+
+    const slotStart = bookingSlotStart(booking);
+    if (!slotStart) throw new AppError(409, 'BOOKING_NOT_CANCELLABLE', 'This booking has no scheduled time to cancel against');
+
+    const [policy, payment] = await Promise.all([
+      bookingSettings.getCancellationPolicy(),
+      bookingsRepository.findPaidPayment(bookingId),
+    ]);
+    const quote = computeCancellation({ slotStart, now, paidAmount: payment?.amount ?? 0, policy });
+    return { booking, payment, quote };
+  },
+
+  async previewCancellation(customerId: string, bookingId: string): Promise<CancellationSummary> {
+    const { quote } = await BookingService.getCancelQuote(customerId, bookingId);
+    return {
+      ...quote,
+      refundMethod: quote.refundAmount > 0 ? 'RAZORPAY' : null,
+      refundStatus: 'none',
+    };
+  },
+
+  /**
+   * Cancels the customer's booking. Order matters: the status moves first, atomically and through the
+   * state machine (so a double tap or a partner moving the job on cannot cancel twice or after in_progress),
+   * then the refund request is filed for the amount shown in the preview.
+   */
+  async cancelBooking(customerId: string, bookingId: string, reason: string) {
+    const now = new Date();
+    const { booking, payment, quote } = await BookingService.getCancelQuote(customerId, bookingId, now);
+
+    const target = { status: booking.status, statusHistory: [] as StatusHistoryEntry[] };
+    const entry = applyTransition(
+      target,
+      BOOKING_STATUS.CANCELLED_BY_CUSTOMER,
+      { role: 'customer', id: customerId },
+      reason,
+      now,
+    );
+
+    const updated = await bookingsRepository.markCancelled(bookingId, customerId, booking.status, entry, reason);
+    if (!updated) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This booking just changed. Refresh to see its latest status.');
+    }
+
+    let refundStatus: CancellationSummary['refundStatus'] = 'none';
+    if (payment && quote.refundAmount > 0) {
+      try {
+        await bookingsRepository.createRefundRequest({
+          payment,
+          bookingId,
+          customerId,
+          amount: quote.refundAmount,
+          reason,
+          now,
+        });
+        refundStatus = 'requested';
+      } catch {
+        throw new AppError(
+          500,
+          'REFUND_REQUEST_FAILED',
+          'Your booking is cancelled, but we could not file the refund request. Please contact support.',
+        );
+      }
+    }
+
+    const cancellation: CancellationSummary = {
+      ...quote,
+      refundMethod: refundStatus === 'requested' ? 'RAZORPAY' : null,
+      refundStatus,
+    };
+    return { booking: await BookingService.getBooking(customerId, bookingId), cancellation };
+  },
+
+  /**
+   * Moves the customer's booking to another date and slot. The new slot is re-checked while holding the
+   * same lock createBooking uses, so two customers can't take its last seat, then the booking is updated
+   * and a history entry is written. 404 for someone else's booking, 409 when the status doesn't allow it
+   * or the slot is gone.
+   */
+  async rescheduleBooking(customerId: string, bookingId: string, input: { date: string; slot: string }) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+
+    if (!RESCHEDULABLE_STATUSES.includes(booking.status)) {
+      throw new AppError(
+        409,
+        'INVALID_STATE_TRANSITION',
+        `A booking can't be rescheduled while it is ${booking.status}`,
+      );
+    }
+    const serviceId = booking.serviceId ? String(booking.serviceId) : null;
+    if (!serviceId || !booking.date || !booking.slot) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has no slot that can be changed');
+    }
+    if (hasSlotStarted(booking.date, booking.slot)) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has already started');
+    }
+    if (input.date === booking.date && input.slot === booking.slot) {
+      throw new AppError(400, 'SAME_SLOT', 'Pick a different date or time slot');
+    }
+
+    assertBookableDate(input.date);
+    if (hasSlotStarted(input.date, input.slot)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+
+    const capacity = await bookingSettings.getSlotCapacity(serviceId);
+    const now = new Date();
+    const fromDate = booking.date;
+    const fromSlot = booking.slot;
+    const fromStatus = booking.status;
+
+    let updated;
+    try {
+      updated = await withSlotLock(`booking:${serviceId}:${input.date}:${input.slot}`, async () => {
+        await bookingsRepository.releaseStaleHolds(serviceId, input.date, input.slot, now);
+        const seat = await bookingsRepository.findFreeSeat(serviceId, input.date, input.slot, capacity, now);
+        if (seat === null) throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+
+        return bookingsRepository.reschedule({
+          bookingId,
+          customerId,
+          fromStatus,
+          fromDate,
+          fromSlot,
+          to: { date: input.date, slot: input.slot, seat, scheduledAt: slotStartDate(input.date, input.slot) },
+          // Same status on both sides: the history records the move, not a status change.
+          entry: {
+            from: fromStatus,
+            to: fromStatus,
+            at: now,
+            actorId: customerId,
+            actorRole: 'customer',
+            reason: `Rescheduled from ${fromDate} ${fromSlot} to ${input.date} ${input.slot}`,
+          },
+        });
+      });
+    } catch (err) {
+      if (isDuplicateKey(err, 'uniq_active_slot_seat')) {
+        throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+      }
+      throw err;
+    }
+
+    if (!updated) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This booking just changed. Refresh to see its latest status.');
+    }
     return BookingService.getBooking(customerId, bookingId);
   },
 

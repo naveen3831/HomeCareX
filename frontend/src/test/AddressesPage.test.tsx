@@ -45,7 +45,7 @@ beforeEach(() => {
   create.mockReset().mockImplementation(async (p: CreateAddressRequest) => {
     const made: AddressView = {
       id: "a3",
-      label: p.label,
+      label: p.label ?? "Home",
       line1: [p.house, p.street].filter(Boolean).join(", "),
       city: p.city,
       state: p.state,

@@ -14,7 +14,13 @@ import type {
 } from "@/types/booking";
 import type { PageMeta } from "@/types/catalog";
 import type { BookingListParams, BookingPage } from "@/types/bookingList";
-import type { BookingDetailView, ExtraChargeDecision } from "@/types/bookingDetail";
+import type {
+  BookingDetailView,
+  CancelBookingResult,
+  CancellationSummary,
+  ExtraChargeDecision,
+  RescheduleInput,
+} from "@/types/bookingDetail";
 import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 
 export interface NormalizedApiError {
@@ -235,6 +241,66 @@ export const bookingApi = {
       const { data } = await http.post<ApiResponse<BookingDetailView>>(
         `/bookings/${encodeURIComponent(bookingId)}/extra-charges/${encodeURIComponent(chargeId)}/decision`,
         { decision },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * The exact fee and refund if the customer cancelled right now. 409 once the booking can't be cancelled.
+   *
+   * GET /bookings/:id/cancel-preview
+   */
+  async getCancelPreview(
+    bookingId: string,
+    signal?: AbortSignal,
+  ): Promise<CancellationSummary> {
+    try {
+      const { data } = await http.get<ApiResponse<CancellationSummary>>(
+        `/bookings/${encodeURIComponent(bookingId)}/cancel-preview`,
+        { signal },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Cancel the booking. Returns the refreshed booking and what was charged and refunded.
+   *
+   * POST /bookings/:id/cancel
+   */
+  async cancelBooking(
+    bookingId: string,
+    reason: string,
+  ): Promise<CancelBookingResult> {
+    try {
+      const { data } = await http.post<ApiResponse<CancelBookingResult>>(
+        `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+        { reason },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Move the booking to another date and slot. 409 SLOT_UNAVAILABLE when the slot filled up.
+   *
+   * POST /bookings/:id/reschedule
+   */
+  async rescheduleBooking(
+    bookingId: string,
+    input: RescheduleInput,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } = await http.post<ApiResponse<BookingDetailView>>(
+        `/bookings/${encodeURIComponent(bookingId)}/reschedule`,
+        input,
       );
       return data.data;
     } catch (err) {

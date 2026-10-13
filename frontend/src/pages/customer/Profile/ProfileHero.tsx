@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Pencil } from "lucide-react";
+import { Camera, Pencil } from "lucide-react";
 import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
@@ -15,6 +15,8 @@ interface ProfileHeroProps {
   name: string;
   email?: string;
   phone?: string;
+  /** Uploaded photo (data URL); initials are shown when there is none. */
+  avatarUrl?: string;
   stats: ProfileStat[];
 }
 
@@ -31,7 +33,7 @@ export const initialsOf = (name: string) =>
  * Mobile profile header: flat lavender card, animated avatar ring, contact line and three live,
  * tappable stats (active / upcoming bookings, saved addresses) taken from the real API data.
  */
-export default function ProfileHero({ name, email, phone, stats }: ProfileHeroProps) {
+export default function ProfileHero({ name, email, phone, avatarUrl, stats }: ProfileHeroProps) {
   const contact = [email, phone].filter(Boolean);
   return (
     <section
@@ -39,11 +41,20 @@ export default function ProfileHero({ name, email, phone, stats }: ProfileHeroPr
       className="profile-rise relative overflow-hidden rounded-[28px] border border-[#D9DCF7] bg-[#E9EBFF] p-5 text-ink md:hidden"
     >
       <div className="relative flex items-center gap-4">
-        <span className="profile-avatar-ring relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full" aria-hidden="true">
-          <span className="relative z-[1] flex h-[66px] w-[66px] items-center justify-center rounded-full border-[3px] border-white bg-brand text-2xl font-bold text-white">
-            {initialsOf(name)}
+        <div className="relative shrink-0">
+          <span className="profile-avatar-ring relative flex h-[72px] w-[72px] items-center justify-center rounded-full" aria-hidden="true">
+            <span className="relative z-[1] flex h-[66px] w-[66px] items-center justify-center rounded-full border-[3px] border-white bg-brand text-2xl font-bold text-white">
+              {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full rounded-full object-cover" /> : initialsOf(name)}
+            </span>
           </span>
-        </span>
+          <Link
+            to={customerPath("/profile/edit")}
+            aria-label="Change profile photo"
+            className={clsx("absolute -bottom-1 -right-1 z-[2] flex h-7 w-7 items-center justify-center rounded-full border border-line bg-white text-brand shadow-md motion-safe:active:scale-90", FOCUS_RING)}
+          >
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
         <div className="min-w-0">
           <h1 id="profile-name" className="truncate text-xl font-bold leading-tight">
             {name}
