@@ -54,6 +54,10 @@ const Contact: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
+    document.title = "Contact Us | HomeCareX";
+  }, []);
+
+  useEffect(() => {
     if (!location.hash) return;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({

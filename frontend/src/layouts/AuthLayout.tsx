@@ -1,10 +1,15 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { ShieldCheck, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import SkipLink from '../components/common/SkipLink';
+import ScrollToTop from '../components/common/ScrollToTop';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
 const AuthLayout: React.FC = () => {
   return (
     <div className="w-full min-h-[100dvh] h-[100dvh] overflow-hidden flex flex-col lg:flex-row bg-[#fafbff] relative">
+      <SkipLink />
+      <ScrollToTop />
       {/* LEFT SIDE: Visual branding panel with storytelling, trust badges & stats */}
       <div className="hidden lg:flex lg:w-1/2 h-full relative bg-neutral-950 text-white flex-col justify-between p-6 xl:p-8 select-none overflow-hidden max-w-full">
         {/* Background Image with softer, lighter gradient */}
@@ -47,10 +52,10 @@ const AuthLayout: React.FC = () => {
 
           {/* Lower section: Story headline & trust pills */}
           <div className="w-full max-w-lg mt-auto mb-5 space-y-3">
-            <h1 className="text-2xl xl:text-3xl font-black leading-tight tracking-tight text-white drop-shadow-xl">
+            <p className="text-2xl xl:text-3xl font-black leading-tight tracking-tight text-white drop-shadow-xl">
               Every home has a story. <br />
               <span className="text-[#ff8a3d]">HomeCareX</span> is here to care for yours.
-            </h1>
+            </p>
 
             {/* Trust pills */}
             <div className="flex flex-wrap gap-2 pt-0.5">
@@ -89,16 +94,23 @@ const AuthLayout: React.FC = () => {
         </div>
       </div>
 
-      {/* RIGHT SIDE: Cardless, full-viewport form area directly over background */}
-      <div className="w-full lg:w-1/2 h-full max-h-[100dvh] overflow-y-auto lg:overflow-hidden overflow-x-hidden relative flex flex-col justify-center items-center px-4 sm:px-6 md:px-8 py-6">
+      {/* RIGHT SIDE: Semantic main landmark for form content */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        aria-label="Account authentication"
+        className="w-full lg:w-1/2 h-full max-h-[100dvh] overflow-y-auto lg:overflow-hidden overflow-x-hidden relative flex flex-col justify-center items-center px-4 sm:px-6 md:px-8 py-6 focus:outline-none"
+      >
         <div className="pointer-events-none absolute top-0 right-0 h-72 w-72 bg-[#4338ca]/10 rounded-full blur-3xl -z-0" aria-hidden="true" />
         <div className="pointer-events-none absolute bottom-0 left-0 h-72 w-72 bg-[#ff8a3d]/10 rounded-full blur-3xl -z-0" aria-hidden="true" />
 
         {/* Clean transparent/flat form container */}
         <div className="w-full max-w-[420px] relative z-10 animate-fadeUp my-auto">
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
