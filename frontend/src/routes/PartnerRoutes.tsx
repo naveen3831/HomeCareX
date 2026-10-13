@@ -26,7 +26,7 @@ const Placeholder = ({ title }: { title: string }) => (
   </div>
 );
 
-// Placeholder routes and dashboard index.
+// Placeholder routes for pages that are not implemented yet.
 export const PARTNER_PAGES: { path: string; title: string }[] = [
   // Work
   { path: "work", title: "Work" },
