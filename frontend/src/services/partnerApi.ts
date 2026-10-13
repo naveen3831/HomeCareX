@@ -7,12 +7,6 @@ import {
   mockNotifications,
 } from "@/mocks/partnerDashboard";
 
-import {
-  acceptMockJob,
-  rejectMockJob,
-} from "@/services/mockPartnerJobActions";
-
-import { mockJobRequests as mockOpenJobOffers } from "@/services/mockPartnerJobs";
 import { acceptMockJob, rejectMockJob } from "@/services/mockPartnerJobActions";
 import { mockJobRequests as listMockPartnerJobs } from "@/services/mockPartnerJobs";
 
@@ -66,13 +60,6 @@ export interface PartnerMutationResult {
   success: boolean;
   message: string;
   partner: PartnerDetails;
-}
-
-/** Result of accepting / rejecting a live job offer (200 | 404 | 409). */
-export interface JobOfferResult {
-  success: boolean;
-  status: number;
-  message: string;
 }
 
 /* =========================================================
@@ -247,6 +234,7 @@ export async function recordPartnerAudit(
 /* =========================================================
    P02 - Partner Jobs / My Jobs
    ========================================================= */
+
 const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
@@ -494,7 +482,6 @@ export const partnerApi = {
     return mockJobRequests();
   },
 
-  /* My Jobs */
   async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
     return listMockPartnerJobs(partnerId);
   },
@@ -530,26 +517,6 @@ export const partnerApi = {
     return rejectJob(id);
   },
 
-  /* Job Offers - live 60-second offers used by /partner/jobs */
-
-  async getJobOffers(partnerId: string = "partner-1"): Promise<JobRequest[]> {
-    return mockOpenJobOffers(partnerId);
-  },
-
-  async acceptJobOffer(
-    id: string,
-    partnerId: string = "partner-1",
-  ): Promise<JobOfferResult> {
-    const { success, status, message } = acceptMockJob(id, partnerId);
-    return { success, status, message };
-  },
-
-  async rejectJobOffer(
-    id: string,
-    partnerId: string = "partner-1",
-  ): Promise<JobOfferResult> {
-    const { success, status, message } = rejectMockJob(id, partnerId);
-    return { success, status, message };
   async rejectJobOffer(
     id: string,
     partnerId: string,

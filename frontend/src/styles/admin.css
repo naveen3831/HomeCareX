@@ -581,7 +581,7 @@
 .admin-topbar__crumbs .breadcrumbs { flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
 .admin-topbar__crumbs .breadcrumbs > * { flex-shrink: 0; }
 .admin-topbar__crumbs .breadcrumbs__current { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.admin-topbar .topbar-right { margin-left: 0; flex-shrink: 0; }
+.admin-topbar .topbar-right { margin-left: auto; flex-shrink: 0; }
 @media (max-width: 640px) {
   /* Phones: keep only the last two crumbs so it fits beside the menu + bell */
   .admin-topbar__crumbs .breadcrumbs > :nth-last-child(n + 4) { display: none; }

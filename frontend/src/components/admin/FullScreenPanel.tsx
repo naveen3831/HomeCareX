@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bell, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';
@@ -20,26 +20,62 @@ export interface FullScreenPanelProps {
  * Full-screen page-style overlay for create / edit / preview / audit screens.
  * Same behaviour as Drawer (Esc closes, scroll lock, focus trap) but fills the whole content area,
  * leaving the admin sidebar visible on desktop.
+ *
+ * Layout: slim navbar (sidebar toggle + bell) on top, then a page header (back arrow, title, subtitle), then the body.
  */
 export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose, title, subtitle, footer, children }) => {
   const panelRef = useOverlay<HTMLDivElement>(open, onClose);
   // Leave the admin sidebar visible on desktop (260px, or 68px when collapsed). On mobile the sidebar is off-canvas.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const collapsed = useUIStore((s) => s.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const left = isDesktop ? (collapsed ? 68 : 260) : 0;
+
+  const [bellOpen, setBellOpen] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!bellOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [bellOpen]);
+  useEffect(() => { if (!open) setBellOpen(false); }, [open]);
+
   if (!open) return null;
 
   return createPortal(
     <div className="hcx-fs" style={{ left }} ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+      <div className="hcx-fs__nav">
+        {isDesktop && (
+          <button type="button" className="hcx-fs__navbtn" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <PanelLeftOpen size={20} aria-hidden /> : <PanelLeftClose size={20} aria-hidden />}
+          </button>
+        )}
+        <div className="hcx-fs__bellwrap" ref={bellRef}>
+          <button
+            type="button" className="hcx-fs__navbtn" aria-label="Notifications" aria-expanded={bellOpen} aria-haspopup="true"
+            onClick={() => setBellOpen((o) => !o)}
+          >
+            <Bell size={20} aria-hidden />
+          </button>
+          {bellOpen && <div className="hcx-fs__bellpanel" role="status">You&apos;re all caught up.</div>}
+        </div>
+      </div>
+
       <header className="hcx-fs__head">
-        <button type="button" className="hcx-fs__back" onClick={onClose} title="Back (Esc)">
-          <ArrowLeft size={18} aria-hidden /> <span>Back</span>
-        </button>
-        <div className="hcx-fs__titles">
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+        <div className="hcx-fs__head-inner">
+          <button type="button" className="hcx-fs__back" onClick={onClose} aria-label="Back" title="Back (Esc)">
+            <ArrowLeft size={18} aria-hidden />
+          </button>
+          <div className="hcx-fs__titles">
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
         </div>
       </header>
+
       <div className="hcx-fs__body">
         <div className="hcx-fs__inner">{children}</div>
       </div>
