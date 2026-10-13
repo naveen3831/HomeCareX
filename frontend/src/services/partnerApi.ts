@@ -1,4 +1,3 @@
-
 import http, { type ApiResponse } from "@/lib/http";
 
 import {
@@ -7,6 +6,13 @@ import {
   mockJobRequests,
   mockNotifications,
 } from "@/mocks/partnerDashboard";
+
+import {
+  acceptMockJob,
+  rejectMockJob,
+} from "@/services/mockPartnerJobActions";
+
+import { mockJobRequests as listMockPartnerJobs } from "@/services/mockPartnerJobs";
 
 import type {
   ActiveJob,
@@ -60,28 +66,25 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
+/** Result of accepting / rejecting a live job offer (200 | 404 | 409). */
+export interface JobOfferResult {
+  success: boolean;
+  status: number;
+  message: string;
+}
+
 /* =========================================================
-   Configuration and helpers
+   Configuration
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
-
-/* =========================================================
-   STORAGE
-
-// const STORAGE_PREFIX =
-//   "homecarex:partner:";
-
-/* =========================================================
-   HELPERS
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise<void>((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
 
-const getStorageKey = (id: string): string =>
-  `${STORAGE_PREFIX}${id}`;
+const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
 
 const savePartner = (partner: PartnerDetails): void => {
   window.localStorage.setItem(
@@ -91,9 +94,7 @@ const savePartner = (partner: PartnerDetails): void => {
 };
 
 const getStoredPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = window.localStorage.getItem(
-    getStorageKey(id),
-  );
+  const storedPartner = window.localStorage.getItem(getStorageKey(id));
 
   if (!storedPartner) {
     return null;
@@ -114,13 +115,7 @@ const getMockPartner = (id: string): PartnerDetails | null => {
 };
 
 const getCurrentPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = getStoredPartner(id);
-
-  if (storedPartner) {
-    return storedPartner;
-  }
-
-  return getMockPartner(id);
+  return getStoredPartner(id) ?? getMockPartner(id);
 };
 
 /* =========================================================
@@ -248,20 +243,9 @@ export async function recordPartnerAudit(
 }
 
 /* =========================================================
-
-const USE_MOCKS =
-  String(
-    import.meta.env
-      .VITE_USE_MOCKS ?? "true",
-  ) !== "false";
-
-// /* =========================================================
-//    PARTNER API
-
-// export const partnerApi = {
-//   /* DASHBOARD */
-//    P02 - Partner Jobs / My Jobs
-//    ========================================================= */
+   P02 - Partner Jobs / My Jobs
+   ========================================================= */
+const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
   {
@@ -340,7 +324,7 @@ const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
 };
 
 /* =========================================================
-   P02 - Get Jobs
+   Get Jobs
    ========================================================= */
 
 async function getJobs(
@@ -350,17 +334,14 @@ async function getJobs(
   search = "",
 ): Promise<JobsResponse> {
   if (!USE_MOCKS) {
-    const res = await http.get<ApiResponse<JobsResponse>>(
-      "/partner/jobs",
-      {
-        params: {
-          tab,
-          page,
-          limit,
-          ...(search.trim() ? { search: search.trim() } : {}),
-        },
+    const res = await http.get<ApiResponse<JobsResponse>>("/partner/jobs", {
+      params: {
+        tab,
+        page,
+        limit,
+        ...(search.trim() ? { search: search.trim() } : {}),
       },
-    );
+    });
 
     return res.data.data;
   }
@@ -384,17 +365,12 @@ async function getJobs(
       job.customer,
       job.location,
       job.status,
-    ].some((value) =>
-      value.toLowerCase().includes(normalizedSearch),
-    );
+    ].some((value) => value.toLowerCase().includes(normalizedSearch));
   });
 
   const startIndex = (page - 1) * limit;
 
-  const paginatedJobs = filteredJobs.slice(
-    startIndex,
-    startIndex + limit,
-  );
+  const paginatedJobs = filteredJobs.slice(startIndex, startIndex + limit);
 
   return {
     jobs: paginatedJobs.map((job) => structuredClone(job)),
@@ -405,7 +381,7 @@ async function getJobs(
 }
 
 /* =========================================================
-   P02 - Accept Job
+   Accept Job
    ========================================================= */
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
@@ -419,9 +395,7 @@ async function acceptJob(id: string): Promise<JobMutationResult> {
 
   await delay(400);
 
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex(
-    (job) => job.id === id,
-  );
+  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
 
   if (jobIndex === -1) {
     throw new Error("Job not found.");
@@ -437,10 +411,7 @@ async function acceptJob(id: string): Promise<JobMutationResult> {
     throw new Error("This job is no longer available.");
   }
 
-  if (
-    job.expiresAt &&
-    new Date(job.expiresAt).getTime() <= Date.now()
-  ) {
+  if (job.expiresAt && new Date(job.expiresAt).getTime() <= Date.now()) {
     throw new Error("This job request has expired.");
   }
 
@@ -456,7 +427,7 @@ async function acceptJob(id: string): Promise<JobMutationResult> {
 }
 
 /* =========================================================
-   P02 - Reject Job
+   Reject Job
    ========================================================= */
 
 async function rejectJob(id: string): Promise<JobMutationResult> {
@@ -470,9 +441,7 @@ async function rejectJob(id: string): Promise<JobMutationResult> {
 
   await delay(400);
 
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex(
-    (job) => job.id === id,
-  );
+  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
 
   if (jobIndex === -1) {
     throw new Error("Job not found.");
@@ -511,9 +480,8 @@ export const partnerApi = {
       return mockDashboard();
     }
 
-    const res = await http.get<ApiResponse<PartnerDashboard>>(
-      "/partner/dashboard",
-    );
+    const res =
+      await http.get<ApiResponse<PartnerDashboard>>("/partner/dashboard");
 
     return res.data.data;
   },
@@ -522,6 +490,11 @@ export const partnerApi = {
 
   async getJobRequests(): Promise<JobRequest[]> {
     return mockJobRequests();
+  },
+
+  /* My Jobs */
+  async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
+    return listMockPartnerJobs(partnerId);
   },
 
   /* P02 - My Jobs */
@@ -541,6 +514,24 @@ export const partnerApi = {
 
   async rejectJob(id: string): Promise<JobMutationResult> {
     return rejectJob(id);
+  },
+
+  /* Job Offers - live 60-second offers used by /partner/jobs */
+
+  async acceptJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = acceptMockJob(id, partnerId);
+    return { success, status, message };
+  },
+
+  async rejectJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = rejectMockJob(id, partnerId);
+    return { success, status, message };
   },
 
   /* Earnings */

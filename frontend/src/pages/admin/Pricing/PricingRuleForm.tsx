@@ -200,7 +200,7 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
             <SurgeWindowEditor windows={values.surgeWindows} errors={errors} disabled={locked} onChange={(w) => set('surgeWindows', w)} />
           </section>
 
-          <QuotePreview values={values} />
+          <QuotePreview values={values} scope={scope} services={services} saved={editing} />
         </div>
       </form>
     </FullScreenPanel>

@@ -1,0 +1,227 @@
+/* Location sharing: single column, comfortable at 360px, centred card on desktop. */
+.ls-page {
+  --ls-ink: #171727;
+  --ls-muted: #66667a;
+  --ls-line: #e8e8ee;
+  --ls-brand: #4034c7;
+  --ls-brand-deep: #2b2290;
+  --ls-pos: #12805c;
+  --ls-neg: #c23a3a;
+
+  width: 100%;
+  max-width: 720px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  color: var(--ls-ink);
+  font-family: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.ls-page *,
+.ls-page *::before,
+.ls-page *::after {
+  box-sizing: border-box;
+}
+.ls-page h2,
+.ls-page p,
+.ls-page dl,
+.ls-page dd {
+  margin: 0;
+}
+
+.ls-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ls-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.ls-muted {
+  color: var(--ls-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ls-badge-on {
+  background: #e7f6ef;
+  color: var(--ls-pos);
+}
+.ls-badge-off {
+  background: #f1f1f5;
+  color: var(--ls-muted);
+}
+.ls-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.ls-badge-on .ls-dot {
+  animation: ls-pulse 1.6s ease-in-out infinite;
+}
+@keyframes ls-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-badge-on .ls-dot {
+    animation: none;
+  }
+}
+
+.ls-card {
+  border: 1px solid var(--ls-line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fff;
+}
+.ls-center {
+  align-items: center;
+  text-align: center;
+}
+.ls-empty-title {
+  font-weight: 600;
+}
+
+.ls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.ls-grid dt {
+  color: var(--ls-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ls-grid dd {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 768px) {
+  .ls-page {
+    padding: 32px 24px 48px;
+  }
+  .ls-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ls-link {
+  align-self: flex-start;
+  color: var(--ls-brand);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.ls-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.ls-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--ls-line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ls-ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ls-btn:hover:not(:disabled) {
+  background: #f6f6fa;
+}
+.ls-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ls-btn-primary {
+  background: var(--ls-brand);
+  border-color: var(--ls-brand);
+  color: #fff;
+}
+.ls-btn-primary:hover:not(:disabled) {
+  background: var(--ls-brand-deep);
+}
+.ls-btn-danger {
+  background: var(--ls-neg);
+  border-color: var(--ls-neg);
+  color: #fff;
+}
+.ls-btn-danger:hover:not(:disabled) {
+  background: #a42f2f;
+}
+.ls-btn:focus-visible,
+.ls-link:focus-visible {
+  outline: 3px solid var(--ls-brand);
+  outline-offset: 2px;
+}
+
+.ls-hint {
+  color: var(--ls-muted);
+  font-size: 0.8125rem;
+}
+.ls-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fdeeee;
+  color: #8a2525;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.ls-offline {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff6e0;
+  color: #7a5200;
+  font-size: 0.875rem;
+}
+
+.ls-skel {
+  height: 96px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f1f1f5, #f8f8fb, #f1f1f5);
+  background-size: 200% 100%;
+  animation: ls-shimmer 1.4s linear infinite;
+}
+.ls-skel-tall {
+  height: 56px;
+}
+@keyframes ls-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ls-skel {
+    animation: none;
+  }
+}
