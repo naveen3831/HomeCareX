@@ -5,7 +5,7 @@ export interface ApiJob {
   id: string;
   status: JobStatus;
   customer: { name: string; phone: string | null };
-  service: { name: string; quantity: number; durationMinutes: number | null };
+  service: { name: string; description?: string | null; quantity: number; durationMinutes: number | null };
   location: {
     line1: string;
     area: string | null;
@@ -50,21 +50,30 @@ export interface JobStatusEntry {
   actor: string;
 }
 
-/** What the page renders. Built from ApiJob by mapJob(). */
+/** What the page renders. Built from ApiJob by mapJob() or local mock store. */
 export interface JobDetails {
   id: string;
   bookingCode: string;
   status: JobStatus;
-  customer: { name: string; phoneMasked: string };
-  service: { name: string; quantity: number; durationMinutes: number | null };
-  location: { address: string; city: string; pincode: string | null };
-  schedule: { scheduledAt: string; slot: string | null };
-  price: { total: number; partnerEarning: number };
+  customer: { name: string; phoneMasked: string; subtitle?: string };
+  service: { name: string; description?: string | null; quantity: number; durationMinutes: number | null };
+  location: { address: string; city: string; pincode: string | null; hint?: string };
+  schedule: {
+    scheduledAt: string;
+    dateLabel?: string;
+    slot: string | null;
+    startedAt: string | null;
+    startedTimeLabel?: string;
+    completedAt?: string | null;
+  };
+  price: { basePrice?: number; total: number; partnerEarning: number };
   addOns: JobAddOn[];
   instructions: string | null;
   checklist: JobChecklistItem[];
-  payment: { status: string; amount: number };
+  payment: { status: string; amount: number; method?: string };
   actions: JobAction[];
   otpRequired: boolean;
+  otpVerified?: boolean;
+  sosTriggeredAt?: string | null;
   history: JobStatusEntry[];
 }

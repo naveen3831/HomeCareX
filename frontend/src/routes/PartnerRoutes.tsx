@@ -1,6 +1,4 @@
 import { Routes, Route } from "react-router-dom";
-
-import ProfileMenu from "../components/partner/ProfileMenu";
 import PartnerLayout from "../layouts/PartnerLayout";
 
 import PartnerDashboard from "../pages/partner/Dashboard";
@@ -14,11 +12,11 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-import ProfileMenu from "../pages/partner/Profile";
+import JobDetailsPage from "@/pages/partner/JobDetails";
+import ActiveJobPage from "@/pages/partner/ActiveJob";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
-import ProfileMenu from "@/components/partner/ProfileMenu";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -85,7 +83,13 @@ return ( <Routes>
 {/* Partner Dashboard */}
 <Route index element={<PartnerDashboard />} />
 
-```
+    {/* P03 - Job Details & Active Job */}
+    <Route path="jobs/:id" element={<JobDetailsPage />} />
+    <Route path="jobs/:id/active" element={<ActiveJobPage />} />
+    <Route path="work" element={<JobDetailsPage />} />
+    <Route path="work/active" element={<ActiveJobPage />} />
+    <Route path="work/:id" element={<JobDetailsPage />} />
+
     {/* Availability */}
     <Route
       path="availability"
@@ -165,12 +169,19 @@ return ( <Routes>
       element={<PartnerJobsPage />}
     />
 
+    <Route
+      path="work/requests"
+      element={<PartnerJobsPage />}
+    />
+
     {/* Remaining placeholder pages */}
     {PARTNER_PAGES.filter(
       ({ path }) =>
         path !== "earnings/payouts" &&
         path !== "work/requests" &&
-        path !== "work"
+        path !== "work" &&
+        path !== "work/active" &&
+        path !== "work/:jobId"
     ).map(({ path, title }) => (
       <Route
         key={path}

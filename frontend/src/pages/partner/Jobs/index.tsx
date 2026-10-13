@@ -4,8 +4,6 @@ import JobOutcomeCard from "@/components/partner/JobOutcomeCard";
  
 import JobRequestCard from "@/components/partner/JobRequestCard";
  
-import MockConfirmedBookingButton from "@/components/partner/MockConfirmedBookingButton";
- 
 import { partnerApi } from "@/services/partnerApi";
  
 import {
@@ -525,10 +523,6 @@ export default function PartnerJobRequestsPage() {
         </div>
       </div>
  
-      {/* Dev only: confirm a booking to test the whole flow */}
- 
-      {import.meta.env.DEV && <MockConfirmedBookingButton />}
- 
       {requests.length === 0 && outcomes.length === 0 ? (
         <div className="rounded-lg border border-line bg-panel p-8 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-canvas">
@@ -547,7 +541,7 @@ export default function PartnerJobRequestsPage() {
           </p>
         </div>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2" aria-label="Job requests">
+        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Job requests">
           {outcomes.map((outcome) => (
             <JobOutcomeCard
               key={`outcome-${outcome.id}`}

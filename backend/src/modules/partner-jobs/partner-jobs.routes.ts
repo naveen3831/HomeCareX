@@ -3,11 +3,26 @@ import { authenticate } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
 import { requireRole } from '../../middleware/role.middleware';
 import { validationMiddleware } from '../../middleware/validation.middleware';
-import { getPartnerJob, updateBookingStatus } from './partner-jobs.controller';
+import {
+  acceptJobOffer,
+  getPartnerJob,
+  listJobRequests,
+  rejectJobOffer,
+  updateBookingStatus,
+} from './partner-jobs.controller';
 import { jobParamsSchema, statusBodySchema } from './partner-jobs.validation';
 
 /** Mounted at /partner/jobs */
 export const partnerJobsRoutes = Router();
+
+// GET /api/v1/partner/jobs/requests (alias)
+partnerJobsRoutes.get(
+  '/requests',
+  authenticate,
+  requireRole('partner'),
+  requirePermission('partner:jobs:read'),
+  listJobRequests,
+);
 
 // GET /api/v1/partner/jobs/:id  (role: partner, permission: partner:jobs:read, own jobs only)
 partnerJobsRoutes.get(
@@ -17,6 +32,38 @@ partnerJobsRoutes.get(
   requirePermission('partner:jobs:read'),
   validationMiddleware({ params: jobParamsSchema }),
   getPartnerJob,
+);
+
+// POST /api/v1/partner/jobs/:id/accept
+partnerJobsRoutes.post(
+  '/:id/accept',
+  authenticate,
+  requireRole('partner'),
+  requirePermission('partner:jobs:update'),
+  validationMiddleware({ params: jobParamsSchema }),
+  acceptJobOffer,
+);
+
+// POST /api/v1/partner/jobs/:id/reject
+partnerJobsRoutes.post(
+  '/:id/reject',
+  authenticate,
+  requireRole('partner'),
+  requirePermission('partner:jobs:update'),
+  validationMiddleware({ params: jobParamsSchema }),
+  rejectJobOffer,
+);
+
+/** Mounted at /partner/job-requests */
+export const partnerJobRequestsRoutes = Router();
+
+// GET /api/v1/partner/job-requests
+partnerJobRequestsRoutes.get(
+  '/',
+  authenticate,
+  requireRole('partner'),
+  requirePermission('partner:jobs:read'),
+  listJobRequests,
 );
 
 /** Mounted at /bookings */

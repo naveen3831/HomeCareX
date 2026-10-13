@@ -54,6 +54,18 @@ const patch = (id: string, body: unknown, bearer?: string) =>
     headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
     body: JSON.stringify(body),
   });
+const getRequests = (bearer?: string) =>
+  fetch(`${base}/api/v1/partner/job-requests`, { headers: bearer ? { Authorization: `Bearer ${bearer}` } : {} });
+const postAccept = (id: string, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/accept`, {
+    method: 'POST',
+    headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+  });
+const postReject = (id: string, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/reject`, {
+    method: 'POST',
+    headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+  });
 const code = async (res: Response) => ((await res.json()) as { code: string }).code;
 
 describe('partner jobs', () => {
@@ -63,6 +75,37 @@ describe('partner jobs', () => {
     repo.findBooking = (async (id: string) => (id === bookingId.toString() ? booking : null)) as unknown as typeof repo.findBooking;
     repo.findCustomer = (async () => ({ name: 'Rahul Kumar', phone: '+919876543210' })) as unknown as typeof repo.findCustomer;
     repo.findService = (async () => ({ durationMinutes: 90, inclusions: ['Filter cleaning', 'Gas check'], addOns: [] })) as unknown as typeof repo.findService;
+    repo.findJobRequests = (async (pid: Types.ObjectId) => {
+      if (pid.toString() === partnerId.toString()) {
+        return [
+          {
+            ...booking,
+            status: 'searching_for_partner',
+            offers: [
+              {
+                partnerId,
+                offeredAt: new Date(),
+                expiresAt: new Date(Date.now() + 600_000),
+                response: 'pending',
+              },
+            ],
+          },
+        ];
+      }
+      return [];
+    }) as unknown as typeof repo.findJobRequests;
+    repo.acceptOffer = (async (bid: string, pid: Types.ObjectId) => {
+      if (bid === bookingId.toString() && pid.toString() === partnerId.toString()) {
+        return 'ACCEPTED';
+      }
+      return 'NOT_FOUND';
+    }) as unknown as typeof repo.acceptOffer;
+    repo.rejectOffer = (async (bid: string, pid: Types.ObjectId) => {
+      if (bid === bookingId.toString() && pid.toString() === partnerId.toString()) {
+        return 'REJECTED';
+      }
+      return 'NOT_FOUND';
+    }) as unknown as typeof repo.rejectOffer;
     // Mimics the atomic compare-and-set in Mongo.
     repo.transitionStatus = (async (_id, pid, from, to, entry) => {
       if (booking.partnerId?.toString() !== pid.toString() || booking.status !== from) return false;
@@ -149,6 +192,56 @@ describe('partner jobs', () => {
       const res = await patch(bookingId.toString(), { status: 'en_route' }, token('partner', otherUserId));
       assert.equal(res.status, 403);
       assert.equal(booking.status, 'assigned');
+    });
+  });
+
+  describe('GET /partner/job-requests', () => {
+    it('200: returns available job requests for authenticated partner', async () => {
+      const res = await getRequests(token('partner'));
+      assert.equal(res.status, 200);
+      const { data } = (await res.json()) as { data: Array<{ id: string; service: string; price: number }> };
+      assert.ok(Array.isArray(data));
+      assert.equal(data.length, 1);
+      assert.equal(data[0].id, bookingId.toString());
+      assert.equal(data[0].service, 'AC Service');
+    });
+    it('401: rejects request without token', async () => {
+      const res = await getRequests();
+      assert.equal(res.status, 401);
+    });
+    it('403: rejects customer role', async () => {
+      const res = await getRequests(token('customer'));
+      assert.equal(res.status, 403);
+    });
+  });
+
+  describe('POST /partner/jobs/:id/accept', () => {
+    it('200: accepts job offer successfully', async () => {
+      const res = await postAccept(bookingId.toString(), token('partner'));
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { success: boolean; data: { success: boolean } };
+      assert.equal(json.data.success, true);
+    });
+    it('404: unknown job cannot be accepted', async () => {
+      const res = await postAccept(new Types.ObjectId().toString(), token('partner'));
+      assert.equal(res.status, 404);
+    });
+    it('401: unauthenticated accept rejected', async () => {
+      const res = await postAccept(bookingId.toString());
+      assert.equal(res.status, 401);
+    });
+  });
+
+  describe('POST /partner/jobs/:id/reject', () => {
+    it('200: rejects job offer successfully', async () => {
+      const res = await postReject(bookingId.toString(), token('partner'));
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { success: boolean; data: { success: boolean } };
+      assert.equal(json.data.success, true);
+    });
+    it('401: unauthenticated reject rejected', async () => {
+      const res = await postReject(bookingId.toString());
+      assert.equal(res.status, 401);
     });
   });
 });

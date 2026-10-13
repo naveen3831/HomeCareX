@@ -1,12 +1,4 @@
-
 import http, { type ApiResponse } from "@/lib/http";
-
-import {
-  mockDashboard,
-  mockEarningsSummary,
-  mockJobRequests,
-  mockNotifications,
-} from "@/mocks/partnerDashboard";
 
 import type {
   ActiveJob,
@@ -16,7 +8,6 @@ import type {
   JobTab,
   JobsResponse,
   PartnerDashboard,
-  PartnerJob,
   PartnerNotification,
 } from "@/types/partner";
 
@@ -24,6 +15,7 @@ import {
   PARTNER_DETAILS,
   type PartnerDetails,
   type AccountStatus,
+  type KycItem,
 } from "../mocks/partnerDetails";
 
 /* =========================================================
@@ -60,20 +52,17 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
+/** Result of POST /partner/jobs/:id/accept or /reject */
+export interface JobActionResult {
+  status: number;
+  message: string;
+}
+
 /* =========================================================
    Configuration and helpers
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
-
-/* =========================================================
-   STORAGE
-
-// const STORAGE_PREFIX =
-//   "homecarex:partner:";
-
-/* =========================================================
-   HELPERS
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise<void>((resolve) => {
@@ -175,7 +164,7 @@ export async function updatePartnerKyc(
   partner.kycStatus = "Approved";
   partner.kyc.reviewedAt = new Date().toISOString();
 
-  partner.kyc.checklist = partner.kyc.checklist.map((item) => ({
+  partner.kyc.checklist = partner.kyc.checklist.map((item: KycItem) => ({
     ...item,
     completed: true,
   }));
@@ -226,7 +215,7 @@ export async function notifyPartner(
 ): Promise<void> {
   await delay(200);
 
-  console.info(`[MOCK NOTIFY] ${id}: ${message}`);
+  console.info(`[NOTIFY] ${id}: ${message}`);
 }
 
 export async function recordPartnerAudit(
@@ -237,7 +226,7 @@ export async function recordPartnerAudit(
   await delay(100);
 
   console.info(
-    "[MOCK AUDIT]",
+    "[AUDIT]",
     JSON.stringify({
       partnerId: id,
       action,
@@ -248,99 +237,7 @@ export async function recordPartnerAudit(
 }
 
 /* =========================================================
-
-const USE_MOCKS =
-  String(
-    import.meta.env
-      .VITE_USE_MOCKS ?? "true",
-  ) !== "false";
-
-// /* =========================================================
-//    PARTNER API
-
-// export const partnerApi = {
-//   /* DASHBOARD */
-//    P02 - Partner Jobs / My Jobs
-//    ========================================================= */
-
-const MOCK_PARTNER_JOBS: PartnerJob[] = [
-  {
-    id: "job-001",
-    bookingId: "HCX-10001",
-    service: "Deep Home Cleaning",
-    customer: "Rahul Sharma",
-    location: "Gachibowli, Hyderabad",
-    distance: 2.4,
-    scheduledAt: "2026-10-08T14:00:00+05:30",
-    amount: 1499,
-    status: "requested",
-    instructions: "Please call the customer before arriving.",
-    expiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
-  },
-  {
-    id: "job-002",
-    bookingId: "HCX-10002",
-    service: "Washing Machine Repair",
-    customer: "Priya Reddy",
-    location: "Kondapur, Hyderabad",
-    distance: 4.1,
-    scheduledAt: "2026-10-09T10:30:00+05:30",
-    amount: 599,
-    status: "upcoming",
-    instructions: "Customer reported unusual vibration.",
-  },
-  {
-    id: "job-003",
-    bookingId: "HCX-10003",
-    service: "AC Service",
-    customer: "Arjun Kumar",
-    location: "Madhapur, Hyderabad",
-    distance: 5.2,
-    scheduledAt: "2026-10-08T12:30:00+05:30",
-    amount: 899,
-    status: "active",
-    instructions: "Check cooling performance and clean filters.",
-  },
-  {
-    id: "job-004",
-    bookingId: "HCX-10004",
-    service: "Kitchen Cleaning",
-    customer: "Sneha Patel",
-    location: "Jubilee Hills, Hyderabad",
-    distance: 7.8,
-    scheduledAt: "2026-10-05T11:00:00+05:30",
-    amount: 1299,
-    status: "completed",
-    instructions: "Focus on kitchen cabinets and chimney area.",
-  },
-  {
-    id: "job-005",
-    bookingId: "HCX-10005",
-    service: "Plumbing Repair",
-    customer: "Vikram Singh",
-    location: "Manikonda, Hyderabad",
-    distance: 6.3,
-    scheduledAt: "2026-10-04T15:30:00+05:30",
-    amount: 749,
-    status: "cancelled",
-    instructions: "Customer cancelled the booking.",
-  },
-];
-
-const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
-  if (tab === "all") {
-    return true;
-  }
-
-  if (tab === "requests") {
-    return job.status === "requested";
-  }
-
-  return job.status === tab;
-};
-
-/* =========================================================
-   P02 - Get Jobs
+   P02 - Jobs API
    ========================================================= */
 
 async function getJobs(
@@ -349,154 +246,35 @@ async function getJobs(
   limit = 10,
   search = "",
 ): Promise<JobsResponse> {
-  if (!USE_MOCKS) {
-    const res = await http.get<ApiResponse<JobsResponse>>(
-      "/partner/jobs",
-      {
-        params: {
-          tab,
-          page,
-          limit,
-          ...(search.trim() ? { search: search.trim() } : {}),
-        },
+  const res = await http.get<ApiResponse<JobsResponse>>(
+    "/partner/jobs",
+    {
+      params: {
+        tab,
+        page,
+        limit,
+        ...(search.trim() ? { search: search.trim() } : {}),
       },
-    );
-
-    return res.data.data;
-  }
-
-  await delay(400);
-
-  const normalizedSearch = search.trim().toLowerCase();
-
-  const filteredJobs = MOCK_PARTNER_JOBS.filter((job) => {
-    if (!matchesJobTab(job, tab)) {
-      return false;
-    }
-
-    if (!normalizedSearch) {
-      return true;
-    }
-
-    return [
-      job.bookingId,
-      job.service,
-      job.customer,
-      job.location,
-      job.status,
-    ].some((value) =>
-      value.toLowerCase().includes(normalizedSearch),
-    );
-  });
-
-  const startIndex = (page - 1) * limit;
-
-  const paginatedJobs = filteredJobs.slice(
-    startIndex,
-    startIndex + limit,
+    },
   );
 
-  return {
-    jobs: paginatedJobs.map((job) => structuredClone(job)),
-    total: filteredJobs.length,
-    page,
-    limit,
-  };
+  return res.data.data;
 }
-
-/* =========================================================
-   P02 - Accept Job
-   ========================================================= */
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
-  if (!USE_MOCKS) {
-    const res = await http.post<ApiResponse<JobMutationResult>>(
-      `/partner/jobs/${id}/accept`,
-    );
-
-    return res.data.data;
-  }
-
-  await delay(400);
-
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex(
-    (job) => job.id === id,
+  const res = await http.post<ApiResponse<JobMutationResult>>(
+    `/partner/jobs/${id}/accept`,
   );
 
-  if (jobIndex === -1) {
-    throw new Error("Job not found.");
-  }
-
-  const job = MOCK_PARTNER_JOBS[jobIndex];
-
-  if (!job) {
-    throw new Error("Job not found.");
-  }
-
-  if (job.status !== "requested") {
-    throw new Error("This job is no longer available.");
-  }
-
-  if (
-    job.expiresAt &&
-    new Date(job.expiresAt).getTime() <= Date.now()
-  ) {
-    throw new Error("This job request has expired.");
-  }
-
-  MOCK_PARTNER_JOBS[jobIndex] = {
-    ...job,
-    status: "upcoming",
-  };
-
-  return {
-    success: true,
-    message: "Job accepted successfully.",
-  };
+  return res.data.data;
 }
 
-/* =========================================================
-   P02 - Reject Job
-   ========================================================= */
-
 async function rejectJob(id: string): Promise<JobMutationResult> {
-  if (!USE_MOCKS) {
-    const res = await http.post<ApiResponse<JobMutationResult>>(
-      `/partner/jobs/${id}/reject`,
-    );
-
-    return res.data.data;
-  }
-
-  await delay(400);
-
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex(
-    (job) => job.id === id,
+  const res = await http.post<ApiResponse<JobMutationResult>>(
+    `/partner/jobs/${id}/reject`,
   );
 
-  if (jobIndex === -1) {
-    throw new Error("Job not found.");
-  }
-
-  const job = MOCK_PARTNER_JOBS[jobIndex];
-
-  if (!job) {
-    throw new Error("Job not found.");
-  }
-
-  if (job.status !== "requested") {
-    throw new Error("This job is no longer available.");
-  }
-
-  MOCK_PARTNER_JOBS[jobIndex] = {
-    ...job,
-    status: "cancelled",
-  };
-
-  return {
-    success: true,
-    message: "Job rejected successfully.",
-  };
+  return res.data.data;
 }
 
 /* =========================================================
@@ -507,10 +285,6 @@ export const partnerApi = {
   /* Dashboard */
 
   async getDashboard(): Promise<PartnerDashboard> {
-    if (USE_MOCKS) {
-      return mockDashboard();
-    }
-
     const res = await http.get<ApiResponse<PartnerDashboard>>(
       "/partner/dashboard",
     );
@@ -518,10 +292,54 @@ export const partnerApi = {
     return res.data.data;
   },
 
-  /* Job Requests */
+  /* Job Requests / Offers */
 
   async getJobRequests(): Promise<JobRequest[]> {
-    return mockJobRequests();
+    const res = await http.get<ApiResponse<JobRequest[]>>(
+      "/partner/job-requests",
+    );
+
+    return res.data.data;
+  },
+
+  async getJobOffers(_partnerId?: string): Promise<JobRequest[]> {
+    const res = await http.get<ApiResponse<JobRequest[]>>(
+      "/partner/job-requests",
+    );
+
+    return res.data.data;
+  },
+
+  async acceptJobOffer(
+    id: string,
+    _partnerId?: string,
+  ): Promise<JobActionResult> {
+    const res = await http.post(
+      `/partner/jobs/${id}/accept`,
+      undefined,
+      { validateStatus: () => true },
+    );
+
+    return {
+      status: res.status,
+      message: res.data?.message ?? "",
+    };
+  },
+
+  async rejectJobOffer(
+    id: string,
+    _partnerId?: string,
+  ): Promise<JobActionResult> {
+    const res = await http.post(
+      `/partner/jobs/${id}/reject`,
+      undefined,
+      { validateStatus: () => true },
+    );
+
+    return {
+      status: res.status,
+      message: res.data?.message ?? "",
+    };
   },
 
   /* P02 - My Jobs */
@@ -546,10 +364,6 @@ export const partnerApi = {
   /* Earnings */
 
   async getEarningsSummary(): Promise<EarningsSummary> {
-    if (USE_MOCKS) {
-      return mockEarningsSummary();
-    }
-
     const res = await http.get<ApiResponse<EarningsSummary>>(
       "/partner/earnings/summary",
     );
@@ -562,13 +376,56 @@ export const partnerApi = {
   async updateProfile(
     input: PartnerProfileInput,
   ): Promise<PartnerProfileInput> {
-    await delay(500);
-    return input;
+    const res = await http.patch<ApiResponse<PartnerProfileInput>>(
+      "/partner/profile",
+      input,
+    );
+
+    return res.data.data;
   },
 
   /* Notifications */
 
   async getNotifications(): Promise<PartnerNotification[]> {
-    return mockNotifications();
+    const res = await http.get<
+      ApiResponse<
+        Array<{
+          id: string;
+          userId: string;
+          type: string;
+          payload: unknown;
+          readAt: string | null;
+          createdAt: string;
+        }>
+      >
+    >("/notifications");
+
+    const items = res.data.data ?? [];
+    return items.map((n) => {
+      let title = "";
+      if (typeof n.payload === "object" && n.payload !== null) {
+        const p = n.payload as Record<string, unknown>;
+        if (typeof p.title === "string") title = p.title;
+        else if (typeof p.message === "string") title = p.message;
+        else if (typeof p.text === "string") title = p.text;
+      }
+      if (!title) {
+        title = n.type
+          ? n.type
+              .replace(/_/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase())
+          : "Notification";
+      }
+
+      return {
+        id: n.id,
+        title,
+        createdAt:
+          typeof n.createdAt === "string"
+            ? n.createdAt
+            : new Date(n.createdAt).toISOString(),
+        read: Boolean(n.readAt),
+      };
+    });
   },
 };

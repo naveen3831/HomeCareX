@@ -21,6 +21,7 @@ import type {
 } from './auth.validation';
 import type { UserRole } from '../../models/User';
 import { mailService } from '../../services/mail.service';
+import { ensurePartnerProfile } from '../partners/partners.service';
  
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET || `${accessSecret()}_refresh`;
@@ -126,6 +127,14 @@ export const authService = {
       console.error('Account-created email failed for user', user.id);
     }
  
+    if (user.role === 'partner') {
+      try {
+        await ensurePartnerProfile(user.id);
+      } catch (err) {
+        console.error('Failed to auto-provision partner profile for user', user.id, err);
+      }
+    }
+
     return { user: toAuthUser(user), ...issueTokens(user) };
   },
  
@@ -202,49 +211,51 @@ export const authService = {
     if (user && user.status !== 'blocked') {
       await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
  
-  /**
-
-   * Forgot password: emails a 6-digit OTP (valid for 10 minutes).
-
-   * Always returns the same message, so accounts cannot be enumerated.
-
-   */
-
-  async forgotPassword({
-    email,
-  }: ForgotPasswordInput) {
-    const user = await authRepository.findByEmail(email);
-
-    if (user && user.status !== 'blocked') {
-      await issuePasswordResetOtp(user);
+      const otp = generateSecureOtp();
+      const hashedCode = hashSecret(otp);
+      const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
+ 
+      await authRepository.createOtp({
+        userId: user.id,
+        identifier: user.email,
+        hashedCode,
+        purpose: 'PASSWORD_RESET',
+        expiresAt,
+      });
+ 
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[DEV ONLY] Password reset OTP generated for ${maskEmail(user.email)}: ${otp}`);
+      }
+ 
+      try {
+        await mailService.sendPasswordResetOtpEmail({
+          name: user.name,
+          email: user.email,
+          otp,
+        });
+      } catch (err) {
+        console.error('Password-reset OTP email failed for user', user.id, err);
+      }
     }
  
     // Critical security: Generic message to prevent account enumeration
     return {
       success: true,
-      message: OTP_SENT_MESSAGE,
+      message: 'If an account exists, a verification code has been sent.',
     };
   },
  
-  /**
-
-   * Verify the emailed OTP and hand back a single-use reset token.
-
-   */
-
-  async verifyOtp({
-    email,
-
-    otp,
-  }: VerifyOtpInput) {
-    if (!/^\d{6}$/.test(otp)) {
-      throw new HttpError(
-        400,
-
-        "Enter a valid 6-digit verification code.",
-
-        "INVALID_OTP_FORMAT",
-      );
+  /** Resends an OTP with rate-limiting cooldown and anti-enumeration protection. */
+  async resendOtp({ email }: ResendOtpInput) {
+    const normalizedEmail = email.trim().toLowerCase();
+ 
+    // Enforce 30-second cooldown per identifier
+    const latestOtp = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
+    if (latestOtp && (latestOtp as { createdAt?: Date }).createdAt) {
+      const elapsed = Date.now() - new Date((latestOtp as { createdAt: Date }).createdAt).getTime();
+      if (elapsed < RESEND_COOLDOWN_MS) {
+        throw new HttpError(429, 'Please wait 30 seconds before requesting another code.', 'RATE_LIMITED');
+      }
     }
  
     const user = await authRepository.findByEmail(normalizedEmail);
@@ -374,3 +385,5 @@ export const authService = {
     };
   },
 };
+ 
+ 

@@ -9,6 +9,23 @@ export const getPartnerJob = asyncHandler(async (req: Request, res: Response) =>
   sendSuccess(res, await partnerJobsService.getJob(sub, req.params.id));
 });
 
+export const listJobRequests = asyncHandler(async (_req: Request, res: Response) => {
+  const { sub } = res.locals.auth as { sub: string };
+  sendSuccess(res, await partnerJobsService.listRequests(sub));
+});
+
+export const acceptJobOffer = asyncHandler(async (req: Request, res: Response) => {
+  const { sub } = res.locals.auth as { sub: string };
+  const result = await partnerJobsService.acceptOffer(sub, req.params.id);
+  sendSuccess(res, result, { message: result.message });
+});
+
+export const rejectJobOffer = asyncHandler(async (req: Request, res: Response) => {
+  const { sub } = res.locals.auth as { sub: string };
+  const result = await partnerJobsService.rejectOffer(sub, req.params.id);
+  sendSuccess(res, result, { message: result.message });
+});
+
 export const updateBookingStatus = asyncHandler(async (req: Request, res: Response) => {
   const { sub } = res.locals.auth as { sub: string };
   const { status, reason } = req.body as StatusBody;

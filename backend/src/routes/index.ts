@@ -32,7 +32,7 @@ import { bookingsRoutes } from '../modules/bookings/bookings.routes';
 import customerDashboardRoutes from '../modules/customer-dashboard/customer-dashboard.routes';
 import { addressesRoutes, serviceabilityRoutes } from '../modules/addresses/addresses.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
-import { partnerJobsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
+import { partnerJobsRoutes, bookingStatusRoutes, partnerJobRequestsRoutes } from '../modules/partner-jobs/partner-jobs.routes';
 
 import {
   couponsRoutes,
@@ -45,12 +45,6 @@ import {
 } from '../modules/marketing/marketing.routes';
 
 import refundsRoutes from '../modules/refunds/refunds.routes';
-import partnerWalletRoutes, { partnerWalletSummaryRoutes } from '../modules/partner-wallet/partner-wallet.routes';
-
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
 
 export const rootRouter = Router();
 
@@ -232,6 +226,8 @@ rootRouter.use(
 );
 
 rootRouter.use('/partner/jobs', partnerJobsRoutes);
+rootRouter.use('/partner/job-requests', partnerJobRequestsRoutes);
+rootRouter.use('/partner/notifications', notificationsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
 
 export default rootRouter;
