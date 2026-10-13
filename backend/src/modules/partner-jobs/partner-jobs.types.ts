@@ -6,6 +6,80 @@ import UserModel from "../../models/User";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import type { StatusHistoryEntry } from "../bookings/bookings.stateMachine";
 
+export interface JobActionDto {
+  status: BookingStatus;
+  label: string;
+}
+
+export interface JobAddOnDto {
+  name: string;
+  quantity: number;
+  amount: number;
+}
+
+export interface JobChecklistItemDto {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface JobListItemDto {
+  id: string;
+  status: BookingStatus;
+  service: { name: string };
+  customerName: string;
+  address: string;
+  scheduledAt: string;
+  slot: string | null;
+  partnerEarning: number;
+}
+
+export interface JobDetailDto {
+  id: string;
+  status: BookingStatus;
+  customer: { name: string; phone: string | null };
+  service: {
+    name: string;
+    quantity: number;
+    durationMinutes: number | null;
+  };
+  location: {
+    line1: string;
+    area: string | null;
+    city: string;
+    pincode: string | null;
+    coordinates: { lat: number; lng: number } | null;
+  };
+  schedule: {
+    scheduledAt: string;
+    date: string | null;
+    slot: string | null;
+    startedAt: string | null;
+  };
+  price: {
+    currency: string;
+    total: number;
+    partnerEarning: number;
+  };
+  addOns: JobAddOnDto[];
+  instructions: string | null;
+  checklist: JobChecklistItemDto[];
+  payment: {
+    status: string;
+    paidAt: string | null;
+  };
+  actions: JobActionDto[];
+  otpRequired: boolean;
+  statusHistory: Array<{
+    from: BookingStatus | null;
+    to: BookingStatus;
+    at: string;
+    actorRole: string;
+    actorId: string | null;
+    reason: string | null;
+  }>;
+}
+
 export interface JobBookingDoc {
   _id: Types.ObjectId;
   customerId: Types.ObjectId;

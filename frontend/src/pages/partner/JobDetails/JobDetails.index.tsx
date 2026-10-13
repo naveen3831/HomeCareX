@@ -138,7 +138,7 @@ export default function JobDetailsPage() {
     );
   }
 
-  const currentStep = LIFECYCLE.indexOf(job.status);
+  const currentStep = LIFECYCLE.indexOf(job.status as (typeof LIFECYCLE)[number]);
   const lastStep = LIFECYCLE.length - 1;
   const time = formatTime(job.schedule.scheduledAt);
   const fullAddress = [

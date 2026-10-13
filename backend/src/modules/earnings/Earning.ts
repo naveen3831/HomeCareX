@@ -5,15 +5,29 @@ const EarningSchema = new Schema(
   {
     /** Partner._id (matches Booking.partnerId). */
     partnerId: { type: Schema.Types.ObjectId, ref: 'Partner', required: true },
-    /** Unique: one earning per booking. This index is what makes the job.completed listener idempotent. */
+
+    /** Unique: one earning per booking. This index makes earning creation idempotent. */
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking', required: true, unique: true },
+
     gross: { type: Number, required: true, min: 0 },
     commissionRate: { type: Number, required: true, min: 0, max: 1 },
     commission: { type: Number, required: true, min: 0 },
     net: { type: Number, required: true, min: 0 },
+
     status: { type: String, enum: EARNING_STATUSES, default: 'pending' },
     earnedAt: { type: Date, required: true },
     settledAt: { type: Date, default: null },
+
+    /**
+     * Batch that reserved this earning for payout.
+     * Null means the earning has not been assigned to a payout batch.
+     */
+    payoutBatchId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PayoutBatch',
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true },
 );

@@ -7,7 +7,11 @@ import {
   mockNotifications,
 } from "@/mocks/partnerDashboard";
 
-import { acceptMockJob, rejectMockJob } from "@/services/mockPartnerJobActions";
+import {
+  acceptMockJob,
+  rejectMockJob,
+} from "@/services/mockPartnerJobActions";
+
 import { mockJobRequests as listMockPartnerJobs } from "@/services/mockPartnerJobs";
 
 import type {
@@ -62,8 +66,15 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
+/** Result of accepting / rejecting a live job offer (200 | 404 | 409). */
+export interface JobOfferResult {
+  success: boolean;
+  status: number;
+  message: string;
+}
+
 /* =========================================================
-   Configuration and helpers
+   Configuration
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
@@ -104,13 +115,7 @@ const getMockPartner = (id: string): PartnerDetails | null => {
 };
 
 const getCurrentPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = getStoredPartner(id);
-
-  if (storedPartner) {
-    return storedPartner;
-  }
-
-  return getMockPartner(id);
+  return getStoredPartner(id) ?? getMockPartner(id);
 };
 
 /* =========================================================
@@ -237,6 +242,9 @@ export async function recordPartnerAudit(
   );
 }
 
+/* =========================================================
+   P02 - Partner Jobs / My Jobs
+   ========================================================= */
 const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
@@ -316,7 +324,7 @@ const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
 };
 
 /* =========================================================
-   P02 - Get Jobs
+   Get Jobs
    ========================================================= */
 
 async function getJobs(
@@ -373,7 +381,7 @@ async function getJobs(
 }
 
 /* =========================================================
-   P02 - Accept Job
+   Accept Job
    ========================================================= */
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
@@ -419,7 +427,7 @@ async function acceptJob(id: string): Promise<JobMutationResult> {
 }
 
 /* =========================================================
-   P02 - Reject Job
+   Reject Job
    ========================================================= */
 
 async function rejectJob(id: string): Promise<JobMutationResult> {
@@ -484,6 +492,7 @@ export const partnerApi = {
     return mockJobRequests();
   },
 
+  /* My Jobs */
   async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
     return listMockPartnerJobs(partnerId);
   },
@@ -503,32 +512,26 @@ export const partnerApi = {
     return acceptJob(id);
   },
 
-  async acceptJobOffer(
-    id: string,
-    partnerId: string,
-  ): Promise<{
-    success: boolean;
-    status: number;
-    message: string;
-    job?: JobRequest;
-  }> {
-    return acceptMockJob(id, partnerId);
-  },
-
   async rejectJob(id: string): Promise<JobMutationResult> {
     return rejectJob(id);
   },
 
+  /* Job Offers - live 60-second offers used by /partner/jobs */
+
+  async acceptJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = acceptMockJob(id, partnerId);
+    return { success, status, message };
+  },
+
   async rejectJobOffer(
     id: string,
-    partnerId: string,
-  ): Promise<{
-    success: boolean;
-    status: number;
-    message: string;
-    job?: JobRequest;
-  }> {
-    return rejectMockJob(id, partnerId);
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = rejectMockJob(id, partnerId);
+    return { success, status, message };
   },
 
   /* Earnings */

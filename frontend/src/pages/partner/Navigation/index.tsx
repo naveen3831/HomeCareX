@@ -258,7 +258,7 @@ function NavigationContent({ id }: { id: string }) {
     );
   };
 
-  const runAction = async (status: "en_route" | "arrived") => {
+  const runAction = async (status: string) => {
     setBusyAction(status);
     setActionError(null);
     try {

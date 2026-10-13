@@ -55,6 +55,13 @@ export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
   "in_progress",
 ];
 
+/**
+ * The partner's live location is only accepted (and shown to the customer) while they are travelling to,
+ * or waiting at, the address. `assigned` is excluded on purpose: the partner taps "On the way" to start
+ * sharing, so nobody is tracked hours before the slot. `in_progress` and later need no tracking.
+ */
+export const PARTNER_LOCATION_STATUSES: BookingStatus[] = ['en_route', 'arrived'];
+
 /** Statuses a booking may be in for the customer to see the start OTP: the partner has arrived, work not started. */
 export const START_OTP_STATUS: BookingStatus = "arrived";
 
