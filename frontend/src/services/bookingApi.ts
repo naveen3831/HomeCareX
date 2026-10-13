@@ -249,6 +249,30 @@ export const bookingApi = {
   },
 
   /**
+   * The invoice for one paid booking, as a complete HTML document.
+   * 404 for someone else's booking, 409 until the booking is paid.
+   *
+   * No responseType on purpose: an error reply is JSON and must still be parsed so its message survives,
+   * while the HTML invoice is not valid JSON and comes back untouched as a string.
+   *
+   * GET /bookings/:id/invoice
+   */
+  async getInvoice(bookingId: string, signal?: AbortSignal): Promise<string> {
+    try {
+      const { data } = await http.get<string>(
+        `/bookings/${encodeURIComponent(bookingId)}/invoice`,
+        { signal, headers: { Accept: "text/html" } },
+      );
+      if (typeof data !== "string" || !data.trim()) {
+        throw { message: "The invoice came back empty. Please try again." };
+      }
+      return data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
    * The exact fee and refund if the customer cancelled right now. 409 once the booking can't be cancelled.
    *
    * GET /bookings/:id/cancel-preview
