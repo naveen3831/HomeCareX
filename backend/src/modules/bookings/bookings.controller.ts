@@ -61,6 +61,26 @@ export const bookingsController = {
     });
   },
 
+  async previewCancel(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const preview = await BookingService.previewCancellation(customerId, req.params.id);
+    res.json({ success: true, data: preview });
+  },
+
+  async cancelBooking(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const { reason } = req.body as { reason: string };
+    const result = await BookingService.cancelBooking(customerId, req.params.id, reason);
+    res.json({ success: true, message: 'Booking cancelled', data: result });
+  },
+
+  async rescheduleBooking(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const { date, slot } = req.body as { date: string; slot: string };
+    const booking = await BookingService.rescheduleBooking(customerId, req.params.id, { date, slot });
+    res.json({ success: true, message: 'Booking rescheduled', data: booking });
+  },
+
   async listBookings(req: Request, res: Response) {
     // The customer is always the token's user. Nothing in the query string can widen this.
     const customerId = requireUserId(req);

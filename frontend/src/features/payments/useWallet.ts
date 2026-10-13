@@ -18,5 +18,11 @@ export function useWallet(page: number, type?: LedgerType, limit = 15) {
     staleTime: 30_000,
     // Only runs once the session has been confirmed (restore or login)
     enabled: isAuthenticated,
+    // Don't retry client errors (4xx); they won't succeed on retry
+    retry: (failureCount, error) => {
+      const status = (error as { status?: number })?.status;
+      if (status && status >= 400 && status < 500) return false;
+      return failureCount < 2;
+    },
   });
 }

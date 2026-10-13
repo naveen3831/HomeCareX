@@ -1,10 +1,10 @@
-import type { Types } from 'mongoose';
-import BookingModel, { type IBooking } from '../../models/Booking';
-import PartnerModel from '../../models/Partner';
-import ServiceModel from '../../models/Service';
-import UserModel from '../../models/User';
-import type { BookingStatus } from '../bookings/bookings.constants';
-import type { StatusHistoryEntry } from '../bookings/bookings.stateMachine';
+import type { Types } from "mongoose";
+import BookingModel, { type IBooking } from "../../models/Booking";
+import PartnerModel from "../../models/Partner";
+import ServiceModel from "../../models/Service";
+import UserModel from "../../models/User";
+import type { BookingStatus } from "../bookings/bookings.constants";
+import type { StatusHistoryEntry } from "../bookings/bookings.stateMachine";
 
 export interface JobBookingDoc {
   _id: Types.ObjectId;
@@ -27,8 +27,16 @@ export interface JobBookingDoc {
   scheduledAt: Date;
   startedAt?: Date;
   status: BookingStatus;
-  statusHistory: IBooking['statusHistory'];
-  priceSnapshot?: { currency?: string; lines?: Array<{ kind: string; name: string; quantity: number; amount: number }> };
+  statusHistory: IBooking["statusHistory"];
+  priceSnapshot?: {
+    currency?: string;
+    lines?: Array<{
+      kind: string;
+      name: string;
+      quantity: number;
+      amount: number;
+    }>;
+  };
   priceBreakdown?: { total?: number };
   partnerEarning?: number;
   paymentStatus: string;
@@ -56,7 +64,21 @@ export interface JobCustomerDoc {
 
 export const partnerJobsRepository = {
   findPartnerByUserId(userId: string) {
-    return PartnerModel.findOne({ userId }).select('_id').lean<{ _id: Types.ObjectId }>();
+    return PartnerModel.findOne({ userId })
+      .select("_id")
+      .lean<{ _id: Types.ObjectId }>();
+  },
+
+  /** Live jobs of one partner, soonest first. */
+  listLiveForPartner(
+    partnerId: Types.ObjectId,
+    statuses: BookingStatus[],
+    limit = 50,
+  ) {
+    return BookingModel.find({ partnerId, status: { $in: statuses } })
+      .sort({ scheduledAt: 1 })
+      .limit(limit)
+      .lean<JobBookingDoc[]>();
   },
 
   findBooking(bookingId: string) {
@@ -64,11 +86,15 @@ export const partnerJobsRepository = {
   },
 
   findCustomer(customerId: Types.ObjectId) {
-    return UserModel.findById(customerId).select('name phone').lean<JobCustomerDoc>();
+    return UserModel.findById(customerId)
+      .select("name phone")
+      .lean<JobCustomerDoc>();
   },
 
   findService(serviceId: Types.ObjectId) {
-    return ServiceModel.findById(serviceId).select('durationMinutes inclusions addOns').lean<JobServiceDoc>();
+    return ServiceModel.findById(serviceId)
+      .select("durationMinutes inclusions addOns")
+      .lean<JobServiceDoc>();
   },
 
   findJobRequests(partnerId: Types.ObjectId, now: Date = new Date()) {

@@ -196,6 +196,10 @@ export const ServicesPage: React.FC = () => {
   // ==========================================================
 
   useEffect(() => {
+    document.title = "Services | HomeCareX";
+  }, []);
+
+  useEffect(() => {
     setSearchInput(search);
   }, [search]);
 
@@ -582,6 +586,7 @@ export const ServicesPage: React.FC = () => {
               sm:grid-cols-2
               lg:grid-cols-3
             "
+            role="status"
             aria-busy="true"
             aria-label="Loading services"
           >

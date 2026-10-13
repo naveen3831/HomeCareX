@@ -4,6 +4,8 @@ import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ROUTES } from '@/constants/routes';
 
+import SkipLink from '@/components/common/SkipLink';
+
 export const getRoleDashboard = (role?: string): string | null => {
   if (!role) return null;
   const normalized = role.toLowerCase();
@@ -24,11 +26,17 @@ export const UnauthorizedPage: React.FC = () => {
   const dashboardRoute = isAuthenticated && user ? getRoleDashboard(user.role) : null;
 
   return (
-    <main
-      className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12"
-      role="alert"
-      aria-labelledby="unauthorized-heading"
-    >
+    <>
+      <SkipLink />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 focus:outline-none"
+        aria-labelledby="unauthorized-heading"
+      >
+        <div role="alert" aria-live="assertive" className="sr-only">
+          403 Access Denied: You do not have permission to access this page.
+        </div>
       <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-lg ring-1 ring-gray-900/5 sm:p-10">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 ring-8 ring-indigo-50/50">
           <ShieldAlert className="h-8 w-8 text-[#4338ca]" aria-hidden="true" />
@@ -88,6 +96,7 @@ export const UnauthorizedPage: React.FC = () => {
         )}
       </div>
     </main>
+    </>
   );
 };
 

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { Bell, ChevronRight, Lock } from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { PROFILE_ITEM_META, PROFILE_MENU_GROUPS, type ProfileTint } from "@/components/customer/customerNav";
+import { PROFILE_ITEM_META, PROFILE_MENU_GROUPS, type CustomerNavItem, type ProfileTint } from "@/components/customer/customerNav";
+import { customerPath } from "@/routes/customerPath";
 
 const TINTS: Record<ProfileTint, string> = {
   indigo: "bg-indigo-50 text-indigo-600",
@@ -15,6 +16,18 @@ const TINTS: Record<ProfileTint, string> = {
 };
 const DEFAULT_META = { description: "", tint: "indigo" as ProfileTint };
 
+/** Settings rows that live in the Account group on phones (they open full pages; desktop shows them as tiles instead). */
+const ACCOUNT_SETTINGS: CustomerNavItem[] = [
+  { label: "Change password", to: customerPath("/profile/password"), icon: Lock },
+  { label: "Notification settings", to: customerPath("/profile/notifications"), icon: Bell },
+];
+const SETTINGS_META: Record<string, { description: string; tint: ProfileTint }> = {
+  "Change password": { description: "Keep your account secure", tint: "orange" },
+  "Notification settings": { description: "Alerts and language", tint: "sky" },
+};
+
+const GROUPS = PROFILE_MENU_GROUPS.map((g) => (g.heading.toLowerCase() === "account" ? { ...g, items: [...g.items, ...ACCOUNT_SETTINGS] } : g));
+
 /** Small value shown on the right of a row instead of nothing, keyed by nav label. */
 export type RowBadges = Partial<Record<string, { text: string; live?: boolean }>>;
 
@@ -25,7 +38,7 @@ export type RowBadges = Partial<Record<string, { text: string; live?: boolean }>
 export default function AccountMenu({ badges = {} }: { badges?: RowBadges }) {
   return (
     <nav aria-label="Account menu" className="space-y-5 md:hidden">
-      {PROFILE_MENU_GROUPS.map((group, gi) => {
+      {GROUPS.map((group, gi) => {
         const headingId = `profile-group-${group.heading.toLowerCase()}`;
         return (
           <section key={group.heading} aria-labelledby={headingId} className="profile-rise" style={{ ["--d" as string]: `${120 + gi * 80}ms` }}>
@@ -34,7 +47,7 @@ export default function AccountMenu({ badges = {} }: { badges?: RowBadges }) {
             </h2>
             <ul className="divide-y divide-line/70 overflow-hidden rounded-[22px] border border-line/70 bg-panel shadow-[0_10px_28px_-12px_rgba(30,27,46,.14)]">
               {group.items.map(({ label, to, icon: Icon }) => {
-                const meta = PROFILE_ITEM_META[label] ?? DEFAULT_META;
+                const meta = PROFILE_ITEM_META[label] ?? SETTINGS_META[label] ?? DEFAULT_META;
                 const badge = badges[label];
                 return (
                   <li key={to}>

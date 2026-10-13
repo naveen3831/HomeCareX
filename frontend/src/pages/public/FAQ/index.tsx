@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { faqData, type FAQGroup } from "../../../content/faq";
 import FaqSearch from "../../../components/public/FaqSearch";
@@ -12,6 +12,10 @@ const FAQPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState<string>("all");
   const [openIds, setOpenIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    document.title = "Frequently Asked Questions | HomeCareX";
+  }, []);
 
   const trimmedQuery = searchQuery.trim().toLowerCase();
 
@@ -153,7 +157,7 @@ const FAQPage: React.FC = () => {
       </PublicPageBackground>
 
       {/* ================= FAQ CONTENT & GROUPS ================= */}
-      <main className="bg-[#eef0ff]/30 pt-3 pb-10 sm:pt-4 sm:pb-14">
+      <div className="bg-[#eef0ff]/30 pt-3 pb-10 sm:pt-4 sm:pb-14">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
           {/* Quick controls (Expand/Collapse all) when items are present */}
           {filteredGroups.length > 0 && (
@@ -256,7 +260,7 @@ const FAQPage: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* ================= FINAL CONTACT CTA ================= */}
       <PublicPageBackground variant="cta">
