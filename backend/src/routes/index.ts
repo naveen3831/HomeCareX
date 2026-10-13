@@ -1,13 +1,11 @@
-
 import { Router } from 'express';
 
 import paymentRoutes from '../modules/payments/payments.routes';
 import walletRoutes from '../modules/wallet/wallet.routes';
 
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
+
+
+import { pricingRoutes, adminPricingRoutes } from '../modules/pricing/pricing.routes';
 
 import { authRoutes } from '../modules/auth/auth.routes';
 import { auditRoutes } from '../modules/audit/audit.routes';
@@ -32,7 +30,8 @@ import { bookingsRoutes } from '../modules/bookings/bookings.routes';
 import customerDashboardRoutes from '../modules/customer-dashboard/customer-dashboard.routes';
 import { addressesRoutes, serviceabilityRoutes } from '../modules/addresses/addresses.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
-import { partnerJobsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
+
+
 
 import {
   couponsRoutes,
@@ -47,10 +46,7 @@ import {
 import refundsRoutes from '../modules/refunds/refunds.routes';
 import partnerWalletRoutes, { partnerWalletSummaryRoutes } from '../modules/partner-wallet/partner-wallet.routes';
 
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
+
 
 
 export const rootRouter = Router();
@@ -248,7 +244,10 @@ rootRouter.use(
   publicMarketingRoutes,
 );
 
-rootRouter.use('/partner/jobs', partnerJobsRoutes);
-rootRouter.use('/bookings', bookingStatusRoutes);
+
+
+// Booking chat: GET/POST /bookings/:id/messages and POST /bookings/:id/masked-call
+// (these routers already include the /bookings/... path, so they mount at the root)
+
 
 export default rootRouter;

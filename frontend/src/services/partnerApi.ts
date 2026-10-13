@@ -1,4 +1,3 @@
-
 import http, { type ApiResponse } from "@/lib/http";
 
 import {
@@ -7,6 +6,13 @@ import {
   mockJobRequests,
   mockNotifications,
 } from "@/mocks/partnerDashboard";
+
+import {
+  acceptMockJob,
+  rejectMockJob,
+} from "@/services/mockPartnerJobActions";
+
+import { mockJobRequests as mockOpenJobOffers } from "@/services/mockPartnerJobs";
 
 import type {
   ActiveJob,
@@ -60,20 +66,25 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
+/** Result of accepting / rejecting a live job offer (200 | 404 | 409). */
+export interface JobOfferResult {
+  success: boolean;
+  status: number;
+  message: string;
+}
+
 /* =========================================================
-   Configuration and helpers
+   Configuration
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
 
-/* =========================================================
-   STORAGE
-
-// const STORAGE_PREFIX =
-//   "homecarex:partner:";
+const USE_MOCKS =
+  String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
 
 /* =========================================================
-   HELPERS
+   Helpers
+   ========================================================= */
 
 const delay = (milliseconds: number): Promise<void> =>
   new Promise<void>((resolve) => {
@@ -91,9 +102,7 @@ const savePartner = (partner: PartnerDetails): void => {
 };
 
 const getStoredPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = window.localStorage.getItem(
-    getStorageKey(id),
-  );
+  const storedPartner = window.localStorage.getItem(getStorageKey(id));
 
   if (!storedPartner) {
     return null;
@@ -114,13 +123,7 @@ const getMockPartner = (id: string): PartnerDetails | null => {
 };
 
 const getCurrentPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = getStoredPartner(id);
-
-  if (storedPartner) {
-    return storedPartner;
-  }
-
-  return getMockPartner(id);
+  return getStoredPartner(id) ?? getMockPartner(id);
 };
 
 /* =========================================================
@@ -248,20 +251,8 @@ export async function recordPartnerAudit(
 }
 
 /* =========================================================
-
-const USE_MOCKS =
-  String(
-    import.meta.env
-      .VITE_USE_MOCKS ?? "true",
-  ) !== "false";
-
-// /* =========================================================
-//    PARTNER API
-
-// export const partnerApi = {
-//   /* DASHBOARD */
-//    P02 - Partner Jobs / My Jobs
-//    ========================================================= */
+   P02 - Partner Jobs / My Jobs
+   ========================================================= */
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
   {
@@ -340,7 +331,7 @@ const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
 };
 
 /* =========================================================
-   P02 - Get Jobs
+   Get Jobs
    ========================================================= */
 
 async function getJobs(
@@ -405,7 +396,7 @@ async function getJobs(
 }
 
 /* =========================================================
-   P02 - Accept Job
+   Accept Job
    ========================================================= */
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
@@ -456,7 +447,7 @@ async function acceptJob(id: string): Promise<JobMutationResult> {
 }
 
 /* =========================================================
-   P02 - Reject Job
+   Reject Job
    ========================================================= */
 
 async function rejectJob(id: string): Promise<JobMutationResult> {
@@ -524,7 +515,7 @@ export const partnerApi = {
     return mockJobRequests();
   },
 
-  /* P02 - My Jobs */
+  /* My Jobs */
 
   async getJobs(
     tab: JobTab = "all",
@@ -541,6 +532,28 @@ export const partnerApi = {
 
   async rejectJob(id: string): Promise<JobMutationResult> {
     return rejectJob(id);
+  },
+
+  /* Job Offers - live 60-second offers used by /partner/jobs */
+
+  async getJobOffers(partnerId: string = "partner-1"): Promise<JobRequest[]> {
+    return mockOpenJobOffers(partnerId);
+  },
+
+  async acceptJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = acceptMockJob(id, partnerId);
+    return { success, status, message };
+  },
+
+  async rejectJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = rejectMockJob(id, partnerId);
+    return { success, status, message };
   },
 
   /* Earnings */

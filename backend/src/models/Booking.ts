@@ -55,6 +55,8 @@ export interface IBooking extends Document {
   customerId: Types.ObjectId;
   /** Partner._id (not the User id). Null until a partner accepts. */
   partnerId?: Types.ObjectId | null;
+  /** Latest partner position while the job is active. One point only: no location history is kept. */
+  partnerLocation?: { lat: number; lng: number; accuracy?: number; updatedAt: Date };
   categoryId?: Types.ObjectId;
   serviceId?: Types.ObjectId;
   serviceName: string;
@@ -204,6 +206,16 @@ const BookingSchema = new Schema<IBooking>(
       ref: "Partner",
       default: null,
       index: true,
+    },
+    partnerLocation: {
+      type: {
+        lat: { type: Number, required: true, min: -90, max: 90 },
+        lng: { type: Number, required: true, min: -180, max: 180 },
+        accuracy: { type: Number, min: 0 },
+        updatedAt: { type: Date, required: true },
+        _id: false,
+      },
+      default: undefined,
     },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category" },
     serviceId: { type: Schema.Types.ObjectId },
