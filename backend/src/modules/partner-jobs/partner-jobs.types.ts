@@ -11,6 +11,12 @@ export interface JobActionDto {
   label: string;
 }
 
+export interface JobChecklistItemDto {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface JobAddOnDto {
   name: string;
   quantity: number;

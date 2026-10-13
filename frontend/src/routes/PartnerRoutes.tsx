@@ -1,5 +1,4 @@
 import { Routes, Route } from "react-router-dom";
-
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerProfilePage from "../pages/partner/Profile";
 import PartnerDashboard from "../pages/partner/Dashboard";

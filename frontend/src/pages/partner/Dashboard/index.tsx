@@ -31,9 +31,11 @@ const QUICK_ACTIONS = [
 ];
 
 const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
-  <section className="rounded border border-line bg-panel p-5">
-    <div className="mb-3 flex items-center justify-between">
-      <h3 className="font-semibold text-ink">{title}</h3>
+  <section className="rounded-xl border border-line bg-panel p-5 shadow-sm">
+    <div className="mb-3.5 flex items-center justify-between border-b border-line/60 pb-2.5">
+      <h3 className="inline-flex items-center rounded-md border-l-[3px] border-[#ff8a3d] bg-[#eeecfb] px-2.5 py-1 text-xs font-extrabold uppercase tracking-wider text-[#4338ca]">
+        {title}
+      </h3>
       {action}
     </div>
     {children}
