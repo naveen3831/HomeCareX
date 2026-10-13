@@ -66,13 +66,6 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
-/** Result of accepting / rejecting a live job offer (200 | 404 | 409). */
-export interface JobOfferResult {
-  success: boolean;
-  status: number;
-  message: string;
-}
-
 /* =========================================================
    Configuration
    ========================================================= */
@@ -245,6 +238,7 @@ export async function recordPartnerAudit(
 /* =========================================================
    P02 - Partner Jobs / My Jobs
    ========================================================= */
+
 const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
 
 const MOCK_PARTNER_JOBS: PartnerJob[] = [
@@ -492,7 +486,6 @@ export const partnerApi = {
     return mockJobRequests();
   },
 
-  /* My Jobs */
   async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
     return listMockPartnerJobs(partnerId);
   },
