@@ -7,7 +7,11 @@ import {
   mockNotifications,
 } from "@/mocks/partnerDashboard";
 
-import { acceptMockJob, rejectMockJob } from "@/services/mockPartnerJobActions";
+import {
+  acceptMockJob,
+  rejectMockJob,
+} from "@/services/mockPartnerJobActions";
+
 import { mockJobRequests as listMockPartnerJobs } from "@/services/mockPartnerJobs";
 
 import type {
@@ -501,32 +505,26 @@ export const partnerApi = {
     return acceptJob(id);
   },
 
-  async acceptJobOffer(
-    id: string,
-    partnerId: string,
-  ): Promise<{
-    success: boolean;
-    status: number;
-    message: string;
-    job?: JobRequest;
-  }> {
-    return acceptMockJob(id, partnerId);
-  },
-
   async rejectJob(id: string): Promise<JobMutationResult> {
     return rejectJob(id);
   },
 
+  /* Job Offers - live 60-second offers used by /partner/jobs */
+
+  async acceptJobOffer(
+    id: string,
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = acceptMockJob(id, partnerId);
+    return { success, status, message };
+  },
+
   async rejectJobOffer(
     id: string,
-    partnerId: string,
-  ): Promise<{
-    success: boolean;
-    status: number;
-    message: string;
-    job?: JobRequest;
-  }> {
-    return rejectMockJob(id, partnerId);
+    partnerId: string = "partner-1",
+  ): Promise<JobOfferResult> {
+    const { success, status, message } = rejectMockJob(id, partnerId);
+    return { success, status, message };
   },
 
   /* Earnings */

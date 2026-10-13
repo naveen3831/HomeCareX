@@ -34,30 +34,31 @@ export default function PriceBreakdown({
         </div>
       ))}
 
-      {/* Explicit Discount Row (if applicable) */}
-      {model.discount > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          <dt className="min-w-0 break-words text-muted">
-            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-              <Tag className="h-3 w-3" aria-hidden="true" />
-              Discount
-            </span>
-          </dt>
-          <dd className="shrink-0 tabular-nums font-medium text-emerald-600">
-            − {rupees(model.discount)}
-          </dd>
-        </div>
-      )}
+      {/* GST is always listed so the customer can see what tax was charged. */}
+      <div className="flex items-center justify-between gap-3">
+        <dt className="min-w-0 break-words text-muted">GST</dt>
+        <dd className="shrink-0 tabular-nums text-ink">
+          {model.gst > 0 ? rupees(model.gst) : "Included"}
+        </dd>
+      </div>
 
-      {/* Explicit GST / Tax Row (if applicable) */}
-      {model.gst > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          <dt className="min-w-0 break-words text-muted">GST (Tax)</dt>
-          <dd className="shrink-0 tabular-nums text-ink">
-            {rupees(model.gst)}
+      {/* Coupon: the code and the amount it saved, or a plain "none". */}
+      <div className="flex items-center justify-between gap-3">
+        <dt className="min-w-0 text-muted">Coupon</dt>
+        {model.discount > 0 ? (
+          <dd className="flex shrink-0 items-center gap-2 tabular-nums font-medium text-emerald-600">
+            {model.couponCode && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-700">
+                <Tag className="h-3 w-3" aria-hidden="true" />
+                {model.couponCode}
+              </span>
+            )}
+            <span>− {rupees(model.discount)}</span>
           </dd>
-        </div>
-      )}
+        ) : (
+          <dd className="shrink-0 text-muted">None applied</dd>
+        )}
+      </div>
 
       {model.extraApproved > 0 && (
         <>

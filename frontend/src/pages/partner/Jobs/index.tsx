@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import JobOutcomeCard from "@/components/partner/JobOutcomeCard";
 
+import LiveJobsList from "@/components/partner/LiveJobsList";
+
 import JobRequestCard from "@/components/partner/JobRequestCard";
 
 import MockConfirmedBookingButton from "@/components/partner/MockConfirmedBookingButton";
@@ -528,6 +530,8 @@ export default function PartnerJobRequestsPage() {
       {/* Dev only: confirm a booking to test the whole flow */}
 
       {import.meta.env.DEV && <MockConfirmedBookingButton />}
+
+      <LiveJobsList />
 
       {requests.length === 0 && outcomes.length === 0 ? (
         <div className="rounded-lg border border-line bg-panel p-8 text-center">

@@ -327,6 +327,11 @@ const Home: React.FC = () => {
   const [processRef, processSeen] = useInView<HTMLDivElement>(0.3);
   const faqButtons = useRef<(HTMLButtonElement | null)[]>([]);
 
+  // Set page title for accessibility
+  useEffect(() => {
+    document.title = "HomeCareX | Reliable Home Services";
+  }, []);
+
   // Load the service list, then keep the category counts in sync with it
   useEffect(() => {
     let active = true;
