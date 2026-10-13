@@ -14,5 +14,6 @@ authRoutes.post('/verify-otp', authRateLimit, authController.verifyOtp);
 authRoutes.post('/resend-otp', authRateLimit, authController.resendOtp);
 authRoutes.post('/reset-password', authRateLimit, authController.resetPassword);
 authRoutes.get('/me', authMiddleware, authController.me);
+authRoutes.post('/change-password', authMiddleware, authRateLimit, authController.changePassword);
 
 export default authRoutes;

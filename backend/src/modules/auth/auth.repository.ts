@@ -5,6 +5,7 @@ export const authRepository = {
   findByEmailWithPassword: (email: string) => UserModel.findOne({ email }).select('+passwordHash'),
   findByEmail: (email: string) => UserModel.findOne({ email }),
   findById: (id: string) => UserModel.findById(id),
+  findByIdWithPassword: (id: string) => UserModel.findById(id).select('+passwordHash'),
   findByResetTokenHash: (tokenHash: string) =>
     UserModel.findOne({
       passwordResetTokenHash: tokenHash,

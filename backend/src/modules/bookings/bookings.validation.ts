@@ -66,3 +66,12 @@ export const extraChargeDecisionParamsSchema = z.object({
 export const extraChargeDecisionBodySchema = z.object({
   decision: z.enum(['approve', 'reject']),
 });
+
+export const cancelBookingBodySchema = z.object({
+  reason: z.string().trim().min(3, 'Please tell us why you are cancelling').max(300),
+});
+
+export const rescheduleBookingBodySchema = z.object({
+  date: dateString,
+  slot: slotString,
+});

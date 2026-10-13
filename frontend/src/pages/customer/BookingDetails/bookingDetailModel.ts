@@ -54,6 +54,31 @@ export const canDecideExtraCharges = (status: string): boolean => {
   return normalized === "arrived" || normalized === "in_progress";
 };
 
+/**
+ * The state guards the Cancel and Reschedule buttons follow. They mirror the server (the state machine
+ * and RESCHEDULABLE_STATUSES); the server still decides, these only keep dead buttons off the page.
+ */
+const CANCELLABLE = new Set([
+  "pending_payment",
+  "confirmed",
+  "created",
+  "searching_for_partner",
+  "assigned",
+  "en_route",
+  "arrived",
+]);
+const RESCHEDULABLE = new Set([
+  "confirmed",
+  "created",
+  "searching_for_partner",
+]);
+
+export const canCancelBooking = (status: string): boolean =>
+  CANCELLABLE.has(normalizeStatus(status));
+
+export const canRescheduleBooking = (status: string): boolean =>
+  RESCHEDULABLE.has(normalizeStatus(status));
+
 /* ------------------------------------------------------------------ */
 /* Timeline                                                            */
 /* ------------------------------------------------------------------ */
@@ -156,14 +181,14 @@ export function buildTimeline(
   const finished = status === "completed" || status === "rated";
 
   if (current < 0) {
-    return STEPS.filter((s) => reachedAt(history, s.statuses) !== undefined).map(
-      (s) => ({
-        key: s.key,
-        label: s.label,
-        state: "done",
-        at: reachedAt(history, s.statuses),
-      }),
-    );
+    return STEPS.filter(
+      (s) => reachedAt(history, s.statuses) !== undefined,
+    ).map((s) => ({
+      key: s.key,
+      label: s.label,
+      state: "done",
+      at: reachedAt(history, s.statuses),
+    }));
   }
 
   return STEPS.map((s, i) => ({
@@ -354,6 +379,10 @@ export interface PriceRow {
 
 export interface PriceBreakdownModel {
   rows: PriceRow[];
+  discount: number;
+  /** The coupon the customer applied, if any. */
+  couponCode: string | null;
+  gst: number;
   total: number;
   extraApproved: number;
   grandTotal: number;
@@ -404,9 +433,14 @@ export function buildPriceBreakdown(
   }
 
   const total = snap?.total ?? 0;
+  const discount = snap?.discount ?? 0;
+  const gst = snap?.gst ?? 0;
   const extraApproved = booking.extraChargesApprovedTotal ?? 0;
   return {
     rows,
+    discount,
+    couponCode: snap?.couponCode ?? null,
+    gst,
     total,
     extraApproved,
     grandTotal: Math.round((total + extraApproved) * 100) / 100,

@@ -2,11 +2,10 @@ import type { BookingView } from "./booking";
 
 /**
  * The customer-facing shape of ONE booking (GET /bookings/:id).
- * Mirrors what `buildDetailView` returns on the backend: the booking itself plus the flattened
- * partner, the catalog service, extra charges and (only while the partner has arrived) the start OTP.
+ * Mirrors what buildDetailView returns on the backend.
  */
 
-/** "approve" / "reject" - the body of POST /bookings/:id/extra-charges/:chargeId/decision. */
+/** Body of POST /bookings/:id/extra-charges/:chargeId/decision. */
 export type ExtraChargeDecision = "approve" | "reject";
 
 export type ExtraChargeStatus = "pending" | "approved" | "rejected";
@@ -21,7 +20,7 @@ export interface ExtraCharge {
   decidedAt?: string;
 }
 
-/** The assigned partner as a customer may see them. `phone` only while the job is active. */
+/** The assigned partner as a customer may see them. */
 export interface BookingDetailPartner {
   name?: string;
   phone?: string;
@@ -45,7 +44,6 @@ export interface BookingDetailPayment {
   paymentId?: string;
   status?: string;
   paidAt?: string;
-  /** From the latest Payment record. */
   method?: string;
   transactionId?: string;
 }
@@ -54,7 +52,7 @@ export interface BookingDetailView extends Omit<
   BookingView,
   "paymentDetails" | "otp"
 > {
-  /** Human-friendly reference when the server has one; the page falls back to the id. */
+  /** Human-friendly reference when available. */
   bookingNumber?: string;
   serviceName?: string;
   cancellationReason?: string;
@@ -62,12 +60,58 @@ export interface BookingDetailView extends Omit<
   /** Only set while the partner has arrived; otherwise null. */
   startOtp: string | null;
 
-  /** null until a partner accepts. */
+  /** Null until a partner accepts. */
   partner: BookingDetailPartner | null;
   service: BookingDetailService | null;
   paymentDetails?: BookingDetailPayment;
 
   extraCharges: ExtraCharge[];
-  /** Sum of the approved extra charges, added to the snapshot total. */
+
+  /** Sum of approved extra charges added to the snapshot total. */
   extraChargesApprovedTotal: number;
+}
+
+/**
+ * Cancellation preview returned by the backend.
+ *
+ * Important: feeAmount is the policy fee.
+ * fee is the actual fee charged for this booking.
+ */
+export interface CancellationSummary {
+  /** Free cancellation until this many hours before the slot. */
+  windowHours: number;
+
+  /** Flat cancellation fee configured in admin settings. */
+  feeAmount: number;
+
+  /** Hours remaining until the service slot. */
+  hoursUntilSlot: number;
+
+  /** Whether the booking qualifies for free cancellation. */
+  freeCancellation: boolean;
+
+  /** Fee actually kept from this booking. */
+  fee: number;
+
+  /** Amount the customer paid online. */
+  paidAmount: number;
+
+  /** Amount eligible for refund. */
+  refundAmount: number;
+
+  refundMethod: "RAZORPAY" | null;
+
+  refundStatus: "requested" | "none";
+}
+
+/** POST /bookings/:id/cancel */
+export interface CancelBookingResult {
+  booking: BookingDetailView;
+  cancellation: CancellationSummary;
+}
+
+/** POST /bookings/:id/reschedule */
+export interface RescheduleInput {
+  date: string;
+  slot: string;
 }
