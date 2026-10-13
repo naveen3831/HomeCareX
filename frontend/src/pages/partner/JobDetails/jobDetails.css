@@ -1,0 +1,24 @@
+.jd-page { display: grid; gap: 1rem; padding: 1.25rem; }
+.jd-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.jd-title { margin: 0; font-size: 1.4rem; font-weight: 800; }
+.jd-sub { margin: 0.2rem 0 0; color: #64748b; }
+.jd-badge { display: inline-flex; border-radius: 999px; padding: 0.35rem 0.7rem; font-size: 0.72rem; font-weight: 700; }
+.jd-badge-assigned { background: #eff6ff; color: #1d4ed8; }
+.jd-badge-en_route { background: #ecfeff; color: #0f766e; }
+.jd-badge-arrived { background: #ecfccb; color: #365314; }
+.jd-badge-in_progress { background: #e0e7ff; color: #4338ca; }
+.jd-badge-completed { background: #dcfce7; color: #166534; }
+.jd-badge-rated { background: #fef3c7; color: #92400e; }
+.jd-btn { display: inline-flex; align-items: center; justify-content: center; border-radius: 0.8rem; background: #0f766e; color: white; border: none; padding: 0.75rem 1rem; font-weight: 700; text-decoration: none; }
+.jd-inline-btn { padding: 0.5rem 0.8rem; }
+.jd-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.jd-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+.jd-block { border: 1px solid #e2e8f0; border-radius: 1rem; background: white; padding: 1rem; }
+.jd-k-label { margin: 0 0 0.5rem; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; }
+.jd-k-value { margin: 0; font-weight: 700; }
+.jd-muted { margin: 0.25rem 0 0; color: #64748b; }
+.jd-emptycard { background: white; border: 1px solid #e2e8f0; border-radius: 1rem; padding: 1.5rem; }
+.jd-error { color: #dc2626; font-weight: 700; }
+.jd-skel { height: 1.5rem; border-radius: 0.75rem; background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9); background-size: 200% 100%; animation: jdPulse 1.2s infinite ease-in-out; }
+.jd-skel-tall { height: 3rem; }
+@keyframes jdPulse { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

@@ -228,11 +228,38 @@ const PartnerStatusContext = createContext<{
   online: boolean;
   setOnline: (v: boolean) => void;
 }>({
-  online: false,
+  online: true,
   setOnline: () => {},
 });
 
 export const usePartnerStatus = () => useContext(PartnerStatusContext);
+
+/**
+ * Starting value of the Online/Offline switch.
+ *
+ * It used to start as false on every page load, and a page then pushed that
+ * false into the mock partner, so the partner always went offline (including
+ * in the mobile view). Now it starts from the status saved by
+ * mockPartnerJobs.ts (same localStorage key), or Online if nothing is saved.
+ * Mock partner id: "partner-1".
+ */
+const MOCK_STATUS_KEY = "mock-partner-online-status";
+const MOCK_PARTNER_ID = "partner-1";
+
+function readInitialOnline(): boolean {
+  try {
+    const raw = window.localStorage.getItem(MOCK_STATUS_KEY);
+    if (!raw) return true;
+    const saved: unknown = JSON.parse(raw);
+    if (saved && typeof saved === "object") {
+      const value = (saved as Record<string, unknown>)[MOCK_PARTNER_ID];
+      if (typeof value === "boolean") return value;
+    }
+  } catch {
+    /* storage blocked or unreadable: fall through to Online */
+  }
+  return true;
+}
 
 // ---- Sidebar groups ----
 const NAV_GROUPS: {
@@ -420,7 +447,8 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
-  const [online, setOnline] = useState(false);
+  // Starts from the saved status instead of always false (see readInitialOnline).
+  const [online, setOnline] = useState<boolean>(readInitialOnline);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
 

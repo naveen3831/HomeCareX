@@ -9,6 +9,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "seed": "node scripts/run-seed.js",
     "seed:users": "ts-node --transpile-only src/scripts/seed-users.ts",
+    "seed:p04": "ts-node --transpile-only src/scripts/seed-p04.ts",
     "seed:incentives": "ts-node --transpile-only src/scripts/seed-incentives.ts",
     "seed:dashboard": "ts-node --transpile-only src/scripts/seed-dashboard.ts",
     "seed:customers": "ts-node --transpile-only src/scripts/seed-admin-customers.ts",
