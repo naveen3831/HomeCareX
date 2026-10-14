@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { BookingModel, type IBooking } from "../../models/Booking";
 import { PaymentModel, type IPayment } from "../../models/Payment";
 import { RefundModel, type IRefund } from "../../models/Refund";
+import { UserModel } from "../../models/User";
 import type { StatusHistoryEntry } from "./bookings.stateMachine";
 import {
   BOOKING_STATUS,
@@ -227,6 +228,19 @@ export class BookingsRepository {
       },
       { new: true, arrayFilters: [{ "c._id": charge, "c.status": "pending" }] },
     ).exec();
+  }
+
+  /** Name, email and phone of the signed-in customer, printed on their invoice. */
+  async findCustomerContact(
+    customerId: string,
+  ): Promise<{ name?: string; email?: string; phone?: string } | null> {
+    if (!Types.ObjectId.isValid(customerId)) return null;
+    const user = await UserModel.findById(customerId)
+      .select("name email phone")
+      .lean()
+      .exec();
+    if (!user) return null;
+    return { name: user.name, email: user.email, phone: user.phone ?? undefined };
   }
 
   /** The payment that actually received money for this booking (what a cancellation refunds from). */

@@ -19,6 +19,7 @@ import AdminPricingPage from '@/pages/admin/Pricing';
 import AdminCouponsPage from '@/pages/admin/Coupons';
 import AdminMarketingPage from '@/pages/admin/Marketing';
 import AdminPaymentsPage from '@/pages/admin/Payments';
+import AdminPaymentDetailsPage from '@/pages/admin/Payments/PaymentDetails';
 import AdminRefundsPage from '@/pages/admin/Refunds';
 import AdminPayoutsPage from '@/pages/admin/Payouts';
 import AdminReviewsPage from '@/pages/admin/Reviews';
@@ -84,7 +85,8 @@ export const adminRoutes: AdminRoute[] = [
   { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
   { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
   { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:manage' },
-
+{ path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  { path: 'payments/:id', element: <AdminPaymentDetailsPage />, permission: 'payments:read' },
   // Coupons
   {
     path: 'coupons',

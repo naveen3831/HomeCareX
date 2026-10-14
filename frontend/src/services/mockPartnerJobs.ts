@@ -98,11 +98,7 @@ const mockPartners: MockPartner[] = [
     approved: true,
     online: true,
 
-    services: [
-      "Washing machine repair",
-      "AC repair",
-      "Refrigerator repair",
-    ],
+    services: ["Washing machine repair", "AC repair", "Refrigerator repair"],
 
     areas: ["Kondapur", "Miyapur", "Hitech City"],
 
@@ -139,6 +135,51 @@ const mockPartners: MockPartner[] = [
 ];
 
 /* =========================================================
+   SAVED ONLINE / OFFLINE STATUS
+
+   The partner list above lives only in memory, so every page
+   load (including the mobile preview) used to start again from
+   the defaults. The chosen status is now saved in localStorage
+   and applied on load. Dev only: clear it with
+   resetMockPartnerStatus() below.
+========================================================= */
+
+const STATUS_KEY = "mock-partner-online-status";
+
+const readSavedStatus = (): Record<string, boolean> => {
+  try {
+    const raw = window.localStorage.getItem(STATUS_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, boolean>)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
+const writeSavedStatus = (partnerId: string, online: boolean) => {
+  try {
+    const saved = readSavedStatus();
+    saved[partnerId] = online;
+    window.localStorage.setItem(STATUS_KEY, JSON.stringify(saved));
+  } catch {
+    /* storage can be blocked (private window, preview frame): keep going in memory */
+  }
+};
+
+if (typeof window !== "undefined") {
+  const saved = readSavedStatus();
+
+  mockPartners.forEach((partner) => {
+    if (typeof saved[partner.id] === "boolean") {
+      partner.online = saved[partner.id];
+    }
+  });
+}
+
+/* =========================================================
    HELPERS
 ========================================================= */
 
@@ -147,9 +188,7 @@ const normalize = (value: string) => value.trim().toLowerCase();
 const serviceMatches = (partner: MockPartner, service: string) => {
   const requestedService = normalize(service);
 
-  return partner.services.some(
-    (item) => normalize(item) === requestedService,
-  );
+  return partner.services.some((item) => normalize(item) === requestedService);
 };
 
 const areaMatches = (partner: MockPartner, area: string) => {
@@ -222,9 +261,7 @@ export const isPartnerEligible = (
 export const findEligiblePartners = (
   booking: MockConfirmedBooking,
 ): MockPartner[] => {
-  return mockPartners.filter((partner) =>
-    isPartnerEligible(partner, booking),
-  );
+  return mockPartners.filter((partner) => isPartnerEligible(partner, booking));
 };
 
 /* =========================================================
@@ -331,9 +368,15 @@ export const getMockPartner = (partnerId: string) => {
 
    Going offline ends any offer that is waiting for this
    partner, so it moves on to the next partner right away.
+
+   console.trace prints the call stack in the browser console,
+   so the line just below "setMockPartnerOnline" shows which
+   file called it. Delete that line once the cause is found.
 ========================================================= */
 
 export const setMockPartnerOnline = (partnerId: string, online: boolean) => {
+  console.trace("[Mock P0] setMockPartnerOnline called:", partnerId, online);
+
   const partner = mockPartners.find((item) => item.id === partnerId);
 
   if (!partner) {
@@ -347,6 +390,7 @@ export const setMockPartnerOnline = (partnerId: string, online: boolean) => {
   }
 
   partner.online = online;
+  writeSavedStatus(partnerId, online);
 
   console.log(
     "[Mock P0] Partner status:",
@@ -381,4 +425,21 @@ export const resetMockPartnerBookings = () => {
   });
 
   console.log("[Mock P0] All partner bookings cleared.");
+};
+
+/* =========================================================
+   RESET SAVED ONLINE / OFFLINE STATUS (dev only)
+
+   Clears the saved status. Reload the page afterwards to go
+   back to the defaults listed in mockPartners above.
+========================================================= */
+
+export const resetMockPartnerStatus = () => {
+  try {
+    window.localStorage.removeItem(STATUS_KEY);
+  } catch {
+    /* ignore */
+  }
+
+  console.log("[Mock P0] Saved partner status cleared. Reload to apply.");
 };

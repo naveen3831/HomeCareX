@@ -12,7 +12,6 @@ import {
   Layers,
   MapPin,
   Navigation,
-  RotateCw,
   Star,
   Trash2,
   Users,
@@ -52,7 +51,8 @@ import {
 } from "./bookingDetailModel";
 import CancelDialog from "./components/CancelDialog";
 import ExtraChargeApproval from "./components/ExtraChargeApproval";
-import InvoiceButton from "./components/InvoiceButton";
+import InvoiceCard from "./components/InvoiceCard";
+import BookAgainButton from "./components/BookAgainButton";
 import OtpDisplay from "./components/OtpDisplay";
 import PartnerCard from "./components/PartnerCard";
 import PriceBreakdown from "./components/PriceBreakdown";
@@ -555,11 +555,9 @@ function DetailsBody({
 
           <Section id="actions-heading" title="Booking Actions" icon={Zap}>
             <div className="flex flex-col gap-2.5">
-              <InvoiceButton
-                booking={booking}
-                serviceName={name}
+              <InvoiceCard
+                bookingId={booking._id}
                 bookingCode={code}
-                total={price.grandTotal}
                 enabled={isPaid}
               />
               {TRACKABLE.has(booking.status) && (
@@ -603,17 +601,7 @@ function DetailsBody({
                   Cancel Booking
                 </button>
               )}
-              <Link
-                to={`${customerPath("/services")}?q=${encodeURIComponent(name)}`}
-                className={clsx(
-                  LINK_BUTTON,
-                  "border border-brand/30 bg-panel text-brand",
-                  FOCUS_RING,
-                )}
-              >
-                <RotateCw className="h-4 w-4" aria-hidden="true" />
-                Book Again
-              </Link>
+              <BookAgainButton booking={booking} />
             </div>
           </Section>
 

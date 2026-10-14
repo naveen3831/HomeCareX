@@ -67,7 +67,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
           tabIndex={0}
           disabled={disabled}
           onClick={() => setShowPassword((prev) => !prev)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:text-[#4338ca] focus:outline-none focus:ring-1 focus:ring-[#4338ca] rounded transition-colors"
+          className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10 sm:h-11 sm:w-11 flex items-center justify-center text-gray-400 hover:text-gray-600 focus:text-[#4338ca] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4338ca] rounded-lg transition-colors"
           aria-label={showPassword ? 'Hide password' : 'Show password'}
         >
           {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}

@@ -7,6 +7,11 @@ import {
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
 
+import {
+  pricingRoutes,
+  adminPricingRoutes,
+} from "../modules/pricing/pricing.routes";
+
 import { authRoutes } from "../modules/auth/auth.routes";
 import { auditRoutes } from "../modules/audit/audit.routes";
 import { adminRoutes } from "../modules/admin/admin.routes";
@@ -23,7 +28,9 @@ import { notificationsRoutes } from "../modules/notifications/notifications.rout
 import { categoriesRoutes } from "../modules/categories/categories.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
-
+import { incentivesRoutes } from "../modules/incentives/incentives.routes";
+import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
+import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
 
 import leadsRoutes from "../modules/leads/leads.routes";
 import { bookingsRoutes } from "../modules/bookings/bookings.routes";
@@ -33,6 +40,8 @@ import {
   addressesRoutes,
   serviceabilityRoutes,
 } from "../modules/addresses/addresses.routes";
+
+import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
@@ -49,23 +58,17 @@ import {
   publicMarketingRoutes,
 } from "../modules/marketing/marketing.routes";
 
-import {
-  pricingRoutes,
-  adminPricingRoutes,
-} from "../modules/pricing/pricing.routes";
-
 import refundsRoutes from "../modules/refunds/refunds.routes";
-import {
-  customerProfileRoutes,
-  customerPreferencesRoutes,
-} from "../modules/customer-profile/customer-profile.routes";
-import reviewsRoutes from "../modules/reviews/reviews.routes";
+import { chatRoutes } from "../modules/chat/chat.routes";
+import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
+import { maskedCallRoutes } from "../modules/masked-call/masked-call.routes";
 
 export const rootRouter = Router();
 
 // Routes are registered under /api/v1.
 // Add new modules here; don't replace the list.
 
+// Authentication
 rootRouter.use("/auth", authRoutes);
 
 // Admin dashboard
@@ -83,11 +86,17 @@ rootRouter.use("/admin/categories", categoriesRoutes);
 // Admin services
 rootRouter.use("/admin/services", servicesRoutes);
 
-// Public catalog routes
+// Public catalog
 rootRouter.use(catalogRoutes);
 
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
+
+// Admin customers (GET /admin/customers, GET /admin/customers/:id ...)
+rootRouter.use("/admin/customers", adminCustomersRoutes);
+
+// Admin payments (read-only: GET /admin/payments)
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
 
 // Admin audit logs
 rootRouter.use("/admin", auditRoutes);
@@ -98,7 +107,13 @@ rootRouter.use("/admin", adminRoutes);
 // Admin partners
 rootRouter.use("/admin/partners", partnersRoutes);
 
+// =========================================================
 // Refunds
+// =========================================================
+
+// GET   /api/v1/admin/refunds
+// POST  /api/v1/admin/refunds
+// PATCH /api/v1/admin/refunds/:id
 rootRouter.use("/admin", refundsRoutes);
 
 // Partner dashboard
@@ -137,27 +152,26 @@ rootRouter.use("/partner/transactions", partnerWalletRoutes);
 // Partner wallet summary
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
 
+// Partner incentives
+rootRouter.use("/partner/incentives", incentivesRoutes);
+
 // Customer addresses
 rootRouter.use("/addresses", addressesRoutes);
 
-// Payment APIs and webhooks
+// Payments and webhooks
 rootRouter.use("/payments", paymentRoutes);
 
-// =========================================================
-// Pricing
-// =========================================================
+// Customer wallet
+rootRouter.use("/wallet", walletRoutes);
 
-// GET / PUT / DELETE /api/v1/admin/pricing (admin + pricing:manage)
-rootRouter.use(
-  '/admin/pricing',
-  adminPricingRoutes,
-);
+// Reviews
+rootRouter.use(reviewsRoutes);
 
-// POST /api/v1/pricing/quote
-rootRouter.use(
-  '/pricing',
-  pricingRoutes,
-);
+// Partner incentives
+rootRouter.use("/partner/incentives", incentivesRoutes);
+
+// Admin customers
+rootRouter.use("/admin/customers", adminCustomersRoutes);
 
 // =========================================================
 // Coupons
@@ -169,6 +183,10 @@ rootRouter.use("/admin/coupons", couponsRoutes);
 // Customer coupon APIs
 rootRouter.use("/coupons", couponCustomerRoutes);
 
+// =========================================================
+// Marketing & Banners
+// =========================================================
+
 // Admin banner CRUD
 rootRouter.use("/admin/banners", marketingRoutes);
 
@@ -177,8 +195,13 @@ rootRouter.use("/banners", publicMarketingRoutes);
 
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/jobs", maskedCallRoutes);
+rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
-// Booking status routes
+// Booking status
 rootRouter.use("/bookings", bookingStatusRoutes);
-rootRouter.use("/reviews", reviewsRoutes)
+
+// Booking chat (customer <-> assigned partner)
+rootRouter.use("/bookings", chatRoutes);
+
 export default rootRouter;

@@ -23,7 +23,7 @@ export function mapJob(api: ApiJob): JobDetails {
       city: api.location.city,
       pincode: api.location.pincode,
     },
-    schedule: { scheduledAt: api.schedule.scheduledAt, slot: api.schedule.slot },
+    schedule: { scheduledAt: api.schedule.scheduledAt, slot: api.schedule.slot, startedAt: api.schedule.startedAt ?? null },
     price: { total: api.price.total, partnerEarning: api.price.partnerEarning },
     addOns: api.addOns.map((a, i) => ({ id: `${a.name}-${i}`, ...a })),
     instructions: api.instructions,

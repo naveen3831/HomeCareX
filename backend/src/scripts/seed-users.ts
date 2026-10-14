@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { UserModel, type UserRole } from '../models/User';
+import { ensurePartnerProfile } from '../modules/partners/partners.service';
 
 dotenv.config();
 
@@ -35,6 +36,10 @@ async function main() {
       { $set: { ...u, passwordHash, status: 'active', failedLogins: 0 }, $unset: { lockedUntil: 1 } },
       { upsert: true },
     );
+    const userDoc = await UserModel.findOne({ email: u.email }).select('_id role').lean();
+    if (userDoc && userDoc.role === 'partner') {
+      await ensurePartnerProfile(userDoc._id);
+    }
     console.log(`  ${u.role.padEnd(14)} ${u.email}`);
   }
   console.log(`\nSeeded ${SEED_USERS.length} users. Password: ${password}`);

@@ -63,6 +63,15 @@ bookingsRoutes.get(
   asyncHandler(async (req, res) => bookingsController.getBooking(req, res)),
 );
 
+// GET /bookings/:id/invoice — HTML invoice for own, paid booking (404 for someone else's, 409 until paid)
+bookingsRoutes.get(
+  "/bookings/:id/invoice",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({ params: getBookingParamsSchema }),
+  asyncHandler(async (req, res) => bookingsController.getInvoice(req, res)),
+);
+
 // POST /bookings/:id/extra-charges/:chargeId/decision — approve or reject one pending extra charge (own booking only)
 bookingsRoutes.post(
   "/bookings/:id/extra-charges/:chargeId/decision",

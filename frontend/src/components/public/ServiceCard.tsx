@@ -43,6 +43,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
             size={13}
             fill="#ff8a3d"
             className="text-[#ff8a3d]"
+            aria-hidden="true"
           />
           {rating}
         </div>
@@ -86,10 +87,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         {/* View Details */}
         <Link
           to={`/services/${id}`}
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#4338ca] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#3730a3]"
+          aria-label={`View details for ${name}`}
+          className="mt-5 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[#4338ca] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#3730a3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] focus-visible:ring-offset-2"
         >
           View Details
-          <ArrowRight size={16} />
+          <ArrowRight size={16} aria-hidden="true" />
         </Link>
 
       </div>
