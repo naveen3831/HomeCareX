@@ -4,11 +4,14 @@
  *   npm run seed:catalog --workspace=backend          (services first)
  *   npm run seed:users --workspace=backend            (needs a customer user)
  *   npm run seed:service-reviews --workspace=backend
+ * It also approves real booking reviews that were saved as "pending" before auto-approval existed (they never
+ * reached the public page), and recomputes the rating of every service it touches.
  * Dev / staging only. Includes one pending and one rejected review that must NOT show on the public page.
  */
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { ReviewModel } from '../models/Review';
+import { reviewsRepository } from '../modules/reviews/reviews.repository';
 import { ServiceModel } from '../models/Service';
 import { UserModel } from '../models/User';
 
@@ -69,6 +72,15 @@ async function main() {
     upserted += 1;
   }
   console.log(`Demo reviews ready: ${upserted} across ${idBySlug.size} services.`);
+
+  // Backfill: pending, verified (completed-booking) reviews linked to a service. Rejected or unlinked reviews are left alone.
+  const pendingBooking = { status: 'pending', verified: true, serviceId: { $exists: true }, bookingId: { $exists: true } };
+  const affected = (await ReviewModel.distinct('serviceId', pendingBooking)).map(String);
+  const { modifiedCount } = await ReviewModel.updateMany(pendingBooking, { $set: { status: 'approved' } });
+  // Also refresh the services the demo reviews landed on, so their card rating matches the list.
+  const toRecompute = new Set([...affected, ...[...idBySlug.values()].map(String)]);
+  for (const id of toRecompute) await reviewsRepository.recomputeServiceRating(id);
+  console.log(`Approved ${modifiedCount} pending booking review(s); recomputed ${toRecompute.size} service rating(s).`);
   await mongoose.disconnect();
 }
 

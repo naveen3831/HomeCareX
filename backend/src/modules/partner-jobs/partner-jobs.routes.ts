@@ -4,8 +4,11 @@ import { requirePermission } from "../../middleware/permission.middleware";
 import { requireRole } from "../../middleware/role.middleware";
 import { validationMiddleware } from "../../middleware/validation.middleware";
 import {
+  acceptJobOffer,
   getPartnerJob,
+  listJobRequests,
   listPartnerJobs,
+  rejectJobOffer,
   updateBookingStatus,
 } from "./partner-jobs.controller";
 import { jobParamsSchema, statusBodySchema } from "./partner-jobs.validation";

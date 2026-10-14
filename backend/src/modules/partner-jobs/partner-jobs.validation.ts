@@ -8,9 +8,7 @@ export const jobParamsSchema = z.object({
 });
 
 export const statusBodySchema = z.object({
-  status: z.enum(PARTNER_JOB_TARGETS, {
-    message: "Status must be en_route or arrived",
-  }),
+  status: z.string().trim().min(1),
   reason: z.string().trim().max(300).optional(),
 });
 

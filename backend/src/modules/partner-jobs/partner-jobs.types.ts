@@ -23,6 +23,15 @@ export interface JobAddOnDto {
   amount: number;
 }
 
+export interface JobRequestDto {
+  id: string;
+  service: string;
+  area: string;
+  price: number;
+  scheduledAt: string;
+  expiresAt: string;
+}
+
 export interface JobChecklistItemDto {
   id: string;
   label: string;

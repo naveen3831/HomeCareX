@@ -9,6 +9,7 @@ import { formatPrice } from "@/pages/customer/Shared/visuals";
 import type { ServiceDetail } from "@/types/catalog";
 import { bookingHref, cssVars } from "../format";
 import AvailabilityBadge from "./AvailabilityBadge";
+import YourRating from "./YourRating";
 import Stars from "./Stars";
 
 /** Name, rating, "starting at" price, duration, availability and the main Book now button. */
@@ -81,6 +82,8 @@ export default function ServiceInfo({ service: s }: { service: ServiceDetail }) 
           <span className="text-sm text-muted">New service. No reviews yet.</span>
         )}
       </div>
+
+      <YourRating serviceId={s.id} className="sd-rise mt-2.5" />
 
       {/* Ticket: price on the left, duration on the right, torn along a dashed edge. */}
       <div className="sd-rise relative mt-4 flex items-stretch rounded-2xl xl:mt-5 bg-brand-soft" style={cssVars({ "--i": 4 })}>

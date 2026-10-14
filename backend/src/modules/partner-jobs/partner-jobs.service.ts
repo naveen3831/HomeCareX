@@ -4,6 +4,7 @@ import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
+import { ensurePartnerProfile } from "../partners/partners.service";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -15,6 +16,7 @@ import type {
   JobChecklistItemDto,
   JobDetailDto,
   JobListItemDto,
+  JobRequestDto,
 } from "./partner-jobs.types";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
