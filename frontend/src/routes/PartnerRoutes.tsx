@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
+import AccountSecurityPage from "@/pages/shared/AccountSecurity";
 import PartnerJobsPage from "../pages/partner/Jobs";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
 import PartnerWorkingHoursPage from "../pages/partner/WorkingHours";
@@ -116,6 +117,7 @@ export default function PartnerRoutes() {
             Partner Profile - FIXED
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
+        <Route path="security" element={<AccountSecurityPage />} />
 
         {/* =====================================================
             Availability

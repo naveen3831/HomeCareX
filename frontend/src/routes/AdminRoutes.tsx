@@ -31,6 +31,7 @@ import AdminSettingsPage from '@/pages/admin/Settings';
 import AdminProfilePage from '@/pages/admin/Profile';
 import AdminNotificationsPage from '@/pages/admin/Notifications';
 import AdminPartnerDetailsPage from '@/pages/admin/PartnerDetails';
+import AccountSecurityPage from '@/pages/shared/AccountSecurity';
 
 interface AdminRoute {
   /** Relative to /admin. Empty string is the index route. */
@@ -165,6 +166,18 @@ export const adminRoutes: AdminRoute[] = [
   {
     path: 'profile',
     element: <AdminProfilePage />,
+  },
+  {
+    path: 'security',
+    element: <AccountSecurityPage />,
+  },
+  {
+    path: 'account/security',
+    element: <AccountSecurityPage />,
+  },
+  {
+    path: 'settings/security',
+    element: <AccountSecurityPage />,
   },
   {
     path: 'notifications',

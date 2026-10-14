@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
 
 import {
   partnerWalletRoutes,
@@ -35,6 +36,10 @@ import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.ro
 import leadsRoutes from "../modules/leads/leads.routes";
 import { bookingsRoutes } from "../modules/bookings/bookings.routes";
 import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
+import {
+  customerProfileRoutes,
+  customerPreferencesRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
 
 import {
   addressesRoutes,

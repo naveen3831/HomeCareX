@@ -13,6 +13,8 @@ import isSafeReturnUrl from '@/utils/isSafeReturnUrl';
 /** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:, /\...). */
 function safeReturnUrl(raw: string | null): string | null {
   if (!raw) return null;
+  // Security and logout routes should never be used as a returnUrl
+  if (/\/security|\/logout/i.test(raw)) return null;
   return isSafeReturnUrl(raw) ? raw : null;
 }
 
@@ -98,7 +100,20 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState(initialCreds?.password ?? '');
   const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
   const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
-  const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
+  const flashError =
+    (location.state as { flash?: string } | null)?.flash ||
+    (params.get('logout') === 'all' || params.get('logout_all')
+      ? 'You have been logged out from all devices.'
+      : params.get('revoked') || params.get('expired')
+      ? 'Your session was revoked. Please log in again.'
+      : '');
+  const [error, setError] = useState(flashError);
+
+  useEffect(() => {
+    if (flashError) {
+      setError(flashError);
+    }
+  }, [flashError]);
   const [successMessage] = useState(() => {
     const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
     if (stateMsg) return stateMsg;
