@@ -17,6 +17,9 @@ export const customerProfileController = {
   async removeAvatar(_req: Request, res: Response) {
     res.json({ success: true, data: { profile: await customerProfileService.removeAvatar(uid(res)) } });
   },
+  async deleteAccount(_req: Request, res: Response) {
+    res.json({ success: true, data: await customerProfileService.deleteAccount(uid(res)) });
+  },
   async getPreferences(_req: Request, res: Response) {
     res.json({ success: true, data: { preferences: await customerProfileService.getPreferences(uid(res)) } });
   },

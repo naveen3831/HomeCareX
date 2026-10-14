@@ -5,8 +5,11 @@ import { requireRole } from "../../middleware/role.middleware";
 import { validationMiddleware } from "../../middleware/validation.middleware";
 
 import {
+  acceptJobOffer,
   getPartnerJob,
+  listJobRequests,
   listPartnerJobs,
+  rejectJobOffer,
   updateBookingStatus,
   acceptJobOffer,
   rejectJobOffer,

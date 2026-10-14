@@ -69,6 +69,8 @@ export const profileApi = {
     call<{ preferences: PreferencesDto }>(() => http.get("/customer/preferences")).then((d) => d.preferences),
   updatePreferences: (patch: PreferencesPatch) =>
     call<{ preferences: PreferencesDto }>(() => http.patch("/customer/preferences", patch)).then((d) => d.preferences),
+  /** Permanently deletes the signed-in customer's account. */
+  deleteAccount: () => call<{ deleted: boolean }>(() => http.delete("/customer/profile")),
   changePassword: (input: ChangePasswordInput) =>
     call<{ changed: boolean }>(() => http.post("/auth/change-password", input)),
 };
@@ -117,6 +119,11 @@ export function useRemoveAvatar() {
 /** POST /auth/change-password */
 export function useChangePassword() {
   return useMutation<{ changed: boolean }, NormalizedApiError, ChangePasswordInput>({ mutationFn: profileApi.changePassword });
+}
+
+/** DELETE /customer/profile. A 409 explains what blocks it (an open booking or a wallet balance). */
+export function useDeleteAccount() {
+  return useMutation<{ deleted: boolean }, NormalizedApiError, void>({ mutationFn: profileApi.deleteAccount });
 }
 
 /** GET /customer/preferences (notification matrix + language) */

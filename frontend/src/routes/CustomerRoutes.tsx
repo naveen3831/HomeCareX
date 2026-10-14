@@ -13,6 +13,8 @@ import Profile from "../pages/customer/Profile";
 import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
 import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
 import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
+import TermsPage from "../pages/customer/Profile/TermsPage";
+import PrivacyPage from "../pages/customer/Profile/PrivacyPage";
 import Referrals from "../pages/customer/Referrals";
 import Reviews from "../pages/customer/Reviews";
 import Services from "../pages/customer/Services";
@@ -55,6 +57,8 @@ export default function CustomerRoutes() {
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/profile/password" element={<ChangePasswordPage />} />
         <Route path="/profile/notifications" element={<NotificationsPage />} />
+        <Route path="/profile/terms" element={<TermsPage />} />
+        <Route path="/profile/privacy" element={<PrivacyPage />} />
 
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/reviews" element={<Reviews />} />

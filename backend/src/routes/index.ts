@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
-import walletRoutes from "../modules/wallet/wallet.routes";
 
 import {
   partnerWalletRoutes,
@@ -47,6 +46,7 @@ import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
+  partnerJobRequestsRoutes,
   bookingStatusRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
 
@@ -129,7 +129,10 @@ rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 
 // Customer dashboard
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
+rootRouter.use("/customer/profile", customerProfileRoutes);
 
+// Customer preferences: GET/PATCH /customer/preferences
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 // Serviceability
 rootRouter.use("/serviceability", serviceabilityRoutes);
 
@@ -198,10 +201,16 @@ rootRouter.use("/admin/banners", marketingRoutes);
 // Public banners
 rootRouter.use("/banners", publicMarketingRoutes);
 
+// Pricing
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
 
 // Booking status
 rootRouter.use("/bookings", bookingStatusRoutes);

@@ -28,18 +28,16 @@ export const listJobRequests = asyncHandler(
 export const acceptJobOffer = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
-    sendSuccess(res, await partnerJobsService.acceptOffer(sub, req.params.id), {
-      message: "Job accepted successfully",
-    });
+    const result = await partnerJobsService.acceptOffer(sub, req.params.id);
+    sendSuccess(res, result, { message: result.message });
   },
 );
 
 export const rejectJobOffer = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
-    sendSuccess(res, await partnerJobsService.rejectOffer(sub, req.params.id), {
-      message: "Job rejected",
-    });
+    const result = await partnerJobsService.rejectOffer(sub, req.params.id);
+    sendSuccess(res, result, { message: result.message });
   },
 );
 
