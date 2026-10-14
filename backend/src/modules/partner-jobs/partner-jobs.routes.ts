@@ -3,11 +3,16 @@ import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { requireRole } from "../../middleware/role.middleware";
 import { validationMiddleware } from "../../middleware/validation.middleware";
+
 import {
   getPartnerJob,
   listPartnerJobs,
   updateBookingStatus,
+  acceptJobOffer,
+  rejectJobOffer,
+  listJobRequests,
 } from "./partner-jobs.controller";
+
 import { jobParamsSchema, statusBodySchema } from "./partner-jobs.validation";
 
 /** Mounted at /partner/jobs */

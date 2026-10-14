@@ -18,6 +18,31 @@ export const getPartnerJob = asyncHandler(
   },
 );
 
+export const listJobRequests = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    sendSuccess(res, await partnerJobsService.listRequests(sub));
+  },
+);
+
+export const acceptJobOffer = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    sendSuccess(res, await partnerJobsService.acceptOffer(sub, req.params.id), {
+      message: "Job accepted successfully",
+    });
+  },
+);
+
+export const rejectJobOffer = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    sendSuccess(res, await partnerJobsService.rejectOffer(sub, req.params.id), {
+      message: "Job rejected",
+    });
+  },
+);
+
 export const updateBookingStatus = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
@@ -25,9 +50,7 @@ export const updateBookingStatus = asyncHandler(
     sendSuccess(
       res,
       await partnerJobsService.updateStatus(sub, req.params.id, status, reason),
-      {
-        message: "Job status updated",
-      },
+      { message: "Job status updated" },
     );
   },
 );
