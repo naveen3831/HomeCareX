@@ -8,10 +8,19 @@ import type { ProfileDoc } from './customer-profile.types';
 
 /* In-memory stand-in for the repository: same unique rules as the User collection's email / phone indexes. */
 let users: ProfileDoc[] = [];
+let openBookings: Record<string, number> = {};
+let wallets: Record<string, number> = {};
 const fake = {
   findById: async (id: string) => users.find((u) => String(u._id) === id) ?? null,
   findByEmail: async (email: string) => users.find((u) => u.email === email) ?? null,
   findByPhone: async (phone: string) => users.find((u) => u.phone === phone) ?? null,
+  countOpenBookings: async (id: string) => openBookings[id] ?? 0,
+  walletBalance: async (id: string) => wallets[id] ?? 0,
+  deleteAccount: async (id: string) => {
+    const before = users.length;
+    users = users.filter((u) => String(u._id) !== id);
+    return users.length < before;
+  },
   update: async (id: string, upd: { $set?: Record<string, unknown>; $unset?: Record<string, ''> }) => {
     const u = users.find((x) => String(x._id) === id);
     if (!u) return null;
@@ -26,6 +35,8 @@ const A = new Types.ObjectId().toString();
 const B = new Types.ObjectId().toString();
 
 beforeEach(() => {
+  openBookings = {};
+  wallets = {};
   users = [
     { _id: A, name: 'Asha', email: 'asha@x.com', phone: '9876543210', role: 'customer' },
     { _id: B, name: 'Bala', email: 'bala@x.com', phone: '9123456780', role: 'customer' },
@@ -163,5 +174,27 @@ describe('preferences', () => {
     assert.equal(updatePreferencesBodySchema.safeParse({ notifications: { spam: { push: true } } }).success, false);
     assert.equal(updatePreferencesBodySchema.safeParse({ notifications: { booking: { fax: true } } }).success, false);
     assert.equal(updatePreferencesBodySchema.safeParse({}).success, false);
+  });
+});
+
+describe('deleteAccount', () => {
+  test('removes the account and nobody else\'s', async () => {
+    assert.deepEqual(await service.deleteAccount(A), { deleted: true });
+    assert.equal(users.some((u) => String(u._id) === A), false);
+    assert.equal(users.some((u) => String(u._id) === B), true);
+    await rejects(service.getProfile(A), 404, 'CUSTOMER_NOT_FOUND');
+  });
+  test('is refused while a booking is still open', async () => {
+    openBookings[A] = 1;
+    await rejects(service.deleteAccount(A), 409, 'ACCOUNT_HAS_OPEN_BOOKINGS');
+    assert.equal(users.length, 2);
+  });
+  test('is refused while the wallet holds money', async () => {
+    wallets[A] = 5000;
+    await rejects(service.deleteAccount(A), 409, 'ACCOUNT_HAS_WALLET_BALANCE');
+    assert.equal(users.length, 2);
+  });
+  test('an unknown account is a 404', async () => {
+    await rejects(service.deleteAccount(new Types.ObjectId().toString()), 404, 'CUSTOMER_NOT_FOUND');
   });
 });

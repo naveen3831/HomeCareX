@@ -23,6 +23,7 @@ import {
 } from "./auth.types";
 
 import type {
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,

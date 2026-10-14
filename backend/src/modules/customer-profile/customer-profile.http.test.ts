@@ -29,6 +29,9 @@ before(async () => {
     findById: async (id: string) => users.get(id) ?? null,
     findByEmail: async (email: string) => [...users.values()].find((u) => u.email === email) ?? null,
     findByPhone: async (phone: string) => [...users.values()].find((u) => u.phone === phone) ?? null,
+    countOpenBookings: async () => 0,
+    walletBalance: async () => 0,
+    deleteAccount: async (id: string) => users.delete(id),
     update: async (id: string, upd: { $set?: Record<string, unknown>; $unset?: Record<string, ''> }) => {
       const u = users.get(id);
       if (!u) return null;
@@ -71,7 +74,7 @@ async function call(method: string, path: string, opts: { token?: string; json?:
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(40).fill(0)]);
 
 describe('auth and role', () => {
-  for (const [method, path, json] of [['GET', '/profile', undefined], ['PATCH', '/profile', { name: 'Zed Zed' }], ['POST', '/profile/avatar', undefined], ['GET', '/preferences', undefined]] as const) {
+  for (const [method, path, json] of [['GET', '/profile', undefined], ['PATCH', '/profile', { name: 'Zed Zed' }], ['POST', '/profile/avatar', undefined], ['GET', '/preferences', undefined], ['DELETE', '/profile', undefined]] as const) {
     test(`${method} ${path}: no token -> 401`, async () => {
       const r = await call(method, path, { json });
       assert.equal(r.status, 401);
@@ -174,5 +177,18 @@ describe('GET / PATCH /customer/preferences', () => {
     for (const json of [{ language: 'fr' }, { notifications: { booking: { fax: true } } }, {}]) {
       assert.equal((await call('PATCH', '/preferences', { token: tokenFor(B), json })).status, 400, JSON.stringify(json));
     }
+  });
+});
+
+describe('DELETE /customer/profile', () => {
+  test('deletes only the signed-in customer, and the old profile is gone afterwards', async () => {
+    const C = new Types.ObjectId().toString();
+    users.set(C, { _id: C, name: 'Chitra', email: 'chitra@x.com', role: 'customer' });
+    const r = await call('DELETE', '/profile', { token: tokenFor(C) });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data?.deleted, true);
+    assert.equal(users.has(C), false);
+    assert.equal(users.has(A), true);
+    assert.equal((await call('GET', '/profile', { token: tokenFor(C) })).status, 404);
   });
 });
