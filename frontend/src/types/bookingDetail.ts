@@ -28,6 +28,8 @@ export interface BookingDetailPartner {
   rating?: number;
   ratingCount?: number;
   verified?: boolean;
+  /** Profile photo URL. Shown on the tracking screen when the API provides it; otherwise the initial is used. */
+  avatar?: string;
 }
 
 /** Catalog details of the booked service. */

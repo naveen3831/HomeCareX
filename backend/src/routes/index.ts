@@ -1,6 +1,12 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
+
+import {
+  customerPreferencesRoutes,
+  customerProfileRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
 
 import {
   partnerWalletRoutes,
@@ -45,6 +51,7 @@ import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
+  partnerJobRequestsRoutes,
   bookingStatusRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
 
@@ -195,6 +202,7 @@ rootRouter.use("/banners", publicMarketingRoutes);
 
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 

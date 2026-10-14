@@ -4,6 +4,7 @@ import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
+import { trackingService } from "../../services/TrackingService";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -15,6 +16,7 @@ import type {
   JobChecklistItemDto,
   JobDetailDto,
   JobListItemDto,
+  JobRequestDto,
 } from "./partner-jobs.types";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
@@ -90,29 +92,21 @@ const toAddOns = (
   });
 };
 
+/** Finds the signed-in user's partner profile or throws 404. Never creates one. */
 async function getPartnerProfile(userId: string) {
-  let partner = await repo.findPartnerByUserId(userId);
+  const partner = await repo.findPartnerByUserId(userId);
   if (!partner) {
-    try {
-      const created = await ensurePartnerProfile(userId);
-      if (created) {
-        partner = { _id: created._id };
-      }
-    } catch {
-      // ignore
-    }
+    throw Errors.notFound(
+      ERROR_CODES.PARTNER_NOT_FOUND,
+      "No partner profile found for this account",
+    );
   }
   return partner;
 }
 
 /** Loads the booking and proves it belongs to the signed-in partner. */
 async function loadOwnedBooking(userId: string, bookingId: string) {
-  const partner = await repo.findPartnerByUserId(userId);
-  if (!partner)
-    throw Errors.notFound(
-      ERROR_CODES.PARTNER_NOT_FOUND,
-      "No partner profile found for this account",
-    );
+  const partner = await getPartnerProfile(userId);
   const booking = await repo.findBooking(bookingId);
   if (!booking)
     throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
@@ -201,12 +195,7 @@ const LIVE_STATUSES: BookingStatus[] = [
 export const partnerJobsService = {
   /** GET /partner/jobs. The signed-in partner's live jobs, straight from the bookings collection. */
   async listLiveJobs(userId: string): Promise<JobListItemDto[]> {
-    const partner = await repo.findPartnerByUserId(userId);
-    if (!partner)
-      throw Errors.notFound(
-        ERROR_CODES.PARTNER_NOT_FOUND,
-        "No partner profile found for this account",
-      );
+    const partner = await getPartnerProfile(userId);
     const rows = await repo.listLiveForPartner(partner._id, LIVE_STATUSES);
     return rows.map((b) => ({
       id: b._id.toString(),
@@ -228,58 +217,62 @@ export const partnerJobsService = {
     return buildDetail(booking);
   },
 
-  /** GET /partner/job-requests. List pending unexpired offers for this partner. */
-  async listRequests(userId: string, now: Date = new Date()): Promise<JobRequestDto[]> {
+  /** GET /partner/job-requests. Pending, unexpired offers for this partner. */
+  async listRequests(
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<JobRequestDto[]> {
     const partner = await getPartnerProfile(userId);
-    if (!partner) {
-      throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, 'No partner profile found for this account');
-    }
     const bookings = await repo.findJobRequests(partner._id, now);
-    return bookings.map((b) => {
+
+    return bookings.flatMap((b): JobRequestDto[] => {
       const offer = b.offers?.find(
-        (o) => o.partnerId.toString() === partner._id.toString() && o.response === 'pending',
+        (o) =>
+          o.partnerId.toString() === partner._id.toString() &&
+          o.response === "pending",
       );
-      const expiresAt = offer?.expiresAt
-        ? offer.expiresAt.toISOString()
-        : new Date(now.getTime() + 15 * 60_000).toISOString();
-      return {
-        id: b._id.toString(),
-        service: b.serviceName,
-        area: b.address.area || b.address.city,
-        price: money(b.partnerEarning || b.priceBreakdown?.total || 0),
-        scheduledAt: b.scheduledAt.toISOString(),
-        expiresAt,
-      };
+
+      // No pending offer with an expiry for this partner: nothing to show.
+      if (!offer?.expiresAt) return [];
+
+      return [
+        {
+          id: b._id.toString(),
+          service: b.serviceName,
+          area: b.address.area || b.address.city,
+          price: money(b.partnerEarning || b.priceBreakdown?.total || 0),
+          scheduledAt: b.scheduledAt.toISOString(),
+          expiresAt: offer.expiresAt.toISOString(),
+        },
+      ];
     });
   },
 
   /** POST /partner/jobs/:id/accept */
   async acceptOffer(userId: string, bookingId: string, now: Date = new Date()) {
     const partner = await getPartnerProfile(userId);
-    if (!partner) {
-      throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, 'No partner profile found for this account');
-    }
     const result = await repo.acceptOffer(bookingId, partner._id, userId, now);
-    if (result === 'NOT_FOUND') {
-      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, 'Job not found');
+    if (result === "NOT_FOUND") {
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     }
-    if (result === 'EXPIRED_OR_UNAVAILABLE') {
-      throw httpError(409, ERROR_CODES.CONFLICT, 'This job offer has expired or has already been accepted by another partner');
+    if (result === "EXPIRED_OR_UNAVAILABLE") {
+      throw httpError(
+        409,
+        ERROR_CODES.CONFLICT,
+        "This job offer has expired or has already been accepted by another partner",
+      );
     }
-    return { success: true, message: 'Job accepted successfully' };
+    return { success: true, message: "Job accepted successfully" };
   },
 
   /** POST /partner/jobs/:id/reject */
   async rejectOffer(userId: string, bookingId: string) {
     const partner = await getPartnerProfile(userId);
-    if (!partner) {
-      throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, 'No partner profile found for this account');
-    }
     const result = await repo.rejectOffer(bookingId, partner._id);
-    if (result === 'NOT_FOUND') {
-      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, 'Job not found');
+    if (result === "NOT_FOUND") {
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     }
-    return { success: true, message: 'Job rejected' };
+    return { success: true, message: "Job rejected" };
   },
 
   /** PATCH /bookings/:id/status for partners. Goes through the booking state machine. */
@@ -339,9 +332,12 @@ export const partnerJobsService = {
         "This job was already updated. Refresh to see its latest status",
       );
 
+    trackingService.emitStatus(bookingId, target, entry.at);
+
     const fresh = await repo.findBooking(bookingId);
     if (!fresh)
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     return buildDetail(fresh);
   },
 };
+  
