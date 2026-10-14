@@ -1,6 +1,12 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
+
+import {
+  customerPreferencesRoutes,
+  customerProfileRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
 
 import {
   partnerWalletRoutes,
@@ -207,6 +213,7 @@ rootRouter.use("/admin/pricing", adminPricingRoutes);
 
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);

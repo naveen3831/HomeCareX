@@ -42,20 +42,20 @@ partnerJobsRoutes.get(
 
 // POST /api/v1/partner/jobs/:id/accept
 partnerJobsRoutes.post(
-  '/:id/accept',
+  "/:id/accept",
   authenticate,
-  requireRole('partner'),
-  requirePermission('partner:jobs:update'),
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema }),
   acceptJobOffer,
 );
 
 // POST /api/v1/partner/jobs/:id/reject
 partnerJobsRoutes.post(
-  '/:id/reject',
+  "/:id/reject",
   authenticate,
-  requireRole('partner'),
-  requirePermission('partner:jobs:update'),
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema }),
   rejectJobOffer,
 );
@@ -65,10 +65,10 @@ export const partnerJobRequestsRoutes = Router();
 
 // GET /api/v1/partner/job-requests
 partnerJobRequestsRoutes.get(
-  '/',
+  "/",
   authenticate,
-  requireRole('partner'),
-  requirePermission('partner:jobs:read'),
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
   listJobRequests,
 );
 
