@@ -178,16 +178,16 @@ export const RegisterPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Top Navigation: Back to Home + Status badge */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
+      <div className="flex items-center justify-between gap-2 mb-4 pb-2.5 border-b border-gray-200/70 shrink-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded px-1.5 py-0.5 -ml-1.5"
+          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-600 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded py-1 shrink-0 whitespace-nowrap"
           aria-label="Back to Home"
         >
-          <ArrowLeft size={15} />
-          Back to Home
+          <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
+          <span>Back to Home</span>
         </Link>
-        <span className="text-[11px] font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+        <span className="text-[11px] sm:text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
           Create Account
         </span>
       </div>

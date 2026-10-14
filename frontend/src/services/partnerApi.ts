@@ -241,6 +241,10 @@ export async function recordPartnerAudit(
    P02 - Partner Jobs / My Jobs
    ========================================================= */
 
+/* =========================================================
+   Get Jobs
+   ========================================================= */
+
 async function getJobs(
   tab: JobTab = "all",
   page = 1,
@@ -260,19 +264,39 @@ async function getJobs(
 }
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
-  const res = await http.post<ApiResponse<JobMutationResult>>(
-    `/partner/jobs/${id}/accept`,
-  );
+  try {
+    const res = await http.post<ApiResponse<JobMutationResult>>(
+      `/partner/jobs/${id}/accept`,
+    );
 
-  return res.data.data;
+    return {
+      success: true,
+      message: res.data.message || "Job accepted",
+      status: res.status,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status ?? 500;
+    const message = err?.response?.data?.message ?? err?.message ?? "Could not accept job";
+    return { success: false, message, status };
+  }
 }
 
 async function rejectJob(id: string): Promise<JobMutationResult> {
-  const res = await http.post<ApiResponse<JobMutationResult>>(
-    `/partner/jobs/${id}/reject`,
-  );
+  try {
+    const res = await http.post<ApiResponse<JobMutationResult>>(
+      `/partner/jobs/${id}/reject`,
+    );
 
-  return res.data.data;
+    return {
+      success: true,
+      message: res.data.message || "Job rejected",
+      status: res.status,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status ?? 500;
+    const message = err?.response?.data?.message ?? err?.message ?? "Could not reject job";
+    return { success: false, message, status };
+  }
 }
 
 /**
@@ -341,11 +365,13 @@ export const partnerApi = {
     return res.data.data;
   },
 
-  acceptJobOffer: (id: string, _partnerId?: string): Promise<OfferResult> =>
-    postOffer(`/partner/jobs/${id}/accept`),
+  async acceptJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
+    return acceptJob(id);
+  },
 
-  rejectJobOffer: (id: string, _partnerId?: string): Promise<OfferResult> =>
-    postOffer(`/partner/jobs/${id}/reject`),
+  async rejectJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
+    return rejectJob(id);
+  },
 
   /* P02 - My Jobs */
 

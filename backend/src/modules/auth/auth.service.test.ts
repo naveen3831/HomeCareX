@@ -305,21 +305,20 @@ test('refresh: valid refresh succeeds, returns new access token, increments toke
       } as any;
       authController.refresh(req, res, next);
     });
+    assert.equal(cookieCalls.length, 1, 'res.cookie must be called once');
+    assert.equal(cookieCalls[0].name, 'hcx_refresh');
+    assert.ok(cookieCalls[0].val);
+    assert.notEqual(cookieCalls[0].val, tokenV1, 'Cookie must be replaced with the new token');
+    assert.equal(cookieCalls[0].opts.httpOnly, true);
+    assert.equal(cookieCalls[0].opts.sameSite, 'strict');
+    assert.equal(cookieCalls[0].opts.path, '/api/v1/auth');
+    assert.ok(responseData?.success);
+    assert.ok(responseData?.data?.accessToken);
+    assert.equal(responseData?.data?.user?.id, mockUser.id);
   } finally {
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalNodeEnv;
   }
-
-  assert.equal(cookieCalls.length, 1, 'res.cookie must be called once');
-  assert.equal(cookieCalls[0].name, 'hcx_refresh');
-  assert.ok(cookieCalls[0].val);
-  assert.notEqual(cookieCalls[0].val, tokenV1, 'Cookie must be replaced with the new token');
-  assert.equal(cookieCalls[0].opts.httpOnly, true);
-  assert.equal(cookieCalls[0].opts.sameSite, process.env.NODE_ENV === 'production' ? 'strict' : 'lax');
-  assert.equal(cookieCalls[0].opts.path, '/api/v1/auth');
-  assert.ok(responseData?.success);
-  assert.ok(responseData?.data?.accessToken);
-  assert.equal(responseData?.data?.user?.id, mockUser.id);
 });
 
 test('refresh: old refresh token is rejected after rotation, and reused token causes session/token-family invalidation', async () => {

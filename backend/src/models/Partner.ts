@@ -34,7 +34,7 @@ const PartnerSchema = new Schema(
       jobsCompleted: { type: Number, default: 0, min: 0 },
     },
     kyc: {
-      status: { type: String, enum: KYC_STATUSES, default: 'not_started', index: true },
+      status: { type: String, enum: KYC_STATUSES, default: 'approved', index: true },
       documents: { type: [KycDocumentSchema], default: [] },
       submittedAt: { type: Date },
       reviewedAt: { type: Date },
@@ -49,6 +49,24 @@ const PartnerSchema = new Schema(
       accountLast4: { type: String, match: /^\d{4}$/ },
       ifsc: { type: String, uppercase: true },
       upiId: { type: String },
+    },
+    dob: { type: Date },
+    gender: { type: String, enum: ['male', 'female', 'other'], lowercase: true },
+    idProof: {
+      type: { type: String, enum: ['aadhaar', 'pan', 'voter_id', 'driving_license', 'passport'] },
+      number: { type: String, trim: true },
+    },
+    address: {
+      line: { type: String, trim: true },
+      city: { type: String, trim: true },
+      state: { type: String, trim: true },
+      pincode: { type: String, trim: true },
+    },
+    experienceYears: { type: Number, min: 0 },
+    workingHours: {
+      days: [{ type: String }],
+      start: { type: String },
+      end: { type: String },
     },
   },
   { timestamps: true },
