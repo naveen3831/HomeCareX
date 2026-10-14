@@ -1063,3 +1063,35 @@ body {
   .bk-tick { animation: bkTick .28s cubic-bezier(.2, .8, .2, 1) both; }
   .bk-check-on { animation: sdPop .4s cubic-bezier(.3, 1.4, .5, 1) both; }
 }
+<<<<<<< Updated upstream
+=======
+
+/* ========================================
+   CONFIRM DIALOGS (delete account, log out)
+   ======================================== */
+.delete-backdrop, .logout-backdrop { animation: dialogFade .2s ease-out both; }
+.delete-sheet, .logout-sheet { animation: sheetUp .32s cubic-bezier(.2,.8,.2,1) both; }
+.delete-ring, .logout-ring { animation: dialogRing 2.4s ease-out infinite; }
+.delete-ring-2, .logout-ring-2 { animation-delay: 1.2s; }
+
+@keyframes dialogFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheetUp { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dialogRing { 0% { transform: scale(.8); opacity: .7; } 100% { transform: scale(1.25); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .delete-backdrop, .logout-backdrop, .delete-sheet, .logout-sheet { animation: none; }
+  .delete-ring, .logout-ring { animation: none; opacity: 0; }
+}
+
+/* Scrollbar hide: scroll still works */
+html,
+body {
+  -ms-overflow-style: none;  /* Edge / old IE */
+  scrollbar-width: none;     /* Firefox */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none;             /* Chrome, Edge, Safari */
+}
+>>>>>>> Stashed changes
