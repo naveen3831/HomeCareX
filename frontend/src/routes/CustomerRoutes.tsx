@@ -22,6 +22,7 @@ import Services from "../pages/customer/Services";
 import ServiceDetails from "../pages/customer/ServiceDetails";
 import Support from "../pages/customer/Support";
 import Tracking from "../pages/customer/Tracking";
+import TrackingRedirect from "../pages/customer/Tracking/TrackingRedirect";
 import Wallet from "../pages/customer/Wallet";
 
 import Tickets from "@/pages/customer/Tickets";
@@ -49,6 +50,7 @@ export default function CustomerRoutes() {
 
         {/* ✅ View Details route with :id matching useParams in BookingDetails */}
         <Route path="/bookings/:id" element={<BookingDetails />} />
+        <Route path="/bookings/:id/track" element={<Tracking />} />
 
         <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
         <Route path="/categories" element={<Categories />} />
@@ -69,7 +71,7 @@ export default function CustomerRoutes() {
         <Route path="/services/:slug" element={<ServiceDetails />} />
         <Route path="/support" element={<Support />} />
         <Route path="/support/tickets" element={<Tickets />} />
-        <Route path="/tracking" element={<Tracking />} />
+        <Route path="/tracking" element={<TrackingRedirect />} />
         <Route path="/wallet" element={<Wallet />} />
 
         <Route path="/booking/success/:id" element={<BookingSuccess />} />

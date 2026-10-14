@@ -307,7 +307,7 @@ export const assignBookingToPartner = (
    Returns the offers that are open for this partner right now.
 ========================================================= */
 
-export const mockJobRequests = async (
+export const listMockPartnerJobs = async (
   partnerId: string = "partner-1",
 ): Promise<JobRequest[]> => {
   await new Promise<void>((resolve) => {
@@ -354,6 +354,8 @@ export const mockJobRequests = async (
 
   return open;
 };
+
+export const mockJobRequests = listMockPartnerJobs;
 
 /* =========================================================
    GET PARTNER
