@@ -1,10 +1,12 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 
 import bcrypt from "bcryptjs";
 
 import jwt from "jsonwebtoken";
 
 import { authRepository } from "./auth.repository";
+import { ensurePartnerProfile } from "../partners/partners.service";
 
 import {
   ACCESS_TOKEN_TTL,
@@ -193,7 +195,77 @@ export const authService = {
       role: input.role,
 
       referralCode: input.referralCode,
+
+      avatar: input.avatar,
+      gender: input.gender,
     });
+
+    if (user.role === 'partner' && mongoose.connection.readyState === 1) {
+      try {
+        const partner = await ensurePartnerProfile(user.id);
+        if (partner) {
+          if (input.skills && input.skills.length > 0) {
+            partner.skills = input.skills;
+          }
+          if (input.serviceRadiusKm) {
+            partner.serviceRadiusKm = input.serviceRadiusKm;
+          }
+          if (input.accountHolder || input.accountNumber || input.ifsc || input.upiId) {
+            partner.bankDetails = {
+              accountHolder: input.accountHolder,
+              accountLast4: input.accountNumber ? input.accountNumber.slice(-4) : undefined,
+              ifsc: input.ifsc?.toUpperCase(),
+              upiId: input.upiId,
+            };
+          }
+          if (input.dob) {
+            partner.dob = new Date(input.dob);
+          }
+          if (input.gender) {
+            (partner as any).gender = input.gender;
+          }
+          if (input.idProofType || input.idProofNumber) {
+            partner.idProof = {
+              type: input.idProofType,
+              number: input.idProofNumber,
+            };
+          }
+          if (input.address || input.city || input.state || input.pincode) {
+            partner.address = {
+              line: input.address,
+              city: input.city,
+              state: input.state,
+              pincode: input.pincode,
+            };
+          }
+          if (input.experienceYears !== undefined) {
+            partner.experienceYears = input.experienceYears;
+          }
+          if (input.workingDays || input.workingHoursStart || input.workingHoursEnd) {
+            partner.workingHours = {
+              days: input.workingDays ?? [],
+              start: input.workingHoursStart,
+              end: input.workingHoursEnd,
+            };
+          }
+          const docs: Array<{ type: 'id_proof' | 'address_proof'; url: string; status: 'approved' }> = [];
+          if (input.idProofDocument) {
+            docs.push({ type: 'id_proof', url: input.idProofDocument, status: 'approved' });
+          }
+          if (input.addressProofDocument) {
+            docs.push({ type: 'address_proof', url: input.addressProofDocument, status: 'approved' });
+          }
+          (partner as any).kyc = {
+            ...(partner.kyc ?? {}),
+            status: 'approved',
+            ...(docs.length > 0 ? { documents: docs } : {}),
+          };
+          await partner.save();
+        }
+      } catch (err) {
+        console.error('Partner profile creation failed during registration:', err);
+      }
+    }
 
     try {
       await mailService.sendAccountCreatedEmail({

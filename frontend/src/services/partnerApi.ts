@@ -234,84 +234,6 @@ export async function recordPartnerAudit(
    P02 - Partner Jobs / My Jobs
    ========================================================= */
 
-const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
-
-const MOCK_PARTNER_JOBS: PartnerJob[] = [
-  {
-    id: "job-001",
-    bookingId: "HCX-10001",
-    service: "Deep Home Cleaning",
-    customer: "Rahul Sharma",
-    location: "Gachibowli, Hyderabad",
-    distance: 2.4,
-    scheduledAt: "2026-10-08T14:00:00+05:30",
-    amount: 1499,
-    status: "requested",
-    instructions: "Please call the customer before arriving.",
-    expiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
-  },
-  {
-    id: "job-002",
-    bookingId: "HCX-10002",
-    service: "Washing Machine Repair",
-    customer: "Priya Reddy",
-    location: "Kondapur, Hyderabad",
-    distance: 4.1,
-    scheduledAt: "2026-10-09T10:30:00+05:30",
-    amount: 599,
-    status: "upcoming",
-    instructions: "Customer reported unusual vibration.",
-  },
-  {
-    id: "job-003",
-    bookingId: "HCX-10003",
-    service: "AC Service",
-    customer: "Arjun Kumar",
-    location: "Madhapur, Hyderabad",
-    distance: 5.2,
-    scheduledAt: "2026-10-08T12:30:00+05:30",
-    amount: 899,
-    status: "active",
-    instructions: "Check cooling performance and clean filters.",
-  },
-  {
-    id: "job-004",
-    bookingId: "HCX-10004",
-    service: "Kitchen Cleaning",
-    customer: "Sneha Patel",
-    location: "Jubilee Hills, Hyderabad",
-    distance: 7.8,
-    scheduledAt: "2026-10-05T11:00:00+05:30",
-    amount: 1299,
-    status: "completed",
-    instructions: "Focus on kitchen cabinets and chimney area.",
-  },
-  {
-    id: "job-005",
-    bookingId: "HCX-10005",
-    service: "Plumbing Repair",
-    customer: "Vikram Singh",
-    location: "Manikonda, Hyderabad",
-    distance: 6.3,
-    scheduledAt: "2026-10-04T15:30:00+05:30",
-    amount: 749,
-    status: "cancelled",
-    instructions: "Customer cancelled the booking.",
-  },
-];
-
-const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
-  if (tab === "all") {
-    return true;
-  }
-
-  if (tab === "requests") {
-    return job.status === "requested";
-  }
-
-  return job.status === tab;
-};
-
 /* =========================================================
    Get Jobs
    ========================================================= */
@@ -338,19 +260,39 @@ async function getJobs(
 }
 
 async function acceptJob(id: string): Promise<JobMutationResult> {
-  const res = await http.post<ApiResponse<JobMutationResult>>(
-    `/partner/jobs/${id}/accept`,
-  );
+  try {
+    const res = await http.post<ApiResponse<JobMutationResult>>(
+      `/partner/jobs/${id}/accept`,
+    );
 
-  return res.data.data;
+    return {
+      success: true,
+      message: res.data.message || "Job accepted",
+      status: res.status,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status ?? 500;
+    const message = err?.response?.data?.message ?? err?.message ?? "Could not accept job";
+    return { success: false, message, status };
+  }
 }
 
 async function rejectJob(id: string): Promise<JobMutationResult> {
-  const res = await http.post<ApiResponse<JobMutationResult>>(
-    `/partner/jobs/${id}/reject`,
-  );
+  try {
+    const res = await http.post<ApiResponse<JobMutationResult>>(
+      `/partner/jobs/${id}/reject`,
+    );
 
-  return res.data.data;
+    return {
+      success: true,
+      message: res.data.message || "Job rejected",
+      status: res.status,
+    };
+  } catch (err: any) {
+    const status = err?.response?.status ?? 500;
+    const message = err?.response?.data?.message ?? err?.message ?? "Could not reject job";
+    return { success: false, message, status };
+  }
 }
 
 /* =========================================================
@@ -386,8 +328,12 @@ export const partnerApi = {
     return res.data.data;
   },
 
-  async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
-    return listMockPartnerJobs(partnerId);
+  async acceptJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
+    return acceptJob(id);
+  },
+
+  async rejectJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
+    return rejectJob(id);
   },
 
   /* P02 - My Jobs */

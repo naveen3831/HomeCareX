@@ -45,6 +45,7 @@ import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
+  partnerJobRequestsRoutes,
   bookingStatusRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
 
@@ -193,10 +194,16 @@ rootRouter.use("/admin/banners", marketingRoutes);
 // Public banners
 rootRouter.use("/banners", publicMarketingRoutes);
 
+// Pricing
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
 
 // Booking status
 rootRouter.use("/bookings", bookingStatusRoutes);
