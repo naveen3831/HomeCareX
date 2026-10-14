@@ -67,6 +67,16 @@ export function useDecideExtraCharge(bookingId: string) {
   });
 }
 
+/**
+ * Fetches the booking's invoice (HTML) on demand. A mutation rather than a query: it runs when the customer
+ * presses Download or Print, is never cached, and every press shows the server's current answer (404 / 409).
+ */
+export function useInvoice(bookingId: string) {
+  return useMutation<string, NormalizedApiError, void>({
+    mutationFn: () => bookingApi.getInvoice(bookingId),
+  });
+}
+
 /** The fee and refund if the customer cancelled now. Never cached: the fee depends on the clock. */
 export function useCancelPreview(bookingId: string | undefined, enabled: boolean) {
   return useQuery<CancellationSummary, NormalizedApiError>({
