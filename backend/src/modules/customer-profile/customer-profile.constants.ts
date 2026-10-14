@@ -21,3 +21,16 @@ export const DEFAULT_NOTIFICATIONS: NotificationMatrix = {
 export const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 export const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export type AvatarType = (typeof AVATAR_TYPES)[number];
+
+/** Bookings that are still in flight: an account with any of these can't be deleted yet. */
+export const OPEN_BOOKING_STATUSES = [
+  'pending_payment',
+  'confirmed',
+  'created',
+  'searching_for_partner',
+  'assigned',
+  'en_route',
+  'arrived',
+  'in_progress',
+  'disputed',
+] as const;

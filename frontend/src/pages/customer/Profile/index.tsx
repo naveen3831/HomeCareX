@@ -5,9 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAddresses, useCustomerDashboard, useProfile } from "@/features/customer";
 import { customerPath } from "@/routes/customerPath";
 import AccountMenu, { type RowBadges } from "./AccountMenu";
+import DeleteAccount from "@/components/customer/DeleteAccount";
 import LogoutCard from "./LogoutCard";
 import ProfileDesktop from "./ProfileDesktop";
-import ProfileHero, { statLinks, type ProfileStat } from "./ProfileHero";
+import ProfileHero from "./ProfileHero";
 import { FormMessage } from "./formKit";
 
 /** Old links like /profile#password still work: they forward to the matching page. */
@@ -19,7 +20,7 @@ const LEGACY_HASH: Record<string, string> = {
 
 /**
  * Profile (/customer/profile).
- *  - header: avatar, name and live stats (mobile also gets the account menu that replaced the hamburger).
+ *  - header: avatar, name and contact details in one light card (mobile also gets the account menu that replaced the hamburger).
  *  - settings: Edit profile, Change password and Notification settings are full pages (/profile/edit, /profile/password,
  *    /profile/notifications). After saving, they send the customer back here with a short confirmation banner.
  *  - Log out sits last on mobile; on desktop the sidebar carries it.
@@ -59,17 +60,9 @@ export default function Profile() {
   const avatarUrl = profile.data?.avatarUrl;
   const defaultAddress = addresses.data?.find((a) => a.isDefault) ?? addresses.data?.[0];
 
-  // Counts: undefined while loading, null if the request failed (shown as "–").
-  const fromDashboard = (n: number | undefined) => (dashboard.isError ? null : n);
+  // Small badges on the mobile menu rows.
   const active = dashboard.data?.activeBookings.length;
-  const upcoming = dashboard.data?.upcomingBookings.length;
   const places = addresses.isError ? null : addresses.data?.length;
-
-  const stats: ProfileStat[] = [
-    { label: "Active", value: fromDashboard(active), to: statLinks.active },
-    { label: "Upcoming", value: fromDashboard(upcoming), to: statLinks.upcoming },
-    { label: "Saved places", value: places, to: statLinks.places },
-  ];
 
   const badges: RowBadges = {};
   if (active) badges["Active Booking"] = { text: `${active} live`, live: true };
@@ -89,7 +82,7 @@ export default function Profile() {
       )}
 
       {/* ---------- mobile ---------- */}
-      <ProfileHero name={name} email={email} phone={phone} avatarUrl={avatarUrl} stats={stats} />
+      <ProfileHero name={name} email={email} phone={phone} avatarUrl={avatarUrl} />
       <AccountMenu badges={badges} />
 
       {/* ---------- desktop ---------- */}
@@ -99,9 +92,9 @@ export default function Profile() {
         phone={phone}
         avatarUrl={avatarUrl}
         addressText={defaultAddress ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(", ") : undefined}
-        stats={stats}
       />
 
+      <DeleteAccount variant="card" />
       <LogoutCard />
     </div>
   );

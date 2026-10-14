@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
-import walletRoutes from "../modules/wallet/wallet.routes";
 
 import {
   partnerWalletRoutes,
@@ -24,8 +23,7 @@ import { notificationsRoutes } from "../modules/notifications/notifications.rout
 import { categoriesRoutes } from "../modules/categories/categories.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
-import { incentivesRoutes } from "../modules/incentives/incentives.routes";
-import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
+
 
 import leadsRoutes from "../modules/leads/leads.routes";
 import { bookingsRoutes } from "../modules/bookings/bookings.routes";
@@ -36,7 +34,6 @@ import {
   serviceabilityRoutes,
 } from "../modules/addresses/addresses.routes";
 
-import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import {
   partnerJobsRoutes,
   bookingStatusRoutes,
@@ -52,8 +49,17 @@ import {
   publicMarketingRoutes,
 } from "../modules/marketing/marketing.routes";
 
-import refundsRoutes from "../modules/refunds/refunds.routes";
+import {
+  pricingRoutes,
+  adminPricingRoutes,
+} from "../modules/pricing/pricing.routes";
 
+import refundsRoutes from "../modules/refunds/refunds.routes";
+import {
+  customerProfileRoutes,
+  customerPreferencesRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
+import reviewsRoutes from "../modules/reviews/reviews.routes";
 
 export const rootRouter = Router();
 
@@ -100,7 +106,10 @@ rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 
 // Customer dashboard
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
+rootRouter.use("/customer/profile", customerProfileRoutes);
 
+// Customer preferences: GET/PATCH /customer/preferences
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 // Serviceability
 rootRouter.use("/serviceability", serviceabilityRoutes);
 
@@ -171,5 +180,5 @@ rootRouter.use("/partner/jobs", partnerJobsRoutes);
 
 // Booking status routes
 rootRouter.use("/bookings", bookingStatusRoutes);
-
+rootRouter.use("/reviews", reviewsRoutes)
 export default rootRouter;

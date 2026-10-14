@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
-import { Bell, ChevronRight, Lock } from "lucide-react";
+import { Bell, ChevronRight, FileText, Lock, ShieldCheck } from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { PROFILE_ITEM_META, PROFILE_MENU_GROUPS, type CustomerNavItem, type ProfileTint } from "@/components/customer/customerNav";
+import { PROFILE_ITEM_META, PROFILE_MENU_GROUPS, type CustomerNavGroup, type CustomerNavItem, type ProfileTint } from "@/components/customer/customerNav";
 import { customerPath } from "@/routes/customerPath";
 
 const TINTS: Record<ProfileTint, string> = {
@@ -24,9 +24,19 @@ const ACCOUNT_SETTINGS: CustomerNavItem[] = [
 const SETTINGS_META: Record<string, { description: string; tint: ProfileTint }> = {
   "Change password": { description: "Keep your account secure", tint: "orange" },
   "Notification settings": { description: "Alerts and language", tint: "sky" },
+  "Terms & Conditions": { description: "Rules for using HomeCareX", tint: "indigo" },
+  "Privacy Policy": { description: "How we handle your data", tint: "emerald" },
 };
 
-const GROUPS = PROFILE_MENU_GROUPS.map((g) => (g.heading.toLowerCase() === "account" ? { ...g, items: [...g.items, ...ACCOUNT_SETTINGS] } : g));
+const LEGAL_GROUP: CustomerNavGroup = {
+  heading: "Legal",
+  items: [
+    { label: "Terms & Conditions", to: customerPath("/profile/terms"), icon: FileText },
+    { label: "Privacy Policy", to: customerPath("/profile/privacy"), icon: ShieldCheck },
+  ],
+};
+
+const GROUPS = [...PROFILE_MENU_GROUPS.map((g) => (g.heading.toLowerCase() === "account" ? { ...g, items: [...g.items, ...ACCOUNT_SETTINGS] } : g)), LEGAL_GROUP];
 
 /** Small value shown on the right of a row instead of nothing, keyed by nav label. */
 export type RowBadges = Partial<Record<string, { text: string; live?: boolean }>>;

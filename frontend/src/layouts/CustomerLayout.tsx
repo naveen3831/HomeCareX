@@ -33,7 +33,7 @@ export default function CustomerLayout() {
   const path = pathname.replace(/\/+$/, "").toLowerCase();
   const hideBottomNav = path === customerPath("/profile");
   // Edit profile / Change password / Notifications are focused full pages on phones: no top bar, no bottom nav (they bring their own back header).
-  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications")].includes(path);
+  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
 
   return (
     <div className="flex min-h-screen overflow-x-clip bg-canvas">
