@@ -48,9 +48,7 @@ export const updateBookingStatus = asyncHandler(
     sendSuccess(
       res,
       await partnerJobsService.updateStatus(sub, req.params.id, status, reason),
-      {
-        message: "Job status updated",
-      },
+      { message: "Job status updated" },
     );
   },
 );
