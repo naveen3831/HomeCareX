@@ -1,13 +1,3 @@
-<<<<<<< Updated upstream
-import type { Server as HttpServer } from 'http';
-import { Server, type Socket } from 'socket.io';
-import { z } from 'zod';
-import { authService } from '../modules/auth/auth.service';
-import type { AccessTokenPayload } from '../modules/auth/auth.types';
-import BookingModel from '../models/Booking';
-import PartnerModel from '../models/Partner';
-import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
-=======
 import type { Server as HttpServer } from "http";
 import { Server, type Socket } from "socket.io";
 import { z } from "zod";
@@ -18,7 +8,6 @@ import PartnerModel from "../models/Partner";
 import { ERROR_CODES, type ErrorCode } from "../constants/errorCodes";
 import { registerTrackingSocket } from "./tracking.socket";
 import { registerTicketSocket } from "./ticket.socket";
->>>>>>> Stashed changes
 
 /** Room names. A socket is in `user:<id>` and `role:<role>` after connecting, and `booking:<id>` after a successful booking:join. */
 export const rooms = {
@@ -101,17 +90,14 @@ export const initSockets = (server: HttpServer): Server => {
         reply({ ok: false, code: ERROR_CODES.INTERNAL_ERROR, message: 'Could not join booking' });
       }
     });
-
-    socket.on('booking:leave', (payload: unknown) => {
+    socket.on("booking:leave", (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
-      if (parsed.success) void socket.leave(rooms.booking(parsed.data.bookingId));
+      if (parsed.success)
+        void socket.leave(rooms.booking(parsed.data.bookingId));
     });
-<<<<<<< Updated upstream
-=======
 
-    registerTrackingSocket(socket);
+    
     registerTicketSocket(socket);
->>>>>>> Stashed changes
   });
 
   return io;
