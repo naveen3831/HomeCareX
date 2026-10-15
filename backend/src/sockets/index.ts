@@ -7,7 +7,7 @@ import BookingModel from "../models/Booking";
 import PartnerModel from "../models/Partner";
 import { ERROR_CODES, type ErrorCode } from "../constants/errorCodes";
 import { registerTrackingSocket } from "./tracking.socket";
-
+import { registerTicketSocket } from "./ticket.socket";
 /** Room names. A socket is in `user:<id>` and `role:<role>` after connecting, and `booking:<id>` after a successful booking:join. */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -25,6 +25,9 @@ const bookingPayload = z.object({
 });
 
 let io: Server | null = null;
+
+/** Null before initSockets() (unit tests, scripts). Emitters use this so a missing server never fails a request. */
+export const getIOIfReady = (): Server | null => io;
 
 export const getIO = (): Server => {
   if (!io)
@@ -125,14 +128,13 @@ export const initSockets = (server: HttpServer): Server => {
         });
       }
     });
-
-    socket.on("booking:leave", (payload: unknown) => {
+socket.on("booking:leave", (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
       if (parsed.success)
         void socket.leave(rooms.booking(parsed.data.bookingId));
     });
-
     registerTrackingSocket(socket);
+    registerTicketSocket(socket);
   });
 
   return io;

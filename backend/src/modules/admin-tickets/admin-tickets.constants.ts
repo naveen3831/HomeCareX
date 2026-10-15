@@ -43,4 +43,11 @@ export const AUDIT_ACTION = {
   assigned: 'ticket.assigned',
   reassigned: 'ticket.reassigned',
   unassigned: 'ticket.unassigned',
+  statusChanged: 'ticket.status_changed',
+  priorityChanged: 'ticket.priority_changed',
+  replied: 'ticket.replied',
+  noted: 'ticket.noted',
 } as const;
+
+/** Longest reply / note an agent can send (the TicketMessage schema enforces the same cap). */
+export const MAX_MESSAGE_LENGTH = 4000;

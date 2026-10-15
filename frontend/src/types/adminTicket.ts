@@ -31,8 +31,23 @@ export interface AdminTicket {
     /** Set once the ticket is resolved, so met/missed can be shown after the fact. */
     resolvedAt?: string | null;
   };
+  /** Only on GET /admin/tickets/:id. Null when the ticket has no booking (or it was deleted). */
+  bookingContext?: BookingContext | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** The booking a ticket is about, as shown beside the thread. */
+export interface BookingContext {
+  id: string;
+  ref: string;
+  serviceName: string;
+  status: string;
+  paymentStatus: string;
+  scheduledAt: string | null;
+  total: number | null;
+  address: string | null;
+  partner: { id: string; name: string | null } | null;
 }
 
 export interface AdminTicketsPage {
@@ -74,6 +89,7 @@ export interface ApiTicket {
   assignee?: { id: string; name: string } | null;
   /** Null for resolved / closed tickets. `state` and `targetHours` are sent too; the badge derives its own from dueAt. */
   sla?: { dueAt?: string | null; pausedAt?: string | null; resolvedAt?: string | null; state?: string; targetHours?: number } | null;
+  bookingContext?: BookingContext | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -85,5 +101,15 @@ export interface TicketMessage {
   sender: { id: string; name: string | null; role: 'customer' | 'partner' | 'admin' };
   body: string;
   attachments: { url: string; name: string; mimeType: string; sizeBytes: number }[];
+  /** true = agent-only note. Older payloads omit it (= a normal message). */
+  internal?: boolean;
   createdAt: string;
+}
+
+/** Pushed over the socket when a ticket's status or priority changes. */
+export interface TicketUpdatedEvent {
+  ticketId: string;
+  status: string;
+  priority?: string;
+  updatedAt: string;
 }

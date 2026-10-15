@@ -76,6 +76,30 @@ export class PayoutsController {
     });
   }
 
+  /**
+   * Update an individual payout's status.
+   * The service validates the requested status and transition.
+   */
+  async updateStatus(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+
+    const payout = await payoutsService.updateStatus({
+      payoutId: req.params.id,
+      status: req.body.status,
+      adminId: admin.id,
+      ip: getIp(req),
+    });
+
+    res.status(200).json({
+      success: true,
+      data: payout,
+    });
+  }
+
+  /**
+   * Mark an individual payout as paid.
+   * Retained for compatibility with any existing callers.
+   */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
 

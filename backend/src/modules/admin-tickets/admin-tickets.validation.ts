@@ -4,7 +4,7 @@ import {
   TICKET_PRIORITIES,
   TICKET_STATUSES,
 } from '../tickets/tickets.constants';
-import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, REQUESTER_ROLES, SLA_STATES } from './admin-tickets.constants';
+import { DEFAULT_PAGE_SIZE, MAX_MESSAGE_LENGTH, MAX_PAGE_SIZE, REQUESTER_ROLES, SLA_STATES } from './admin-tickets.constants';
 
 export const isObjectIdString = (v: string): boolean => /^[a-f0-9]{24}$/i.test(v);
 
@@ -81,3 +81,34 @@ export type AssignTicketBody = z.infer<typeof assignTicketSchema>;
 export const listAgentsQuerySchema = z.object({
   assignable: z.literal('true', { errorMap: () => ({ message: 'Only assignable=true is supported' }) }),
 });
+
+
+/** PATCH /admin/tickets/:id/status. Lowercase, same values as the list filter. */
+export const updateStatusSchema = z.object({
+  status: z.enum(TICKET_STATUSES, {
+    errorMap: () => ({ message: `status must be one of: ${TICKET_STATUSES.join(', ')}` }),
+  }),
+});
+export type UpdateStatusBody = z.infer<typeof updateStatusSchema>;
+
+/** PATCH /admin/tickets/:id/priority. */
+export const updatePrioritySchema = z.object({
+  priority: z.enum(TICKET_PRIORITIES, {
+    errorMap: () => ({ message: `priority must be one of: ${TICKET_PRIORITIES.join(', ')}` }),
+  }),
+});
+export type UpdatePriorityBody = z.infer<typeof updatePrioritySchema>;
+
+/**
+ * POST /admin/tickets/:id/messages. `internal: true` is an agent-only note.
+ * The body is trimmed here, so a message of only spaces is rejected rather than stored as "".
+ */
+export const postMessageSchema = z.object({
+  body: z
+    .string({ required_error: 'body is required', invalid_type_error: 'body must be text' })
+    .trim()
+    .min(1, 'Message cannot be empty')
+    .max(MAX_MESSAGE_LENGTH, `Message is too long (max ${MAX_MESSAGE_LENGTH} characters)`),
+  internal: z.boolean({ invalid_type_error: 'internal must be true or false' }).optional().default(false),
+});
+export type PostMessageBody = z.infer<typeof postMessageSchema>;
