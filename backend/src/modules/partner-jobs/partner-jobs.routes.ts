@@ -11,9 +11,6 @@ import {
   listPartnerJobs,
   rejectJobOffer,
   updateBookingStatus,
-  acceptJobOffer,
-  rejectJobOffer,
-  listJobRequests,
 } from "./partner-jobs.controller";
 
 import { jobParamsSchema, statusBodySchema } from "./partner-jobs.validation";

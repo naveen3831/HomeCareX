@@ -299,36 +299,6 @@ async function rejectJob(id: string): Promise<JobMutationResult> {
   }
 }
 
-/**
- * Accept / reject an offer and return the HTTP status instead of throwing,
- * so the page can handle 200 / 404 / 409 itself.
- * Network errors (no response) are still thrown.
- */
-async function postOffer(path: string): Promise<OfferResult> {
-  try {
-    const res = await http.post<ApiResponse<{ message?: string }>>(path);
-
-    return { status: res.status, message: res.data.data?.message ?? "" };
-  } catch (err) {
-    const e = err as {
-      response?: {
-        status?: number;
-        data?: { message?: string; error?: { message?: string } };
-      };
-    };
-
-    if (e.response?.status) {
-      return {
-        status: e.response.status,
-        message:
-          e.response.data?.message ?? e.response.data?.error?.message ?? "",
-      };
-    }
-
-    throw err;
-  }
-}
-
 /* =========================================================
    Partner API
    ========================================================= */

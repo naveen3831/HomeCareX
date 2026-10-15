@@ -5,6 +5,7 @@ import {
   Briefcase,
   CalendarClock,
   Wrench,
+  MapPin,
   Wallet,
   Star,
   User,
@@ -76,6 +77,13 @@ export const NAV = [
   },
 
   {
+    key: "service-area",
+    label: "Service Area",
+    to: "/partner/service-area",
+    icon: MapPin,
+  },
+
+  {
     key: "earnings",
     label: "Earnings",
     to: "/partner/earnings",
@@ -122,6 +130,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/partner/blackout-dates": "Blackout Dates",
   "/partner/availability/blackout-dates": "Blackout Dates",
   "/partner/schedule": "Schedule",
+  "/partner/service-area": "Service Area",
   "/partner/earnings": "Earnings",
   "/partner/jobs": "Job Requests",
 };
@@ -298,6 +307,7 @@ const NAV_GROUPS: {
       "work",
       "availability",
       "services",
+      "service-area",
     ],
   },
 
