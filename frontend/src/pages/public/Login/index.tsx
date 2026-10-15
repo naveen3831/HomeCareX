@@ -3,27 +3,11 @@ import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-do
 import { Mail, ArrowRight, ArrowLeft, ShieldCheck, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { classifyApiError } from '@/lib/apiError';
-import { ADMIN_ROLES, type AuthUser } from '@/types/auth';
 import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
 
-import isSafeReturnUrl from '@/utils/isSafeReturnUrl';
-
-/** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:, /\...). */
-function safeReturnUrl(raw: string | null): string | null {
-  if (!raw) return null;
-  // Security and logout routes should never be used as a returnUrl
-  if (/\/security|\/logout/i.test(raw)) return null;
-  return isSafeReturnUrl(raw) ? raw : null;
-}
-
-/** A returnUrl is only honoured when it belongs to the role's own area. */
-function destinationFor(user: AuthUser, returnUrl: string | null): string {
-  const area = ADMIN_ROLES.includes(user.role) ? '/admin' : `/${user.role}`;
-  if (returnUrl && (returnUrl === area || returnUrl.startsWith(`${area}/`))) return returnUrl;
-  return user.home || area;
-}
+import { safeReturnUrl, destinationFor } from '@/utils/isSafeReturnUrl';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -442,7 +426,10 @@ export const LoginPage: React.FC = () => {
 
       <p className="text-center text-xs sm:text-sm text-gray-500 mt-3.5 sm:mt-4">
         Don&apos;t have an account?{' '}
-        <Link to="/register" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
+        <Link
+          to={returnUrl ? `/register?returnUrl=${encodeURIComponent(returnUrl)}` : "/register"}
+          className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded"
+        >
           Create an account
         </Link>
       </p>
