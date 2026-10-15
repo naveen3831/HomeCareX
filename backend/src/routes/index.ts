@@ -126,6 +126,10 @@ rootRouter.use("/admin", adminRoutes);
 // Public catalog
 rootRouter.use(catalogRoutes);
 
+// Pricing quote API
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
 rootRouter.use("/partner/notifications", notificationsRoutes);

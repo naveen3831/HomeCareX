@@ -16,14 +16,14 @@ import type { BookingDetailPartner } from "@/types/bookingDetail";
 import { formatRating } from "../../Bookings/bookingModel";
 
 const ACTION_BTN =
-  "flex min-h-[26px] items-center justify-center gap-1.5 rounded-lg border px-2 py-0.5 text-[11px] font-semibold text-ink transition";
+  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold leading-none text-ink transition";
 
 /** Who is coming: photo (or initial), name, rating, role/ID, Call / Chat / Details, and the ETA and distance tiles. */
 export default function PartnerCard({
   partner,
   hasPartner,
   serviceTitle,
-  partnerCode = "PX1001",
+  partnerCode = null,
   etaMinutes,
   distanceText,
   showTravel,
@@ -34,7 +34,8 @@ export default function PartnerCard({
   partner: BookingDetailPartner | null;
   hasPartner: boolean;
   serviceTitle?: string | null;
-  partnerCode?: string;
+  /** Real partner code derived from the partner id. Null hides the ID row. */
+  partnerCode?: string | null;
   /** Rough minutes away. Null when there is no live position. */
   etaMinutes: number | null;
   /** e.g. "2.8 km". Null when either position is unknown. */
@@ -57,20 +58,21 @@ export default function PartnerCard({
   }
 
   const name = partner?.name?.trim() || "Your partner";
-  const rating = formatRating(partner?.rating) || "4.7";
+  // No made-up rating: show it only when the partner actually has one.
+  const rating = formatRating(partner?.rating);
+  const count = partner?.ratingCount ?? 0;
   const showPhoto = Boolean(partner?.avatar) && !photoFailed;
-  const count = partner?.ratingCount ?? 120;
   const roleLabel = serviceTitle?.toLowerCase().includes("clean")
     ? "Cleaning Specialist"
     : "Service Specialist";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col justify-between gap-1">
+    <div className="flex shrink-0 flex-col gap-2.5">
       {/* Partner Avatar + Name + Rating + Specialist Subtitle */}
       <div className="flex shrink-0 items-center gap-2.5">
         <span
           aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand/15 bg-brand-soft text-brand shadow-xs"
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand/15 bg-brand-soft text-brand shadow-xs"
         >
           {showPhoto ? (
             <img
@@ -89,39 +91,49 @@ export default function PartnerCard({
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-bold leading-[1.15] text-ink">
+          <p className="truncate text-sm font-bold leading-[1.15] text-ink">
             {name}
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px] leading-[1.15] text-slate-600">
-            <Star
-              className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400"
-              aria-hidden="true"
-            />
-            <span className="font-bold text-ink">{rating}</span>
-            <span className="sr-only"> out of 5</span>
-            <span>
-              ({count} {count === 1 ? "review" : "reviews"})
-            </span>
+            {rating ? (
+              <>
+                <Star
+                  className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400"
+                  aria-hidden="true"
+                />
+                <span className="font-bold text-ink">{rating}</span>
+                <span className="sr-only"> out of 5</span>
+                <span>
+                  ({count} {count === 1 ? "review" : "reviews"})
+                </span>
+              </>
+            ) : (
+              <span>New partner</span>
+            )}
           </p>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] leading-[1.15] text-slate-600">
             <span className="font-medium">{roleLabel}</span>
-            <span aria-hidden="true" className="text-slate-300">
-              •
-            </span>
-            <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-              {partner?.verified ? (
-                <BadgeCheck
-                  className="h-3 w-3 shrink-0 text-brand"
-                  aria-hidden="true"
-                />
-              ) : (
-                <ShieldCheck
-                  className="h-3 w-3 shrink-0 text-emerald-600"
-                  aria-hidden="true"
-                />
-              )}
-              Partner ID: {partnerCode}
-            </span>
+            {partnerCode && (
+              <>
+                <span aria-hidden="true" className="text-slate-300">
+                  •
+                </span>
+                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                  {partner?.verified ? (
+                    <BadgeCheck
+                      className="h-3 w-3 shrink-0 text-brand"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <ShieldCheck
+                      className="h-3 w-3 shrink-0 text-emerald-600"
+                      aria-hidden="true"
+                    />
+                  )}
+                  Partner ID: {partnerCode}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
