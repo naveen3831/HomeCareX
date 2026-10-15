@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+
 import paymentRoutes from "../modules/payments/payments.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
 
@@ -73,6 +74,7 @@ import reviewsRoutes from "../modules/reviews/reviews.routes";
 // TODO: chatRoutes import add cheyyandi (mee branch lo path), e.g.
 // import chatRoutes from "../modules/chat/chat.routes";
 
+import {partnerReviewsRoutes} from "../modules/partner-reviews/partner-reviews.routes";
 export const rootRouter = Router();
 
 // Routes are registered under /api/v1.
