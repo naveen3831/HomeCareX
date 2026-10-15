@@ -1,6 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
-import PartnerProfilePage from "../pages/partner/Profile";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
 import PartnerJobsPage from "../pages/partner/Jobs";
@@ -101,6 +100,14 @@ export const PARTNER_PAGES: { path: string; title: string }[] = [
   },
 ];
 
+// Paths that have a real route below, so they are skipped as placeholders.
+const REAL_ROUTE_PATHS = new Set([
+  "earnings/payouts",
+  "profile",
+  "work/requests",
+  "work",
+]);
+
 // Mounted by AppRoutes at /partner/*.
 // Authentication and role protection are handled by AppRoutes.
 
@@ -114,7 +121,7 @@ export default function PartnerRoutes() {
         <Route index element={<PartnerDashboard />} />
 
         {/* =====================================================
-            Partner Profile - FIXED
+            Partner Profile
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
 
@@ -166,22 +173,25 @@ export default function PartnerRoutes() {
 
         <Route path="jobs/requests" element={<PartnerJobsPage />} />
 
+        <Route
+          path="work"
+          element={<Navigate to="/partner/work/requests" replace />}
+        />
+
+        <Route path="work/requests" element={<PartnerJobsPage />} />
+
         {/* =====================================================
             Remaining Placeholder Pages
         ===================================================== */}
-        {PARTNER_PAGES.filter(
-          ({ path }) =>
-            path !== "earnings/payouts" &&
-            path !== "profile" &&
-            path !== "work/requests" &&
-            path !== "work",
-        ).map(({ path, title }) => (
-          <Route
-            key={path}
-            path={path}
-            element={<Placeholder title={title} />}
-          />
-        ))}
+        {PARTNER_PAGES.filter(({ path }) => !REAL_ROUTE_PATHS.has(path)).map(
+          ({ path, title }) => (
+            <Route
+              key={path}
+              path={path}
+              element={<Placeholder title={title} />}
+            />
+          ),
+        )}
 
         {/* Partner job: details, navigation + chat + call, location sharing */}
         <Route path="jobs/:id" element={<PartnerJobDetailsPage />} />

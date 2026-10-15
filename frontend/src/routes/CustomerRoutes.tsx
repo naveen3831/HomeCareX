@@ -13,12 +13,15 @@ import Profile from "../pages/customer/Profile";
 import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
 import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
 import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
+import TermsPage from "../pages/customer/Profile/TermsPage";
+import PrivacyPage from "../pages/customer/Profile/PrivacyPage";
 import Referrals from "../pages/customer/Referrals";
 import Reviews from "../pages/customer/Reviews";
 import Services from "../pages/customer/Services";
 import ServiceDetails from "../pages/customer/ServiceDetails";
 import Support from "../pages/customer/Support";
 import Tracking from "../pages/customer/Tracking";
+import TrackingRedirect from "../pages/customer/Tracking/TrackingRedirect";
 import Wallet from "../pages/customer/Wallet";
 
 import Tickets from "@/pages/customer/Tickets";
@@ -46,6 +49,7 @@ export default function CustomerRoutes() {
 
         {/* ✅ View Details route with :id matching useParams in BookingDetails */}
         <Route path="/bookings/:id" element={<BookingDetails />} />
+        <Route path="/bookings/:id/track" element={<Tracking />} />
 
         <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
         <Route path="/categories" element={<Categories />} />
@@ -55,6 +59,8 @@ export default function CustomerRoutes() {
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/profile/password" element={<ChangePasswordPage />} />
         <Route path="/profile/notifications" element={<NotificationsPage />} />
+        <Route path="/profile/terms" element={<TermsPage />} />
+        <Route path="/profile/privacy" element={<PrivacyPage />} />
 
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/reviews" element={<Reviews />} />
@@ -62,7 +68,7 @@ export default function CustomerRoutes() {
         <Route path="/services/:slug" element={<ServiceDetails />} />
         <Route path="/support" element={<Support />} />
         <Route path="/support/tickets" element={<Tickets />} />
-        <Route path="/tracking" element={<Tracking />} />
+        <Route path="/tracking" element={<TrackingRedirect />} />
         <Route path="/wallet" element={<Wallet />} />
 
         <Route path="/booking/success/:id" element={<BookingSuccess />} />

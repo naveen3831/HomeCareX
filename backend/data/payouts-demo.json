@@ -1,0 +1,207 @@
+{
+  "batches": [
+    {
+      "_id": "6ad076511ebf9a6fa3a57bfa",
+      "periodStart": "2026-10-15T00:00:00.000Z",
+      "periodEnd": "2026-10-22T00:00:00.000Z",
+      "gross": 25000,
+      "commission": 2500,
+      "net": 22500,
+      "status": "processing",
+      "createdBy": "6abb7fd4f4ae29d02df7c558",
+      "earningIds": [],
+      "payoutIds": [
+        "6ad076511ebf9a6fa3a57bfb",
+        "6ad076511ebf9a6fa3a57bfd",
+        "6ad076511ebf9a6fa3a57bff",
+        "6ad076511ebf9a6fa3a57c01",
+        "6ad076511ebf9a6fa3a57c03",
+        "6ad076511ebf9a6fa3a57c05",
+        "6ad076511ebf9a6fa3a57c07",
+        "6ad076511ebf9a6fa3a57c09"
+      ],
+      "createdAt": "2026-10-15T06:44:33.764Z",
+      "updatedAt": "2026-10-15T07:10:32.201Z"
+    },
+    {
+      "_id": "6ad0738bbd7ec48d73bac8ed",
+      "periodStart": "2026-09-01T00:00:00.000Z",
+      "periodEnd": "2026-09-08T00:00:00.000Z",
+      "gross": 3000,
+      "commission": 300,
+      "net": 2700,
+      "status": "pending",
+      "createdBy": "6abb7fd4f4ae29d02df7c558",
+      "earningIds": [],
+      "payoutIds": [
+        "6ad0738bbd7ec48d73bac8ee"
+      ],
+      "createdAt": "2026-10-15T06:32:43.202Z",
+      "updatedAt": "2026-10-15T06:32:43.202Z"
+    },
+    {
+      "_id": "6ad07124bd7ec48d73bac8d2",
+      "periodStart": "2026-10-01T00:00:00.000Z",
+      "periodEnd": "2026-10-08T00:00:00.000Z",
+      "gross": 3000,
+      "commission": 300,
+      "net": 2700,
+      "status": "pending",
+      "createdBy": "6abb7fd4f4ae29d02df7c558",
+      "earningIds": [],
+      "payoutIds": [
+        "6ad07124bd7ec48d73bac8d3"
+      ],
+      "createdAt": "2026-10-15T06:22:28.814Z",
+      "updatedAt": "2026-10-15T06:22:28.814Z"
+    }
+  ],
+  "payouts": [
+    {
+      "_id": "6ad076511ebf9a6fa3a57bfb",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57bfc",
+        "name": "Rahul Sharma",
+        "email": "rahul.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 3000,
+      "commission": 300,
+      "amount": 2700,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:45:19.343Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57bfd",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57bfe",
+        "name": "Priya Reddy",
+        "email": "priya.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 2500,
+      "commission": 250,
+      "amount": 2250,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:45:34.210Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57bff",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c00",
+        "name": "Arjun Kumar",
+        "email": "arjun.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 4200,
+      "commission": 420,
+      "amount": 3780,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:58:11.986Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57c01",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c02",
+        "name": "Sneha Patel",
+        "email": "sneha.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 1800,
+      "commission": 180,
+      "amount": 1620,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:45:06.984Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57c03",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c04",
+        "name": "Vikram Rao",
+        "email": "vikram.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 3500,
+      "commission": 350,
+      "amount": 3150,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:45:51.623Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57c05",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c06",
+        "name": "Ananya Singh",
+        "email": "ananya.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 2800,
+      "commission": 280,
+      "amount": 2520,
+      "status": "paid",
+      "paidAt": "2026-10-15T06:45:40.516Z",
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57c07",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c08",
+        "name": "Kiran Reddy",
+        "email": "kiran.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 5000,
+      "commission": 500,
+      "amount": 4500,
+      "status": "processing",
+      "paidAt": null,
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad076511ebf9a6fa3a57c09",
+      "partnerId": {
+        "_id": "6ad076511ebf9a6fa3a57c0a",
+        "name": "Meera Nair",
+        "email": "meera.demo@example.com"
+      },
+      "batchId": "6ad076511ebf9a6fa3a57bfa",
+      "gross": 2200,
+      "commission": 220,
+      "amount": 1980,
+      "status": "failed",
+      "paidAt": null,
+      "createdAt": "2026-10-15T06:44:33.764Z"
+    },
+    {
+      "_id": "6ad0738bbd7ec48d73bac8ee",
+      "partnerId": {
+        "_id": "6ad0738bbd7ec48d73bac8ef",
+        "name": "Demo Partner",
+        "email": "demo.partner@example.com"
+      },
+      "batchId": "6ad0738bbd7ec48d73bac8ed",
+      "amount": 2700,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-15T06:32:43.202Z"
+    },
+    {
+      "_id": "6ad07124bd7ec48d73bac8d3",
+      "partnerId": {
+        "_id": "6ad07124bd7ec48d73bac8d4",
+        "name": "Demo Partner",
+        "email": "demo.partner@example.com"
+      },
+      "batchId": "6ad07124bd7ec48d73bac8d2",
+      "amount": 2700,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-15T06:22:28.814Z"
+    }
+  ]
+}

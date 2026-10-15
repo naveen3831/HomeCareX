@@ -144,7 +144,7 @@ const Contact: React.FC = () => {
             <p className="contact-eyebrow contact-eyebrow--light"><span />For home-service professionals</p>
             <h2 id="partner-band-title">Bring your craft.<br /><span>Build what’s next.</span></h2>
             <p>Join the HomeCareX network and let customers discover the services you provide. Tell us about your experience and location — our team will follow up personally.</p>
-            <Link to="#partner-interest" className="partner-band__cta">Become a Partner <ArrowRight aria-hidden="true" size={17} /></Link>
+            <Link to="/register/partner" className="partner-band__cta">Become a Partner <ArrowRight aria-hidden="true" size={17} /></Link>
             <div className="partner-band__note"><ShieldCheck aria-hidden="true" size={16} /><span><b>A conversation, not a commitment.</b><small>This enquiry does not create an account or sign you up for anything.</small></span></div>
           </div>
           <div className="partner-band__form">

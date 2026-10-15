@@ -22,13 +22,14 @@ export function buildPreferencesPatch(saved: PreferencesDto, draft: PreferencesD
 
 const clone = (p: PreferencesDto): PreferencesDto => ({ language: p.language, notifications: JSON.parse(JSON.stringify(p.notifications)) as NotificationMatrix });
 
-/** Notification matrix + language, saved together to PATCH /customer/preferences. */
+/** Language + notification sections (pick a section, then its channels), saved together to PATCH /customer/preferences. */
 export default function PreferencesCard({ preferences, onSaved }: { preferences: PreferencesDto; onSaved?: () => void }) {
   const update = useUpdatePreferences();
   const online = useOnlineStatus();
   const [draft, setDraft] = useState<PreferencesDto>(() => clone(preferences));
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [section, setSection] = useState<NotificationTopic | null>(null);
   const previous = useRef(preferences);
 
   useEffect(() => {
@@ -68,8 +69,8 @@ export default function PreferencesCard({ preferences, onSaved }: { preferences:
   return (
     <>
       <div className="space-y-5" aria-busy={update.isPending}>
-        <LanguageSelect value={draft.language} onChange={setLanguage} disabled={update.isPending} />
-        <PreferencesMatrix value={draft.notifications} onChange={toggle} disabled={update.isPending} />
+        {section === null && <LanguageSelect value={draft.language} onChange={setLanguage} disabled={update.isPending} />}
+        <PreferencesMatrix value={draft.notifications} onChange={toggle} selected={section} onSelect={setSection} disabled={update.isPending} />
 
         {formError && <FormMessage kind="error">{formError}</FormMessage>}
         {saved && <FormMessage kind="success">Preferences saved.</FormMessage>}

@@ -77,7 +77,7 @@ export function BookingCard({
   const total = getTotal(booking);
   const hasTotal = total > 0;
   const detailsHref = `${customerPath("/bookings")}/${id}`;
-  const trackHref = `${customerPath("/tracking")}?booking=${encodeURIComponent(id)}`;
+  const trackHref = customerPath(`/bookings/${encodeURIComponent(id)}/track`);
   const headingId = `booking-${id}-title`;
   const showTrack = canTrack(booking, tab);
   const showRebook = !showTrack && (tab === "completed" || tab === "cancelled");
@@ -111,7 +111,10 @@ export function BookingCard({
                 >
                   <Link
                     to={detailsHref}
-                    className={clsx("rounded-sm hover:text-[#5247d2] hover:underline", FOCUS_RING)}
+                    className={clsx(
+                      "rounded-sm hover:text-[#5247d2] hover:underline",
+                      FOCUS_RING,
+                    )}
                   >
                     {name}
                   </Link>
@@ -121,7 +124,10 @@ export function BookingCard({
 
             {/* Spec Details 2x2 Grid */}
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 rounded-xl bg-[#f8f9fc] p-3">
-              <Detail label="Date" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+              <Detail
+                label="Date"
+                icon={<CalendarDays className="h-3.5 w-3.5" />}
+              >
                 {booking.date ? (
                   formatWhen(booking.date, booking.slot, true, new Date(now))
                 ) : (
@@ -143,7 +149,10 @@ export function BookingCard({
                   <span className="truncate">
                     {partner.name?.trim() || "Assigned"}
                     {rating && (
-                      <span className="font-normal text-slate-500"> · ★ {rating}</span>
+                      <span className="font-normal text-slate-500">
+                        {" "}
+                        · ★ {rating}
+                      </span>
                     )}
                   </span>
                 ) : (

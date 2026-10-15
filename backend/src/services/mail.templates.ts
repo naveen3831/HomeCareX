@@ -133,6 +133,75 @@ export function accountCreatedEmail(d: AccountCreatedEmailData) {
     timeZoneName: 'short',
   });
 
+  if (d.role === 'partner') {
+    const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 24px ${FONT};color:${BRAND.indigoDark};text-align:center">Registration Successful!</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">Welcome to HomeCareX Partner. Your account is active and ready to use.</p>
+
+<p style="margin:0 0 16px">Hi ${esc(d.name)},</p>
+<p style="margin:0 0 18px">Thank you for registering as a partner with HomeCareX. Your partner account has been created successfully. You can log in immediately using the email and password you provided during registration.</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;margin:20px 0">
+  <tr><td style="padding:14px 18px;font:14px/1.6 ${FONT};color:#14532d">
+    <strong>Account Status: Active &amp; Ready</strong><br />
+    No admin wait required. Log in to your partner portal now to manage your profile and view job opportunities.
+  </td></tr>
+</table>
+
+<p style="margin:0 0 20px">Here is a summary of your registration details:</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BRAND.border};border-radius:12px;border-collapse:separate;background:#f8fafc;margin-bottom:20px">
+  ${row('Name', esc(d.name))}
+  ${row('Email', esc(d.email))}
+  ${row('Role', esc(role))}
+  ${row('Registered on', esc(createdAt), true)}
+</table>
+
+<p style="margin:0 0 8px;text-align:center">Sign in to your Partner Portal with your credentials:</p>
+${button(d.loginUrl, 'Log In to Partner Portal')}
+<p style="margin:0 0 22px;text-align:center;font-size:12px;color:${BRAND.muted}">Login link: <a href="${esc(d.loginUrl)}" style="color:${BRAND.indigo};word-break:break-all">${esc(d.loginUrl)}</a></p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eff6ff;border-left:4px solid ${BRAND.indigo};border-radius:6px">
+  <tr><td style="padding:14px 18px;font:14px/1.6 ${FONT};color:#1e3a8a">
+    <strong>Need assistance?</strong> If you have any questions or need support getting started, feel free to reach out to our team.
+  </td></tr>
+</table>
+
+<p style="margin:26px 0 0">Warmly,<br /><strong>The ${BRAND.name} Partner Team</strong></p>`;
+
+    const html = layout({
+      preheader: `Registration successful! Your ${BRAND.name} partner account is active. Log in with your credentials.`,
+      logoSrc: d.logoSrc,
+      bodyHtml,
+      footerNote: `You are receiving this email because a partner registration was submitted using ${d.email}.`,
+      supportEmail: d.supportEmail,
+    });
+
+    const text = [
+      `Hi ${d.name},`,
+      '',
+      `Registration Successful! Welcome to ${BRAND.name} Partner.`,
+      '',
+      'Your partner registration has been completed successfully and your account is active.',
+      'You can log in immediately using the credentials you provided during registration.',
+      '',
+      'Your registration details:',
+      `Name: ${d.name}`,
+      `Email: ${d.email}`,
+      `Role: ${role}`,
+      `Registered on: ${createdAt}`,
+      '',
+      `Partner Login: ${d.loginUrl}`,
+      '',
+      `If you did not register for this account, please contact ${BRAND.name} support immediately.`,
+      '',
+      'Warmly,',
+      `The ${BRAND.name} Partner Team`,
+    ].join('\n');
+
+    return { subject: 'Registration Successful — Welcome to HomeCareX Partner', html, text };
+  }
+
   const bodyHtml = `
 <h1 style="margin:8px 0 6px;font:700 24px ${FONT};color:${BRAND.indigoDark};text-align:center">Welcome to the HomeCareX family!</h1>
 <p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">Your home deserves exceptional care — and we're so glad you're here.</p>
