@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { z } from 'zod';
-import { REVIEW_LIMIT_DEFAULT, REVIEW_LIMIT_MAX, REVIEW_PAGE_DEFAULT, REVIEW_PAGE_MAX } from './reviews.constants';
+import { REVIEW_COMMENT_MAX, REVIEW_LIMIT_DEFAULT, REVIEW_LIMIT_MAX, REVIEW_PAGE_DEFAULT, REVIEW_PAGE_MAX, REVIEW_TAGS } from './reviews.constants';
 
 /** "?page=" (empty) is treated as "not sent" so a cleared control never errors. */
 const blankToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
@@ -15,6 +15,28 @@ export const createReviewSchema = z.object({
   serviceId: objectId('serviceId').optional(),
   bookingId: objectId('bookingId').optional(),
 }).refine((v) => !v.bookingId || Boolean(v.serviceId), { path: ['serviceId'], message: 'serviceId is required when bookingId is given' });
+
+/** POST /bookings/:id/review. Only the rating is required; ids come from the booking, never from the body. */
+export const createBookingReviewSchema = z.object({
+  rating: z
+    .number({ required_error: 'rating is required', invalid_type_error: 'rating must be a number from 1 to 5' })
+    .int('rating must be a whole number from 1 to 5')
+    .min(1, 'rating must be at least 1')
+    .max(5, 'rating must be at most 5'),
+  comment: z
+    .string({ invalid_type_error: 'comment must be text' })
+    .trim()
+    .max(REVIEW_COMMENT_MAX, `comment must be ${REVIEW_COMMENT_MAX} characters or fewer`)
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  tags: z
+    .array(z.enum(REVIEW_TAGS, { errorMap: () => ({ message: `tags must be from: ${REVIEW_TAGS.join(', ')}` }) }))
+    .max(REVIEW_TAGS.length, 'too many tags')
+    .optional()
+    .transform((v) => Array.from(new Set(v ?? []))),
+});
+
+export const bookingIdParamSchema = z.object({ id: objectId('Booking id') });
 
 export const reviewStatusSchema = z.enum(['pending', 'approved', 'rejected']);
 

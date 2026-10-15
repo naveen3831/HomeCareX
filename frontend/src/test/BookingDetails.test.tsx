@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -13,6 +13,12 @@ import {
 
 const getBookingDetail = vi.fn();
 const decideExtraCharge = vi.fn();
+const fetchMyBookingReviews = vi.fn();
+
+vi.mock("@/services/reviewsApi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/reviewsApi")>();
+  return { ...actual, fetchMyBookingReviews: (...a: unknown[]) => fetchMyBookingReviews(...a) };
+});
 
 vi.mock("@/services/bookingApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/bookingApi")>();
@@ -282,5 +288,37 @@ describe("BookingDetails page", () => {
     expect(
       screen.queryByRole("button", { name: /Approve/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("puts 'Rate Your Experience' inside Booking Actions, right above Book Again, and shows the stars given", async () => {
+    getBookingDetail.mockResolvedValue(detail({ status: "rated" }));
+    fetchMyBookingReviews.mockResolvedValue([
+      { id: "r1", bookingId: ID, serviceId: "s1", serviceName: "Deep Cleaning", partnerId: null, partnerName: null, rating: 4, comment: "Spotless work", tags: [], status: "approved", visible: true, verified: true, createdAt: "2026-10-13T10:00:00.000Z" },
+    ]);
+    renderPage();
+    const actions = (await screen.findByRole("heading", { name: /booking actions/i })).closest("section")!;
+    const rate = await within(actions).findByLabelText(/rate your experience/i);
+    expect(await within(rate).findByRole("img", { name: "4 out of 5 stars" })).toBeInTheDocument();
+    expect(within(rate).getByText(/4\/5/)).toBeInTheDocument();
+    expect(within(rate).getByText("Spotless work")).toBeInTheDocument();
+    expect(within(rate).getByText(/thanks for rating/i)).toBeInTheDocument();
+    // Order inside the card: the rating block comes before the Book Again control.
+    const bookAgain = within(actions).getByText(/book again/i);
+    expect(rate.compareDocumentPosition(bookAgain) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // and it is no longer a separate card further down the page.
+    expect(screen.getAllByText(/rate your experience/i)).toHaveLength(1);
+  });
+
+  it("a completed booking offers 'Write a Review' from Booking Actions; a cancelled one has no rating block", async () => {
+    getBookingDetail.mockResolvedValue(detail({ status: "completed" }));
+    const first = renderPage();
+    const actions = (await screen.findByRole("heading", { name: /booking actions/i })).closest("section")!;
+    expect(within(actions).getByRole("link", { name: /write a review/i })).toHaveAttribute("href", "/customer/reviews");
+    first.unmount();
+
+    getBookingDetail.mockResolvedValue(detail({ status: "cancelled_by_customer" }));
+    renderPage();
+    await screen.findByRole("heading", { name: /booking actions/i });
+    expect(screen.queryByText(/rate your experience/i)).not.toBeInTheDocument();
   });
 });
