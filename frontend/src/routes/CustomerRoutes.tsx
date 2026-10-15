@@ -6,27 +6,31 @@ import Dashboard from "../pages/customer/Dashboard";
 import Addresses from "../pages/customer/Addresses";
 import SetupAddress from "../pages/customer/SetupAddress";
 import Bookings from "../pages/customer/Bookings";
-// ✅ Correct import targeting the new details component inside Bookings/
-import BookingDetails from "../pages/customer/BookingDetails/BookingDetailsPage";
 import Categories from "../pages/customer/Categories";
 import Notifications from "../pages/customer/Notifications";
 import Payments from "../pages/customer/Payments";
 import Profile from "../pages/customer/Profile";
+import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
+import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
+import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
+import TermsPage from "../pages/customer/Profile/TermsPage";
+import PrivacyPage from "../pages/customer/Profile/PrivacyPage";
 import Referrals from "../pages/customer/Referrals";
 import Reviews from "../pages/customer/Reviews";
 import Services from "../pages/customer/Services";
 import ServiceDetails from "../pages/customer/ServiceDetails";
 import Support from "../pages/customer/Support";
 import Tracking from "../pages/customer/Tracking";
+import TrackingRedirect from "../pages/customer/Tracking/TrackingRedirect";
 import Wallet from "../pages/customer/Wallet";
 
 import Tickets from "@/pages/customer/Tickets";
 import BookServiceShell from "../pages/customer/Book";
-import EditProfile from "@/pages/customer/Profile/EditProfile";
 
 import BookingSuccess from "../pages/customer/BookingSuccess";
 import BookingFailed from "../pages/customer/BookingFailed";
 import ServiceBooked from "../pages/customer/BookingSuccess/ServiceBooked";
+import BookingDetails from "@/pages/customer/BookingDetails";
 
 /**
  * CustomerRoutes — every route the Customer Dashboard serves,
@@ -45,13 +49,18 @@ export default function CustomerRoutes() {
 
         {/* ✅ View Details route with :id matching useParams in BookingDetails */}
         <Route path="/bookings/:id" element={<BookingDetails />} />
+        <Route path="/bookings/:id/track" element={<Tracking />} />
 
         <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
         <Route path="/categories" element={<Categories />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/payments" element={<Payments />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+        <Route path="/profile/edit" element={<EditProfilePage />} />
+        <Route path="/profile/password" element={<ChangePasswordPage />} />
+        <Route path="/profile/notifications" element={<NotificationsPage />} />
+        <Route path="/profile/terms" element={<TermsPage />} />
+        <Route path="/profile/privacy" element={<PrivacyPage />} />
 
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/reviews" element={<Reviews />} />
@@ -59,7 +68,7 @@ export default function CustomerRoutes() {
         <Route path="/services/:slug" element={<ServiceDetails />} />
         <Route path="/support" element={<Support />} />
         <Route path="/support/tickets" element={<Tickets />} />
-        <Route path="/tracking" element={<Tracking />} />
+        <Route path="/tracking" element={<TrackingRedirect />} />
         <Route path="/wallet" element={<Wallet />} />
 
         <Route path="/booking/success/:id" element={<BookingSuccess />} />

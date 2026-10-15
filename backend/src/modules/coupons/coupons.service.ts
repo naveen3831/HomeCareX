@@ -189,9 +189,14 @@ export class CouponsService {
     }
   }
 
+  /**
+   * `opts.orderValue` is server-only (never read from the request body). POST /pricing/quote passes the
+   * order value it already priced (PricingRule price + add-ons) so the discount matches the quote.
+   */
   async validate(
     input: CouponValidateInput,
     userId: string,
+    opts: { orderValue?: number } = {},
   ): Promise<CouponValidateResult> {
     const code = input.couponCode
       .trim()
@@ -312,9 +317,9 @@ export class CouponsService {
     );
 
     let orderValue =
-      service.basePrice * quantity;
+      opts.orderValue ?? service.basePrice * quantity;
 
-    for (const addOnInput of input.addOns ?? []) {
+    for (const addOnInput of opts.orderValue === undefined ? input.addOns ?? [] : []) {
       const addOn = service.addOns.find(
         (item) =>
           item._id.toString() ===

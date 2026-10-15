@@ -30,6 +30,29 @@ export interface RegisterInput {
   confirmPassword?: string;
   referralCode?: string;
   role?: "customer" | "partner";
+  avatar?: string;
+  dob?: string;
+  gender?: 'male' | 'female' | 'other' | string;
+  idProofType?: string;
+  idProofNumber?: string;
+  idProofDocument?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  addressProofDocument?: string;
+  category?: string;
+  categories?: string[];
+  skills?: string[];
+  experienceYears?: number;
+  serviceRadiusKm?: number;
+  workingDays?: string[];
+  workingHoursStart?: string;
+  workingHoursEnd?: string;
+  accountHolder?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  upiId?: string;
 }
 
 export type ProfilePatch = Partial<Pick<AuthUser, "name" | "email" | "phone">>;

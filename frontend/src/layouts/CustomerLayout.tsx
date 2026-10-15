@@ -30,7 +30,10 @@ export default function CustomerLayout() {
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
   // The Profile page is the mobile menu itself, so it shows no bottom nav (its sub-pages still do).
-  const hideBottomNav = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/profile");
+  const path = pathname.replace(/\/+$/, "").toLowerCase();
+  const hideBottomNav = path === customerPath("/profile");
+  // Edit profile / Change password / Notifications are focused full pages on phones: no top bar, no bottom nav (they bring their own back header).
+  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
 
   return (
     <div className="flex min-h-screen overflow-x-clip bg-canvas">
@@ -46,7 +49,7 @@ export default function CustomerLayout() {
       <Sidebar open={sidebarOpen} onClose={toggleSidebar} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={hideBottomNav ? "hidden md:block" : undefined}>
+        <div className={hideBottomNav || focusPage ? "hidden md:block" : undefined}>
           <TopBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
         </div>
         <OfflineBanner />
@@ -57,7 +60,7 @@ export default function CustomerLayout() {
           className={clsx(
             "flex-1 px-4 py-6 outline-none md:px-8 md:pb-6",
             // Leave room for the fixed bottom nav (it shows on every page, Profile included).
-            "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            focusPage ? "pb-[calc(2rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
           )}
         >
           <RouteErrorBoundary resetKey={pathname}>
@@ -68,7 +71,7 @@ export default function CustomerLayout() {
         </main>
       </div>
 
-      { <BottomNav />}
+      {!focusPage && <BottomNav />}
     </div>
   );
 }

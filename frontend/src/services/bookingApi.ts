@@ -14,6 +14,13 @@ import type {
 } from "@/types/booking";
 import type { PageMeta } from "@/types/catalog";
 import type { BookingListParams, BookingPage } from "@/types/bookingList";
+import type {
+  BookingDetailView,
+  CancelBookingResult,
+  CancellationSummary,
+  ExtraChargeDecision,
+  RescheduleInput,
+} from "@/types/bookingDetail";
 import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 
 export interface NormalizedApiError {
@@ -193,6 +200,132 @@ export const bookingApi = {
           `/bookings/${id}`,
         );
 
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * One of the customer's own bookings with everything the details page shows.
+   * 404 for a booking that doesn't exist or belongs to someone else.
+   *
+   * GET /bookings/:id
+   */
+  async getBookingDetail(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } = await http.get<ApiResponse<BookingDetailView>>(
+        `/bookings/${encodeURIComponent(id)}`,
+        { signal },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Approve or reject one pending extra charge. Returns the refreshed booking.
+   *
+   * POST /bookings/:id/extra-charges/:chargeId/decision
+   */
+  async decideExtraCharge(
+    bookingId: string,
+    chargeId: string,
+    decision: ExtraChargeDecision,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } = await http.post<ApiResponse<BookingDetailView>>(
+        `/bookings/${encodeURIComponent(bookingId)}/extra-charges/${encodeURIComponent(chargeId)}/decision`,
+        { decision },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * The invoice for one paid booking, as a complete HTML document.
+   * 404 for someone else's booking, 409 until the booking is paid.
+   *
+   * No responseType on purpose: an error reply is JSON and must still be parsed so its message survives,
+   * while the HTML invoice is not valid JSON and comes back untouched as a string.
+   *
+   * GET /bookings/:id/invoice
+   */
+  async getInvoice(bookingId: string, signal?: AbortSignal): Promise<string> {
+    try {
+      const { data } = await http.get<string>(
+        `/bookings/${encodeURIComponent(bookingId)}/invoice`,
+        { signal, headers: { Accept: "text/html" } },
+      );
+      if (typeof data !== "string" || !data.trim()) {
+        throw { message: "The invoice came back empty. Please try again." };
+      }
+      return data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * The exact fee and refund if the customer cancelled right now. 409 once the booking can't be cancelled.
+   *
+   * GET /bookings/:id/cancel-preview
+   */
+  async getCancelPreview(
+    bookingId: string,
+    signal?: AbortSignal,
+  ): Promise<CancellationSummary> {
+    try {
+      const { data } = await http.get<ApiResponse<CancellationSummary>>(
+        `/bookings/${encodeURIComponent(bookingId)}/cancel-preview`,
+        { signal },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Cancel the booking. Returns the refreshed booking and what was charged and refunded.
+   *
+   * POST /bookings/:id/cancel
+   */
+  async cancelBooking(
+    bookingId: string,
+    reason: string,
+  ): Promise<CancelBookingResult> {
+    try {
+      const { data } = await http.post<ApiResponse<CancelBookingResult>>(
+        `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+        { reason },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Move the booking to another date and slot. 409 SLOT_UNAVAILABLE when the slot filled up.
+   *
+   * POST /bookings/:id/reschedule
+   */
+  async rescheduleBooking(
+    bookingId: string,
+    input: RescheduleInput,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } = await http.post<ApiResponse<BookingDetailView>>(
+        `/bookings/${encodeURIComponent(bookingId)}/reschedule`,
+        input,
+      );
       return data.data;
     } catch (err) {
       throw normalizeApiError(err);

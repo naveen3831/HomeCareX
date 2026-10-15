@@ -8,10 +8,12 @@ import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
 
-/** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:). */
+import isSafeReturnUrl from '@/utils/isSafeReturnUrl';
+
+/** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:, /\...). */
 function safeReturnUrl(raw: string | null): string | null {
   if (!raw) return null;
-  return raw.startsWith('/') && !raw.startsWith('//') && !raw.startsWith('/\\') ? raw : null;
+  return isSafeReturnUrl(raw) ? raw : null;
 }
 
 /** A returnUrl is only honoured when it belongs to the role's own area. */
@@ -90,16 +92,24 @@ export const LoginPage: React.FC = () => {
 
   // Initialize directly from stored credentials so fields are instantly autofilled
   const [initialCreds] = useState<SavedCredentials | null>(() => getSavedCredentials());
-  const [identifier, setIdentifier] = useState(initialCreds?.identifier ?? '');
+  const [identifier, setIdentifier] = useState(
+    () => (location.state as { registeredEmail?: string } | null)?.registeredEmail ?? initialCreds?.identifier ?? ''
+  );
   const [password, setPassword] = useState(initialCreds?.password ?? '');
   const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
   const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
   const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
-  const [successMessage] = useState(
-    params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess
-      ? 'Password reset successful. Please log in with your new password.'
-      : ''
-  );
+  const [successMessage] = useState(() => {
+    const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
+    if (stateMsg) return stateMsg;
+    if (params.get('registered') === 'partner') {
+      return 'Registration successful! You can now log in with your credentials.';
+    }
+    if (params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess) {
+      return 'Password reset successful. Please log in with your new password.';
+    }
+    return '';
+  });
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -111,6 +121,11 @@ export const LoginPage: React.FC = () => {
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
     if (!isAuthenticated) {
+      const stateEmail = (location.state as { registeredEmail?: string } | null)?.registeredEmail;
+      if (stateEmail) {
+        setIdentifier(stateEmail);
+        return;
+      }
       const saved = getSavedCredentials();
       if (saved) {
         setIdentifier(saved.identifier);
@@ -119,7 +134,7 @@ export const LoginPage: React.FC = () => {
         setTermsAccepted(true);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.state]);
 
   // Already signed in state
   if (isAuthenticated && user && !loading) {
@@ -230,14 +245,14 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Top Navigation: Back to Home */}
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
+      <div className="flex items-center justify-between gap-2 mb-4 pb-2.5 border-b border-gray-200/70 shrink-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-gray-500 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded px-1.5 py-0.5 -ml-1.5"
+          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-600 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded py-1 shrink-0 whitespace-nowrap"
           aria-label="Back to Home"
         >
-          <ArrowLeft size={16} />
-          Back to Home
+          <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
+          <span>Back to Home</span>
         </Link>
       </div>
 

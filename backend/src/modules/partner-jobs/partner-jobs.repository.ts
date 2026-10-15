@@ -1,10 +1,10 @@
-import type { Types } from 'mongoose';
-import BookingModel, { type IBooking } from '../../models/Booking';
-import PartnerModel from '../../models/Partner';
-import ServiceModel from '../../models/Service';
-import UserModel from '../../models/User';
-import type { BookingStatus } from '../bookings/bookings.constants';
-import type { StatusHistoryEntry } from '../bookings/bookings.stateMachine';
+import type { Types } from "mongoose";
+import BookingModel, { type IBooking } from "../../models/Booking";
+import PartnerModel from "../../models/Partner";
+import ServiceModel from "../../models/Service";
+import UserModel from "../../models/User";
+import type { BookingStatus } from "../bookings/bookings.constants";
+import type { StatusHistoryEntry } from "../bookings/bookings.stateMachine";
 
 export interface JobBookingDoc {
   _id: Types.ObjectId;
@@ -27,14 +27,28 @@ export interface JobBookingDoc {
   scheduledAt: Date;
   startedAt?: Date;
   status: BookingStatus;
-  statusHistory: IBooking['statusHistory'];
-  priceSnapshot?: { currency?: string; lines?: Array<{ kind: string; name: string; quantity: number; amount: number }> };
+  statusHistory: IBooking["statusHistory"];
+  priceSnapshot?: {
+    currency?: string;
+    lines?: Array<{
+      kind: string;
+      name: string;
+      quantity: number;
+      amount: number;
+    }>;
+  };
   priceBreakdown?: { total?: number };
   partnerEarning?: number;
   paymentStatus: string;
   paymentDetails?: { paidAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
+  offers?: Array<{
+    partnerId: Types.ObjectId;
+    offeredAt: Date;
+    expiresAt: Date;
+    response: 'pending' | 'accepted' | 'rejected' | 'expired';
+  }>;
 }
 
 export interface JobServiceDoc {
@@ -50,7 +64,21 @@ export interface JobCustomerDoc {
 
 export const partnerJobsRepository = {
   findPartnerByUserId(userId: string) {
-    return PartnerModel.findOne({ userId }).select('_id').lean<{ _id: Types.ObjectId }>();
+    return PartnerModel.findOne({ userId })
+      .select("_id")
+      .lean<{ _id: Types.ObjectId }>();
+  },
+
+  /** Live jobs of one partner, soonest first. */
+  listLiveForPartner(
+    partnerId: Types.ObjectId,
+    statuses: BookingStatus[],
+    limit = 50,
+  ) {
+    return BookingModel.find({ partnerId, status: { $in: statuses } })
+      .sort({ scheduledAt: 1 })
+      .limit(limit)
+      .lean<JobBookingDoc[]>();
   },
 
   findBooking(bookingId: string) {
@@ -58,11 +86,102 @@ export const partnerJobsRepository = {
   },
 
   findCustomer(customerId: Types.ObjectId) {
-    return UserModel.findById(customerId).select('name phone').lean<JobCustomerDoc>();
+    return UserModel.findById(customerId)
+      .select("name phone")
+      .lean<JobCustomerDoc>();
   },
 
   findService(serviceId: Types.ObjectId) {
-    return ServiceModel.findById(serviceId).select('durationMinutes inclusions addOns').lean<JobServiceDoc>();
+    return ServiceModel.findById(serviceId)
+      .select("durationMinutes inclusions addOns")
+      .lean<JobServiceDoc>();
+  },
+
+  findJobRequests(partnerId: Types.ObjectId, now: Date = new Date()) {
+    return BookingModel.find({
+      status: 'searching_for_partner',
+      offers: {
+        $elemMatch: {
+          partnerId,
+          response: 'pending',
+          expiresAt: { $gt: now },
+        },
+      },
+    })
+      .sort({ scheduledAt: 1 })
+      .lean<JobBookingDoc[]>();
+  },
+
+  async acceptOffer(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<'ACCEPTED' | 'EXPIRED_OR_UNAVAILABLE' | 'NOT_FOUND'> {
+    const existing = await BookingModel.findById(bookingId).select('status offers').lean();
+    if (!existing) return 'NOT_FOUND';
+
+    const entry: StatusHistoryEntry = {
+      from: 'searching_for_partner',
+      to: 'assigned',
+      at: now,
+      actorRole: 'partner',
+      actorId: userId,
+      reason: 'Offer accepted by partner',
+    };
+
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        status: 'searching_for_partner',
+        offers: {
+          $elemMatch: {
+            partnerId,
+            response: 'pending',
+            expiresAt: { $gt: now },
+          },
+        },
+      },
+      {
+        $set: {
+          status: 'assigned',
+          partnerId,
+          'offers.$[offer].response': 'accepted',
+        },
+        $push: { statusHistory: entry },
+      },
+      {
+        arrayFilters: [{ 'offer.partnerId': partnerId }],
+      },
+    );
+
+    if (result.modifiedCount === 1) {
+      return 'ACCEPTED';
+    }
+    return 'EXPIRED_OR_UNAVAILABLE';
+  },
+
+  async rejectOffer(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+  ): Promise<'REJECTED' | 'NOT_FOUND'> {
+    const existing = await BookingModel.findById(bookingId).select('status offers').lean();
+    if (!existing) return 'NOT_FOUND';
+
+    await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        'offers.partnerId': partnerId,
+      },
+      {
+        $set: { 'offers.$[offer].response': 'rejected' },
+      },
+      {
+        arrayFilters: [{ 'offer.partnerId': partnerId }],
+      },
+    );
+
+    return 'REJECTED';
   },
 
   /**

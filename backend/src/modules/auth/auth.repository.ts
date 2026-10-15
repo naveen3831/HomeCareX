@@ -5,6 +5,7 @@ export const authRepository = {
   findByEmailWithPassword: (email: string) => UserModel.findOne({ email }).select('+passwordHash'),
   findByEmail: (email: string) => UserModel.findOne({ email }),
   findById: (id: string) => UserModel.findById(id),
+  findByIdWithPassword: (id: string) => UserModel.findById(id).select('+passwordHash'),
   findByResetTokenHash: (tokenHash: string) =>
     UserModel.findOne({
       passwordResetTokenHash: tokenHash,
@@ -12,7 +13,7 @@ export const authRepository = {
     }).select('+passwordHash +passwordResetTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
-  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string }) =>
+  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string; avatar?: string; gender?: string }) =>
     UserModel.create(data),
 
   // OTP repository methods

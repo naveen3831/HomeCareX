@@ -1,4 +1,5 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Home,
   Briefcase,
@@ -20,11 +21,17 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+  readStoredOnlineStatus,
+  writeStoredOnlineStatus,
+  PARTNER_ONLINE_STORAGE_KEY,
+} from "@/pages/partner/Availability/availability.api";
+import { setMockPartnerOnline } from "@/services/mockPartnerJobs";
 import "@/styles/admin.css";
 import OnlineIndicator from "../components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "../components/partner/PartnerErrorBoundary";
-
-import "@/styles/admin.css";
 
 // -----------------------------------------------------------------------------
 // Navigation
@@ -529,8 +536,47 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
-  const [online, setOnline] =
-    useState(false);
+  const [online, setOnlineState] = useState<boolean>(
+    () => readStoredOnlineStatus() ?? false
+  );
+
+  const setOnline = useCallback((next: boolean) => {
+    setOnlineState(next);
+    writeStoredOnlineStatus(next);
+    setMockPartnerOnline("partner-1", next);
+    void setOnlineApi(next).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setMockPartnerOnline("partner-1", online);
+  }, [online]);
+
+  useEffect(() => {
+    let active = true;
+    getAvailability()
+      .then((avail) => {
+        if (!active) return;
+        setOnlineState(avail.isOnline);
+        writeStoredOnlineStatus(avail.isOnline);
+        setMockPartnerOnline("partner-1", avail.isOnline);
+      })
+      .catch(() => {});
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === PARTNER_ONLINE_STORAGE_KEY) {
+        const next = readStoredOnlineStatus();
+        if (next !== null) {
+          setOnlineState(next);
+          setMockPartnerOnline("partner-1", next);
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      active = false;
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   const [collapsedPref, setCollapsedPref] =
     useState(false);

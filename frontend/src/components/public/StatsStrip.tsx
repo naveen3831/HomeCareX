@@ -136,7 +136,8 @@ const StatsStrip: React.FC = () => {
             "opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1)",
         }}
       >
-        <dl
+        <ul
+          role="list"
           className="
             grid
             grid-cols-1
@@ -155,7 +156,7 @@ const StatsStrip: React.FC = () => {
           "
         >
           {stats.map((stat, index) => (
-            <div
+            <li
               key={stat.id}
               className="
                 group
@@ -197,24 +198,24 @@ const StatsStrip: React.FC = () => {
                   group-hover:scale-110
                   group-hover:bg-[#ff8a3d]
                 "
-                aria-hidden
+                aria-hidden="true"
               >
                 {stat.icon}
               </span>
 
               {/* Content */}
               <div>
-                <dt className="display text-lg font-extrabold text-[#4338ca]">
+                <h3 className="display text-lg font-extrabold text-[#4338ca]">
                   {stat.title}
-                </dt>
+                </h3>
 
-                <dd className="mt-1 text-sm leading-6 text-[#5b5b7a]">
+                <p className="mt-1 text-sm leading-6 text-[#5b5b7a]">
                   {stat.description}
-                </dd>
+                </p>
               </div>
-            </div>
+            </li>
           ))}
-        </dl>
+        </ul>
       </div>
     </div>
   );
