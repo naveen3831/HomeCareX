@@ -43,6 +43,7 @@ export function normalizeTicket(t: ApiTicket): AdminTicket {
       pausedAt: t.sla?.pausedAt ?? null,
       resolvedAt: t.sla?.resolvedAt ?? null,
     },
+    ...(t.bookingContext !== undefined ? { bookingContext: t.bookingContext } : {}),
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
   };
@@ -111,4 +112,39 @@ export async function fetchAdminTicket(id: string): Promise<AdminTicket> {
 export async function fetchTicketMessages(id: string): Promise<TicketMessage[]> {
   const res = await http.get<{ success: boolean; data: TicketMessage[] }>(`/admin/tickets/${encodeURIComponent(id)}/messages`);
   return res.data.data;
+}
+
+/** PATCH /admin/tickets/:id/priority. Body: { priority: 'low' | 'normal' | 'high' | 'urgent' }. Returns the updated ticket. */
+export async function updateTicketPriority(id: string, priority: TicketPriority): Promise<AdminTicket> {
+  const res = await http.patch<{ success: boolean; data: ApiTicket }>(
+    `/admin/tickets/${encodeURIComponent(id)}/priority`,
+    { priority: priority.toLowerCase() },
+  );
+  return normalizeTicket(res.data.data);
+}
+
+/**
+ * POST /admin/tickets/:id/messages. Body: { body, internal? }. 201 with the saved message.
+ * A normal reply is pushed to the requester live; `internal: true` is an agent-only note.
+ */
+export async function postTicketMessage(id: string, input: { body: string; internal?: boolean }): Promise<TicketMessage> {
+  const res = await http.post<{ success: boolean; data: TicketMessage }>(
+    `/admin/tickets/${encodeURIComponent(id)}/messages`,
+    { body: input.body, internal: input.internal === true },
+  );
+  return res.data.data;
+}
+
+/**
+ * Escalate = priority -> urgent, plus an internal note saying why, so the next agent sees the reason.
+ * The priority change is what matters: if only the note fails, the ticket is still escalated and `note` is null.
+ */
+export async function escalateTicket(id: string, reason: string): Promise<{ ticket: AdminTicket; note: TicketMessage | null }> {
+  const ticket = await updateTicketPriority(id, 'URGENT');
+  try {
+    const note = await postTicketMessage(id, { body: `Escalated: ${reason.trim()}`, internal: true });
+    return { ticket, note };
+  } catch {
+    return { ticket, note: null };
+  }
 }

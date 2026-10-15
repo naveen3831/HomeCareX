@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
@@ -6,6 +7,18 @@ import type { AccessTokenPayload } from '../modules/auth/auth.types';
 import BookingModel from '../models/Booking';
 import PartnerModel from '../models/Partner';
 import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
+=======
+import type { Server as HttpServer } from "http";
+import { Server, type Socket } from "socket.io";
+import { z } from "zod";
+import { authService } from "../modules/auth/auth.service";
+import type { AccessTokenPayload } from "../modules/auth/auth.types";
+import BookingModel from "../models/Booking";
+import PartnerModel from "../models/Partner";
+import { ERROR_CODES, type ErrorCode } from "../constants/errorCodes";
+import { registerTrackingSocket } from "./tracking.socket";
+import { registerTicketSocket } from "./ticket.socket";
+>>>>>>> Stashed changes
 
 /** Room names. A socket is in `user:<id>` and `role:<role>` after connecting, and `booking:<id>` after a successful booking:join. */
 export const rooms = {
@@ -20,6 +33,9 @@ type AckFn = (res: JoinAck) => void;
 const bookingPayload = z.object({ bookingId: z.string().regex(/^[a-f\d]{24}$/i) });
 
 let io: Server | null = null;
+
+/** Null before initSockets() (unit tests, scripts). Emitters use this so a missing server never fails a request. */
+export const getIOIfReady = (): Server | null => io;
 
 export const getIO = (): Server => {
   if (!io) throw new Error('Socket.IO has not been initialised. Call initSockets(server) first.');
@@ -90,6 +106,12 @@ export const initSockets = (server: HttpServer): Server => {
       const parsed = bookingPayload.safeParse(payload);
       if (parsed.success) void socket.leave(rooms.booking(parsed.data.bookingId));
     });
+<<<<<<< Updated upstream
+=======
+
+    registerTrackingSocket(socket);
+    registerTicketSocket(socket);
+>>>>>>> Stashed changes
   });
 
   return io;
