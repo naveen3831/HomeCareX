@@ -4,7 +4,8 @@ import type { Ticket } from '../../models/Ticket';
 import { Errors } from '../../utils/errors';
 import { bookingRefOf } from '../admin-payments/admin-payments.service';
 import { auditService } from '../audit/audit.service';
-import { TICKET_PRIORITIES, type TicketPriority } from '../tickets/tickets.constants';
+import { emitTicketMessage, emitTicketUpdated, type LiveTicketMessage } from '../../sockets/ticket.socket';
+import { TICKET_PRIORITIES, type TicketPriority, type TicketStatus } from '../tickets/tickets.constants';
 import {
   ACTIVE_STATUSES,
   AUDIT_ACTION,
@@ -14,13 +15,22 @@ import {
   SLA_TARGET_HOURS,
   type SlaState,
 } from './admin-tickets.constants';
-import { adminTicketsRepository as repo, escapeRegex, type TicketLean, type UserLean } from './admin-tickets.repository';
+import {
+  adminTicketsRepository as repo,
+  escapeRegex,
+  type BookingLean,
+  type TicketLean,
+  type TicketMessageLean,
+  type UserLean,
+} from './admin-tickets.repository';
 import type {
+  AdminTicketDetailDto,
   AdminTicketDto,
   AdminTicketMessageDto,
   AssignableAgentDto,
   AdminTicketsQuery,
   AdminTicketsResult,
+  TicketBookingContextDto,
   TicketPersonDto,
   TicketSlaDto,
 } from './admin-tickets.types';
@@ -200,6 +210,56 @@ async function hydrate(rows: TicketLean[], now: Date): Promise<AdminTicketDto[]>
   return rows.map((t) => toTicketDto(t, users, now));
 }
 
+export function toMessageDto(m: TicketMessageLean, senderName: string | null): AdminTicketMessageDto {
+  return {
+    id: String(m._id),
+    ticketId: String(m.ticketId),
+    sender: { id: String(m.senderId), name: senderName, role: m.senderRole },
+    body: m.body,
+    attachments: (m.attachments ?? []).map((a) => ({ url: a.url, name: a.name, mimeType: a.mimeType, sizeBytes: a.sizeBytes })),
+    internal: m.isInternal === true,
+    readAt: m.readAt ? iso(m.readAt) : null,
+    createdAt: iso(m.createdAt),
+  };
+}
+
+const addressLine = (a: BookingLean['address']): string | null => {
+  const text = [a?.line1, a?.area, a?.city, a?.pincode].filter(Boolean).join(', ');
+  return text || null;
+};
+
+/** A booking that was deleted (or an unreadable id) is just "no context": the ticket page still opens. */
+async function loadBookingContext(bookingId: string): Promise<TicketBookingContextDto | null> {
+  const b = await repo.findBookingSummary(bookingId);
+  if (!b) return null;
+  const partner = b.partnerId ? await repo.findPartnerUser(b.partnerId) : null;
+  return {
+    id: String(b._id),
+    ref: bookingRefOf(b._id),
+    serviceName: b.serviceName ?? '',
+    status: b.status ?? '',
+    paymentStatus: b.paymentStatus ?? '',
+    scheduledAt: b.scheduledAt ? iso(b.scheduledAt) : null,
+    total: b.priceBreakdown?.total ?? null,
+    address: addressLine(b.address),
+    partner,
+  };
+}
+
+/** Closed is final: nothing can be reopened, reassigned, re-prioritised or replied to. */
+const closedError = (what: string) => Errors.conflict(ERROR_CODES.CONFLICT, `Closed tickets cannot ${what}`);
+
+type Actor = { id: string; ip: string };
+
+/** The audit write never undoes the change it describes: failures are logged loudly instead. */
+async function audit(actor: Actor, action: string, id: string, before: unknown, after: unknown): Promise<void> {
+  try {
+    await auditService.recordAudit({ actor: actor.id, action, entity: AUDIT_ENTITY, entityId: id, before, after, ip: actor.ip, result: 'Success' });
+  } catch (err) {
+    console.error(`[admin-tickets] audit write failed for ticket ${id} (${action}, by ${actor.id})`, err);
+  }
+}
+
 /* --------------------------------- service --------------------------------- */
 
 export const adminTicketsService = {
@@ -209,11 +269,12 @@ export const adminTicketsService = {
     return admins.map((a) => ({ id: String(a._id), name: a.name ?? a.email ?? 'Admin', email: a.email ?? null }));
   },
 
-  /** GET /admin/tickets/:id: the same shape as a queue row. */
-  async get(id: string, now: Date = new Date()): Promise<AdminTicketDto> {
+  /** GET /admin/tickets/:id: a queue row plus the booking the ticket is about. */
+  async get(id: string, now: Date = new Date()): Promise<AdminTicketDetailDto> {
     const ticket = await repo.findById(id);
     if (!ticket) throw Errors.notFound(ERROR_CODES.TICKET_NOT_FOUND, 'Ticket not found');
-    return (await hydrate([ticket], now))[0];
+    const row = (await hydrate([ticket], now))[0];
+    return { ...row, bookingContext: ticket.bookingId ? await loadBookingContext(String(ticket.bookingId)) : null };
   },
 
   /** GET /admin/tickets/:id/messages: read-only thread, oldest first, with sender names. */
@@ -224,15 +285,7 @@ export const adminTicketsService = {
     const senderIds = new Map<string, Types.ObjectId>();
     for (const m of rows) senderIds.set(String(m.senderId), m.senderId);
     const users = new Map((await repo.findUsersByIds([...senderIds.values()])).map((u) => [String(u._id), u]));
-    return rows.map((m) => ({
-      id: String(m._id),
-      ticketId: String(m.ticketId),
-      sender: { id: String(m.senderId), name: users.get(String(m.senderId))?.name ?? null, role: m.senderRole },
-      body: m.body,
-      attachments: (m.attachments ?? []).map((a) => ({ url: a.url, name: a.name, mimeType: a.mimeType, sizeBytes: a.sizeBytes })),
-      readAt: m.readAt ? iso(m.readAt) : null,
-      createdAt: iso(m.createdAt),
-    }));
+    return rows.map((m) => toMessageDto(m, users.get(String(m.senderId))?.name ?? null));
   },
 
   async list(q: AdminTicketsQuery, actor: { id: string }, now: Date = new Date()): Promise<AdminTicketsResult> {
@@ -300,5 +353,81 @@ export const adminTicketsService = {
     }
 
     return (await hydrate([updated], now))[0];
+  },
+
+  /**
+   * PATCH /admin/tickets/:id/status. Open / in progress / resolved move freely (so a resolved ticket can be
+   * reopened); closed is final. Re-sending the current status is a no-op (200, no write, no audit, no event).
+   */
+  async updateStatus(id: string, status: TicketStatus, actor: Actor, now: Date = new Date()): Promise<AdminTicketDto> {
+    const ticket = await repo.findById(id);
+    if (!ticket) throw Errors.notFound(ERROR_CODES.TICKET_NOT_FOUND, 'Ticket not found');
+    if (ticket.status === status) return (await hydrate([ticket], now))[0];
+    if (ticket.status === 'closed') throw closedError('change status');
+
+    const previous = ticket.status;
+    const updated = await repo.setStatus(id, previous, status);
+    if (!updated) throw Errors.conflict(ERROR_CODES.CONFLICT, 'Ticket was changed by someone else. Reload and try again.');
+
+    await audit(actor, AUDIT_ACTION.statusChanged, id, { status: previous }, { status });
+    emitTicketUpdated(String(updated.createdBy), {
+      ticketId: id,
+      status: updated.status,
+      priority: updated.priority,
+      updatedAt: iso(updated.updatedAt),
+    });
+    return (await hydrate([updated], now))[0];
+  },
+
+  /** PATCH /admin/tickets/:id/priority. Same rules as status: no-op when unchanged, 409 on a closed ticket or a lost race. */
+  async updatePriority(id: string, priority: TicketPriority, actor: Actor, now: Date = new Date()): Promise<AdminTicketDto> {
+    const ticket = await repo.findById(id);
+    if (!ticket) throw Errors.notFound(ERROR_CODES.TICKET_NOT_FOUND, 'Ticket not found');
+    if (ticket.priority === priority) return (await hydrate([ticket], now))[0];
+    if (ticket.status === 'closed') throw closedError('change priority');
+
+    const previous = ticket.priority;
+    const updated = await repo.setPriority(id, previous, priority);
+    if (!updated) throw Errors.conflict(ERROR_CODES.CONFLICT, 'Ticket was changed by someone else. Reload and try again.');
+
+    await audit(actor, AUDIT_ACTION.priorityChanged, id, { priority: previous }, { priority });
+    emitTicketUpdated(String(updated.createdBy), {
+      ticketId: id,
+      status: updated.status,
+      priority: updated.priority,
+      updatedAt: iso(updated.updatedAt),
+    });
+    return (await hydrate([updated], now))[0];
+  },
+
+  /**
+   * POST /admin/tickets/:id/messages. A reply is pushed live to the requester; an internal note only to admins
+   * watching the thread. The message is saved first: a socket or audit failure never loses or fails it.
+   */
+  async postMessage(
+    id: string,
+    input: { body: string; internal: boolean },
+    actor: Actor,
+  ): Promise<AdminTicketMessageDto> {
+    const ticket = await repo.findById(id);
+    if (!ticket) throw Errors.notFound(ERROR_CODES.TICKET_NOT_FOUND, 'Ticket not found');
+    if (ticket.status === 'closed') throw closedError('receive messages');
+
+    const saved = await repo.createMessage({ ticketId: id, senderId: actor.id, body: input.body, internal: input.internal });
+    const [sender] = await repo.findUsersByIds([new Types.ObjectId(actor.id)]);
+    const dto = toMessageDto(saved, sender?.name ?? null);
+
+    await audit(actor, input.internal ? AUDIT_ACTION.noted : AUDIT_ACTION.replied, id, null, { messageId: dto.id, internal: dto.internal });
+    const live: LiveTicketMessage = {
+      id: dto.id,
+      ticketId: dto.ticketId,
+      sender: dto.sender,
+      body: dto.body,
+      attachments: dto.attachments,
+      internal: dto.internal,
+      createdAt: dto.createdAt,
+    };
+    emitTicketMessage(String(ticket.createdBy), live);
+    return dto;
   },
 };
