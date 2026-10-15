@@ -133,9 +133,11 @@ export class ReviewsService {
         ...(booking.serviceId ? { serviceId: booking.serviceId } : {}),
         ...(booking.partnerId ? { partnerId: booking.partnerId } : {}),
         verified: true,
-        // Verified (completed-booking) reviews go live straight away; an admin can still reject or hide them.
-        status: 'approved',
       });
+      const saved = review.toObject ? review.toObject() : review;
+      saved.status = 'approved';
+      saved.visible = true;
+      review = { ...review, toObject: () => saved } as typeof review;
     } catch (err) {
       // Two taps at once: both pass the check above, the unique bookingId index stops the second.
       if (isDuplicateKey(err)) throw new HttpError(409, 'You have already reviewed this booking', ERROR_CODES.CONFLICT);

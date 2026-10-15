@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, ChevronLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
@@ -17,7 +17,8 @@ interface TopBarProps {
 const HAMBURGER =
   "group relative h-10 w-10 shrink-0 rounded-[14px]   from-white to-brand-soft  transition-[box-shadow,transform] duration-200  active:scale-95";
 /** Centred bars; the short middle one grows to full width on hover. */
-const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
+const BAR =
+  "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
 
 /**
  * Top bar.
@@ -30,7 +31,9 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
   const { pathname } = useLocation();
   // On the notifications page the address picker gives way to a back button that returns to the home page.
-  const onNotifications = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/notifications");
+  const onNotifications =
+    pathname.replace(/\/+$/, "").toLowerCase() ===
+    customerPath("/notifications");
 
   return (
     <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3  bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
@@ -46,21 +49,45 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
           >
             <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-            <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
+            <span
+              aria-hidden="true"
+              className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")}
+            />
             <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
           </button>
         )}
 
-        <Link to={customerPath()} className={clsx("rounded-lg text-lg font-bold tracking-tight", sidebarOpen ? "md:hidden" : "ml-2", "hidden md:inline-flex", FOCUS_RING)}>
+        <Link
+          to={customerPath()}
+          className={clsx(
+            "rounded-lg text-lg font-bold tracking-tight",
+            sidebarOpen ? "md:hidden" : "ml-2",
+            "hidden md:inline-flex",
+            FOCUS_RING,
+          )}
+        >
           <span className="text-accent">Home</span>
           <span className="text-brand">CareX</span>
         </Link>
 
-        <span aria-hidden="true" className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")} />
+        <span
+          aria-hidden="true"
+          className={clsx(
+            "mx-3 hidden h-8 w-px bg-line",
+            !sidebarOpen && "md:block",
+          )}
+        />
         {onNotifications ? (
-          <Link to={customerPath()} aria-label="Back to home" className={clsx("inline-flex min-h-[44px] items-center gap-0.5 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden", FOCUS_RING)}>
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            
+          <Link
+            to={customerPath()}
+            aria-label="Back to home"
+            className={clsx(
+              "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden",
+              FOCUS_RING,
+            )}
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+            <span>Back</span>
           </Link>
         ) : (
           /* One picker at every width (a single instance keeps DOM ids unique). */

@@ -11,43 +11,39 @@ import {
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
-} from "../modules/partner-wallet/partner-wallet.routes";
-
-import { authRoutes } from "../modules/auth/auth.routes";
-import { auditRoutes } from "../modules/audit/audit.routes";
-import { adminRoutes } from "../modules/admin/admin.routes";
-import { partnersRoutes } from "../modules/partners/partners.routes";
-import { availabilityRoutes } from "../modules/availability/availability.routes";
-import { blackoutRoutes } from "../modules/availability/blackout.routes";
-import { scheduleRoutes } from "../modules/availability/schedule.routes";
-import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
-import { earningsRoutes } from "../modules/earnings/earnings.routes";
-import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.routes";
-import { settingsRoutes } from "../modules/settings/settings.routes";
-import { designationsRoutes } from "../modules/designations/designations.routes";
-import { notificationsRoutes } from "../modules/notifications/notifications.routes";
-import customerNotificationsRoutes from "../modules/notifications/customer-notifications.routes";
-import { categoriesRoutes } from "../modules/categories/categories.routes";
-import { servicesRoutes } from "../modules/services/services.routes";
-import { catalogRoutes } from "../modules/catalog/catalog.routes";
-import { incentivesRoutes } from "../modules/incentives/incentives.routes";
-import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
-import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
-
+} from '../modules/partner-wallet/partner-wallet.routes';
+import { pricingRoutes, adminPricingRoutes } from '../modules/pricing/pricing.routes';
+import { authRoutes } from '../modules/auth/auth.routes';
+import { auditRoutes } from '../modules/audit/audit.routes';
+import { adminRoutes } from '../modules/admin/admin.routes';
+import { partnersRoutes } from '../modules/partners/partners.routes';
+import { availabilityRoutes } from '../modules/availability/availability.routes';
+import { blackoutRoutes } from '../modules/availability/blackout.routes';
+import { scheduleRoutes } from '../modules/availability/schedule.routes';
+import { partnerDashboardRoutes } from '../modules/partners/partner-dashboard.routes';
+import { earningsRoutes } from '../modules/earnings/earnings.routes';
+import { adminDashboardRoutes } from '../modules/admin-dashboard/admin-dashboard.routes';
+import { settingsRoutes } from '../modules/settings/settings.routes';
+import { designationsRoutes } from '../modules/designations/designations.routes';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
+import customerNotificationsRoutes from '../modules/notifications/customer-notifications.routes';
+import { categoriesRoutes } from '../modules/categories/categories.routes';
+import { servicesRoutes } from '../modules/services/services.routes';
+import { catalogRoutes } from '../modules/catalog/catalog.routes';
+import { incentivesRoutes } from '../modules/incentives/incentives.routes';
+import { adminCustomersRoutes } from '../modules/admin-customers/admin-customers.routes';
+import { adminPaymentsRoutes } from '../modules/admin-payments/admin-payments.routes';
 import {
   adminStaffRoutes,
   adminTicketsRoutes,
-} from "../modules/admin-tickets/admin-tickets.routes";
-
-import leadsRoutes from "../modules/leads/leads.routes";
-import { bookingsRoutes } from "../modules/bookings/bookings.routes";
-import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
-
+} from '../modules/admin-tickets/admin-tickets.routes';
+import leadsRoutes from '../modules/leads/leads.routes';
+import { bookingsRoutes } from '../modules/bookings/bookings.routes';
+import customerDashboardRoutes from '../modules/customer-dashboard/customer-dashboard.routes';
 import {
   addressesRoutes,
   serviceabilityRoutes,
-} from "../modules/addresses/addresses.routes";
-
+} from '../modules/addresses/addresses.routes';
 import {
   partnerJobsRoutes,
   partnerJobRequestsRoutes,
@@ -90,13 +86,6 @@ rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
 
-// Admin catalog
-rootRouter.use("/admin/categories", categoriesRoutes);
-rootRouter.use("/admin/services", servicesRoutes);
-rootRouter.use("/admin/customers", adminCustomersRoutes);
-rootRouter.use("/admin/payments", adminPaymentsRoutes);
-
-// Public catalog routes
 rootRouter.use(catalogRoutes);
 
 // Notifications
