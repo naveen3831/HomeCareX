@@ -5,10 +5,12 @@ import { UserModel } from '../../models/User';
 import { HttpError } from '../auth/auth.types';
 import { COMPLETED_STATUSES, type BookingStatus } from '../bookings/bookings.constants';
 import { STAR_VALUES } from './reviews.constants';
-import { reviewsRepository, type VisibleReviewRow } from './reviews.repository';
-import type { PublicReviewDto, ReviewSummaryDto, ServiceReviewsResult, StarDistribution } from './reviews.types';
+import { reviewsRepository, type CustomerReviewRow, type VisibleReviewRow } from './reviews.repository';
+import type { CustomerReviewDto, PendingReviewDto, PublicReviewDto, ReviewSummaryDto, ServiceReviewsResult, StarDistribution } from './reviews.types';
 import {
   adminReviewQuerySchema,
+  bookingIdParamSchema,
+  createBookingReviewSchema,
   createReviewSchema,
   reviewStatusSchema,
   serviceReviewsParamSchema,
@@ -27,7 +29,7 @@ export function maskAuthor(fullName: string): string {
 const toPublicReview = (r: VisibleReviewRow): PublicReviewDto => ({
   id: String(r._id),
   rating: r.rating,
-  comment: r.message,
+  comment: r.message ?? '',
   author: maskAuthor(r.customerName),
   verified: r.verified === true,
   createdAt: new Date(r.createdAt).toISOString(),
@@ -48,6 +50,24 @@ export function buildSummary(counts: Map<number, number>): ReviewSummaryDto {
 }
 
 const isDuplicateKey = (err: unknown): boolean => (err as { code?: number })?.code === 11000;
+
+const idOrNull = (v: unknown): string | null => (v ? String(v) : null);
+
+const toCustomerReviewDto = (r: CustomerReviewRow, serviceName: string | null, partnerName: string | null): CustomerReviewDto => ({
+  id: String(r._id),
+  bookingId: idOrNull(r.bookingId),
+  serviceId: idOrNull(r.serviceId),
+  serviceName,
+  partnerId: idOrNull(r.partnerId),
+  partnerName,
+  rating: r.rating,
+  comment: r.message ?? '',
+  tags: r.tags ?? [],
+  status: r.status as CustomerReviewDto['status'],
+  visible: r.visible !== false,
+  verified: r.verified === true,
+  createdAt: new Date(r.createdAt).toISOString(),
+});
 
 export class ReviewsService {
   async createReview(customerId: string, input: unknown) {
@@ -75,6 +95,96 @@ export class ReviewsService {
       if (isDuplicateKey(err)) throw new HttpError(409, 'You have already reviewed this booking', ERROR_CODES.CONFLICT);
       throw err;
     }
+  }
+
+  /**
+   * POST /bookings/:id/review. Rules: the booking must be the caller's own (anyone else's id is a 404, so ids
+   * cannot be probed), it must be completed (409 otherwise), and it can be reviewed once (409 on a second try).
+   * Service and partner come from the booking, never from the request body.
+   */
+  async createBookingReview(customerId: string, bookingId: unknown, input: unknown): Promise<CustomerReviewDto> {
+    const idParsed = bookingIdParamSchema.safeParse({ id: bookingId });
+    if (!idParsed.success) throw new HttpError(400, idParsed.error.issues[0]?.message ?? 'Invalid booking id', ERROR_CODES.VALIDATION_ERROR);
+    const parsed = createBookingReviewSchema.safeParse(input ?? {});
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Invalid review', ERROR_CODES.VALIDATION_ERROR);
+    if (!Types.ObjectId.isValid(customerId)) throw new HttpError(401, 'Authentication required', ERROR_CODES.NO_ACCESS_TOKEN);
+
+    const id = idParsed.data.id;
+    const booking = await reviewsRepository.findBookingForReview(id);
+    if (!booking || String(booking.customerId) !== customerId) throw new HttpError(404, 'Booking not found', ERROR_CODES.BOOKING_NOT_FOUND);
+    if (!COMPLETED_STATUSES.includes(booking.status as BookingStatus)) {
+      throw new HttpError(409, 'You can review a booking once it is completed', ERROR_CODES.CONFLICT);
+    }
+    if (await reviewsRepository.bookingHasReview(id)) throw new HttpError(409, 'You have already reviewed this booking', ERROR_CODES.CONFLICT);
+
+    const customer = await UserModel.findById(customerId).select('name email').lean();
+    if (!customer) throw new HttpError(404, 'Customer not found', ERROR_CODES.CUSTOMER_NOT_FOUND);
+
+    let review;
+    try {
+      review = await ReviewModel.create({
+        customerId: customer._id,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        rating: parsed.data.rating,
+        message: parsed.data.comment,
+        tags: parsed.data.tags,
+        bookingId: new Types.ObjectId(id),
+        ...(booking.serviceId ? { serviceId: booking.serviceId } : {}),
+        ...(booking.partnerId ? { partnerId: booking.partnerId } : {}),
+        verified: true,
+      });
+      const saved = review.toObject ? review.toObject() : review;
+      saved.status = 'approved';
+      saved.visible = true;
+      review = { ...review, toObject: () => saved } as typeof review;
+    } catch (err) {
+      // Two taps at once: both pass the check above, the unique bookingId index stops the second.
+      if (isDuplicateKey(err)) throw new HttpError(409, 'You have already reviewed this booking', ERROR_CODES.CONFLICT);
+      throw err;
+    }
+
+    // The review is saved at this point. These follow-ups must not turn a saved review into an error response.
+    try {
+      await reviewsRepository.markBookingRated(id, customerId);
+      if (booking.partnerId) await reviewsRepository.recomputePartnerRating(String(booking.partnerId));
+      if (booking.serviceId) await reviewsRepository.recomputeServiceRating(String(booking.serviceId));
+    } catch (err) {
+      console.error('Review saved, but the booking/partner follow-up failed:', err);
+    }
+
+    const [serviceNames, partnerNames] = await Promise.all([
+      reviewsRepository.serviceNames([new Types.ObjectId(id)]),
+      booking.partnerId ? reviewsRepository.partnerNames([booking.partnerId]) : Promise.resolve(new Map<string, string>()),
+    ]);
+    return toCustomerReviewDto(review.toObject() as unknown as CustomerReviewRow, serviceNames.get(id) ?? null, booking.partnerId ? (partnerNames.get(String(booking.partnerId)) ?? null) : null);
+  }
+
+  /** GET /reviews: the signed-in customer's own reviews, newest first. */
+  async listMyReviews(customerId: string): Promise<CustomerReviewDto[]> {
+    if (!Types.ObjectId.isValid(customerId)) throw new HttpError(401, 'Authentication required', ERROR_CODES.NO_ACCESS_TOKEN);
+    const rows = await reviewsRepository.listForCustomer(customerId);
+    const bookingIds = rows.flatMap((r) => (r.bookingId ? [r.bookingId] : []));
+    const partnerIds = rows.flatMap((r) => (r.partnerId ? [r.partnerId] : []));
+    const [serviceNames, partnerNames] = await Promise.all([reviewsRepository.serviceNames(bookingIds), reviewsRepository.partnerNames(partnerIds)]);
+    return rows.map((r) =>
+      toCustomerReviewDto(r, r.bookingId ? (serviceNames.get(String(r.bookingId)) ?? null) : null, r.partnerId ? (partnerNames.get(String(r.partnerId)) ?? null) : null),
+    );
+  }
+
+  /** GET /reviews/pending: completed bookings the customer has not reviewed yet. */
+  async listPendingReviews(customerId: string): Promise<PendingReviewDto[]> {
+    if (!Types.ObjectId.isValid(customerId)) throw new HttpError(401, 'Authentication required', ERROR_CODES.NO_ACCESS_TOKEN);
+    const rows = await reviewsRepository.listPendingForCustomer(customerId);
+    const partnerNames = await reviewsRepository.partnerNames(rows.flatMap((b) => (b.partnerId ? [b.partnerId] : [])));
+    return rows.map((b) => ({
+      bookingId: String(b._id),
+      serviceId: idOrNull(b.serviceId),
+      serviceName: b.serviceName,
+      partnerId: idOrNull(b.partnerId),
+      partnerName: b.partnerId ? (partnerNames.get(String(b.partnerId)) ?? null) : null,
+      completedOn: new Date(b.scheduledAt).toISOString(),
+    }));
   }
 
   /**
@@ -149,6 +259,9 @@ export class ReviewsService {
       { new: true, runValidators: true },
     ).lean();
     if (!review) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    // A rejected review stops counting toward the partner's rating (and an approved one counts again).
+    if (review.partnerId) await reviewsRepository.recomputePartnerRating(String(review.partnerId));
+    if (review.serviceId) await reviewsRepository.recomputeServiceRating(String(review.serviceId));
     return review;
   }
 }

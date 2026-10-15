@@ -11,9 +11,26 @@ export type SortOption =
   | "price-low"
   | "price-high";
 
+export interface CategoryOption {
+  value: string;
+  label: string;
+}
+
+/** Shown until the real categories arrive (or when they fail to load). */
+const DEFAULT_CATEGORIES: CategoryOption[] = [
+  { value: "Cleaning", label: "Cleaning" },
+  { value: "Plumbing", label: "Plumbing" },
+  { value: "Electrical", label: "Electrical" },
+  { value: "Appliance", label: "Appliance" },
+  { value: "Painting", label: "Painting" },
+  { value: "Maintenance", label: "Maintenance" },
+];
+
 interface ServiceFiltersProps {
   q: string;
   category: string;
+  /** Category choices (value = slug sent to the API, label = name shown to the user). */
+  categories?: CategoryOption[];
   sort: SortOption;
   pincode: string;
 
@@ -60,6 +77,7 @@ const orangeChip =
 const ServiceFilters: React.FC<ServiceFiltersProps> = ({
   q,
   category,
+  categories = DEFAULT_CATEGORIES,
   sort,
   pincode,
   onQueryChange,
@@ -70,6 +88,9 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
 }) => {
   // Filters panel is hidden until the Filters button is clicked
   const [open, setOpen] = useState(false);
+
+  const categoryLabel =
+    categories.find((option) => option.value === category)?.label ?? category;
 
   const hasFilters =
     q.trim() !== "" ||
@@ -214,12 +235,11 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
                 style={chevronStyle}
               >
                 <option value="">All Categories</option>
-                <option value="Cleaning">Cleaning</option>
-                <option value="Plumbing">Plumbing</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Appliance">Appliance</option>
-                <option value="Painting">Painting</option>
-                <option value="Maintenance">Maintenance</option>
+                {categories.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -326,10 +346,10 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
               <button
                 type="button"
                 onClick={() => onCategoryChange("")}
-                aria-label={`Remove category filter: ${category}`}
+                aria-label={`Remove category filter: ${categoryLabel}`}
                 className={orangeChip}
               >
-                {category}
+                {categoryLabel}
                 <X size={12} aria-hidden="true" />
               </button>
             )}

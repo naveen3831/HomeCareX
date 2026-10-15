@@ -23,7 +23,17 @@ import GallerySkeleton from "../../../components/public/skeletons/GallerySkeleto
 import ServiceInfoSkeleton from "../../../components/public/skeletons/ServiceInfoSkeleton";
 import ReviewSkeleton from "../../../components/public/skeletons/ReviewSkeleton";
 import StickyBookNow from "../../../components/public/StickyBookNow";
+import ErrorState from "../../../components/common/ErrorState";
 import NotFound from "../NotFound";
+import {
+  categoryImage,
+  formatDuration,
+  formatEarliest,
+  toServiceCard,
+  useService,
+  useServiceReviews,
+  useServices,
+} from "@/features/public";
 import { useAuth } from "../../../hooks/useAuth"; // adjust to your real path
 
 interface Service {
@@ -57,178 +67,7 @@ interface ServiceDetail {
 
 type TabId = "overview" | "included" | "faqs" | "reviews";
 
-const services: Service[] = [
-  { id: "SERVICE001", slug: "home-cleaning", image: "/images/home-cleaning.jpg", category: "Cleaning", name: "Home Cleaning", rating: 4.8, price: 499, duration: "2-3 hrs", description: "Professional home cleaning service to keep your home fresh, clean and comfortable." },
-  { id: "SERVICE002", slug: "plumbing", image: "/images/plumbing.jpg", category: "Plumbing", name: "Plumbing", rating: 4.8, price: 399, duration: "1-2 hrs", description: "Reliable plumbing services for common household plumbing requirements." },
-  { id: "SERVICE003", slug: "electrical-services", image: "/images/electrical.jpg", category: "Electrical", name: "Electrical Services", rating: 4.7, price: 349, duration: "1-2 hrs", description: "Professional electrical services for safe and reliable home maintenance." },
-  { id: "SERVICE004", slug: "appliance-repair", image: "/images/appliance-repair.jpg", category: "Appliance", name: "Appliance Repair", rating: 4.8, price: 499, duration: "2-3 hrs", description: "Expert appliance repair services for your everyday household appliances." },
-  { id: "SERVICE005", slug: "home-painting", image: "/images/painting.jpg", category: "Painting", name: "Home Painting", rating: 4.7, price: 999, duration: "1-2 days", description: "Give your home a fresh look with our professional home painting service." },
-  { id: "SERVICE006", slug: "home-maintenance", image: "/images/home-maintenance.jpg", category: "Maintenance", name: "Home Maintenance", rating: 4.8, price: 599, duration: "2-3 hrs", description: "Complete home maintenance services to keep your property in excellent condition." },
-  { id: "SERVICE007", slug: "deep-cleaning", image: "/images/deep-cleaning.jpg", category: "Cleaning", name: "Deep Cleaning", rating: 4.9, price: 799, duration: "3-4 hrs", description: "Detailed deep cleaning service for a healthier and cleaner home." },
-  { id: "SERVICE008", slug: "bathroom-cleaning", image: "/images/bathroom-cleaning.jpg", category: "Cleaning", name: "Bathroom Cleaning", rating: 4.8, price: 399, duration: "1-2 hrs", description: "Professional bathroom cleaning service for a fresh and hygienic bathroom." },
-  { id: "SERVICE009", slug: "kitchen-cleaning", image: "/images/kitchen-cleaning.jpg", category: "Cleaning", name: "Kitchen Cleaning", rating: 4.8, price: 449, duration: "1-2 hrs", description: "Thorough kitchen cleaning service to keep your cooking space fresh and hygienic." },
-];
-
-/*
-  Extra photos for each service. The service's main image (from the list
-  above) is always the first photo. Any file that does not exist is skipped.
-*/
-const serviceGallery: Record<string, string[]> = {
-  SERVICE001: ["/images/home-cleaning-2.jpg", "/images/home-cleaning-3.jpg", "/images/home-cleaning-4.jpg"],
-  SERVICE002: ["/images/plumbing-2.jpg", "/images/plumbing-3.jpg", "/images/plumbing-4.jpg"],
-  SERVICE003: ["/images/electrical-2.jpg", "/images/electrical-3.jpg", "/images/electrical-4.jpg"],
-  SERVICE004: ["/images/appliance-repair-2.jpg", "/images/appliance-repair-3.jpg", "/images/appliance-repair-4.jpg"],
-  SERVICE005: ["/images/painting-2.jpg", "/images/painting-3.jpg", "/images/painting-4.jpg"],
-  SERVICE006: ["/images/home-maintenance-2.jpg", "/images/home-maintenance-3.jpg", "/images/home-maintenance-4.jpg"],
-  SERVICE007: ["/images/deep-cleaning-2.jpg", "/images/deep-cleaning-3.jpg", "/images/deep-cleaning-4.jpg"],
-  SERVICE008: ["/images/bathroom-cleaning-2.jpg", "/images/bathroom-cleaning-3.jpg", "/images/bathroom-cleaning-4.jpg"],
-  SERVICE009: ["/images/kitchen-cleaning-2.jpg", "/images/kitchen-cleaning-3.jpg", "/images/kitchen-cleaning-4.jpg"],
-};
-
-const defaultDetail: ServiceDetail = {
-  reviews: 100,
-  earliest: "Today",
-  included: ["Trained professional", "Required tools and equipment", "Post-service check"],
-  notCovered: ["Materials and spare parts", "Work outside the booked scope"],
-  faqs: [
-    { q: "Can I reschedule or cancel my booking?", a: "Yes. You can reschedule or cancel for free before the professional is on the way." },
-    { q: "When do I pay?", a: "You pay after the service is completed, once you are satisfied with the work." },
-  ],
-};
-
-const serviceDetails: Record<string, ServiceDetail> = {
-  SERVICE001: {
-    reviews: 312,
-    earliest: "Today",
-    included: ["Dusting and wiping of all surfaces", "Floor sweeping and mopping", "Bathroom and kitchen surface cleaning"],
-    notCovered: ["Deep stain removal", "Exterior windows and balcony grills"],
-    faqs: [
-      { q: "Do I need to provide cleaning supplies?", a: "No. Our professional brings the basic equipment and supplies needed for the job." },
-      { q: "Do I need to be at home?", a: "Someone should be present at the start and end of the service so the work can be checked." },
-    ],
-  },
-  SERVICE002: {
-    reviews: 188,
-    earliest: "Today",
-    included: ["Leak and blockage inspection", "Tap, pipe and fitting repair", "Basic tools and labour"],
-    notCovered: ["Replacement parts and fittings", "Major pipe re-laying work"],
-    faqs: [
-      { q: "Are spare parts included in the price?", a: "Parts are charged separately. The professional will share the cost before replacing anything." },
-      { q: "What if the issue is bigger than expected?", a: "You will get a quote for the extra work and can decide whether to go ahead." },
-    ],
-  },
-  SERVICE003: {
-    reviews: 164,
-    earliest: "Today",
-    included: ["Fault diagnosis", "Switch, socket and fan repair", "Safety check after the work"],
-    notCovered: ["New wiring or rewiring", "Cost of replacement parts"],
-    faqs: [
-      { q: "Is the work safe?", a: "Yes. Every job is done by a verified electrician who follows standard safety practice." },
-      { q: "Can you install new fixtures?", a: "Yes, basic fixture installation is covered. The fixtures themselves are not included." },
-    ],
-  },
-  SERVICE004: {
-    reviews: 142,
-    earliest: "Tomorrow",
-    included: ["Inspection and diagnosis", "Repair of common faults", "Basic tools and labour"],
-    notCovered: ["Replacement parts", "Appliances under brand warranty"],
-    faqs: [
-      { q: "Which appliances do you repair?", a: "Common household appliances such as washing machines, refrigerators and microwaves." },
-      { q: "Is there a warranty on the repair?", a: "Repairs come with a short service warranty. Ask your professional for the exact terms." },
-    ],
-  },
-  SERVICE005: {
-    reviews: 96,
-    earliest: "Tomorrow",
-    included: ["Surface preparation", "Painting labour", "Basic clean-up after the work"],
-    notCovered: ["Paint and materials", "Major wall repair or waterproofing"],
-    faqs: [
-      { q: "Who provides the paint?", a: "Paint is charged separately. You can choose the brand and shade, or ask us to arrange it." },
-      { q: "How long does a room take?", a: "Most rooms take one to two days, depending on size and surface condition." },
-    ],
-  },
-  SERVICE006: {
-    reviews: 121,
-    earliest: "Today",
-    included: ["General home inspection", "Minor fixes and adjustments", "Basic tools and labour"],
-    notCovered: ["Spare parts and materials", "Structural repairs"],
-    faqs: [
-      { q: "What counts as minor repairs?", a: "Things like loose fittings, door and hinge adjustments, and small fixes around the home." },
-      { q: "Can I book several small jobs together?", a: "Yes. List everything when you book so the professional plans enough time." },
-    ],
-  },
-  SERVICE007: {
-    reviews: 276,
-    earliest: "Today",
-    included: ["Full-home deep scrubbing", "Bathroom and kitchen descaling", "Floor and surface polishing"],
-    notCovered: ["Exterior glass and facade", "Furniture shifting and moving"],
-    faqs: [
-      { q: "How is deep cleaning different from regular cleaning?", a: "It covers hard-to-reach spots, build-up and stains that a regular clean skips." },
-      { q: "How many people will come?", a: "A small team may be sent for larger homes so the work finishes within the time shown." },
-    ],
-  },
-  SERVICE008: {
-    reviews: 203,
-    earliest: "Today",
-    included: ["Tile and floor scrubbing", "Basin, toilet and fixture cleaning", "Mirror and fitting wipe-down"],
-    notCovered: ["Plumbing repairs", "Removal of long-term hard-water damage"],
-    faqs: [
-      { q: "Are cleaning chemicals provided?", a: "Yes. The professional brings suitable cleaning products for the job." },
-      { q: "Can you clean more than one bathroom?", a: "Yes. Mention the number of bathrooms when booking so enough time is reserved." },
-    ],
-  },
-  SERVICE009: {
-    reviews: 189,
-    earliest: "Today",
-    included: ["Counter, sink and stove cleaning", "Cabinet exterior wipe-down", "Floor and tile cleaning"],
-    notCovered: ["Inside of chimney and exhaust ducts", "Appliance interior deep cleaning"],
-    faqs: [
-      { q: "Is the kitchen safe to use afterwards?", a: "Yes. Food-safe products are used, and surfaces are wiped dry at the end." },
-      { q: "Do I need to empty the cabinets?", a: "Not for exterior cleaning. Interior cabinet cleaning is not part of this service." },
-    ],
-  },
-};
-
 type Faq = { q: string; a: string };
-
-const extraFaqs: Record<string, Faq[]> = {
-  SERVICE001: [
-    { q: "Can I book a cleaning for a specific room only?", a: "Yes. Tell us which rooms you want cleaned when you book and the professional will focus on those." },
-    { q: "Is the service suitable for homes with pets?", a: "Yes. Let us know about your pets so the professional can use pet-safe products and take extra care." },
-  ],
-  SERVICE002: [
-    { q: "Do you handle emergency leaks?", a: "Pick the earliest slot shown on the page. For urgent leaks, switch off the main water supply until the plumber arrives." },
-    { q: "Do you fix water-pressure problems?", a: "Yes. The plumber will check taps, pipes and the tank outlet to find the cause of low pressure." },
-  ],
-  SERVICE003: [
-    { q: "Can you fix a tripping circuit breaker?", a: "Yes. The electrician will check the load and wiring to find why the breaker keeps tripping." },
-    { q: "Should I switch off the power before you arrive?", a: "Please keep the area safe and accessible. The electrician will switch off the supply before starting work." },
-  ],
-  SERVICE004: [
-    { q: "What if my appliance cannot be repaired?", a: "The professional will tell you honestly, explain the options and charge only for the inspection." },
-    { q: "Do I need to keep the bill or warranty card ready?", a: "It helps if the appliance is under warranty. Keep the bill or warranty card handy for the visit." },
-  ],
-  SERVICE005: [
-    { q: "Do I need to move my furniture before painting?", a: "Please clear what you can. The team will cover and protect the remaining furniture and floors." },
-    { q: "How long before I can use the room again?", a: "Most rooms are usable after 24 hours. Full drying and paint smell depend on the paint type and ventilation." },
-  ],
-  SERVICE006: [
-    { q: "Can I get a regular maintenance visit?", a: "Yes. You can book this service again whenever you need, and mention your preferred day when booking." },
-    { q: "Do you handle both indoor and outdoor fixes?", a: "Mostly indoor fixes. Mention any outdoor work when booking and the team will confirm whether it can be done." },
-  ],
-  SERVICE007: [
-    { q: "Do I need to empty the house before deep cleaning?", a: "No. Just put away valuables and fragile items. The team will clean around your furniture." },
-    { q: "How often should I book a deep clean?", a: "Most homes benefit from a deep clean every 3 to 6 months, depending on use and the number of people at home." },
-  ],
-  SERVICE008: [
-    { q: "Will you remove old soap scum and stains?", a: "Yes, regular build-up is removed. Very old or permanent stains may not come off completely." },
-    { q: "Is the bathroom usable right after cleaning?", a: "Yes. Surfaces are rinsed and wiped, and you can use the bathroom once the floor is dry." },
-  ],
-  SERVICE009: [
-    { q: "Do you clean greasy walls and tiles?", a: "Yes. Grease on tiles and walls around the stove and counters is part of the cleaning." },
-    { q: "Can you clean the inside of the refrigerator?", a: "Interior appliance cleaning is not part of this service. Exterior surfaces of appliances are wiped down." },
-  ],
-};
 
 const commonFaqs: Faq[] = [
   { q: "How do I book this service?", a: "Tap Book now, pick your date and time, add any extras, and confirm. You will get a confirmation straight away." },
@@ -239,32 +78,11 @@ const commonFaqs: Faq[] = [
   { q: "Will the professional arrive on time?", a: "Yes. You will get updates when the professional is on the way. If there is a delay, we will let you know." },
 ];
 
-/* STEP 5: sample reviews.
-   TODO: replace with real reviews from your API (these are the same for every service).
-   Dates are ISO (YYYY-MM-DD) so they can be formatted and sorted. */
-const sampleReviews = [
-  { id: "r1", name: "Ananya R.", rating: 5, date: "2026-09-22", text: "On time, polite and did a very neat job. Would book again." },
-  { id: "r2", name: "Suresh K.", rating: 5, date: "2026-09-05", text: "Good value for the price and the booking process was simple." },
-  { id: "r3", name: "Divya M.", rating: 4, date: "2026-08-30", text: "Work quality was great. The professional arrived a little late." },
-];
-
-/* STEP 5: review counts for 5, 4, 3, 2, 1 stars. Each row adds up to that
-   service's review count above. Replace with real numbers from your API. */
+/* Review counts for 5, 4, 3, 2, 1 stars (from the reviews summary). */
 type RatingBreakdown = [number, number, number, number, number];
 
-const defaultBreakdown: RatingBreakdown = [80, 15, 3, 1, 1];
-
-const ratingBreakdowns: Record<string, RatingBreakdown> = {
-  SERVICE001: [262, 36, 9, 3, 2],
-  SERVICE002: [155, 24, 6, 2, 1],
-  SERVICE003: [125, 28, 7, 3, 1],
-  SERVICE004: [117, 18, 5, 1, 1],
-  SERVICE005: [75, 14, 4, 2, 1],
-  SERVICE006: [98, 16, 5, 1, 1],
-  SERVICE007: [246, 22, 5, 2, 1],
-  SERVICE008: [170, 24, 6, 2, 1],
-  SERVICE009: [158, 23, 5, 2, 1],
-};
+/** Reviews shown on the Reviews tab (first page). */
+const REVIEWS_LIMIT = 10;
 
 const formatReviewDate = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -282,54 +100,6 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "faqs", label: "FAQs" },
   { id: "reviews", label: "Reviews" },
 ];
-
-/* STEP 3: add-ons per service. Replace with API data later. */
-const serviceAddOns: Record<string, AddOn[]> = {
-  SERVICE001: [
-    { id: "ao-001-1", name: "Inside fridge cleaning", description: "Shelves, trays and door seals wiped clean.", price: 249 },
-    { id: "ao-001-2", name: "Balcony cleaning", description: "Sweeping and mopping of the balcony floor.", price: 199 },
-    { id: "ao-001-3", name: "Sofa vacuuming", description: "Dry vacuuming of fabric sofas and cushions.", price: 299 },
-  ],
-  SERVICE002: [
-    { id: "ao-002-1", name: "Water tank check", description: "Inlet, outlet and float valve inspection.", price: 149 },
-    { id: "ao-002-2", name: "Extra tap or fixture", description: "Repair or fitting of one more tap or fixture.", price: 199 },
-    { id: "ao-002-3", name: "Drain unblocking", description: "Clearing of a blocked sink or floor drain.", price: 299 },
-  ],
-  SERVICE003: [
-    { id: "ao-003-1", name: "Extra fan or light fitting", price: 149 },
-    { id: "ao-003-2", name: "Switchboard check", description: "Inspection of switches, sockets and connections.", price: 199 },
-    { id: "ao-003-3", name: "MCB inspection", description: "Load and breaker check for tripping issues.", price: 249 },
-  ],
-  SERVICE004: [
-    { id: "ao-004-1", name: "Additional appliance check", description: "Inspection of one more appliance in the same visit.", price: 299 },
-    { id: "ao-004-2", name: "Filter and vent cleaning", price: 249 },
-  ],
-  SERVICE005: [
-    { id: "ao-005-1", name: "Ceiling painting", price: 599 },
-    { id: "ao-005-2", name: "Putty and primer coat", description: "Smooths the wall before painting.", price: 799 },
-    { id: "ao-005-3", name: "Furniture covering", description: "Covering and protecting furniture and floors.", price: 199 },
-  ],
-  SERVICE006: [
-    { id: "ao-006-1", name: "Extra room inspection", price: 199 },
-    { id: "ao-006-2", name: "Door and hinge fixes", price: 249 },
-    { id: "ao-006-3", name: "Curtain rod fitting", price: 149 },
-  ],
-  SERVICE007: [
-    { id: "ao-007-1", name: "Sofa shampooing", price: 599 },
-    { id: "ao-007-2", name: "Carpet cleaning", price: 499 },
-    { id: "ao-007-3", name: "Window glass cleaning", description: "Interior window glass and frames.", price: 299 },
-  ],
-  SERVICE008: [
-    { id: "ao-008-1", name: "Extra bathroom", price: 349 },
-    { id: "ao-008-2", name: "Tile grout whitening", price: 249 },
-    { id: "ao-008-3", name: "Exhaust fan cleaning", price: 149 },
-  ],
-  SERVICE009: [
-    { id: "ao-009-1", name: "Chimney exterior wipe", price: 249 },
-    { id: "ao-009-2", name: "Cabinet interior cleaning", price: 399 },
-    { id: "ao-009-3", name: "Fridge exterior polish", price: 149 },
-  ],
-};
 
 const trustPoints = [
   { icon: BadgeCheck, title: "Verified professionals", text: "Background-checked and trained experts." },
@@ -358,10 +128,6 @@ const Stars: React.FC<{
   </span>
 );
 
-/* How long the skeletons show. TODO: remove this once the data comes from your API
-   and use the real loading flag instead. */
-const SKELETON_DELAY_MS = 600;
-
 const focusRing =
   "focus:outline-none focus-visible:ring-4 focus-visible:ring-[#6366f1]/30";
 
@@ -374,35 +140,72 @@ const ServiceDetails: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  const service = services.find(
-    (item) => item.slug === key || item.id === key
+  /* Data comes from the API (or mocks when VITE_USE_MOCKS=true) */
+  const serviceQuery = useService(key);
+  const apiService = serviceQuery.data;
+
+  const reviewsQuery = useServiceReviews(apiService?.id, {
+    page: 1,
+    limit: REVIEWS_LIMIT,
+  });
+
+  const relatedQuery = useServices(
+    { limit: 12 },
+    { enabled: Boolean(apiService) }
   );
 
-  const detail = (service && serviceDetails[service.id]) || defaultDetail;
+  const service: Service | undefined = apiService && {
+    id: apiService.id,
+    slug: apiService.slug,
+    image:
+      apiService.media[0]?.url ||
+      apiService.imageUrl ||
+      categoryImage(apiService.category.slug),
+    category: apiService.category.name,
+    name: apiService.name,
+    rating: apiService.rating,
+    price: apiService.basePrice,
+    duration: formatDuration(apiService.durationMinutes),
+    description: apiService.description,
+  };
 
-  /* STEP 3: add-ons for this service */
-  const addOns = (service && serviceAddOns[service.id]) || [];
+  const detail: ServiceDetail = {
+    reviews: apiService?.ratingCount ?? 0,
+    earliest: apiService ? formatEarliest(apiService) : "",
+    included: apiService?.inclusions ?? [],
+    notCovered: apiService?.exclusions ?? [],
+    faqs: (apiService?.faqs ?? []).map((f) => ({ q: f.question, a: f.answer })),
+  };
 
-  /* STEP 5: star breakdown for this service */
-  const breakdown =
-    (service && ratingBreakdowns[service.id]) || defaultBreakdown;
-  const breakdownTotal = breakdown.reduce((sum, n) => sum + n, 0);
+  /* Add-ons for this service */
+  const addOns: AddOn[] = apiService?.addOns ?? [];
 
-  const allFaqs: Faq[] = [
-    ...detail.faqs,
-    ...((service && extraFaqs[service.id]) || []),
-    ...commonFaqs,
+  /* Star breakdown (5 -> 1) and review list */
+  const summary = reviewsQuery.data?.summary;
+  const breakdown: RatingBreakdown = [
+    summary?.distribution["5"] ?? 0,
+    summary?.distribution["4"] ?? 0,
+    summary?.distribution["3"] ?? 0,
+    summary?.distribution["2"] ?? 0,
+    summary?.distribution["1"] ?? 0,
   ];
+  const breakdownTotal = summary?.count ?? breakdown.reduce((sum, n) => sum + n, 0);
+
+  const reviewItems = (reviewsQuery.data?.reviews ?? []).map((r) => ({
+    id: r.id,
+    name: r.author,
+    rating: r.rating,
+    date: r.createdAt.slice(0, 10),
+    text: r.comment,
+  }));
+
+  const allFaqs: Faq[] = [...detail.faqs, ...commonFaqs];
 
   /* ---------- Photos ---------- */
 
   const [failed, setFailed] = useState<string[]>([]);
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [selected, setSelected] = useState(0);
-
-  /* Reviews load on their own: the skeleton shows every time the Reviews tab
-     is opened, and after a refresh while on it. TODO: use your reviews API flag. */
-  const [reviewsReady, setReviewsReady] = useState(false);
 
   /* The selected tab lives in the URL (?tab=faqs), so a refresh keeps it
      and the link can be shared. No ?tab means Overview. */
@@ -412,7 +215,6 @@ const ServiceDetails: React.FC = () => {
     tabs.find((t) => t.id === tabParam)?.id ?? "overview";
 
   const setActiveTab = (id: TabId) => {
-    if (id === "reviews" && activeTab !== "reviews") setReviewsReady(false);
     const next = new URLSearchParams(searchParams);
     if (id === "overview") next.delete("tab");
     else next.set("tab", id);
@@ -427,19 +229,16 @@ const ServiceDetails: React.FC = () => {
   const lightboxCloseRef = useRef<HTMLButtonElement | null>(null);
   const [copied, setCopied] = useState(false);
 
-  /* Loading state for the skeletons. TODO: replace with your API loading flag. */
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    setLoading(true);
-    const timer = window.setTimeout(() => setLoading(false), SKELETON_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [key]);
+  const gallery =
+    apiService && apiService.media.length > 0
+      ? apiService.media.map((m) => m.url)
+      : service
+        ? [service.image]
+        : [];
 
-  const photos = service
-    ? [service.image, ...(serviceGallery[service.id] ?? [])]
-        .filter((src, index, all) => all.indexOf(src) === index)
-        .filter((src) => !failed.includes(src))
-    : [];
+  const photos = gallery
+    .filter((src, index, all) => all.indexOf(src) === index)
+    .filter((src) => !failed.includes(src));
 
   const markFailed = (src: string) =>
     setFailed((prev) => (prev.includes(src) ? prev : [...prev, src]));
@@ -450,18 +249,7 @@ const ServiceDetails: React.FC = () => {
     setLightbox(null);
     setSelected(0);
     setOpenFaq(0);
-    setReviewsReady(false);
   }, [key]);
-
-  // Finish loading the reviews whenever the Reviews tab is open
-  useEffect(() => {
-    if (activeTab !== "reviews" || reviewsReady) return;
-    const timer = window.setTimeout(
-      () => setReviewsReady(true),
-      SKELETON_DELAY_MS
-    );
-    return () => window.clearTimeout(timer);
-  }, [activeTab, reviewsReady]);
 
   // Browser tab title
   const serviceName = service?.name;
@@ -562,7 +350,42 @@ const ServiceDetails: React.FC = () => {
     navigate(`/login?returnUrl=${encodeURIComponent(bookPath)}`);
   };
 
-  /* Unknown slug: show the public 404 page */
+  /* Loading: page skeleton while the service is fetched */
+  if (serviceQuery.isLoading) {
+    return (
+      <main
+        className="relative min-h-screen overflow-x-clip bg-[#f6f7fd]"
+        role="status"
+        aria-busy="true"
+        aria-label="Loading service"
+      >
+        <div className="relative mx-auto max-w-7xl space-y-8 px-4 pb-32 pt-6 sm:px-6 lg:px-8 lg:pt-10">
+          <GallerySkeleton />
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px]">
+            <div />
+            <ServiceInfoSkeleton />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  /* Unknown or inactive slug: public 404 page. Other failures: retry. */
+  if (serviceQuery.isError) {
+    if (serviceQuery.error.kind === "not_found") return <NotFound />;
+    return (
+      <main className="min-h-screen bg-[#f6f7fd] px-4 py-24">
+        <div className="mx-auto max-w-xl">
+          <ErrorState
+            title="We could not load this service"
+            message={serviceQuery.error.message}
+            onRetry={() => void serviceQuery.refetch()}
+          />
+        </div>
+      </main>
+    );
+  }
+
   if (!service) {
     return <NotFound />;
   }
@@ -579,14 +402,15 @@ const ServiceDetails: React.FC = () => {
     );
   }
 
-  const related = services
+  const related = (relatedQuery.data?.items ?? [])
     .filter((item) => item.id !== service.id)
     .sort(
       (a, b) =>
-        Number(b.category === service.category) -
-        Number(a.category === service.category)
+        Number(b.category.id === apiService?.category.id) -
+        Number(a.category.id === apiService?.category.id)
     )
-    .slice(0, 3);
+    .slice(0, 3)
+    .map(toServiceCard);
 
   /* ---------- Content for each tab ---------- */
 
@@ -898,9 +722,15 @@ const ServiceDetails: React.FC = () => {
         </ul>
       </div>
 
-      {/* STEP 5: review list with date and service context */}
+      {reviewItems.length === 0 && (
+        <p className="mt-5 rounded-3xl border border-[#e9ebf7] bg-white p-6 text-sm text-[#6b6b8a]">
+          No reviews yet. Be the first to review this service after your booking.
+        </p>
+      )}
+
+      {/* Review list with date and service context */}
       <ul className="mt-5 space-y-4">
-        {sampleReviews.map((review) => (
+        {reviewItems.map((review) => (
           <li key={review.id}>
             <article className="rounded-3xl border border-[#e9ebf7] bg-white p-6 transition hover:shadow-[0_12px_32px_rgba(17,16,79,0.07)]">
               <header className="flex items-start justify-between gap-3">
@@ -998,9 +828,7 @@ const ServiceDetails: React.FC = () => {
         </nav>
 
         {/* ================= HERO GALLERY ================= */}
-        {loading ? (
-          <GallerySkeleton />
-        ) : (
+        {(
         <div className="space-y-3">
           {/* Main photo with the service title on top */}
           <div
@@ -1118,7 +946,7 @@ const ServiceDetails: React.FC = () => {
         )}
 
         {/* ================= QUICK FACTS ================= */}
-        {!loading && (
+        {(
         <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-3xl bg-[#e4e7f5] shadow-[0_12px_32px_rgba(17,16,79,0.06)] lg:grid-cols-4">
           {[
             { icon: CalendarCheck, label: "Earliest slot", value: detail.earliest },
@@ -1145,28 +973,24 @@ const ServiceDetails: React.FC = () => {
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
 
           {/* ---------- RIGHT: BOOKING CARD ---------- */}
-          {loading ? (
-            <div className="lg:order-2 lg:sticky lg:top-6">
-              <ServiceInfoSkeleton />
-            </div>
-          ) : (
+          {(
           /* Desktop only: on mobile the hero, quick facts and sticky bar already show this */
           <aside className="hidden lg:order-2 lg:sticky lg:top-6 lg:block">
             <div className="overflow-hidden rounded-[2rem] bg-white shadow-[0_30px_80px_rgba(17,16,79,0.16)] ring-1 ring-[#e4e7f5]">
 
               {/* STEP 2: base price + duration */}
-              <div className="relative bg-gradient-to-br from-[#11104f] via-[#2a2593] to-[#4338ca] p-8 text-white">
+              <div className="relative bg-gradient-to-br from-[#eef2ff] via-[#e0e7ff] to-[#c7d2fe] p-8 text-[#11104f]">
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#ff8a3d]/30 blur-2xl"
+                  className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-[#ff8a3d]/20 blur-2xl"
                 />
                 <div className="relative">
-                  <p className="text-base text-white/70">Starting at</p>
+                  <p className="text-base font-semibold text-[#4338ca]">Starting at</p>
                   <div className="mt-1 flex items-end justify-between gap-3">
                     <p className="text-6xl font-extrabold tracking-tight">
                       ₹{service.price.toLocaleString("en-IN")}
                     </p>
-                    <p className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-base font-bold ring-1 ring-white/20">
+                    <p className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-white/80 px-4 py-2 text-base font-bold text-[#4338ca] ring-1 ring-[#4338ca]/15">
                       <Clock size={18} aria-hidden="true" />
                       <span className="sr-only">Duration: </span>
                       {service.duration}
@@ -1178,7 +1002,7 @@ const ServiceDetails: React.FC = () => {
                       value={service.rating}
                       size={22}
                       label={`Rated ${service.rating} out of 5`}
-                      emptyClass="text-white/30"
+                      emptyClass="text-[#b8bde6]"
                     />
                     <span className="text-lg font-extrabold">
                       {service.rating}
@@ -1187,7 +1011,7 @@ const ServiceDetails: React.FC = () => {
                       type="button"
                       onClick={() => goToSection("reviews")}
                       aria-label={`Read all ${detail.reviews} reviews`}
-                      className="rounded text-base text-white/80 underline decoration-white/40 underline-offset-4 transition hover:text-white focus:outline-none focus-visible:ring-4 focus-visible:ring-white/30"
+                      className="rounded text-base font-semibold text-[#4338ca] underline decoration-[#4338ca]/40 underline-offset-4 transition hover:text-[#11104f] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#6366f1]/30"
                     >
                       {detail.reviews} reviews
                     </button>
@@ -1273,7 +1097,27 @@ const ServiceDetails: React.FC = () => {
               {activeTab === "included" && includedContent}
               {activeTab === "faqs" && faqsContent}
               {activeTab === "reviews" &&
-                (reviewsReady ? reviewsContent : <ReviewSkeleton />)}
+                (reviewsQuery.isLoading ? (
+                <ReviewSkeleton />
+              ) : reviewsQuery.isError ? (
+                <div
+                  role="alert"
+                  className="rounded-3xl border border-red-100 bg-white p-8 text-center"
+                >
+                  <p className="font-bold text-[#11104f]">
+                    We could not load the reviews.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void reviewsQuery.refetch()}
+                    className={`mt-4 rounded-xl bg-[#4338ca] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#3730a3] ${focusRing}`}
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : (
+                reviewsContent
+              ))}
             </div>
           </div>
         </div>
@@ -1352,7 +1196,7 @@ const ServiceDetails: React.FC = () => {
       </div>
 
       {/* ================= STICKY BOOK BAR (mobile and tablet) ================= */}
-      {!loading && (
+      {(
         <StickyBookNow
           serviceName={service.name}
           price={service.price}

@@ -12,28 +12,35 @@
   min-width: 0;
 }
 
+/* Map card + Service Partner card: one row, both cells stretch to the same height */
 .tk-main-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 16px;
   min-width: 0;
+}
+
+/* ---------- Shared card chrome (map card + partner card look identical) ---------- */
+.tk-partner-card,
+.tk-map {
+  box-sizing: border-box;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 /* ---------- Service Partner Card ---------- */
 .tk-partner-card {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 4px;
+  justify-content: flex-start; /* the location strip pins itself to the bottom with mt-auto */
+  gap: 10px; /* guaranteed space between ETA/Distance tile and the status strip */
   height: 100%;
   min-height: 0;
   min-width: 0;
-  box-sizing: border-box;
-  padding: 8px 14px;
-  border: 1px solid var(--border-color, #e5e7eb);
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 12px 16px;
   overflow: hidden;
 }
 
@@ -80,28 +87,34 @@
   flex: 1 1 0%;
   min-height: 0;
   min-width: 0;
+  overflow-y: auto; /* safety net: on a very short window the last step ("Completed") can still be scrolled into view */
 }
 
 .tk-timeline-list {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  flex: 1 1 0%;
-  height: 100%;
+  flex: 1 0 auto; /* never squeezed below its content, so every step stays visible */
   min-height: 0;
 }
 
+/* Beats the Tailwind h-full / justify-between utilities on the <ol> so it is sized by its content. */
+.tk-timeline-body > .tk-timeline-list {
+  height: auto;
+  justify-content: flex-start;
+}
+
+/* Compact steps: each keeps its natural height (never shrinks) and shares any spare space equally. */
 .tk-timeline-item:not(:last-child) {
-  flex: 1 1 0%;
-  min-height: 44px;
-  padding-bottom: 10px;
+  flex: 1 0 auto;
+  min-height: 0;
+  padding-bottom: 6px;
 }
 
 .tk-timeline-item:last-child {
   flex: 0 0 auto;
 }
 
-/* On mobile, give stacked timeline and chat cards comfortable spacing */
+/* Mobile: cards stack, map first, partner card below it */
 @media (max-width: 767px) {
   .tk-timeline-item:not(:last-child) {
     padding-bottom: 14px;
@@ -111,9 +124,13 @@
   }
 }
 
-/* Tablet: preserve two equal-height columns side by side when chat is open */
+/* Tablet: two columns, map gets the wider one, both cards stretch to the same height */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .tk-main-grid,
+  .tk-main-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(280px, auto);
+    gap: 14px;
+  }
   .tracking-bottom {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: stretch;
@@ -147,19 +164,20 @@
     padding-bottom: 2px;
   }
 
+  /* The map/partner row gets a little more of the viewport (was 0.76fr) so the partner card never clips. */
   .tk-page-shell--fit > .tk-page-grid {
     flex: 1 1 0%;
     height: 100%;
     min-height: 0;
     min-width: 0;
     display: grid;
-    grid-template-rows: auto minmax(0, 0.76fr) minmax(0, 1.24fr) auto;
+    grid-template-rows: auto minmax(0, 0.88fr) minmax(0, 1.12fr) auto;
     gap: 8px;
     overflow: hidden;
   }
 
   .tk-page-shell--fit > .tk-page-grid.tk-page-grid--no-banner {
-    grid-template-rows: auto minmax(0, 0.78fr) minmax(0, 1.22fr);
+    grid-template-rows: auto minmax(0, 0.9fr) minmax(0, 1.1fr);
   }
 
   .tk-main-grid {
@@ -167,18 +185,21 @@
     min-height: 0;
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1.62fr) minmax(310px, 0.95fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
     align-items: stretch;
     gap: 16px;
     overflow: hidden;
   }
 
+  /* Same equal two-column template as .tk-main-grid: Booking Status lines up under the map,
+     and the chat card lines up under the Service Partner card. */
   .tracking-bottom {
     height: 100%;
     min-height: 0;
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
     gap: 16px;
     overflow: hidden;
@@ -189,7 +210,7 @@
   }
 
   .tk-partner-card {
-    padding: 8px 15px;
+    padding: 12px 16px;
   }
 
   .booking-status-card,
@@ -201,6 +222,7 @@
   .tk-partner-section,
   .tk-timeline-section,
   .tk-booking-chat {
+    align-self: stretch;
     height: 100%;
     min-height: 0;
     min-width: 0;
@@ -294,8 +316,6 @@
   min-width: 0;
   height: 220px;
   overflow: hidden;
-  border: 1px solid #e8e8ee;
-  border-radius: 16px;
   background: #eef0f4;
   transition:
     box-shadow 0.25s ease,
@@ -313,6 +333,20 @@
   }
 }
 
+/* Tablet: the map fills its grid cell, so it is exactly as tall as the partner card */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tk-map-section {
+    display: flex;
+    min-height: 280px;
+  }
+  .tk-map {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 280px;
+  }
+}
+
+/* Desktop: the map fills the same grid cell as the partner card */
 @media (min-width: 1024px) {
   .tk-map {
     height: 100%;
