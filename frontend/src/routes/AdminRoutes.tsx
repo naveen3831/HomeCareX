@@ -86,11 +86,22 @@ export const adminRoutes: AdminRoute[] = [
   },
 
   // Catalog
-  { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
-  { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
-  { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:manage' },
-{ path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
-  { path: 'payments/:id', element: <AdminPaymentDetailsPage />, permission: 'payments:read' },
+  {
+    path: 'categories',
+    element: <AdminCategoriesPage />,
+    permission: 'catalog:manage',
+  },
+  {
+    path: 'services',
+    element: <AdminServicesPage />,
+    permission: 'catalog:manage',
+  },
+  {
+    path: 'pricing',
+    element: <AdminPricingPage />,
+    permission: 'pricing:manage',
+  },
+
   // Coupons
   {
     path: 'coupons',
@@ -119,11 +130,19 @@ export const adminRoutes: AdminRoute[] = [
     element: <AdminMarketingPage />,
   },
 
-  // Finance
+  // Finance: Payments
   {
     path: 'payments',
     element: <AdminPaymentsPage />,
+    permission: 'payments:read',
   },
+  {
+    path: 'payments/:id',
+    element: <AdminPaymentDetailsPage />,
+    permission: 'payments:read',
+  },
+
+  // Finance: Refunds
   {
     path: 'refunds',
     element: <AdminRefundsPage />,
@@ -132,8 +151,14 @@ export const adminRoutes: AdminRoute[] = [
     path: 'refunds/:id',
     element: <AdminRefundsPage />,
   },
+
+  // Finance: Payouts
   {
     path: 'payouts',
+    element: <AdminPayoutsPage />,
+  },
+  {
+    path: 'payouts/:id',
     element: <AdminPayoutsPage />,
   },
 
@@ -180,7 +205,7 @@ const NotFound: React.FC = () => (
   <div className="admin-page-container">
     <h1 className="hcx-page-header__title">Page not found</h1>
     <p className="hcx-page-header__desc">
-      That admin page doesn&apos;t exist.
+      That admin page doesn't exist.
     </p>
   </div>
 );
