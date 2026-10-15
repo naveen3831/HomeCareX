@@ -122,7 +122,7 @@ rootRouter.use("/customer/dashboard", customerDashboardRoutes);
 rootRouter.use("/customer/profile", customerProfileRoutes);
 rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 
-// Customer addresses, wallet, coupons, and payments
+// Customer addresses, wallet, coupons and payments
 rootRouter.use("/addresses", addressesRoutes);
 rootRouter.use("/wallet", walletRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
@@ -139,7 +139,7 @@ rootRouter.use("/partner/availability", availabilityRoutes);
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);
 rootRouter.use("/partner/schedule", scheduleRoutes);
 
-// Partner earnings and wallet
+// Partner earnings and wallets
 rootRouter.use("/partner/earnings", earningsRoutes);
 rootRouter.use("/partner/transactions", partnerWalletRoutes);
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
