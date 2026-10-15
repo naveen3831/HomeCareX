@@ -3,6 +3,8 @@ import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
 import PartnerJobsPage from "../pages/partner/Jobs";
+import PartnerPerformancePage from "../pages/partner/Performance";
+import PartnerReviewsPage from "../pages/partner/Reviews";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
 import PartnerWorkingHoursPage from "../pages/partner/WorkingHours";
 import PartnerBlackoutDatesPage from "../pages/partner/BlackoutDates";
@@ -102,6 +104,9 @@ export const PARTNER_PAGES: { path: string; title: string }[] = [
 
 // Paths that have a real route below, so they are skipped as placeholders.
 const REAL_ROUTE_PATHS = new Set([
+  "performance",
+  "performance/reviews",
+  "reviews",
   "earnings/payouts",
   "profile",
   "work/requests",
@@ -179,6 +184,15 @@ export default function PartnerRoutes() {
         />
 
         <Route path="work/requests" element={<PartnerJobsPage />} />
+
+        {/* =====================================================
+            Performance and Reviews
+        ===================================================== */}
+        <Route path="performance" element={<PartnerPerformancePage />} />
+
+        <Route path="reviews" element={<PartnerReviewsPage />} />
+
+        <Route path="performance/reviews" element={<PartnerReviewsPage />} />
 
         {/* =====================================================
             Remaining Placeholder Pages

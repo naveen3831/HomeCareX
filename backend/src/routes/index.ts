@@ -1,5 +1,11 @@
+import { partnerPerformanceRoutes } from '../modules/partner-performance/partner-performance.routes';
+import { chatRoutes } from '../modules/chat/chat.routes';
+import { partnerLocationRoutes } from '../modules/partner-location/partner-location.routes';
+import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
+import { walletRoutes } from '../modules/wallet/wallet.routes';
 
 import { Router } from "express";
+
 
 import paymentRoutes from "../modules/payments/payments.routes";
 
@@ -81,6 +87,7 @@ import {
 } from "../modules/customer-profile/customer-profile.routes";
 import reviewsRoutes from "../modules/reviews/reviews.routes";
 
+import {partnerReviewsRoutes} from "../modules/partner-reviews/partner-reviews.routes";
 export const rootRouter = Router();
 
 // Authentication
@@ -232,5 +239,10 @@ rootRouter.use("/bookings", bookingStatusRoutes);
 // Reviews. The router carries its own full paths (/bookings/:id/review, /reviews, /reviews/pending,
 // /services/:id/reviews, /admin/reviews), so it is mounted at the root, like the booking and leads routers.
 rootRouter.use(reviewsRoutes);
+
+rootRouter.use("/partner/incentives", incentivesRoutes);
+rootRouter.use("/bookings", chatRoutes);
+rootRouter.use("/partner/performance", partnerPerformanceRoutes);
+rootRouter.use("/partner/reviews", partnerReviewsRoutes);
 
 export default rootRouter;
