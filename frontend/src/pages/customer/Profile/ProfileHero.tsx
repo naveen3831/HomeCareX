@@ -4,20 +4,12 @@ import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 
-export interface ProfileStat {
-  label: string;
-  /** undefined = still loading, null = couldn't load */
-  value: number | null | undefined;
-  to: string;
-}
-
 interface ProfileHeroProps {
   name: string;
   email?: string;
   phone?: string;
   /** Uploaded photo (data URL); initials are shown when there is none. */
   avatarUrl?: string;
-  stats: ProfileStat[];
 }
 
 export const initialsOf = (name: string) =>
@@ -29,11 +21,8 @@ export const initialsOf = (name: string) =>
     .join("")
     .toUpperCase() || "?";
 
-/**
- * Mobile profile header: flat lavender card, animated avatar ring, contact line and three live,
- * tappable stats (active / upcoming bookings, saved addresses) taken from the real API data.
- */
-export default function ProfileHero({ name, email, phone, avatarUrl, stats }: ProfileHeroProps) {
+/** Mobile profile header: one flat light lavender card with the animated avatar ring, name, contact lines and Edit profile. */
+export default function ProfileHero({ name, email, phone, avatarUrl }: ProfileHeroProps) {
   const contact = [email, phone].filter(Boolean);
   return (
     <section
@@ -83,32 +72,6 @@ export default function ProfileHero({ name, email, phone, avatarUrl, stats }: Pr
         </div>
       </div>
 
-      <ul className="relative mt-5 grid grid-cols-3 gap-2.5">
-        {stats.map((s) => (
-          <li key={s.label}>
-            <Link
-              to={s.to}
-              className={clsx(
-                "group flex min-h-[64px] flex-col items-center justify-center rounded-2xl border border-[#D9DCF7] bg-white px-2 py-2 text-center transition-all duration-200 hover:border-brand motion-safe:active:scale-95",
-                FOCUS_RING,
-              )}
-            >
-              {s.value === undefined ? (
-                <span className="h-6 w-8 animate-pulse rounded-md bg-line" role="status" aria-label={`Loading ${s.label}`} />
-              ) : (
-                <span className="profile-pop text-xl font-bold leading-none">{s.value ?? "–"}</span>
-              )}
-              <span className="mt-1.5 text-[11px] font-medium leading-none text-muted">{s.label}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
-
-export const statLinks = {
-  active: customerPath("/tracking"),
-  upcoming: customerPath("/bookings"),
-  places: customerPath("/addresses"),
-};

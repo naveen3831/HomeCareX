@@ -550,7 +550,10 @@ export default function PartnerJobRequestsPage() {
           </p>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" aria-label="Job requests">
+        <ul
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+          aria-label="Job requests"
+        >
           {outcomes.map((outcome) => (
             <JobOutcomeCard
               key={`outcome-${outcome.id}`}

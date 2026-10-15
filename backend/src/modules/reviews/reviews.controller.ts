@@ -14,6 +14,34 @@ export class ReviewsController {
     }
   };
 
+  /** POST /bookings/:id/review */
+  createBookingReview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const review = await this.reviewsService.createBookingReview(res.locals.auth.sub, req.params.id, req.body);
+      res.status(201).json({ success: true, data: review });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /** GET /reviews (the signed-in customer's own) */
+  listMyReviews = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.json({ success: true, data: await this.reviewsService.listMyReviews(res.locals.auth.sub) });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /** GET /reviews/pending */
+  listPendingReviews = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.json({ success: true, data: await this.reviewsService.listPendingReviews(res.locals.auth.sub) });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   listCustomerReviews = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       res.json({ success: true, data: await this.reviewsService.listCustomerReviews(res.locals.auth.sub) });

@@ -13,7 +13,7 @@ export const authRepository = {
     }).select('+passwordHash +passwordResetTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
-  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string }) =>
+  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string; avatar?: string; gender?: string }) =>
     UserModel.create(data),
 
   // OTP repository methods

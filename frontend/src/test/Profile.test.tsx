@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 
 const updateProfile = vi.fn();
@@ -29,6 +29,9 @@ import ChangePasswordForm from "../pages/customer/Profile/ChangePasswordForm";
 import AvatarUpload from "../pages/customer/Profile/AvatarUpload";
 import PreferencesCard, { buildPreferencesPatch } from "../pages/customer/Profile/PreferencesCard";
 import Profile from "../pages/customer/Profile";
+import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
+import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
+import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
 import { validateAvatarFile, cropRect, AVATAR_MAX_BYTES } from "@/lib/avatarCrop";
 import { changePasswordSchema, profileSchema } from "@/lib/profileSchemas";
 import type { PreferencesDto, ProfileDto } from "@/features/customer";
@@ -290,11 +293,25 @@ describe("PreferencesCard", () => {
     wrap(<PreferencesCard preferences={prefs} />);
 
     expect(screen.getByRole("button", { name: /save preferences/i })).toBeDisabled();
+    // Sections first; the channel options only appear once a section is chosen.
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /offers/i }));
     await userEvent.click(screen.getByRole("checkbox", { name: /email for offers/i }));
     await userEvent.click(screen.getByRole("button", { name: /save preferences/i }));
 
     expect(await screen.findByText(/preferences saved/i)).toBeInTheDocument();
     expect(patch).toHaveBeenCalledWith({ notifications: { offers: { email: true } } });
+  });
+
+  it("shows what each section sends, and goes back to the list", async () => {
+    wrap(<PreferencesCard preferences={prefs} />);
+    expect(screen.getByRole("button", { name: /offers.*in-app/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /reminders/i }));
+    expect(screen.getByRole("checkbox", { name: /push for reminders/i })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /sms for reminders/i })).not.toBeChecked();
+    expect(screen.queryByLabelText(/^language/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /all sections/i }));
+    expect(screen.getByLabelText(/^language/i)).toBeInTheDocument();
   });
 
   it("changes language", async () => {
@@ -308,6 +325,7 @@ describe("PreferencesCard", () => {
   it("reports a failed save and keeps the customer's choices", async () => {
     routes["PATCH /customer/preferences"] = () => fail(500, "INTERNAL_ERROR", "boom");
     wrap(<PreferencesCard preferences={prefs} />);
+    await userEvent.click(screen.getByRole("button", { name: /offers/i }));
     const box = screen.getByRole("checkbox", { name: /sms for offers/i });
     await userEvent.click(box);
     await userEvent.click(screen.getByRole("button", { name: /save preferences/i }));
@@ -318,48 +336,182 @@ describe("PreferencesCard", () => {
 
 /* ---------- the page: loading / error / offline / success ---------- */
 
-describe("Profile page states", () => {
-  const dashboardAndAddresses = () => {
+/* ---------- full pages: /profile, /profile/edit, /profile/password, /profile/notifications ---------- */
+
+/** Renders the real customer routes at `path`, so redirects after saving can be followed. */
+const wrapAt = (path: string) => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/customer/profile" element={<Profile />} />
+          <Route path="/customer/profile/edit" element={<EditProfilePage />} />
+          <Route path="/customer/profile/password" element={<ChangePasswordPage />} />
+          <Route path="/customer/profile/notifications" element={<NotificationsPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
+
+describe("Profile pages", () => {
+  const okProfile = () => (routes["GET /customer/profile"] = () => ({ data: { success: true, data: { profile } } }));
+  const okPrefs = () => (routes["GET /customer/preferences"] = () => ({ data: { success: true, data: { preferences: prefs } } }));
+  const homeData = () => {
     routes["GET /customer/dashboard"] = () => fail(500, "INTERNAL_ERROR", "x");
     routes["GET /addresses"] = () => ({ data: { success: true, data: { addresses: [] } } });
   };
 
-  it("loads the profile and preferences into their forms", async () => {
-    dashboardAndAddresses();
-    routes["GET /customer/profile"] = () => ({ data: { success: true, data: { profile } } });
-    routes["GET /customer/preferences"] = () => ({ data: { success: true, data: { preferences: prefs } } });
-    wrap(<Profile />);
+  it("Edit profile page loads the saved details into the form", async () => {
+    okProfile();
+    wrapAt("/customer/profile/edit");
     expect(await screen.findByLabelText(/full name/i)).toHaveValue("Asha");
-    expect(await screen.findByRole("group", { name: /notification preferences/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /password/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: /back to profile/i }).length).toBeGreaterThan(0);
   });
 
-  it("shows a loading state first, never a blank section", async () => {
-    dashboardAndAddresses();
+  it("Notification page loads preferences, and the password page shows its form", async () => {
+    okPrefs();
+    const first = wrapAt("/customer/profile/notifications");
+    expect(await screen.findByRole("group", { name: /notification preferences/i })).toBeInTheDocument();
+    first.unmount();
+    wrapAt("/customer/profile/password");
+    expect(screen.getByLabelText(/^current password/i)).toBeInTheDocument();
+  });
+
+  it("shows a loading state first, never a blank page", async () => {
     routes["GET /customer/profile"] = () => new Promise(() => undefined);
     routes["GET /customer/preferences"] = () => new Promise(() => undefined);
-    wrap(<Profile />);
+    const first = wrapAt("/customer/profile/edit");
     expect(await screen.findByText(/loading your profile/i)).toBeInTheDocument();
-    expect(screen.getByText(/loading your preferences/i)).toBeInTheDocument();
+    first.unmount();
+    wrapAt("/customer/profile/notifications");
+    expect(await screen.findByText(/loading your preferences/i)).toBeInTheDocument();
   });
 
   it("shows an error with Try again, and recovers", async () => {
-    dashboardAndAddresses();
     let calls = 0;
     routes["GET /customer/profile"] = () => (++calls === 1 ? fail(403, "FORBIDDEN", "nope") : { data: { success: true, data: { profile } } });
-    routes["GET /customer/preferences"] = () => ({ data: { success: true, data: { preferences: prefs } } });
-    wrap(<Profile />);
+    wrapAt("/customer/profile/edit");
     expect(await screen.findByText(/couldn't load your profile/i)).toBeInTheDocument();
-    await userEvent.click(screen.getAllByRole("button", { name: /try again/i })[0]);
+    await userEvent.click(screen.getByRole("button", { name: /try again/i }));
     await waitFor(() => expect(screen.getByLabelText(/full name/i)).toHaveValue("Asha"));
   });
 
   it("shows the offline state when there is no connection and nothing to show", async () => {
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
-    dashboardAndAddresses();
     routes["GET /customer/profile"] = () => fail(0 as number, "NETWORK_ERROR", "Network Error");
-    routes["GET /customer/preferences"] = () => fail(0 as number, "NETWORK_ERROR", "Network Error");
-    wrap(<Profile />);
+    wrapAt("/customer/profile/edit");
     expect((await screen.findAllByText(/you're offline/i)).length).toBeGreaterThan(0);
   });
+
+  it("saving the profile returns to the Profile page with a confirmation", async () => {
+    homeData();
+    okProfile();
+    routes["PATCH /customer/profile"] = (body) => ({ data: { success: true, data: { profile: { ...profile, ...(body as object) } } } });
+    wrapAt("/customer/profile/edit");
+    await userEvent.clear(await screen.findByLabelText(/full name/i));
+    await userEvent.type(screen.getByLabelText(/full name/i), "Asha Kumar");
+    await userEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    await waitFor(() => expect(screen.queryByLabelText(/full name/i)).not.toBeInTheDocument());
+    expect(await screen.findByText("Profile updated.")).toBeInTheDocument();
+  });
+
+  it("changing the password returns to the Profile page with a confirmation", async () => {
+    homeData();
+    okProfile();
+    routes["POST /auth/change-password"] = () => ({ data: { success: true, data: { changed: true } } });
+    wrapAt("/customer/profile/password");
+    await userEvent.type(screen.getByLabelText(/^current password/i), "Old@1234");
+    await userEvent.type(screen.getByLabelText(/^new password/i), "New@12345");
+    await userEvent.type(screen.getByLabelText(/^confirm new password/i), "New@12345");
+    await userEvent.click(screen.getByRole("button", { name: /update password/i }));
+    expect(await screen.findByText("Password updated.")).toBeInTheDocument();
+  });
+
+  it("a wrong current password stays on the page and sends nobody away", async () => {
+    homeData();
+    okProfile();
+    routes["POST /auth/change-password"] = () =>
+      fail(400, "INVALID_CURRENT_PASSWORD", "Your current password is incorrect.", [{ field: "currentPassword", message: "Current password is incorrect" }]);
+    wrapAt("/customer/profile/password");
+    await userEvent.type(screen.getByLabelText(/^current password/i), "Wrong@123");
+    await userEvent.type(screen.getByLabelText(/^new password/i), "New@12345");
+    await userEvent.type(screen.getByLabelText(/^confirm new password/i), "New@12345");
+    await userEvent.click(screen.getByRole("button", { name: /update password/i }));
+    expect(await screen.findByText("Current password is incorrect")).toBeInTheDocument();
+    expect(screen.queryByText("Password updated.")).not.toBeInTheDocument();
+  });
+
+  it("saving notification preferences returns to the Profile page with a confirmation", async () => {
+    homeData();
+    okPrefs();
+    routes["PATCH /customer/preferences"] = () => ({ data: { success: true, data: { preferences: { ...prefs, language: "hi" } } } });
+    wrapAt("/customer/profile/notifications");
+    await screen.findByRole("group", { name: /notification preferences/i });
+    await userEvent.selectOptions(screen.getByLabelText(/language/i), "hi");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(await screen.findByText("Preferences saved.")).toBeInTheDocument();
+  });
+
+  it("old #hash links forward to the matching page", async () => {
+    homeData();
+    okProfile();
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/customer/profile#password"]}>
+          <Routes>
+            <Route path="/customer/profile" element={<Profile />} />
+            <Route path="/customer/profile/password" element={<ChangePasswordPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByLabelText(/^current password/i)).toBeInTheDocument();
+  });
 });
+
+describe("Forgot password inside Change password", () => {
+  it("sends a code, verifies it, resets the password and asks to log in again", async () => {
+    okProfileFor();
+    routes["POST /auth/forgot-password"] = () => ({ data: { success: true, data: { message: "sent" } } });
+    routes["POST /auth/verify-otp"] = () => ({ data: { success: true, resetToken: "tok-1", message: "ok" } });
+    const reset = vi.fn(() => ({ data: { success: true, data: { message: "done" } } }));
+    routes["POST /auth/reset-password"] = reset;
+
+    wrapAt("/customer/profile/password");
+    await userEvent.click(screen.getByRole("button", { name: /forgot your password/i }));
+    expect(screen.getByText(/we'll email a 6-digit code/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /send verification code/i }));
+
+    await userEvent.click(await screen.findByLabelText("OTP digit 1"));
+    await userEvent.paste("123456");
+    // The change-password form stays mounted (hidden) behind the flow, so address the flow's own fields by id.
+    await waitFor(() => expect(document.getElementById("fp-new")).not.toBeNull());
+    await userEvent.type(document.getElementById("fp-new") as HTMLElement, "New@12345");
+    await userEvent.type(document.getElementById("fp-confirm") as HTMLElement, "New@12345");
+    await userEvent.click(screen.getByRole("button", { name: /reset password/i }));
+
+    expect(await screen.findByRole("heading", { name: /password reset/i })).toBeInTheDocument();
+    expect(reset).toHaveBeenCalledWith({ resetToken: "tok-1", newPassword: "New@12345" });
+    expect(screen.getByRole("button", { name: /log in again/i })).toBeInTheDocument();
+  });
+
+  it("a wrong code shows the server's message and stays on the code step", async () => {
+    okProfileFor();
+    routes["POST /auth/forgot-password"] = () => ({ data: { success: true, data: { message: "sent" } } });
+    routes["POST /auth/verify-otp"] = () => fail(400, "INVALID_OTP", "That code is incorrect.");
+    wrapAt("/customer/profile/password");
+    await userEvent.click(screen.getByRole("button", { name: /forgot your password/i }));
+    await userEvent.click(screen.getByRole("button", { name: /send verification code/i }));
+    await userEvent.click(await screen.findByLabelText("OTP digit 1"));
+    await userEvent.paste("000000");
+    expect(await screen.findByText(/that code is incorrect/i)).toBeInTheDocument();
+    expect(document.getElementById("fp-new")).toBeNull();
+  });
+});
+
+function okProfileFor() {
+  routes["GET /customer/profile"] = () => ({ data: { success: true, data: { profile } } });
+}

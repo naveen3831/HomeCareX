@@ -12,8 +12,6 @@ import {
   Layers,
   MapPin,
   Navigation,
-  RotateCw,
-  Star,
   Trash2,
   Users,
   Wrench,
@@ -52,10 +50,12 @@ import {
 } from "./bookingDetailModel";
 import CancelDialog from "./components/CancelDialog";
 import ExtraChargeApproval from "./components/ExtraChargeApproval";
-import InvoiceButton from "./components/InvoiceButton";
+import InvoiceCard from "./components/InvoiceCard";
+import BookAgainButton from "./components/BookAgainButton";
 import OtpDisplay from "./components/OtpDisplay";
 import PartnerCard from "./components/PartnerCard";
 import PriceBreakdown from "./components/PriceBreakdown";
+import RateExperience from "./components/RateExperience";
 import RescheduleDialog from "./components/RescheduleDialog";
 import StatusTimeline from "./components/StatusTimeline";
 
@@ -555,16 +555,14 @@ function DetailsBody({
 
           <Section id="actions-heading" title="Booking Actions" icon={Zap}>
             <div className="flex flex-col gap-2.5">
-              <InvoiceButton
-                booking={booking}
-                serviceName={name}
+              <InvoiceCard
+                bookingId={booking._id}
                 bookingCode={code}
-                total={price.grandTotal}
                 enabled={isPaid}
               />
               {TRACKABLE.has(booking.status) && (
                 <Link
-                  to={`${customerPath("/tracking")}?booking=${encodeURIComponent(booking._id)}`}
+                  to={customerPath(`/bookings/${encodeURIComponent(booking._id)}/track`)}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",
@@ -603,17 +601,8 @@ function DetailsBody({
                   Cancel Booking
                 </button>
               )}
-              <Link
-                to={`${customerPath("/services")}?q=${encodeURIComponent(name)}`}
-                className={clsx(
-                  LINK_BUTTON,
-                  "border border-brand/30 bg-panel text-brand",
-                  FOCUS_RING,
-                )}
-              >
-                <RotateCw className="h-4 w-4" aria-hidden="true" />
-                Book Again
-              </Link>
+              {!cancelled && <RateExperience bookingId={booking._id} status={booking.status} />}
+              <BookAgainButton booking={booking} />
             </div>
           </Section>
 
@@ -637,51 +626,6 @@ function DetailsBody({
               Contact Support
             </Link>
           </section>
-
-          {!cancelled && (
-            <section className="rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6">
-              <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
-                <Star className="h-4 w-4 text-brand" aria-hidden="true" />
-                Rate Your Experience
-              </h2>
-              {booking.status === "rated" ? (
-                <p className="mt-2 text-sm text-muted">
-                  Thanks for rating this service.
-                </p>
-              ) : (
-                <>
-                  <p className="mt-2 text-sm text-muted">
-                    {finished
-                      ? "How was your service?"
-                      : "You can review once the service is completed."}
-                  </p>
-                  {finished ? (
-                    <Link
-                      to={customerPath("/reviews")}
-                      className={clsx(
-                        LINK_BUTTON,
-                        "mt-3 w-full border border-brand/30 bg-panel text-brand",
-                        FOCUS_RING,
-                      )}
-                    >
-                      Write a Review
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className={clsx(
-                        LINK_BUTTON,
-                        "mt-3 w-full border border-brand/30 bg-panel text-brand opacity-50",
-                      )}
-                    >
-                      Write a Review
-                    </button>
-                  )}
-                </>
-              )}
-            </section>
-          )}
         </div>
       </div>
 

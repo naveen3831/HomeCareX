@@ -159,6 +159,22 @@ export class CustomerProfileService {
     if (!updated) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Your account was not found.');
     return toPreferencesView(updated);
   }
+
+  /**
+   * Permanently deletes the customer's own account (the token's user, nobody else's). Refused while a booking is still
+   * in flight or the wallet still holds money, so nobody loses a service or a balance by accident.
+   */
+  async deleteAccount(userId: string): Promise<{ deleted: true }> {
+    await this.mustFind(userId);
+    if ((await this.repo.countOpenBookings(userId)) > 0) {
+      throw new AppError(409, 'ACCOUNT_HAS_OPEN_BOOKINGS', 'You still have a booking in progress. Finish or cancel it, then delete your account.');
+    }
+    if ((await this.repo.walletBalance(userId)) > 0) {
+      throw new AppError(409, 'ACCOUNT_HAS_WALLET_BALANCE', 'Your wallet still has a balance. Use it up before deleting your account.');
+    }
+    if (!(await this.repo.deleteAccount(userId))) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Your account was not found.');
+    return { deleted: true };
+  }
 }
 
 export const customerProfileService = new CustomerProfileService();
