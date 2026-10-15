@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
@@ -32,7 +33,6 @@ import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard
 import { settingsRoutes } from "../modules/settings/settings.routes";
 import { designationsRoutes } from "../modules/designations/designations.routes";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes";
-//import customerNotificationsRoutes from "../modules/notifications/customer-notifications.routes";
 import { categoriesRoutes } from "../modules/categories/categories.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
@@ -75,87 +75,78 @@ import reviewsRoutes from "../modules/reviews/reviews.routes";
 
 export const rootRouter = Router();
 
-// =========================================================
 // Authentication
-// =========================================================
-
 rootRouter.use("/auth", authRoutes);
 
-// =========================================================
-// Admin: specific routes first
-// =========================================================
-
+// Admin dashboard and settings
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
+
+// Admin catalog
 rootRouter.use("/admin/categories", categoriesRoutes);
 rootRouter.use("/admin/services", servicesRoutes);
 rootRouter.use("/admin/customers", adminCustomersRoutes);
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
+
+// Admin support
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/staff", adminStaffRoutes);
 rootRouter.use("/admin/partners", partnersRoutes);
+
+// Admin finance and marketing
 rootRouter.use("/admin/coupons", couponsRoutes);
 rootRouter.use("/admin/banners", marketingRoutes);
 rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin", refundsRoutes);
 
 // Admin audit and general endpoints
 rootRouter.use("/admin", auditRoutes);
 rootRouter.use("/admin", adminRoutes);
-rootRouter.use("/admin", refundsRoutes);
 
-// =========================================================
-// Public routes
-// =========================================================
-
+// Public catalog
 rootRouter.use(catalogRoutes);
+
+// Notifications
+rootRouter.use("/notifications", notificationsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
+
+// Public routes
 rootRouter.use(leadsRoutes);
 rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 
-// =========================================================
-// Notifications
-// =========================================================
-
-rootRouter.use("/notifications", notificationsRoutes);
-//rootRouter.use("/customer/notifications", customerNotificationsRoutes);
-
-// =========================================================
-// Customer
-// =========================================================
-
+// Customer dashboard and profile
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
 rootRouter.use("/customer/profile", customerProfileRoutes);
 rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 
+// Customer addresses, wallet, coupons, and payments
 rootRouter.use("/addresses", addressesRoutes);
 rootRouter.use("/wallet", walletRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
-
 rootRouter.use("/payments", paymentRoutes);
+
+// Bookings and reviews
 rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
 rootRouter.use(reviewsRoutes);
 
-// =========================================================
-// Partner
-// =========================================================
-
+// Partner dashboard and availability
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);
 rootRouter.use("/partner/schedule", scheduleRoutes);
 
+// Partner earnings and wallet
 rootRouter.use("/partner/earnings", earningsRoutes);
 rootRouter.use("/partner/transactions", partnerWalletRoutes);
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
 rootRouter.use("/partner/incentives", incentivesRoutes);
 
+// Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
-rootRouter.use("/partner/notifications", notificationsRoutes);
-
-// Booking status routes
-rootRouter.use("/bookings", bookingStatusRoutes);
 
 export default rootRouter;
