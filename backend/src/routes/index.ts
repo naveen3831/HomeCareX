@@ -28,6 +28,10 @@ import { addressesRoutes } from '../modules/addresses/addresses.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
 import { partnerJobsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
 
+import {partnerPerformanceRoutes} from '../modules/partner-performance/partner-performance.routes';
+
+
+
 import {
   couponsRoutes,
   couponCustomerRoutes,
@@ -243,5 +247,9 @@ rootRouter.use(
 
 rootRouter.use('/partner/jobs', partnerJobsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
+rootRouter.use(
+  '/partner/performance',
+  partnerPerformanceRoutes,
+); // GET /partner/performance, GET /partner/performance/trends
 
 export default rootRouter;

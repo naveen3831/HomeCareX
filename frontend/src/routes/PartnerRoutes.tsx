@@ -13,7 +13,8 @@ import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
 import PartnerTransactionsPage from "../pages/partner/Transactions";
-import PartnerJobsPage from "../pages/partner/Jobs";
+import PartnerPerformancePage from "../pages/partner/Performance"; // D06
+import ProfileMenu from "../components/partner/ProfileMenu";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
@@ -179,12 +180,18 @@ export default function PartnerRoutes() {
           element={<PartnerJobsPage />}
         />
 
+        {/* D06 - Performance */}
+        <Route
+          path="performance"
+          element={<PartnerPerformancePage />}
+        />
+
         {/* =======================================================
             Remaining placeholder pages
             ======================================================= */}
 
         {PARTNER_PAGES
-          .filter(({ path }) => path !== "earnings/payouts")
+          .filter(({ path }) => path !== "earnings/payouts" && path !== "performance") // D06
           .map(({ path, title }) => (
             <Route
               key={path}
