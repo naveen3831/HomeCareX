@@ -1,69 +1,75 @@
 import { Router } from "express";
 
-import paymentRoutes from "../modules/payments/payments.routes";
-import walletRoutes from "../modules/wallet/wallet.routes";
+import paymentRoutes from "../payments/payments.routes";
+import walletRoutes from "../wallet/wallet.routes";
 
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
-} from "../modules/partner-wallet/partner-wallet.routes";
+} from "../partner-wallet/partner-wallet.routes";
 
 import {
   pricingRoutes,
   adminPricingRoutes,
-} from "../modules/pricing/pricing.routes";
+} from "../pricing/pricing.routes";
 
-import { authRoutes } from "../modules/auth/auth.routes";
-import { auditRoutes } from "../modules/audit/audit.routes";
-import { adminRoutes } from "../modules/admin/admin.routes";
-import { partnersRoutes } from "../modules/partners/partners.routes";
-import { availabilityRoutes } from "../modules/availability/availability.routes";
-import { blackoutRoutes } from "../modules/availability/blackout.routes";
-import { scheduleRoutes } from "../modules/availability/schedule.routes";
-import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
-import { earningsRoutes } from "../modules/earnings/earnings.routes";
-import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.routes";
-import { settingsRoutes } from "../modules/settings/settings.routes";
-import { designationsRoutes } from "../modules/designations/designations.routes";
-import { notificationsRoutes } from "../modules/notifications/notifications.routes";
-import { categoriesRoutes } from "../modules/categories/categories.routes";
-import { servicesRoutes } from "../modules/services/services.routes";
-import { catalogRoutes } from "../modules/catalog/catalog.routes";
-import { incentivesRoutes } from "../modules/incentives/incentives.routes";
-import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
-import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
-import { adminStaffRoutes, adminTicketsRoutes } from "../modules/admin-tickets/admin-tickets.routes";
+import { authRoutes } from "../auth/auth.routes";
+import { auditRoutes } from "../audit/audit.routes";
+import { adminRoutes } from "../admin/admin.routes";
+import { partnersRoutes } from "../partners/partners.routes";
+import { availabilityRoutes } from "../availability/availability.routes";
+import { blackoutRoutes } from "../availability/blackout.routes";
+import { scheduleRoutes } from "../availability/schedule.routes";
+import { partnerDashboardRoutes } from "../partners/partner-dashboard.routes";
+import { earningsRoutes } from "../earnings/earnings.routes";
+import { adminDashboardRoutes } from "../admin-dashboard/admin-dashboard.routes";
+import { settingsRoutes } from "../settings/settings.routes";
+import { designationsRoutes } from "../designations/designations.routes";
+import { notificationsRoutes } from "../notifications/notifications.routes";
+import { categoriesRoutes } from "../categories/categories.routes";
+import { servicesRoutes } from "../services/services.routes";
+import { catalogRoutes } from "../catalog/catalog.routes";
+import { incentivesRoutes } from "../incentives/incentives.routes";
+import { adminCustomersRoutes } from "../admin-customers/admin-customers.routes";
+import { adminPaymentsRoutes } from "../admin-payments/admin-payments.routes";
+import {
+  adminStaffRoutes,
+  adminTicketsRoutes,
+} from "../admin-tickets/admin-tickets.routes";
 
-import leadsRoutes from "../modules/leads/leads.routes";
-import { bookingsRoutes } from "../modules/bookings/bookings.routes";
-import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
+import leadsRoutes from "../leads/leads.routes";
+import { bookingsRoutes } from "../bookings/bookings.routes";
+import customerDashboardRoutes from "../customer-dashboard/customer-dashboard.routes";
 
 import {
   addressesRoutes,
   serviceabilityRoutes,
-} from "../modules/addresses/addresses.routes";
+} from "../addresses/addresses.routes";
 
-import { reviewsRoutes } from "../modules/reviews/reviews.routes";
+import { reviewsRoutes } from "../reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
   bookingStatusRoutes,
-} from "../modules/partner-jobs/partner-jobs.routes";
+} from "../partner-jobs/partner-jobs.routes";
 
 import {
   couponsRoutes,
   couponCustomerRoutes,
-} from "../modules/coupons/coupons.routes";
+} from "../coupons/coupons.routes";
 
 import {
   marketingRoutes,
   publicMarketingRoutes,
-} from "../modules/marketing/marketing.routes";
+} from "../marketing/marketing.routes";
 
-import refundsRoutes from "../modules/refunds/refunds.routes";
-import { chatRoutes } from "../modules/chat/chat.routes";
-import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
-import { maskedCallRoutes } from "../modules/masked-call/masked-call.routes";
+import refundsRoutes from "../refunds/refunds.routes";
+import { chatRoutes } from "../chat/chat.routes";
+import { partnerLocationRoutes } from "../partner-location/partner-location.routes";
+import { maskedCallRoutes } from "../masked-call/masked-call.routes";
+
+// B06 - Admin payouts
+import payoutsRoutes from "../payouts/payouts.routes";
 
 export const rootRouter = Router();
 
@@ -94,20 +100,25 @@ rootRouter.use(catalogRoutes);
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
 
-// Admin customers (GET /admin/customers, GET /admin/customers/:id ...)
+// Admin customers
 rootRouter.use("/admin/customers", adminCustomersRoutes);
 
-// Admin payments (read-only: GET /admin/payments)
+// Admin payments
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 
-// Admin support queue (GET /admin/tickets, PATCH /admin/tickets/:id/assign)
+// Admin support queue
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 
-// Assignee picker for the support queue (GET /admin/staff?assignable=true). Must sit before the generic /admin mounts.
+// Assignee picker for the support queue.
+// Keep this before generic /admin mounts.
 rootRouter.use("/admin/staff", adminStaffRoutes);
 
 // Admin audit logs
 rootRouter.use("/admin", auditRoutes);
+
+// Admin payouts (B06)
+// Provides /api/v1/admin/payouts
+rootRouter.use("/admin", payoutsRoutes);
 
 // Admin routes
 rootRouter.use("/admin", adminRoutes);
@@ -115,14 +126,15 @@ rootRouter.use("/admin", adminRoutes);
 // Admin partners
 rootRouter.use("/admin/partners", partnersRoutes);
 
-// =========================================================
 // Refunds
-// =========================================================
-
 // GET   /api/v1/admin/refunds
 // POST  /api/v1/admin/refunds
 // PATCH /api/v1/admin/refunds/:id
 rootRouter.use("/admin", refundsRoutes);
+
+// Pricing routes
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
 
 // Partner dashboard
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
@@ -172,30 +184,12 @@ rootRouter.use("/wallet", walletRoutes);
 // Reviews
 rootRouter.use(reviewsRoutes);
 
-// Partner incentives
-rootRouter.use("/partner/incentives", incentivesRoutes);
-
-// Admin customers
-rootRouter.use("/admin/customers", adminCustomersRoutes);
-
-// =========================================================
 // Coupons
-// =========================================================
-
-// Admin coupon CRUD
 rootRouter.use("/admin/coupons", couponsRoutes);
-
-// Customer coupon APIs
 rootRouter.use("/coupons", couponCustomerRoutes);
 
-// =========================================================
-// Marketing & Banners
-// =========================================================
-
-// Admin banner CRUD
+// Marketing and banners
 rootRouter.use("/admin/banners", marketingRoutes);
-
-// Public banners
 rootRouter.use("/banners", publicMarketingRoutes);
 
 // Partner jobs
