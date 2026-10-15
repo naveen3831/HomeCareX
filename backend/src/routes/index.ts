@@ -1,7 +1,12 @@
+
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
-import walletRoutes from "../modules/wallet/wallet.routes";
+
+import {
+  customerPreferencesRoutes,
+  customerProfileRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
 
 import {
   customerPreferencesRoutes,
@@ -78,26 +83,23 @@ import reviewsRoutes from "../modules/reviews/reviews.routes";
 
 export const rootRouter = Router();
 
+// Authentication
 // Routes are registered under /api/v1.
 // Add new modules here; don't replace the list.
 
 // Authentication
 rootRouter.use("/auth", authRoutes);
 
-// Admin dashboard
+// Admin dashboard and settings
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
-
-// Admin settings
 rootRouter.use("/admin/settings", settingsRoutes);
-
-// Admin designations
 rootRouter.use("/admin/designations", designationsRoutes);
 
-// Admin categories
+// Admin catalog
 rootRouter.use("/admin/categories", categoriesRoutes);
-
-// Admin services
 rootRouter.use("/admin/services", servicesRoutes);
+rootRouter.use("/admin/customers", adminCustomersRoutes);
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
 
 // Public catalog routes
 rootRouter.use(catalogRoutes);
@@ -106,35 +108,55 @@ rootRouter.use(catalogRoutes);
 rootRouter.use("/notifications", notificationsRoutes);
 rootRouter.use("/customer/notifications", customerNotificationsRoutes);
 
-// Admin support queue
+// Admin support
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
-
-// Assignee picker
 rootRouter.use("/admin/staff", adminStaffRoutes);
+rootRouter.use("/admin/partners", partnersRoutes);
 
-// Admin audit logs
+// Admin finance and marketing
+rootRouter.use("/admin/coupons", couponsRoutes);
+rootRouter.use("/admin/banners", marketingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin", refundsRoutes);
+
+// Admin audit and general endpoints
 rootRouter.use("/admin", auditRoutes);
-
-// Admin routes
 rootRouter.use("/admin", adminRoutes);
 
+// Public catalog
+rootRouter.use(catalogRoutes);
+
+// Pricing quote API
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
+// Notifications
+rootRouter.use("/notifications", notificationsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
 // Admin partners
 rootRouter.use("/admin/partners", partnersRoutes);
 
 // Admin refunds
 rootRouter.use("/admin", refundsRoutes);
 
-// Admin payouts
-rootRouter.use("/admin", payoutsRoutes);
+// Public routes
+rootRouter.use(leadsRoutes);
+rootRouter.use("/banners", publicMarketingRoutes);
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/serviceability", serviceabilityRoutes);
 
-// Partner dashboard
-rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
-
-// Customer dashboard
+// Customer dashboard and profile
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
 
 // Customer profile
 rootRouter.use("/customer/profile", customerProfileRoutes);
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
+
+// Customer addresses, wallet, coupons and payments
+rootRouter.use("/addresses", addressesRoutes);
+rootRouter.use("/wallet", walletRoutes);
+rootRouter.use("/coupons", couponCustomerRoutes);
+rootRouter.use("/payments", paymentRoutes);
 
 // Customer preferences
 rootRouter.use("/customer/preferences", customerPreferencesRoutes);
@@ -142,28 +164,20 @@ rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 // Serviceability
 rootRouter.use("/serviceability", serviceabilityRoutes);
 
-// Partner availability
+// Bookings and reviews
+rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
+rootRouter.use(reviewsRoutes);
+
+// Partner dashboard and availability
+rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
-
-// Partner blackout dates
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);
-
-// Partner schedule
 rootRouter.use("/partner/schedule", scheduleRoutes);
 
-// Public leads
-rootRouter.use(leadsRoutes);
-
-// Booking and service-slot routes
-rootRouter.use(bookingsRoutes);
-
-// Partner earnings
+// Partner earnings and wallets
 rootRouter.use("/partner/earnings", earningsRoutes);
-
-// Partner transactions
 rootRouter.use("/partner/transactions", partnerWalletRoutes);
-
-// Partner wallet summary
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
 
 // Customer addresses
