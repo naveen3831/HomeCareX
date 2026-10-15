@@ -96,6 +96,10 @@ rootRouter.use("/admin/services", servicesRoutes);
 // Public catalog
 rootRouter.use(catalogRoutes);
 
+// Pricing quote API
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
 

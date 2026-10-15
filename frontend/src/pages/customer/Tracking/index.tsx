@@ -299,11 +299,20 @@ export default function TrackingPage() {
     overlayTitle = "Partner arrived";
     overlayText = "Your partner is at your location.";
   } else if (freshness === "last_known") {
-    overlayTitle = "Last known position";
+    overlayTitle = "Live location unavailable";
+    overlayText = [
+      "Showing last known position",
+      ago ? `Updated ${ago}` : null,
+      travelDetails,
+    ]
+      .filter(Boolean)
+      .join(" • ");
+  } else if (freshness === "none" && trackable) {
+    overlayTitle = "Live location unavailable";
     overlayText =
-      [ago ? `Updated ${ago}` : null, travelDetails]
-        .filter(Boolean)
-        .join(" • ") || null;
+      status === "assigned"
+        ? "Your partner hasn't set off yet."
+        : `Latest status: ${statusLabel(status)}.`;
   }
 
   const connection = !online
@@ -317,6 +326,14 @@ export default function TrackingPage() {
           : tracking.phase === "denied"
             ? "Live tracking isn't available for this booking."
             : "Live updates are unavailable right now. Showing the latest saved status.";
+
+  // When the position is not live, say so plainly and keep the latest status visible.
+  const locationUnavailable = freshness !== "live";
+  const connectionIssue = !online || tracking.phase !== "live";
+  const unavailableDetail =
+    freshness === "last_known"
+      ? `Last known status: ${statusLabel(status)}.${ago ? ` Position updated ${ago}.` : ""}`
+      : `Latest status: ${statusLabel(status)}.`;
 
   const showRetry =
     (tracking.phase === "error" || tracking.phase === "reconnecting") && online;
@@ -334,9 +351,10 @@ export default function TrackingPage() {
 
   const partner = data.partner;
   const partnerRating = formatRating(partner?.rating);
+  // Real code only: no invented "PX1001" fallback.
   const partnerCode = data.partnerId
     ? `PX${String(data.partnerId).slice(-4).toUpperCase()}`
-    : "PX1001";
+    : null;
   const showFallbackNotice = trackable && freshness !== "live";
   const showChatCard = trackable && hasPartner && chatOpen;
 
@@ -475,7 +493,7 @@ export default function TrackingPage() {
           </section>
         )}
 
-        {/* ---------- middle row: map + partner ---------- */}
+        {/* ---------- middle row: map + partner (equal-height cards) ---------- */}
         {trackable && (
           <div className="tk-main-grid">
             <section
@@ -531,17 +549,18 @@ export default function TrackingPage() {
 
               <div
                 role="status"
-                className="flex shrink-0 items-center gap-2 rounded-xl border border-emerald-200/80 bg-emerald-50/80 px-2.5 py-1"
+                className={clsx(
+                  "mt-auto flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5",
+                  locationUnavailable
+                    ? "border-amber-200/80 bg-amber-50/80"
+                    : "border-emerald-200/80 bg-emerald-50/80",
+                )}
               >
                 <span
                   aria-hidden="true"
                   className={clsx(
                     "h-2 w-2 shrink-0 rounded-full",
-                    freshness === "live"
-                      ? "bg-emerald-500"
-                      : freshness === "last_known"
-                        ? "bg-emerald-500"
-                        : "bg-slate-400",
+                    locationUnavailable ? "bg-amber-500" : "bg-emerald-500",
                   )}
                 />
                 <div className="min-w-0 flex-1">
@@ -555,7 +574,9 @@ export default function TrackingPage() {
                         : "Location not shared yet"}
                   </p>
                   <p className="truncate text-[10.5px] font-medium leading-tight text-slate-600">
-                    {connection}
+                    {locationUnavailable && !connectionIssue
+                      ? unavailableDetail
+                      : connection}
                   </p>
                 </div>
                 {retryButton}
@@ -642,30 +663,16 @@ export default function TrackingPage() {
               <Info className="h-3.5 w-3.5" />
             </span>
             <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              {freshness === "none" ? (
-                <>
-                  <p className="text-xs font-semibold text-ink">
-                    Live location unavailable
-                  </p>
-                  <p className="text-xs text-muted">
-                    {status === "assigned"
-                      ? "Your partner hasn't set off yet. You'll see them on the map as soon as they do."
-                      : `Latest status: ${statusLabel(status)}.`}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs font-semibold text-ink">
-                    Showing the last known location
-                  </p>
-                  <p className="text-xs text-muted">
-                    Updated {ago}.
-                    {distanceText ? ` Distance: ${distanceText}.` : ""}
-                    {eta !== null ? ` Est. travel: ~${eta} min.` : ""} Latest
-                    status: {statusLabel(status)}.
-                  </p>
-                </>
-              )}
+              <p className="text-xs font-semibold text-ink">
+                Live location unavailable
+              </p>
+              <p className="text-xs text-muted">
+                {freshness === "none"
+                  ? status === "assigned"
+                    ? "Your partner hasn't set off yet. You'll see them on the map as soon as they do."
+                    : `Latest status: ${statusLabel(status)}.`
+                  : `Showing the last known location.${ago ? ` Updated ${ago}.` : ""}${distanceText ? ` Distance: ${distanceText}.` : ""}${eta !== null ? ` Est. travel: ~${eta} min.` : ""} Latest status: ${statusLabel(status)}.`}
+              </p>
             </div>
             {freshness === "last_known" && (
               <button
