@@ -99,13 +99,13 @@ const AuthLayout: React.FC = () => {
         id="main-content"
         tabIndex={-1}
         aria-label="Account authentication"
-        className="w-full lg:w-1/2 h-full max-h-[100dvh] overflow-y-auto lg:overflow-hidden overflow-x-hidden relative flex flex-col justify-center items-center px-4 sm:px-6 md:px-8 py-6 focus:outline-none"
+        className="w-full lg:w-1/2 h-full max-h-[100dvh] overflow-y-auto overflow-x-hidden relative flex flex-col justify-start items-center px-4 sm:px-6 md:px-8 py-6 sm:py-8 lg:py-10 focus:outline-none"
       >
         <div className="pointer-events-none absolute top-0 right-0 h-72 w-72 bg-[#4338ca]/10 rounded-full blur-3xl -z-0" aria-hidden="true" />
         <div className="pointer-events-none absolute bottom-0 left-0 h-72 w-72 bg-[#ff8a3d]/10 rounded-full blur-3xl -z-0" aria-hidden="true" />
 
         {/* Clean transparent/flat form container */}
-        <div className="w-full max-w-[420px] relative z-10 animate-fadeUp my-auto">
+        <div className="w-full max-w-[440px] sm:max-w-[500px] relative z-10 animate-fadeUp my-auto">
           <ErrorBoundary>
             <Outlet />
           </ErrorBoundary>

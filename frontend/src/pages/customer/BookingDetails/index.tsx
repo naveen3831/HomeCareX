@@ -562,7 +562,7 @@ function DetailsBody({
               />
               {TRACKABLE.has(booking.status) && (
                 <Link
-                  to={`${customerPath("/tracking")}?booking=${encodeURIComponent(booking._id)}`}
+                  to={customerPath(`/bookings/${encodeURIComponent(booking._id)}/track`)}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",

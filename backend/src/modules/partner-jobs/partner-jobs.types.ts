@@ -11,6 +11,16 @@ export interface JobActionDto {
   label: string;
 }
 
+export interface JobRequestDto {
+  id: string;
+  service: string;
+  area: string;
+  address?: string;
+  price: number;
+  scheduledAt: string;
+  expiresAt: string;
+}
+
 export interface JobChecklistItemDto {
   id: string;
   label: string;
@@ -26,16 +36,10 @@ export interface JobAddOnDto {
 export interface JobRequestDto {
   id: string;
   service: string;
-  area: string;
+  area: string | null;
   price: number;
   scheduledAt: string;
   expiresAt: string;
-}
-
-export interface JobChecklistItemDto {
-  id: string;
-  label: string;
-  done: boolean;
 }
 
 export interface JobListItemDto {

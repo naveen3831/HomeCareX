@@ -7,10 +7,13 @@ export const jobParamsSchema = z.object({
   id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Must be a valid id"),
 });
 
-export const statusBodySchema = z.object({
-  status: z.string().trim().min(1),
-  reason: z.string().trim().max(300).optional(),
-});
+/** Any status string is accepted here so the service can answer 422 (not 400) for transitions a partner may not make. */
+export const statusBodySchema = z
+  .object({
+    status: z.string({ required_error: "status is required" }).min(1, "status is required"),
+    reason: z.string().trim().max(300).optional(),
+  })
+  .strict();
 
 export type StatusBody = z.infer<typeof statusBodySchema>;
 

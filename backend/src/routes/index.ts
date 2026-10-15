@@ -1,6 +1,12 @@
 import { Router } from "express";
 
 import paymentRoutes from "../modules/payments/payments.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
+
+import {
+  customerPreferencesRoutes,
+  customerProfileRoutes,
+} from "../modules/customer-profile/customer-profile.routes";
 
 import {
   partnerWalletRoutes,
@@ -24,7 +30,10 @@ import customerNotificationsRoutes from "../modules/notifications/customer-notif
 import { categoriesRoutes } from "../modules/categories/categories.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
-
+import { incentivesRoutes } from "../modules/incentives/incentives.routes";
+import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
+import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
+import { adminStaffRoutes, adminTicketsRoutes } from "../modules/admin-tickets/admin-tickets.routes";
 
 import leadsRoutes from "../modules/leads/leads.routes";
 import { bookingsRoutes } from "../modules/bookings/bookings.routes";
@@ -37,6 +46,7 @@ import {
 
 import {
   partnerJobsRoutes,
+  partnerJobRequestsRoutes,
   bookingStatusRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
 
@@ -91,6 +101,12 @@ rootRouter.use(catalogRoutes);
 rootRouter.use("/notifications", notificationsRoutes);
 // Customer notifications page: GET / PATCH /:id/read / PATCH /read-all (customers only, own rows only)
 rootRouter.use("/customer/notifications", customerNotificationsRoutes);
+
+// Admin support queue (GET /admin/tickets, PATCH /admin/tickets/:id/assign)
+rootRouter.use("/admin/tickets", adminTicketsRoutes);
+
+// Assignee picker for the support queue (GET /admin/staff?assignable=true). Must sit before the generic /admin mounts.
+rootRouter.use("/admin/staff", adminStaffRoutes);
 
 // Admin audit logs
 rootRouter.use("/admin", auditRoutes);
@@ -178,8 +194,17 @@ rootRouter.use("/admin/banners", marketingRoutes);
 // Public banners
 rootRouter.use("/banners", publicMarketingRoutes);
 
+// Pricing
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/jobs", maskedCallRoutes);
+rootRouter.use("/partner/jobs", partnerLocationRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
 
 // Booking status routes
 rootRouter.use("/bookings", bookingStatusRoutes);
