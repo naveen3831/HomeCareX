@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 
@@ -13,6 +12,7 @@ import AdminCustomerDetailsPage from '@/pages/admin/CustomerDetails';
 import AdminPartnersPage from '@/pages/admin/Partners';
 import AdminManagePartnersPage from '@/pages/admin/ManagePartners';
 import AdminSupportPage from '@/pages/admin/Support';
+import AdminSupportTicketPage from '@/pages/admin/Support/Ticketdetail';
 import AdminCategoriesPage from '@/pages/admin/Categories';
 import AdminServicesPage from '@/pages/admin/Services';
 import AdminPricingPage from '@/pages/admin/Pricing';
@@ -80,6 +80,10 @@ export const adminRoutes: AdminRoute[] = [
   {
     path: 'support',
     element: <AdminSupportPage />,
+  },
+  {
+    path: 'support/:id',
+    element: <AdminSupportTicketPage />,
   },
 
   // Catalog

@@ -18,6 +18,8 @@ import {
   type KycItem,
 } from "../mocks/partnerDetails";
 
+import { listMockPartnerJobs } from "./mockPartnerJobs";
+
 /* =========================================================
    Partner Profile / KYC / Status types
    ========================================================= */
@@ -52,19 +54,26 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
+/** Result of accepting / rejecting an offer. The page branches on `status`. */
+export interface OfferResult {
+  status: number;
+  message: string;
+}
+
 /* =========================================================
    Configuration and helpers
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
 
+const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
+
 const delay = (milliseconds: number): Promise<void> =>
   new Promise<void>((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
 
-const getStorageKey = (id: string): string =>
-  `${STORAGE_PREFIX}${id}`;
+const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
 
 const savePartner = (partner: PartnerDetails): void => {
   window.localStorage.setItem(
@@ -74,9 +83,7 @@ const savePartner = (partner: PartnerDetails): void => {
 };
 
 const getStoredPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = window.localStorage.getItem(
-    getStorageKey(id),
-  );
+  const storedPartner = window.localStorage.getItem(getStorageKey(id));
 
   if (!storedPartner) {
     return null;
@@ -244,17 +251,14 @@ async function getJobs(
   limit = 10,
   search = "",
 ): Promise<JobsResponse> {
-  const res = await http.get<ApiResponse<JobsResponse>>(
-    "/partner/jobs",
-    {
-      params: {
-        tab,
-        page,
-        limit,
-        ...(search.trim() ? { search: search.trim() } : {}),
-      },
+  const res = await http.get<ApiResponse<JobsResponse>>("/partner/jobs", {
+    params: {
+      tab,
+      page,
+      limit,
+      ...(search.trim() ? { search: search.trim() } : {}),
     },
-  );
+  });
 
   return res.data.data;
 }
@@ -295,6 +299,36 @@ async function rejectJob(id: string): Promise<JobMutationResult> {
   }
 }
 
+/**
+ * Accept / reject an offer and return the HTTP status instead of throwing,
+ * so the page can handle 200 / 404 / 409 itself.
+ * Network errors (no response) are still thrown.
+ */
+async function postOffer(path: string): Promise<OfferResult> {
+  try {
+    const res = await http.post<ApiResponse<{ message?: string }>>(path);
+
+    return { status: res.status, message: res.data.data?.message ?? "" };
+  } catch (err) {
+    const e = err as {
+      response?: {
+        status?: number;
+        data?: { message?: string; error?: { message?: string } };
+      };
+    };
+
+    if (e.response?.status) {
+      return {
+        status: e.response.status,
+        message:
+          e.response.data?.message ?? e.response.data?.error?.message ?? "",
+      };
+    }
+
+    throw err;
+  }
+}
+
 /* =========================================================
    Partner API
    ========================================================= */
@@ -303,9 +337,8 @@ export const partnerApi = {
   /* Dashboard */
 
   async getDashboard(): Promise<PartnerDashboard> {
-    const res = await http.get<ApiResponse<PartnerDashboard>>(
-      "/partner/dashboard",
-    );
+    const res =
+      await http.get<ApiResponse<PartnerDashboard>>("/partner/dashboard");
 
     return res.data.data;
   },
@@ -320,7 +353,11 @@ export const partnerApi = {
     return res.data.data;
   },
 
-  async getJobOffers(_partnerId?: string): Promise<JobRequest[]> {
+  async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
+    if (USE_MOCKS) {
+      return listMockPartnerJobs(partnerId);
+    }
+
     const res = await http.get<ApiResponse<JobRequest[]>>(
       "/partner/job-requests",
     );
@@ -395,19 +432,21 @@ export const partnerApi = {
     >("/notifications");
 
     const items = res.data.data ?? [];
+
     return items.map((n) => {
       let title = "";
+
       if (typeof n.payload === "object" && n.payload !== null) {
         const p = n.payload as Record<string, unknown>;
+
         if (typeof p.title === "string") title = p.title;
         else if (typeof p.message === "string") title = p.message;
         else if (typeof p.text === "string") title = p.text;
       }
+
       if (!title) {
         title = n.type
-          ? n.type
-              .replace(/_/g, " ")
-              .replace(/\b\w/g, (c) => c.toUpperCase())
+          ? n.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
           : "Notification";
       }
 

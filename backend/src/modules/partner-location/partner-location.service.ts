@@ -2,6 +2,7 @@ import type { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { Errors } from "../../utils/errors";
 import { emitToBooking } from "../../sockets";
+import { trackingService } from "../../services/TrackingService";
 import { partnerJobsRepository as jobs } from "../partner-jobs/partner-jobs.repository";
 import {
   partnerLocationRepository as repo,
@@ -32,6 +33,8 @@ export const locationNotifier = {
     } catch {
       /* sockets not initialised (tests / scripts); the position is already stored */
     }
+    // Customer tracking room (R06). Emits are best effort and never throw.
+    trackingService.emitLocation(bookingId, dto);
   },
 };
 
