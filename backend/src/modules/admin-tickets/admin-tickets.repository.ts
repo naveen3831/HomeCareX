@@ -1,4 +1,6 @@
 import type { FilterQuery, Types } from 'mongoose';
+import { BookingModel } from '../../models/Booking';
+import PartnerModel from '../../models/Partner';
 import { TicketModel, type Ticket } from '../../models/Ticket';
 import { ADMIN_ROLES, UserModel } from '../../models/User';
 import { TicketMessageModel } from '../tickets/TicketMessage';
@@ -20,8 +22,21 @@ export interface TicketMessageLean {
   senderRole: 'customer' | 'partner' | 'admin';
   body: string;
   attachments?: { url: string; name: string; mimeType: string; sizeBytes: number }[];
+  isInternal?: boolean;
   readAt?: Date | null;
   createdAt: Date;
+}
+
+/** The few booking fields the ticket page shows. */
+export interface BookingLean {
+  _id: Types.ObjectId;
+  serviceName?: string;
+  status?: string;
+  paymentStatus?: string;
+  scheduledAt?: Date;
+  partnerId?: Types.ObjectId | null;
+  address?: { line1?: string; area?: string; city?: string; pincode?: string };
+  priceBreakdown?: { total?: number };
 }
 
 /** A thread longer than this is cut to its oldest messages (the queue is not a chat client). */
@@ -92,5 +107,49 @@ export const adminTicketsRepository = {
       { $set: { assignedTo: to } },
       { new: true },
     ).lean<TicketLean>();
+  },
+
+  /** Booking details for the ticket page. Null when the booking no longer exists. */
+  findBookingSummary(id: string): Promise<BookingLean | null> {
+    return BookingModel.findById(id)
+      .select('serviceName status paymentStatus scheduledAt partnerId address priceBreakdown.total')
+      .lean<BookingLean>();
+  },
+
+  /** Booking.partnerId is a Partner._id; the person's name lives on the User. */
+  async findPartnerUser(partnerId: Types.ObjectId): Promise<{ id: string; name: string | null } | null> {
+    const partner = await PartnerModel.findById(partnerId).select('userId').lean<{ userId: Types.ObjectId }>();
+    if (!partner) return null;
+    const user = await UserModel.findById(partner.userId).select('name').lean<UserLean>();
+    return { id: String(partner.userId), name: user?.name ?? null };
+  },
+
+  /** Compare-and-set on status: null means the ticket changed (or was closed) since the caller read it. */
+  setStatus(id: string, from: Ticket['status'], to: Ticket['status']): Promise<TicketLean | null> {
+    return TicketModel.findOneAndUpdate({ _id: id, status: from }, { $set: { status: to } }, { new: true }).lean<TicketLean>();
+  },
+
+  /** Compare-and-set on priority, and never on a closed ticket. */
+  setPriority(id: string, from: Ticket['priority'], to: Ticket['priority']): Promise<TicketLean | null> {
+    return TicketModel.findOneAndUpdate(
+      { _id: id, priority: from, status: { $ne: 'closed' } },
+      { $set: { priority: to } },
+      { new: true },
+    ).lean<TicketLean>();
+  },
+
+  /** Saves one agent message. Only a customer-visible reply counts as activity, so an internal note does not reorder the queue. */
+  async createMessage(input: { ticketId: string; senderId: string; body: string; internal: boolean }): Promise<TicketMessageLean> {
+    const doc = await TicketMessageModel.create({
+      ticketId: input.ticketId,
+      senderId: input.senderId,
+      senderRole: 'admin',
+      body: input.body,
+      isInternal: input.internal,
+    });
+    if (!input.internal) {
+      await TicketModel.updateOne({ _id: input.ticketId }, { $set: { lastMessageAt: doc.createdAt } });
+    }
+    return doc.toObject() as unknown as TicketMessageLean;
   },
 };
