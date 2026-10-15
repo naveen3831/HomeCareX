@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { ArrowLeft, ChevronLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
@@ -27,6 +28,9 @@ const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand 
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
+  const { pathname } = useLocation();
+  // On the notifications page the address picker gives way to a back button that returns to the home page.
+  const onNotifications = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/notifications");
 
   return (
     <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3  bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
@@ -53,10 +57,17 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         </Link>
 
         <span aria-hidden="true" className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")} />
-        {/* One picker at every width (a single instance keeps DOM ids unique). */}
-        <div className="min-w-0 flex-1 md:flex-none">
-          <LocationPicker />
-        </div>
+        {onNotifications ? (
+          <Link to={customerPath()} aria-label="Back to home" className={clsx("inline-flex min-h-[44px] items-center gap-0.5 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden", FOCUS_RING)}>
+            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+            
+          </Link>
+        ) : (
+          /* One picker at every width (a single instance keeps DOM ids unique). */
+          <div className="min-w-0 flex-1 md:flex-none">
+            <LocationPicker />
+          </div>
+        )}
       </div>
 
       <NotificationBell count={unread} />

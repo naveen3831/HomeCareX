@@ -6,6 +6,8 @@ import Testimonials from "../../../components/public/Testimonials";
 import StatsStrip from "../../../components/public/StatsStrip";
 import BannerSlider from "../../../components/public/BannerSlider";
 import CategoryCard from "../../../components/public/CategoryCard";
+import BannerSkeleton from "../../../components/public/skeletons/BannerSkeleton";
+import { categoryIcon, categoryImage, useBanners, useCategories } from "@/features/public";
 /* =========================================================
    DESIGN TOKENS
    Brand: Indigo #4338ca (trust)  +  Orange #ff8a3d (energy)
@@ -64,7 +66,6 @@ const styles = `
 .hcx-grad { background: linear-gradient(90deg, #4338ca 0%, #ff8a3d 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
 
 /* --- Extra motion layer --- */
-.hcx-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #4338ca, #ff8a3d); }
 @keyframes hcx-marquee { to { transform: translateX(-50%); } }
 .hcx-marquee { animation: hcx-marquee 40s linear infinite; }
 .hcx-marquee-wrap:hover .hcx-marquee { animation-play-state: paused; }
@@ -100,50 +101,44 @@ const styles = `
 
 /* =========================================================
    DATA
+   Categories and banners come from the API through the hooks in
+   features/public (mock data when VITE_USE_MOCKS=true).
 ========================================================= */
 
-const services = [
-  { id: "home-cleaning", title: "Home Cleaning", icon: "✨", description: "Professional cleaning to keep your home fresh, hygienic and comfortable.", image: "/images/home-cleaning.jpg" },
-  { id: "plumbing", title: "Plumbing Services", icon: "🔧", description: "Reliable help with leaks, repairs, installations and maintenance.", image: "/images/plumbing.jpg" },
-  { id: "electrical", title: "Electrical Services", icon: "⚡", description: "Safe, professional electrical work for every room in your home.", image: "/images/electrical.jpg" },
-  { id: "painting", title: "Painting Services", icon: "🎨", description: "Clean, careful painting that gives your home a fresh new look.", image: "/images/painting.jpg" },
-  { id: "appliance-repair", title: "Appliance Repair", icon: "🛠️", description: "Quick, dependable repairs for your household appliances.", image: "/images/appliance-repair.jpg" },
-  { id: "home-maintenance", title: "Home Maintenance", icon: "🏠", description: "Regular upkeep that keeps your home safe and comfortable.", image: "/images/home-maintenance.jpg" },
-];
-
-/* ---------------------------------------------------------
-   SERVICE CATALOG
-   The "N services" count on each category card is calculated from
-   this list, so it updates by itself whenever services are added or
-   removed. The list below is sample data. To use your real data,
-   change loadServiceCatalog() to fetch it from your backend.
---------------------------------------------------------- */
-interface ServiceItem {
+interface CategoryItem {
+  /** Category slug, used in /services?category=<slug> */
   id: string;
-  categoryId: string;
-  name: string;
+  title: string;
+  icon: string;
+  description: string;
+  image: string;
+  /** Number of active services in the category. */
+  count: number;
 }
 
-const defaultCatalog: ServiceItem[] = ([
-  ["home-cleaning", "Deep cleaning"], ["home-cleaning", "Kitchen cleaning"], ["home-cleaning", "Bathroom cleaning"],
-  ["home-cleaning", "Sofa cleaning"], ["home-cleaning", "Carpet cleaning"], ["home-cleaning", "Window cleaning"],
-  ["plumbing", "Leak repair"], ["plumbing", "Tap and mixer fitting"], ["plumbing", "Drain unblocking"],
-  ["plumbing", "Water tank cleaning"], ["plumbing", "Pipe installation"],
-  ["electrical", "Fan installation"], ["electrical", "Switch and socket repair"], ["electrical", "Light fitting"],
-  ["electrical", "Wiring check"], ["electrical", "Inverter setup"],
-  ["painting", "Interior painting"], ["painting", "Exterior painting"], ["painting", "Wall touch-ups"],
-  ["appliance-repair", "AC repair"], ["appliance-repair", "Refrigerator repair"], ["appliance-repair", "Washing machine repair"],
-  ["appliance-repair", "Microwave repair"], ["appliance-repair", "Water purifier service"], ["appliance-repair", "Geyser repair"],
-  ["home-maintenance", "Furniture assembly"], ["home-maintenance", "Door and lock repair"], ["home-maintenance", "Carpentry work"],
-] as [string, string][]).map(([categoryId, name], i) => ({ id: `svc-${i}`, categoryId, name }));
+/** How many categories the "Popular categories" row shows (admin order). */
+const POPULAR_COUNT = 4;
 
-/** Replace the body with a real request, for example:
- *  const res = await fetch("/api/services"); return res.json();  */
-async function loadServiceCatalog(): Promise<ServiceItem[]> {
-  return defaultCatalog;
-}
+const CategoriesSkeleton: React.FC<{ count: number; className: string }> = ({ count, className }) => (
+  <div className={className} role="status" aria-busy="true" aria-label="Loading categories">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="h-72 animate-pulse rounded-3xl bg-[#e0e3ff]" />
+    ))}
+  </div>
+);
 
-const popularIds = ["home-cleaning", "plumbing", "electrical", "appliance-repair"];
+const CategoriesError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
+  <div role="alert" className="rounded-3xl border border-red-100 bg-white px-6 py-12 text-center shadow-sm">
+    <p className="font-bold text-[#1e1b6e]">We could not load the categories.</p>
+    <button
+      type="button"
+      onClick={onRetry}
+      className="mt-4 rounded-xl bg-[#4338ca] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#3730a3]"
+    >
+      Try again
+    </button>
+  </div>
+);
 
 const steps = [
   { title: "Choose a service", text: "Pick the home service you need from our list." },
@@ -215,21 +210,6 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
   );
 };
 
-/** Thin bar at the top of the page that fills as you scroll. */
-const ScrollProgress: React.FC = () => {
-  const ref = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const onScroll = () => {
-      const h = document.documentElement.scrollHeight - window.innerHeight;
-      if (ref.current) ref.current.style.transform = `scaleX(${h > 0 ? window.scrollY / h : 0})`;
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  return <div ref={ref} className="hcx-progress" aria-hidden />;
-};
-
 /** Spread onto any card: 3D tilt that follows the cursor, plus a light glare. */
 const tilt = {
   onMouseMove: (e: React.MouseEvent<HTMLElement>) => {
@@ -250,10 +230,10 @@ const tilt = {
 };
 
 /** Endless scrolling strip of service names (pauses on hover). */
-const Marquee: React.FC = () => (
+const Marquee: React.FC<{ items: CategoryItem[] }> = ({ items }) => items.length === 0 ? null : (
   <div className="hcx-marquee-wrap overflow-hidden border-y border-[#4338ca]/10 bg-white py-5" aria-hidden>
     <div className="hcx-marquee flex w-max gap-12 pr-12">
-      {[...services, ...services, ...services, ...services].map((s, i) => (
+      {[...items, ...items, ...items, ...items].map((s, i) => (
         <span key={i} className="display flex items-center gap-3 whitespace-nowrap text-xl font-bold text-[#1e1b6e]">
           <span className="text-2xl">{s.icon}</span>
           {s.title}
@@ -323,7 +303,6 @@ const FitToHeight: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const Home: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [catalog, setCatalog] = useState<ServiceItem[]>(defaultCatalog);
   const [processRef, processSeen] = useInView<HTMLDivElement>(0.3);
   const faqButtons = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -332,29 +311,29 @@ const Home: React.FC = () => {
     document.title = "HomeCareX | Reliable Home Services";
   }, []);
 
-  // Load the service list, then keep the category counts in sync with it
-  useEffect(() => {
-    let active = true;
-    loadServiceCatalog()
-      .then((items) => {
-        if (active) setCatalog(items);
-      })
-      .catch(() => {
-        /* keep the default list if loading fails */
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
+  // Categories (with live service counts) and home banners from the API
+  const {
+    data: categories,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+    refetch: refetchCategories,
+  } = useCategories();
+  const { data: banners, isLoading: bannersLoading } = useBanners("home");
 
-  const popularCategories = useMemo(
+  const categoryItems = useMemo<CategoryItem[]>(
     () =>
-      popularIds
-        .map((id) => services.find((s) => s.id === id))
-        .filter((s): s is (typeof services)[number] => Boolean(s))
-        .map((s) => ({ ...s, count: catalog.filter((item) => item.categoryId === s.id).length })),
-    [catalog]
+      (categories ?? []).map((c) => ({
+        id: c.slug,
+        title: c.name,
+        icon: categoryIcon(c.slug, c.icon),
+        description: c.description,
+        image: categoryImage(c.slug),
+        count: c.serviceCount,
+      })),
+    [categories]
   );
+
+  const popularCategories = useMemo(() => categoryItems.slice(0, POPULAR_COUNT), [categoryItems]);
 
   /* FAQ keyboard support: arrow keys move between questions, Home / End jump to first / last */
   const handleFaqKeys = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -373,7 +352,6 @@ const Home: React.FC = () => {
   return (
     <div className="hcx overflow-x-hidden bg-white">
       <style>{styles}</style>
-      <ScrollProgress />
 
       {/* ================= HERO (full-width image, text on top) ================= */}
       {/* The hero is exactly one screen tall (minus the real header height, which Header.tsx publishes as --hcx-nav). */}
@@ -452,8 +430,12 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      <Marquee />
-      <BannerSlider />
+      <Marquee items={categoryItems} />
+      {bannersLoading ? (
+        <BannerSkeleton />
+      ) : (
+        <BannerSlider banners={banners && banners.length > 0 ? banners : undefined} />
+      )}
 
       {/* ================= POPULAR CATEGORIES (animated cards) ================= */}
       <section
@@ -514,6 +496,11 @@ const Home: React.FC = () => {
             </Reveal>
           </div>
 
+          {categoriesLoading ? (
+            <CategoriesSkeleton count={POPULAR_COUNT} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" />
+          ) : categoriesError ? (
+            <CategoriesError onRetry={() => void refetchCategories()} />
+          ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {popularCategories.map((c, i) => (
               <Reveal key={c.id} delay={i * 110}>
@@ -523,12 +510,13 @@ const Home: React.FC = () => {
                   description={c.description}
                   image={c.image}
                   serviceCount={c.count}
-                  link={`/services/${c.id}`}
+                  link={`/services?category=${encodeURIComponent(c.id)}`}
                   icon={c.icon}
                 />
               </Reveal>
             ))}
           </div>
+          )}
         </div>
       </section>
 
@@ -540,11 +528,16 @@ const Home: React.FC = () => {
             text="Professional home services delivered with convenience, reliability and care."
           />
 
+          {categoriesLoading ? (
+            <CategoriesSkeleton count={6} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3" />
+          ) : categoriesError ? (
+            <CategoriesError onRetry={() => void refetchCategories()} />
+          ) : (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((s, i) => (
+            {categoryItems.map((s, i) => (
               <Reveal key={s.id} delay={(i % 3) * 90}>
                 <Link
-                  to={`/services/${s.id}`}
+                  to={`/services?category=${encodeURIComponent(s.id)}`}
                   {...tilt}
                   className="group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#4338ca]/10 transition duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_-25px_rgba(67,56,202,0.45)] hover:ring-[#4338ca]/30"
                 >
@@ -573,6 +566,17 @@ const Home: React.FC = () => {
               </Reveal>
             ))}
           </div>
+          )}
+
+          <Reveal className="mt-12 text-center">
+            <Link
+              to="/services"
+              className="group inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-8 py-3.5 font-bold text-white shadow-lg shadow-[#4338ca]/25 transition duration-300 hover:-translate-y-0.5 hover:bg-[#3730a3]"
+            >
+              View all services
+              <span className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden>→</span>
+            </Link>
+          </Reveal>
         </div>
       </section>
 

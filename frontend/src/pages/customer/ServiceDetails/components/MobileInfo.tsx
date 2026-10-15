@@ -8,6 +8,7 @@ import type { ServiceDetail } from "@/types/catalog";
 import { cssVars } from "../format";
 import AvailabilityBadge from "./AvailabilityBadge";
 import ShareButton from "./ShareButton";
+import YourRating from "./YourRating";
 
 /**
  * Phone layout: the service info sits straight under the gallery with no card around it.
@@ -55,6 +56,7 @@ export default function MobileInfo({ service: s }: { service: ServiceDetail }) {
         </span>
       </div>
 
+      <YourRating serviceId={s.id} className="sd-rise mt-2.5" />
       <AvailabilityBadge availability={s.slotAvailability} className="sd-rise mt-3" />
     </div>
   );

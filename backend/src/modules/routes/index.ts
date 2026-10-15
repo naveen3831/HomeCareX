@@ -1,78 +1,69 @@
 import { Router } from "express";
 
-import paymentRoutes from "../payments/payments.routes";
-import walletRoutes from "../wallet/wallet.routes";
-
-import {
-  customerPreferencesRoutes,
-  customerProfileRoutes,
-} from "../customer-profile/customer-profile.routes";
+import paymentRoutes from "../modules/payments/payments.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
 
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
-} from "../partner-wallet/partner-wallet.routes";
+} from "../modules/partner-wallet/partner-wallet.routes";
 
 import {
   pricingRoutes,
   adminPricingRoutes,
-} from "../pricing/pricing.routes";
+} from "../modules/pricing/pricing.routes";
 
-import { authRoutes } from "../auth/auth.routes";
-import { auditRoutes } from "../audit/audit.routes";
-import { adminRoutes } from "../admin/admin.routes";
-import { partnersRoutes } from "../partners/partners.routes";
-import { availabilityRoutes } from "../availability/availability.routes";
-import { blackoutRoutes } from "../availability/blackout.routes";
-import { scheduleRoutes } from "../availability/schedule.routes";
-import { partnerDashboardRoutes } from "../partners/partner-dashboard.routes";
-import { earningsRoutes } from "../earnings/earnings.routes";
-import { adminDashboardRoutes } from "../admin-dashboard/admin-dashboard.routes";
-import { settingsRoutes } from "../settings/settings.routes";
-import { designationsRoutes } from "../designations/designations.routes";
-import { notificationsRoutes } from "../notifications/notifications.routes";
-import { categoriesRoutes } from "../categories/categories.routes";
-import { servicesRoutes } from "../services/services.routes";
-import { catalogRoutes } from "../catalog/catalog.routes";
-import { incentivesRoutes } from "../incentives/incentives.routes";
-import { adminCustomersRoutes } from "../admin-customers/admin-customers.routes";
-import { adminPaymentsRoutes } from "../admin-payments/admin-payments.routes";
-import {
-  adminStaffRoutes,
-  adminTicketsRoutes,
-} from "../admin-tickets/admin-tickets.routes";
+import { authRoutes } from "../modules/auth/auth.routes";
+import { auditRoutes } from "../modules/audit/audit.routes";
+import { adminRoutes } from "../modules/admin/admin.routes";
+import { partnersRoutes } from "../modules/partners/partners.routes";
+import { availabilityRoutes } from "../modules/availability/availability.routes";
+import { blackoutRoutes } from "../modules/availability/blackout.routes";
+import { scheduleRoutes } from "../modules/availability/schedule.routes";
+import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
+import { earningsRoutes } from "../modules/earnings/earnings.routes";
+import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.routes";
+import { settingsRoutes } from "../modules/settings/settings.routes";
+import { designationsRoutes } from "../modules/designations/designations.routes";
+import { notificationsRoutes } from "../modules/notifications/notifications.routes";
+import { categoriesRoutes } from "../modules/categories/categories.routes";
+import { servicesRoutes } from "../modules/services/services.routes";
+import { catalogRoutes } from "../modules/catalog/catalog.routes";
+import { incentivesRoutes } from "../modules/incentives/incentives.routes";
+import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
+import { adminPaymentsRoutes } from "../modules/admin-payments/admin-payments.routes";
+import { adminStaffRoutes, adminTicketsRoutes } from "../modules/admin-tickets/admin-tickets.routes";
 
-import leadsRoutes from "../leads/leads.routes";
-import { bookingsRoutes } from "../bookings/bookings.routes";
-import customerDashboardRoutes from "../customer-dashboard/customer-dashboard.routes";
+import leadsRoutes from "../modules/leads/leads.routes";
+import { bookingsRoutes } from "../modules/bookings/bookings.routes";
+import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
 
 import {
   addressesRoutes,
   serviceabilityRoutes,
-} from "../addresses/addresses.routes";
+} from "../modules/addresses/addresses.routes";
 
-import { reviewsRoutes } from "../reviews/reviews.routes";
+import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 
 import {
   partnerJobsRoutes,
-  partnerJobRequestsRoutes,
   bookingStatusRoutes,
-} from "../partner-jobs/partner-jobs.routes";
+} from "../modules/partner-jobs/partner-jobs.routes";
 
 import {
   couponsRoutes,
   couponCustomerRoutes,
-} from "../coupons/coupons.routes";
+} from "../modules/coupons/coupons.routes";
 
 import {
   marketingRoutes,
   publicMarketingRoutes,
-} from "../marketing/marketing.routes";
+} from "../modules/marketing/marketing.routes";
 
-import refundsRoutes from "../refunds/refunds.routes";
-import { chatRoutes } from "../chat/chat.routes";
-import { partnerLocationRoutes } from "../partner-location/partner-location.routes";
-import { maskedCallRoutes } from "../masked-call/masked-call.routes";
+import refundsRoutes from "../modules/refunds/refunds.routes";
+import { chatRoutes } from "../modules/chat/chat.routes";
+import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
+import { maskedCallRoutes } from "../modules/masked-call/masked-call.routes";
 
 export const rootRouter = Router();
 
@@ -99,10 +90,6 @@ rootRouter.use("/admin/services", servicesRoutes);
 
 // Public catalog
 rootRouter.use(catalogRoutes);
-
-// Pricing quote API
-rootRouter.use("/pricing", pricingRoutes);
-rootRouter.use("/admin/pricing", adminPricingRoutes);
 
 // Notifications
 rootRouter.use("/notifications", notificationsRoutes);
@@ -142,10 +129,6 @@ rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 
 // Customer dashboard
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
-rootRouter.use("/customer/profile", customerProfileRoutes);
-
-// Customer preferences: GET/PATCH /customer/preferences
-rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 
 // Serviceability
 rootRouter.use("/serviceability", serviceabilityRoutes);
@@ -217,7 +200,6 @@ rootRouter.use("/banners", publicMarketingRoutes);
 
 // Partner jobs
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
-rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
