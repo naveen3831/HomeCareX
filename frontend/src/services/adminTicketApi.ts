@@ -92,11 +92,11 @@ export async function updateTicketStatus(id: string, status: TicketStatus): Prom
 }
 
 /**
- * GET /admin/staff?assignable=true: admin/staff users who can take tickets.
+ * GET /admin/ticket-assignees?assignable=true: admin/staff users who can take tickets.
  * Backend endpoint added alongside this change; returns [{ id, name }].
  */
 export async function fetchAssignableAgents(): Promise<AssignableAgent[]> {
-  const res = await http.get<{ success: boolean; data: AssignableAgent[] }>('/admin/staff', {
+  const res = await http.get<{ success: boolean; data: AssignableAgent[] }>('/admin/ticket-assignees', {
     params: { assignable: true },
   });
   return res.data.data;

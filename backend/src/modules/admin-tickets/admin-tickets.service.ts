@@ -263,7 +263,7 @@ async function audit(actor: Actor, action: string, id: string, before: unknown, 
 /* --------------------------------- service --------------------------------- */
 
 export const adminTicketsService = {
-  /** GET /admin/staff?assignable=true: the same people `assign` will accept. */
+  /** GET /admin/ticket-assignees?assignable=true: the same people `assign` will accept. */
   async listAssignableAgents(): Promise<AssignableAgentDto[]> {
     const admins = await repo.listAssignableAdmins();
     return admins.map((a) => ({ id: String(a._id), name: a.name ?? a.email ?? 'Admin', email: a.email ?? null }));

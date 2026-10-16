@@ -94,13 +94,13 @@ const AGENTS = [{ id: 'a1', name: 'Priya' }, { id: 'a2', name: 'Dev' }];
 describe('Admin support queue', () => {
   beforeEach(() => {
     Object.values(h).forEach((f) => f.mockReset());
-    h.get.mockImplementation((url: string) => (url === '/admin/staff' ? ok(AGENTS) : ok([apiTicket()], META)));
+    h.get.mockImplementation((url: string) => (url === '/admin/ticket-assignees' ? ok(AGENTS) : ok([apiTicket()], META)));
   });
 
   it('asks the backend for assignable staff and sends lowercase filters', async () => {
     render(<MemoryRouter><AdminSupportPage /></MemoryRouter>);
     await screen.findByText('TCK-1');
-    expect(h.get).toHaveBeenCalledWith('/admin/staff', { params: { assignable: true } });
+    expect(h.get).toHaveBeenCalledWith('/admin/ticket-assignees', { params: { assignable: true } });
     await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
     const sheet = within(screen.getByRole('dialog', { name: 'Filter tickets' }));
     await userEvent.click(sheet.getByRole('button', { name: 'In progress' }));
@@ -169,7 +169,7 @@ describe('Admin support queue', () => {
 
   it('renders a ticket with no SLA and no booking without crashing', async () => {
     h.get.mockImplementation((url: string) =>
-      url === '/admin/staff' ? ok(AGENTS) : ok([apiTicket({ sla: null, booking: null })], META));
+      url === '/admin/ticket-assignees' ? ok(AGENTS) : ok([apiTicket({ sla: null, booking: null })], META));
     render(<MemoryRouter><AdminSupportPage /></MemoryRouter>);
     expect(await screen.findByText('TCK-1')).toBeInTheDocument();
     expect(screen.getByText('No SLA')).toBeInTheDocument();
@@ -203,7 +203,7 @@ describe('Admin support queue', () => {
   });
 
   it('unassigns by sending a null assigneeId', async () => {
-    h.get.mockImplementation((url: string) => (url === '/admin/staff' ? ok(AGENTS) : ok([apiTicket({ assignee: AGENTS[0] })], META)));
+    h.get.mockImplementation((url: string) => (url === '/admin/ticket-assignees' ? ok(AGENTS) : ok([apiTicket({ assignee: AGENTS[0] })], META)));
     h.patch.mockImplementation(() => ok(apiTicket()));
     render(<MemoryRouter><AdminSupportPage /></MemoryRouter>);
     const select = await screen.findByLabelText('Assignee for TCK-1');

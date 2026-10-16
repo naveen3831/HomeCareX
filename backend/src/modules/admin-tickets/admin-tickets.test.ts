@@ -584,13 +584,13 @@ describe('HTTP /api/v1/admin/tickets', () => {
     const app = express();
     app.use(express.json());
     app.use('/api/v1/admin/tickets', adminTicketsRoutes);
-    app.use('/api/v1/admin/staff', adminStaffRoutes);
+    app.use('/api/v1/admin/ticket-assignees', adminStaffRoutes);
     app.use(errorHandler);
     const server = app.listen(0);
     await new Promise((r) => server.once('listening', r));
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     base = `${origin}/api/v1/admin/tickets`;
-    staffBase = `${origin}/api/v1/admin/staff`;
+    staffBase = `${origin}/api/v1/admin/ticket-assignees`;
     close = () => new Promise((r) => server.close(() => r()));
   });
   after(async () => {
@@ -700,7 +700,7 @@ describe('HTTP /api/v1/admin/tickets', () => {
     assert.equal(empty.body.data.length, tickets.length);
   });
 
-  describe('GET /admin/staff?assignable=true', () => {
+  describe('GET /admin/ticket-assignees?assignable=true', () => {
     const get = async (qs: string, token?: string) => {
       const res = await fetch(`${staffBase}${qs}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       return { status: res.status, body: (await res.json()) as Body };

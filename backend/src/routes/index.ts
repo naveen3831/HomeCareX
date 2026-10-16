@@ -96,8 +96,8 @@ rootRouter.use("/customer/notifications", customerNotificationsRoutes);
 
 // Admin support queue (GET /admin/tickets, PATCH /admin/tickets/:id/assign)
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
-// Assignee picker (GET /admin/staff?assignable=true). Must sit before the generic /admin mounts.
-rootRouter.use("/admin/staff", adminStaffRoutes);
+// Assignee picker (GET /admin/ticket-assignees?assignable=true). /admin/staff now belongs to RBAC. Must sit before the generic /admin mounts.
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
 
 // Admin partners
 rootRouter.use("/admin/partners", partnersRoutes);

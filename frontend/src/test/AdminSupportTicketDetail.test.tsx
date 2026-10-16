@@ -69,7 +69,7 @@ beforeEach(() => {
   h.get.mockImplementation(async (url: string) => {
     if (url === '/admin/tickets/t1') return { data: { success: true, data: ticketRes } };
     if (url === '/admin/tickets/t1/messages') return { data: { success: true, data: thread } };
-    if (url === '/admin/staff') return { data: { success: true, data: [{ id: 'a1', name: 'Asha Admin' }] } };
+    if (url === '/admin/ticket-assignees') return { data: { success: true, data: [{ id: 'a1', name: 'Asha Admin' }] } };
     throw new Error(`unexpected GET ${url}`);
   });
 });

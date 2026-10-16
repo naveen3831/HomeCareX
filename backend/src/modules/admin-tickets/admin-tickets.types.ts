@@ -64,7 +64,7 @@ export interface AdminTicketsResult {
   meta: { page: number; limit: number; total: number; pages: number };
 }
 
-/** One entry of the assignee picker (GET /admin/staff?assignable=true). */
+/** One entry of the assignee picker (GET /admin/ticket-assignees?assignable=true). */
 export interface AssignableAgentDto {
   id: string;
   name: string;
