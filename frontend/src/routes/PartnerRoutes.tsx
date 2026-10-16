@@ -115,6 +115,7 @@ const REAL_ROUTE_PATHS = new Set([
   "work/requests",
   "work",
   "services",
+  "service-area",
 ]);
 
 // Mounted by AppRoutes at /partner/*.

@@ -79,6 +79,7 @@ WalletLedgerSchema.index(
   {
     unique: true,
     partialFilterExpression: { referenceId: { $type: "string" } },
+    name: "uniq_wallet_ledger_reference_id",
   },
 );
 

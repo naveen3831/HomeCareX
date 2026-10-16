@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { FileClock, Layers, Lock, Pencil, Plus, ShieldCheck, Trash2, Users } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Layers, Lock, Pencil, Plus, ShieldCheck, Trash2, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { DataTable, type Column } from '@/components/admin/DataTable';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { PermissionGate } from '@/components/admin/PermissionGate';

@@ -24,7 +24,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    referralCode: '',
+    referralCode: (searchParams.get('ref') ?? '').toUpperCase().slice(0, 64),
   });
 
   const [termsAccepted, setTermsAccepted] = useState(false);

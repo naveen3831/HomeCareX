@@ -37,6 +37,7 @@ import type {
 import type { UserRole } from "../../models/User";
 
 import { mailService } from "../../services/mail.service";
+import { referralsService } from "../referrals/referrals.service";
 
 const accessSecret = () =>
   process.env.JWT_SECRET || "dev_access_secret_change_me";
@@ -256,6 +257,10 @@ export const authService = {
       );
     }
 
+    const referrerId =
+      input.referralCode && input.role === "customer"
+        ? await referralsService.resolve(input.referralCode)
+        : undefined;
     const passwordHash = await bcrypt.hash(input.password, 12);
 
     const user = await authRepository.create({
@@ -275,7 +280,17 @@ export const authService = {
       gender: input.gender,
     });
 
-    if (user.role === 'partner' && mongoose.connection.readyState === 1) {
+    if (referrerId && input.referralCode) {
+      try {
+        await referralsService.attach(user.id, input.referralCode, referrerId);
+      } catch (error) {
+        // Account creation has not been returned to the caller yet; undo this attempt on failure.
+        await mongoose.model("User").deleteOne({ _id: user.id });
+        throw error;
+      }
+    }
+
+    if (user.role === "partner" && mongoose.connection.readyState === 1) {
       try {
         const partner = await ensurePartnerProfile(user.id);
         if (partner) {
@@ -285,10 +300,17 @@ export const authService = {
           if (input.serviceRadiusKm) {
             partner.serviceRadiusKm = input.serviceRadiusKm;
           }
-          if (input.accountHolder || input.accountNumber || input.ifsc || input.upiId) {
+          if (
+            input.accountHolder ||
+            input.accountNumber ||
+            input.ifsc ||
+            input.upiId
+          ) {
             partner.bankDetails = {
               accountHolder: input.accountHolder,
-              accountLast4: input.accountNumber ? input.accountNumber.slice(-4) : undefined,
+              accountLast4: input.accountNumber
+                ? input.accountNumber.slice(-4)
+                : undefined,
               ifsc: input.ifsc?.toUpperCase(),
               upiId: input.upiId,
             };
@@ -316,29 +338,48 @@ export const authService = {
           if (input.experienceYears !== undefined) {
             partner.experienceYears = input.experienceYears;
           }
-          if (input.workingDays || input.workingHoursStart || input.workingHoursEnd) {
+          if (
+            input.workingDays ||
+            input.workingHoursStart ||
+            input.workingHoursEnd
+          ) {
             partner.workingHours = {
               days: input.workingDays ?? [],
               start: input.workingHoursStart,
               end: input.workingHoursEnd,
             };
           }
-          const docs: Array<{ type: 'id_proof' | 'address_proof'; url: string; status: 'approved' }> = [];
+          const docs: Array<{
+            type: "id_proof" | "address_proof";
+            url: string;
+            status: "approved";
+          }> = [];
           if (input.idProofDocument) {
-            docs.push({ type: 'id_proof', url: input.idProofDocument, status: 'approved' });
+            docs.push({
+              type: "id_proof",
+              url: input.idProofDocument,
+              status: "approved",
+            });
           }
           if (input.addressProofDocument) {
-            docs.push({ type: 'address_proof', url: input.addressProofDocument, status: 'approved' });
+            docs.push({
+              type: "address_proof",
+              url: input.addressProofDocument,
+              status: "approved",
+            });
           }
           (partner as any).kyc = {
             ...(partner.kyc ?? {}),
-            status: 'approved',
+            status: "approved",
             ...(docs.length > 0 ? { documents: docs } : {}),
           };
           await partner.save();
         }
       } catch (err) {
-        console.error('Partner profile creation failed during registration:', err);
+        console.error(
+          "Partner profile creation failed during registration:",
+          err,
+        );
       }
     }
 

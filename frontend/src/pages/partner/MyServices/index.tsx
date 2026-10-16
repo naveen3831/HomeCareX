@@ -11,6 +11,22 @@ import {
   type PartnerServices,
 } from "./myServices.api";
 
+export const approvedPartnerServices = [
+  "AC Repair",
+  "AC Service",
+  "Washing Machine",
+  "Refrigerator",
+  "Geyser",
+  "Microwave",
+  "Water Purifier",
+  "Laptop Repair",
+] as const;
+
+export const isApprovedPartnerService = (serviceName: string) =>
+  approvedPartnerServices.some(
+    (service) => service.toLowerCase() === serviceName.trim().toLowerCase(),
+  );
+
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600";
 
@@ -21,18 +37,14 @@ export default function PartnerMyServicesPage() {
   const { status, data, error, reload, setData } =
     useLoad<PartnerServices>(getPartnerServices);
   const online = useOnlineStatus();
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedOverride, setSelectedOverride] = useState<string[] | null>(null);
+  const selected = selectedOverride ?? data?.selectedIds ?? [];
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const headingId = useId();
 
-  useEffect(() => {
-    if (data) setSelected(data.selectedIds);
-  }, [data]);
-
-  // Auto-dismiss the centered pop-up after 3.5 seconds
   useEffect(() => {
     if (!showSuccessPopup) return;
     const timer = window.setTimeout(() => {
@@ -41,7 +53,6 @@ export default function PartnerMyServicesPage() {
     return () => window.clearTimeout(timer);
   }, [showSuccessPopup]);
 
-  // Allow dismissing the pop-up with the Escape key
   useEffect(() => {
     if (!showSuccessPopup) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -62,14 +73,17 @@ export default function PartnerMyServicesPage() {
     setSaved(false);
     setShowSuccessPopup(false);
     setSaveError(null);
-    setSelected((cur) =>
-      cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-    );
+    setSelectedOverride((current) => {
+      const currentSelection = current ?? data?.selectedIds ?? [];
+      return currentSelection.includes(id)
+        ? currentSelection.filter((x) => x !== id)
+        : [...currentSelection, id];
+    });
   };
 
   const resetSelection = () => {
     if (!data) return;
-    setSelected(data.selectedIds);
+    setSelectedOverride(null);
     setSaveError(null);
     setShowSuccessPopup(false);
   };
@@ -82,7 +96,7 @@ export default function PartnerMyServicesPage() {
     try {
       const next = await savePartnerServices(selected);
       setData(next);
-      setSelected(next.selectedIds);
+      setSelectedOverride(null);
       setSaved(true);
       setShowSuccessPopup(true);
     } catch (err) {
@@ -95,7 +109,6 @@ export default function PartnerMyServicesPage() {
 
   return (
     <div className="box-border w-full max-w-none min-w-0 space-y-3 p-3 sm:p-5 lg:px-6 lg:py-4">
-      {/* Centered Pop-up Modal (No Emoji / No Symbol) */}
       {showSuccessPopup && (
         <div
           role="dialog"
@@ -246,11 +259,10 @@ export default function PartnerMyServicesPage() {
 
           {saved && !dirty && (
             <p role="status" className="sr-only">
-              Services saved successfully.
+              Services saved.
             </p>
           )}
 
-          {/* Single Centered Bottom Action Bar */}
           <div className="sticky bottom-0 z-20 -mx-3 flex flex-wrap items-center justify-center gap-3 border-t border-line bg-white/95 px-3 py-3 backdrop-blur sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6">
             <button
               type="submit"

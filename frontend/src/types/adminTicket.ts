@@ -1,8 +1,14 @@
 /** Same values as the backend (modules/tickets/tickets.constants.ts), upper-cased for display. */
-export const TICKET_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const;
+export const TICKET_STATUSES = [
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING",
+  "RESOLVED",
+  "CLOSED",
+] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
-export const TICKET_PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+export const TICKET_PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
 export type TicketPriority = (typeof TICKET_PRIORITIES)[number];
 
 export interface TicketAssignee {
@@ -17,7 +23,13 @@ export interface AdminTicket {
   subject: string;
   priority: TicketPriority;
   status: TicketStatus;
-  requester: { type: 'customer' | 'partner'; id: string; name: string; email?: string; phone?: string } | null;
+  requester: {
+    type: "customer" | "partner";
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null;
   /** payment | booking | account | safety | app_issue | other (absent on older payloads). */
   category?: string | null;
   bookingId: string | null;
@@ -56,8 +68,8 @@ export interface AdminTicketsPage {
 }
 
 export interface AdminTicketFilters {
-  status?: TicketStatus | '';
-  priority?: TicketPriority | '';
+  status?: TicketStatus | "";
+  priority?: TicketPriority | "";
   /** An agent id, or 'unassigned'. Empty = everyone. */
   assignee?: string;
   search?: string;
@@ -83,12 +95,24 @@ export interface ApiTicket {
   subject: string;
   priority: string;
   status: string;
-  requester?: { role?: string; id: string; name: string; email?: string; phone?: string } | null;
+  requester?: {
+    role?: string;
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+  } | null;
   category?: string;
   booking?: { id: string; ref?: string | null } | null;
   assignee?: { id: string; name: string } | null;
   /** Null for resolved / closed tickets. `state` and `targetHours` are sent too; the badge derives its own from dueAt. */
-  sla?: { dueAt?: string | null; pausedAt?: string | null; resolvedAt?: string | null; state?: string; targetHours?: number } | null;
+  sla?: {
+    dueAt?: string | null;
+    pausedAt?: string | null;
+    resolvedAt?: string | null;
+    state?: string;
+    targetHours?: number;
+  } | null;
   bookingContext?: BookingContext | null;
   createdAt: string;
   updatedAt: string;
@@ -98,9 +122,18 @@ export interface ApiTicket {
 export interface TicketMessage {
   id: string;
   ticketId: string;
-  sender: { id: string; name: string | null; role: 'customer' | 'partner' | 'admin' };
+  sender: {
+    id: string;
+    name: string | null;
+    role: "customer" | "partner" | "admin";
+  };
   body: string;
-  attachments: { url: string; name: string; mimeType: string; sizeBytes: number }[];
+  attachments: {
+    url: string;
+    name: string;
+    mimeType: string;
+    sizeBytes: number;
+  }[];
   /** true = agent-only note. Older payloads omit it (= a normal message). */
   internal?: boolean;
   createdAt: string;

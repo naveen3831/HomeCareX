@@ -23,6 +23,7 @@ import {
   Tag,
   Ticket,
   UserCircle,
+  UserCog,
   Users,
   Wallet,
   Wrench,

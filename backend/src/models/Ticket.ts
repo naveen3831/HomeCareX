@@ -47,6 +47,7 @@ const TicketSchema = new Schema<Ticket>(
 TicketSchema.index({ status: 1, priority: 1, lastMessageAt: -1 });
 TicketSchema.index({ assignedTo: 1, status: 1 });
 TicketSchema.index({ createdAt: -1 });
+TicketSchema.index({ createdBy: 1, createdByRole: 1, lastMessageAt: -1, _id: -1 });
 
 export const TicketModel = model<Ticket>('Ticket', TicketSchema);
 export default TicketModel;

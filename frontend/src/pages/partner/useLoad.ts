@@ -52,7 +52,12 @@ export function useLoad<T>(load: () => Promise<T>): LoadResult<T> {
   }, [run]);
 
   useEffect(() => {
-    if (online && (status === "offline" || (status === "error" && error?.kind === "network"))) run();
+    if (
+      online &&
+      (status === "offline" ||
+        (status === "error" && error?.kind === "network"))
+    )
+      run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online]);
 

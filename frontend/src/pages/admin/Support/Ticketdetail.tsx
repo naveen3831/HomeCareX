@@ -22,6 +22,7 @@ import {
   type TicketStatus,
   type TicketUpdatedEvent,
 } from '@/types/adminTicket';
+import { useSocket } from '@/hooks/useSocket';
 import AssigneeSelect from './AssigneeSelect';
 import PrioritySelect from './PrioritySelect';
 import SlaBadge from './SlaBadge';
@@ -72,6 +73,7 @@ export const REFUND_PERMISSION = 'payments:refund';
  */
 export const AdminSupportTicketPage: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
+  const { socket } = useSocket();
 
   const [ticket, setTicket] = useState<AdminTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +99,23 @@ export const AdminSupportTicketPage: React.FC = () => {
   const [tick, setTick] = useState(0);
   const [msgTick, setMsgTick] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const pendingTicketUpdate = useRef<TicketUpdatedEvent | null>(null);
+
+  useEffect(() => {
+    const refresh = () => {
+      setTick((t) => t + 1);
+      setMsgTick((t) => t + 1);
+    };
+    const onConnect = () => refresh();
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible" && navigator.onLine) refresh();
+    }, 10_000);
+    socket.on("connect", onConnect);
+    return () => {
+      window.clearInterval(poll);
+      socket.off("connect", onConnect);
+    };
+  }, [socket]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), SLA_TICK_MS);
@@ -123,6 +142,15 @@ export const AdminSupportTicketPage: React.FC = () => {
         if (!alive) return;
         setTicket(t);
         setNow(Date.now());
+        const pending = pendingTicketUpdate.current;
+        if (pending?.ticketId === id) {
+          pendingTicketUpdate.current = null;
+          const status = pending.status?.toUpperCase();
+          const priority = pending.priority?.toUpperCase();
+          if (status !== t.status || (priority && priority !== t.priority)) {
+            setTick((n) => n + 1);
+          }
+        }
       })
       .catch((e: unknown) => {
         if (!alive) return;
@@ -181,6 +209,10 @@ export const AdminSupportTicketPage: React.FC = () => {
     onMessage: appendMessage,
     onUpdated: (u: TicketUpdatedEvent) => {
       const t = ticketRef.current;
+      if (!t) {
+        pendingTicketUpdate.current = u;
+        return;
+      }
       const status = u.status?.toUpperCase();
       const priority = u.priority?.toUpperCase();
       // Our own change already updated the page; only refetch when someone else changed something.

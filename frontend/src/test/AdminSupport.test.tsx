@@ -122,7 +122,7 @@ describe('Admin support queue', () => {
     const sheet = within(screen.getByRole('dialog', { name: 'Filter tickets' }));
     const group = (name: string) =>
       within(sheet.getByRole('group', { name })).getAllByRole('button').map((b) => b.textContent);
-    expect(group('Status')).toEqual(['All', 'Open', 'In progress', 'Resolved', 'Closed']);
+    expect(group('Status')).toEqual(['All', 'Open', 'In progress', 'Waiting', 'Resolved', 'Closed']);
     expect(group('Priority')).toEqual(['All', 'Low', 'Normal', 'High', 'Urgent']);
     await waitFor(() => expect(group('Assignee')).toEqual(['All', 'Unassigned', 'Priya', 'Dev']));
   });

@@ -10,6 +10,9 @@ import { seedDefaultCategories } from "./modules/categories/categories.service";
 import { seedDefaultServices } from "./modules/services/services.service";
 import { upsertCatalogSeed } from "./modules/catalog/catalog.seed";
 import { ServiceModel } from "./models/Service";
+import { startReferralWorker } from './modules/referrals/referrals.worker';
+import { ReferralCodeModel, ReferralModel } from './modules/referrals/referrals.model';
+import { WalletLedgerModel, WalletModel } from './models/Wallet';
 
 /** Temporary: logs how long each startup step takes. Remove once the slow step is found. */
 const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
@@ -24,6 +27,7 @@ const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
 const server = http.createServer(app);
 initSockets(server);
 const PORT = process.env.PORT || 5000;
+let stopReferralWorker = () => {};
 
 const connectDB = async () => {
   try {
@@ -43,6 +47,8 @@ const connectDB = async () => {
     await timed("seed categories", seedDefaultCategories);
     await timed("seed services", seedDefaultServices);
     if (freshCatalog) await timed("catalog seed", upsertCatalogSeed);
+    // Referral and wallet unique indexes must exist before awarding any money.
+    await Promise.all([ReferralCodeModel.init(), ReferralModel.init(), WalletModel.init(), WalletLedgerModel.init()]);
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
     process.exit(1);
@@ -50,6 +56,7 @@ const connectDB = async () => {
 };
 
 connectDB().then(() => {
+  stopReferralWorker = startReferralWorker(error => console.error('[referrals] Reward reconciliation failed; it will retry.', error instanceof Error ? error.message : 'Unknown error'));
   registerEarningsListeners();
   server.listen(PORT, () => {
     console.log(`HomeCareX server running on port ${PORT}`);
@@ -62,6 +69,7 @@ connectDB().then(() => {
 
 // Graceful shutdown
 const shutdown = async () => {
+  stopReferralWorker();
   console.log("Stopping server gracefully...");
   server.close(async () => {
     await mongoose.connection.close();

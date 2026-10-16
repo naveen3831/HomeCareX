@@ -13,8 +13,16 @@ export interface PartnerServices {
   selectedIds: string[];
 }
 
-export const getPartnerServices = () =>
-  http.get<ApiResponse<PartnerServices>>("/partner/services").then((r) => r.data.data);
+export const getPartnerServices = async (): Promise<PartnerServices> => {
+  const response = await http.get<ApiResponse<PartnerServices>>("/partner/services");
+  return response.data.data;
+};
 
-export const savePartnerServices = (serviceIds: string[]) =>
-  http.patch<ApiResponse<PartnerServices>>("/partner/services", { serviceIds }).then((r) => r.data.data);
+export const savePartnerServices = async (
+  serviceIds: string[],
+): Promise<PartnerServices> => {
+  const response = await http.patch<ApiResponse<PartnerServices>>("/partner/services", {
+    serviceIds,
+  });
+  return response.data.data;
+};

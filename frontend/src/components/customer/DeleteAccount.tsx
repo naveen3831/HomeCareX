@@ -157,10 +157,11 @@ function DeleteAccountDialog({ open, busy, error, onKeep, onDelete }: DialogProp
 /**
  * "Delete account" entry point with its confirmation pop-up.
  *  - variant "card": the red row on the mobile Profile page (sits right above Log out).
- *  - variant "sidebar": the compact button at the bottom of the desktop sidebar (right above Log out).
+ *  - variant "inline": the pill button shown beside "Edit profile" in the desktop Profile header.
+ *  - variant "sidebar": the compact sidebar button (no longer used by the sidebar; kept for existing tests).
  * On success the session is cleared and the customer lands on the login page.
  */
-export default function DeleteAccount({ variant }: { variant: "card" | "sidebar" }) {
+export default function DeleteAccount({ variant }: { variant: "card" | "sidebar" | "inline" }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -190,6 +191,27 @@ export default function DeleteAccount({ variant }: { variant: "card" | "sidebar"
   };
 
   const dialog = <DeleteAccountDialog open={open} busy={del.isPending} error={error} onKeep={keep} onDelete={confirmDelete} />;
+
+  if (variant === "inline") {
+    return (
+      <>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen(true)}
+          className={clsx(
+            "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-[1.5px] border-danger/40 bg-white px-6 text-sm font-semibold text-danger",
+            "transition-all hover:bg-danger hover:text-white motion-safe:active:scale-95",
+            FOCUS_RING,
+          )}
+        >
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Delete account
+        </button>
+        {dialog}
+      </>
+    );
+  }
 
   if (variant === "sidebar") {
     return (

@@ -15,7 +15,10 @@ export default function FirstAddressGate() {
   const { data, isSuccess } = useAddresses();
 
   if (!isSuccess || data.length > 0) return null;
-  if (ALLOWED.some((p) => pathname.replace(/\/+$/, "").toLowerCase() === p)) return null;
+  // Support must also work for customers who have never placed a booking.
+  if (/^\/customer\/(support|referrals)(\/|$)/i.test(pathname)) return null;
+  if (ALLOWED.some((p) => pathname.replace(/\/+$/, "").toLowerCase() === p))
+    return null;
 
   let skipped = false;
   try {
@@ -25,5 +28,11 @@ export default function FirstAddressGate() {
   }
   if (skipped) return null;
 
-  return <Navigate to={customerPath("/setup-address")} replace state={{ from: `${pathname}${search}` }} />;
+  return (
+    <Navigate
+      to={customerPath("/setup-address")}
+      replace
+      state={{ from: `${pathname}${search}` }}
+    />
+  );
 }

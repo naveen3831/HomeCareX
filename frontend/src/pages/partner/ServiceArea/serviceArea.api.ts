@@ -23,8 +23,14 @@ export interface ServiceAreaInput {
   radiusKm: number;
 }
 
-export const getServiceArea = () =>
-  http.get<ApiResponse<PartnerServiceArea>>("/partner/service-area").then((r) => r.data.data);
+export const getServiceArea = async (): Promise<PartnerServiceArea> => {
+  const response = await http.get<ApiResponse<PartnerServiceArea>>("/partner/service-area");
+  return response.data.data;
+};
 
-export const saveServiceArea = (input: ServiceAreaInput) =>
-  http.patch<ApiResponse<PartnerServiceArea>>("/partner/service-area", input).then((r) => r.data.data);
+export const saveServiceArea = async (
+  input: ServiceAreaInput,
+): Promise<PartnerServiceArea> => {
+  const response = await http.patch<ApiResponse<PartnerServiceArea>>("/partner/service-area", input);
+  return response.data.data;
+};

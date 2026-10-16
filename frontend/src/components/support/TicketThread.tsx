@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { TicketMessage } from '@/types/adminTicket';
+import AttachmentDownload from './AttachmentDownload';
 
 interface Props {
   messages: TicketMessage[];
@@ -21,11 +22,15 @@ const ROLE_LABEL: Record<TicketMessage['sender']['role'], string> = {
 const formatWhen = (iso: string): string => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+  return new Intl.DateTimeFormat('en-IN', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(d);
 };
 
 /** Only http(s) and same-site links are rendered as links; anything else (javascript:, data:) is dropped. */
-const safeHref = (url: string): string | undefined => (/^(https?:\/\/|\/)/i.test(url) ? url : undefined);
+const safeHref = (url: string): string | undefined =>
+  /^(https?:\/\/|\/)/i.test(url) ? url : undefined;
 
 /**
  * Read-only conversation for one ticket, oldest first. Shared: it only needs a message list, so the
@@ -51,7 +56,11 @@ export const TicketThread: React.FC<Props> = ({ messages, loading, error, onRetr
       <div className="sup-state sup-state--error" role="alert">
         <AlertCircle size={20} aria-hidden />
         <p>{error}</p>
-        {onRetry && <button type="button" className="sup-btn" onClick={onRetry}>Try again</button>}
+        {onRetry && (
+          <button type="button" className="sup-btn" onClick={onRetry}>
+            Try again
+          </button>
+        )}
       </div>
     );
   }
@@ -64,11 +73,22 @@ export const TicketThread: React.FC<Props> = ({ messages, loading, error, onRetr
     );
   }
   return (
-    <ol className="sup-thread" style={{ listStyle: 'none', margin: 0 }} aria-label="Conversation" aria-live="polite" aria-relevant="additions">
+    <ol
+      className="sup-thread"
+      style={{ listStyle: 'none', margin: 0 }}
+      aria-label="Conversation"
+      aria-live="polite"
+      aria-relevant="additions"
+    >
       {messages.map((m) => (
-        <li key={m.id} className={`sup-msg${m.sender.role === 'admin' ? ' sup-msg--admin' : ''}${m.internal ? ' sup-msg--internal' : ''}`}>
+        <li
+          key={m.id}
+          className={`sup-msg${m.sender.role === 'admin' ? ' sup-msg--admin' : ''}${m.internal ? ' sup-msg--internal' : ''}`}
+        >
           <div className="sup-msg__meta">
-            <span className="sup-msg__who">{m.sender.name || ROLE_LABEL[m.sender.role]}</span>
+            <span className="sup-msg__who">
+              {m.sender.name || ROLE_LABEL[m.sender.role]}
+            </span>
             <span>{ROLE_LABEL[m.sender.role]}</span>
             {m.internal && <span className="sup-msg__tag">Internal note · not visible to the customer</span>}
             <time dateTime={m.createdAt}>{formatWhen(m.createdAt)}</time>
@@ -77,11 +97,23 @@ export const TicketThread: React.FC<Props> = ({ messages, loading, error, onRetr
           {m.attachments.length > 0 && (
             <div className="sup-msg__files">
               {m.attachments.map((a, i) => {
+                if (/^\/api\/v1\/tickets\//.test(a.url))
+                  return <AttachmentDownload key={i} file={a} admin />;
                 const href = safeHref(a.url);
                 return href ? (
-                  <a key={i} className="sup-msg__file" href={href} target="_blank" rel="noopener noreferrer">{a.name}</a>
+                  <a
+                    key={i}
+                    className="sup-msg__file"
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {a.name}
+                  </a>
                 ) : (
-                  <span key={i} className="sup-msg__file">{a.name}</span>
+                  <span key={i} className="sup-msg__file">
+                    {a.name}
+                  </span>
                 );
               })}
             </div>
