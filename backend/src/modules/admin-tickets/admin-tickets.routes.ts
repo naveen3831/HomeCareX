@@ -77,14 +77,14 @@ adminTicketsRoutes.patch(
 );
 
 /**
- * Mounted at /api/v1/admin/staff. Only the assignee picker's list for now: admins who can take a ticket.
+ * Mounted at /api/v1/admin/ticket-assignees (/admin/staff is the RBAC staff list). Only the assignee picker's list for now: admins who can take a ticket.
  * Same guard as the queue, so anyone who can open Support can fill the dropdown.
  */
 export const adminStaffRoutes = Router();
 
 adminStaffRoutes.use(authenticate, requireAdmin, requirePermission(TICKETS_MANAGE));
 
-// GET /admin/staff?assignable=true -> [{ id, name, email }]
+// GET /admin/ticket-assignees?assignable=true -> [{ id, name, email }]
 adminStaffRoutes.get(
   '/',
   validate(listAgentsQuerySchema, 'query'),

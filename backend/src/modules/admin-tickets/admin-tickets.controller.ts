@@ -22,7 +22,7 @@ export const adminTicketsController = {
     sendSuccess(res, await adminTicketsService.listMessages(String(req.params.id)));
   },
 
-  /** GET /admin/staff?assignable=true. */
+  /** GET /admin/ticket-assignees?assignable=true. */
   async agents(_req: Request, res: Response) {
     sendSuccess(res, await adminTicketsService.listAssignableAgents());
   },
