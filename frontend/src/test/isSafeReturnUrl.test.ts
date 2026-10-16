@@ -46,3 +46,63 @@ describe("isSafeReturnUrl", () => {
     expect(isSafeReturnUrl("   ")).toBe(false);
   });
 });
+
+import { safeReturnUrl, destinationFor } from "@/utils/isSafeReturnUrl";
+
+describe("safeReturnUrl", () => {
+  it("allows safe relative paths", () => {
+    expect(safeReturnUrl("/customer/book/home-cleaning")).toBe("/customer/book/home-cleaning");
+    expect(safeReturnUrl("/admin/dashboard")).toBe("/admin/dashboard");
+  });
+
+  it("blocks null, undefined, empty strings", () => {
+    expect(safeReturnUrl(null)).toBeNull();
+    expect(safeReturnUrl(undefined)).toBeNull();
+    expect(safeReturnUrl("")).toBeNull();
+  });
+
+  it("blocks security and logout paths to prevent redirect loops", () => {
+    expect(safeReturnUrl("/customer/account/security")).toBeNull();
+    expect(safeReturnUrl("/admin/settings/security")).toBeNull();
+    expect(safeReturnUrl("/logout")).toBeNull();
+    expect(safeReturnUrl("/customer/logout")).toBeNull();
+  });
+
+  it("blocks external and malicious URLs", () => {
+    expect(safeReturnUrl("https://evil.com")).toBeNull();
+    expect(safeReturnUrl("//evil.com")).toBeNull();
+    expect(safeReturnUrl("/\\evil.com")).toBeNull();
+    expect(safeReturnUrl("javascript:alert(1)")).toBeNull();
+  });
+});
+
+describe("destinationFor", () => {
+  const customerUser = { role: "customer" as const, home: "/customer" };
+  const partnerUser = { role: "partner" as const, home: "/partner" };
+  const adminUser = { role: "admin" as const, home: "/admin" };
+
+  it("allows returnUrl inside the user's role area", () => {
+    expect(destinationFor(customerUser, "/customer/book/cleaning")).toBe("/customer/book/cleaning");
+    expect(destinationFor(partnerUser, "/partner/jobs/123")).toBe("/partner/jobs/123");
+    expect(destinationFor(adminUser, "/admin/customers/456")).toBe("/admin/customers/456");
+  });
+
+  it("prevents cross-role redirection and privilege escalation", () => {
+    // Customer cannot be redirected to /admin or /partner
+    expect(destinationFor(customerUser, "/admin/leads")).toBe("/customer");
+    expect(destinationFor(customerUser, "/partner/dashboard")).toBe("/customer");
+
+    // Partner cannot be redirected to /admin or /customer
+    expect(destinationFor(partnerUser, "/admin/pricing")).toBe("/partner");
+    expect(destinationFor(partnerUser, "/customer/book/cleaning")).toBe("/partner");
+
+    // Admin cannot be redirected outside /admin
+    expect(destinationFor(adminUser, "/customer/orders")).toBe("/admin");
+  });
+
+  it("falls back to user home or area when returnUrl is null or empty", () => {
+    expect(destinationFor(customerUser, null)).toBe("/customer");
+    expect(destinationFor(partnerUser, null)).toBe("/partner");
+    expect(destinationFor(adminUser, undefined)).toBe("/admin");
+  });
+});

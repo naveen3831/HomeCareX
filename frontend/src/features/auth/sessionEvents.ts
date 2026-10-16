@@ -1,4 +1,6 @@
-export const SESSION_EXPIRED_EVENT = 'session-expired' as const;
+import { SESSION_EXPIRED_EVENT } from '@/lib/tokenStore';
+
+export { SESSION_EXPIRED_EVENT };
 
 export const emitSessionExpired = (): void => {
   if (typeof window !== 'undefined') {

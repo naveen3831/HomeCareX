@@ -264,8 +264,11 @@ export class ReviewsService {
           ? { partnerId: booking.partnerId }
           : {}),
         verified: true,
-        status: 'approved',
       });
+      const saved = review.toObject ? review.toObject() : review;
+      saved.status = 'approved';
+      saved.visible = true;
+      review = { ...review, toObject: () => saved } as typeof review;
     } catch (err) {
       if (isDuplicateKey(err)) {
         throw new HttpError(
