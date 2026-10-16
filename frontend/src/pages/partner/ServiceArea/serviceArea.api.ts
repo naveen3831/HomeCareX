@@ -11,6 +11,7 @@ export interface PartnerServiceArea {
   cities: string[];
   areas: string[];
   radiusKm: number;
+  /** false until the partner has saved an area at least once. */
   configured: boolean;
   updatedAt: string | null;
 }

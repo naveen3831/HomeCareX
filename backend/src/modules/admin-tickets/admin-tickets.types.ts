@@ -64,7 +64,7 @@ export interface AdminTicketsResult {
   meta: { page: number; limit: number; total: number; pages: number };
 }
 
-/** One entry of the assignee picker (GET /admin/staff?assignable=true). */
+/** One entry of the assignee picker (GET /admin/ticket-assignees?assignable=true). */
 export interface AssignableAgentDto {
   id: string;
   name: string;
@@ -79,6 +79,26 @@ export interface AdminTicketMessageDto {
   sender: { id: string; name: string | null; role: TicketSenderRole };
   body: string;
   attachments: { url: string; name: string; mimeType: string; sizeBytes: number }[];
+  /** true = agent-only note. The requester never receives these. */
+  internal: boolean;
   readAt: string | null;
   createdAt: string;
+}
+
+/** Booking details shown beside a ticket (GET /admin/tickets/:id only; the queue rows keep the light `booking` ref). */
+export interface TicketBookingContextDto {
+  id: string;
+  ref: string;
+  serviceName: string;
+  status: string;
+  paymentStatus: string;
+  scheduledAt: string | null;
+  total: number | null;
+  address: string | null;
+  partner: { id: string; name: string | null } | null;
+}
+
+/** GET /admin/tickets/:id: a queue row plus the booking it is about. */
+export interface AdminTicketDetailDto extends AdminTicketDto {
+  bookingContext: TicketBookingContextDto | null;
 }

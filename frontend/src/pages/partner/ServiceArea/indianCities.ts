@@ -1,182 +1,205 @@
-export const indianCities = [
-  "Adoni",
-  "Agra",
-  "Ahmedabad",
-  "Ajmer",
-  "Akola",
-  "Aligarh",
-  "Allahabad",
-  "Ambala",
-  "Amritsar",
-  "Anantapur",
-  "Arrah",
-  "Asansol",
-  "Aurangabad",
-  "Bangalore",
-  "Bareilly",
-  "Belgaum",
-  "Bellary",
-  "Bengaluru",
-  "Bhavnagar",
-  "Bhilai",
-  "Bhopal",
-  "Bhubaneswar",
-  "Bhuj",
-  "Bidar",
-  "Bihar Sharif",
-  "Bikaner",
-  "Bilaspur",
-  "Bokaro Steel City",
-  "Chandigarh",
-  "Chennai",
-  "Coimbatore",
-  "Cuttack",
-  "Dehradun",
-  "Delhi",
-  "Dhanbad",
-  "Durgapur",
+/**
+ * Local list used for city suggestions. Bundled on purpose: typing triggers no network calls
+ * (Nominatim's policy forbids autocomplete-as-you-type). Partners can still add any city by hand.
+ */
+export const INDIAN_CITIES: string[] = [
+  // Andhra Pradesh
   "Eluru",
-  "Erode",
-  "Faridabad",
-  "Gaya",
-  "Ghaziabad",
-  "Goa",
-  "Gorakhpur",
-  "Gulbarga",
-  "Guntur",
-  "Gurugram",
-  "Guwahati",
-  "Gwalior",
-  "Hajipur",
-  "Haridwar",
-  "Hubballi",
-  "Hyderabad",
-  "Indore",
-  "Jabalpur",
-  "Jaipur",
-  "Jalandhar",
-  "Jalgaon",
-  "Jammu",
-  "Jamshedpur",
-  "Jhansi",
-  "Jodhpur",
-  "Junagadh",
-  "Kakinada",
-  "Kanpur",
-  "Karnal",
-  "Kochi",
-  "Kolhapur",
-  "Kolkata",
-  "Kota",
-  "Kurnool",
-  "Lucknow",
-  "Ludhiana",
-  "Madurai",
-  "Mahbubnagar",
-  "Mangalore",
-  "Mangaluru",
-  "Mathura",
-  "Meerut",
-  "Mysuru",
-  "Nagpur",
-  "Nanded",
-  "Nashik",
-  "Nellore",
-  "Noida",
-  "Patna",
-  "Pondicherry",
-  "Pune",
-  "Raipur",
-  "Rajahmundry",
-  "Rajkot",
-  "Ranchi",
-  "Ratlam",
-  "Rourkela",
-  "Saharanpur",
-  "Salem",
-  "Sambalpur",
-  "Shivamogga",
-  "Shimla",
-  "Siliguri",
-  "Solapur",
-  "Srinagar",
-  "Surat",
-  "Thane",
-  "Thiruvananthapuram",
-  "Tiruchirappalli",
-  "Tirupati",
-  "Udaipur",
-  "Vadodara",
-  "Varanasi",
   "Vijayawada",
   "Visakhapatnam",
+  "Guntur",
+  "Nellore",
+  "Tirupati",
+  "Kakinada",
+  "Rajahmundry",
+  "Kurnool",
+  "Anantapur",
+  "Kadapa",
+  "Ongole",
+  "Machilipatnam",
+  "Bhimavaram",
+  "Tadepalligudem",
+  "Tenali",
+  "Narasaraopet",
+  "Chittoor",
+  "Srikakulam",
+  "Vizianagaram",
+  "Amaravati",
+  "Nandyal",
+  "Hindupur",
+  "Proddatur",
+  "Madanapalle",
+  "Dharmavaram",
+  "Gudivada",
+  "Tanuku",
+  "Palakollu",
+  "Narsapur",
+  "Amalapuram",
+  "Mangalagiri",
+  "Chilakaluripet",
+  "Sattenapalli",
+  "Bapatla",
+  "Chirala",
+  "Markapur",
+  "Gudur",
+  "Adoni",
+  "Yemmiganur",
+  "Jangareddygudem",
+  "Nuzvid",
+  "Jaggaiahpet",
+  "Samalkot",
+  "Peddapuram",
+  "Mandapeta",
+  "Ravulapalem",
+  // Telangana
+  "Hyderabad",
+  "Secunderabad",
   "Warangal",
-  "Yamunanagar",
-] as const;
+  "Karimnagar",
+  "Nizamabad",
+  "Khammam",
+  "Ramagundam",
+  "Mahbubnagar",
+  "Nalgonda",
+  "Adilabad",
+  "Suryapet",
+  "Siddipet",
+  "Miryalaguda",
+  "Mancherial",
+  "Kothagudem",
+  "Jagtial",
+  // Metros and major cities
+  "Mumbai",
+  "Delhi",
+  "New Delhi",
+  "Bengaluru",
+  "Bangalore",
+  "Chennai",
+  "Kolkata",
+  "Pune",
+  "Ahmedabad",
+  "Surat",
+  "Jaipur",
+  "Lucknow",
+  "Kanpur",
+  "Nagpur",
+  "Indore",
+  "Bhopal",
+  "Patna",
+  "Vadodara",
+  "Ghaziabad",
+  "Ludhiana",
+  "Agra",
+  "Nashik",
+  "Faridabad",
+  "Meerut",
+  "Rajkot",
+  "Varanasi",
+  "Srinagar",
+  "Aurangabad",
+  "Dhanbad",
+  "Amritsar",
+  "Navi Mumbai",
+  "Allahabad",
+  "Prayagraj",
+  "Ranchi",
+  "Howrah",
+  "Coimbatore",
+  "Jabalpur",
+  "Gwalior",
+  "Jodhpur",
+  "Madurai",
+  "Raipur",
+  "Kota",
+  "Chandigarh",
+  "Guwahati",
+  "Solapur",
+  "Mysuru",
+  "Mysore",
+  "Hubballi",
+  "Dharwad",
+  "Mangaluru",
+  "Belagavi",
+  "Kalaburagi",
+  "Ballari",
+  "Davanagere",
+  "Shivamogga",
+  "Tumakuru",
+  "Thane",
+  "Noida",
+  "Gurugram",
+  "Gurgaon",
+  "Dehradun",
+  "Jammu",
+  "Shimla",
+  "Bhubaneswar",
+  "Cuttack",
+  "Puducherry",
+  "Pondicherry",
+  "Tiruchirappalli",
+  "Salem",
+  "Tirunelveli",
+  "Erode",
+  "Vellore",
+  "Thoothukudi",
+  "Thanjavur",
+  "Hosur",
+  "Kochi",
+  "Thiruvananthapuram",
+  "Kozhikode",
+  "Thrissur",
+  "Kollam",
+  "Kannur",
+  "Alappuzha",
+  "Palakkad",
+  "Panaji",
+  "Margao",
+  "Vasco da Gama",
+  "Udaipur",
+  "Ajmer",
+  "Bikaner",
+  "Jamshedpur",
+  "Bokaro",
+  "Siliguri",
+  "Durgapur",
+  "Asansol",
+  "Gorakhpur",
+  "Bareilly",
+  "Aligarh",
+  "Moradabad",
+  "Jhansi",
+  "Mathura",
+  "Haridwar",
+];
 
-export type IndianCity = (typeof indianCities)[number];
+/** Normalises for matching: lower case, accents and extra spaces removed. */
+const norm = (s: string): string =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
-const CityList = indianCities.map((city) => city.toLowerCase());
-
-export const normalizeCity = (value: string) =>
-  value.trim().replace(/\s+/g, " ");
-
-export const isKnownIndianCity = (value: string) =>
-  CityList.includes(normalizeCity(value).toLowerCase());
-
-export const suggestCities = (
+/**
+ * Up to `limit` cities for what the partner has typed so far. Starts-with matches come first,
+ * then contains matches. Needs at least 2 letters; cities already added are left out.
+ */
+export function suggestCities(
   query: string,
-  excluded: string[] = [],
-  limit = 10,
-): string[] => {
-  const term = normalizeCity(query).toLowerCase();
-  if (term.length < 2) return [];
-
-  const excludedSet = new Set(
-    excluded.map((item) => normalizeCity(item).toLowerCase()),
-  );
-
-  const scored = indianCities
-    .filter((city) => !excludedSet.has(city.toLowerCase()))
-    .map((city) => {
-      const lower = city.toLowerCase();
-      const starts = lower.startsWith(term) ? 0 : 1;
-      const index = lower.indexOf(term);
-      return {
-        city,
-        starts,
-        index,
-      };
-    })
-    .filter((item) => item.index >= 0)
-    .sort(
-      (a, b) =>
-        a.starts - b.starts ||
-        a.index - b.index ||
-        a.city.localeCompare(b.city),
-    )
-    .slice(0, limit)
-    .map((item) => item.city);
-
-  return scored;
-};
-
-export const findCitySuggestion = (value: string) =>
-  suggestCities(value, [], 1)[0] ?? "";
-
-export const MIN_SERVICE_AREA_RADIUS_KM = 1;
-export const MAX_SERVICE_AREA_RADIUS_KM = 50;
-
-export const validateServiceAreaRadius = (radius: number | string) => {
-  const value = Number(radius);
-  if (!Number.isFinite(value)) return "Radius must be a number.";
-  if (
-    value < MIN_SERVICE_AREA_RADIUS_KM ||
-    value > MAX_SERVICE_AREA_RADIUS_KM
-  ) {
-    return `Radius must be between ${MIN_SERVICE_AREA_RADIUS_KM} and ${MAX_SERVICE_AREA_RADIUS_KM} km.`;
+  exclude: string[] = [],
+  limit = 6,
+): string[] {
+  const q = norm(query);
+  if (q.length < 2) return [];
+  const taken = new Set(exclude.map(norm));
+  const starts: string[] = [];
+  const contains: string[] = [];
+  for (const city of INDIAN_CITIES) {
+    const n = norm(city);
+    if (taken.has(n)) continue;
+    if (n.startsWith(q)) starts.push(city);
+    else if (n.includes(q)) contains.push(city);
   }
-  return "";
-};
-
-export default indianCities;
+  return [...starts, ...contains].slice(0, limit);
+}

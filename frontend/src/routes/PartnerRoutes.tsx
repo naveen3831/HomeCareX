@@ -2,13 +2,16 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
+import AccountSecurityPage from "@/pages/shared/AccountSecurity";
 import PartnerJobsPage from "../pages/partner/Jobs";
+import PartnerPerformancePage from "../pages/partner/Performance";
+import PartnerReviewsPage from "../pages/partner/Reviews";
 import PartnerAvailabilityPage from "../pages/partner/Availability";
 import PartnerWorkingHoursPage from "../pages/partner/WorkingHours";
+import PartnerMyServicesPage from "../pages/partner/MyServices";
+import PartnerServiceAreaPage from "../pages/partner/ServiceArea";
 import PartnerBlackoutDatesPage from "../pages/partner/BlackoutDates";
 import PartnerSchedulePage from "../pages/partner/Schedule";
-import PartnerServicesPage from "../pages/partner/MyServices";
-import PartnerServiceAreaPage from "../pages/partner/ServiceArea";
 import PartnerEarningsPage from "../pages/partner/Earnings";
 import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
@@ -104,6 +107,9 @@ export const PARTNER_PAGES: { path: string; title: string }[] = [
 
 // Paths that have a real route below, so they are skipped as placeholders.
 const REAL_ROUTE_PATHS = new Set([
+  "performance",
+  "performance/reviews",
+  "reviews",
   "earnings/payouts",
   "profile",
   "work/requests",
@@ -128,6 +134,7 @@ export default function PartnerRoutes() {
             Partner Profile
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
+        <Route path="security" element={<AccountSecurityPage />} />
 
         {/* =====================================================
             Availability
@@ -150,7 +157,7 @@ export default function PartnerRoutes() {
 
         <Route path="schedule" element={<PartnerSchedulePage />} />
 
-        <Route path="services" element={<PartnerServicesPage />} />
+        <Route path="services" element={<PartnerMyServicesPage />} />
         <Route path="service-area" element={<PartnerServiceAreaPage />} />
 
         {/* =====================================================
@@ -186,6 +193,15 @@ export default function PartnerRoutes() {
         />
 
         <Route path="work/requests" element={<PartnerJobsPage />} />
+
+        {/* =====================================================
+            Performance and Reviews
+        ===================================================== */}
+        <Route path="performance" element={<PartnerPerformancePage />} />
+
+        <Route path="reviews" element={<PartnerReviewsPage />} />
+
+        <Route path="performance/reviews" element={<PartnerReviewsPage />} />
 
         {/* =====================================================
             Remaining Placeholder Pages

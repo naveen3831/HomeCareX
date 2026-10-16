@@ -67,6 +67,13 @@ const ITEMS: {
     tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]",
   },
   {
+    label: "Account Security",
+    hint: "Password, sessions and devices",
+    to: "/security",
+    icon: ShieldCheck,
+    tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]",
+  },
+  {
     label: "Change password",
     hint: "Keep your account secure",
     to: "/profile/password",

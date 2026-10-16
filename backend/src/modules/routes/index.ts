@@ -1,4 +1,2 @@
-import { rootRouter } from "../../routes/index";
-
-export { rootRouter };
-export default rootRouter;
+export { rootRouter } from "../../routes/index";
+export { default } from "../../routes/index";

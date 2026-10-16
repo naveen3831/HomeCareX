@@ -10,37 +10,53 @@ export const payoutsRoutes = Router();
 
 payoutsRoutes.use(authenticate, requireAdmin);
 
-// Keep the export route before /:id routes.
+// Export payouts as CSV.
+// Keep this route before routes containing /:id.
 payoutsRoutes.get(
   '/payouts/export',
-  asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.exportCsv(req, res),
+  ),
 );
 
+// List payout batches.
 payoutsRoutes.get(
   '/payouts',
-  asyncHandler((req, res) => payoutsController.list(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.list(req, res),
+  ),
 );
 
+// Generate a payout batch.
 payoutsRoutes.post(
   '/payouts',
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.generate(req, res),
+  ),
 );
 
-// The ID here is a payout-batch ID.
+// List individual payouts belonging to a batch.
 payoutsRoutes.get(
   '/payouts/:id/payouts',
-  asyncHandler((req, res) => payoutsController.listBatchPayouts(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.listBatchPayouts(req, res),
+  ),
 );
 
+// Get payout batch details.
 payoutsRoutes.get(
   '/payouts/:id',
-  asyncHandler((req, res) => payoutsController.getBatch(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.getBatch(req, res),
+  ),
 );
 
-// The ID here is an individual payout ID.
+// Update an individual payout's status.
 payoutsRoutes.patch(
   '/payouts/:id',
-  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
+  asyncHandler((req, res) =>
+    payoutsController.updateStatus(req, res),
+  ),
 );
 
 export default payoutsRoutes;

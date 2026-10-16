@@ -74,6 +74,25 @@ function hashSecret(val: string): string {
   return crypto.createHash("sha256").update(val).digest("hex");
 }
 
+function parseUserAgent(ua?: string): string {
+  if (!ua) return "Unknown Device";
+  let browser = "Web Browser";
+  if (ua.includes("Edg/")) browser = "Microsoft Edge";
+  else if (ua.includes("Chrome/")) browser = "Google Chrome";
+  else if (ua.includes("Firefox/")) browser = "Mozilla Firefox";
+  else if (ua.includes("Safari/") && !ua.includes("Chrome/")) browser = "Apple Safari";
+  else if (ua.includes("Postman")) browser = "Postman";
+
+  let os = "Desktop";
+  if (ua.includes("Windows")) os = "Windows";
+  else if (ua.includes("Macintosh") || ua.includes("Mac OS")) os = "macOS";
+  else if (ua.includes("Linux")) os = "Linux";
+  else if (ua.includes("Android")) os = "Android";
+  else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+
+  return `${browser} on ${os}`;
+}
+
 type UserDoc = NonNullable<Awaited<ReturnType<typeof authRepository.findById>>>;
 
 export function toAuthUser(user: UserDoc): AuthUserDto {
@@ -96,13 +115,18 @@ export function toAuthUser(user: UserDoc): AuthUserDto {
   };
 }
 
-function issueTokens(user: UserDoc) {
+function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) {
   const access: AccessTokenPayload = {
     sub: user.id,
     role: user.role as UserRole,
+    ...(sid ? { sid } : {}),
   };
 
-  const refresh: RefreshTokenPayload = { sub: user.id, v: user.tokenVersion };
+  const refresh: RefreshTokenPayload = {
+    sub: user.id,
+    v: sessionTokenVersion !== undefined ? sessionTokenVersion : user.tokenVersion,
+    ...(sid ? { sid } : {}),
+  };
 
   return {
     accessToken: jwt.sign(access, accessSecret(), {
@@ -115,11 +139,30 @@ function issueTokens(user: UserDoc) {
   };
 }
 
+const revokedSessionIds = new Set<string>();
+
+export function markSessionRevoked(sid: string) {
+  if (sid) {
+    revokedSessionIds.add(sid);
+    if (revokedSessionIds.size > 10000) {
+      const first = revokedSessionIds.values().next().value;
+      if (first) revokedSessionIds.delete(first);
+    }
+  }
+}
+
+export function isSessionRevoked(sid: string): boolean {
+  return Boolean(sid && revokedSessionIds.has(sid));
+}
+
 const sessionExpired = (code: string) =>
   new HttpError(401, "Your session has expired. Please log in again.", code);
 
 export const authService = {
-  async login({ email, password }: LoginInput) {
+  async login(
+    { email, password }: LoginInput,
+    sessionInfo?: { userAgent?: string; ip?: string },
+  ) {
     const user = await authRepository.findByEmailWithPassword(email);
 
     // Same message for an unknown email and a wrong password, so accounts can't be probed.
@@ -168,9 +211,41 @@ export const authService = {
 
     user.lastLoginAt = new Date();
 
+    const sid = crypto.randomUUID();
+    let sessionTokenVersion: number | undefined;
+    if (sessionInfo) {
+      sessionTokenVersion = 0;
+      const device = parseUserAgent(sessionInfo.userAgent);
+      const ipAddress = sessionInfo.ip || "127.0.0.1";
+      if (!Array.isArray((user as any).sessions)) {
+        (user as any).sessions = [];
+      }
+      (user as any).sessions = (user as any).sessions.filter(
+        (s: any) => s.device !== device || s.ipAddress !== ipAddress,
+      );
+      (user as any).sessions.unshift({
+        sessionId: sid,
+        device,
+        ipAddress,
+        lastActiveAt: new Date(),
+        userAgent: sessionInfo.userAgent,
+        tokenVersion: 0,
+      });
+      if ((user as any).sessions.length > 10) {
+        (user as any).sessions = (user as any).sessions.slice(0, 10);
+      }
+    }
+
     await user.save();
 
-    return { user: toAuthUser(user), ...issueTokens(user) };
+    return {
+      user: toAuthUser(user),
+      ...issueTokens(
+        user,
+        sessionInfo ? sid : undefined,
+        sessionTokenVersion,
+      ),
+    };
   },
 
   async register(input: RegisterInput) {
@@ -349,6 +424,48 @@ export const authService = {
 
     const currentVersion = user.tokenVersion ?? 0;
 
+    // Per-session tracking when sid is present
+    if (payload.sid) {
+      const userSessions = Array.isArray((user as any).sessions)
+        ? (user as any).sessions
+        : [];
+      const session = userSessions.find(
+        (s: any) => s.sessionId === payload.sid,
+      );
+
+      // Session revoked or not found
+      if (!session) {
+        throw sessionExpired("REVOKED_REFRESH_TOKEN");
+      }
+
+      const currentSessionVersion = session.tokenVersion ?? 0;
+
+      // Reuse detection for this session:
+      if (payload.v < currentSessionVersion) {
+        (user as any).sessions = userSessions.filter(
+          (s: any) => s.sessionId !== payload.sid,
+        );
+        markSessionRevoked(payload.sid);
+        await user.save();
+
+        throw sessionExpired("REVOKED_REFRESH_TOKEN");
+      }
+
+      if (payload.v !== currentSessionVersion) {
+        throw sessionExpired("REVOKED_REFRESH_TOKEN");
+      }
+
+      // Normal rotation for this session:
+      session.tokenVersion = currentSessionVersion + 1;
+      session.lastActiveAt = new Date();
+      await user.save();
+
+      return {
+        user: toAuthUser(user),
+        ...issueTokens(user, payload.sid, session.tokenVersion),
+      };
+    }
+
     // Reuse detection: If token version is older than current, the token was already rotated.
 
     // Invalidate the session / token family by bumping tokenVersion so any subsequent
@@ -376,7 +493,7 @@ export const authService = {
     return { user: toAuthUser(user), ...issueTokens(user) };
   },
 
-  /** Logout ends every session of the user by bumping tokenVersion. */
+  /** Logout ends the caller session, or every session for legacy/test tokens. */
 
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
@@ -389,9 +506,18 @@ export const authService = {
 
       const user = await authRepository.findById(payload.sub);
 
-      if (user && user.tokenVersion === payload.v) {
-        user.tokenVersion += 1;
-
+      if (user) {
+        if (payload.sid) {
+          markSessionRevoked(payload.sid);
+          if (Array.isArray((user as any).sessions)) {
+            (user as any).sessions = (user as any).sessions.filter(
+              (s: any) => s.sessionId !== payload.sid,
+            );
+          }
+        }
+        if (!payload.sid && user.tokenVersion === payload.v) {
+          user.tokenVersion += 1;
+        }
         await user.save();
       }
     } catch {
@@ -401,8 +527,13 @@ export const authService = {
 
   verifyAccessToken(token: string): AccessTokenPayload {
     try {
-      return jwt.verify(token, accessSecret()) as AccessTokenPayload;
-    } catch {
+      const payload = jwt.verify(token, accessSecret()) as AccessTokenPayload;
+      if (payload.sid && isSessionRevoked(payload.sid)) {
+        throw sessionExpired("REVOKED_SESSION");
+      }
+      return payload;
+    } catch (err: any) {
+      if (err.status && err.code) throw err;
       throw sessionExpired("INVALID_ACCESS_TOKEN");
     }
   },
@@ -457,6 +588,168 @@ export const authService = {
     await user.save();
 
     return { changed: true };
+  },
+
+  /** Returns active sessions for the authenticated user. */
+  async getSessions(
+    userId: string,
+    reqInfo: { userAgent?: string; ip?: string; currentSid?: string },
+  ): Promise<
+    Array<{
+      id: string;
+      device: string;
+      ipAddress: string;
+      lastActiveAt: string;
+      isCurrent: boolean;
+      location?: string;
+    }>
+  > {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === "blocked") {
+      throw sessionExpired("USER_NOT_FOUND");
+    }
+
+    const currentDevice = parseUserAgent(reqInfo.userAgent);
+    const currentIp = reqInfo.ip || "127.0.0.1";
+    const userSessions = (user as any).sessions || [];
+
+    if (userSessions.length === 0) {
+      return [
+        {
+          id: reqInfo.currentSid || `sess_${user.id}_current`,
+          device: currentDevice,
+          ipAddress: currentIp,
+          lastActiveAt: user.lastLoginAt
+            ? user.lastLoginAt.toISOString()
+            : new Date().toISOString(),
+          isCurrent: true,
+          location: "Current Device",
+        },
+      ];
+    }
+
+    let foundCurrent = false;
+    const mapped = userSessions.map((s: any) => {
+      const isCurrent = reqInfo.currentSid
+        ? s.sessionId === reqInfo.currentSid
+        : s.device === currentDevice && s.ipAddress === currentIp;
+
+      if (isCurrent) foundCurrent = true;
+
+      return {
+        id: s.sessionId,
+        device: s.device,
+        ipAddress: s.ipAddress,
+        lastActiveAt: s.lastActiveAt
+          ? new Date(s.lastActiveAt).toISOString()
+          : new Date().toISOString(),
+        isCurrent,
+        location: isCurrent ? "Current Device" : "Active Device",
+      };
+    });
+
+    if (!foundCurrent) {
+      mapped.unshift({
+        id: reqInfo.currentSid || `sess_${user.id}_current`,
+        device: currentDevice,
+        ipAddress: currentIp,
+        lastActiveAt: new Date().toISOString(),
+        isCurrent: true,
+        location: "Current Device",
+      });
+    }
+
+    mapped.sort((a: any, b: any) => {
+      if (a.isCurrent) return -1;
+      if (b.isCurrent) return 1;
+      return (
+        new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+      );
+    });
+
+    return mapped;
+  },
+
+  /** Revokes an individual session. */
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    currentSid?: string,
+  ): Promise<{ success: boolean; isCurrent: boolean; message: string }> {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === "blocked") {
+      throw sessionExpired("USER_NOT_FOUND");
+    }
+
+    const isCurrent = Boolean(
+      (currentSid && sessionId === currentSid) || sessionId === "current",
+    );
+
+    markSessionRevoked(sessionId);
+
+    if (Array.isArray((user as any).sessions)) {
+      (user as any).sessions = (user as any).sessions.filter(
+        (s: any) => s.sessionId !== sessionId,
+      );
+    }
+
+    if (isCurrent) {
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    }
+
+    await user.save();
+
+    return {
+      success: true,
+      isCurrent,
+      message: isCurrent ? "Current session revoked" : "Session revoked successfully",
+    };
+  },
+
+  /** Logs out of all devices by clearing sessions and bumping tokenVersion. */
+  async logoutAll(userId: string) {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === "blocked") {
+      throw sessionExpired("USER_NOT_FOUND");
+    }
+
+    if (Array.isArray((user as any).sessions)) {
+      for (const s of (user as any).sessions) {
+        if (s.sessionId) markSessionRevoked(s.sessionId);
+      }
+    }
+    (user as any).sessions = [];
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+
+    return {
+      success: true,
+      revokedSessionsCount: 1,
+      message: "Logged out from all devices",
+    };
+  },
+
+  /** Admin operation: revokes all sessions for a specific target user. */
+  async revokeUserSessions(targetUserId: string) {
+    const user = await authRepository.findById(targetUserId);
+    if (!user) {
+      throw new HttpError(404, "User not found", "USER_NOT_FOUND");
+    }
+
+    if (Array.isArray((user as any).sessions)) {
+      for (const s of (user as any).sessions) {
+        if (s.sessionId) markSessionRevoked(s.sessionId);
+      }
+    }
+    (user as any).sessions = [];
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+
+    return {
+      success: true,
+      revokedSessionsCount: 1,
+      message: "All sessions for this user have been revoked",
+    };
   },
 
   /** Generates and dispatches a secure 6-digit OTP for password reset. */

@@ -1,5 +1,4 @@
 import { Router } from "express";
-
 import {
   addressesRoutes,
   serviceabilityRoutes,
@@ -53,22 +52,32 @@ import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
+import {
+  partnerPerformanceRoutes,
+} from "../modules/partner-performance/partner-performance.routes";
+import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
+import {
+  partnerServiceAreaRoutes,
+  partnerServicesRoutes,
+} from "../modules/partner-services/partner-services.routes";
 import paymentRoutes from "../modules/payments/payments.routes";
 import {
   adminPricingRoutes,
   pricingRoutes,
 } from "../modules/pricing/pricing.routes";
+import payoutsRoutes from "../modules/payouts/payouts.routes";
 import refundsRoutes from "../modules/refunds/refunds.routes";
-import reviewsRoutes from "../modules/reviews/reviews.routes";
+import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
-import walletRoutes from "../modules/wallet/wallet.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
 
 export const rootRouter = Router();
 
 rootRouter.use("/auth", authRoutes);
+
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
@@ -77,34 +86,35 @@ rootRouter.use("/admin/services", servicesRoutes);
 rootRouter.use("/admin/customers", adminCustomersRoutes);
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
-rootRouter.use("/admin/staff", adminStaffRoutes);
-rootRouter.use("/admin", auditRoutes);
-rootRouter.use("/admin", adminRoutes);
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
 rootRouter.use("/admin/partners", partnersRoutes);
 rootRouter.use("/admin/coupons", couponsRoutes);
 rootRouter.use("/admin/banners", marketingRoutes);
 rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin/incentives", incentivesRoutes);
+rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
+rootRouter.use("/admin", auditRoutes);
+rootRouter.use("/admin", adminRoutes);
 
 rootRouter.use(catalogRoutes);
 rootRouter.use("/notifications", notificationsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
 rootRouter.use("/customer/notifications", customerNotificationsRoutes);
 rootRouter.use("/banners", publicMarketingRoutes);
-rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
+rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
+
+rootRouter.use("/customer/dashboard", customerDashboardRoutes);
+rootRouter.use("/customer/profile", customerProfileRoutes);
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
 rootRouter.use("/addresses", addressesRoutes);
 rootRouter.use("/payments", paymentRoutes);
 rootRouter.use("/wallet", walletRoutes);
 rootRouter.use("/tickets", ticketsRoutes);
 rootRouter.use("/referrals", referralsRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
-rootRouter.use("/customer/dashboard", customerDashboardRoutes);
-rootRouter.use("/customer/profile", customerProfileRoutes);
-rootRouter.use("/customer/preferences", customerPreferencesRoutes);
-rootRouter.use(bookingsRoutes);
-rootRouter.use("/bookings", bookingStatusRoutes);
-rootRouter.use(reviewsRoutes);
 
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
@@ -114,12 +124,18 @@ rootRouter.use("/partner/earnings", earningsRoutes);
 rootRouter.use("/partner/transactions", partnerWalletRoutes);
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
 rootRouter.use("/partner/incentives", incentivesRoutes);
+rootRouter.use("/partner/services", partnerServicesRoutes);
+rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
+rootRouter.use("/partner/performance", partnerPerformanceRoutes);
+rootRouter.use("/partner/reviews", partnerReviewsRoutes);
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
-rootRouter.use("/partner/notifications", notificationsRoutes);
 
+rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
 rootRouter.use("/bookings", chatRoutes);
+rootRouter.use(reviewsRoutes);
 
 export default rootRouter;

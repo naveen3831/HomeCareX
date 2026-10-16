@@ -1,3 +1,10 @@
+import type { PartnerServiceArea, ServiceAreaInput } from "./serviceArea.api";
+
+export const MIN_RADIUS_KM = 1;
+export const MAX_RADIUS_KM = 50;
+export const MAX_CITIES = 20;
+export const MAX_AREAS = 50;
+
 export interface AreaForm {
   label: string;
   lat: string;
@@ -7,73 +14,73 @@ export interface AreaForm {
   radius: string;
 }
 
-export const emptyForm = (): AreaForm => ({
-  label: '',
-  lat: '',
-  lng: '',
+export interface AreaErrors {
+  baseLocation?: string;
+  cities?: string;
+  radiusKm?: string;
+}
+
+export const emptyForm = (radius = 10): AreaForm => ({
+  label: "",
+  lat: "",
+  lng: "",
   cities: [],
   areas: [],
-  radius: '10',
+  radius: String(radius),
 });
 
-export const validateForm = (form: AreaForm) => {
-  const errors: Record<string, string | undefined> = {};
+export const toForm = (area: PartnerServiceArea): AreaForm => ({
+  label: area.baseLocation?.label ?? "",
+  lat: area.baseLocation ? String(area.baseLocation.lat) : "",
+  lng: area.baseLocation ? String(area.baseLocation.lng) : "",
+  cities: area.cities,
+  areas: area.areas,
+  radius: String(area.radiusKm),
+});
 
-  const lat = Number(form.lat);
-  const hasCoordinateInput = form.lat.trim() !== '' || form.lng.trim() !== '';
-  if (form.label.trim() === '' && !hasCoordinateInput) {
-    errors.baseLocation = 'Set your base location';
-  }
-  if (form.lat.trim() === '' || Number.isNaN(lat) || lat < -90 || lat > 90) {
-    errors.baseLocation = errors.baseLocation ?? 'Latitude must be between -90 and 90.';
-  }
-
-  const lng = Number(form.lng);
-  if (form.lng.trim() === '' || Number.isNaN(lng) || lng < -180 || lng > 180) {
-    errors.baseLocation = errors.baseLocation ?? 'Longitude must be between -180 and 180.';
-  }
-
-  if (!form.cities.length) {
-    errors.cities = 'Add at least one city';
-  }
-
-  const radius = Number(form.radius);
-  if (!Number.isInteger(radius) || radius < 1 || radius > 50 || form.radius.trim() === '') {
-    errors.radiusKm = 'Radius must be a whole number between 1 and 50.';
-  }
-
-  if (form.radius === '2.5' || form.radius === '0' || form.radius === '51' || form.radius === '-1' || form.radius === 'x' || form.radius === '') {
-    errors.radiusKm = 'Radius must be a whole number between 1 and 50.';
-  }
-
-  return errors;
+const num = (text: string): number | null => {
+  if (text.trim() === "") return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
 };
 
-export const hasErrors = (errors: Record<string, string | undefined>) =>
-  Object.values(errors).some((value) => Boolean(value));
+/** Mirrors the backend rules so the partner sees problems before saving. */
+export function validateForm(form: AreaForm): AreaErrors {
+  const errors: AreaErrors = {};
+  const lat = num(form.lat);
+  const lng = num(form.lng);
+  if (lat === null || lng === null) errors.baseLocation = "Set your base location (latitude and longitude).";
+  else if (lat < -90 || lat > 90) errors.baseLocation = "Latitude must be between -90 and 90.";
+  else if (lng < -180 || lng > 180) errors.baseLocation = "Longitude must be between -180 and 180.";
 
-export const toInput = (form: AreaForm) => ({
-  baseLocation: {
-    lat: Number(form.lat),
-    lng: Number(form.lng),
-    label: form.label.trim(),
-  },
+  if (form.cities.length === 0) errors.cities = "Add at least one city you serve.";
+
+  const radius = num(form.radius);
+  if (radius === null) errors.radiusKm = "Enter a radius in km.";
+  else if (!Number.isInteger(radius)) errors.radiusKm = "Radius must be a whole number.";
+  else if (radius < MIN_RADIUS_KM || radius > MAX_RADIUS_KM)
+    errors.radiusKm = `Radius must be between ${MIN_RADIUS_KM} and ${MAX_RADIUS_KM} km.`;
+  return errors;
+}
+
+export const hasErrors = (errors: AreaErrors): boolean => Object.keys(errors).length > 0;
+
+/** Only call after validateForm returned no errors. */
+export const toInput = (form: AreaForm): ServiceAreaInput => ({
+  baseLocation: { lat: Number(form.lat), lng: Number(form.lng), label: form.label.trim() },
   cities: form.cities,
   areas: form.areas,
   radiusKm: Number(form.radius),
 });
 
-export const addEntry = (list: string[], rawValue: string, limit = 10) => {
-  const value = rawValue.trim();
-  const normalized = value.toLowerCase();
-  if (!value || value.length < 2) {
-    return { list, error: 'Value is too short.' };
-  }
-  if (list.some((entry) => entry.trim().toLowerCase() === normalized)) {
-    return { list, error: 'This city is already added.' };
-  }
-  if (list.length >= limit) {
-    return { list, error: `at most ${limit} entries are allowed.` };
-  }
-  return { list: [...list, value], error: '' };
-};
+/** Adds a trimmed entry unless it is too short, a duplicate (any case) or over the limit. */
+export function addEntry(list: string[], raw: string, max: number): { list: string[]; error?: string } {
+  const value = raw.trim().replace(/\s+/g, " ");
+  if (value.length < 2) return { list, error: "Enter at least 2 characters." };
+  if (value.length > 80) return { list, error: "Keep it under 80 characters." };
+  if (list.some((x) => x.toLowerCase() === value.toLowerCase())) return { list, error: `${value} is already added.` };
+  if (list.length >= max) return { list, error: `You can add at most ${max}.` };
+  return { list: [...list, value] };
+}
+
+export const sameForm = (a: AreaForm, b: AreaForm): boolean => JSON.stringify(a) === JSON.stringify(b);

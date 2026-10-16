@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import type { TicketMessage } from '@/types/adminTicket';
 import AttachmentDownload from './AttachmentDownload';
@@ -9,6 +9,8 @@ interface Props {
   /** Set when the thread could not be loaded. */
   error?: string | null;
   onRetry?: () => void;
+  /** Scroll to the newest message when the list grows (live conversations). Off by default. */
+  autoScroll?: boolean;
 }
 
 const ROLE_LABEL: Record<TicketMessage['sender']['role'], string> = {
@@ -34,12 +36,13 @@ const safeHref = (url: string): string | undefined =>
  * Read-only conversation for one ticket, oldest first. Shared: it only needs a message list, so the
  * customer and partner support screens can use it as well. Support (admin) messages sit on the right.
  */
-export const TicketThread: React.FC<Props> = ({
-  messages,
-  loading,
-  error,
-  onRetry,
-}) => {
+export const TicketThread: React.FC<Props> = ({ messages, loading, error, onRetry, autoScroll }) => {
+  const endRef = useRef<HTMLLIElement>(null);
+  const count = messages.length;
+  useEffect(() => {
+    if (autoScroll && count > 0) endRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [autoScroll, count]);
+
   if (loading) {
     return (
       <div className="sup-state" role="status" aria-live="polite">
@@ -74,17 +77,20 @@ export const TicketThread: React.FC<Props> = ({
       className="sup-thread"
       style={{ listStyle: 'none', margin: 0 }}
       aria-label="Conversation"
+      aria-live="polite"
+      aria-relevant="additions"
     >
       {messages.map((m) => (
         <li
           key={m.id}
-          className={`sup-msg${m.sender.role === 'admin' ? ' sup-msg--admin' : ''}`}
+          className={`sup-msg${m.sender.role === 'admin' ? ' sup-msg--admin' : ''}${m.internal ? ' sup-msg--internal' : ''}`}
         >
           <div className="sup-msg__meta">
             <span className="sup-msg__who">
               {m.sender.name || ROLE_LABEL[m.sender.role]}
             </span>
             <span>{ROLE_LABEL[m.sender.role]}</span>
+            {m.internal && <span className="sup-msg__tag">Internal note · not visible to the customer</span>}
             <time dateTime={m.createdAt}>{formatWhen(m.createdAt)}</time>
           </div>
           <div className="sup-msg__bubble">{m.body}</div>
@@ -114,6 +120,7 @@ export const TicketThread: React.FC<Props> = ({
           )}
         </li>
       ))}
+      <li ref={endRef} aria-hidden style={{ height: 0 }} />
     </ol>
   );
 };

@@ -12,6 +12,7 @@ import Payments from "../pages/customer/Payments";
 import Profile from "../pages/customer/Profile";
 import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
 import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
+import AccountSecurityPage from "@/pages/shared/AccountSecurity";
 import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
 import TermsPage from "../pages/customer/Profile/TermsPage";
 import PrivacyPage from "../pages/customer/Profile/PrivacyPage";
@@ -58,6 +59,8 @@ export default function CustomerRoutes() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/edit" element={<EditProfilePage />} />
         <Route path="/profile/password" element={<ChangePasswordPage />} />
+        <Route path="/profile/security" element={<AccountSecurityPage />} />
+        <Route path="/security" element={<AccountSecurityPage />} />
         <Route path="/profile/notifications" element={<NotificationsPage />} />
         <Route path="/profile/terms" element={<TermsPage />} />
         <Route path="/profile/privacy" element={<PrivacyPage />} />

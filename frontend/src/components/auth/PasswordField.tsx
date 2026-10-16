@@ -8,6 +8,7 @@ export interface PasswordFieldProps extends React.InputHTMLAttributes<HTMLInputE
   error?: string;
   helperText?: string;
   containerClassName?: string;
+  rightAction?: React.ReactNode;
 }
 
 export const PasswordField: React.FC<PasswordFieldProps> = ({
@@ -18,6 +19,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   onChange,
   error,
   helperText,
+  rightAction,
   placeholder = '••••••••',
   autoComplete = 'current-password',
   required = false,
@@ -37,6 +39,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
         <label htmlFor={id} className="block text-xs sm:text-sm font-medium text-gray-700">
           {label} {required && <span className="text-red-500">*</span>}
         </label>
+        {rightAction}
       </div>
 
       <div className="relative">

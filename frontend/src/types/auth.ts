@@ -70,3 +70,37 @@ export interface AuthContextValue {
   /** Updates the signed-in user's editable details in the local session (no backend endpoint yet). */
   updateProfile: (patch: ProfilePatch) => void;
 }
+
+export interface UserSession {
+  id: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  ipAddress?: string;
+  lastActiveAt: string;
+  createdAt?: string;
+  isCurrent?: boolean;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}
+
+export interface ChangePasswordResult {
+  changed: boolean;
+}
+
+export interface SessionRevokeResult {
+  revoked: boolean;
+}
+
+export interface LogoutAllResult {
+  revoked: boolean;
+}
+
+export interface RevokeUserSessionsResult {
+  revoked: boolean;
+}
+

@@ -1,4 +1,5 @@
 import { Router } from "express";
+
 import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { requireRole } from "../../middleware/role.middleware";
@@ -13,12 +14,16 @@ import {
   updateBookingStatus,
 } from "./partner-jobs.controller";
 
-import { jobParamsSchema, statusBodySchema } from "./partner-jobs.validation";
+import {
+  jobParamsSchema,
+  statusBodySchema,
+} from "./partner-jobs.validation";
 
 /** Mounted at /partner/jobs */
 export const partnerJobsRoutes = Router();
 
-// GET /api/v1/partner/jobs  (role: partner, permission: partner:jobs:read): the partner's live jobs
+// GET /api/v1/partner/jobs
+// Partner's live jobs
 partnerJobsRoutes.get(
   "/",
   authenticate,
@@ -27,7 +32,8 @@ partnerJobsRoutes.get(
   listPartnerJobs,
 );
 
-// GET /api/v1/partner/jobs/:id  (role: partner, permission: partner:jobs:read, own jobs only)
+// GET /api/v1/partner/jobs/:id
+// Partner can access their own jobs only
 partnerJobsRoutes.get(
   "/:id",
   authenticate,
@@ -72,13 +78,17 @@ partnerJobRequestsRoutes.get(
 /** Mounted at /bookings */
 export const bookingStatusRoutes = Router();
 
-// PATCH /api/v1/bookings/:id/status  { status: 'en_route' | 'arrived', reason? }
+// PATCH /api/v1/bookings/:id/status
+// Body: { status: "en_route" | "arrived", reason? }
 bookingStatusRoutes.patch(
   "/:id/status",
   authenticate,
   requireRole("partner"),
   requirePermission("partner:jobs:update"),
-  validationMiddleware({ params: jobParamsSchema, body: statusBodySchema }),
+  validationMiddleware({
+    params: jobParamsSchema,
+    body: statusBodySchema,
+  }),
   updateBookingStatus,
 );
 

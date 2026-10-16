@@ -1,0 +1,192 @@
+.rbac-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.rbac-toolbar p { margin: 0; max-width: 62ch; }
+.rbac-toolbar .hcx-btn { display: inline-flex; align-items: center; gap: 6px; }
+.rbac-muted { font-size: 13px; color: var(--hcx-muted); }
+.rbac-link { display: inline-flex; align-items: center; gap: 3px; color: var(--hcx-accent); text-decoration: underline; }
+.rbac-you { font-size: 12px; color: var(--hcx-muted); }
+
+.rbac-role-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rbac-role-name__top { display: flex; align-items: center; gap: 8px; }
+.rbac-role-name__desc { line-height: 1.4; }
+.rbac-system-chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; font-size: 11px; font-weight: 600; color: var(--hcx-muted); background: var(--hcx-canvas); border: 1px solid var(--hcx-line); border-radius: 999px; }
+
+.rbac-actions { display: inline-flex; gap: 2px; justify-content: flex-end; }
+.icon-btn--danger { color: var(--hcx-danger); }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.rbac-input { width: 100%; padding: 8px 10px; font: inherit; font-weight: 400; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 8px; }
+.rbac-input:focus-visible { outline: 2px solid var(--hcx-accent); outline-offset: 1px; }
+.rbac-input[aria-invalid='true'] { border-color: var(--hcx-danger); }
+.rbac-input--compact { width: auto; min-width: 150px; padding: 5px 8px; font-size: 13px; }
+.rbac-input:disabled { background: var(--hcx-canvas); color: var(--hcx-muted); }
+
+.rbac-note { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 13px; color: var(--hcx-muted); }
+.rbac-section-title { margin: 20px 0 8px; font-size: 14px; font-weight: 600; }
+
+.rbac-grid-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 13px; color: var(--hcx-muted); }
+.rbac-inline { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: inherit; cursor: pointer; }
+.rbac-grid-scroll { max-height: 340px; overflow: auto; border: 1px solid var(--hcx-line); border-radius: 10px; }
+.rbac-grid { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.rbac-grid th, .rbac-grid td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; background: var(--hcx-surface); }
+.rbac-grid thead th { position: sticky; top: 0; z-index: 2; background: var(--hcx-canvas); border-bottom: 1px solid var(--hcx-line); font-size: 12px; font-weight: 600; color: var(--hcx-muted); }
+.rbac-grid tbody tr:last-child th, .rbac-grid tbody tr:last-child td { border-bottom: 0; }
+.rbac-grid__resource { position: sticky; left: 0; z-index: 1; min-width: 150px; text-align: left; font-weight: 600; white-space: nowrap; }
+.rbac-grid thead .rbac-grid__resource { z-index: 3; }
+.rbac-grid__cell { text-align: center; min-width: 74px; }
+.rbac-grid__cell .rbac-grid__action { display: block; margin-bottom: 4px; }
+.rbac-grid__none { color: #cbd5e1; }
+.rbac-check { width: 16px; height: 16px; accent-color: var(--hcx-accent); cursor: pointer; }
+.rbac-check:disabled { cursor: not-allowed; }
+
+.rbac-toast { position: fixed; right: 20px; bottom: 20px; z-index: 1000; max-width: min(92vw, 420px); padding: 12px 16px; font-size: 14px; color: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.25); }
+.rbac-toast--success { background: #15803d; }
+.rbac-toast--error { background: var(--hcx-danger, #dc2626); }
+
+.rbac-form-card { max-width: 980px; padding: 20px; }
+.rbac-form-card--narrow { max-width: 520px; }
+.rbac-form-card .hcx-field:first-of-type { margin-top: 0; }
+.rbac-form-card .rbac-grid-scroll { max-height: 55vh; }
+.rbac-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--hcx-line); }
+
+/* ======================= Modern layout (same look as Admin > Payments) ======================= */
+/* Why the table scrolls: every ancestor may shrink (min-width: 0), so the wide table
+   overflows inside .hcx-table-scroll instead of stretching the whole page. */
+.rbac-page { min-width: 0; max-width: 100%; --rbac-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 16px rgba(15, 23, 42, .05); }
+.rbac-table { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; max-width: 100%; }
+.rbac-table .hcx-table-card { min-width: 0; max-width: 100%; border-radius: 16px; box-shadow: var(--rbac-shadow); }
+.rbac-table .hcx-table-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.rbac-table .hcx-table-scroll::-webkit-scrollbar { height: 8px; }
+.rbac-table .hcx-table-scroll::-webkit-scrollbar-track { background: var(--hcx-canvas); }
+.rbac-table .hcx-table-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+.rbac-table .hcx-table th { padding: 12px 14px; letter-spacing: .02em; }
+.rbac-table .hcx-table td { padding: 14px; border-bottom-color: #f0f3f8; }
+
+/* ======================= Tabs: sliding pill ======================= */
+.rbac-tabs { --pad: 5px; position: relative; display: inline-grid; grid-template-columns: repeat(var(--n, 2), minmax(120px, 1fr)); padding: var(--pad); margin: 6px 0 20px; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 16px; box-shadow: var(--rbac-shadow); }
+.rbac-tabs__thumb { position: absolute; top: var(--pad); bottom: var(--pad); left: var(--pad); width: calc((100% - var(--pad) * 2) / var(--n, 2)); border-radius: 11px; background: linear-gradient(135deg, #5b50e0, #4338ca); box-shadow: 0 6px 14px rgba(67, 56, 202, .28); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform .28s cubic-bezier(.3, .8, .3, 1); }
+.rbac-tab { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 22px; font: inherit; font-size: 14px; font-weight: 600; color: var(--hcx-muted); background: none; border: 0; border-radius: 11px; cursor: pointer; transition: color .2s; }
+.rbac-tab:hover { color: var(--hcx-ink, #0f172a); }
+.rbac-tab.is-active, .rbac-tab.is-active:hover { color: #fff; }
+.rbac-tab:focus-visible { outline: 2px solid var(--hcx-accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .rbac-tabs__thumb, .rbac-tab { transition: none; } }
+
+/* Stat cards */
+.rbac-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.rbac-stat { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 14px 16px; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 16px; box-shadow: var(--rbac-shadow); }
+.rbac-stat__icon { display: grid; place-items: center; flex: none; width: 40px; height: 40px; color: var(--hcx-accent); background: #eceafe; border-radius: 12px; }
+.rbac-stat__body { display: flex; flex-direction: column; min-width: 0; }
+.rbac-stat__label { font-size: 12.5px; color: var(--hcx-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rbac-stat__value { font-size: 22px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--hcx-ink, #0f172a); }
+
+/* Toolbar: search + primary action */
+.rbac-toolbar { flex-wrap: nowrap; gap: 10px; margin-bottom: 8px; }
+.rbac-search { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+.rbac-search > svg { position: absolute; left: 14px; color: #94a3b8; pointer-events: none; }
+.rbac-search input { width: 100%; height: 42px; padding: 0 38px 0 40px; font: inherit; font-size: 14px; color: var(--hcx-ink, #0f172a); background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 12px; -webkit-appearance: none; appearance: none; }
+.rbac-search input:focus { outline: 2px solid var(--hcx-accent); outline-offset: 1px; border-color: transparent; }
+.rbac-search__clear { position: absolute; right: 8px; display: inline-flex; padding: 5px; color: var(--hcx-muted); background: none; border: 0; border-radius: 6px; cursor: pointer; }
+.rbac-cta { flex: none; height: 42px; padding: 0 18px; border-radius: 12px; white-space: nowrap; }
+.rbac-intro { margin: 0 0 14px; line-height: 1.5; }
+.rbac-swipe-hint { display: none; }
+
+/* People */
+.rbac-person { display: flex; align-items: center; gap: 12px; }
+.rbac-person__text { min-width: 0; }
+.rbac-avatar { display: grid; place-items: center; flex: none; width: 36px; height: 36px; font-size: 12px; font-weight: 700; color: var(--hcx-accent); background: #eceafe; border-radius: 50%; }
+
+/* ======================= Phones ======================= */
+@media (max-width: 767px) {
+  /* Tabs fill the width */
+  .rbac-tabs { display: grid; width: 100%; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); }
+  .rbac-tab { min-height: 44px; padding: 10px 12px; }
+
+  /* 2 x 2 stat cards, compact */
+  .rbac-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .rbac-stat { padding: 12px; gap: 10px; }
+  .rbac-stat__icon { width: 36px; height: 36px; border-radius: 10px; }
+  .rbac-stat__value { font-size: 19px; }
+
+  /* Search on its own row, full-width button below */
+  .rbac-toolbar { flex-direction: column; align-items: stretch; margin-bottom: 8px; }
+  .rbac-cta { width: 100%; justify-content: center; height: 46px; }
+  .rbac-search input { font-size: 16px; height: 46px; } /* 16px stops iOS zoom on focus */
+
+  /* Table: same pattern as Admin > Payments. Every column stays, the table is wider than the screen,
+     and the card scrolls sideways (swipe on touch, click-and-drag with a mouse). */
+  .rbac-table .hcx-table-scroll { cursor: grab; }
+  .rbac-table .hcx-table-scroll.is-dragging { cursor: grabbing; user-select: none; }
+  .rbac-table .hcx-table { width: max-content; min-width: 860px; }
+  .rbac-table--staff .hcx-table { min-width: 980px; }
+  .rbac-table .hcx-table th, .rbac-table .hcx-table td { white-space: nowrap; padding: 12px 16px; }
+  .rbac-table .hcx-table .hcx-hide-sm { display: table-cell; } /* show the columns phones used to hide */
+  .rbac-table .rbac-role-name__desc { white-space: normal; width: 220px; }
+  /* First column scrolls together with the rest. It used to be sticky, but the Staff/Role cell is wider
+     than the phone card, so it covered every other column and the table looked like it would not scroll. */
+  .rbac-table .hcx-table th:first-child, .rbac-table .hcx-table td:first-child:not([colspan]) { position: static; box-shadow: none; }
+  .rbac-table--roles .hcx-table th:first-child, .rbac-table--roles .hcx-table td:first-child { min-width: 240px; }
+  .rbac-table--staff .hcx-table th:first-child, .rbac-table--staff .hcx-table td:first-child { min-width: 230px; }
+  .rbac-swipe-hint { display: block; margin: 8px 0 0; font-size: 12px; text-align: center; color: var(--hcx-muted); }
+  .rbac-table .icon-btn { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+  .rbac-actions { gap: 4px; }
+  .rbac-input--compact { min-height: 40px; min-width: 170px; font-size: 14px; }
+
+  /* Forms: full width, sticky action bar */
+  .rbac-form-card, .rbac-form-card--narrow { max-width: none; padding: 16px 16px 0; border-radius: 16px; }
+  .rbac-input, .rbac-form-card textarea { font-size: 16px; min-height: 44px; }
+  .rbac-form-actions { position: sticky; bottom: 0; z-index: 5; margin: 20px -16px 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--hcx-surface); border-top: 1px solid var(--hcx-line); border-radius: 0 0 16px 16px; box-shadow: 0 -6px 16px rgba(15, 23, 42, .06); }
+  .rbac-form-actions .hcx-btn { flex: 1; min-height: 46px; justify-content: center; }
+
+  /* Permission grid */
+  .rbac-grid-summary { flex-wrap: wrap; row-gap: 6px; }
+  .rbac-grid-scroll, .rbac-form-card .rbac-grid-scroll { max-height: 60vh; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; cursor: grab; }
+  .rbac-grid-scroll.is-dragging { cursor: grabbing; user-select: none; }
+  .rbac-grid-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+  .rbac-grid-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  .rbac-grid__resource { min-width: 112px; max-width: 130px; white-space: normal; box-shadow: 1px 0 0 var(--hcx-line); }
+  .rbac-grid__cell { min-width: 64px; }
+  .rbac-grid th, .rbac-grid td { padding: 10px 8px; }
+  .rbac-check { width: 22px; height: 22px; }
+
+  /* Toast */
+  .rbac-toast { left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); max-width: none; text-align: center; }
+}
+@media (max-width: 380px) { .rbac-stat__label { font-size: 12px; } .rbac-stat__value { font-size: 17px; } }
+
+
+/* ======================= Invite staff (full page) ======================= */
+.rbac-inv { --inv-pad: 24px; width: 100%; max-width: none; }
+.rbac-inv__card { min-width: 0; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 16px; box-shadow: var(--rbac-shadow); }
+.rbac-inv__card { padding: var(--inv-pad) var(--inv-pad) 0; }
+.rbac-inv__head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.rbac-inv__badge { display: grid; place-items: center; flex: none; width: 44px; height: 44px; color: var(--hcx-accent); background: #eceafe; border-radius: 12px; }
+.rbac-inv__headtext { min-width: 0; }
+.rbac-inv__title { margin: 0; font-size: 16px; font-weight: 700; color: var(--hcx-ink, #0f172a); }
+.rbac-inv__sub { margin: 2px 0 0; font-size: 13px; line-height: 1.45; color: var(--hcx-muted); }
+.rbac-inv__card .hcx-field { margin-top: 16px; min-width: 0; }
+.rbac-inv__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+.rbac-input { min-height: 44px; border-radius: 10px; }
+.rbac-hint { font-size: 12px; font-weight: 400; color: var(--hcx-muted); }
+
+/* Role summary, directly under the Role select */
+.rbac-inv__role { margin-top: 12px; }
+.rbac-inv__rolehint { margin: 0; padding: 12px 14px; font-size: 13px; line-height: 1.45; color: var(--hcx-muted); background: var(--hcx-canvas); border: 1px dashed var(--hcx-line); border-radius: 12px; }
+.rbac-rolecard { display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--hcx-canvas); border: 1px solid var(--hcx-line); border-radius: 12px; }
+.rbac-rolecard__head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rbac-rolecard__icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; color: var(--hcx-accent); background: #eceafe; border-radius: 10px; }
+.rbac-rolecard__name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-size: 15px; font-weight: 700; color: var(--hcx-ink, #0f172a); overflow-wrap: anywhere; }
+.rbac-rolecard__desc { margin: 0; font-size: 13px; line-height: 1.5; color: var(--hcx-muted); }
+.rbac-rolecard__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.rbac-rolecard__fact { min-width: 0; padding: 9px 12px; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 10px; }
+.rbac-rolecard__fact dt { font-size: 12px; color: var(--hcx-muted); }
+.rbac-rolecard__fact dd { margin: 2px 0 0; font-size: 14px; font-weight: 700; color: var(--hcx-ink, #0f172a); }
+
+/* Action bar */
+.rbac-inv__actions { display: flex; justify-content: flex-end; gap: 8px; margin: 24px calc(var(--inv-pad) * -1) 0; padding: 16px var(--inv-pad); background: var(--hcx-surface); border-top: 1px solid var(--hcx-line); border-radius: 0 0 16px 16px; }
+
+@media (max-width: 767px) {
+  .rbac-inv { --inv-pad: 16px; }
+  .rbac-inv__grid { grid-template-columns: minmax(0, 1fr); }
+  /* Sticky bar so Send invite is always reachable */
+  .rbac-inv__actions { position: sticky; bottom: 0; z-index: 5; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -6px 16px rgba(15, 23, 42, .06); }
+  .rbac-inv__actions .hcx-btn { flex: 1; min-height: 46px; justify-content: center; }
+}
