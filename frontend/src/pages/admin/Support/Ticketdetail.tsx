@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import TicketThread from '@/components/support/TicketThread';
-import { assignTicket, fetchAdminTicket, fetchAssignableAgents, fetchTicketMessages } from '@/services/adminTicketApi';
+import { assignTicket, fetchAdminTicket, fetchAssignableAgents, fetchTicketMessages, updateTicketStatus } from '@/services/adminTicketApi';
+import TicketReplyForm from '@/components/support/TicketReplyForm';
+import { supportApi } from '@/services/supportApi';
+import { TICKET_STATUSES, type TicketStatus } from '@/types/adminTicket';
+import { useSocket } from '@/hooks/useSocket';
+import '@/pages/customer/Support/Support.css';
 import type { AdminTicket, AssignableAgent, TicketMessage } from '@/types/adminTicket';
 import AssigneeSelect from './AssigneeSelect';
 import SlaBadge from './SlaBadge';
@@ -30,6 +35,7 @@ const categoryLabel = (c?: string | null): string => {
  */
 export const AdminSupportTicketPage: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
+  const { socket } = useSocket();
 
   const [ticket, setTicket] = useState<AdminTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +54,17 @@ export const AdminSupportTicketPage: React.FC = () => {
   const [tick, setTick] = useState(0);
   const [msgTick, setMsgTick] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const refresh = (event?: { ticketId?: string }) => {
+      if (event?.ticketId && event.ticketId !== id) return;
+      setTick(t => t + 1); setMsgTick(t => t + 1);
+    };
+    const onConnect = () => refresh();
+    const poll = window.setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) refresh(); }, 10_000);
+    socket.on('ticket:updated', refresh); socket.on('connect', onConnect);
+    return () => { window.clearInterval(poll); socket.off('ticket:updated', refresh); socket.off('connect', onConnect); };
+  }, [id, socket]);
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), SLA_TICK_MS);
@@ -202,11 +219,26 @@ export const AdminSupportTicketPage: React.FC = () => {
             error={msgError}
             onRetry={() => setMsgTick((t) => t + 1)}
           />
+          <div className="hcx-support">
+            <TicketReplyForm key={id} closed={ticket.status === 'RESOLVED' || ticket.status === 'CLOSED'} onSend={async (body, files) => {
+              await supportApi.reply(id, body, files, true);
+              setMsgTick(t => t + 1); setTick(t => t + 1);
+            }} />
+          </div>
         </section>
 
         <aside className="sup-panel sup-detail__side" aria-label="Ticket details">
           <h2 className="sup-panel__title">Details</h2>
           <dl className="sup-facts">
+            <div className="sup-fact">
+              <dt><label htmlFor="admin-ticket-status">Status</label></dt>
+              <dd><select id="admin-ticket-status" value={ticket.status} disabled={saving} onChange={async event => {
+                setSaving(true); setNotice(null);
+                try { setTicket(await updateTicketStatus(id, event.target.value as TicketStatus)); }
+                catch (err) { setNotice(errorMessage(err, 'Could not update ticket status.')); }
+                finally { setSaving(false); }
+              }}>{TICKET_STATUSES.map(status => <option key={status} value={status}>{STATUS_LABEL[status]}</option>)}</select></dd>
+            </div>
             <div className="sup-fact">
               <dt>Requester</dt>
               <dd>

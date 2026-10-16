@@ -14,7 +14,7 @@ export interface JobActionDto {
 export interface JobRequestDto {
   id: string;
   service: string;
-  area: string;
+  area: string | null;
   address?: string;
   price: number;
   scheduledAt: string;
@@ -31,15 +31,6 @@ export interface JobAddOnDto {
   name: string;
   quantity: number;
   amount: number;
-}
-
-export interface JobRequestDto {
-  id: string;
-  service: string;
-  area: string | null;
-  price: number;
-  scheduledAt: string;
-  expiresAt: string;
 }
 
 export interface JobListItemDto {

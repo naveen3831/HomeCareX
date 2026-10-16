@@ -7,6 +7,8 @@ import PartnerAvailabilityPage from "../pages/partner/Availability";
 import PartnerWorkingHoursPage from "../pages/partner/WorkingHours";
 import PartnerBlackoutDatesPage from "../pages/partner/BlackoutDates";
 import PartnerSchedulePage from "../pages/partner/Schedule";
+import PartnerServicesPage from "../pages/partner/MyServices";
+import PartnerServiceAreaPage from "../pages/partner/ServiceArea";
 import PartnerEarningsPage from "../pages/partner/Earnings";
 import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
@@ -106,6 +108,8 @@ const REAL_ROUTE_PATHS = new Set([
   "profile",
   "work/requests",
   "work",
+  "services",
+  "service-area",
 ]);
 
 // Mounted by AppRoutes at /partner/*.
@@ -145,6 +149,9 @@ export default function PartnerRoutes() {
         />
 
         <Route path="schedule" element={<PartnerSchedulePage />} />
+
+        <Route path="services" element={<PartnerServicesPage />} />
+        <Route path="service-area" element={<PartnerServiceAreaPage />} />
 
         {/* =====================================================
             Earnings

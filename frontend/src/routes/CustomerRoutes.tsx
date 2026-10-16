@@ -68,6 +68,7 @@ export default function CustomerRoutes() {
         <Route path="/services/:slug" element={<ServiceDetails />} />
         <Route path="/support" element={<Support />} />
         <Route path="/support/tickets" element={<Tickets />} />
+        <Route path="/support/tickets/:ticketId" element={<Support />} />
         <Route path="/tracking" element={<TrackingRedirect />} />
         <Route path="/wallet" element={<Wallet />} />
 

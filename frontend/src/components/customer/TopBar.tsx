@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, ChevronLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
@@ -58,9 +58,9 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
 
         <span aria-hidden="true" className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")} />
         {onNotifications ? (
-          <Link to={customerPath()} aria-label="Back to home" className={clsx("inline-flex min-h-[44px] items-center gap-0.5 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden", FOCUS_RING)}>
-            <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-            
+          <Link to={customerPath()} aria-label="Back to home" className={clsx("inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden", FOCUS_RING)}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span>Back</span>
           </Link>
         ) : (
           /* One picker at every width (a single instance keeps DOM ids unique). */

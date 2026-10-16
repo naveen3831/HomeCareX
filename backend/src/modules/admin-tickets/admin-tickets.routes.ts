@@ -7,11 +7,17 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { TICKETS_MANAGE } from './admin-tickets.constants';
 import { adminTicketsController } from './admin-tickets.controller';
 import { assignTicketSchema, listAgentsQuerySchema, listTicketsQuerySchema, ticketIdParamSchema } from './admin-tickets.validation';
+import { ticketsController } from '../tickets/tickets.controller';
+import { receiveTicketFiles } from '../tickets/tickets.upload';
+import { attachmentIdSchema, ticketMessageSchema, ticketStatusSchema } from '../tickets/tickets.validation';
 
 /** Mounted at /api/v1/admin/tickets. Admin role + the `tickets:manage` permission. */
 export const adminTicketsRoutes = Router();
 
 adminTicketsRoutes.use(authenticate, requireAdmin, requirePermission(TICKETS_MANAGE));
+adminTicketsRoutes.post('/:id/messages', validate(ticketIdParamSchema, 'params'), receiveTicketFiles, validate(ticketMessageSchema), asyncHandler(ticketsController.reply));
+adminTicketsRoutes.patch('/:id/status', validate(ticketIdParamSchema, 'params'), validate(ticketStatusSchema), asyncHandler(ticketsController.status));
+adminTicketsRoutes.get('/:id/attachments/:attachmentId', validate(attachmentIdSchema, 'params'), asyncHandler(ticketsController.evidence));
 
 // GET /admin/tickets?status=&priority=&category=&assignee=&requester=&requesterRole=&booking=&sla=&from=&to=&page=&limit=
 // One queue for customer AND partner tickets. status/priority/category accept comma lists (status=open,in_progress).
