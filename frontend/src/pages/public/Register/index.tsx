@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { User, Mail, Phone, Tag, ArrowRight, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { classifyApiError } from '@/lib/apiError';
@@ -7,6 +7,7 @@ import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import PasswordStrength from '@/components/auth/PasswordStrength';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
+import { safeReturnUrl, destinationFor } from '@/utils/isSafeReturnUrl';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -14,6 +15,8 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 export const RegisterPage: React.FC = () => {
   const { register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnUrl = safeReturnUrl(searchParams.get('returnUrl'));
 
   const [form, setForm] = useState({
     name: '',
@@ -48,7 +51,7 @@ export const RegisterPage: React.FC = () => {
         />
         <div className="mt-6">
           <Link
-            to={user.home || (user.role === 'admin' ? '/admin' : `/${user.role}`)}
+            to={destinationFor(user, returnUrl)}
             className="w-full text-center block rounded-lg bg-[#ff8a3d] hover:bg-[#e0600f] text-white font-medium py-2.5 shadow-sm transition"
           >
             Go to my dashboard
@@ -149,7 +152,7 @@ export const RegisterPage: React.FC = () => {
         role: 'customer',
       });
 
-      const landingPath = newUser.home || (newUser.role === 'admin' ? '/admin' : `/${newUser.role}`);
+      const landingPath = destinationFor(newUser, returnUrl);
       navigate(landingPath, { replace: true });
     } catch (err) {
       const classified = classifyApiError(err);
@@ -433,7 +436,10 @@ export const RegisterPage: React.FC = () => {
 
       <p className="text-center text-xs text-gray-500 mt-2">
         Already have an account?{' '}
-        <Link to="/login" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
+        <Link
+          to={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login"}
+          className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded"
+        >
           Sign in
         </Link>
       </p>

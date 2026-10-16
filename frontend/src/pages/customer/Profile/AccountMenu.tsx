@@ -18,10 +18,12 @@ const DEFAULT_META = { description: "", tint: "indigo" as ProfileTint };
 
 /** Settings rows that live in the Account group on phones (they open full pages; desktop shows them as tiles instead). */
 const ACCOUNT_SETTINGS: CustomerNavItem[] = [
+  { label: "Account Security", to: customerPath("/security"), icon: ShieldCheck },
   { label: "Change password", to: customerPath("/profile/password"), icon: Lock },
   { label: "Notification settings", to: customerPath("/profile/notifications"), icon: Bell },
 ];
 const SETTINGS_META: Record<string, { description: string; tint: ProfileTint }> = {
+  "Account Security": { description: "Password, sessions, and devices", tint: "violet" },
   "Change password": { description: "Keep your account secure", tint: "orange" },
   "Notification settings": { description: "Alerts and language", tint: "sky" },
   "Terms & Conditions": { description: "Rules for using HomeCareX", tint: "indigo" },

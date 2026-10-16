@@ -13,6 +13,7 @@ import ForgotPasswordPage from '@/pages/public/ForgotPassword';
 import VerifyOtpPage from '@/pages/public/VerifyOtp';
 import ResetPasswordPage from '@/pages/public/ResetPassword';
 import UnauthorizedPage from '@/pages/public/Unauthorized';
+import AccountSecurityPage from '@/pages/shared/AccountSecurity';
 import { ADMIN_ROLES } from '@/types/auth';
  
 const AppRoutes: React.FC = () => {
@@ -33,6 +34,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/admin/*" element={<ProtectedRoute allowedRoles={ADMIN_ROLES}><AdminRoutes /></ProtectedRoute>} />
       <Route path="/partner/*" element={<ProtectedRoute allowedRoles={['partner']}><PartnerRoutes /></ProtectedRoute>} />
       <Route path="/customer/*" element={<ProtectedRoute allowedRoles={['customer']}><CustomerRoutes /></ProtectedRoute>} />
+      <Route path="/account/security" element={<ProtectedRoute allowedRoles={['customer', 'partner', 'admin']}><AccountSecurityPage /></ProtectedRoute>} />
  
       {/* Public site (/, /services, /about, /contact) */}
       <Route path="/*" element={<PublicRoutes />} />

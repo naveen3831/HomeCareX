@@ -14,11 +14,13 @@ export interface AuthUserDto {
 export interface AccessTokenPayload {
   sub: string;
   role: UserRole;
+  sid?: string;
 }
 
 export interface RefreshTokenPayload {
   sub: string;
   v: number;
+  sid?: string;
 }
 
 export class HttpError extends Error {

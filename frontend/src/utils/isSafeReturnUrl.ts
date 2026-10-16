@@ -58,4 +58,32 @@ export const isSafeReturnUrl = (returnUrl: string): boolean => {
   return false;
 };
 
-export default isSafeReturnUrl;
+import { ADMIN_ROLES, type UserRole } from "@/types/auth";
+
+/**
+ * Validates that a returnUrl is safe:
+ * - Must pass isSafeReturnUrl (same-origin / path-only, no backslashes, no scheme attacks)
+ * - Excludes security and logout paths to avoid redirect loops
+ */
+export function safeReturnUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (/\/security|\/logout/i.test(raw)) return null;
+  return isSafeReturnUrl(raw) ? raw : null;
+}
+
+/**
+ * Enforces role isolation: A returnUrl is only honoured when it belongs to the role's own area.
+ * Prevents privilege escalation and cross-area redirection.
+ */
+export function destinationFor(
+  user: { role: UserRole; home?: string },
+  returnUrl: string | null | undefined
+): string {
+  const area = ADMIN_ROLES.includes(user.role) ? "/admin" : `/${user.role}`;
+  if (returnUrl && (returnUrl === area || returnUrl.startsWith(`${area}/`))) {
+    return returnUrl;
+  }
+  return user.home || area;
+}
+
+export default isSafeReturnUrl;

@@ -59,4 +59,11 @@ export const adminCustomerApi = {
     });
     return data.data;
   },
+
+  /** POST /auth/revoke-user-sessions/:userId. Admin-only: revokes all sessions for a specified user. */
+  async revokeUserSessions(userId: string) {
+    const { data } = await http.post<ApiResponse<{ revoked: boolean }>>(`/auth/revoke-user-sessions/${encodeURIComponent(userId)}`);
+    return data.data;
+  },
 };
+

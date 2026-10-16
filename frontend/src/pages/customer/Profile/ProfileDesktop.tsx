@@ -21,6 +21,7 @@ const ITEMS: { label: string; hint: string; to: string; icon: LucideIcon; tone: 
   { label: "Bookings", hint: "Upcoming, completed and cancelled", to: "/bookings", icon: CalendarCheck, tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]" },
   { label: "Active booking", hint: "Track your partner live", to: "/tracking", icon: Navigation, tone: "from-[#FFB35C] to-[#F26A0C] [--sh:rgba(242,106,12,.7)]" },
   { label: "Edit profile", hint: "Photo, name, email and phone", to: "/profile/edit", icon: User, tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]" },
+  { label: "Account Security", hint: "Password, sessions and devices", to: "/security", icon: ShieldCheck, tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]" },
   { label: "Change password", hint: "Keep your account secure", to: "/profile/password", icon: Lock, tone: "from-[#FFB35C] to-[#F26A0C] [--sh:rgba(242,106,12,.7)]" },
   { label: "Notifications", hint: "Choose alerts and your language", to: "/profile/notifications", icon: Bell, tone: "from-[#FF9AAE] to-[#E0365B] [--sh:rgba(224,54,91,.6)]" },
   { label: "Addresses", hint: "Where we should come", to: "/addresses", icon: MapPin, tone: "from-[#6FB6FF] to-[#1D5FD1] [--sh:rgba(29,95,209,.65)]" },

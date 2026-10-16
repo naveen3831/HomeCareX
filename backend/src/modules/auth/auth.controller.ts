@@ -131,13 +131,18 @@ export const authController = {
    */
 
   login: wrap(async (req, res) => {
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "127.0.0.1";
+    const userAgent = req.headers["user-agent"];
     const {
       user,
 
       accessToken,
 
       refreshToken,
-    } = await authService.login(parseBody(loginSchema, req.body));
+    } = await authService.login(parseBody(loginSchema, req.body), { ip, userAgent });
 
     /**
 
@@ -343,6 +348,54 @@ export const authController = {
       parseBody(changePasswordSchema, req.body),
     );
     res.json({ success: true, data, message: "Password updated" });
+  }),
+
+  /** GET /api/v1/auth/sessions */
+  getSessions: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const currentSid = res.locals.auth?.sid;
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "127.0.0.1";
+    const userAgent = req.headers["user-agent"];
+    const sessions = await authService.getSessions(userId, { ip, userAgent, currentSid });
+    res.json({ success: true, data: sessions });
+  }),
+
+  /** DELETE /api/v1/auth/sessions/:id */
+  revokeSession: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const sessionId = req.params.id;
+    const currentSid = res.locals.auth?.sid;
+    const result = await authService.revokeSession(userId, sessionId, currentSid);
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+    res.json({ success: true, message: result.message, data: { isCurrent: result.isCurrent } });
+  }),
+
+  /** POST /api/v1/auth/logout-all */
+  logoutAll: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const result = await authService.logoutAll(userId);
+    clearRefreshCookies(res);
+    res.json({
+      success: true,
+      data: { revokedSessionsCount: result.revokedSessionsCount },
+      message: result.message,
+    });
+  }),
+
+  /** POST /api/v1/auth/revoke-user-sessions/:userId */
+  revokeUserSessions: wrap(async (req, res) => {
+    const { userId } = req.params;
+    const result = await authService.revokeUserSessions(userId);
+    res.json({
+      success: true,
+      data: { revokedSessionsCount: result.revokedSessionsCount },
+      message: result.message,
+    });
   }),
 
   me: wrap(async (_req, res) => {

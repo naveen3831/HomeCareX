@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
+import AccountSecurityPage from "@/pages/shared/AccountSecurity";
 import PartnerJobsPage from "../pages/partner/Jobs";
 import PartnerPerformancePage from "../pages/partner/Performance";
 import PartnerReviewsPage from "../pages/partner/Reviews";
@@ -132,6 +133,7 @@ export default function PartnerRoutes() {
             Partner Profile
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
+        <Route path="security" element={<AccountSecurityPage />} />
 
         {/* =====================================================
             Availability
