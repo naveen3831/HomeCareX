@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  BookOpen,
-  Check,
   ChevronRight,
-  LifeBuoy,
+  CircleHelp,
+  Inbox,
   Plus,
   RefreshCw,
   WifiOff,
 } from "lucide-react";
+import clsx from "clsx";
 
+import { NO_SCROLLBAR } from "@/components/customer/noScrollbar";
 import { getErrorMessage } from "@/components/tickets/getErrorMessage";
 import { timeAgo } from "@/components/tickets/formatTime";
 import TicketStatusBadge from "@/components/tickets/TicketStatusBadge";
@@ -31,19 +32,86 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "closed", label: "Closed" },
 ];
 
-/** Colour of the rail on the left edge of each ticket row. */
-const RAIL: Record<TicketStatus, string> = {
+/** Accent colour of each ticket, by status. */
+const ACCENT: Record<TicketStatus, string> = {
   open: "bg-indigo-500",
   in_progress: "bg-amber-500",
   resolved: "bg-emerald-500",
   closed: "bg-slate-300",
 };
 
-const TIPS = [
-  "Pick the category closest to your problem.",
-  "Add the booking ID if it's about a job.",
-  "Say what happened and what you expected.",
-];
+const focus =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600";
+
+/* ------------------------------------------------------------------ */
+/* Small pieces                                                        */
+/* ------------------------------------------------------------------ */
+
+function HelpButton({ className }: { className?: string }) {
+  return (
+    <Link
+      to="/partner/help"
+      className={clsx(
+        "inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600",
+        className,
+      )}
+    >
+      <CircleHelp size={16} aria-hidden />
+      Help
+    </Link>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="min-w-[5.5rem] rounded-2xl bg-slate-50 px-4 py-2.5 ring-1 ring-inset ring-slate-200">
+      <p className="text-2xl font-bold leading-none tabular-nums text-slate-900">{value}</p>
+      <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
+    </div>
+  );
+}
+
+function EmptyState({
+  noTickets,
+  onNew,
+}: {
+  noTickets: boolean;
+  onNew: () => void;
+}) {
+  return (
+    <div className="m-auto flex max-w-sm flex-col items-center gap-4 px-6 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-lg shadow-indigo-500/30">
+        <Inbox size={28} aria-hidden />
+      </span>
+      <div>
+        <p className="text-lg font-semibold text-slate-900">
+          {noTickets ? "No tickets yet" : "Nothing in this tab"}
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          {noTickets
+            ? "When something goes wrong, raise a ticket and we'll pick it up."
+            : "Switch tabs to see your other tickets."}
+        </p>
+      </div>
+      {noTickets && (
+        <button
+          onClick={onNew}
+          className={clsx(
+            "inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700",
+            focus,
+          )}
+        >
+          <Plus size={16} aria-hidden />
+          Raise a ticket
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Page                                                                */
+/* ------------------------------------------------------------------ */
 
 export default function SupportPage() {
   const navigate = useNavigate();
@@ -77,6 +145,14 @@ export default function SupportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online]);
 
+  // Esc closes the new-ticket window
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShowForm(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showForm]);
+
   const counts = useMemo(() => {
     const list = tickets ?? [];
     const closed = list.filter((t) => t.status === "closed").length;
@@ -90,67 +166,102 @@ export default function SupportPage() {
     return list;
   }, [tickets, filter]);
 
+  const showSkeleton = loading && !tickets;
+  const showEmpty = !loading && !error && !!tickets && visible.length === 0;
+
+  const body = (
+    <>
+      {showSkeleton && (
+        <ul aria-busy="true" aria-label="Loading tickets" className="flex flex-col gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="h-20 animate-pulse rounded-2xl bg-slate-200/70" />
+          ))}
+        </ul>
+      )}
+
+      {error && !loading && (
+        <div
+          role="alert"
+          className="m-auto max-w-sm rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700"
+        >
+          <p>{error}</p>
+          <button
+            onClick={() => void load()}
+            className="mt-3 rounded-lg bg-red-600 px-4 py-2 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {showEmpty && (
+        <EmptyState noTickets={tickets!.length === 0} onNew={() => setShowForm(true)} />
+      )}
+    </>
+  );
+
   return (
-    <div className="mx-auto grid w-full max-w-7xl gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_19rem]">
-      {/* ───────── Main column ───────── */}
-      <div className="flex min-w-0 flex-col gap-5">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-slate-50">
+      {/* ================= DESKTOP ================= */}
+      <div className="hidden min-h-0 flex-1 flex-col lg:flex">
+        {/* Hero band, flush with the navbar */}
+        <section className="shrink-0 border-b border-slate-200 bg-white px-8 py-6">
+          <div className="flex items-start justify-between gap-6">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
+                Partner support
+              </p>
+              <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+                Your tickets
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Raise an issue and follow it until the team resolves it.
+              </p>
+
+              {/* Counts sit directly under the title */}
+              <div className="mt-4 flex items-center gap-3">
+                <Stat label="Active" value={counts.active} />
+                <Stat label="Closed" value={counts.closed} />
+                <Stat label="Total" value={counts.all} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => void load()}
+                disabled={loading}
+                aria-label="Refresh tickets"
+                className="rounded-xl border border-slate-300 bg-white p-2.5 text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+              >
+                <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden />
+              </button>
+              <HelpButton />
+              <button
+                onClick={() => setShowForm(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              >
+                <Plus size={16} aria-hidden />
+                New ticket
+              </button>
+            </div>
+          </div>
+        </section>
+
         {!online && (
           <div
             role="status"
-            className="flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800"
+            className="flex shrink-0 items-center gap-2 bg-amber-50 px-8 py-2.5 text-sm text-amber-800"
           >
             <WifiOff size={16} aria-hidden />
             You're offline. Tickets can't be loaded or sent until you reconnect.
           </div>
         )}
 
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Your tickets
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Raise an issue and follow it until the team resolves it.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => void load()}
-              disabled={loading}
-              aria-label="Refresh tickets"
-              className="rounded-lg border border-slate-300 bg-white p-2.5 text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4338ca] disabled:opacity-50"
-            >
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden />
-            </button>
-            {!showForm && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#4338ca] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#3730a3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4338ca]"
-              >
-                <Plus size={16} aria-hidden />
-                New ticket
-              </button>
-            )}
-          </div>
-        </div>
-
-        {showForm && (
-          <NewTicketForm
-            disabled={!online}
-            onCancel={() => setShowForm(false)}
-            onCreated={(t) => {
-              setShowForm(false);
-              navigate(`/partner/support/${t.id}`);
-            }}
-          />
-        )}
-
-        {/* Tabs with counts */}
+        {/* Filter pills */}
         <div
           role="tablist"
           aria-label="Filter tickets"
-          className="flex gap-6 border-b border-slate-200"
+          className="flex shrink-0 items-center gap-2 px-8 pb-2 pt-5"
         >
           {FILTERS.map((f) => {
             const selected = filter === f.key;
@@ -160,17 +271,20 @@ export default function SupportPage() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setFilter(f.key)}
-                className={`-mb-px flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#4338ca] ${
+                className={clsx(
+                  "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                  focus,
                   selected
-                    ? "border-[#4338ca] text-[#4338ca]"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
+                    ? "bg-indigo-600 text-white shadow-sm"
+                    : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-indigo-50 hover:text-indigo-700",
+                )}
               >
                 {f.label}
                 <span
-                  className={`min-w-[1.5rem] rounded-full px-1.5 py-0.5 text-center text-xs tabular-nums ${
-                    selected ? "bg-indigo-100 text-[#4338ca]" : "bg-slate-100 text-slate-500"
-                  }`}
+                  className={clsx(
+                    "min-w-[1.4rem] rounded-full px-1.5 text-center text-xs tabular-nums",
+                    selected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500",
+                  )}
                 >
                   {counts[f.key]}
                 </span>
@@ -179,128 +293,203 @@ export default function SupportPage() {
           })}
         </div>
 
-        {/* Loading */}
-        {loading && !tickets && (
-          <ul aria-busy="true" aria-label="Loading tickets" className="flex flex-col gap-3">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="h-[4.5rem] animate-pulse rounded-lg bg-slate-200/70" />
-            ))}
-          </ul>
-        )}
+        {/* List: scrolls inside, scrollbar hidden */}
+        <div className={clsx("flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-6", NO_SCROLLBAR)}>
+          {body}
 
-        {/* Error */}
-        {error && !loading && (
-          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <p>{error}</p>
-            <button
-              onClick={() => void load()}
-              className="mt-3 rounded-md bg-red-600 px-3 py-1.5 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
-            >
-              Try again
-            </button>
-          </div>
-        )}
+          {visible.length > 0 && (
+            <>
+              <div
+                aria-hidden
+                className="grid grid-cols-[minmax(0,1fr)_8rem_8rem_9rem_1.5rem] gap-4 px-5 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400"
+              >
+                <span>Ticket</span>
+                <span>Category</span>
+                <span>Status</span>
+                <span className="text-right">Last activity</span>
+                <span />
+              </div>
+              <ul className="flex flex-col gap-2.5">
+                {visible.map((t) => (
+                  <li key={t.id}>
+                    <Link
+                      to={`/partner/support/${t.id}`}
+                      className={clsx(
+                        "group relative grid grid-cols-[minmax(0,1fr)_8rem_8rem_9rem_1.5rem] items-center gap-4 overflow-hidden rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-px hover:shadow-md hover:ring-indigo-300",
+                        focus,
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className={clsx("absolute inset-y-0 left-0 w-1.5", ACCENT[t.status])}
+                      />
+                      <div className="min-w-0 pl-1">
+                        <p className="truncate text-[15px] font-semibold text-slate-900">
+                          {t.subject}
+                        </p>
+                        <p className="mt-0.5 text-xs tabular-nums text-slate-400">
+                          {shortTicketId(t.id)}
+                        </p>
+                      </div>
+                      <span className="truncate text-sm text-slate-600">
+                        {categoryLabel(t.category)}
+                      </span>
+                      <span>
+                        <TicketStatusBadge status={t.status} />
+                      </span>
+                      <span className="text-right text-sm font-medium text-slate-700">
+                        {timeAgo(t.lastMessageAt)}
+                      </span>
+                      <ChevronRight
+                        size={18}
+                        aria-hidden
+                        className="text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-600"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
 
-        {/* Empty */}
-        {!loading && !error && tickets && visible.length === 0 && (
-          <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50 text-[#4338ca]">
-              <LifeBuoy size={24} aria-hidden />
-            </span>
-            <div>
-              <p className="font-semibold text-slate-800">
-                {tickets.length === 0 ? "No tickets yet" : "Nothing in this tab"}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {tickets.length === 0
-                  ? "When something goes wrong, raise a ticket and we'll pick it up."
-                  : "Switch tabs to see your other tickets."}
+      {/* ================= MOBILE ================= */}
+      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
+        <section className="shrink-0 border-b border-slate-200 bg-white px-4 pb-4 pt-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">Your tickets</h2>
+              <p className="text-xs text-slate-500">
+                {counts.active} active · {counts.closed} closed
               </p>
             </div>
-            {tickets.length === 0 && !showForm && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowForm(true)}
-                className="mt-1 inline-flex items-center gap-2 rounded-lg bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3730a3] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4338ca]"
+                onClick={() => void load()}
+                disabled={loading}
+                aria-label="Refresh tickets"
+                className="rounded-full border border-slate-300 bg-white p-2.5 text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-50"
               >
-                <Plus size={16} aria-hidden />
-                Raise a ticket
+                <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden />
               </button>
-            )}
+              <HelpButton className="rounded-full px-3.5 py-2" />
+            </div>
+          </div>
+
+          {/* Segmented control */}
+          <div
+            role="tablist"
+            aria-label="Filter tickets"
+            className="mt-4 grid grid-cols-3 rounded-2xl bg-slate-100 p-1"
+          >
+            {FILTERS.map((f) => {
+              const selected = filter === f.key;
+              return (
+                <button
+                  key={f.key}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setFilter(f.key)}
+                  className={clsx(
+                    "flex items-center justify-center gap-1.5 rounded-xl py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600",
+                    selected ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200" : "text-slate-500",
+                  )}
+                >
+                  {f.label}
+                  <span className="text-xs tabular-nums opacity-70">{counts[f.key]}</span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {!online && (
+          <div
+            role="status"
+            className="flex shrink-0 items-center gap-2 bg-amber-50 px-4 py-2 text-xs text-amber-800"
+          >
+            <WifiOff size={14} aria-hidden />
+            You're offline. Tickets can't be loaded or sent.
           </div>
         )}
 
-        {/* List */}
-        {visible.length > 0 && (
-          <ul className="flex flex-col gap-3">
-            {visible.map((t) => (
-              <li key={t.id}>
-                <Link
-                  to={`/partner/support/${t.id}`}
-                  className="group flex overflow-hidden rounded-lg border border-slate-200 bg-white transition-colors hover:border-indigo-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4338ca]"
-                >
-                  <span aria-hidden className={`w-1.5 shrink-0 ${RAIL[t.status]}`} />
-                  <div className="flex min-w-0 flex-1 items-center gap-4 px-4 py-3.5">
+        <div className={clsx("flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-28 pt-4", NO_SCROLLBAR)}>
+          {body}
+
+          {visible.length > 0 && (
+            <ul className="flex flex-col gap-3">
+              {visible.map((t) => (
+                <li key={t.id}>
+                  <Link
+                    to={`/partner/support/${t.id}`}
+                    className={clsx(
+                      "flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 active:scale-[0.99]",
+                      focus,
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className={clsx("h-11 w-1.5 shrink-0 rounded-full", ACCENT[t.status])}
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold text-slate-900">
                         {t.subject}
                       </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {categoryLabel(t.category)} · {shortTicketId(t.id)}
+                      </p>
+                      <div className="mt-2 flex items-center justify-between gap-2">
                         <TicketStatusBadge status={t.status} />
-                        <span>{categoryLabel(t.category)}</span>
-                        <span aria-hidden className="h-1 w-1 rounded-full bg-slate-300" />
-                        <span className="tabular-nums">{shortTicketId(t.id)}</span>
+                        <span className="text-xs text-slate-400">{timeAgo(t.lastMessageAt)}</span>
                       </div>
                     </div>
-                    <div className="hidden shrink-0 text-right text-xs sm:block">
-                      <p className="text-slate-400">Last activity</p>
-                      <p className="mt-0.5 font-medium text-slate-700">{timeAgo(t.lastMessageAt)}</p>
-                    </div>
-                    <ChevronRight
-                      size={18}
-                      className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#4338ca]"
-                      aria-hidden
-                    />
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+                    <ChevronRight size={18} aria-hidden className="shrink-0 text-slate-300" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Floating new-ticket button, sits above the bottom bar */}
+        <button
+          onClick={() => setShowForm(true)}
+          aria-label="New ticket"
+          className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-4 z-10 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 active:scale-95"
+        >
+          <Plus size={26} aria-hidden />
+        </button>
       </div>
 
-      {/* ───────── Side column ───────── */}
-      <aside className="flex flex-col gap-4 lg:pt-[4.25rem]">
-        <section className="rounded-lg bg-[#312e81] p-5 text-indigo-50">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
-            <BookOpen size={18} aria-hidden />
-          </span>
-          <h3 className="mt-3 text-base font-semibold text-white">Looking for a quick answer?</h3>
-          <p className="mt-1 text-sm leading-relaxed text-indigo-200">
-            Payouts, bookings and your account are covered in the help articles.
-          </p>
-          <Link
-            to="/partner/help"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-[#312e81] hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      {/* ================= NEW TICKET (dialog on desktop, bottom sheet on mobile) ================= */}
+      {showForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 backdrop-blur-sm lg:items-center lg:p-6"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowForm(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Raise a ticket"
+            className={clsx(
+              "max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl bg-white lg:max-w-2xl lg:rounded-2xl",
+              NO_SCROLLBAR,
+            )}
           >
-            Open help
-            <ChevronRight size={16} aria-hidden />
-          </Link>
-        </section>
-
-        <section className="rounded-lg border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Get a faster reply</h3>
-          <ul className="mt-3 flex flex-col gap-2.5">
-            {TIPS.map((tip) => (
-              <li key={tip} className="flex gap-2.5 text-sm text-slate-600">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <Check size={12} strokeWidth={3} aria-hidden />
-                </span>
-                {tip}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </aside>
+            <NewTicketForm
+              disabled={!online}
+              onCancel={() => setShowForm(false)}
+              onCreated={(t) => {
+                setShowForm(false);
+                navigate(`/partner/support/${t.id}`);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

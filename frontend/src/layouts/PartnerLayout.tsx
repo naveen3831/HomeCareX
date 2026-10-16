@@ -662,7 +662,18 @@ export default function PartnerLayout() {
 
   const hideStatusPill = Object.keys(EXTRA_TITLES).includes(cleanPath);
 
-  const hideBottomNav = HIDE_BOTTOM_NAV.includes(cleanPath);
+  // Support and Help screens fill the space between the navbar and the bottom of the screen,
+  // so the page itself never scrolls (lists and chats scroll inside, scrollbar hidden).
+  const fullBleed =
+    cleanPath === "/partner/support" ||
+    cleanPath.startsWith("/partner/support/") ||
+    cleanPath === "/partner/help";
+
+  // A single ticket is a chat: it owns the whole mobile screen (own top bar, composer at the bottom).
+  const isTicketThread = /^\/partner\/support\/[^/]+$/.test(cleanPath);
+
+  // Support and Help screens use the whole mobile screen: no bottom tab bar.
+  const hideBottomNav = HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
 
   // Mobile back button
   const showBack = cleanPath !== "/partner";
@@ -693,16 +704,24 @@ export default function PartnerLayout() {
 
   return (
     <PartnerStatusContext.Provider value={{ online, setOnline }}>
-      <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <div
+        className={`flex bg-slate-50 text-slate-900 ${
+          fullBleed ? "h-dvh overflow-hidden" : "min-h-screen"
+        }`}
+      >
         <PartnerSidebar
           collapsed={collapsed}
           currentKey={current?.key}
           currentLabel={current?.label}
         />
 
-        <div className="min-w-0 flex-1">
-          {/* Header */}
-          <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-2 sm:h-16 sm:px-6">
+        <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? "min-h-0" : ""}`}>
+          {/* Header (a ticket chat has its own top bar on mobile) */}
+          <header
+            className={`sticky top-0 z-20 h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-2 sm:h-16 sm:px-6 ${
+              isTicketThread ? "hidden lg:flex" : "flex"
+            }`}
+          >
             <div className="flex min-w-0 items-center gap-0.5 sm:gap-3">
               {showBack && (
                 <button
@@ -736,9 +755,15 @@ export default function PartnerLayout() {
                 minimalHeader ? "hidden lg:flex" : "flex"
               }`}
             >
-              {!hideStatusPill && (
-                <OnlineIndicator online={online} onChange={setOnline} />
-              )}
+              {!hideStatusPill &&
+                (fullBleed ? (
+                  // Support and Help screens: Online/Offline pill is desktop only
+                  <div className="hidden lg:block">
+                    <OnlineIndicator online={online} onChange={setOnline} />
+                  </div>
+                ) : (
+                  <OnlineIndicator online={online} onChange={setOnline} />
+                ))}
 
               <button
                 aria-label="Notifications"
@@ -751,9 +776,15 @@ export default function PartnerLayout() {
 
           {/* Page content */}
           <main
-            className={`px-4 py-6 sm:px-6 lg:pb-8 ${
-              hideBottomNav ? "pb-8" : "pb-24"
-            }`}
+            className={
+              fullBleed
+                ? `flex min-h-0 flex-1 flex-col overflow-hidden ${
+                    hideBottomNav
+                      ? ""
+                      : "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
+                  }`
+                : `px-4 py-6 sm:px-6 lg:pb-8 ${hideBottomNav ? "pb-8" : "pb-24"}`
+            }
           >
             <PartnerErrorBoundary resetKey={pathname}>
               <Outlet />
