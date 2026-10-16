@@ -4,11 +4,7 @@ import { Router } from "express";
 import paymentRoutes from "../modules/payments/payments.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
 
-import {
-  customerPreferencesRoutes,
-  customerProfileRoutes,
-} from "../modules/customer-profile/customer-profile.routes";
-
+// Partner wallet
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
@@ -59,16 +55,19 @@ import {
   couponCustomerRoutes,
 } from "../modules/coupons/coupons.routes";
 
+// Marketing
 import {
   marketingRoutes,
   publicMarketingRoutes,
 } from "../modules/marketing/marketing.routes";
 
+// Pricing
 import {
   pricingRoutes,
   adminPricingRoutes,
 } from "../modules/pricing/pricing.routes";
 
+// Refunds and reviews
 import refundsRoutes from "../modules/refunds/refunds.routes";
 import reviewsRoutes from "../modules/reviews/reviews.routes";
 // TODO: chatRoutes import add cheyyandi (mee branch lo path), e.g.
@@ -80,7 +79,6 @@ export const rootRouter = Router();
 // Routes are registered under /api/v1.
 // Add new modules here; don't replace the list.
 
-// Authentication
 rootRouter.use("/auth", authRoutes);
 
 // Admin dashboard, settings, designations
@@ -104,7 +102,13 @@ rootRouter.use("/admin/staff", adminStaffRoutes);
 // Admin partners
 rootRouter.use("/admin/partners", partnersRoutes);
 
-// Admin finance and marketing
+// =========================================================
+// Admin catalog, pricing and marketing
+// =========================================================
+
+rootRouter.use("/admin/categories", categoriesRoutes);
+rootRouter.use("/admin/services", servicesRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/coupons", couponsRoutes);
 rootRouter.use("/admin/banners", marketingRoutes);
 rootRouter.use("/admin/pricing", adminPricingRoutes);
@@ -112,6 +116,7 @@ rootRouter.use("/admin/incentives", incentivesRoutes);
 
 // Refunds
 rootRouter.use("/admin", refundsRoutes);
+rootRouter.use("/admin", payoutsRoutes);
 
 // Admin audit logs and general admin routes
 rootRouter.use("/admin", auditRoutes);
@@ -139,7 +144,10 @@ rootRouter.use("/payments", paymentRoutes);
 // Bookings
 rootRouter.use(bookingsRoutes);
 
+// =========================================================
 // Partner dashboard and availability
+// =========================================================
+
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);
