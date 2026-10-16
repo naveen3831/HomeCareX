@@ -146,13 +146,7 @@ export const RolesTab: React.FC<RolesTabProps> = ({ notify }) => {
         </PermissionGate>
       </div>
 
-      <p className="rbac-muted rbac-intro">
-          Roles decide which pages and actions staff can use. Changes apply immediately and are recorded in the{' '}
-          <Link to="/admin/audit-logs" className="rbac-link">
-            <FileClock size={13} aria-hidden /> audit log
-          </Link>
-          .
-        </p>
+    
 
       <RbacTable variant="roles">
         <DataTable
