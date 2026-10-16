@@ -14,6 +14,7 @@ import {
   UserPlus,
   LayoutDashboard,
   LayoutGrid,
+  Lock,
   Megaphone,
   RotateCcw,
   Settings,
@@ -88,10 +89,11 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: 'System',
     items: [
-      // One page, two tabs (/admin/roles and /admin/roles?tab=staff). Shown if either tab is allowed.
-      { label: 'Roles & Staff', path: '/admin/roles', icon: ShieldCheck, permission: ['roles:view', 'staff:view'] },
-      { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock, permission: 'audit:view' },
-      { label: 'Settings', path: '/admin/settings', icon: Settings, permission: 'settings:view' },
+      { label: 'Roles', path: '/admin/roles-permissions', icon: ShieldCheck },
+      { label: 'Staff', path: '/admin/staff', icon: UserCog },
+      { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock },
+      { label: 'Security', path: '/admin/security', icon: Lock },
+      { label: 'Settings', path: '/admin/settings', icon: Settings },
     ],
   },
   {
@@ -100,6 +102,7 @@ export const adminNavGroups: AdminNavGroup[] = [
     hidden: true,
     items: [
       { label: 'My Profile', path: '/admin/profile', icon: UserCircle },
+      { label: 'Account Security', path: '/admin/security', icon: Lock },
       { label: 'Notifications', path: '/admin/notifications', icon: Bell },
     ],
   },

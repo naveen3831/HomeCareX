@@ -1,5 +1,15 @@
 import http, { refreshAccessToken, type ApiResponse, type SessionPayload } from "@/lib/http";
-import type { AuthUser, LoginInput, RegisterInput } from "@/types/auth";
+import type {
+  AuthUser,
+  ChangePasswordInput,
+  ChangePasswordResult,
+  LoginInput,
+  LogoutAllResult,
+  RegisterInput,
+  RevokeUserSessionsResult,
+  SessionRevokeResult,
+  UserSession,
+} from "@/types/auth";
 
 export const authApi = {
   login: (input: LoginInput) =>
@@ -24,4 +34,15 @@ export const authApi = {
     http.post<{ success: boolean; message: string }>("/auth/resend-otp", { email }).then((r) => r.data),
   resetPassword: (input: { resetToken: string; newPassword: string }) =>
     http.post<ApiResponse<{ message: string }>>("/auth/reset-password", input).then((r) => r.data),
+  changePassword: (input: ChangePasswordInput) =>
+    http.post<ApiResponse<ChangePasswordResult>>("/auth/change-password", input).then((r) => r.data.data),
+  getSessions: () =>
+    http.get<ApiResponse<UserSession[]>>("/auth/sessions").then((r) => r.data.data),
+  revokeSession: (sessionId: string) =>
+    http.delete<ApiResponse<SessionRevokeResult>>(`/auth/sessions/${encodeURIComponent(sessionId)}`).then((r) => r.data.data),
+  logoutAll: () =>
+    http.post<ApiResponse<LogoutAllResult>>("/auth/logout-all").then((r) => r.data.data),
+  revokeUserSessions: (userId: string) =>
+    http.post<ApiResponse<RevokeUserSessionsResult>>(`/auth/revoke-user-sessions/${encodeURIComponent(userId)}`).then((r) => r.data.data),
 };
+
