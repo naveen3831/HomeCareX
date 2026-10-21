@@ -52,9 +52,7 @@ import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
-import {
-  partnerPerformanceRoutes,
-} from "../modules/partner-performance/partner-performance.routes";
+import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
 import {
   partnerServiceAreaRoutes,
@@ -66,6 +64,7 @@ import {
   pricingRoutes,
 } from "../modules/pricing/pricing.routes";
 import payoutsRoutes from "../modules/payouts/payouts.routes";
+import { reportsRoutes } from "../modules/reports/reports.routes";
 import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
@@ -92,10 +91,14 @@ rootRouter.use("/admin/coupons", couponsRoutes);
 rootRouter.use("/admin/banners", marketingRoutes);
 rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/incentives", incentivesRoutes);
+
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);
 rootRouter.use("/admin", adminRoutes);
+
+// Admin reports and CSV exports.
+rootRouter.use("/admin/reports", reportsRoutes);
 
 rootRouter.use(catalogRoutes);
 rootRouter.use("/notifications", notificationsRoutes);
