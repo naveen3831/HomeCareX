@@ -43,6 +43,17 @@ export interface JobBookingDoc {
   paymentDetails?: { paidAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    reason?: string;
+    amount: number;
+    quantity: number;
+    status: "pending" | "approved" | "rejected";
+    requestedAt?: Date;
+    decidedAt?: Date;
+  }>;
+  otpCodes?: { start?: string; end?: string };
   offers?: Array<{
     partnerId: Types.ObjectId;
     offeredAt: Date;
@@ -82,7 +93,9 @@ export const partnerJobsRepository = {
   },
 
   findBooking(bookingId: string) {
-    return BookingModel.findById(bookingId).lean<JobBookingDoc>();
+    return BookingModel.findById(bookingId)
+      .select("+otpCodes.start +otpCodes.end")
+      .lean<JobBookingDoc>();
   },
 
   findCustomer(customerId: Types.ObjectId) {
@@ -198,6 +211,70 @@ export const partnerJobsRepository = {
     const result = await BookingModel.updateOne(
       { _id: bookingId, partnerId, status: from },
       { $set: { status: to }, $push: { statusHistory: entry } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async addExtraCharge(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    charge: {
+      _id: Types.ObjectId;
+      title: string;
+      reason?: string;
+      amount: number;
+      quantity: number;
+      status: "pending";
+      requestedAt: Date;
+    },
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId },
+      { $push: { extraCharges: charge } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async updateChecklist(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    checklist: Array<{ id: string; label: string; done: boolean }>,
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId },
+      { $set: { checklist } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async verifyStartJob(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    entry: StatusHistoryEntry,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId, status: "arrived" },
+      {
+        $set: { status: "in_progress", startedAt: now },
+        $push: { statusHistory: entry },
+      },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async completePartnerJob(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    entry: StatusHistoryEntry,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId, status: "in_progress" },
+      {
+        $set: { status: "completed", completedAt: now },
+        $push: { statusHistory: entry },
+      },
     );
     return result.modifiedCount === 1;
   },

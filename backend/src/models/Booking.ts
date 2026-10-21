@@ -36,6 +36,7 @@ export interface ExtraCharge {
   reason?: string;
   /** INR, > 0. */
   amount: number;
+  quantity?: number;
   status: ExtraChargeStatus;
   requestedAt: Date;
   requestedBy?: Types.ObjectId;
@@ -109,6 +110,8 @@ export interface IBooking extends Document {
     total: number;
   };
   partnerEarning: number;
+  /** Partner's job checklist. Empty until the partner first ticks an item (then copied from the service inclusions). */
+  checklist?: Array<{ id: string; label: string; done: boolean }>;
   status: BookingStatus;
   statusHistory: StatusHistoryItem[];
   paymentStatus: BookingPaymentStatus;
@@ -173,6 +176,7 @@ const ExtraChargeSchema = new Schema(
     title: { type: String, required: true, trim: true, maxlength: 120 },
     reason: { type: String, trim: true, maxlength: 500 },
     amount: { type: Number, required: true, min: 1 },
+    quantity: { type: Number, min: 1, default: 1 },
     status: { type: String, enum: EXTRA_CHARGE_STATUSES, default: "pending" },
     requestedAt: { type: Date, default: Date.now },
     requestedBy: { type: Schema.Types.ObjectId, ref: "User" },
@@ -248,6 +252,19 @@ const BookingSchema = new Schema<IBooking>(
     priceBreakdown: { type: PriceBreakdownSchema, default: () => ({}) },
     /** Partner's share after commission. Used for earnings totals. */
     partnerEarning: { type: Number, default: 0, min: 0 },
+    checklist: {
+      type: [
+        new Schema(
+          {
+            id: { type: String, required: true },
+            label: { type: String, required: true, trim: true },
+            done: { type: Boolean, default: false },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
     status: {
       type: String,
       enum: BOOKING_STATUSES,

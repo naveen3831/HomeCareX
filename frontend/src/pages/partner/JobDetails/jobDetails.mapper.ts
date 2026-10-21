@@ -28,9 +28,11 @@ export function mapJob(api: ApiJob): JobDetails {
     addOns: api.addOns.map((a, i) => ({ id: `${a.name}-${i}`, ...a })),
     instructions: api.instructions,
     checklist: api.checklist,
+    extraCharges: api.extraCharges ?? [],
     payment: { status: api.payment.status, amount: api.price.total },
     actions: api.actions,
     otpRequired: api.otpRequired,
+    startVerification: api.startVerification ?? null,
     history: api.statusHistory.map((h) => ({
       status: h.to,
       at: h.at,

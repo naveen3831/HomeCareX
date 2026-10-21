@@ -1,26 +1,36 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  DEMO_START_OTP,
+  CalendarClock,
+  Clock,
+  ExternalLink,
+  ListChecks,
+  MapPin,
+  NotebookPen,
+  Receipt,
+  User,
+  Wallet,
+  Wrench,
+} from 'lucide-react';
+import {
   acceptAssignedService,
   declineAssignedService,
   fetchAssignedServices,
   fetchJob,
   getErrorMessage,
   getHttpStatus,
+  IS_MOCK_JOBS,
   persistChecklistItem,
   resetAllAssignedServices,
   resetMockPartnerJob,
-  startJob,
   updateBookingStatus,
-  verifyJobOtp,
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
-import { STATUS_LABEL, type JobStatus } from './jobStatus';
+import { LIFECYCLE, STATUS_LABEL, type JobStatus } from './jobStatus';
+import '@/styles/partnerJobs.css';
 import './jobDetails.css';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'notfound';
-type ViewMode = 'list' | 'details';
 
 const money = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -57,6 +67,10 @@ function formatDuration(minutes: number | null | undefined): string {
   return `${minutes} mins`;
 }
 
+function mapsUrl(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 function useOnline(): boolean {
   const [online, setOnline] = useState(navigator.onLine);
   useEffect(() => {
@@ -75,51 +89,61 @@ function useOnline(): boolean {
 type FilterTab = 'all' | 'accept' | 'confirmed' | 'declined' | 'completed';
 
 export default function JobDetailsPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId, jobId } = useParams<{ id?: string; jobId?: string }>();
+  const id = rawId || jobId;
   const navigate = useNavigate();
+  const location = useLocation();
   const online = useOnline();
 
-  // If route has an explicit :id (/partner/jobs/:id), open details directly;
-  // If on /partner/work (no :id), first show Assigned Service Cards.
-  const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));
+  // /partner/jobs/:id  -> that job's details.
+  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
+  const showList = !id;
   const [filterTab, setFilterTab] = useState<FilterTab>('accept');
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [assignedServices, setAssignedServices] = useState<JobDetails[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [justAcceptedBanner, setJustAcceptedBanner] = useState<boolean>(false);
+  const [justAcceptedBanner, setJustAcceptedBanner] = useState<boolean>(
+    Boolean((location.state as { justAccepted?: boolean } | null)?.justAccepted),
+  );
+  const [listError, setListError] = useState<string | null>(null);
 
   const [job, setJob] = useState<JobDetails | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [message, setMessage] = useState('');
 
-  // OTP & Start Job flow state
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpVerifiedLocal, setOtpVerifiedLocal] = useState(false);
+  // Starting needs the customer's code and a start photo; that lives on the active-job screen.
+  const [startHint, setStartHint] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
   const load = useCallback(async () => {
     setState('loading');
+    setListError(null);
     try {
-      const targetId = id || 'BK-20418';
-      const [loadedJob, catalog] = await Promise.all([
-        fetchJob(targetId),
-        fetchAssignedServices().catch(() => [] as JobDetails[]),
-      ]);
+      let loadedJob: JobDetails | null = null;
+      let catalog: JobDetails[];
+      if (id) {
+        const [fetchedJob, fetchedCatalog] = await Promise.all([
+          fetchJob(id),
+          fetchAssignedServices().catch(() => [] as JobDetails[]),
+        ]);
+        loadedJob = fetchedJob;
+        catalog = fetchedCatalog;
+      } else {
+        // The list screen needs only what is assigned to this partner. It must never load a demo job.
+        catalog = await fetchAssignedServices();
+      }
       setJob(loadedJob);
       setAssignedServices(catalog);
       // At first show 'accept' as default; if there is no data in accept, show 'all' as default
       const pendingAssignedCount = catalog.filter((s) => s.status === 'assigned').length;
       setFilterTab(pendingAssignedCount > 0 ? 'accept' : 'all');
-      setOtpVerifiedLocal(Boolean(loadedJob.otpVerified));
       setState('ready');
     } catch (err) {
       const code = getHttpStatus(err);
       if (code === 404 || code === 403) {
         setState('notfound');
       } else {
-        setMessage(getErrorMessage(err, 'Could not load this job.'));
+        setMessage(getErrorMessage(err, id ? 'Could not load this job.' : 'Could not load your assigned services.'));
         setState('error');
       }
     }
@@ -139,13 +163,6 @@ export default function JobDetailsPage() {
     }
   }, [assignedServices, filterTab]);
 
-  // Keep viewMode synced if route param changes
-  useEffect(() => {
-    if (id) {
-      setViewMode('details');
-    }
-  }, [id]);
-
   const handleAcceptServiceCard = async (serviceId: string) => {
     if (acceptingId || !online) return;
     setAcceptingId(serviceId);
@@ -154,12 +171,12 @@ export default function JobDetailsPage() {
       const updatedCatalog = await fetchAssignedServices();
       setAssignedServices(updatedCatalog);
       setJob(accepted);
-      setOtpCode('');
-      setOtpError(null);
-      setOtpVerifiedLocal(Boolean(accepted.otpVerified));
+      setStartHint(null);
       setJustAcceptedBanner(true);
-      setViewMode('details');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      navigate(`/partner/jobs/${serviceId}`, { state: { justAccepted: true } });
+    } catch (err) {
+      setListError(getErrorMessage(err, 'Could not open this service. Try again.'));
     } finally {
       setAcceptingId(null);
     }
@@ -167,8 +184,13 @@ export default function JobDetailsPage() {
 
   const handleDeclineServiceCard = async (serviceId: string) => {
     if (!online) return;
-    const remaining = await declineAssignedService(serviceId);
-    setAssignedServices(remaining);
+    setListError(null);
+    try {
+      const remaining = await declineAssignedService(serviceId);
+      setAssignedServices(remaining);
+    } catch (err) {
+      setListError(getErrorMessage(err, 'Could not decline this service. Try again.'));
+    }
   };
 
   const handleToggleChecklist = async (itemId: string, currentDone: boolean) => {
@@ -199,7 +221,7 @@ export default function JobDetailsPage() {
         prev.map((item) => (item.id === updated.id ? updated : item)),
       );
     } catch (err) {
-      setOtpError(getErrorMessage(err, 'Could not update status.'));
+      setStartHint(getErrorMessage(err, 'Could not update status.'));
     } finally {
       setActionBusy(false);
     }
@@ -207,67 +229,20 @@ export default function JobDetailsPage() {
 
   const handlePrimaryStartClick = () => {
     if (!job) return;
-    if (job.status === 'in_progress') {
+    if (job.status === 'in_progress' || job.status === 'arrived') {
       navigate(`/partner/jobs/${job.id}/active`);
       return;
     }
-    setOtpError(null);
-    setOtpModalOpen(true);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!job || actionBusy) return;
-    if (!online) {
-      setOtpError('You are offline. Reconnect and try again.');
-      return;
-    }
-    if (!otpCode.trim()) {
-      setOtpError(`Please enter the 6-digit customer OTP (Demo: ${DEMO_START_OTP}).`);
-      return;
-    }
-
-    setActionBusy(true);
-    setOtpError(null);
-    try {
-      const res = await verifyJobOtp(job.id, otpCode.trim());
-      if (!res.verified) {
-        setOtpError(res.message || `Incorrect OTP. Use demo OTP ${DEMO_START_OTP}.`);
-      } else {
-        setOtpVerifiedLocal(true);
-      }
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'OTP verification failed.'));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  const handleConfirmStartJob = async () => {
-    if (!job || actionBusy || !otpVerifiedLocal) return;
-    setActionBusy(true);
-    setOtpError(null);
-    try {
-      const updated = await startJob(job.id, otpCode.trim() || DEMO_START_OTP);
-      setJob(updated);
-      setOtpModalOpen(false);
-      navigate(`/partner/jobs/${updated.id}/active`);
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'Could not start job.'));
-    } finally {
-      setActionBusy(false);
-    }
+    setStartHint('Mark yourself as arrived first. The customer code is needed once you are at the location.');
   };
 
   const handleResetDemo = () => {
+    if (!IS_MOCK_JOBS) return;
     const fresh = resetMockPartnerJob(job?.id || id || 'BK-20418');
     const freshCatalog = resetAllAssignedServices();
     setAssignedServices(freshCatalog);
     setJob(fresh);
-    setOtpCode('');
-    setOtpError(null);
-    setOtpVerifiedLocal(false);
-    setOtpModalOpen(false);
+    setStartHint(null);
     setJustAcceptedBanner(false);
   };
 
@@ -296,7 +271,7 @@ export default function JobDetailsPage() {
     );
   }
 
-  if (state === 'error' || !job) {
+  if (state === 'error') {
     return (
       <div className="jd-ref-page">
         <div className="jd-ref-container">
@@ -316,7 +291,7 @@ export default function JobDetailsPage() {
   // ============================================================================
   // STEP 1: ASSIGNED SERVICE CARDS VIEW (shown first on /partner/work)
   // ============================================================================
-  if (viewMode === 'list') {
+  if (showList) {
     const acceptCount = assignedServices.filter((s) => s.status === 'assigned').length;
     const declinedCount = assignedServices.filter(
       (s) => s.status === 'cancelled_by_partner' || s.status.startsWith('cancelled')
@@ -362,7 +337,7 @@ export default function JobDetailsPage() {
         <div className="jd-assigned-shell">
           <header className="jd-assigned-header">
             <div>
-              <p className="jd-ref-eyebrow">PARTNER WORK QUEUE</p>
+              <p className="jd-ref-eyebrow">Work queue</p>
               <h2 className="jd-ref-booking-code">Assigned Services</h2>
               <p className="jd-assigned-subtitle">
                 Select and accept an assigned service below to unlock full booking details and start the job.
@@ -479,7 +454,20 @@ export default function JobDetailsPage() {
             </div>
           </div>
 
-          {filteredServices.length === 0 ? (
+          {listError && (
+            <p className="jd-error" role="alert">
+              {listError}
+            </p>
+          )}
+
+          {assignedServices.length === 0 ? (
+            <div className="jd-emptycard">
+              <p className="jd-empty-title">No services assigned to you yet</p>
+              <p className="jd-empty">
+                When admin assigns you a booking it will appear here. Nothing here is sample data.
+              </p>
+            </div>
+          ) : filteredServices.length === 0 ? (
             <div className="jd-emptycard">
               <p className="jd-empty-title">No services in this filter</p>
               <p className="jd-empty">Switch filters above to view other assigned, confirmed, declined, or completed services.</p>
@@ -518,9 +506,13 @@ export default function JobDetailsPage() {
                   >
                     {/* Card Top: Booking ID + Status Pill */}
                     <div className="jd-service-card-top">
-                      <span className="jd-ref-card-label" style={{ marginBottom: 0 }}>
+                      <Link
+                        to={`/partner/jobs/${item.id}`}
+                        className="jd-ref-card-label"
+                        style={{ marginBottom: 0, textDecoration: 'none' }}
+                      >
                         {item.bookingCode}
-                      </span>
+                      </Link>
                       <span className={`jd-ref-status-pill jd-ref-status-${item.status}`}>
                         {isPendingAssigned
                           ? 'Assigned to you'
@@ -537,8 +529,16 @@ export default function JobDetailsPage() {
                     {/* Service Title & Duration */}
                     <div className="jd-service-card-hero">
                       <div className="jd-ref-row-between">
-                        <h3 className="jd-service-card-title">{item.service.name}</h3>
+                        <h3 className="jd-service-card-title">
+                          <Link
+                            to={`/partner/jobs/${item.id}`}
+                            style={{ color: 'inherit', textDecoration: 'none' }}
+                          >
+                            {item.service.name}
+                          </Link>
+                        </h3>
                         <span className="jd-service-duration-badge">
+                          <Clock size={13} aria-hidden="true" />
                           {formatDuration(item.service.durationMinutes)}
                         </span>
                       </div>
@@ -550,7 +550,10 @@ export default function JobDetailsPage() {
                     {/* Details Grid Inside Card */}
                     <div className="jd-service-card-meta">
                       <div className="jd-service-meta-box">
-                        <span className="jd-service-meta-label">SCHEDULE</span>
+                        <span className="jd-service-meta-label">
+                          <CalendarClock aria-hidden="true" />
+                          Schedule
+                        </span>
                         <strong className="jd-service-meta-value">
                           {item.schedule.dateLabel ?? formatDate(item.schedule.scheduledAt)}
                         </strong>
@@ -558,7 +561,10 @@ export default function JobDetailsPage() {
                       </div>
 
                       <div className="jd-service-meta-box">
-                        <span className="jd-service-meta-label">CUSTOMER (MASKED)</span>
+                        <span className="jd-service-meta-label">
+                          <User aria-hidden="true" />
+                          Customer
+                        </span>
                         <strong className="jd-service-meta-value">{item.customer.name}</strong>
                         <span className="jd-service-meta-sub">{item.customer.phoneMasked}</span>
                       </div>
@@ -566,17 +572,30 @@ export default function JobDetailsPage() {
 
                     {/* Location */}
                     <div className="jd-service-location-box">
-                      <span className="jd-service-meta-label">LOCATION</span>
+                      <span className="jd-service-meta-label">
+                        <MapPin aria-hidden="true" />
+                        Location
+                      </span>
                       <p className="jd-service-location-text">{itemAddress}</p>
                       {item.location.hint && (
                         <p className="jd-ref-location-hint">{item.location.hint}</p>
+                      )}
+                      {itemAddress && (
+                        <a
+                          className="jd-maps-link"
+                          href={mapsUrl(itemAddress)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open in Maps <ExternalLink aria-hidden="true" />
+                        </a>
                       )}
                     </div>
 
                     {/* Add-ons & Payout Summary */}
                     <div className="jd-service-payout-row">
                       <div>
-                        <span className="jd-service-meta-label">TOTAL BOOKING</span>
+                        <span className="jd-service-meta-label">Total booking</span>
                         <p className="jd-service-total-amt">
                           {money.format(item.price.total)}
                           {item.addOns.length > 0 && (
@@ -587,7 +606,7 @@ export default function JobDetailsPage() {
                         </p>
                       </div>
                       <div className="jd-service-payout-right">
-                        <span className="jd-service-meta-label">YOUR PAYOUT</span>
+                        <span className="jd-service-meta-label">Your payout</span>
                         <strong className="jd-service-payout-amt">
                           {money.format(item.price.partnerEarning)}
                         </strong>
@@ -606,6 +625,19 @@ export default function JobDetailsPage() {
                           >
                             {acceptingId === item.id ? 'Accepting…' : 'Accept Service'}
                           </button>
+                          <Link
+                            to={`/partner/jobs/${item.id}`}
+                            className="jd-service-decline-btn"
+                            style={{
+                              textAlign: 'center',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            View details
+                          </Link>
                           <button
                             type="button"
                             disabled={!online || acceptingId === item.id}
@@ -625,13 +657,19 @@ export default function JobDetailsPage() {
                         </button>
                       ) : (
                         <>
-                          <button
-                            type="button"
-                            onClick={() => void handleAcceptServiceCard(item.id)}
+                          <Link
+                            to={`/partner/jobs/${item.id}`}
                             className="jd-service-accept-btn"
+                            style={{
+                              textAlign: 'center',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
                           >
                             View Total Booked Details →
-                          </button>
+                          </Link>
                           {isInProgress && (
                             <button
                               type="button"
@@ -657,6 +695,23 @@ export default function JobDetailsPage() {
   // ============================================================================
   // STEP 2: TOTAL BOOKED DETAILS VIEW (shown after Partner accepts a service card)
   // ============================================================================
+  if (!job) {
+    return (
+      <div className="jd-ref-page">
+        <div className="jd-ref-container">
+          <div className="jd-emptycard">
+            <p className="jd-error" role="alert">
+              Could not load this job.
+            </p>
+            <button type="button" className="jd-ref-primary-btn" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const time = formatTime(job.schedule.scheduledAt);
   const fullAddress = [
     job.location.address,
@@ -688,30 +743,19 @@ export default function JobDetailsPage() {
       )}
 
       <div className="jd-ref-container">
-        {/* Top Back Navigation Bar to return to Assigned Service Cards */}
-        <div className="jd-back-bar">
-          <button
-            type="button"
-            onClick={() => {
-              setJustAcceptedBanner(false);
-              setViewMode('list');
-            }}
-            className="jd-back-to-services-btn"
-          >
-            ← Back to Assigned Services ({assignedServices.length || 6})
-          </button>
-
-          {justAcceptedBanner && (
+        {/* Back navigation lives in the top bar (PartnerLayout) */}
+        {justAcceptedBanner && (
+          <div className="jd-back-bar">
             <span className="jd-accepted-toast" role="status">
               ✓ Service accepted — Total booked details unlocked
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Header: BOOKING #BK-20418 | Confirmed */}
         <header className="jd-ref-header">
           <div>
-            <p className="jd-ref-eyebrow">BOOKING</p>
+            <p className="jd-ref-eyebrow">Booking</p>
             <h2 className="jd-ref-booking-code">{job.bookingCode}</h2>
           </div>
           <span className={`jd-ref-status-pill jd-ref-status-${job.status}`}>
@@ -719,9 +763,27 @@ export default function JobDetailsPage() {
           </span>
         </header>
 
+        {/* Where this visit stands. Cancelled / no-show / disputed sit outside the lifecycle. */}
+        {LIFECYCLE.includes(job.status) || job.status === 'confirmed' ? (
+          <ol className="jd-track" aria-label="Visit progress">
+            {LIFECYCLE.map((step, i) => {
+              const current = Math.max(0, LIFECYCLE.indexOf(job.status));
+              const state = i < current ? 'is-done' : i === current ? 'is-current' : '';
+              return (
+                <li key={step} className={state} aria-current={i === current ? 'step' : undefined}>
+                  {STATUS_LABEL[step]}
+                </li>
+              );
+            })}
+          </ol>
+        ) : null}
+
         {/* Card 1: SERVICE */}
         <section className="jd-ref-card jd-card-service" aria-label="Service">
-          <p className="jd-ref-card-label">SERVICE</p>
+          <p className="jd-ref-card-label">
+            <Wrench aria-hidden="true" />
+            Service
+          </p>
           <div className="jd-ref-row-between">
             <h3 className="jd-ref-card-title">{job.service.name}</h3>
             <span className="jd-ref-card-right">
@@ -735,7 +797,10 @@ export default function JobDetailsPage() {
 
         {/* Card 2: CUSTOMER (MASKED) */}
         <section className="jd-ref-card jd-card-customer" aria-label="Customer">
-          <p className="jd-ref-card-label">CUSTOMER (MASKED)</p>
+          <p className="jd-ref-card-label">
+            <User aria-hidden="true" />
+            Customer
+          </p>
           <div className="jd-ref-row-between">
             <p className="jd-ref-card-title">{job.customer.name}</p>
             <span className="jd-ref-card-right">{job.customer.phoneMasked}</span>
@@ -747,16 +812,25 @@ export default function JobDetailsPage() {
 
         {/* Card 3: LOCATION */}
         <section className="jd-ref-card jd-card-location" aria-label="Location">
-          <p className="jd-ref-card-label">LOCATION</p>
-          <p className="jd-ref-body-text">{fullAddress}</p>
-          <p className="jd-ref-location-hint">
-            {job.location.hint ?? 'Full address unlocks at start · 6.4 km away'}
+          <p className="jd-ref-card-label">
+            <MapPin aria-hidden="true" />
+            Location
           </p>
+          <p className="jd-ref-body-text">{fullAddress}</p>
+          {job.location.hint && <p className="jd-ref-location-hint">{job.location.hint}</p>}
+          {fullAddress && (
+            <a className="jd-maps-link" href={mapsUrl(fullAddress)} target="_blank" rel="noreferrer">
+              Open in Maps <ExternalLink aria-hidden="true" />
+            </a>
+          )}
         </section>
 
         {/* Card 4: SCHEDULE */}
         <section className="jd-ref-card jd-card-schedule" aria-label="Schedule">
-          <p className="jd-ref-card-label">SCHEDULE</p>
+          <p className="jd-ref-card-label">
+            <CalendarClock aria-hidden="true" />
+            Schedule
+          </p>
           <div className="jd-ref-row-between">
             <p className="jd-ref-card-title">
               {job.schedule.dateLabel ?? formatDate(job.schedule.scheduledAt)}
@@ -769,7 +843,10 @@ export default function JobDetailsPage() {
 
         {/* Card 5: PRICE & ADD-ONS */}
         <section className="jd-ref-card jd-card-price" aria-label="Price and add-ons">
-          <p className="jd-ref-card-label">PRICE &amp; ADD-ONS</p>
+          <p className="jd-ref-card-label">
+            <Receipt aria-hidden="true" />
+            Price &amp; add-ons
+          </p>
           <div className="jd-ref-price-list">
             <div className="jd-ref-price-row">
               <span>Base service</span>
@@ -794,7 +871,10 @@ export default function JobDetailsPage() {
 
         {/* Card 6: INSTRUCTIONS */}
         <section className="jd-ref-card jd-card-instructions" aria-label="Instructions">
-          <p className="jd-ref-card-label">INSTRUCTIONS</p>
+          <p className="jd-ref-card-label">
+            <NotebookPen aria-hidden="true" />
+            Instructions
+          </p>
           <p className="jd-ref-body-text">
             {job.instructions ?? 'No special instructions.'}
           </p>
@@ -802,7 +882,13 @@ export default function JobDetailsPage() {
 
         {/* Card 7: CHECKLIST */}
         <section className="jd-ref-card jd-card-checklist" aria-label="Checklist">
-          <p className="jd-ref-card-label">CHECKLIST</p>
+          <p className="jd-ref-card-label">
+            <ListChecks aria-hidden="true" />
+            Checklist
+          </p>
+          {!IS_MOCK_JOBS && job.status !== 'in_progress' && displayedChecklist.length > 0 && (
+            <p className="jd-ref-location-hint">You can tick items once the job has started.</p>
+          )}
           {displayedChecklist.length === 0 ? (
             <p className="jd-ref-body-text">No checklist for this job.</p>
           ) : (
@@ -813,6 +899,7 @@ export default function JobDetailsPage() {
                     <input
                       type="checkbox"
                       checked={item.done}
+                      disabled={!IS_MOCK_JOBS && job.status !== 'in_progress'}
                       onChange={() => void handleToggleChecklist(item.id, item.done)}
                       className="jd-ref-checkbox"
                     />
@@ -824,9 +911,62 @@ export default function JobDetailsPage() {
           )}
         </section>
 
+        {/* Card: EXTRA CHARGES */}
+        {((job.extraCharges && job.extraCharges.length > 0) || job.status === 'in_progress') && (
+          <section className="jd-ref-card jd-card-extra-charges" aria-label="Extra Charges">
+            <div className="flex items-center justify-between mb-2">
+              <p className="jd-ref-card-label" style={{ marginBottom: 0 }}>
+                <Receipt aria-hidden="true" />
+                Extra Charges
+              </p>
+              {job.status === 'in_progress' && (
+                <Link
+                  to={`/partner/jobs/${job.id}/active`}
+                  className="text-xs font-semibold text-[#4338ca] hover:underline"
+                >
+                  Manage on Active Job →
+                </Link>
+              )}
+            </div>
+            {(!job.extraCharges || job.extraCharges.length === 0) ? (
+              <p className="jd-ref-body-text">No extra charges requested yet.</p>
+            ) : (
+              <div className="space-y-2 mt-2">
+                {job.extraCharges.map((charge) => {
+                  const statusColor =
+                    charge.status === 'approved'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : charge.status === 'rejected'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200';
+                  return (
+                    <div
+                      key={charge.id}
+                      className="flex items-center justify-between p-2.5 rounded-lg border border-slate-100 bg-slate-50 text-xs"
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-800">{charge.title}</p>
+                        <p className="text-slate-500">
+                          Qty: {charge.quantity} × ₹{charge.amount} = ₹{charge.quantity * charge.amount}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold uppercase ${statusColor}`}>
+                        {charge.status}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Card 8: PAYMENT */}
         <section className="jd-ref-card jd-card-payment" aria-label="Payment">
-          <p className="jd-ref-card-label">PAYMENT</p>
+          <p className="jd-ref-card-label">
+            <Wallet aria-hidden="true" />
+            Payment
+          </p>
           <div className="jd-ref-price-list">
             <div className="jd-ref-price-row">
               <span>Method</span>
@@ -849,6 +989,11 @@ export default function JobDetailsPage() {
           >
             {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
           </button>
+          {startHint && (
+            <p className="jd-ref-otp-error" role="status">
+              {startHint}
+            </p>
+          )}
 
           {/* Subtle navigation & demo controls */}
           <div className="jd-ref-demo-footer">
@@ -876,108 +1021,19 @@ export default function JobDetailsPage() {
                 Mark Arrived
               </button>
             )}
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              className="jd-ref-demo-link-btn"
-            >
-              Reset demo
-            </button>
+            {IS_MOCK_JOBS && (
+              <button
+                type="button"
+                onClick={handleResetDemo}
+                className="jd-ref-demo-link-btn"
+              >
+                Reset demo
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Start Job Customer OTP Verification Modal */}
-      {otpModalOpen && (
-        <div
-          className="jd-ref-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="jd-otp-modal-title"
-        >
-          <div className="jd-ref-modal">
-            <div className="jd-ref-modal-header">
-              <h3 id="jd-otp-modal-title" className="jd-ref-modal-title">
-                Verify Customer Start OTP
-              </h3>
-              <span className="jd-ref-otp-badge">Demo OTP: {DEMO_START_OTP}</span>
-            </div>
-
-            <p className="jd-ref-modal-desc">
-              Ask <strong>{job.customer.name}</strong> ({job.customer.phoneMasked}) for the start code
-              to unlock the full address and begin <strong>{job.service.name}</strong>.
-            </p>
-
-            <form onSubmit={(e) => void handleVerifyOtp(e)} className="jd-ref-otp-form">
-              <label htmlFor="jd-start-otp-input" className="jd-ref-otp-label">
-                Enter 6-Digit Start OTP
-              </label>
-              <div className="jd-ref-otp-input-row">
-                <input
-                  id="jd-start-otp-input"
-                  type="text"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => {
-                    setOtpCode(e.target.value);
-                    setOtpVerifiedLocal(false);
-                    if (otpError) setOtpError(null);
-                  }}
-                  placeholder={`Enter ${DEMO_START_OTP}`}
-                  className="jd-ref-otp-input"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpCode(DEMO_START_OTP);
-                    setOtpError(null);
-                  }}
-                  className="jd-ref-otp-fill-btn"
-                >
-                  Fill {DEMO_START_OTP}
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionBusy}
-                  className="jd-ref-otp-verify-btn"
-                >
-                  Verify
-                </button>
-              </div>
-            </form>
-
-            {otpError && (
-              <p className="jd-ref-otp-error" role="alert">
-                {otpError}
-              </p>
-            )}
-
-            {otpVerifiedLocal && (
-              <p className="jd-ref-otp-success" role="status">
-                ✓ OTP verified! You can now start the job.
-              </p>
-            )}
-
-            <div className="jd-ref-modal-actions">
-              <button
-                type="button"
-                onClick={() => setOtpModalOpen(false)}
-                className="jd-ref-modal-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!otpVerifiedLocal || actionBusy}
-                onClick={() => void handleConfirmStartJob()}
-                className="jd-ref-modal-confirm"
-              >
-                {actionBusy ? 'Starting…' : 'Start job'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

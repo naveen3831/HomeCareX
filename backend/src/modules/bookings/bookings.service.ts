@@ -469,6 +469,7 @@ export const BookingService = {
           return bookingsRepository.create({
             customerId: new Types.ObjectId(customerId),
             serviceId: new Types.ObjectId(input.serviceId),
+            categoryId: row.categoryId,
             quantity: input.quantity,
             addOns: input.addOns.map((a) => ({
               addOnId: new Types.ObjectId(a.addOnId),

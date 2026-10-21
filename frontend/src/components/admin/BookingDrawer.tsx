@@ -72,6 +72,12 @@ function formatAmount(amount: number): string {
 
 function getStatusLabel(status: BookingStatus): string {
   switch (status) {
+    case "confirmed":
+      return "Confirmed";
+
+    case "pending_payment":
+      return "Payment Pending";
+
     case "created":
       return "Pending";
 
@@ -136,11 +142,15 @@ function getStatusClass(status: BookingStatus): string {
     case "assigned":
       return "booking-details__status booking-details__status--assigned";
 
+    case "confirmed":
     case "searching_for_partner":
       return "booking-details__status booking-details__status--confirmed";
 
     case "disputed":
       return "booking-details__status booking-details__status--cancelled";
+
+    case "pending_payment":
+      return "booking-details__status booking-details__status--payment-pending";
 
     case "created":
     default:

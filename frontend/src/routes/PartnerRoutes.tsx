@@ -20,6 +20,7 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
+import ActiveJobPage from "../pages/partner/ActiveJob";
 
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
@@ -114,6 +115,9 @@ const REAL_ROUTE_PATHS = new Set([
   "profile",
   "work/requests",
   "work",
+  "work/active",
+  "work/:jobId",
+  "work/:id",
   "services",
   "service-area",
 ]);
@@ -216,8 +220,12 @@ export default function PartnerRoutes() {
           ),
         )}
 
-        {/* Partner job: details, navigation + chat + call, location sharing */}
+        {/* Partner job: details, active job, navigation + chat + call, location sharing */}
         <Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
+        <Route path="work/:id" element={<PartnerJobDetailsPage />} />
+        <Route path="work/:jobId" element={<PartnerJobDetailsPage />} />
+        <Route path="jobs/:id/active" element={<ActiveJobPage />} />
+        <Route path="work/active" element={<ActiveJobPage />} />
         <Route path="jobs/:id/navigation" element={<PartnerNavigationPage />} />
         <Route
           path="jobs/:id/location"

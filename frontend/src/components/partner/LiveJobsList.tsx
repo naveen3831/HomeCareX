@@ -551,24 +551,40 @@ export function JobCard({
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#4f46e5]">
               Assigned booking
             </p>
-            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#e7f4ef] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0f766e]" />
-              {STATUS_LABEL[j.status]}
-            </span>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/partner/jobs/${j.id}`}
+                className="text-xs font-semibold text-[#4f46e5] hover:underline"
+              >
+                View details &rarr;
+              </Link>
+              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#e7f4ef] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0f766e]" />
+                {STATUS_LABEL[j.status]}
+              </span>
+            </div>
           </div>
 
           <h3
             className={`mt-2 text-xl font-extrabold leading-tight tracking-tight text-slate-900 sm:mt-3 sm:text-[28px] xl:text-[26px] ${wrapText}`}
           >
-            {j.service.name}
+            <Link
+              to={`/partner/jobs/${j.id}`}
+              className="hover:text-[#4f46e5] hover:underline transition-colors"
+            >
+              {j.service.name}
+            </Link>
           </h3>
           <p
             className={`mt-1 text-xs leading-relaxed text-slate-500 sm:mt-2 sm:text-sm ${wrapText}`}
           >
             Job{" "}
-            <span className="font-semibold text-slate-700">
+            <Link
+              to={`/partner/jobs/${j.id}`}
+              className="font-semibold text-slate-700 hover:text-[#4f46e5] hover:underline transition-colors"
+            >
               #{j.id.slice(-8).toUpperCase()}
-            </span>
+            </Link>
             <span className="mx-2 text-slate-300" aria-hidden="true">
               •
             </span>
@@ -767,7 +783,19 @@ export function JobCard({
                 Start navigation
               </button>
             )}
-            <div className="contents sm:mt-3 sm:grid sm:min-w-0 sm:grid-cols-2 sm:gap-3">
+            <div className="contents sm:mt-3 sm:grid sm:min-w-0 sm:grid-cols-3 sm:gap-2.5">
+              <Link
+                to={`/partner/jobs/${j.id}`}
+                aria-label="View job details"
+                className={outlineBtn}
+              >
+                <span className="sm:hidden" aria-hidden="true">
+                  Details
+                </span>
+                <span className="hidden sm:inline" aria-hidden="true">
+                  Job details
+                </span>
+              </Link>
               <Link
                 to={`/partner/jobs/${j.id}/navigation?panel=call`}
                 aria-label="Call customer"

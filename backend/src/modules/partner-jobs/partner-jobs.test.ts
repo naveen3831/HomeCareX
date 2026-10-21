@@ -66,6 +66,34 @@ const postReject = (id: string, bearer?: string) =>
     method: 'POST',
     headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
   });
+const postVerifyStart = (id: string, body: unknown, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/verify-start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+    body: JSON.stringify(body),
+  });
+const postComplete = (id: string, body: unknown, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+    body: JSON.stringify(body),
+  });
+const getExtraCharges = (id: string, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/extra-charges`, {
+    headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+  });
+const postExtraCharge = (id: string, body: unknown, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/extra-charges`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+    body: JSON.stringify(body),
+  });
+const patchChecklist = (id: string, itemId: string, body: unknown, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs/${id}/checklist/${itemId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}) },
+    body: JSON.stringify(body),
+  });
 const code = async (res: Response) => ((await res.json()) as { code: string }).code;
 
 describe('partner jobs', () => {
@@ -113,6 +141,29 @@ describe('partner jobs', () => {
       booking.statusHistory.push(entry);
       return true;
     }) as typeof repo.transitionStatus;
+    repo.verifyStartJob = (async (_bid: any, pid: any, entry: any) => {
+      if (booking.partnerId?.toString() !== pid.toString() || booking.status !== 'arrived') return false;
+      booking.status = 'in_progress';
+      booking.statusHistory.push(entry);
+      return true;
+    }) as unknown as typeof repo.verifyStartJob;
+    repo.completePartnerJob = (async (_bid: any, pid: any, entry: any) => {
+      if (booking.partnerId?.toString() !== pid.toString() || booking.status !== 'in_progress') return false;
+      booking.status = 'completed';
+      booking.statusHistory.push(entry);
+      return true;
+    }) as unknown as typeof repo.completePartnerJob;
+    repo.addExtraCharge = (async (_bid: any, pid: any, charge: any) => {
+      if (booking.partnerId?.toString() !== pid.toString()) return false;
+      if (!booking.extraCharges) booking.extraCharges = [];
+      booking.extraCharges.push(charge);
+      return true;
+    }) as unknown as typeof repo.addExtraCharge;
+    repo.updateChecklist = (async (_bid: any, pid: any, checklist: any) => {
+      if (booking.partnerId?.toString() !== pid.toString()) return false;
+      booking.checklist = checklist;
+      return true;
+    }) as unknown as typeof repo.updateChecklist;
     server = app.listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -242,6 +293,77 @@ describe('partner jobs', () => {
     it('401: unauthenticated reject rejected', async () => {
       const res = await postReject(bookingId.toString());
       assert.equal(res.status, 401);
+    });
+  });
+
+  describe('POST /partner/jobs/:id/verify-start', () => {
+    it('200: starts job when arrived and OTP is valid', async () => {
+      booking.status = 'arrived';
+      const res = await postVerifyStart(bookingId.toString(), { otp: '1234' }, token('partner'));
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { success: boolean; data: { status: string } };
+      assert.equal(json.data.status, 'in_progress');
+    });
+
+    it('422: rejects start when OTP is invalid', async () => {
+      booking.status = 'arrived';
+      const res = await postVerifyStart(bookingId.toString(), { otp: '9999' }, token('partner'));
+      assert.equal(res.status, 422);
+      assert.equal(await code(res), 'INVALID_OTP');
+    });
+
+    it('422: rejects start when status is not arrived', async () => {
+      booking.status = 'assigned';
+      const res = await postVerifyStart(bookingId.toString(), { otp: '1234' }, token('partner'));
+      assert.equal(res.status, 422);
+    });
+  });
+
+  describe('POST /partner/jobs/:id/complete', () => {
+    it('200: completes job when in_progress', async () => {
+      booking.status = 'in_progress';
+      booking.extraCharges = [];
+      const res = await postComplete(bookingId.toString(), { notes: 'All done' }, token('partner'));
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { success: boolean; data: { status: string } };
+      assert.equal(json.data.status, 'completed');
+    });
+
+    it('422: rejects complete when status is not in_progress', async () => {
+      booking.status = 'assigned';
+      const res = await postComplete(bookingId.toString(), {}, token('partner'));
+      assert.equal(res.status, 422);
+    });
+  });
+
+  describe('GET & POST /partner/jobs/:id/extra-charges', () => {
+    it('200: creates and lists extra charges', async () => {
+      booking.status = 'in_progress';
+      const createRes = await postExtraCharge(
+        bookingId.toString(),
+        { description: 'Extra wire', quantity: 2, amount: 250, reason: 'Wiring work' },
+        token('partner'),
+      );
+      assert.equal(createRes.status, 200);
+      const createJson = (await createRes.json()) as { success: boolean; data: { title: string; amount: number } };
+      assert.equal(createJson.data.title, 'Extra wire');
+      assert.equal(createJson.data.amount, 250);
+
+      const listRes = await getExtraCharges(bookingId.toString(), token('partner'));
+      assert.equal(listRes.status, 200);
+      const listJson = (await listRes.json()) as { success: boolean; data: Array<{ title: string }> };
+      assert.ok(listJson.data.some((c) => c.title === 'Extra wire'));
+    });
+  });
+
+  describe('PATCH /partner/jobs/:id/checklist/:itemId', () => {
+    it('200: updates checklist item status', async () => {
+      booking.status = 'in_progress';
+      booking.checklist = [{ id: 'chk-1', label: 'Filter cleaning', done: false }];
+      const res = await patchChecklist(bookingId.toString(), 'chk-1', { done: true }, token('partner'));
+      assert.equal(res.status, 200);
+      const json = (await res.json()) as { success: boolean; data: { checklist: Array<{ done: boolean }> } };
+      assert.equal(json.data.checklist[0].done, true);
     });
   });
 });

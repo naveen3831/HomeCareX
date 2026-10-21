@@ -527,9 +527,9 @@ export default function PartnerJobRequestsPage() {
         </div>
       </div>
 
-      {/* Dev only: confirm a booking to test the whole flow */}
-
-      {import.meta.env.DEV && <MockConfirmedBookingButton />}
+      {import.meta.env.DEV && String(import.meta.env.VITE_USE_MOCKS ?? "false") === "true" && (
+        <MockConfirmedBookingButton />
+      )}
 
       <LiveJobsList />
 

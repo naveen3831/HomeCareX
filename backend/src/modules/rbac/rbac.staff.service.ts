@@ -1,6 +1,7 @@
 import { isValidObjectId } from 'mongoose';
 
 import { StaffModel, type StaffStatusValue } from '../../models/Staff';
+export type StaffStatus = StaffStatusValue;
 import { UserModel } from '../../models/User';
 import { auditService } from '../audit/audit.service';
 import { authService } from '../auth/auth.service';
