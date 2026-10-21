@@ -1,38 +1,71 @@
-import { randomBytes } from 'node:crypto';
-import mongoose, { Types } from 'mongoose';
-import { ReferralCodeModel, ReferralModel } from './referrals.model';
-import { UserModel } from '../../models/User';
-import BookingModel from '../../models/Booking';
-import { WalletLedgerModel, WalletModel } from '../../models/Wallet';
-import { HttpError } from '../auth/auth.types';
+import { randomBytes } from "node:crypto";
+import mongoose, { Types } from "mongoose";
+import { ReferralCodeModel, ReferralModel } from "./referrals.model";
+import { UserModel } from "../../models/User";
+import BookingModel from "../../models/Booking";
+import { WalletLedgerModel, WalletModel } from "../../models/Wallet";
+import { HttpError } from "../auth/auth.types";
 
 const duplicate = (error: unknown) =>
   (error as { code?: number } | null)?.code === 11000;
 export function assertNotSelfReferral(referrerId: string, refereeId: string) {
   if (referrerId === refereeId)
-    throw new HttpError(400, 'You cannot refer yourself.', 'SELF_REFERRAL');
+    throw new HttpError(400, "You cannot refer yourself.", "SELF_REFERRAL");
 }
 export function configuredRewardPaise(): number {
   const amount = Number(process.env.REFERRAL_REWARD_PAISE ?? 0);
   if (!Number.isSafeInteger(amount) || amount < 0 || amount > 10_000_000)
     throw new Error(
-      'REFERRAL_REWARD_PAISE must be a non-negative integer in paise.',
+      "REFERRAL_REWARD_PAISE must be a non-negative integer in paise.",
     );
   return amount;
 }
+const CODE_PREFIX = "HCX";
+const MAX_NAME_LETTERS = 8;
+/** "HCX" + the first name in capitals: letters only, accents stripped, at most 8 letters. */
+export function referralCodeBase(name?: string | null): string {
+  const first = (name ?? "").trim().split(/\s+/)[0] ?? "";
+  const letters = first
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Za-z]/g, "")
+    .toUpperCase()
+    .slice(0, MAX_NAME_LETTERS);
+  return `${CODE_PREFIX}${letters}`;
+}
+/**
+ * Attempt 0 = plain code, 1-4 = ...2 to ...5, later = random hex suffix.
+ * A name with no letters falls back to a fully random code.
+ */
+export function referralCodeCandidate(
+  name: string | null | undefined,
+  attempt: number,
+): string {
+  const base = referralCodeBase(name);
+  if (base === CODE_PREFIX)
+    return `${CODE_PREFIX}${randomBytes(3).toString("hex").toUpperCase()}`;
+  if (attempt === 0) return base;
+  if (attempt <= 4) return `${base}${attempt + 1}`;
+  return `${base}${randomBytes(2).toString("hex").toUpperCase()}`;
+}
 export const referralsService = {
+  /** One code per customer: HCX + first name (e.g. HCXCHARAN); numbered/random suffix only on a clash. */
   async code(userId: string): Promise<string> {
     const existing = await ReferralCodeModel.findOne({ referrerId: userId });
     if (existing) return existing.code;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    const user = await UserModel.findById(userId)
+      .select("name")
+      .lean<{ name?: string | null }>();
+    for (let attempt = 0; attempt < 10; attempt++) {
       try {
         const row = await ReferralCodeModel.create({
           referrerId: userId,
-          code: `HCX${randomBytes(5).toString('hex').toUpperCase()}`,
+          code: referralCodeCandidate(user?.name, attempt),
         });
         return row.code;
       } catch (error) {
         if (!duplicate(error)) throw error;
+        // Either another request created this user's code, or the wanted code belongs to someone else.
         const concurrent = await ReferralCodeModel.findOne({
           referrerId: userId,
         });
@@ -41,8 +74,8 @@ export const referralsService = {
     }
     throw new HttpError(
       503,
-      'Could not generate your referral code. Please retry.',
-      'REFERRAL_UNAVAILABLE',
+      "Could not generate your referral code. Please retry.",
+      "REFERRAL_UNAVAILABLE",
     );
   },
   async resolve(code: string): Promise<string> {
@@ -53,14 +86,14 @@ export const referralsService = {
       !match ||
       !(await UserModel.exists({
         _id: match.referrerId,
-        role: 'customer',
-        status: 'active',
+        role: "customer",
+        status: "active",
       }))
     ) {
       throw new HttpError(
         400,
-        'This referral code is not valid.',
-        'INVALID_REFERRAL',
+        "This referral code is not valid.",
+        "INVALID_REFERRAL",
       );
     }
     return String(match.referrerId);
@@ -79,8 +112,8 @@ export const referralsService = {
       if (!previous || String(previous.referrerId) !== referrerId)
         throw new HttpError(
           409,
-          'A referral is already linked to this account.',
-          'DUPLICATE_REFERRAL',
+          "A referral is already linked to this account.",
+          "DUPLICATE_REFERRAL",
         );
     }
   },
@@ -100,12 +133,12 @@ export const referralsService = {
             invited: { $sum: 1 },
             completed: {
               $sum: {
-                $cond: [{ $in: ['$status', ['completed', 'rewarded']] }, 1, 0],
+                $cond: [{ $in: ["$status", ["completed", "rewarded"]] }, 1, 0],
               },
             },
             rewardPaise: {
               $sum: {
-                $cond: [{ $eq: ['$status', 'rewarded'] }, '$rewardPaise', 0],
+                $cond: [{ $eq: ["$status", "rewarded"] }, "$rewardPaise", 0],
               },
             },
           },
@@ -142,30 +175,41 @@ export const referralsService = {
   async rewardForReferee(refereeId: string) {
     const referral = await ReferralModel.findOne({
       refereeId,
-      status: { $ne: 'rewarded' },
+      status: { $ne: "rewarded" },
     });
     if (!referral) return;
     assertNotSelfReferral(String(referral.referrerId), refereeId);
+    // A friend's first PAID booking qualifies (payment captured and the booking not cancelled/refunded),
+    // so the reward no longer waits for a partner to mark the job completed.
     const first = await BookingModel.findOne({
       customerId: refereeId,
-      status: { $in: ['completed', 'rated'] },
+      paymentStatus: "PAID",
+      status: {
+        $nin: [
+          "pending_payment",
+          "cancelled_by_customer",
+          "cancelled_by_partner",
+          "cancelled_by_admin",
+          "no_show",
+        ],
+      },
     })
-      .sort({ completedAt: 1, createdAt: 1, _id: 1 })
-      .select('_id');
+      .sort({ "paymentDetails.paidAt": 1, createdAt: 1, _id: 1 })
+      .select("_id");
     if (!first) return;
     await ReferralModel.updateOne(
-      { _id: referral._id, status: 'invited' },
-      { $set: { status: 'completed', firstBookingId: first._id } },
+      { _id: referral._id, status: "invited" },
+      { $set: { status: "completed", firstBookingId: first._id } },
     );
     const rewardPaise = configuredRewardPaise();
     // Monetary policy is configured by HomeCareX; do not invent a default reward.
     if (!rewardPaise) return;
     await mongoose.connection.transaction(async (session) => {
       const claimed = await ReferralModel.findOneAndUpdate(
-        { _id: referral._id, status: 'completed' },
+        { _id: referral._id, status: "completed" },
         {
           $set: {
-            status: 'rewarded',
+            status: "rewarded",
             firstBookingId: first._id,
             rewardPaise,
             rewardedAt: new Date(),
@@ -184,10 +228,10 @@ export const referralsService = {
           {
             walletId: wallet._id,
             userId: String(claimed.referrerId),
-            type: 'referral_reward',
+            type: "referral_reward",
             amount: rewardPaise / 100,
             balanceAfter: wallet.balance,
-            description: 'Referral reward: first completed booking',
+            description: "Referral reward: first completed booking",
             referenceId: `referral:${claimed._id}`,
           },
         ],
@@ -199,12 +243,12 @@ export const referralsService = {
     let after: Types.ObjectId | undefined;
     while (true) {
       const batch = await ReferralModel.find({
-        status: { $ne: 'rewarded' },
+        status: { $ne: "rewarded" },
         ...(after ? { _id: { $gt: after } } : {}),
       })
         .sort({ _id: 1 })
         .limit(50)
-        .select('_id refereeId');
+        .select("_id refereeId");
       if (!batch.length) break;
       for (const row of batch)
         await referralsService.rewardForReferee(String(row.refereeId));

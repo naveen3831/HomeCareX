@@ -12,44 +12,48 @@ export class WalletService {
    * Retrieves wallet balance and paginated ledger.
    * Matches Frontend data contract: { balance, ledger: { items, total, limit, page } }
    */
- async getWallet(userId: string, page = 1, limit = 15, type?: string) {
-  const numPage = Math.max(1, Number(page) || 1);
-  const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
-  const skip = (numPage - 1) * numLimit;
+  async getWallet(userId: string, page = 1, limit = 15, type?: string) {
+    const numPage = Math.max(1, Number(page) || 1);
+    const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
+    const skip = (numPage - 1) * numLimit;
 
-  let wallet;
-  try {
-    wallet = await WalletModel.findOneAndUpdate(
-      { userId },
-      { $setOnInsert: { userId, balance: 0 } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-  } catch (err: any) {
-    if (err?.code === 11000) {
-      console.error("Wallet upsert E11000:", err.keyPattern, err.keyValue);
-      // Another request may have created it just now; re-read before failing.
-      wallet = await WalletModel.findOne({ userId });
-      if (!wallet) throw err;
-    } else {
-      throw err;
+    let wallet;
+    try {
+      wallet = await WalletModel.findOneAndUpdate(
+        { userId },
+        { $setOnInsert: { userId, balance: 0 } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        console.error("Wallet upsert E11000:", err.keyPattern, err.keyValue);
+        // Another request may have created it just now; re-read before failing.
+        wallet = await WalletModel.findOne({ userId });
+        if (!wallet) throw err;
+      } else {
+        throw err;
+      }
     }
+
+    const query: Record<string, any> = { userId };
+    if (type) {
+      query.type = { $in: [type.toLowerCase(), type.toUpperCase()] };
+    }
+
+    const [items, total] = await Promise.all([
+      WalletLedgerModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numLimit)
+        .lean(),
+      WalletLedgerModel.countDocuments(query),
+    ]);
+
+    return {
+      balance: wallet.balance,
+      ledger: { items, total, page: numPage, limit: numLimit },
+    };
   }
-
-  const query: Record<string, any> = { userId };
-  if (type) {
-    query.type = { $in: [type.toLowerCase(), type.toUpperCase()] };
-  }
-
-  const [items, total] = await Promise.all([
-    WalletLedgerModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(numLimit).lean(),
-    WalletLedgerModel.countDocuments(query),
-  ]);
-
-  return {
-    balance: wallet.balance,
-    ledger: { items, total, page: numPage, limit: numLimit },
-  };
-}
 
   async createTopupOrder(userId: string, amountInRupees: number) {
     if (!amountInRupees || amountInRupees < 10 || amountInRupees > 50000) {

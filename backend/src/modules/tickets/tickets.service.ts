@@ -1,21 +1,21 @@
-import { Types, type FilterQuery } from 'mongoose';
-import type { Ticket } from '../../models/Ticket';
-import { HttpError } from '../auth/auth.types';
+import { Types, type FilterQuery } from "mongoose";
+import type { Ticket } from "../../models/Ticket";
+import { HttpError } from "../auth/auth.types";
 import type {
   TicketLean,
   TicketMessageLean,
-} from '../admin-tickets/admin-tickets.repository';
+} from "../admin-tickets/admin-tickets.repository";
 import {
   ticketsRepository,
   type TicketsRepository,
-} from './tickets.repository';
-import type { NewTicket, TicketQuery } from './tickets.validation';
-import type { TicketDto, TicketMessageDto } from './tickets.types';
-import type { TicketStatus } from './tickets.constants';
-import type { EvidenceFile } from './tickets.upload';
-import { emitToUser, getIO, rooms } from '../../sockets';
+} from "./tickets.repository";
+import type { NewTicket, TicketQuery } from "./tickets.validation";
+import type { TicketDto, TicketMessageDto } from "./tickets.types";
+import type { TicketStatus } from "./tickets.constants";
+import type { EvidenceFile } from "./tickets.upload";
+import { emitToUser, getIO, rooms } from "../../sockets";
 
-export type TicketActor = { id: string; role: 'customer' | 'admin' };
+export type TicketActor = { id: string; role: "customer" | "admin" };
 const iso = (date: Date) => new Date(date).toISOString();
 export const ticketDto = (t: TicketLean): TicketDto => ({
   id: String(t._id),
@@ -42,14 +42,14 @@ const messageDto = (m: TicketMessageLean): TicketMessageDto => ({
   createdAt: iso(m.createdAt),
 });
 const notFound = () =>
-  new HttpError(404, 'Ticket not found.', 'TICKET_NOT_FOUND');
-const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  new HttpError(404, "Ticket not found.", "TICKET_NOT_FOUND");
+const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function publish(ticket: TicketLean) {
   try {
     const event = { ticketId: String(ticket._id) };
-    emitToUser(String(ticket.createdBy), 'ticket:updated', event);
-    getIO().to(rooms.role('admin')).emit('ticket:updated', event);
+    emitToUser(String(ticket.createdBy), "ticket:updated", event);
+    getIO().to(rooms.role("admin")).emit("ticket:updated", event);
   } catch {
     /* HTTP workers may run without sockets; foreground polling refreshes threads too. */
   }
@@ -63,8 +63,8 @@ export function createTicketsService(
     if (!/^[a-f\d]{24}$/i.test(id)) throw notFound();
     const filter: FilterQuery<Ticket> = {
       _id: new Types.ObjectId(id),
-      ...(actor.role === 'customer'
-        ? { createdBy: new Types.ObjectId(actor.id), createdByRole: 'customer' }
+      ...(actor.role === "customer"
+        ? { createdBy: new Types.ObjectId(actor.id), createdByRole: "customer" }
         : {}),
     };
     const ticket = await repo.get(filter);
@@ -75,10 +75,10 @@ export function createTicketsService(
     async list(customerId: string, query: TicketQuery) {
       const filter: FilterQuery<Ticket> = {
         createdBy: new Types.ObjectId(customerId),
-        createdByRole: 'customer',
+        createdByRole: "customer",
         ...(query.status ? { status: query.status } : {}),
         ...(query.search
-          ? { subject: { $regex: escape(query.search), $options: 'i' } }
+          ? { subject: { $regex: escape(query.search), $options: "i" } }
           : {}),
       };
       const [rows, total] = await Promise.all([
@@ -102,8 +102,8 @@ export function createTicketsService(
       ) {
         throw new HttpError(
           404,
-          'Choose one of your own bookings.',
-          'BOOKING_NOT_FOUND',
+          "Choose one of your own bookings.",
+          "BOOKING_NOT_FOUND",
         );
       }
       const ticket = await repo.create(customerId, input, files);
@@ -127,33 +127,33 @@ export function createTicketsService(
       files: EvidenceFile[],
     ) {
       const ticket = await owned(id, actor);
-      if (ticket.status === 'closed' || ticket.status === 'resolved') {
+      if (ticket.status === "closed" || ticket.status === "resolved") {
         throw new HttpError(
           409,
-          'This ticket is resolved or closed. Create a new ticket for further help.',
-          'TICKET_CLOSED',
+          "This ticket is resolved or closed. Create a new ticket for further help.",
+          "TICKET_CLOSED",
         );
       }
       const message = await repo.append(ticket, actor, body, files);
       if (!message)
         throw new HttpError(
           409,
-          'The ticket changed. Refresh and try again.',
-          'CONFLICT',
+          "The ticket changed. Refresh and try again.",
+          "CONFLICT",
         );
       notify(ticket);
       return messageDto(message);
     },
     async setStatus(id: string, status: TicketStatus, actor: TicketActor) {
-      if (actor.role !== 'admin')
-        throw new HttpError(403, 'Support permission required.', 'FORBIDDEN');
+      if (actor.role !== "admin")
+        throw new HttpError(403, "Support permission required.", "FORBIDDEN");
       const ticket = await owned(id, actor);
       const next = await repo.status(ticket, status);
       if (!next)
         throw new HttpError(
           409,
-          'The ticket changed. Refresh and try again.',
-          'CONFLICT',
+          "The ticket changed. Refresh and try again.",
+          "CONFLICT",
         );
       notify(next);
       return ticketDto(next);
@@ -161,7 +161,7 @@ export function createTicketsService(
     async evidence(id: string, fileId: string, actor: TicketActor) {
       await owned(id, actor);
       const file = await repo.evidence(id, fileId);
-      if (!file) throw new HttpError(404, 'Attachment not found.', 'NOT_FOUND');
+      if (!file) throw new HttpError(404, "Attachment not found.", "NOT_FOUND");
       return file;
     },
   };
