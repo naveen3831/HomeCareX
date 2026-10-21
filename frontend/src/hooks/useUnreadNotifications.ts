@@ -1,6 +1,15 @@
-import { NOTIFICATIONS } from "@/mocks/customerMockData";
+import { useQuery } from "@tanstack/react-query";
+import { notificationKeys, useNotificationSocket } from "@/hooks/useNotifications";
+import { fetchNotifications } from "@/services/notificationApi";
 
-/** Unread notification count. MOCK: swap for the notifications API later. */
+/** Unread notification count for the top-bar bell. Real data (one tiny request), refreshed live over the socket. */
 export function useUnreadNotifications(): number {
-  return NOTIFICATIONS.filter((n) => !n.read).length;
+  useNotificationSocket();
+  const { data } = useQuery({
+    queryKey: notificationKeys.badge,
+    queryFn: ({ signal }) => fetchNotifications({ limit: 1 }, signal),
+    staleTime: 30_000,
+    retry: false,
+  });
+  return data?.unread ?? 0;
 }

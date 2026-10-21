@@ -26,12 +26,15 @@ export function usePartnerLocation({
 
     const onPosition = (pos: GeolocationPosition) => {
       const next = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setPosition(next);
 
-      if (!share) return;
+      if (!share) {
+        setPosition(next);
+        return;
+      }
       const now = Date.now();
       if (now - lastUploadRef.current < LOCATION_THROTTLE_MS) return;
       lastUploadRef.current = now;
+      setPosition(next);
       void http.patch(`/partner/jobs/${jobId}/location`, {
         lat: next.lat,
         lng: next.lng,

@@ -6,7 +6,7 @@ export function validatePhotos(
 ): { files: File[]; problems: string[] } {
   const files = [...existing];
   const problems: string[] = [];
-  const remaining = MAX_PHOTOS - files.length;
+  let limitReported = false;
 
   incoming.forEach((file) => {
     if (file.type === "image/svg+xml") {
@@ -22,11 +22,10 @@ export function validatePhotos(
       return;
     }
     if (files.length >= MAX_PHOTOS) {
-      problems.push(`You can attach up to ${MAX_PHOTOS} photos.`);
-      return;
-    }
-    if (remaining <= 0) {
-      problems.push(`You can attach up to ${MAX_PHOTOS} photos.`);
+      if (!limitReported) {
+        problems.push(`You can attach up to ${MAX_PHOTOS} photos.`);
+        limitReported = true;
+      }
       return;
     }
     files.push(file);
