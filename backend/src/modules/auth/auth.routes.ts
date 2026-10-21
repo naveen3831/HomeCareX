@@ -14,6 +14,9 @@ authRoutes.post('/forgot-password', authRateLimit, authController.forgotPassword
 authRoutes.post('/verify-otp', authRateLimit, authController.verifyOtp);
 authRoutes.post('/resend-otp', authRateLimit, authController.resendOtp);
 authRoutes.post('/reset-password', authRateLimit, authController.resetPassword);
+// Staff invite: public, token-based (same rate limit as password reset)
+authRoutes.post('/verify-invite', authRateLimit, authController.verifyInvite);
+authRoutes.post('/accept-invite', authRateLimit, authController.acceptInvite);
 authRoutes.get('/me', authMiddleware, authController.me);
 authRoutes.post('/change-password', authMiddleware, authRateLimit, authController.changePassword);
 

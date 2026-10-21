@@ -12,6 +12,7 @@ import PartnerRegisterPage from '@/pages/public/PartnerRegister';
 import ForgotPasswordPage from '@/pages/public/ForgotPassword';
 import VerifyOtpPage from '@/pages/public/VerifyOtp';
 import ResetPasswordPage from '@/pages/public/ResetPassword';
+import AcceptInvitePage from '@/pages/public/AcceptInvite';
 import UnauthorizedPage from '@/pages/public/Unauthorized';
 import AccountSecurityPage from '@/pages/shared/AccountSecurity';
 import { ADMIN_ROLES } from '@/types/auth';
@@ -27,6 +28,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
       </Route>
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
  

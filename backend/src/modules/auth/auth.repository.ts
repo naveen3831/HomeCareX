@@ -11,9 +11,15 @@ export const authRepository = {
       passwordResetTokenHash: tokenHash,
       passwordResetExpiresAt: { $gt: new Date() },
     }).select('+passwordHash +passwordResetTokenHash'),
+  findByInviteTokenHash: (tokenHash: string) =>
+    UserModel.findOne({
+      inviteTokenHash: tokenHash,
+      inviteExpiresAt: { $gt: new Date() },
+      status: 'invited',
+    }).select('+passwordHash +inviteTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
-  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string; avatar?: string; gender?: string }) =>
+  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string; avatar?: string; gender?: string; status?: 'active' | 'blocked' | 'invited'; staffRoleId?: string; inviteTokenHash?: string; inviteExpiresAt?: Date }) =>
     UserModel.create(data),
 
   // OTP repository methods

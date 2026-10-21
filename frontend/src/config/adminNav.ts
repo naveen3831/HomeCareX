@@ -90,8 +90,8 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: 'System',
     items: [
-      { label: 'Roles', path: '/admin/roles-permissions', icon: ShieldCheck },
-      { label: 'Staff', path: '/admin/staff', icon: UserCog },
+      { label: 'Roles', path: '/admin/roles', icon: ShieldCheck, permission: 'roles:view' },
+      { label: 'Staff', path: '/admin/staff', icon: UserCog, permission: 'staff:view' },
       { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock },
       { label: 'Security', path: '/admin/security', icon: Lock },
       { label: 'Settings', path: '/admin/settings', icon: Settings },

@@ -8,7 +8,7 @@ import './index.css';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** Full page: /admin/roles/staff/new. Sends an invite and returns to the Staff tab. */
+/** Full page: /admin/staff/new. Sends an invite and returns to the Staff page. */
 export const InviteStaffPage: React.FC = () => {
   const navigate = useNavigate();
   const rolesQuery = useRoles();
@@ -30,7 +30,7 @@ export const InviteStaffPage: React.FC = () => {
   };
 
   const backToStaff = (toast?: string) =>
-    navigate('/admin/roles?tab=staff', { state: toast ? { toast } : undefined });
+    navigate('/admin/staff', { state: toast ? { toast } : undefined });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +39,13 @@ export const InviteStaffPage: React.FC = () => {
     if (errors.name || errors.email || errors.role) return;
     const input = { name: name.trim(), email: email.trim().toLowerCase(), roleId };
     invite.mutate(input, {
-      onSuccess: () => backToStaff(`Invite sent to ${input.email}.`),
+      onSuccess: (member) => {
+        if (member.emailSent === false) {
+          backToStaff(`Invite created for ${input.email}, but the email could not be sent. Check the SMTP settings in backend/.env and the backend console.`);
+          return;
+        }
+        backToStaff(`Invited ${input.email}. They’ll get an email to set their password.`);
+      },
       onError: (err) => setServerError(errorMessage(err)),
     });
   };
@@ -47,7 +53,7 @@ export const InviteStaffPage: React.FC = () => {
   return (
     <div className="admin-page-container rbac-page">
       <PageHeader
-        back="/admin/roles?tab=staff"
+        back="/admin/staff"
         title="Invite staff"
         description="They’ll get an email with a link to set up their account."
       />

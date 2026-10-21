@@ -252,7 +252,7 @@ export const StaffTab: React.FC<StaffTabProps> = ({ notify }) => {
       <div className="rbac-toolbar">
         <RbacSearch value={query} onChange={setQuery} placeholder="Search name, email or role" label="Search staff" />
         {canInvite && (
-          <button type="button" className="hcx-btn hcx-btn--primary rbac-cta" onClick={() => navigate('/admin/roles/staff/new')}>
+          <button type="button" className="hcx-btn hcx-btn--primary rbac-cta" onClick={() => navigate('/admin/staff/new')}>
             <UserPlus size={16} aria-hidden /> Invite staff
           </button>
         )}

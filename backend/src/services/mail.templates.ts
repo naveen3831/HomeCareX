@@ -462,3 +462,56 @@ export function passwordResetOtpEmail(d: PasswordResetOtpEmailData): { subject: 
   return { subject: `${d.otp} is your ${BRAND.name} password reset code`, html, text };
 }
 
+export interface StaffInviteEmailData {
+  name: string;
+  email: string;
+  inviteUrl: string;
+  roleName?: string;
+  invitedBy?: string;
+  logoSrc?: string;
+  supportEmail?: string;
+}
+
+export function staffInviteEmail(d: StaffInviteEmailData): { subject: string; html: string; text: string } {
+  const firstName = d.name.trim().split(/\s+/)[0] || d.name;
+  const by = d.invitedBy ? `${esc(d.invitedBy)} has` : 'You have been';
+  const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 24px ${FONT};color:${BRAND.indigoDark};text-align:center">You're invited to join ${BRAND.name}</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">Set your password to activate your admin account.</p>
+
+<p style="margin:0 0 16px">Hi ${esc(firstName)},</p>
+<p style="margin:0 0 16px">${by} invited you to the ${BRAND.name} admin panel${d.roleName ? ` as <strong>${esc(d.roleName)}</strong>` : ''}.</p>
+<p style="margin:0 0 20px">Tap the button below to set your password. After that you can log in.</p>
+
+${button(d.inviteUrl, 'Accept Invitation')}
+
+<p style="margin:20px 0 22px;text-align:center;font-size:12px;color:${BRAND.muted}">Button not working? Copy and paste this link into your browser:<br /><a href="${esc(d.inviteUrl)}" style="color:${BRAND.indigo};word-break:break-all">${esc(d.inviteUrl)}</a></p>
+
+<p style="margin:0 0 16px;font-size:13px;color:${BRAND.muted}">This link is valid for <strong>72 hours</strong> and can only be used once. If you weren't expecting this invitation, you can ignore this email.</p>
+
+<p style="margin:26px 0 0">Warmly,<br /><strong>The ${BRAND.name} Team</strong></p>`;
+
+  const html = layout({
+    preheader: `Accept your ${BRAND.name} admin invitation.`,
+    logoSrc: d.logoSrc,
+    bodyHtml,
+    footerNote: `You are receiving this email because an admin invited ${d.email} to ${BRAND.name}.`,
+    supportEmail: d.supportEmail,
+  });
+
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `You have been invited to the ${BRAND.name} admin panel${d.roleName ? ` as ${d.roleName}` : ''}.`,
+    'Open the link below to set your password, then log in:',
+    d.inviteUrl,
+    '',
+    'This link is valid for 72 hours and can only be used once.',
+    'If you were not expecting this invitation, you can ignore this email.',
+    '',
+    'Warmly,',
+    `The ${BRAND.name} Team`,
+  ].join('\n');
+
+  return { subject: `You're invited to ${BRAND.name}`, html, text };
+}

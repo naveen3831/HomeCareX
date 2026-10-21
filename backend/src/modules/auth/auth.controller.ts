@@ -10,6 +10,9 @@ import {
   registerSchema,
   resendOtpSchema,
   resetPasswordSchema,
+  acceptInviteSchema,
+  inviteStaffSchema,
+  verifyInviteSchema,
   verifyOtpSchema,
 } from "./auth.validation";
 
@@ -458,6 +461,25 @@ export const authController = {
     );
 
     res.json(result);
+  }),
+
+  /** POST /api/v1/admin/staff (admin only): sends a staff invite email. */
+  inviteStaff: wrap(async (req, res) => {
+    const invitedBy = res.locals.auth?.sub as string | undefined;
+    const data = await authService.inviteStaff(parseBody(inviteStaffSchema, req.body), invitedBy);
+    res.status(201).json({ success: true, data });
+  }),
+
+  /** POST /api/v1/auth/verify-invite */
+  verifyInvite: wrap(async (req, res) => {
+    const data = await authService.verifyInvite(parseBody(verifyInviteSchema, req.body));
+    res.json({ success: true, data });
+  }),
+
+  /** POST /api/v1/auth/accept-invite */
+  acceptInvite: wrap(async (req, res) => {
+    const data = await authService.acceptInvite(parseBody(acceptInviteSchema, req.body));
+    res.json({ success: true, data });
   }),
 
   /**

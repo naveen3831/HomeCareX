@@ -26,6 +26,7 @@ import AdminPayoutsPage from '@/pages/admin/Payouts';
 import AdminReviewsPage from '@/pages/admin/Reviews';
 import AdminReportsPage from '@/pages/admin/Reports';
 import AdminRolesPage from '@/pages/admin/Roles';
+import AdminStaffPage from '@/pages/admin/Staff';
 import AdminRoleFormPage from '@/pages/admin/Roles/RoleFormPage';
 import AdminInviteStaffPage from '@/pages/admin/Roles/InviteStaffPage';
 import AdminAuditLogsPage from '@/pages/admin/AuditLogs';
@@ -179,6 +180,12 @@ export const adminRoutes: AdminRoute[] = [
   {
     path: 'roles',
     element: <AdminRolesPage />,
+    permission: 'roles:view',
+  },
+  {
+    path: 'staff',
+    element: <AdminStaffPage />,
+    permission: 'staff:view',
   },
   // Full pages (sidebar stays visible): create / invite / edit.
   {
@@ -187,7 +194,7 @@ export const adminRoutes: AdminRoute[] = [
     permission: 'roles:create',
   },
   {
-    path: 'roles/staff/new',
+    path: 'staff/new',
     element: <AdminInviteStaffPage />,
     permission: 'staff:create',
   },
@@ -202,8 +209,8 @@ export const adminRoutes: AdminRoute[] = [
     element: <Navigate to="/admin/roles" replace />,
   },
   {
-    path: 'staff',
-    element: <Navigate to="/admin/roles?tab=staff" replace />,
+    path: 'roles/staff/new',
+    element: <Navigate to="/admin/staff/new" replace />,
   },
   {
     path: 'audit-logs',

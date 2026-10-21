@@ -21,6 +21,7 @@ export const rbacKeys = {
 /** No backend rbac module yet, so mocks are on unless VITE_MOCK_RBAC=false. */
 export const USE_RBAC_MOCK = import.meta.env.VITE_MOCK_RBAC !== 'false';
 
+
 const unwrap = <T>(res: { data: ApiResponse<T> }): T => res.data.data;
 
 /** The API may send plain keys (`bookings:view`) or objects; the UI always gets objects. */
@@ -75,10 +76,20 @@ export async function fetchStaff(): Promise<StaffMember[]> {
   return unwrap(await http.get<ApiResponse<StaffMember[]>>('/admin/staff'));
 }
 
-/** POST /admin/staff: sends an invite. */
+/**
+ * POST /admin/staff: sends an invite.
+ * The invite ALWAYS goes to the real backend (it creates the account and emails the accept-invite link).
+ * Only the Staff table row is mocked until GET /admin/staff exists (VITE_MOCK_RBAC).
+ */
 export async function inviteStaff(input: InviteStaffInput): Promise<StaffMember> {
-  if (USE_RBAC_MOCK) return rbacMock.invite(input);
-  return unwrap(await http.post<ApiResponse<StaffMember>>('/admin/staff', input));
+  const sent = unwrap(await http.post<ApiResponse<StaffMember>>('/admin/staff', input));
+  if (!USE_RBAC_MOCK) return sent;
+  try {
+    const row = await rbacMock.invite(input, sent.id); // same id as the real account, so their role sticks
+    return { ...row, inviteLink: undefined, emailSent: sent.emailSent };
+  } catch {
+    return sent; // already in the mock list (re-invite): the email was still sent
+  }
 }
 
 /** PATCH /admin/users/:id/role */
@@ -88,9 +99,8 @@ export async function changeStaffRole(userId: string, roleId: string): Promise<v
 }
 
 /*
- * ASSUMED endpoints (not in the module contract yet; confirm with backend):
+ * ASSUMED endpoint (not in the module contract yet; confirm with backend):
  *   PATCH /admin/staff/:id            { status: 'active' | 'deactivated' }
- *   POST  /admin/staff/:id/logout-all
  */
 export async function setStaffStatus(userId: string, status: 'active' | 'deactivated'): Promise<void> {
   if (USE_RBAC_MOCK) return rbacMock.setStatus(userId, status);
@@ -99,7 +109,8 @@ export async function setStaffStatus(userId: string, status: 'active' | 'deactiv
 
 export async function logoutAllSessions(userId: string): Promise<void> {
   if (USE_RBAC_MOCK) return rbacMock.logoutAll(userId);
-  await http.post(`/admin/staff/${userId}/logout-all`);
+  // Already exists in the auth module (admin only): bumps tokenVersion and clears the user's sessions.
+  await http.post(`/auth/revoke-user-sessions/${encodeURIComponent(userId)}`);
 }
 
 /**

@@ -38,6 +38,10 @@ export interface StaffMember {
   roleKey?: string;
   status: StaffStatus;
   lastLoginAt?: string | null;
+  /** Mock mode only: the accept-invite path the real email would contain. */
+  inviteLink?: string;
+  /** Real API only: false when the invite was created but the email could not be sent. */
+  emailSent?: boolean;
 }
 
 export interface InviteStaffInput {

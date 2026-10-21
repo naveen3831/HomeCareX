@@ -168,3 +168,32 @@ export function parseBody<T extends z.ZodTypeAny>(
   }
   return result.data;
 }
+
+const strongPassword = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Password needs an uppercase letter")
+  .regex(/[0-9]/, "Password needs a number")
+  .regex(/[^A-Za-z0-9]/, "Password needs a special character");
+
+/** POST /admin/staff */
+export const inviteStaffSchema = z.object({
+  name: z.string().trim().min(2, "Enter the person's full name"),
+  email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
+  roleId: z.string().trim().min(1, "Choose a role"),
+});
+
+/** POST /auth/verify-invite */
+export const verifyInviteSchema = z.object({
+  token: z.string().trim().min(1, "Invite token is required"),
+});
+
+/** POST /auth/accept-invite */
+export const acceptInviteSchema = z.object({
+  token: z.string().trim().min(1, "Invite token is required"),
+  password: strongPassword,
+});
+
+export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
+export type VerifyInviteInput = z.infer<typeof verifyInviteSchema>;
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

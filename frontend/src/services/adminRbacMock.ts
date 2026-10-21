@@ -127,14 +127,34 @@ const self = () => {
   return { id, name, email: String(u?.email ?? 'admin@homecarex.in') };
 };
 
-/** The signed-in admin becomes staff #1 so they can see and change their own role. */
+/**
+ * The signed-in admin becomes a staff row so they can see and change their own role.
+ * Role priority: the row created by their invite > the staffRoleId saved on their account > Super Admin
+ * (the seeded bootstrap admin has no staffRoleId).
+ */
 function ensureSelf(d: MockDb) {
   const me = self();
-  if (!me.id || d.staff.some((s) => s.id === me.id)) return;
-  const sa = d.roles.find((r) => r.key === SUPER_ADMIN_KEY)!;
-  d.staff.unshift({ id: me.id, name: me.name, email: me.email, roleId: sa.id, roleName: sa.name, roleKey: sa.key, status: 'active', lastLoginAt: new Date().toISOString() });
+  if (!me.id) return;
+  const u = useAuthStore.getState().user as Record<string, unknown> | null;
+  const now = new Date().toISOString();
+
+  // Invite row (matched by real id, or by email for rows created before ids were linked).
+  const existing = d.staff.find((s) => s.id === me.id) ?? d.staff.find((s) => s.email.toLowerCase() === me.email.toLowerCase());
+  if (existing) {
+    if (existing.id !== me.id) existing.id = me.id;
+    if (existing.status === 'invited') { existing.status = 'active'; existing.lastLoginAt = now; save(); }
+    return;
+  }
+
+  const saved = typeof u?.staffRoleId === 'string' ? d.roles.find((r) => r.id === u.staffRoleId) : undefined;
+  const role = saved ?? d.roles.find((r) => r.key === SUPER_ADMIN_KEY)!;
+  d.staff.unshift({ id: me.id, name: me.name, email: me.email, roleId: role.id, roleName: role.name, roleKey: role.key, status: 'active', lastLoginAt: now });
   save();
 }
+
+/** Deterministic so a seeded "invited" row can be opened without storing tokens. */
+const mockInviteToken = (staffId: string) => `mock-invite-${staffId}`;
+const inviteTarget = (token: string) => load().staff.find((s) => s.status === 'invited' && mockInviteToken(s.id) === token);
 
 function audit(action: string, target: string, detail?: string) {
   const d = load();
@@ -218,17 +238,35 @@ export const rbacMock = {
     return wait(d.staff);
   },
 
-  invite(input: InviteStaffInput) {
+  invite(input: InviteStaffInput, realId?: string) {
     const d = load();
     const role = d.roles.find((r) => r.id === input.roleId);
     if (!role) return fail(422, 'VALIDATION_ERROR', 'Choose a valid role.');
     const email = input.email.trim().toLowerCase();
     if (d.staff.some((s) => s.email.toLowerCase() === email)) return fail(409, 'EMAIL_TAKEN', 'Someone with this email is already on the team.');
-    const member: StaffMember = { id: `staff_${++d.seq}`, name: input.name.trim(), email, roleId: role.id, roleName: role.name, roleKey: role.key, status: 'invited', lastLoginAt: null };
+    const member: StaffMember = { id: realId ?? `staff_${++d.seq}`, name: input.name.trim(), email, roleId: role.id, roleName: role.name, roleKey: role.key, status: 'invited', lastLoginAt: null };
     d.staff.push(member);
     audit('staff.invited', member.email, `role: ${role.name}`);
     save();
-    return wait(member);
+    return wait({ ...member, inviteLink: `/accept-invite?token=${mockInviteToken(member.id)}` });
+  },
+
+  /** Accept-invite page, step 1: who is this link for? */
+  verifyInvite(token: string) {
+    const member = inviteTarget(token);
+    if (!member) return fail(400, 'INVALID_INVITE_TOKEN', 'This invitation link is invalid or has expired. Ask an admin to send a new one.');
+    return wait({ name: member.name, email: member.email });
+  },
+
+  /** Accept-invite page, step 2: set the password, which activates the account. */
+  acceptInvite(token: string, _password: string) {
+    const d = load();
+    const member = d.staff.find((s) => s.status === 'invited' && mockInviteToken(s.id) === token);
+    if (!member) return fail(400, 'INVALID_INVITE_TOKEN', 'This invitation link is invalid or has expired. Ask an admin to send a new one.');
+    member.status = 'active';
+    audit('staff.invite_accepted', member.email);
+    save();
+    return wait({ email: member.email, message: 'Your account is ready. Please log in with your new password.' });
   },
 
   changeRole(userId: string, roleId: string) {

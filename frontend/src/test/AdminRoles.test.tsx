@@ -12,6 +12,7 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ logout: vi.fn() }) }
 
 import AdminRolesPage from '@/pages/admin/Roles';
 import RoleFormPage from '@/pages/admin/Roles/RoleFormPage';
+import AdminStaffPage from '@/pages/admin/Staff';
 import InviteStaffPage from '@/pages/admin/Roles/InviteStaffPage';
 import { PermissionGrid } from '@/pages/admin/Roles/PermissionGrid';
 import { applyKeys, buildMatrix } from '@/pages/admin/Roles/rbacUtils';
@@ -57,7 +58,8 @@ const renderPage = (url = '/admin/roles') => {
         <Routes>
           <Route path="/admin/roles" element={<AdminRolesPage />} />
           <Route path="/admin/roles/new" element={<RoleFormPage />} />
-          <Route path="/admin/roles/staff/new" element={<InviteStaffPage />} />
+          <Route path="/admin/staff" element={<AdminStaffPage />} />
+          <Route path="/admin/staff/new" element={<InviteStaffPage />} />
           <Route path="/admin/roles/:id" element={<RoleFormPage />} />
         </Routes>
       </MemoryRouter>
@@ -103,7 +105,7 @@ describe('PermissionGrid', () => {
   });
 });
 
-describe('Roles tab', () => {
+describe('Roles page', () => {
   it('lists roles and protects system roles from edit and delete', async () => {
     renderPage();
     expect(await screen.findByText('Support Lead')).toBeInTheDocument();
@@ -182,15 +184,21 @@ describe('Roles tab', () => {
   });
 });
 
-describe('Staff tab', () => {
-  it('opens from ?tab=staff', async () => {
+describe('Staff page', () => {
+  it('is its own page, with no tabs on either page', async () => {
+    renderPage('/admin/staff');
+    expect(await screen.findByText('Ravi Lead')).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
+
+  it('redirects the old /admin/roles?tab=staff link to /admin/staff', async () => {
     renderPage('/admin/roles?tab=staff');
     expect(await screen.findByText('Ravi Lead')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Staff' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('where')).toHaveTextContent(/^\/admin\/staff$/);
   });
 
   it('blocks demoting or deactivating the last super admin', async () => {
-    renderPage('/admin/roles?tab=staff');
+    renderPage('/admin/staff');
     await screen.findByText('Asha Admin');
     expect(screen.queryByLabelText('Role for Asha Admin')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Deactivate Asha Admin')).toBeDisabled();
@@ -200,7 +208,7 @@ describe('Staff tab', () => {
   it('confirms before changing a role, then calls the API', async () => {
     h.patch.mockImplementation(() => Promise.resolve({ data: { success: true } }));
     (authApi.me as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'u1', role: 'staff', permissions: ALL });
-    renderPage('/admin/roles?tab=staff');
+    renderPage('/admin/staff');
     await userEvent.selectOptions(await screen.findByLabelText('Role for Ravi Lead'), 'r3');
     expect(h.patch).not.toHaveBeenCalled();
     await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /change role/i }));
@@ -210,17 +218,17 @@ describe('Staff tab', () => {
   it('shows the server message when the API refuses the last-super-admin change', async () => {
     h.patch.mockImplementation(() => Promise.reject({ response: { data: { code: 'LAST_SUPER_ADMIN', message: 'x' } } }));
     serve([STAFF[0], { ...STAFF[1], roleId: 'r1', roleName: 'Super Admin', roleKey: 'super_admin' }]);
-    renderPage('/admin/roles?tab=staff');
+    renderPage('/admin/staff');
     await userEvent.click(await screen.findByLabelText('Deactivate Ravi Lead'));
     await userEvent.click(within(await screen.findByRole('dialog')).getByRole('button', { name: /^deactivate$/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/last active super admin/i);
   });
 
-  it('invites staff on a full page, then returns to the Staff tab', async () => {
+  it('invites staff on a full page, then returns to the Staff page', async () => {
     h.post.mockImplementation(() => ok({ ...STAFF[1], id: 'u9', status: 'invited' }));
-    renderPage('/admin/roles?tab=staff');
+    renderPage('/admin/staff');
     await userEvent.click(await screen.findByRole('button', { name: /invite staff/i }));
-    expect(screen.getByTestId('where')).toHaveTextContent('/admin/roles/staff/new');
+    expect(screen.getByTestId('where')).toHaveTextContent('/admin/staff/new');
     await userEvent.click(screen.getByRole('button', { name: /send invite/i }));
     expect(await screen.findByText(/valid email/i)).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText(/full name/i), 'New Person');
@@ -230,13 +238,13 @@ describe('Staff tab', () => {
     await waitFor(() =>
       expect(h.post).toHaveBeenCalledWith('/admin/staff', { name: 'New Person', email: 'new@x.com', roleId: 'r2' }),
     );
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/admin/roles?tab=staff'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/admin\/staff$/));
     expect(await screen.findByRole('status')).toHaveTextContent(/invite sent/i);
   });
 
   it('hides write actions without staff:update', async () => {
     signIn(['roles:view', 'staff:view']);
-    renderPage('/admin/roles?tab=staff');
+    renderPage('/admin/staff');
     await screen.findByText('Ravi Lead');
     expect(screen.queryByRole('button', { name: /invite staff/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Deactivate Ravi Lead')).not.toBeInTheDocument();

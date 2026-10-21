@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 type ToastState = { text: string; tone: 'success' | 'error' } | null;
 
@@ -22,4 +23,20 @@ export function useToast() {
   ) : null;
 
   return { show, node };
+}
+
+/**
+ * A form page (create role, invite staff) sends its success message back through navigation
+ * state. Show it once, then clear it so a refresh doesn't repeat it.
+ */
+export function useFlashToast(show: (text: string, tone?: 'success' | 'error') => void) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const flash = (location.state as { toast?: string } | null)?.toast;
+  useEffect(() => {
+    if (!flash) return;
+    show(flash);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flash]);
 }

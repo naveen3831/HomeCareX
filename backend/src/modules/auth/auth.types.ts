@@ -9,6 +9,8 @@ export interface AuthUserDto {
   permissions: string[];
   /** Landing route for this role (/customer, /partner, /admin). */
   home: string;
+  /** Staff role chosen at invite time (rbac module will resolve it to a real Role). */
+  staffRoleId?: string;
 }
 
 export interface AccessTokenPayload {
