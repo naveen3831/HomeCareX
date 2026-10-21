@@ -73,16 +73,54 @@ function patchCachedPages(queryClient: QueryClient, patch: (page: NotificationsP
 }
 
 /** PATCH /customer/notifications/:id/read. The row shows as read at once; counts are then refetched. */
+
+/** PATCH /notifications/:id/read. Update only the matching row, then refetch server data. */
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
+
   return useMutation<CustomerNotification, NormalizedApiError, string>({
-    mutationFn: (id) => markNotificationRead(id),
+    mutationFn: async (id) => {
+      await markNotificationRead(id);
+
+      const cachedPages = queryClient.getQueriesData<NotificationsPage>({
+        queryKey: notificationKeys.all,
+      });
+
+      const existing = cachedPages
+        .map(([, page]) => page?.items.find((item) => item.id === id))
+        .find((item) => item !== undefined);
+
+      if (!existing) {
+        throw new Error("Notification not found in the current cache.");
+      }
+
+      return {
+        ...existing,
+        readAt: existing.readAt ?? new Date().toISOString(),
+      };
+    },
+
     onSuccess: (updated) => {
-      patchCachedPages(queryClient, (page) => ({ ...page, items: page.items.map((n) => (n.id === updated.id ? updated : n)) }));
-      void queryClient.invalidateQueries({ queryKey: notificationKeys.all });
+      patchCachedPages(queryClient, (page) => ({
+        ...page,
+        items: page.items.map((item) =>
+          item.id === updated.id ? updated : item,
+        ),
+      }));
+
+      void queryClient.invalidateQueries({
+        queryKey: notificationKeys.all,
+      });
+    },
+
+    onError: () => {
+      void queryClient.invalidateQueries({
+        queryKey: notificationKeys.all,
+      });
     },
   });
 }
+
 
 /** PATCH /customer/notifications/read-all. */
 export function useMarkAllNotificationsRead() {

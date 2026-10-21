@@ -11,10 +11,10 @@ import {
   HardHat,
   Headset,
   Inbox,
+  UserCog,
   UserPlus,
   LayoutDashboard,
   LayoutGrid,
-  Lock,
   Megaphone,
   RotateCcw,
   Settings,
@@ -23,7 +23,6 @@ import {
   Tag,
   Ticket,
   UserCircle,
-  UserCog,
   Users,
   Wallet,
   Wrench,
@@ -34,8 +33,8 @@ export interface AdminNavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  /** Optional permission key (or several: any one is enough). Used by the sidebar and route guards. */
-  permission?: string | string[];
+  /** Optional permission key. When set, PermissionGate / RequirePermission use it. */
+  permission?: string;
 }
 
 export interface AdminNavGroup {
@@ -53,47 +52,46 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: 'Operations',
     items: [
-      { label: 'Inbox', path: '/admin/leads', icon: Inbox, permission: 'leads:view' },
-      { label: 'Bookings', path: '/admin/bookings', icon: CalendarCheck, permission: 'bookings:view' },
-      { label: 'Customers', path: '/admin/customers', icon: Users, permission: 'customers:view' },
-      { label: 'Manage Partners', path: '/admin/manage-partners', icon: UserPlus, permission: 'partners:view' },
-      { label: 'Partners & KYC', path: '/admin/partners', icon: HardHat, permission: 'partners:view' },
-      { label: 'Support', path: '/admin/support', icon: Headset, permission: 'tickets:view' },
+      { label: 'Inbox', path: '/admin/leads', icon: Inbox },
+      { label: 'Bookings', path: '/admin/bookings', icon: CalendarCheck },
+      { label: 'Customers', path: '/admin/customers', icon: Users },
+      { label: 'Manage Partners', path: '/admin/manage-partners', icon: UserPlus },
+      { label: 'Partners & KYC', path: '/admin/partners', icon: HardHat },
+      { label: 'Support', path: '/admin/support', icon: Headset },
     ],
   },
   {
     groupName: 'Catalog',
     items: [
-      { label: 'Categories', path: '/admin/categories', icon: LayoutGrid, permission: 'catalog:view' },
-      { label: 'Services', path: '/admin/services', icon: Wrench, permission: 'catalog:view' },
-      { label: 'Pricing', path: '/admin/pricing', icon: Tag, permission: 'pricing:view' },
-      { label: 'Coupons', path: '/admin/coupons', icon: Ticket, permission: 'coupons:view' },
-      { label: 'Marketing', path: '/admin/marketing', icon: Megaphone, permission: 'marketing:view' },
+      { label: 'Categories', path: '/admin/categories', icon: LayoutGrid },
+      { label: 'Services', path: '/admin/services', icon: Wrench },
+      { label: 'Pricing', path: '/admin/pricing', icon: Tag },
+      { label: 'Coupons', path: '/admin/coupons', icon: Ticket },
+      { label: 'Marketing', path: '/admin/marketing', icon: Megaphone },
     ],
   },
   {
     groupName: 'Finance',
     items: [
-      { label: 'Payments', path: '/admin/payments', icon: CreditCard, permission: 'payments:view' },
-      { label: 'Refunds', path: '/admin/refunds', icon: RotateCcw, permission: 'refunds:view' },
-      { label: 'Payouts', path: '/admin/payouts', icon: Wallet, permission: 'payouts:view' },
+      { label: 'Payments', path: '/admin/payments', icon: CreditCard },
+      { label: 'Refunds', path: '/admin/refunds', icon: RotateCcw },
+      { label: 'Payouts', path: '/admin/payouts', icon: Wallet },
     ],
   },
   {
     groupName: 'Quality',
-    items: [{ label: 'Reviews', path: '/admin/reviews', icon: Star, permission: 'reviews:view' }],
+    items: [{ label: 'Reviews', path: '/admin/reviews', icon: Star }],
   },
   {
     groupName: 'Reporting',
-    items: [{ label: 'Reports', path: '/admin/reports', icon: BarChart3, permission: 'reports:view' }],
+    items: [{ label: 'Reports', path: '/admin/reports', icon: BarChart3 }],
   },
   {
     groupName: 'System',
     items: [
-      { label: 'Roles', path: '/admin/roles', icon: ShieldCheck, permission: 'roles:view' },
-      { label: 'Staff', path: '/admin/staff', icon: UserCog, permission: 'staff:view' },
+      { label: 'Roles', path: '/admin/roles-permissions', icon: ShieldCheck },
+      { label: 'Staff', path: '/admin/staff', icon: UserCog },
       { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock },
-      { label: 'Security', path: '/admin/security', icon: Lock },
       { label: 'Settings', path: '/admin/settings', icon: Settings },
     ],
   },
@@ -103,7 +101,6 @@ export const adminNavGroups: AdminNavGroup[] = [
     hidden: true,
     items: [
       { label: 'My Profile', path: '/admin/profile', icon: UserCircle },
-      { label: 'Account Security', path: '/admin/security', icon: Lock },
       { label: 'Notifications', path: '/admin/notifications', icon: Bell },
     ],
   },

@@ -7,109 +7,85 @@
  * -> en_route -> arrived -> in_progress -> completed -> rated
  */
 export const BOOKING_STATUSES = [
-  "pending_payment",
-  "confirmed",
-  "created",
-  "searching_for_partner",
-  "assigned",
-  "en_route",
-  "arrived",
-  "in_progress",
-  "completed",
-  "rated",
-  "cancelled_by_customer",
-  "cancelled_by_partner",
-  "cancelled_by_admin",
-  "no_show",
-  "disputed",
+  'pending_payment',
+  'confirmed',
+  'created',
+  'searching_for_partner',
+  'assigned',
+  'en_route',
+  'arrived',
+  'in_progress',
+  'completed',
+  'rated',
+  'cancelled_by_customer',
+  'cancelled_by_partner',
+  'cancelled_by_admin',
+  'no_show',
+  'disputed',
 ] as const;
 
-export type BookingStatus = (typeof BOOKING_STATUSES)[number];
+export type BookingStatus =
+  (typeof BOOKING_STATUSES)[number];
 
 /** Named access to the statuses used by the customer booking flow. */
 export const BOOKING_STATUS = {
-  PENDING_PAYMENT: "pending_payment",
-  CONFIRMED: "confirmed",
-  SEARCHING_FOR_PARTNER: "searching_for_partner",
-  ASSIGNED: "assigned",
-  EN_ROUTE: "en_route",
-  ARRIVED: "arrived",
-  IN_PROGRESS: "in_progress",
-  COMPLETED: "completed",
-  RATED: "rated",
-  CANCELLED_BY_CUSTOMER: "cancelled_by_customer",
-  CANCELLED_BY_ADMIN: "cancelled_by_admin",
+  PENDING_PAYMENT: 'pending_payment',
+  CONFIRMED: 'confirmed',
+  SEARCHING_FOR_PARTNER: 'searching_for_partner',
+  ASSIGNED: 'assigned',
+  EN_ROUTE: 'en_route',
+  ARRIVED: 'arrived',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  RATED: 'rated',
+  CANCELLED_BY_CUSTOMER: 'cancelled_by_customer',
+  CANCELLED_BY_ADMIN: 'cancelled_by_admin',
 } as const satisfies Record<string, BookingStatus>;
-
-/** The customer can approve or reject an extra charge only while the partner is on site. */
-export const EXTRA_CHARGE_DECISION_STATUSES: BookingStatus[] = [
-  "arrived",
-  "in_progress",
-];
-
-/** Customer-facing partner phone is only shown while the job is active. */
-export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
-  "assigned",
-  "en_route",
-  "arrived",
-  "in_progress",
-];
-
-/**
- * The partner's live location is only accepted (and shown to the customer) while they are travelling to,
- * or waiting at, the address. `assigned` is excluded on purpose: the partner taps "On the way" to start
- * sharing, so nobody is tracked hours before the slot. `in_progress` and later need no tracking.
- */
-export const PARTNER_LOCATION_STATUSES: BookingStatus[] = ['en_route', 'arrived'];
-
-/** Statuses a booking may be in for the customer to see the start OTP: the partner has arrived, work not started. */
-export const START_OTP_STATUS: BookingStatus = "arrived";
-
-/**
- * Statuses in which the customer may move the booking to another slot. Once a partner is assigned
- * (or on the way) the time is committed, so the customer cancels and rebooks instead.
- */
-export const RESCHEDULABLE_STATUSES: BookingStatus[] = [
-  "confirmed",
-  "created",
-  "searching_for_partner",
-];
 
 /** Statuses that hold a slot seat. */
 export const SLOT_HOLDING_STATUSES: BookingStatus[] = [
-  "pending_payment",
-  "confirmed",
-  "created",
-  "searching_for_partner",
-  "assigned",
-  "en_route",
-  "arrived",
-  "in_progress",
+  'pending_payment',
+  'confirmed',
+  'created',
+  'searching_for_partner',
+  'assigned',
+  'en_route',
+  'arrived',
+  'in_progress',
 ];
 
 /** Who triggers a transition. */
-export const ACTOR_ROLES = ["customer", "partner", "admin", "system"] as const;
+export const ACTOR_ROLES = [
+  'customer',
+  'partner',
+  'admin',
+  'system',
+] as const;
 
-export type ActorRole = (typeof ACTOR_ROLES)[number];
+export type ActorRole =
+  (typeof ACTOR_ROLES)[number];
 
 /** Partner is physically on a job. */
 export const ACTIVE_JOB_STATUSES: BookingStatus[] = [
-  "en_route",
-  "arrived",
-  "in_progress",
+  'en_route',
+  'arrived',
+  'in_progress',
 ];
 
 /** Counts toward today's jobs once assigned. */
 export const SCHEDULED_JOB_STATUSES: BookingStatus[] = [
-  "assigned",
-  "en_route",
-  "arrived",
-  "in_progress",
-  "completed",
-  "rated",
+  'assigned',
+  'en_route',
+  'arrived',
+  'in_progress',
+  'completed',
+  'rated',
 ];
 
-export const COMPLETED_STATUSES: BookingStatus[] = ["completed", "rated"];
+export const COMPLETED_STATUSES: BookingStatus[] = [
+  'completed',
+  'rated',
+];
 
 /** Default concurrent bookings one service/date/slot can hold. */
 export const SLOT_CAPACITY = 3;
@@ -118,19 +94,20 @@ export const SLOT_CAPACITY = 3;
 export const BOOKING_WINDOW_DAYS = 14;
 
 /** Booking timezone. */
-export const BOOKING_TIMEZONE = "Asia/Kolkata";
+export const BOOKING_TIMEZONE = 'Asia/Kolkata';
 
 /** Pending payment bookings older than this are stale. */
-export const BOOKING_HOLD_MS = 10 * 60 * 1000;
+export const BOOKING_HOLD_MS =
+  10 * 60 * 1000;
 
 /** Fixed daily slot grid. */
 export const SERVICE_SLOTS = [
-  "08:00-10:00",
-  "10:00-12:00",
-  "12:00-14:00",
-  "14:00-16:00",
-  "16:00-18:00",
-  "18:00-20:00",
+  '08:00-10:00',
+  '10:00-12:00',
+  '12:00-14:00',
+  '14:00-16:00',
+  '16:00-18:00',
+  '18:00-20:00',
 ] as const;
 
 export const CONVENIENCE_FEE = 29;
@@ -151,133 +128,133 @@ export interface CatalogService {
 
 const CATALOG: CatalogService[] = [
   {
-    id: "650000000000000000000001",
-    slug: "deep-home-cleaning",
-    name: "Deep Home Cleaning",
+    id: '650000000000000000000001',
+    slug: 'deep-home-cleaning',
+    name: 'Deep Home Cleaning',
     basePrice: 1499,
     addOns: [
       {
-        id: "650000000000000000000101",
-        name: "Deep Cleaning",
+        id: '650000000000000000000101',
+        name: 'Deep Cleaning',
         price: 150,
       },
       {
-        id: "650000000000000000000102",
-        name: "Eco-friendly Chemicals",
+        id: '650000000000000000000102',
+        name: 'Eco-friendly Chemicals',
         price: 50,
       },
       {
-        id: "650000000000000000000103",
-        name: "Post-service Sanitization",
+        id: '650000000000000000000103',
+        name: 'Post-service Sanitization',
         price: 100,
       },
     ],
   },
   {
-    id: "650000000000000000000002",
-    slug: "ac-service-gas-refill",
-    name: "AC Service & Gas Refill",
+    id: '650000000000000000000002',
+    slug: 'ac-service-gas-refill',
+    name: 'AC Service & Gas Refill',
     basePrice: 599,
     addOns: [
       {
-        id: "650000000000000000000201",
-        name: "Gas Top-up",
+        id: '650000000000000000000201',
+        name: 'Gas Top-up',
         price: 400,
       },
       {
-        id: "650000000000000000000202",
-        name: "Filter Replacement",
+        id: '650000000000000000000202',
+        name: 'Filter Replacement',
         price: 250,
       },
     ],
   },
   {
-    id: "650000000000000000000003",
-    slug: "electrician-visit-general",
-    name: "Electrician Visit (General)",
+    id: '650000000000000000000003',
+    slug: 'electrician-visit-general',
+    name: 'Electrician Visit (General)',
     basePrice: 249,
     addOns: [
       {
-        id: "650000000000000000000301",
-        name: "Fixture Installation",
+        id: '650000000000000000000301',
+        name: 'Fixture Installation',
         price: 199,
       },
     ],
   },
   {
-    id: "650000000000000000000004",
-    slug: "sofa-carpet-shampooing",
-    name: "Sofa & Carpet Shampooing",
+    id: '650000000000000000000004',
+    slug: 'sofa-carpet-shampooing',
+    name: 'Sofa & Carpet Shampooing',
     basePrice: 899,
     addOns: [
       {
-        id: "650000000000000000000401",
-        name: "Stain Treatment",
+        id: '650000000000000000000401',
+        name: 'Stain Treatment',
         price: 120,
       },
     ],
   },
   {
-    id: "650000000000000000000005",
-    slug: "ro-water-purifier-service",
-    name: "RO/Water Purifier Service",
+    id: '650000000000000000000005',
+    slug: 'ro-water-purifier-service',
+    name: 'RO/Water Purifier Service',
     basePrice: 399,
     addOns: [
       {
-        id: "650000000000000000000501",
-        name: "Filter Change",
+        id: '650000000000000000000501',
+        name: 'Filter Change',
         price: 300,
       },
     ],
   },
   {
-    id: "650000000000000000000006",
-    slug: "at-home-spa-women",
-    name: "At-Home Spa for Women",
+    id: '650000000000000000000006',
+    slug: 'at-home-spa-women',
+    name: 'At-Home Spa for Women',
     basePrice: 1299,
     addOns: [
       {
-        id: "650000000000000000000601",
-        name: "Aromatherapy Oils",
+        id: '650000000000000000000601',
+        name: 'Aromatherapy Oils',
         price: 200,
       },
     ],
   },
   {
-    id: "650000000000000000000007",
-    slug: "room-painting",
-    name: "Room Painting (per room)",
+    id: '650000000000000000000007',
+    slug: 'room-painting',
+    name: 'Room Painting (per room)',
     basePrice: 3499,
     addOns: [
       {
-        id: "650000000000000000000701",
-        name: "Wall Putty & Primer",
+        id: '650000000000000000000701',
+        name: 'Wall Putty & Primer',
         price: 800,
       },
     ],
   },
   {
-    id: "650000000000000000000008",
-    slug: "general-pest-control",
-    name: "General Pest Control",
+    id: '650000000000000000000008',
+    slug: 'general-pest-control',
+    name: 'General Pest Control',
     basePrice: 799,
     addOns: [
       {
-        id: "650000000000000000000801",
-        name: "Termite Treatment",
+        id: '650000000000000000000801',
+        name: 'Termite Treatment',
         price: 600,
       },
     ],
   },
   {
-    id: "650000000000000000000009",
-    slug: "furniture-assembly",
-    name: "Furniture Assembly",
+    id: '650000000000000000000009',
+    slug: 'furniture-assembly',
+    name: 'Furniture Assembly',
     basePrice: 349,
     addOns: [
       {
-        id: "650000000000000000000901",
-        name: "Wall Mounting",
+        id: '650000000000000000000901',
+        name: 'Wall Mounting',
         price: 150,
       },
     ],
@@ -285,10 +262,15 @@ const CATALOG: CatalogService[] = [
 ];
 
 export const BOOKINGS_SERVICE_CATALOG = {
-  getById: (id: string): CatalogService | undefined =>
-    CATALOG.find((service) => service.id === id),
+  getById: (
+    id: string,
+  ): CatalogService | undefined =>
+    CATALOG.find(
+      (service) => service.id === id,
+    ),
 
-  all: (): CatalogService[] => CATALOG,
+  all: (): CatalogService[] =>
+    CATALOG,
 };
 
 /** Client/server price difference tolerance. */

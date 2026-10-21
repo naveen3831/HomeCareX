@@ -1,10 +1,10 @@
-import crypto from "crypto";
-import Razorpay from "razorpay";
-import { WalletModel, WalletLedgerModel } from "../../models/Wallet";
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "",
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
 });
 
 export class WalletService {
@@ -12,61 +12,55 @@ export class WalletService {
    * Retrieves wallet balance and paginated ledger.
    * Matches Frontend data contract: { balance, ledger: { items, total, limit, page } }
    */
- async getWallet(userId: string, page = 1, limit = 15, type?: string) {
-  const numPage = Math.max(1, Number(page) || 1);
-  const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
-  const skip = (numPage - 1) * numLimit;
+  async getWallet(userId: string, page = 1, limit = 15, type?: string) {
+    const numPage = Math.max(1, Number(page) || 1);
+    const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
+    const skip = (numPage - 1) * numLimit;
 
-  let wallet;
-  try {
-    wallet = await WalletModel.findOneAndUpdate(
-      { userId },
-      { $setOnInsert: { userId, balance: 0 } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-  } catch (err: any) {
-    if (err?.code === 11000) {
-      console.error("Wallet upsert E11000:", err.keyPattern, err.keyValue);
-      // Another request may have created it just now; re-read before failing.
-      wallet = await WalletModel.findOne({ userId });
-      if (!wallet) throw err;
-    } else {
-      throw err;
+    let wallet = await WalletModel.findOne({ userId });
+    if (!wallet) {
+      wallet = await WalletModel.create({ userId, balance: 0 });
     }
+
+    const query: Record<string, any> = { userId };
+    if (type) {
+      query.type = { $in: [type.toLowerCase(), type.toUpperCase()] };
+    }
+
+    const [items, total] = await Promise.all([
+      WalletLedgerModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(numLimit)
+        .lean(),
+      WalletLedgerModel.countDocuments(query),
+    ]);
+
+    return {
+      balance: wallet.balance,
+      ledger: {
+        items,
+        total,
+        page: numPage,
+        limit: numLimit,
+      },
+    };
   }
-
-  const query: Record<string, any> = { userId };
-  if (type) {
-    query.type = { $in: [type.toLowerCase(), type.toUpperCase()] };
-  }
-
-  const [items, total] = await Promise.all([
-    WalletLedgerModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(numLimit).lean(),
-    WalletLedgerModel.countDocuments(query),
-  ]);
-
-  return {
-    balance: wallet.balance,
-    ledger: { items, total, page: numPage, limit: numLimit },
-  };
-}
 
   async createTopupOrder(userId: string, amountInRupees: number) {
     if (!amountInRupees || amountInRupees < 10 || amountInRupees > 50000) {
-      throw new Error(
-        "Invalid amount. Minimum recharge is ₹10 and maximum is ₹50,000.",
-      );
+      throw new Error('Invalid amount. Minimum recharge is ₹10 and maximum is ₹50,000.');
     }
 
     const amountInPaise = Math.round(amountInRupees * 100);
 
     const order = await razorpay.orders.create({
       amount: amountInPaise,
-      currency: "INR",
+      currency: 'INR',
       receipt: `top_${Date.now().toString().slice(-8)}`,
       notes: {
         userId,
-        type: "WALLET_TOPUP",
+        type: 'WALLET_TOPUP',
       },
     });
 
@@ -78,7 +72,7 @@ export class WalletService {
     };
   }
 
-  async verifyTopupPayment(params: {
+ async verifyTopupPayment(params: {
     userId: string;
     orderId: string;
     paymentId: string;
@@ -89,18 +83,16 @@ export class WalletService {
 
     // 1. Verify HMAC SHA256 Signature
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
       .update(`${orderId}|${paymentId}`)
-      .digest("hex");
+      .digest('hex');
 
     if (expectedSignature !== signature) {
-      throw new Error("Invalid payment signature");
+      throw new Error('Invalid payment signature');
     }
 
     // 2. Prevent duplicate credit on webhook or frontend retry
-    const existingEntry = await WalletLedgerModel.findOne({
-      referenceId: paymentId,
-    });
+    const existingEntry = await WalletLedgerModel.findOne({ referenceId: paymentId });
     if (existingEntry) {
       return { balance: existingEntry.balanceAfter };
     }
@@ -110,7 +102,7 @@ export class WalletService {
     let amountInRupees = Math.round(Number(amount) / 100);
     try {
       const rzpOrder = await razorpay.orders.fetch(orderId);
-      if (rzpOrder && typeof rzpOrder.amount === "number") {
+      if (rzpOrder && typeof rzpOrder.amount === 'number') {
         amountInRupees = Math.round(rzpOrder.amount / 100);
       }
     } catch {
@@ -122,17 +114,17 @@ export class WalletService {
     const updatedWallet = await WalletModel.findOneAndUpdate(
       { userId },
       { $inc: { balance: amountInRupees } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     // 5. Create credit ledger entry in RUPEES
     const ledger = await WalletLedgerModel.create({
       walletId: updatedWallet._id,
       userId,
-      type: "credit",
+      type: 'credit',
       amount: amountInRupees,
       balanceAfter: updatedWallet.balance,
-      description: "Wallet top-up via Razorpay",
+      description: 'Wallet top-up via Razorpay',
       referenceId: paymentId,
     });
 

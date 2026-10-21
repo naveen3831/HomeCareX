@@ -1,0 +1,27 @@
+
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>http://localhost:3000/</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/services</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/about</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/faq</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/contact</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/terms</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/privacy</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/services/home-cleaning</loc>
+  </url>
+</urlset>
