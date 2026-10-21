@@ -1,4 +1,4 @@
-import { referralsService } from './referrals.service';
+import { referralsService } from "./referrals.service";
 
 /** Reconciles stored bookings too, including status updates that do not emit an event. */
 export function startReferralWorker(onError: (error: unknown) => void) {

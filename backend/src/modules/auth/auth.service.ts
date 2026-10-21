@@ -955,11 +955,11 @@ export const authService = {
       existing.inviteTokenHash = inviteTokenHash;
       existing.inviteExpiresAt = inviteExpiresAt;
       await existing.save();
-      user = existing;
+      user = { id: String(existing._id), name: existing.name, email: existing.email };
     } else {
       // Random, never-disclosed password: nobody can log in until the invite is accepted.
       const unusable = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
-      user = await authRepository.create({
+      const created = await authRepository.create({
         name,
         email,
         passwordHash: unusable,
@@ -968,6 +968,7 @@ export const authService = {
         inviteTokenHash,
         inviteExpiresAt,
       });
+      user = { id: String(created._id), name: created.name, email: created.email };
     }
 
     // The team record (role, status, who invited) lives in the `staff` collection; `users` only holds the login.

@@ -117,9 +117,7 @@ function HelpCenter() {
               >
                 <summary>
                   <span>
-                    <small className="hcx-support-faq-cat">
-                      {section.title}
-                    </small>
+                    <h3 className="hcx-support-faq-cat">{section.title}</h3>
                     <span className="hcx-support-faq-q">
                       {article.question}
                     </span>

@@ -31,9 +31,10 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
   const { pathname } = useLocation();
   // On the notifications page the address picker gives way to a back button that returns to the home page.
-  const onNotifications =
-    pathname.replace(/\/+$/, "").toLowerCase() ===
-    customerPath("/notifications");
+  const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
+  const onNotifications = normalizedPath === customerPath("/notifications");
+  // On the referrals page (mobile) the address picker and bell give way to a back button that returns to Profile.
+  const onReferrals = normalizedPath === customerPath("/referrals");
 
   return (
     <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3  bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
@@ -90,14 +91,36 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             <span>Back</span>
           </Link>
         ) : (
-          /* One picker at every width (a single instance keeps DOM ids unique). */
-          <div className="min-w-0 flex-1 md:flex-none">
-            <LocationPicker />
-          </div>
+          <>
+            {onReferrals && (
+              <Link
+                to={customerPath("/profile")}
+                aria-label="Back to profile"
+                className={clsx(
+                  "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden",
+                  FOCUS_RING,
+                )}
+              >
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                <span>Back</span>
+              </Link>
+            )}
+            {/* One picker at every width (a single instance keeps DOM ids unique). Hidden on mobile for referrals. */}
+            <div
+              className={clsx(
+                "min-w-0 flex-1 md:flex-none",
+                onReferrals && "hidden md:block",
+              )}
+            >
+              <LocationPicker />
+            </div>
+          </>
         )}
       </div>
 
-      <NotificationBell count={unread} />
+      <div className={clsx(onReferrals && "hidden md:block")}>
+        <NotificationBell count={unread} />
+      </div>
     </header>
   );
 }
