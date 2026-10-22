@@ -10,7 +10,8 @@
   "scripts": {
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
-    "build:frontend": "npm run build --workspace=frontend",
+   "generate:sitemap": "node frontend/scripts/generate-sitemap.ts",
+    "build:frontend": "npm run generate:sitemap && npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
     "lint": "npm run lint --workspaces",
     "seed:users": "npm run seed:users --workspace=backend",
@@ -26,7 +27,8 @@
   "author": "HomeCareX Team",
   "license": "UNLICENSED",
   "devDependencies": {
-    "@types/multer": "^2.3.0"
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.5"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.2",

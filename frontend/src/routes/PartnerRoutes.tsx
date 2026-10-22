@@ -24,8 +24,15 @@ import ActiveJobPage from "../pages/partner/ActiveJob";
 import SupportTicketPage from "../pages/partner/SupportTicket/SupportTicketPage";
 import HelpPage from "../pages/partner/Help/HelpPage";
 import PartnerSupportPage from "../pages/partner/Support";
+import PartnerSettingsPage from "../pages/partner/Settings";
+import ChangePasswordPage from "../pages/partner/Settings/ChangePasswordPage";
+import ActiveSessionsPage from "../pages/partner/Settings/ActiveSessionsPage";
+import TermsPage from "../pages/partner/Settings/TermsPage";
+import PrivacyPolicyPage from "../pages/partner/Settings/PrivacyPolicyPage";
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
+import SettingsHome from "../pages/partner/Settings/SettingsHome";
+import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -182,7 +189,14 @@ export default function PartnerRoutes() {
         <Route path="support/tickets/:id" element={<SupportTicketPage />} />
         <Route path="support/tickets/:ticketId" element={<SupportTicketPage />} />
         <Route path="help" element={<HelpPage />} />
+        <Route path="settings" element={<SettingsHome />} />
+        <Route path="settings/security/password" element={<ChangePasswordPage />} />
+        <Route path="settings/security/sessions" element={<ActiveSessionsPage />} />
+        <Route path="settings/other/terms" element={<TermsPage />} />
+        <Route path="settings/other/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="settings/:section" element={<PartnerSettingsPage />} />
         <Route path="support" element={<PartnerSupportPage />} />
+        <Route path="settings/security/history" element={<LoginHistoryPage />} />
 
         {/* =====================================================
             Remaining Placeholder Pages

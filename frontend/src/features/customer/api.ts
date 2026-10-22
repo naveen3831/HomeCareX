@@ -117,6 +117,8 @@ export function useCustomerDashboard() {
     queryKey: customerKeys.dashboard(user?.id),
     queryFn: fetchCustomerDashboard,
     staleTime: 30_000,
+    // Coming back from the booking wizard (or any other page) always shows the latest active / upcoming bookings.
+    refetchOnMount: "always",
     // Retry network blips / 5xx, but not 4xx (wrong role, bad token) — retrying can't fix those.
     retry: (failureCount, error) => failureCount < 2 && (error.status === null || error.status >= 500),
   });

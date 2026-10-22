@@ -148,6 +148,7 @@ function HelpCenter() {
     </section>
   );
 }
+
 function TicketList() {
   const online = useOnlineStatus();
   const [page, setPage] = useState(1);
@@ -164,7 +165,7 @@ function TicketList() {
         </div>
         <TicketStatusFilter
           value={status}
-          onChange={(nextStatus) => {
+          onChange={(nextStatus: TicketStatus | "") => {
             setStatus(nextStatus);
             setPage(1);
           }}
@@ -231,6 +232,7 @@ function TicketList() {
     </section>
   );
 }
+
 export default function Support() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const [params] = useSearchParams();
@@ -307,4 +309,4 @@ export default function Support() {
       </div>
     </div>
   );
-}
+}

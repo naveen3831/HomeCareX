@@ -20,10 +20,11 @@ export type BookingListItem = Omit<BookingView, "partnerId"> & {
   bookingNumber?: string;
   partnerId?: string | PartnerLite;
   partner?: PartnerLite;
+  scheduledAt?: string;
 };
 
 /** Which section a booking belongs to. */
-export type Phase = "live" | "upcoming" | "completed" | "cancelled";
+export type Phase = "live" | "upcoming" | "overdue" | "completed" | "cancelled";
 
 /* ------------------------------------------------------------------ */
 /* Classification                                                      */
@@ -44,12 +45,55 @@ const COMPLETED = new Set(["completed", "rated", "disputed"]);
 
 const statusOf = (b: Pick<BookingListItem, "status">): string => (b.status || "").toLowerCase();
 
+const bookingClock = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Uses the service timezone, independently of the customer's browser timezone. */
+export function isPastSchedule(b: BookingListItem, now: number): boolean {
+  const parts = Object.fromEntries(
+    bookingClock
+      .formatToParts(new Date(now))
+      .map((part) => [part.type, part.value]),
+  );
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  let date = b.date;
+
+  if (!date && b.scheduledAt) {
+    const scheduled = new Date(b.scheduledAt);
+    if (!Number.isFinite(scheduled.getTime())) return false;
+    const saved = Object.fromEntries(
+      bookingClock
+        .formatToParts(scheduled)
+        .map((part) => [part.type, part.value]),
+    );
+    date = `${saved.year}-${saved.month}-${saved.day}`;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
+  if (date !== today) return date < today;
+  // A legacy scheduledAt without a date has no confirmed window duration.
+  if (!b.date) return false;
+  const slot = /^\d{2}:\d{2}-(\d{2}):(\d{2})$/.exec(b.slot || "");
+  if (!slot) return false;
+  const endMinutes = Number(slot[1]) * 60 + Number(slot[2]);
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return endMinutes <= minutes;
+}
+
 /** An unpaid booking whose slot hold ran out is not really upcoming: it lands under Cancelled. */
 export function phaseOf(b: BookingListItem, now: number): Phase | null {
   const status = statusOf(b);
   if (isExpiredHold(b, now)) return "cancelled";
   if (LIVE.has(status)) return "live";
-  if (UPCOMING.has(status)) return "upcoming";
+  if (UPCOMING.has(status))
+    return isPastSchedule(b, now) ? "overdue" : "upcoming";
   if (COMPLETED.has(status)) return "completed";
   if (status.startsWith("cancel") || status === "no_show") return "cancelled";
   return null;
@@ -199,6 +243,7 @@ export interface Pill {
 
 export function pillFor(b: BookingListItem, now: number): Pill {
   const s = statusOf(b);
+  if (phaseOf(b, now) === "overdue") return { label: "Overdue", tone: "amber" };
   if (s === "pending_payment") {
     return isExpiredHold(b, now)
       ? { label: "Payment expired", tone: "red" }

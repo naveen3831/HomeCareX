@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import {
@@ -27,13 +27,24 @@ import { customerPath } from "@/routes/customerPath";
  */
 export default function CustomerLayout() {
   const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+  // After a page change, move focus to the content area so keyboard and screen-reader users start at the new page, not at the top bar.
+  // Skipped on first load, and for query-string-only changes (filters, pagination) because only the path is a dependency.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
   // The Profile page is the mobile menu itself, so it shows no bottom nav (its sub-pages still do).
   const hideBottomNav = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/profile");
 
   return (
-    <div className="flex min-h-screen overflow-x-clip bg-canvas">
+    <div className="customer-shell flex min-h-screen overflow-x-clip bg-canvas">
       <a
         href="#customer-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-brand focus:px-3 focus:py-2 focus:text-white"
@@ -52,6 +63,7 @@ export default function CustomerLayout() {
         <OfflineBanner />
 
         <main
+          ref={mainRef}
           id="customer-main"
           tabIndex={-1}
           className={clsx(
