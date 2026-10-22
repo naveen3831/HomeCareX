@@ -1,7 +1,7 @@
-
 User-agent: *
+Allow: /
 
-# Block private dashboards
+# Private dashboards (login required)
 Disallow: /customer
 Disallow: /customer/
 Disallow: /partner
@@ -9,7 +9,7 @@ Disallow: /partner/
 Disallow: /admin
 Disallow: /admin/
 
-# Block authentication routes
+# Authentication routes (also kept out of sitemap.xml)
 Disallow: /login
 Disallow: /register
 Disallow: /forgot-password
@@ -17,4 +17,8 @@ Disallow: /verify-otp
 Disallow: /reset-password
 Disallow: /unauthorized
 
+# Backend API
+Disallow: /api/
+
+# Overwritten with VITE_SITE_URL by `npm run sitemap`
 Sitemap: http://localhost:3000/sitemap.xml
