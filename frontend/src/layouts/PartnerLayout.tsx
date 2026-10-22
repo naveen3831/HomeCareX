@@ -1,4 +1,11 @@
-import { useState, useEffect, createContext, useContext } from "react";
+
+import {
+  useState,
+  useEffect,
+  createContext,
+  useContext,
+  useCallback,
+} from "react";
 import {
   NavLink,
   Outlet,
@@ -30,6 +37,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -41,7 +49,7 @@ import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 import "@/styles/admin.css";
 
 // -----------------------------------------------------------------------------
-// Helpers
+// Navigation types
 // -----------------------------------------------------------------------------
 
 type NavChild = {
@@ -53,13 +61,18 @@ type NavChild = {
 
 type NavItem = NavChild & {
   end?: boolean;
-  /** Sub-pages. Clicking the parent opens this list. */
   children?: NavChild[];
 };
 
+// Keep ONE NAV declaration only.
 export const NAV: NavItem[] = [
-  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
-
+  {
+    key: "home",
+    label: "Home",
+    to: "/partner",
+    icon: Home,
+    end: true,
+  },
   {
     key: "jobs",
     label: "My Jobs",
@@ -74,13 +87,12 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-
-  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
-
-export const NAV = [
-  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
-  { key: "jobs", label: "My Jobs", to: "/partner/jobs", icon: ClipboardList },
-  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
+  {
+    key: "work",
+    label: "Work",
+    to: "/partner/work",
+    icon: Briefcase,
+  },
   {
     key: "availability",
     label: "Availability",
@@ -107,15 +119,18 @@ export const NAV = [
       },
     ],
   },
-
-  { key: "services", label: "Services", to: "/partner/services", icon: Wrench },
+  {
+    key: "services",
+    label: "Services",
+    to: "/partner/services",
+    icon: Wrench,
+  },
   {
     key: "service-area",
     label: "Service Area",
     to: "/partner/service-area",
     icon: MapPin,
   },
-
   {
     key: "earnings",
     label: "Earnings",
@@ -148,7 +163,6 @@ export const NAV = [
       },
     ],
   },
-
   {
     key: "performance",
     label: "Performance",
@@ -163,24 +177,45 @@ export const NAV = [
       },
     ],
   },
-
-  { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
-  { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
-  { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
-  { key: "system", label: "System", to: "/partner/system", icon: Settings },
+  {
+    key: "profile",
+    label: "Profile",
+    to: "/partner/profile",
+    icon: User,
+  },
+  {
+    key: "support",
+    label: "Support",
+    to: "/partner/support",
+    icon: LifeBuoy,
+  },
+  {
+    key: "help",
+    label: "Help",
+    to: "/partner/help",
+    icon: HelpCircle,
+  },
+  {
+    key: "system",
+    label: "System",
+    to: "/partner/system",
+    icon: Settings,
+  },
 ];
 
-// Parents and children in one list (used for titles and "current page" lookup)
-const FLAT_NAV: (NavChild & { parent?: string })[] = NAV.flatMap((n) => [
-  n,
-  ...(n.children ?? []).map((c) => ({ ...c, parent: n.key })),
+// Parent and child navigation entries.
+const FLAT_NAV: (NavChild & { parent?: string })[] = NAV.flatMap((item) => [
+  item,
+  ...(item.children ?? []).map((child) => ({
+    ...child,
+    parent: item.key,
+  })),
 ]);
 
 // -----------------------------------------------------------------------------
 // Page titles
 // -----------------------------------------------------------------------------
 
-// Titles that also switch to the minimal header on mobile
 const PAGE_TITLES: Record<string, string> = {
   "/partner/availability": "Availability",
   "/partner/working-hours": "Working Hours",
@@ -193,7 +228,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/partner/jobs/requests": "Job Requests",
 };
 
-// Titles that only change the heading; they also hide the Online/Offline pill
 const EXTRA_TITLES: Record<string, string> = {
   "/partner/incentives": "Partner Incentives",
   "/partner/earnings/incentives": "Partner Incentives",
@@ -203,10 +237,11 @@ const EXTRA_TITLES: Record<string, string> = {
   "/partner/wallet": "Partner Wallet",
 };
 
-// Pages that hide the mobile bottom bar
-const HIDE_BOTTOM_NAV = ["/partner/wallet", "/partner/transactions"];
+const HIDE_BOTTOM_NAV = [
+  "/partner/wallet",
+  "/partner/transactions",
+];
 
-// Bottom tabs.
 const BOTTOM_NAV = [
   {
     key: "home",
@@ -249,6 +284,7 @@ const BOTTOM_NAV = [
       "/partner/transactions",
       "/partner/wallet",
     ],
+    exact: false,
   },
   {
     key: "profile",
@@ -260,7 +296,19 @@ const BOTTOM_NAV = [
   },
 ];
 
-function BottomNav({ visible, path }: { visible: boolean; path: string }) {
+export const BOTTOM_KEYS = BOTTOM_NAV.map((item) => item.key);
+
+// -----------------------------------------------------------------------------
+// Mobile bottom navigation
+// -----------------------------------------------------------------------------
+
+function BottomNav({
+  visible,
+  path,
+}: {
+  visible: boolean;
+  path: string;
+}) {
   return (
     <nav
       aria-label="Primary"
@@ -270,39 +318,49 @@ function BottomNav({ visible, path }: { visible: boolean; path: string }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <ul className="mx-auto flex h-14 max-w-md items-stretch justify-around">
-        {BOTTOM_NAV.map(({ key, label, to, icon: Icon, match, exact }) => {
-          const active = exact
-            ? path === to
-            : match.some((m) => path === m || path.startsWith(m + "/"));
+        {BOTTOM_NAV.map(
+          ({ key, label, to, icon: Icon, match, exact }) => {
+            const active = exact
+              ? path === to
+              : match.some(
+                  (matchedPath) =>
+                    path === matchedPath ||
+                    path.startsWith(matchedPath + "/")
+                );
 
-          return (
-            <li key={key} className="flex-1">
-              <NavLink
-                to={to}
-                aria-label={label}
-                aria-current={active ? "page" : undefined}
-                className={`flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
-                  active ? "text-[#4338ca]" : "text-slate-500"
-                }`}
-              >
-                <Icon size={22} strokeWidth={active ? 2.4 : 1.8} aria-hidden />
-                <span>{label}</span>
-              </NavLink>
-            </li>
-          );
-        })}
+            return (
+              <li key={key} className="flex-1">
+                <NavLink
+                  to={to}
+                  aria-label={label}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
+                    active ? "text-[#4338ca]" : "text-slate-500"
+                  }`}
+                >
+                  <Icon
+                    size={22}
+                    strokeWidth={active ? 2.4 : 1.8}
+                    aria-hidden
+                  />
+                  <span>{label}</span>
+                </NavLink>
+              </li>
+            );
+          }
+        )}
       </ul>
     </nav>
   );
 }
 
-export const BOTTOM_KEYS = BOTTOM_NAV.map((n) => n.key);
-
-// ---- Online status shared with dashboard pages via context ----
+// -----------------------------------------------------------------------------
+// Shared online status
+// -----------------------------------------------------------------------------
 
 const PartnerStatusContext = createContext<{
   online: boolean;
-  setOnline: (v: boolean) => void;
+  setOnline: (value: boolean) => void;
 }>({
   online: false,
   setOnline: () => {},
@@ -310,18 +368,35 @@ const PartnerStatusContext = createContext<{
 
 export const usePartnerStatus = () => useContext(PartnerStatusContext);
 
-// ---- Sidebar groups (keys are top-level NAV keys) ----
+// -----------------------------------------------------------------------------
+// Sidebar groups
+// -----------------------------------------------------------------------------
+
 const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
   { groupName: "Overview", keys: ["home"] },
   {
     groupName: "Operations",
-    keys: ["jobs", "work", "availability", "services", "service-area"],
+    keys: [
+      "jobs",
+      "work",
+      "availability",
+      "services",
+      "service-area",
+    ],
   },
-  { groupName: "Finance", keys: ["earnings", "performance"] },
-  { groupName: "Account", keys: ["profile", "support", "help", "system"] },
+  {
+    groupName: "Finance",
+    keys: ["earnings", "performance"],
+  },
+  {
+    groupName: "Account",
+    keys: ["profile", "support", "help", "system"],
+  },
 ];
 
-// ---- Sidebar ----
+// -----------------------------------------------------------------------------
+// Partner sidebar
+// -----------------------------------------------------------------------------
 
 function PartnerSidebar({
   collapsed,
@@ -338,17 +413,18 @@ function PartnerSidebar({
 
   const displayName = user?.name || "Partner";
 
-  // Top-level key of the page we are on (a child resolves to its parent)
   const topKeyOf = (key?: string) =>
-    FLAT_NAV.find((n) => n.key === key)?.parent ?? key;
+    FLAT_NAV.find((item) => item.key === key)?.parent ?? key;
 
   const groupOf = (key?: string) =>
-    NAV_GROUPS.find((g) => g.keys.includes(topKeyOf(key) ?? ""))?.groupName ??
-    "Overview";
+    NAV_GROUPS.find((group) =>
+      group.keys.includes(topKeyOf(key) ?? "")
+    )?.groupName ?? "Overview";
 
-  const [openGroup, setOpenGroup] = useState<string>(groupOf(currentKey));
+  const [openGroup, setOpenGroup] = useState(
+    () => groupOf(currentKey)
+  );
 
-  // Parent items whose sub-links are expanded
   const [openItems, setOpenItems] = useState<string[]>(() => {
     const top = topKeyOf(currentKey);
     return top ? [top] : [];
@@ -356,22 +432,34 @@ function PartnerSidebar({
 
   useEffect(() => {
     setOpenGroup(groupOf(currentKey));
+
     const top = topKeyOf(currentKey);
     if (top) {
-      setOpenItems((cur) => (cur.includes(top) ? cur : [...cur, top]));
+      setOpenItems((current) =>
+        current.includes(top) ? current : [...current, top]
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  const openItem = (key: string) =>
-    setOpenItems((cur) => (cur.includes(key) ? cur : [...cur, key]));
-
-  const toggleItem = (key: string) =>
-    setOpenItems((cur) =>
-      cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]
+  const openItem = (key: string) => {
+    setOpenItems((current) =>
+      current.includes(key) ? current : [...current, key]
     );
+  };
 
-  const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
+  const toggleItem = (key: string) => {
+    setOpenItems((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    );
+  };
+
+  const sidebarClassName = [
+    "admin-sidebar",
+    collapsed ? "is-collapsed" : "",
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -384,73 +472,102 @@ function PartnerSidebar({
   };
 
   return (
-    <>
-      <aside className={cls} aria-label="Partner navigation">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand__top">
-            <div className="sidebar-brand__logo">
-              <span className="sidebar-brand__icon">
-                <HomeCarexMark size={22} />
-              </span>
+    <aside
+      className={sidebarClassName}
+      aria-label="Partner navigation"
+    >
+      <div className="sidebar-brand">
+        <div className="sidebar-brand__top">
+          <div className="sidebar-brand__logo">
+            <span className="sidebar-brand__icon">
+              <HomeCarexMark size={22} />
+            </span>
 
-              {!collapsed && (
-                <span className="sidebar-brand__name">HomeCareX</span>
-              )}
-            </div>
+            {!collapsed && (
+              <span className="sidebar-brand__name">HomeCareX</span>
+            )}
           </div>
-
-          {!collapsed && (
-            <p className="sidebar-brand__guide">
-              {currentLabel ? `Partner / ${currentLabel}` : "Partner Console"}
-            </p>
-          )}
         </div>
 
-        <nav className="sidebar-nav">
-          {NAV_GROUPS.map((group) => {
-            const items = NAV.filter((n) => group.keys.includes(n.key));
+        {!collapsed && (
+          <p className="sidebar-brand__guide">
+            {currentLabel
+              ? `Partner / ${currentLabel}`
+              : "Partner Console"}
+          </p>
+        )}
+      </div>
 
-            const isOpen = collapsed || openGroup === group.groupName;
+      <nav className="sidebar-nav">
+        {NAV_GROUPS.map((group) => {
+          const items = NAV.filter((item) =>
+            group.keys.includes(item.key)
+          );
 
-            return (
-              <div key={group.groupName} className="nav-group">
-                {!collapsed && (
-                  <button
-                    type="button"
-                    className="nav-group__title nav-group__toggle"
-                    aria-expanded={isOpen}
-                    onClick={() =>
-                      setOpenGroup((cur) =>
-                        cur === group.groupName ? "" : group.groupName
-                      )
-                    }
-                  >
-                    <span>{group.groupName}</span>
+          const isOpen =
+            collapsed || openGroup === group.groupName;
 
-                    <ChevronDown
-                      size={14}
-                      className={`nav-group__chevron${isOpen ? " is-open" : ""}`}
-                    />
-                  </button>
-                )}
+          return (
+            <div key={group.groupName} className="nav-group">
+              {!collapsed && (
+                <button
+                  type="button"
+                  className="nav-group__title nav-group__toggle"
+                  aria-expanded={isOpen}
+                  onClick={() =>
+                    setOpenGroup((current) =>
+                      current === group.groupName
+                        ? ""
+                        : group.groupName
+                    )
+                  }
+                >
+                  <span>{group.groupName}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`nav-group__chevron${
+                      isOpen ? " is-open" : ""
+                    }`}
+                  />
+                </button>
+              )}
 
-                {isOpen && (
-                  <ul className="nav-list">
-                    {items.map(({ key, label, to, icon: Icon, end, children }) => {
-                      const hasChildren = !!children?.length && !collapsed;
-                      const expanded = hasChildren && openItems.includes(key);
+              {isOpen && (
+                <ul className="nav-list">
+                  {items.map(
+                    ({
+                      key,
+                      label,
+                      to,
+                      icon: Icon,
+                      end,
+                      children,
+                    }) => {
+                      const hasChildren =
+                        Boolean(children?.length) && !collapsed;
+                      const expanded =
+                        hasChildren && openItems.includes(key);
 
                       return (
                         <li key={key}>
-                          <div style={{ display: "flex", alignItems: "center" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                            }}
+                          >
                             <NavLink
                               to={to}
                               end={end || hasChildren}
                               title={collapsed ? label : undefined}
                               style={{ flex: 1, minWidth: 0 }}
-                              onClick={() => hasChildren && openItem(key)}
+                              onClick={() => {
+                                if (hasChildren) openItem(key);
+                              }}
                               className={({ isActive }) =>
-                                `nav-link${isActive ? " is-active" : ""}`
+                                `nav-link${
+                                  isActive ? " is-active" : ""
+                                }`
                               }
                             >
                               <Icon
@@ -460,18 +577,24 @@ function PartnerSidebar({
                               />
 
                               {!collapsed && (
-                                <span className="nav-link__label">{label}</span>
+                                <span className="nav-link__label">
+                                  {label}
+                                </span>
                               )}
 
                               {collapsed && (
-                                <span className="sr-only">{label}</span>
+                                <span className="sr-only">
+                                  {label}
+                                </span>
                               )}
                             </NavLink>
 
                             {hasChildren && (
                               <button
                                 type="button"
-                                aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
+                                aria-label={`${
+                                  expanded ? "Collapse" : "Expand"
+                                } ${label}`}
                                 aria-expanded={expanded}
                                 onClick={() => toggleItem(key)}
                                 style={{
@@ -496,31 +619,40 @@ function PartnerSidebar({
                             )}
                           </div>
 
-                          {/* Sub-links open under the parent */}
                           {expanded && (
                             <ul
                               className="nav-list"
                               style={{
                                 marginLeft: "1.6rem",
                                 paddingLeft: "0.25rem",
-                                borderLeft: "1px solid rgba(148,163,184,0.35)",
+                                borderLeft:
+                                  "1px solid rgba(148,163,184,0.35)",
                               }}
                             >
-                              {children!.map(
-                                ({ key: ck, label: cl, to: ct, icon: CIcon }) => (
-                                  <li key={ck}>
+                              {children?.map(
+                                ({
+                                  key: childKey,
+                                  label: childLabel,
+                                  to: childTo,
+                                  icon: ChildIcon,
+                                }) => (
+                                  <li key={childKey}>
                                     <NavLink
-                                      to={ct}
+                                      to={childTo}
                                       className={({ isActive }) =>
-                                        `nav-link${isActive ? " is-active" : ""}`
+                                        `nav-link${
+                                          isActive ? " is-active" : ""
+                                        }`
                                       }
                                     >
-                                      <CIcon
+                                      <ChildIcon
                                         className="nav-link__icon"
                                         size={16}
                                         aria-hidden
                                       />
-                                      <span className="nav-link__label">{cl}</span>
+                                      <span className="nav-link__label">
+                                        {childLabel}
+                                      </span>
                                     </NavLink>
                                   </li>
                                 )
@@ -529,49 +661,47 @@ function PartnerSidebar({
                           )}
                         </li>
                       );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                    }
+                  )}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </nav>
 
-        <div className="sidebar-footer">
-          <button
-            type="button"
-            className="sidebar-footer__user sidebar-footer__user-btn"
-            title={collapsed ? displayName : undefined}
-            onClick={() => navigate("/partner/profile")}
-          >
-            <span className="avatar">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
+      <div className="sidebar-footer">
+        <button
+          type="button"
+          className="sidebar-footer__user sidebar-footer__user-btn"
+          title={collapsed ? displayName : undefined}
+          onClick={() => navigate("/partner/profile")}
+        >
+          <span className="avatar">
+            {displayName.charAt(0).toUpperCase()}
+          </span>
 
-            {!collapsed && <span className="profile-name">{displayName}</span>}
-          </button>
+          {!collapsed && (
+            <span className="profile-name">{displayName}</span>
+          )}
+        </button>
 
-          <button
-            type="button"
-            className="sidebar-signout-btn"
-            title="Sign out"
-            onClick={async () => {
-              await logout();
-              navigate("/login", { replace: true });
-            }}
-          >
-            <LogOut size={18} />
-
-            {!collapsed && <span>Sign out</span>}
-          </button>
-        </div>
-      </aside>
-    </>
+        <button
+          type="button"
+          className="sidebar-signout-btn"
+          title="Sign out"
+          onClick={handleSignOut}
+        >
+          <LogOut size={18} />
+          {!collapsed && <span>Sign out</span>}
+        </button>
+      </div>
+    </aside>
   );
 }
 
 // -----------------------------------------------------------------------------
-// Partner Layout
+// Partner layout
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
@@ -592,25 +722,30 @@ export default function PartnerLayout() {
 
   useEffect(() => {
     let active = true;
+
     getAvailability()
-      .then((avail) => {
+      .then((availability) => {
         if (!active) return;
-        setOnlineState(avail.isOnline);
-        writeStoredOnlineStatus(avail.isOnline);
-        setMockPartnerOnline("partner-1", avail.isOnline);
+
+        setOnlineState(availability.isOnline);
+        writeStoredOnlineStatus(availability.isOnline);
+        setMockPartnerOnline("partner-1", availability.isOnline);
       })
       .catch(() => {});
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === PARTNER_ONLINE_STORAGE_KEY) {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === PARTNER_ONLINE_STORAGE_KEY) {
         const next = readStoredOnlineStatus();
+
         if (next !== null) {
           setOnlineState(next);
           setMockPartnerOnline("partner-1", next);
         }
       }
     };
+
     window.addEventListener("storage", onStorage);
+
     return () => {
       active = false;
       window.removeEventListener("storage", onStorage);
@@ -618,47 +753,45 @@ export default function PartnerLayout() {
   }, []);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
-
   const [navVisible, setNavVisible] = useState(true);
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-
   const collapsed = collapsedPref && isDesktop;
 
   const { pathname } = useLocation();
   const navigate = useNavigate();
 
-  // Hide bottom nav when scrolling down, show it when scrolling up
   useEffect(() => {
     setNavVisible(true);
 
     let last = window.scrollY;
 
     const onScroll = () => {
-      const y = window.scrollY;
-      const delta = y - last;
+      const currentY = window.scrollY;
+      const delta = currentY - last;
 
-      if (Math.abs(delta) < 8) {
-        return;
-      }
+      if (Math.abs(delta) < 8) return;
 
-      setNavVisible(y <= 24 ? true : delta < 0);
-
-      last = y;
+      setNavVisible(currentY <= 24 ? true : delta < 0);
+      last = currentY;
     };
 
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
 
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
   }, [pathname]);
 
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
-  // Longest matching route wins (child pages beat their parent)
-  const current = FLAT_NAV.filter((n) =>
-    n.to === "/partner"
+  const current = FLAT_NAV.filter((item) =>
+    item.to === "/partner"
       ? cleanPath === "/partner"
-      : cleanPath === n.to || cleanPath.startsWith(n.to + "/")
+      : cleanPath === item.to ||
+        cleanPath.startsWith(item.to + "/")
   ).sort((a, b) => b.to.length - a.to.length)[0];
 
   const title =
@@ -667,49 +800,63 @@ export default function PartnerLayout() {
     current?.label ??
     "Partner";
 
-  const minimalHeader = Object.keys(PAGE_TITLES).includes(cleanPath);
+  const minimalHeader = Object.prototype.hasOwnProperty.call(
+    PAGE_TITLES,
+    cleanPath
+  );
 
-  const hideStatusPill = Object.keys(EXTRA_TITLES).includes(cleanPath);
+  const hideStatusPill = Object.prototype.hasOwnProperty.call(
+    EXTRA_TITLES,
+    cleanPath
+  );
 
-  // Support and Help screens fill the space between the navbar and the bottom of the screen,
-  // so the page itself never scrolls (lists and chats scroll inside, scrollbar hidden).
   const fullBleed =
     cleanPath === "/partner/support" ||
     cleanPath.startsWith("/partner/support/") ||
     cleanPath === "/partner/help";
 
-  // A single ticket is a chat: it owns the whole mobile screen (own top bar, composer at the bottom).
-  const isTicketThread = /^\/partner\/support\/[^/]+$/.test(cleanPath);
+  const isTicketThread =
+    /^\/partner\/support\/[^/]+$/.test(cleanPath);
 
-  // Support and Help screens use the whole mobile screen: no bottom tab bar.
-  const hideBottomNav = HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
+  const hideBottomNav =
+    HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
 
-  // Mobile back button
   const showBack = cleanPath !== "/partner";
-
-  const isTabRoot = BOTTOM_NAV.some((n) => n.to === cleanPath);
+  const isTabRoot = BOTTOM_NAV.some(
+    (item) => item.to === cleanPath
+  );
 
   const goBack = () => {
     if (isTabRoot) {
       navigate("/partner");
-
       return;
     }
 
-    const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
+    const historyState = window.history.state as
+      | { idx?: number }
+      | null;
 
+    const hasHistory =
+      typeof historyState?.idx === "number" &&
+      historyState.idx > 0;
+
+    if (hasHistory) {
+      navigate(-1);
       return;
     }
 
     navigate(
-      current && !BOTTOM_KEYS.includes(current.parent ?? current.key)
+      current &&
+        !BOTTOM_KEYS.includes(current.parent ?? current.key)
         ? "/partner/profile"
-        : "/partner",
+        : "/partner"
     );
   };
 
   return (
-    <PartnerStatusContext.Provider value={{ online, setOnline }}>
+    <PartnerStatusContext.Provider
+      value={{ online, setOnline }}
+    >
       <div
         className={`flex bg-slate-50 text-slate-900 ${
           fullBleed ? "h-dvh overflow-hidden" : "min-h-screen"
@@ -721,8 +868,11 @@ export default function PartnerLayout() {
           currentLabel={current?.label}
         />
 
-        <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? "min-h-0" : ""}`}>
-          {/* Header (a ticket chat has its own top bar on mobile) */}
+        <div
+          className={`flex min-w-0 flex-1 flex-col ${
+            fullBleed ? "min-h-0" : ""
+          }`}
+        >
           <header
             className={`sticky top-0 z-20 h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-2 sm:h-16 sm:px-6 ${
               isTicketThread ? "hidden lg:flex" : "flex"
@@ -741,8 +891,13 @@ export default function PartnerLayout() {
               )}
 
               <button
-                onClick={() => setCollapsedPref((v) => !v)}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                type="button"
+                onClick={() =>
+                  setCollapsedPref((value) => !value)
+                }
+                aria-label={
+                  collapsed ? "Expand sidebar" : "Collapse sidebar"
+                }
                 className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
               >
                 {collapsed ? (
@@ -764,12 +919,17 @@ export default function PartnerLayout() {
             >
               {!hideStatusPill &&
                 (fullBleed ? (
-                  // Support and Help screens: Online/Offline pill is desktop only
                   <div className="hidden lg:block">
-                    <OnlineIndicator online={online} onChange={setOnline} />
+                    <OnlineIndicator
+                      online={online}
+                      onChange={setOnline}
+                    />
                   </div>
                 ) : (
-                  <OnlineIndicator online={online} onChange={setOnline} />
+                  <OnlineIndicator
+                    online={online}
+                    onChange={setOnline}
+                  />
                 ))}
 
               <button
@@ -782,7 +942,6 @@ export default function PartnerLayout() {
             </div>
           </header>
 
-          {/* Page content */}
           <main
             className={
               fullBleed
@@ -791,7 +950,9 @@ export default function PartnerLayout() {
                       ? ""
                       : "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
                   }`
-                : `px-4 py-6 sm:px-6 lg:pb-8 ${hideBottomNav ? "pb-8" : "pb-24"}`
+                : `px-4 py-6 sm:px-6 lg:pb-8 ${
+                    hideBottomNav ? "pb-8" : "pb-24"
+                  }`
             }
           >
             <PartnerErrorBoundary resetKey={pathname}>
