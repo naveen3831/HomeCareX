@@ -187,7 +187,7 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
       aria-modal="true"
       aria-label="Mobile navigation menu"
     >
-      <nav className="flex flex-col gap-1 px-5 py-3">
+      <nav className="flex flex-col gap-3 px-5 py-3">
 
         {/* Home */}
         <NavLink
@@ -195,11 +195,9 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           end
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center px-2 rounded-lg text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "text-[#ff8a3d]"
-                : "text-gray-700 hover:text-[#4338ca] hover:bg-[#eef0ff]/60"
-            }`
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm text-gray-700 transition hover:text-[#4338ca]"
           }
         >
           Home
@@ -210,11 +208,9 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           to="/services"
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center px-2 rounded-lg text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "text-[#ff8a3d]"
-                : "text-gray-700 hover:text-[#4338ca] hover:bg-[#eef0ff]/60"
-            }`
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm text-gray-700 transition hover:text-[#4338ca]"
           }
         >
           Services
@@ -226,11 +222,9 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           end
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center px-2 rounded-lg text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "text-[#ff8a3d]"
-                : "text-gray-700 hover:text-[#4338ca] hover:bg-[#eef0ff]/60"
-            }`
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm text-gray-700 transition hover:text-[#4338ca]"
           }
         >
           About
@@ -241,28 +235,24 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           to="/contact"
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center px-2 rounded-lg text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "text-[#ff8a3d]"
-                : "text-gray-700 hover:text-[#4338ca] hover:bg-[#eef0ff]/60"
-            }`
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm text-gray-700 transition hover:text-[#4338ca]"
           }
         >
           Contact
         </NavLink>
 
-        <hr className="my-2 border-gray-200" />
+        <hr className="my-1 border-gray-200" />
 
         {/* Login */}
         <NavLink
           to="/login"
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center px-2 rounded-lg text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "text-[#ff8a3d]"
-                : "text-[#4338ca] hover:text-[#ff8a3d] hover:bg-[#eef0ff]/60"
-            }`
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm font-medium text-[#4338ca] transition hover:text-[#ff8a3d]"
           }
         >
           Login
@@ -273,11 +263,9 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           to="/register"
           onClick={onClose}
           className={({ isActive }) =>
-            `min-h-[44px] flex items-center justify-center rounded-xl px-4 text-center text-sm font-bold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] ${
-              isActive
-                ? "bg-[#4338ca]"
-                : "bg-[#ff8a3d] hover:bg-[#4338ca]"
-            }`
+            isActive
+              ? "rounded-lg bg-[#4338ca] px-4 py-2 text-center text-sm font-medium text-white transition"
+              : "rounded-lg bg-[#ff8a3d] px-4 py-2 text-center text-sm font-medium text-white transition hover:bg-[#4338ca]"
           }
         >
           Register

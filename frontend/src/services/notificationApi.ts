@@ -1,95 +1,235 @@
 import http, { type ApiResponse } from "@/lib/http";
 import { normalizeApiError } from "@/services/bookingApi";
 
-export const NOTIFICATION_GROUPS = ["booking", "payment", "partner", "offers", "support", "system"] as const;
+export const NOTIFICATION_GROUPS = [
+  "booking",
+  "payment",
+  "partner",
+  "offers",
+  "support",
+  "system",
+] as const;
+
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
-/** Socket.IO event the server emits to the customer's own room for every new notification. */
 export const NOTIFICATION_SOCKET_EVENT = "notification:new";
 
 export interface CustomerNotification {
   id: string;
   userId: string;
-  /** Machine-readable kind, e.g. "booking.completed". */
   type: string;
   group: NotificationGroup;
-  /** Free-form data from the server (bookingId, ticketId, amount, ...). Read it defensively. */
   payload: Record<string, unknown> | null;
   readAt: string | null;
   createdAt: string;
 }
 
-export type NotificationGroupCounts = Record<NotificationGroup, { total: number; unread: number }>;
+export type NotificationGroupCounts = Record<
+  NotificationGroup,
+  { total: number; unread: number }
+>;
 
 export interface NotificationsPage {
   items: CustomerNotification[];
-  /** Unread across ALL groups (not just the filtered list). */
   unread: number;
   groups: NotificationGroupCounts;
 }
 
-export interface NotificationQuery {
+export interface FetchNotificationsParams {
   group?: NotificationGroup;
   unreadOnly?: boolean;
   limit?: number;
 }
 
+/** Alias so tests and callers can use either name. */
+export type NotificationQuery = FetchNotificationsParams;
+
+interface BackendNotification {
+  id?: string;
+  _id?: string;
+  userId: string;
+  type: string;
+  payload?: unknown;
+  readAt?: string | Date | null;
+  createdAt: string | Date;
+}
+
+interface BackendNotificationsMeta {
+  unread?: number;
+}
+
 export const emptyGroupCounts = (): NotificationGroupCounts =>
-  Object.fromEntries(NOTIFICATION_GROUPS.map((g) => [g, { total: 0, unread: 0 }])) as NotificationGroupCounts;
+  Object.fromEntries(
+    NOTIFICATION_GROUPS.map((group) => [
+      group,
+      { total: 0, unread: 0 },
+    ]),
+  ) as NotificationGroupCounts;
 
-interface ListEnvelope extends ApiResponse<CustomerNotification[]> {
-  meta?: { unread?: number; groups?: Partial<NotificationGroupCounts> };
-}
+function getGroup(type: string): NotificationGroup {
+  const prefix = type.split(".")[0];
 
-/** GET /customer/notifications?group=&unread=true&limit= : the caller's own notifications + per-group unread counts. */
-export async function fetchNotifications(query: NotificationQuery = {}, signal?: AbortSignal): Promise<NotificationsPage> {
-  try {
-    const params: Record<string, string | number> = { limit: query.limit ?? 50 };
-    if (query.group) params.group = query.group;
-    if (query.unreadOnly) params.unread = "true";
-    const { data } = await http.get<ListEnvelope>("/customer/notifications", { params, signal });
-    const groups = { ...emptyGroupCounts(), ...(data.meta?.groups ?? {}) } as NotificationGroupCounts;
-    return { items: data.data ?? [], unread: data.meta?.unread ?? 0, groups };
-  } catch (err) {
-    throw normalizeApiError(err);
+  switch (prefix) {
+    case "booking":
+      return "booking";
+    case "payment":
+    case "payout":
+    case "refund":
+      return "payment";
+    case "partner":
+      return "partner";
+    case "offer":
+      return "offers";
+    case "ticket":
+    case "support":
+      return "support";
+    default:
+      return "system";
   }
 }
 
-/** PATCH /customer/notifications/:id/read (someone else's id is a 404). */
-export async function markNotificationRead(id: string): Promise<CustomerNotification> {
+function toCustomerNotification(
+  item: BackendNotification,
+): CustomerNotification {
+  const id = item.id ?? item._id;
+
+  if (!id) {
+    throw new Error("Notification response is missing its ID.");
+  }
+
+  const payload =
+    item.payload &&
+    typeof item.payload === "object" &&
+    !Array.isArray(item.payload)
+      ? (item.payload as Record<string, unknown>)
+      : null;
+
+  return {
+    id,
+    userId: String(item.userId),
+    type: item.type,
+    group: getGroup(item.type),
+    payload,
+    readAt: item.readAt ? new Date(item.readAt).toISOString() : null,
+    createdAt: new Date(item.createdAt).toISOString(),
+  };
+}
+
+function buildGroupCounts(
+  items: CustomerNotification[],
+): NotificationGroupCounts {
+  const groups = emptyGroupCounts();
+
+  for (const item of items) {
+    groups[item.group].total += 1;
+
+    if (!item.readAt) {
+      groups[item.group].unread += 1;
+    }
+  }
+
+  return groups;
+}
+
+/**
+ * GET /notifications
+ * Backend returns an array in data and the global unread count in meta.unread.
+ */
+export async function fetchNotifications(
+  params: FetchNotificationsParams = {},
+  signal?: AbortSignal,
+): Promise<NotificationsPage> {
   try {
-    const { data } = await http.patch<ApiResponse<CustomerNotification>>(`/customer/notifications/${encodeURIComponent(id)}/read`);
-    return data.data;
-  } catch (err) {
-    throw normalizeApiError(err);
+    const { data } = await http.get<
+      ApiResponse<BackendNotification[]> & {
+        meta?: BackendNotificationsMeta;
+      }
+    >("/notifications", {
+      params: {
+        ...(params.limit ? { limit: params.limit } : {}),
+      },
+      signal,
+    });
+
+    const items = (data.data ?? []).map(toCustomerNotification);
+
+    const filteredItems = items.filter((item) => {
+      if (params.group && item.group !== params.group) {
+        return false;
+      }
+
+      if (params.unreadOnly && item.readAt) {
+        return false;
+      }
+
+      return true;
+    });
+
+    return {
+      items: filteredItems,
+      unread: data.meta?.unread ?? items.filter((item) => !item.readAt).length,
+      groups: buildGroupCounts(items),
+    };
+  } catch (error) {
+    throw normalizeApiError(error);
   }
 }
 
-/** PATCH /customer/notifications/read-all : returns how many changed. */
+/**
+ * PATCH /notifications/:id/read
+ * Backend currently returns { success: true, data: { ok: true } }.
+ */
+export async function markNotificationRead(
+  id: string,
+): Promise<CustomerNotification> {
+  try {
+    await http.patch<ApiResponse<{ ok: boolean }>>(
+      `/notifications/${encodeURIComponent(id)}/read`,
+    );
+
+    // The backend does not return the updated notification.
+    // Return a minimal updated row for React Query's optimistic cache patch.
+    return {
+      id,
+      userId: "",
+      type: "system.updated",
+      group: "system",
+      payload: null,
+      readAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+  } catch (error) {
+    throw normalizeApiError(error);
+  }
+}
+
+/**
+ * PATCH /notifications/read-all
+ */
 export async function markAllNotificationsRead(): Promise<number> {
   try {
-    const { data } = await http.patch<ApiResponse<{ updated: number }>>("/customer/notifications/read-all");
-    return data.data.updated;
-  } catch (err) {
-    throw normalizeApiError(err);
+    await http.patch<ApiResponse<{ ok: boolean }>>(
+      "/notifications/read-all",
+    );
+
+    return 0;
+  } catch (error) {
+    throw normalizeApiError(error);
   }
 }
 
-/** DELETE /customer/notifications/:id : removes one of the caller's notifications from the database. */
-export async function deleteNotification(id: string): Promise<void> {
-  try {
-    await http.delete(`/customer/notifications/${encodeURIComponent(id)}`);
-  } catch (err) {
-    throw normalizeApiError(err);
-  }
+/**
+ * The currently supplied backend routes do not implement notification deletion.
+ * These functions fail explicitly instead of pretending the delete succeeded.
+ */
+export async function deleteNotification(_id: string): Promise<void> {
+  throw new Error(
+    "Deleting a notification is not supported by the current backend API.",
+  );
 }
 
-/** DELETE /customer/notifications : removes every notification of the caller; returns how many. */
 export async function deleteAllNotifications(): Promise<number> {
-  try {
-    const { data } = await http.delete<ApiResponse<{ deleted: number }>>("/customer/notifications");
-    return data.data.deleted;
-  } catch (err) {
-    throw normalizeApiError(err);
-  }
+  throw new Error(
+    "Deleting notifications is not supported by the current backend API.",
+  );
 }

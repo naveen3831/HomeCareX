@@ -1,5 +1,10 @@
-import { useState, useEffect, useCallback, createContext, useContext } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect, createContext, useContext } from "react";
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import {
   Home,
   Briefcase,
@@ -9,7 +14,6 @@ import {
   CalendarOff,
   Clock,
   Wrench,
-  MapPin,
   Wallet,
   Gift,
   Banknote,
@@ -32,20 +36,12 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
-import {
-  getAvailability,
-  setOnline as setOnlineApi,
-  readStoredOnlineStatus,
-  writeStoredOnlineStatus,
-  PARTNER_ONLINE_STORAGE_KEY,
-} from "@/pages/partner/Availability/availability.api";
-import { setMockPartnerOnline } from "@/services/mockPartnerJobs";
+import OnlineIndicator from "@/components/partner/OnlineIndicator";
+import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 import "@/styles/admin.css";
-import OnlineIndicator from "../components/partner/OnlineIndicator";
-import PartnerErrorBoundary from "../components/partner/PartnerErrorBoundary";
 
 // -----------------------------------------------------------------------------
-// Navigation
+// Helpers
 // -----------------------------------------------------------------------------
 
 type NavChild = {
@@ -81,6 +77,10 @@ export const NAV: NavItem[] = [
 
   { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
 
+export const NAV = [
+  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
+  { key: "jobs", label: "My Jobs", to: "/partner/jobs", icon: ClipboardList },
+  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
   {
     key: "availability",
     label: "Availability",
@@ -180,6 +180,7 @@ const FLAT_NAV: (NavChild & { parent?: string })[] = NAV.flatMap((n) => [
 // Page titles
 // -----------------------------------------------------------------------------
 
+// Titles that also switch to the minimal header on mobile
 const PAGE_TITLES: Record<string, string> = {
   "/partner/availability": "Availability",
   "/partner/working-hours": "Working Hours",
@@ -187,13 +188,12 @@ const PAGE_TITLES: Record<string, string> = {
   "/partner/blackout-dates": "Blackout Dates",
   "/partner/availability/blackout-dates": "Blackout Dates",
   "/partner/schedule": "Schedule",
-  "/partner/service-area": "Service Area",
   "/partner/earnings": "Earnings",
-  "/partner/jobs": "Job Requests",
+  "/partner/jobs": "My Jobs",
+  "/partner/jobs/requests": "Job Requests",
 };
 
-// Titles that only change the heading
-// They also hide the Online/Offline pill
+// Titles that only change the heading; they also hide the Online/Offline pill
 const EXTRA_TITLES: Record<string, string> = {
   "/partner/incentives": "Partner Incentives",
   "/partner/earnings/incentives": "Partner Incentives",
@@ -222,6 +222,7 @@ const BOTTOM_NAV = [
     to: "/partner/work",
     icon: Briefcase,
     match: ["/partner/work"],
+    exact: false,
   },
   {
     key: "availability",
@@ -234,6 +235,7 @@ const BOTTOM_NAV = [
       "/partner/blackout-dates",
       "/partner/schedule",
     ],
+    exact: false,
   },
   {
     key: "earnings",
@@ -254,6 +256,7 @@ const BOTTOM_NAV = [
     to: "/partner/profile",
     icon: User,
     match: ["/partner/profile"],
+    exact: false,
   },
 ];
 
@@ -296,6 +299,7 @@ function BottomNav({ visible, path }: { visible: boolean; path: string }) {
 export const BOTTOM_KEYS = BOTTOM_NAV.map((n) => n.key);
 
 // ---- Online status shared with dashboard pages via context ----
+
 const PartnerStatusContext = createContext<{
   online: boolean;
   setOnline: (v: boolean) => void;
@@ -318,6 +322,7 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
 ];
 
 // ---- Sidebar ----
+
 function PartnerSidebar({
   collapsed,
   currentKey,
@@ -331,7 +336,7 @@ function PartnerSidebar({
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const displayName = user?.name ?? "Partner";
+  const displayName = user?.name || "Partner";
 
   // Top-level key of the page we are on (a child resolves to its parent)
   const topKeyOf = (key?: string) =>
@@ -369,6 +374,14 @@ function PartnerSidebar({
   const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
     .filter(Boolean)
     .join(" ");
+
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate("/login", { replace: true });
+    }
+  };
 
   return (
     <>
@@ -629,11 +642,7 @@ export default function PartnerLayout() {
         return;
       }
 
-      if (y <= 24) {
-        setNavVisible(true);
-      } else {
-        setNavVisible(delta < 0);
-      }
+      setNavVisible(y <= 24 ? true : delta < 0);
 
       last = y;
     };
@@ -682,25 +691,22 @@ export default function PartnerLayout() {
 
   const goBack = () => {
     if (isTabRoot) {
-      return navigate("/partner");
+      navigate("/partner");
+
+      return;
     }
 
     const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
 
-    if (hasHistory) {
-      return navigate(-1);
+      return;
     }
 
     navigate(
       current && !BOTTOM_KEYS.includes(current.parent ?? current.key)
         ? "/partner/profile"
-        : "/partner"
+        : "/partner",
     );
   };
-
-  // ---------------------------------------------------------------------------
-  // Render
-  // ---------------------------------------------------------------------------
 
   return (
     <PartnerStatusContext.Provider value={{ online, setOnline }}>
@@ -725,11 +731,12 @@ export default function PartnerLayout() {
             <div className="flex min-w-0 items-center gap-0.5 sm:gap-3">
               {showBack && (
                 <button
+                  type="button"
                   onClick={goBack}
                   aria-label="Go back"
                   className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:hidden"
                 >
-                  <ArrowLeft size={20} />
+                  <ArrowLeft size={20} aria-hidden="true" />
                 </button>
               )}
 
@@ -739,9 +746,9 @@ export default function PartnerLayout() {
                 className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
               >
                 {collapsed ? (
-                  <PanelLeftOpen size={20} />
+                  <PanelLeftOpen size={20} aria-hidden="true" />
                 ) : (
-                  <PanelLeftClose size={20} />
+                  <PanelLeftClose size={20} aria-hidden="true" />
                 )}
               </button>
 
@@ -766,10 +773,11 @@ export default function PartnerLayout() {
                 ))}
 
               <button
+                type="button"
                 aria-label="Notifications"
                 className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
               >
-                <Bell size={20} />
+                <Bell size={20} aria-hidden="true" />
               </button>
             </div>
           </header>

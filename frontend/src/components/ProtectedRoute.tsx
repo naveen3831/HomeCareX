@@ -30,10 +30,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children 
   }
 
   if (!isAuthenticated || !user) {
-    const isSecurityRoute = /\/security|\/logout/i.test(location.pathname);
-    const returnUrl = isSecurityRoute ? "" : `?returnUrl=${encodeURIComponent(location.pathname + location.search)}`;
-    const expired = status === "expired" ? (returnUrl ? "&expired=1" : "?expired=1") : "";
-    return <Navigate to={`/login${returnUrl}${expired}`} replace />;
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    const expired = status === "expired" ? "&expired=1" : "";
+    return <Navigate to={`/login?returnUrl=${returnUrl}${expired}`} replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {

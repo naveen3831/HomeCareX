@@ -1,29 +1,144 @@
-import React, { useEffect, useMemo, useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useServices } from "@/hooks/useServices";
+import type {
+  ServiceListParams,
+  ServiceSort,
+} from "@/types/catalog";
 
 import ServiceCard from "../../../components/public/ServiceCard";
-
 import ServiceCardSkeleton from "../../../components/public/ServiceCardSkeleton";
-
 import ServiceFilters, {
   SortOption,
 } from "../../../components/public/ServiceFilters";
-
 import Pagination from "../../../components/public/Pagination";
 
-import { toServiceCard, useCategories, useServices } from "@/features/public";
-import { useHiddenPageScrollbar } from "@/hooks/useHiddenPageScrollbar";
-import type { ServicesParams } from "@/features/public";
+
+
 
 // ============================================================
-// SORT: page option values -> API sort values
+// MOCK SERVICE DATA
 // ============================================================
 
-const SORT_TO_API: Record<SortOption, NonNullable<ServicesParams["sort"]>> = {
-  popular: "popular",
-  "price-low": "price-asc",
-  "price-high": "price-desc",
-};
+// const services: Service[] = [
+//   {
+//     id: "SERVICE001",
+    
+// image: "/images/home-cleaning.webp",
+// fallbackImage: "/images/home-cleaning.jpg",
+
+//     category: "Cleaning",
+//     name: "Home Cleaning",
+//     rating: 4.8,
+//     price: 499,
+//     duration: "2-3 hrs",
+//   },
+
+//   {
+//     id: "SERVICE002",
+   
+// image: "/images/plumbing.webp",
+// fallbackImage: "/images/plumbing.jpg",
+
+//     category: "Plumbing",
+//     name: "Plumbing",
+//     rating: 4.8,
+//     price: 399,
+//     duration: "1-2 hrs",
+//   },
+
+//   {
+//     id: "SERVICE003",
+   
+// image: "/images/electrical.webp",
+// fallbackImage: "/images/electrical.jpg",
+
+//     category: "Electrical",
+//     name: "Electrical Services",
+//     rating: 4.7,
+//     price: 349,
+//     duration: "1-2 hrs",
+//   },
+
+//   {
+//     id: "SERVICE004",
+   
+// image: "/images/appliance-repair.webp",
+// fallbackImage: "/images/appliance-repair.jpg",
+
+//     category: "Appliance",
+//     name: "Appliance Repair",
+//     rating: 4.8,
+//     price: 499,
+//     duration: "2-3 hrs",
+//   },
+
+//   {
+//     id: "SERVICE005",
+    
+// image: "/images/painting.webp",
+// fallbackImage: "/images/painting.jpg",
+
+//     category: "Painting",
+//     name: "Home Painting",
+//     rating: 4.7,
+//     price: 999,
+//     duration: "1-2 days",
+//   },
+
+//   {
+//     id: "SERVICE006",
+   
+// image: "/images/home-maintenance.webp",
+// fallbackImage: "/images/home-maintenance.jpg",
+
+//     category: "Maintenance",
+//     name: "Home Maintenance",
+//     rating: 4.8,
+//     price: 599,
+//     duration: "2-3 hrs",
+//   },
+
+//   {
+//     id: "SERVICE007",
+    
+// image: "/images/deep-cleaning.webp",
+// fallbackImage: "/images/deep-cleaning.jpg",
+
+//     category: "Cleaning",
+//     name: "Deep Cleaning",
+//     rating: 4.9,
+//     price: 799,
+//     duration: "3-4 hrs",
+//   },
+
+//   {
+//     id: "SERVICE008",
+   
+// image: "/images/bathroom-cleaning.webp",
+// fallbackImage: "/images/bathroom-cleaning.jpg",
+
+//     category: "Cleaning",
+//     name: "Bathroom Cleaning",
+//     rating: 4.8,
+//     price: 399,
+//     duration: "1-2 hrs",
+//   },
+
+//   {
+//     id: "SERVICE009",
+   
+// image: "/images/kitchen-cleaning.webp",
+// fallbackImage: "/images/kitchen-cleaning.jpg",
+
+//     category: "Cleaning",
+//     name: "Kitchen Cleaning",
+//     rating: 4.8,
+//     price: 449,
+//     duration: "1-2 hrs",
+//   },
+// ];
 
 // ============================================================
 // ITEMS PER PAGE
@@ -42,9 +157,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 // ============================================================
 
 export const ServicesPage: React.FC = () => {
-  // Hide the right-side page scrollbar (the page still scrolls normally)
-  useHiddenPageScrollbar();
-
   // ==========================================================
   // URL SEARCH PARAMS
   // ==========================================================
@@ -77,6 +189,39 @@ export const ServicesPage: React.FC = () => {
       ? 1
       : currentPageValue;
 
+
+
+
+      
+  // Fetch services from the API
+  const apiSort: ServiceSort =
+    sort === "price-low"
+      ? "price-asc"
+      : sort === "price-high"
+        ? "price-desc"
+        : (
+            ["popular", "rating", "newest", "relevance"] as string[]
+          ).includes(sort)
+          ? (sort as ServiceSort)
+          : "popular";
+
+  const serviceParams: ServiceListParams = {
+    q: search.trim() || undefined,
+    category: category || undefined,
+    sort: apiSort,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  };
+
+  const servicesQuery = useServices(serviceParams);
+
+  const loading = servicesQuery.isPending;
+  const error = servicesQuery.isError;
+
+  const apiServices = servicesQuery.data?.items ?? [];
+  const totalPages = servicesQuery.data?.meta.totalPages ?? 0;
+  const safeCurrentPage = servicesQuery.data?.meta.page ?? currentPage;
+
   // ==========================================================
   // SEARCH INPUT
   // ==========================================================
@@ -84,49 +229,7 @@ export const ServicesPage: React.FC = () => {
   const [searchInput, setSearchInput] =
     useState(search);
 
-  // ==========================================================
-  // DATA - services come from the API (or mocks when VITE_USE_MOCKS=true)
-  // ==========================================================
-
-  const {
-    data,
-    isLoading: loading,
-    isError: error,
-    refetch,
-  } = useServices({
-    q: search.trim() || undefined,
-    category: category || undefined,
-    sort: SORT_TO_API[sort] ?? "popular",
-    page: currentPage,
-    limit: ITEMS_PER_PAGE,
-  });
-
-  const { data: categoryList } = useCategories();
-
-  const categoryOptions = useMemo(
-    () => categoryList?.map((c) => ({ value: c.slug, label: c.name })),
-    [categoryList]
-  );
-
-  const categoryLabel =
-    categoryList?.find((c) => c.slug === category)?.name ?? category;
-
-  const paginatedServices = useMemo(
-    () => (data?.items ?? []).map(toServiceCard),
-    [data]
-  );
-
-  const totalCount = data?.meta.total ?? 0;
-  const totalPages = data?.meta.totalPages ?? 1;
-  const safeCurrentPage = Math.min(currentPage, Math.max(totalPages, 1));
-
-  // ==========================================================
-  // KEEP SEARCH BOX IN SYNC WITH URL
-  // ==========================================================
-
-  useEffect(() => {
-    document.title = "Services | HomeCareX";
-  }, []);
+  
 
   useEffect(() => {
     setSearchInput(search);
@@ -164,6 +267,46 @@ export const ServicesPage: React.FC = () => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
+
+  // ==========================================================
+  // DAY 6 - SERVICE LOADING
+  // ==========================================================
+  //
+  // Currently services are mock data.
+  // This simulates an API loading state.
+  //
+  // Later, when backend API is connected,
+  // this will be replaced by the actual API loading state.
+  // ==========================================================
+
+  // useEffect(() => {
+  //   const loadServices = async () => {
+  //     try {
+  //       setLoading(true);
+  //       setError(false);
+
+  //       // Temporary mock loading.
+  //       // Later replace this with API request.
+
+  //       await new Promise((resolve) =>
+  //         setTimeout(resolve, 800)
+  //       );
+  //       //  throw new Error("Test error");
+
+  //       setLoading(false);
+  //     } catch (err) {
+  //       console.error(
+  //         "Failed to load services:",
+  //         err
+  //       );
+
+  //       setError(true);
+  //       setLoading(false);
+  //     }
+  //   };
+
+  //   loadServices();
+  // }, []);
 
   // ==========================================================
   // UPDATE URL PARAMETERS
@@ -247,12 +390,96 @@ export const ServicesPage: React.FC = () => {
   };
 
   // ==========================================================
-  // RETRY
+  // DAY 6 - RETRY
   // ==========================================================
 
+  // 
+
   const handleRetry = () => {
-    void refetch();
+    void servicesQuery.refetch();
   };
+
+
+  // // ==========================================================
+  // // FILTER + SORT SERVICES
+  // // ==========================================================
+
+  // const filteredServices = useMemo(() => {
+  //   const searchText =
+  //     search.toLowerCase().trim();
+
+  //   return [...services]
+  //     .filter((service) => {
+  //       const matchesSearch =
+  //         service.name
+  //           .toLowerCase()
+  //           .includes(searchText) ||
+  //         service.category
+  //           .toLowerCase()
+  //           .includes(searchText);
+
+  //       const matchesCategory =
+  //         !category ||
+  //         service.category === category;
+
+  //       return (
+  //         matchesSearch &&
+  //         matchesCategory
+  //       );
+  //     })
+
+  //     .sort((a, b) => {
+  //       // Popular
+  //       if (sort === "popular") {
+  //         return b.rating - a.rating;
+  //       }
+
+  //       // Price Low → High
+  //       if (sort === "price-low") {
+  //         return a.price - b.price;
+  //       }
+
+  //       // Price High → Low
+  //       if (sort === "price-high") {
+  //         return b.price - a.price;
+  //       }
+
+  //       return 0;
+  //     });
+  // }, [search, category, sort]);
+
+  // // ==========================================================
+  // // PAGINATION
+  // // ==========================================================
+
+  // const totalPages = Math.ceil(
+  //   filteredServices.length /
+  //     ITEMS_PER_PAGE
+  // );
+
+  // // ==========================================================
+  // // MAKE SURE CURRENT PAGE IS VALID
+  // // ==========================================================
+
+  // const safeCurrentPage =
+  //   Math.min(
+  //     currentPage,
+  //     Math.max(totalPages, 1)
+  //   );
+
+  // // ==========================================================
+  // // PAGINATION INDEX
+  // // ==========================================================
+
+  // const startIndex =
+  //   (safeCurrentPage - 1) *
+  //   ITEMS_PER_PAGE;
+
+  // const paginatedServices =
+  //   filteredServices.slice(
+  //     startIndex,
+  //     startIndex + ITEMS_PER_PAGE
+  //   );
 
   // ==========================================================
   // PAGE CHANGE
@@ -309,7 +536,6 @@ export const ServicesPage: React.FC = () => {
         <ServiceFilters
           q={searchInput}
           category={category}
-          categories={categoryOptions}
           sort={sort}
           pincode={pincode}
 
@@ -340,19 +566,16 @@ export const ServicesPage: React.FC = () => {
 
           <p className="text-sm font-semibold text-[#6b6b8a]">
 
-            {totalCount}{" "}
-
-            {totalCount === 1
-              ? "service"
-              : "services"}
-
-            {" "}found
-
+          {servicesQuery.data?.meta.total ?? 0}{" "}
+{(servicesQuery.data?.meta.total ?? 0) === 1
+  ? "service"
+  : "services"}{" "}
+found
           </p>
 
           {category && (
             <p className="text-sm font-semibold text-[#4338ca]">
-              Category: {categoryLabel}
+              Category: {category}
             </p>
           )}
 
@@ -375,7 +598,6 @@ export const ServicesPage: React.FC = () => {
               sm:grid-cols-2
               lg:grid-cols-3
             "
-            role="status"
             aria-busy="true"
             aria-label="Loading services"
           >
@@ -482,39 +704,76 @@ export const ServicesPage: React.FC = () => {
 
           </div>
 
-        ) : paginatedServices.length > 0 ? (
-
+       ) : apiServices.length > 0 ? (
           /* ==================================================
              SERVICE CARDS
           ================================================== */
 
-          <div
-            className="
-              grid
-              gap-6
-              sm:grid-cols-2
-              lg:grid-cols-3
-            "
-          >
+         
+<div
+  className="
+    grid
+    gap-6
+    sm:grid-cols-2
+    lg:grid-cols-3
+  "
+>
+ 
+{apiServices.map((service) => {
+  const name = service.name.toLowerCase();
 
-            {paginatedServices.map(
-              (service) => (
+  let image = "/images/home-cleaning.jpg";
 
-                <ServiceCard
-                  key={service.id}
-                  id={service.slug}
-                  image={service.image}
-                  category={service.category}
-                  name={service.name}
-                  rating={service.rating}
-                  price={service.price}
-                  duration={service.duration}
-                />
+  if (name.includes("deep") && name.includes("clean")) {
+    image = "/images/deep-cleaning.jpg";
+  } else if (name.includes("clean")) {
+    image = "/images/home-cleaning.jpg";
+  } else if (
+    name.includes("ac service") ||
+    name.includes("gas refill") ||
+    name.includes("appliance") ||
+    name.includes("geyser") ||
+    name.includes("refrigerator") ||
+    name.includes("washing machine") ||
+    name.includes("microwave")
+  ) {
+    image = "/images/appliance-repair.jpg";
+  } else if (
+    name.includes("electrician") ||
+    name.includes("electrical")
+  ) {
+    image = "/images/electrical.jpg";
+  } else if (name.includes("plumbing")) {
+    image = "/images/plumbing.jpg";
+  } else if (name.includes("painting")) {
+    image = "/images/painting.jpg";
+  } else if (name.includes("pest")) {
+    image = "/images/pest-control-clean.webp";
+  } else if (name.includes("massage")) {
+    image = "/images/full-body-massage.webp";
+  } else if (name.includes("makeup")) {
+    image = "/images/bridal-makeup.webp";
+  } else if (name.includes("bathroom")) {
+    image = "/images/bathroom-cleaning.webp";
+  }
 
-              )
-            )}
+  return (
+    <ServiceCard
+      key={service.id}
+      id={service.slug}
+      image={image}
+      fallbackImage={image}
+      category={service.category.name}
+      name={service.name}
+      rating={service.rating}
+      price={service.basePrice}
+      duration={`${service.durationMinutes} min`}
+    />
+  );
+})}
 
-          </div>
+</div>
+
 
         ) : (
 
@@ -610,9 +869,9 @@ export const ServicesPage: React.FC = () => {
             PAGINATION
         ==================================================== */}
 
-        {!loading &&
-          !error &&
-          paginatedServices.length > 0 && (
+       {!loading &&
+  !error &&
+  apiServices.length > 0 && (
 
             <Pagination
               currentPage={

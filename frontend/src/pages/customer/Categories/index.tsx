@@ -30,7 +30,11 @@ export default function Categories() {
     body = <CategorySkeleton />;
   } else if (isError || !data) {
     body =
-      !online || error?.code === "NETWORK_ERROR" ? (
+      !online || (
+  error instanceof Error &&
+  "code" in error &&
+  error.code === "NETWORK_ERROR"
+) ? (
         <OfflineState onRetry={() => void refetch()} />
       ) : (
         <ErrorState title="We couldn't load categories" message={error?.message} onRetry={() => void refetch()} />

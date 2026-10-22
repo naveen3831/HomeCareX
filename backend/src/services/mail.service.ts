@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
-import { accountCreatedEmail, accountCreatedUrls, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, staffInviteEmail, type AccountCreatedEmailData } from './mail.templates';
+import { accountCreatedEmail, accountCreatedUrls, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, type AccountCreatedEmailData } from './mail.templates';
 
 let transporter: Transporter | null = null;
 
@@ -83,24 +83,6 @@ export const mailService = {
   async sendPasswordResetEmail(data: { name: string; email: string; resetUrl: string }) {
     const { src, attachments } = logo();
     const { subject, html, text } = passwordResetEmail({
-      ...data,
-      logoSrc: src,
-      supportEmail: process.env.SUPPORT_EMAIL,
-    });
-
-    await getTransporter().sendMail({
-      from: process.env.MAIL_FROM || process.env.SMTP_USER,
-      to: data.email,
-      subject,
-      text,
-      html,
-      attachments,
-    });
-  },
-
-  async sendStaffInviteEmail(data: { name: string; email: string; inviteUrl: string; roleName?: string; invitedBy?: string }) {
-    const { src, attachments } = logo();
-    const { subject, html, text } = staffInviteEmail({
       ...data,
       logoSrc: src,
       supportEmail: process.env.SUPPORT_EMAIL,

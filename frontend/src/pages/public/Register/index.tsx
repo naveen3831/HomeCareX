@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Phone, Tag, ArrowRight, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { classifyApiError } from '@/lib/apiError';
@@ -7,7 +7,6 @@ import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import PasswordStrength from '@/components/auth/PasswordStrength';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
-import { safeReturnUrl, destinationFor } from '@/utils/isSafeReturnUrl';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[6-9]\d{9}$/;
@@ -15,8 +14,6 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 export const RegisterPage: React.FC = () => {
   const { register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const returnUrl = safeReturnUrl(searchParams.get('returnUrl'));
 
   const [form, setForm] = useState({
     name: '',
@@ -24,7 +21,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    referralCode: (searchParams.get('ref') ?? '').toUpperCase().slice(0, 64),
+    referralCode: '',
   });
 
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -51,7 +48,7 @@ export const RegisterPage: React.FC = () => {
         />
         <div className="mt-6">
           <Link
-            to={destinationFor(user, returnUrl)}
+            to={user.home || (user.role === 'admin' ? '/admin' : `/${user.role}`)}
             className="w-full text-center block rounded-lg bg-[#ff8a3d] hover:bg-[#e0600f] text-white font-medium py-2.5 shadow-sm transition"
           >
             Go to my dashboard
@@ -152,7 +149,7 @@ export const RegisterPage: React.FC = () => {
         role: 'customer',
       });
 
-      const landingPath = destinationFor(newUser, returnUrl);
+      const landingPath = newUser.home || (newUser.role === 'admin' ? '/admin' : `/${newUser.role}`);
       navigate(landingPath, { replace: true });
     } catch (err) {
       const classified = classifyApiError(err);
@@ -181,16 +178,16 @@ export const RegisterPage: React.FC = () => {
   return (
     <div className="w-full">
       {/* Top Navigation: Back to Home + Status badge */}
-      <div className="flex items-center justify-between gap-2 mb-4 pb-2.5 border-b border-gray-200/70 shrink-0">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-600 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded py-1 shrink-0 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded px-1.5 py-0.5 -ml-1.5"
           aria-label="Back to Home"
         >
-          <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
-          <span>Back to Home</span>
+          <ArrowLeft size={15} />
+          Back to Home
         </Link>
-        <span className="text-[11px] sm:text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
+        <span className="text-[11px] font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
           Create Account
         </span>
       </div>
@@ -436,10 +433,7 @@ export const RegisterPage: React.FC = () => {
 
       <p className="text-center text-xs text-gray-500 mt-2">
         Already have an account?{' '}
-        <Link
-          to={returnUrl ? `/login?returnUrl=${encodeURIComponent(returnUrl)}` : "/login"}
-          className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded"
-        >
+        <Link to="/login" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
           Sign in
         </Link>
       </p>
