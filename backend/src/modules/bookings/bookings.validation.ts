@@ -57,21 +57,3 @@ export const checkSlotBodySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   slot: z.string().min(1, 'Slot is required'),
 });
-
-export const extraChargeDecisionParamsSchema = z.object({
-  id: objectIdString,
-  chargeId: objectIdString,
-});
-
-export const extraChargeDecisionBodySchema = z.object({
-  decision: z.enum(['approve', 'reject']),
-});
-
-export const cancelBookingBodySchema = z.object({
-  reason: z.string().trim().min(3, 'Please tell us why you are cancelling').max(300),
-});
-
-export const rescheduleBookingBodySchema = z.object({
-  date: dateString,
-  slot: slotString,
-});

@@ -13,6 +13,10 @@ export interface CatalogCategory {
   sortOrder: number;
   /** Active services in this category. */
   serviceCount: number;
+  /** Lowest base price among active services; 0 if none. */
+  fromPrice: number;
+  /** True for the single most-booked category. */
+  popular: boolean;
 }
 
 export interface CatalogService {

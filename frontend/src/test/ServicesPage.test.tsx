@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
-
+import { HelmetProvider } from "react-helmet-async";
 import ServicesPage from "../pages/public/Services";
 
 /* =========================================================
    Constants
 ========================================================= */
+
+
 
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
@@ -31,14 +33,15 @@ const LocationDisplay: React.FC = () => {
 interface TestWrapperProps {
   initialEntry?: string;
 }
-
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
 }) => (
-  <MemoryRouter initialEntries={[initialEntry]}>
-    <ServicesPage />
-    <LocationDisplay />
-  </MemoryRouter>
+  <HelmetProvider>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <ServicesPage />
+      <LocationDisplay />
+    </MemoryRouter>
+  </HelmetProvider>
 );
 
 /* =========================================================

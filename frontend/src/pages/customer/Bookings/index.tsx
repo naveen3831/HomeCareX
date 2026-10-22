@@ -50,20 +50,21 @@ export default function MyBookingsPage() {
     [state.status, state.date, state.service].filter(Boolean).length +
     (state.sort !== DEFAULT_SORT[state.tab] ? 1 : 0);
 
-  const { data, isError, error, refetch, isPlaceholderData } = useBookings({
-    tab: state.tab,
-    status: state.status || undefined,
-    search: state.search || undefined,
-    date: state.date || undefined,
-    service: state.service || undefined,
-    sort: state.sort,
-    page: state.page,
-    limit: PAGE_SIZE,
-  });
+  const { data, dataUpdatedAt, isError, error, refetch, isPlaceholderData } =
+    useBookings({
+      tab: state.tab,
+      status: state.status || undefined,
+      search: state.search || undefined,
+      date: state.date || undefined,
+      service: state.service || undefined,
+      sort: state.sort,
+      page: state.page,
+      limit: PAGE_SIZE,
+    });
 
   // One "now" per fetch so every card agrees on what has expired.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const now = useMemo(() => Date.now(), [data]);
+  const now = useMemo(() => Date.now(), [dataUpdatedAt]);
 
   // A shared link or a filter change can leave us past the last page: step back to it.
   const totalPages = data?.meta.totalPages ?? 0;
@@ -232,7 +233,13 @@ export default function MyBookingsPage() {
               tab={state.tab}
               now={now}
               index={i}
-              note={state.tab === "cancelled" ? cancelNote(b, now) : undefined}
+              note={
+                state.tab === "overdue"
+                  ? "Scheduled window passed; service completion has not been confirmed."
+                  : state.tab === "cancelled"
+                    ? cancelNote(b, now)
+                    : undefined
+              }
               footer={renderFooter(b)}
             />
           ))}

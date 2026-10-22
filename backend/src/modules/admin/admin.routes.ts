@@ -5,18 +5,10 @@ import { requireAdmin } from '../../middleware/role.middleware';
 import { asyncHandler } from '../../utils/asyncHandler';
 
 import { adminBookingsController } from './admin-bookings.controller';
-import { authController } from '../auth/auth.controller';
-import { rbacStaffController } from '../rbac/rbac.staff.controller';
 
 export const adminRoutes = Router();
 
 adminRoutes.use(authenticate, requireAdmin);
-
-// Staff invite. The rbac module owns GET/POST /admin/staff; until it lands this sends the invite email.
-adminRoutes.post('/staff', authController.inviteStaff);
-adminRoutes.get('/staff', asyncHandler((req, res) => rbacStaffController.list(req, res)));
-adminRoutes.patch('/staff/:id', asyncHandler((req, res) => rbacStaffController.setStatus(req, res)));
-adminRoutes.patch('/users/:id/role', asyncHandler((req, res) => rbacStaffController.changeRole(req, res)));
 
 adminRoutes.get(
   '/bookings',

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import {
@@ -27,16 +27,24 @@ import { customerPath } from "@/routes/customerPath";
  */
 export default function CustomerLayout() {
   const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+  // After a page change, move focus to the content area so keyboard and screen-reader users start at the new page, not at the top bar.
+  // Skipped on first load, and for query-string-only changes (filters, pagination) because only the path is a dependency.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
   // The Profile page is the mobile menu itself, so it shows no bottom nav (its sub-pages still do).
-  const path = pathname.replace(/\/+$/, "").toLowerCase();
-  const hideBottomNav = path === customerPath("/profile");
-  // Edit profile / Change password / Notifications are focused full pages on phones: no top bar, no bottom nav (they bring their own back header).
-  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
+  const hideBottomNav = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/profile");
 
   return (
-    <div className="flex min-h-screen overflow-x-clip bg-canvas">
+    <div className="customer-shell flex min-h-screen overflow-x-clip bg-canvas">
       <a
         href="#customer-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-brand focus:px-3 focus:py-2 focus:text-white"
@@ -49,18 +57,19 @@ export default function CustomerLayout() {
       <Sidebar open={sidebarOpen} onClose={toggleSidebar} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={hideBottomNav || focusPage ? "hidden md:block" : undefined}>
+        <div className={hideBottomNav ? "hidden md:block" : undefined}>
           <TopBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
         </div>
         <OfflineBanner />
 
         <main
+          ref={mainRef}
           id="customer-main"
           tabIndex={-1}
           className={clsx(
             "flex-1 px-4 py-6 outline-none md:px-8 md:pb-6",
             // Leave room for the fixed bottom nav (it shows on every page, Profile included).
-            focusPage ? "pb-[calc(2rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            "pb-[calc(5rem+env(safe-area-inset-bottom))]",
           )}
         >
           <RouteErrorBoundary resetKey={pathname}>
@@ -71,7 +80,7 @@ export default function CustomerLayout() {
         </main>
       </div>
 
-      {!focusPage && <BottomNav />}
+      { <BottomNav />}
     </div>
   );
 }

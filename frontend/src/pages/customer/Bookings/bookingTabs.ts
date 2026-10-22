@@ -5,6 +5,7 @@ export const PAGE_SIZE = 10;
 export const TABS: { id: BookingTab; label: string }[] = [
   { id: "upcoming", label: "Upcoming" },
   { id: "live", label: "Live" },
+  { id: "overdue", label: "Overdue" },
   { id: "completed", label: "Completed" },
   { id: "cancelled", label: "Cancelled" },
 ];
@@ -34,6 +35,12 @@ export const STATUS_OPTIONS: Record<BookingTab, StatusOption[]> = {
     { value: "arrived", label: "Arrived" },
     { value: "in_progress", label: "In progress" },
   ],
+  overdue: [
+    { value: "pending_payment", label: "Awaiting payment" },
+    { value: "confirmed,created", label: "Confirmed" },
+    { value: "searching_for_partner", label: "Finding a partner" },
+    { value: "assigned", label: "Partner assigned" },
+  ],
   completed: [
     { value: "completed,rated", label: "Completed" },
     { value: "disputed", label: "Disputed" },
@@ -58,6 +65,7 @@ export const SORT_OPTIONS: { value: BookingSort; label: string }[] = [
 export const DEFAULT_SORT: Record<BookingTab, BookingSort> = {
   upcoming: "date_asc",
   live: "date_asc",
+  overdue: "date_desc",
   completed: "date_desc",
   cancelled: "date_desc",
 };
@@ -73,6 +81,10 @@ export const EMPTY_COPY: Record<BookingTab, { title: string; description: string
   live: {
     title: "Nothing happening right now",
     description: "When a partner is on the way or working, you can follow it live here.",
+  },
+  overdue: {
+    title: "No overdue bookings",
+    description: "Bookings with a passed service window and unconfirmed completion will show up here.",
   },
   completed: {
     title: "No completed bookings",

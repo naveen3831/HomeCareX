@@ -8,8 +8,6 @@ import { ROUTES } from "../../constants/routes";
 ========================================================= */
 
 const styles = `
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap');
-
 .hcx-ft { font-family: 'DM Sans', system-ui, sans-serif; }
 .hcx-ft h2, .hcx-ft h3, .hcx-ft .display {
   font-family: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;

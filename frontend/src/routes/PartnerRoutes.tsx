@@ -41,77 +41,42 @@ const Placeholder = ({ title }: { title: string }) => (
   </div>
 );
 
-// Placeholder routes and dashboard index.
 export const PARTNER_PAGES: { path: string; title: string }[] = [
-  // Work
-  { path: "work", title: "Work" },
-  { path: "work/requests", title: "Job requests" },
-  { path: "work/active", title: "Active job" },
-  { path: "work/today", title: "Today's jobs" },
-  { path: "work/completed", title: "Completed jobs" },
-  { path: "work/cancelled", title: "Cancelled jobs" },
-  { path: "work/:jobId", title: "Job details" },
+  { path: 'work', title: 'Work' },
+  { path: 'work/requests', title: 'Job requests' },
+  { path: 'work/active', title: 'Active job' },
+  { path: 'work/today', title: "Today's jobs" },
+  { path: 'work/completed', title: 'Completed jobs' },
+  { path: 'work/cancelled', title: 'Cancelled jobs' },
+  { path: 'work/:jobId', title: 'Job details' },
 
-  // Services
-  { path: "services", title: "Services" },
-  { path: "services/categories", title: "My categories" },
-  { path: "services/radius", title: "Service radius" },
-  {
-    path: "services/training",
-    title: "Training & certifications",
-  },
+  { path: 'services', title: 'Services' },
+  { path: 'services/categories', title: 'My categories' },
+  { path: 'services/radius', title: 'Service radius' },
+  { path: 'services/training', title: 'Training & certifications' },
 
-  // Earnings
-  { path: "earnings/payouts", title: "Payout history" },
-  {
-    path: "earnings/statements",
-    title: "Earnings statements",
-  },
-  {
-    path: "earnings/bank-details",
-    title: "Bank / UPI details",
-  },
+  { path: 'earnings/payouts', title: 'Payout history' },
+  { path: 'earnings/statements', title: 'Earnings statements' },
+  { path: 'earnings/bank-details', title: 'Bank / UPI details' },
 
-  // Performance
-  { path: "performance", title: "Performance" },
-  {
-    path: "performance/reviews",
-    title: "Customer reviews",
-  },
-  {
-    path: "performance/improvement",
-    title: "Improvement tips",
-  },
+  { path: 'performance', title: 'Performance' },
+  { path: 'performance/reviews', title: 'Customer reviews' },
+  { path: 'performance/improvement', title: 'Improvement tips' },
 
-  // Profile
-  { path: "profile", title: "Profile" },
-  { path: "profile/edit", title: "Edit profile" },
-  { path: "profile/documents", title: "Documents" },
-  {
-    path: "profile/verification",
-    title: "Verification status",
-  },
-  { path: "profile/preferences", title: "Preferences" },
+  { path: 'profile', title: 'Profile' },
+  { path: 'profile/edit', title: 'Edit profile' },
+  { path: 'profile/documents', title: 'Documents' },
+  { path: 'profile/verification', title: 'Verification status' },
+  { path: 'profile/preferences', title: 'Preferences' },
 
-  // Support
-  { path: "support", title: "Support" },
-  { path: "support/tickets", title: "My tickets" },
-  {
-    path: "support/tickets/new",
-    title: "Raise a ticket",
-  },
-  {
-    path: "support/tickets/:ticketId",
-    title: "Ticket details",
-  },
-  { path: "support/safety", title: "Safety & SOS" },
+  { path: 'support', title: 'Support' },
+  { path: 'support/tickets', title: 'My tickets' },
+  { path: 'support/tickets/new', title: 'Raise a ticket' },
+  { path: 'support/tickets/:ticketId', title: 'Ticket details' },
+  { path: 'support/safety', title: 'Safety & SOS' },
 
-  // System
-  { path: "system", title: "System settings" },
-  {
-    path: "system/notifications",
-    title: "Notification settings",
-  },
+  { path: 'system', title: 'System settings' },
+  { path: 'system/notifications', title: 'Notification settings' },
 ];
 
 // Paths that have a real route below, so they are skipped as placeholders.

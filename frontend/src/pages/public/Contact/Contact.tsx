@@ -13,6 +13,8 @@ import { Link, useLocation } from 'react-router-dom';
 import ContactForm from '@/components/public/ContactForm';
 import MapEmbed from '@/components/public/MapEmbed';
 import PartnerInterestForm from '@/components/public/PartnerInterestForm';
+import Seo from '@/components/common/Seo';
+import { breadcrumbLd } from '@/lib/jsonld';
 import './Contact.css';
 
 const contactItems = [
@@ -54,10 +56,6 @@ const Contact: React.FC = () => {
   const location = useLocation();
 
   useEffect(() => {
-    document.title = "Contact Us | HomeCareX";
-  }, []);
-
-  useEffect(() => {
     if (!location.hash) return;
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({
@@ -70,6 +68,14 @@ const Contact: React.FC = () => {
 
   return (
     <div className="contact-page">
+            <Seo
+        title="Contact Us | HomeCareX"
+        description="Get in touch with HomeCareX for booking help, support or partner enquiries. Choose the way that suits you."
+        jsonLd={breadcrumbLd([
+          { name: 'Home', path: '/' },
+          { name: 'Contact', path: '/contact' },
+        ])}
+      />
       <section id="contact-methods" className="contact-ways" aria-labelledby="contact-ways-title">
         <div className="contact-shell">
           <div className="contact-section-heading">
@@ -144,7 +150,7 @@ const Contact: React.FC = () => {
             <p className="contact-eyebrow contact-eyebrow--light"><span />For home-service professionals</p>
             <h2 id="partner-band-title">Bring your craft.<br /><span>Build what’s next.</span></h2>
             <p>Join the HomeCareX network and let customers discover the services you provide. Tell us about your experience and location — our team will follow up personally.</p>
-            <Link to="/register/partner" className="partner-band__cta">Become a Partner <ArrowRight aria-hidden="true" size={17} /></Link>
+            <Link to="#partner-interest" className="partner-band__cta">Become a Partner <ArrowRight aria-hidden="true" size={17} /></Link>
             <div className="partner-band__note"><ShieldCheck aria-hidden="true" size={16} /><span><b>A conversation, not a commitment.</b><small>This enquiry does not create an account or sign you up for anything.</small></span></div>
           </div>
           <div className="partner-band__form">

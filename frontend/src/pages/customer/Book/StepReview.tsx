@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { bookingKeys } from "@/hooks/useBookings";
 import { useAvailableCoupons, useBookingDraftStore, useQuote, useValidateCoupon } from "@/features/booking";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -140,6 +142,7 @@ function prettyDate(iso: string): string {
 export default function StepReview() {
   const draft = useBookingDraftStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const online = useOnlineStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Processing your payment…");
@@ -264,6 +267,9 @@ export default function StepReview() {
     const idempotencyKey = draft.getIdempotencyKey(JSON.stringify(payload));
     try {
       const { booking } = await bookingApi.createBooking(payload, idempotencyKey);
+      // The booking now exists: refresh the dashboard (active / upcoming) and the bookings list so they show it when the customer goes back.
+      void queryClient.invalidateQueries({ queryKey: ["customer"] });
+      void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
       const resolvedBookingId: string = booking._id;
       // A failed or cancelled attempt is over: the next attempt must not reuse its Idempotency-Key,
       // or POST /bookings would replay this dead booking and payment would be refused.

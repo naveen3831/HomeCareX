@@ -20,22 +20,17 @@ export type BookingListItem = Omit<BookingView, "partnerId"> & {
   bookingNumber?: string;
   partnerId?: string | PartnerLite;
   partner?: PartnerLite;
+  scheduledAt?: string;
 };
 
 /** Which section a booking belongs to. */
-export type Phase = "live" | "upcoming" | "completed" | "cancelled";
+export type Phase = "live" | "upcoming" | "overdue" | "completed" | "cancelled";
 
 /* ------------------------------------------------------------------ */
 /* Classification                                                      */
 /* ------------------------------------------------------------------ */
 
-const LIVE = new Set([
-  "en_route",
-  "arrived",
-  "in_progress",
-  "in-progress",
-  "started",
-]);
+const LIVE = new Set(["en_route", "arrived", "in_progress", "in-progress", "started"]);
 const UPCOMING = new Set([
   "confirmed",
   "pending",
@@ -48,30 +43,70 @@ const UPCOMING = new Set([
 // the section the rest of the app already counts them in (see bookingStatusLabel in features/customer).
 const COMPLETED = new Set(["completed", "rated", "disputed"]);
 
-const statusOf = (b: Pick<BookingListItem, "status">): string =>
-  (b.status || "").toLowerCase();
+const statusOf = (b: Pick<BookingListItem, "status">): string => (b.status || "").toLowerCase();
+
+const bookingClock = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Uses the service timezone, independently of the customer's browser timezone. */
+export function isPastSchedule(b: BookingListItem, now: number): boolean {
+  const parts = Object.fromEntries(
+    bookingClock
+      .formatToParts(new Date(now))
+      .map((part) => [part.type, part.value]),
+  );
+  const today = `${parts.year}-${parts.month}-${parts.day}`;
+  let date = b.date;
+
+  if (!date && b.scheduledAt) {
+    const scheduled = new Date(b.scheduledAt);
+    if (!Number.isFinite(scheduled.getTime())) return false;
+    const saved = Object.fromEntries(
+      bookingClock
+        .formatToParts(scheduled)
+        .map((part) => [part.type, part.value]),
+    );
+    date = `${saved.year}-${saved.month}-${saved.day}`;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) return false;
+  if (date !== today) return date < today;
+  // A legacy scheduledAt without a date has no confirmed window duration.
+  if (!b.date) return false;
+  const slot = /^\d{2}:\d{2}-(\d{2}):(\d{2})$/.exec(b.slot || "");
+  if (!slot) return false;
+  const endMinutes = Number(slot[1]) * 60 + Number(slot[2]);
+  const minutes = Number(parts.hour) * 60 + Number(parts.minute);
+  return endMinutes <= minutes;
+}
 
 /** An unpaid booking whose slot hold ran out is not really upcoming: it lands under Cancelled. */
 export function phaseOf(b: BookingListItem, now: number): Phase | null {
   const status = statusOf(b);
   if (isExpiredHold(b, now)) return "cancelled";
   if (LIVE.has(status)) return "live";
-  if (UPCOMING.has(status)) return "upcoming";
+  if (UPCOMING.has(status))
+    return isPastSchedule(b, now) ? "overdue" : "upcoming";
   if (COMPLETED.has(status)) return "completed";
   if (status.startsWith("cancel") || status === "no_show") return "cancelled";
   return null;
 }
 
 /** Sort key that orders bookings by when the service happens (date + slot start, 24h). */
-export const whenKey = (b: BookingListItem): string =>
-  `${b.date || ""}T${(b.slot || "").slice(0, 5)}`;
+export const whenKey = (b: BookingListItem): string => `${b.date || ""}T${(b.slot || "").slice(0, 5)}`;
 
 /* ------------------------------------------------------------------ */
 /* Display helpers                                                     */
 /* ------------------------------------------------------------------ */
 
-export const getBookingId = (b: BookingListItem): string =>
-  String(b._id || b.id || "");
+export const getBookingId = (b: BookingListItem): string => String(b._id || b.id || "");
 
 export const getServiceName = (b: BookingListItem): string => {
   const baseLine = b.priceSnapshot?.lines?.find((l) => l.kind === "BASE");
@@ -130,31 +165,14 @@ export const getTotal = (b: BookingListItem): number => {
 };
 
 /** "₹449" / "₹1,499" / "₹379.50": whole rupees stay clean, paise are kept when present. */
+export const rupees = (amount: number): string =>
+  `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
-/**
- * Format an amount in Indian rupees.
- * Missing or invalid values are not silently treated as zero.
- */
-export const rupees = (amount: number | null | undefined): string => {
-  if (typeof amount !== "number" || !Number.isFinite(amount)) {
-    return "Amount unavailable";
-  }
+export const partnerFirstName = (p?: PartnerLite): string | undefined => p?.name?.trim().split(/\s+/)[0];
 
-  return `₹${amount.toLocaleString("en-IN", {
-    maximumFractionDigits: 2,
-  })}`;
-};
-
-export const partnerFirstName = (p?: PartnerLite): string | undefined =>
-  p?.name?.trim().split(/\s+/)[0];
-
-export function formatRating(
-  rating: PartnerLite["rating"],
-): string | undefined {
+export function formatRating(rating: PartnerLite["rating"]): string | undefined {
   const n = Number(rating);
-  return rating !== undefined && rating !== "" && Number.isFinite(n) && n > 0
-    ? n.toFixed(1)
-    : undefined;
+  return rating !== undefined && rating !== "" && Number.isFinite(n) && n > 0 ? n.toFixed(1) : undefined;
 }
 
 /* ---- dates ---- */
@@ -165,24 +183,10 @@ const parseLocalDate = (iso: string): Date | null => {
   return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
 };
 
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const dayLabel = (d: Date, now: Date): string => {
-  const startOf = (x: Date) =>
-    new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((startOf(d) - startOf(now)) / 86_400_000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
@@ -194,30 +198,20 @@ const dayLabel = (d: Date, now: Date): string => {
 const clock12 = (h: number, m: number): string => {
   const suffix = h >= 12 ? "PM" : "AM";
   const hour = h % 12 === 0 ? 12 : h % 12;
-  return m === 0
-    ? `${hour} ${suffix}`
-    : `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
+  return m === 0 ? `${hour} ${suffix}` : `${hour}:${String(m).padStart(2, "0")} ${suffix}`;
 };
 
 /** "10:00-12:00" → "10 AM – 12 PM". Anything we can't parse is shown as the server sent it. */
 export function formatSlot(slot: string): string {
-  const range = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
-    slot || "",
-  );
-  if (range)
-    return `${clock12(+range[1], +range[2])} – ${clock12(+range[3], +range[4])}`;
+  const range = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(slot || "");
+  if (range) return `${clock12(+range[1], +range[2])} – ${clock12(+range[3], +range[4])}`;
   const single = /^(\d{1,2}):(\d{2})$/.exec(slot || "");
   if (single) return clock12(+single[1], +single[2]);
   return slot || "";
 }
 
 /** "Today, 1 PM – 3 PM" · "4 Oct, 10 AM – 12 PM". With `dateOnly`: "Today" · "24 Sep". */
-export function formatWhen(
-  date: string,
-  slot: string,
-  dateOnly = false,
-  now: Date = new Date(),
-): string {
+export function formatWhen(date: string, slot: string, dateOnly = false, now: Date = new Date()): string {
   const d = parseLocalDate(date);
   if (!d) return formatSlot(slot) || "Scheduled";
   const day = dayLabel(d, now);
@@ -248,6 +242,7 @@ export interface Pill {
 
 export function pillFor(b: BookingListItem, now: number): Pill {
   const s = statusOf(b);
+  if (phaseOf(b, now) === "overdue") return { label: "Overdue", tone: "amber" };
   if (s === "pending_payment") {
     return isExpiredHold(b, now)
       ? { label: "Payment expired", tone: "red" }
@@ -259,11 +254,9 @@ export function pillFor(b: BookingListItem, now: number): Pill {
     return { label: "In Progress", tone: "sky", dot: true };
   }
   if (s === "assigned") return { label: "Partner Assigned", tone: "brand" };
-  if (s === "completed" || s === "rated")
-    return { label: "Completed", tone: "green" };
+  if (s === "completed" || s === "rated") return { label: "Completed", tone: "green" };
   if (s === "disputed") return { label: "Disputed", tone: "amber" };
-  if (s === "cancelled_by_partner")
-    return { label: "Cancelled by partner", tone: "red" };
+  if (s === "cancelled_by_partner") return { label: "Cancelled by partner", tone: "red" };
   if (s === "no_show") return { label: "No show", tone: "red" };
   if (s.startsWith("cancel")) return { label: "Cancelled", tone: "red" };
   return { label: "Confirmed", tone: "brand" };
@@ -273,12 +266,7 @@ export function pillFor(b: BookingListItem, now: number): Pill {
 /* Live tracking                                                       */
 /* ------------------------------------------------------------------ */
 
-export const LIVE_STEPS = [
-  "Confirmed",
-  "En route",
-  "Arrived",
-  "In progress",
-] as const;
+export const LIVE_STEPS = ["Confirmed", "En route", "Arrived", "In progress"] as const;
 
 /** Index of the step the booking is on (0-based). */
 export function liveStepIndex(b: BookingListItem): number {
@@ -311,12 +299,9 @@ export function liveHeadline(b: BookingListItem): string {
 
 /** The money line under a cancelled booking, based on what was actually paid. */
 export function cancelNote(b: BookingListItem, now: number): string {
-  if (isExpiredHold(b, now))
-    return "Slot hold ended before payment · No money was taken";
+  if (isExpiredHold(b, now)) return "Slot hold ended before payment · No money was taken";
   const total = rupees(getTotal(b));
-  if (b.paymentStatus === PAYMENT_STATUS.REFUNDED)
-    return `Refund of ${total} processed`;
-  if (b.paymentStatus === PAYMENT_STATUS.PAID)
-    return `Refund of ${total} pending`;
+  if (b.paymentStatus === PAYMENT_STATUS.REFUNDED) return `Refund of ${total} processed`;
+  if (b.paymentStatus === PAYMENT_STATUS.PAID) return `Refund of ${total} pending`;
   return "No payment was taken";
 }

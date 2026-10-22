@@ -9,7 +9,8 @@ import { pricingMock } from "./pricing.mock";
  * false -> the real POST /pricing/quote and POST /coupons/validate are called
  * Flip it with VITE_MOCK_PRICING=false in frontend/.env.
  */
-export const PRICING_IS_MOCK = import.meta.env.VITE_MOCK_PRICING !== "false";
+// Real pricing unless VITE_MOCK_PRICING=true is set explicitly (a missing variable must never fall back to mock data).
+export const PRICING_IS_MOCK = import.meta.env.VITE_MOCK_PRICING === "true";
 
 /**
  * POST /pricing/quote is live, but the coupons backend is not. While this is false (and pricing is real),

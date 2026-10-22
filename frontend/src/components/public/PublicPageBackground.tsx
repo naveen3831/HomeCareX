@@ -1,8 +1,8 @@
 import React from "react";
 
-export const publicStyles = `
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap');
 
+
+export const publicStyles = `
 .hcx {
   --indigo: #4338ca;
   --indigo-deep: #1e1b6e;

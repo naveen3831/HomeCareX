@@ -1,16 +1,16 @@
-import { Schema, model, type InferSchemaType } from "mongoose";
+import { Schema, model, type InferSchemaType } from 'mongoose';
 import {
   KYC_DOCUMENT_STATUSES,
   KYC_DOCUMENT_TYPES,
   KYC_STATUSES,
-} from "../modules/partners/partner-dashboard.constants";
+} from '../modules/partners/partner-dashboard.constants';
 
 const KycDocumentSchema = new Schema(
   {
     type: { type: String, enum: KYC_DOCUMENT_TYPES, required: true },
     url: { type: String, required: true },
     storageKey: { type: String },
-    status: { type: String, enum: KYC_DOCUMENT_STATUSES, default: "pending" },
+    status: { type: String, enum: KYC_DOCUMENT_STATUSES, default: 'pending' },
     reviewNote: { type: String },
     uploadedAt: { type: Date, default: Date.now },
   },
@@ -20,16 +20,9 @@ const KycDocumentSchema = new Schema(
 /** Partner profile. One per partner User (userId). Contract for onboarding + dashboard modules. */
 const PartnerSchema = new Schema(
   {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      unique: true,
-    },
-    categories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+    categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
     skills: [{ type: String, trim: true }],
-    /** Platform-approved services this partner offers (P06). Used by matching. */
-    services: [{ type: Schema.Types.ObjectId, ref: "Service" }],
     serviceRadiusKm: { type: Number, default: 10, min: 1, max: 100 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
@@ -41,16 +34,11 @@ const PartnerSchema = new Schema(
       jobsCompleted: { type: Number, default: 0, min: 0 },
     },
     kyc: {
-      status: {
-        type: String,
-        enum: KYC_STATUSES,
-        default: "approved",
-        index: true,
-      },
+      status: { type: String, enum: KYC_STATUSES, default: 'not_started', index: true },
       documents: { type: [KycDocumentSchema], default: [] },
       submittedAt: { type: Date },
       reviewedAt: { type: Date },
-      reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' },
       rejectionReason: { type: String },
       suspensionReason: { type: String },
     },
@@ -62,35 +50,10 @@ const PartnerSchema = new Schema(
       ifsc: { type: String, uppercase: true },
       upiId: { type: String },
     },
-    dob: { type: Date },
-    gender: {
-      type: String,
-      enum: ["male", "female", "other"],
-      lowercase: true,
-    },
-    idProof: {
-      type: {
-        type: String,
-        enum: ["aadhaar", "pan", "voter_id", "driving_license", "passport"],
-      },
-      number: { type: String, trim: true },
-    },
-    address: {
-      line: { type: String, trim: true },
-      city: { type: String, trim: true },
-      state: { type: String, trim: true },
-      pincode: { type: String, trim: true },
-    },
-    experienceYears: { type: Number, min: 0 },
-    workingHours: {
-      days: [{ type: String }],
-      start: { type: String },
-      end: { type: String },
-    },
   },
   { timestamps: true },
 );
 
 export type Partner = InferSchemaType<typeof PartnerSchema>;
-export const PartnerModel = model("Partner", PartnerSchema);
+export const PartnerModel = model('Partner', PartnerSchema);
 export default PartnerModel;

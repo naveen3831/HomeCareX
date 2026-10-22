@@ -30,10 +30,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'partner:earnings:read',
     'partner:incentives:read',
     'partner:wallet:read',
-    'partner:performance:read',
-    'partner:reviews:read',
-    'partner:settings:read',
-    'partner:settings:write',
   ],
 
   customer: [],

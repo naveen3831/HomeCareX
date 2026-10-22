@@ -55,13 +55,19 @@ export function useServiceability(pincode: string) {
   return { status, result: ready ? query.data : undefined, retry: () => void query.refetch() };
 }
 
-/** After any change, refresh the address list, the dashboard (default address) and the booking flow's list. */
+/**
+ * After any change, refresh the address list, the dashboard (default address) and the booking flow's list.
+ * `refetchType: "all"` also refetches queries nobody is showing right now and the returned promise waits for them.
+ * That matters on the first-login setup page, which sits outside the dashboard layout: without it the saved address
+ * was not fetched yet when the customer went back to the dashboard, the gate still saw an empty list and sent them
+ * to the setup screen a second time.
+ */
 function useRefreshAfterChange() {
   const qc = useQueryClient();
   return () =>
     Promise.all([
-      qc.invalidateQueries({ queryKey: ["customer"] }),
-      qc.invalidateQueries({ queryKey: ADDRESSES_QUERY_KEY }),
+      qc.invalidateQueries({ queryKey: ["customer"], refetchType: "all" }),
+      qc.invalidateQueries({ queryKey: ADDRESSES_QUERY_KEY, refetchType: "all" }),
     ]);
 }
 

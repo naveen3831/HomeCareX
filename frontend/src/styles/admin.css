@@ -109,32 +109,28 @@
   background: #f1f5f9;
 }
 .sidebar-nav {
-  flex: 1 1 auto;
-  min-height: 0;                /* lets the flex child shrink; scrolls only if the window is genuinely too short */
+  flex: 1;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 8px 12px;
-  scrollbar-width: thin;        /* Firefox */
-  scrollbar-color: #cbd5e1 transparent;
+  padding: 16px 12px;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* old Edge/IE */
 }
 
-.sidebar-nav::-webkit-scrollbar { width: 6px; }
-.sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-.sidebar-nav::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; }
-.sidebar-nav::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.sidebar-nav::-webkit-scrollbar {
+  display: none;                /* Chrome, Edge, Safari */
+}
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+}
 
-/* Every row (group heading or link) sits on the same 2px rhythm, with the same left edge. */
 .nav-group {
-  margin: 0;
-}
-.nav-group + .nav-group {
-  margin-top: 2px;
+  margin-bottom: 20px;
 }
 
 .nav-group__title {
-  box-sizing: border-box;
-  height: 28px;
-  margin: 0 0 2px;
+  margin: 0 0 6px;
   padding: 0 12px;
   font-size: 11px;
   font-weight: 600;
@@ -169,47 +165,25 @@
   gap: 2px;
 }
 
-/*
- * Sidebar links. Scoped under .admin-sidebar on purpose: pages/partner/Navigation/navigation.css also defines a
- * global `.nav-link` (inline-flex, min-height 44px) that leaks in once the partner chunk is loaded. That made the
- * link only as wide as its text, so hover/active boxes were uneven and only the text was clickable.
- * Here the <a> itself is the full-width row: the whole row is the click target and the hover box is identical everywhere.
- */
-.admin-sidebar .nav-list > li {
-  display: block;
-  width: 100%;
-}
-
-.admin-sidebar .nav-link {
+.nav-link {
   display: flex;
   align-items: center;
   gap: 12px;
-  box-sizing: border-box;
-  width: 100%;
-  height: 36px;
-  min-height: 36px;
-  padding: 0 12px;
+  padding: 8px 12px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
   color: #475569;
-  text-decoration: none;
-  cursor: pointer;
 }
 
-.admin-sidebar .nav-link:hover {
+.nav-link:hover {
   background: #f1f5f9;
   color: #0f172a;
 }
 
-.admin-sidebar .nav-link.is-active {
+.nav-link.is-active {
   background: #eff6ff;
   color: #1d4ed8;
-}
-
-.admin-sidebar .nav-link:focus-visible {
-  outline: 2px solid #4338ca;
-  outline-offset: -2px;
 }
 
 .nav-link__icon {
@@ -227,19 +201,18 @@
 /* ===== Sidebar footer (sign out) ===== */
 .sidebar-footer {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 12px;
   border-top: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
 .sidebar-footer__user {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
-  padding: 0 6px;               /* avatar centre lines up with the nav icons above */
+  padding: 0 4px;
   overflow: hidden;
 }
 
@@ -264,10 +237,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  box-sizing: border-box;
   width: 100%;
-  height: 36px;
-  padding: 0 12px;
+  padding: 8px 12px;
   border: none;
   border-radius: 8px;
   background: none;
@@ -374,7 +345,7 @@
 /* Collapsed strip: keep a divider between groups since titles are hidden */
 .admin-sidebar.is-collapsed .nav-group { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--hcx-line); }
 .admin-sidebar.is-collapsed .nav-group:last-child { border-bottom: 0; }
-.admin-sidebar.is-collapsed .nav-link { justify-content: center; height: 40px; padding: 0; }
+.admin-sidebar.is-collapsed .nav-link { justify-content: center; padding: 10px; }
 .admin-sidebar.is-collapsed .sidebar-signout-btn,
 .admin-sidebar.is-collapsed .sidebar-footer__user { justify-content: center; }
 @media (min-width: 1024px) { .admin-sidebar { transition: width 0.15s ease; } }
@@ -610,7 +581,7 @@
 .admin-topbar__crumbs .breadcrumbs { flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
 .admin-topbar__crumbs .breadcrumbs > * { flex-shrink: 0; }
 .admin-topbar__crumbs .breadcrumbs__current { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.admin-topbar .topbar-right { margin-left: auto; flex-shrink: 0; }
+.admin-topbar .topbar-right { margin-left: 0; flex-shrink: 0; }
 @media (max-width: 640px) {
   /* Phones: keep only the last two crumbs so it fits beside the menu + bell */
   .admin-topbar__crumbs .breadcrumbs > :nth-last-child(n + 4) { display: none; }
