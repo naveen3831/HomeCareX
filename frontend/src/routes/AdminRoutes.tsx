@@ -187,7 +187,8 @@ export const adminRoutes: AdminRoute[] = [
     element: <AdminStaffPage />,
     permission: 'staff:view',
   },
-  // Full pages (sidebar stays visible): create / invite / edit.
+
+  // Full pages: create / invite / edit.
   {
     path: 'roles/new',
     element: <AdminRoleFormPage />,
@@ -203,6 +204,7 @@ export const adminRoutes: AdminRoute[] = [
     element: <AdminRoleFormPage />,
     permission: 'roles:view',
   },
+
   // Old URLs keep working.
   {
     path: 'roles-permissions',
@@ -212,10 +214,17 @@ export const adminRoutes: AdminRoute[] = [
     path: 'roles/staff/new',
     element: <Navigate to="/admin/staff/new" replace />,
   },
+
+  // Audit Logs: list and full-page details.
   {
     path: 'audit-logs',
     element: <AdminAuditLogsPage />,
   },
+  {
+    path: 'audit-logs/:id',
+    element: <AdminAuditLogsPage />,
+  },
+
   {
     path: 'settings',
     element: <AdminSettingsPage />,
@@ -257,9 +266,10 @@ export const AdminRoutes: React.FC = () => (
   <Routes>
     <Route element={<AdminLayout />}>
       {adminRoutes.map(({ path, element, permission: explicit }) => {
-        // A route without its own permission inherits the one on its sidebar entry,
-        // so a custom role that hides a page from the sidebar also blocks the URL.
-        const permission = explicit ?? findAdminPage(`/admin/${path}`)?.permission;
+        // A route without its own permission inherits the one on its sidebar entry.
+        const permission =
+          explicit ?? findAdminPage(`/admin/${path}`)?.permission;
+
         const guardedElement = permission ? (
           <RequirePermission permission={permission}>
             {element}
