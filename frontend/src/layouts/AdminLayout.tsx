@@ -27,7 +27,6 @@ export const AdminLayout: React.FC = () => {
         <Outlet />
       </main>
     </div>
-  </div>
   );
 };
 
