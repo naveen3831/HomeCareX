@@ -825,8 +825,10 @@ export function JobCard({
 /** The signed-in partner's real jobs (GET /partner/jobs). */
 export default function LiveJobsList({
   heading = "Your assigned jobs",
+  hideWhenEmpty = false,
 }: {
   heading?: string;
+  hideWhenEmpty?: boolean;
 }) {
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const [state, setState] = useState<State>("loading");
@@ -847,8 +849,12 @@ export default function LiveJobsList({
       if (!background) setState("loading");
       try {
         const res = await api.get<{ data: LiveJob[] }>("/partner/jobs");
-        if (cancelled) return;
         const next = res.data.data;
+        try {
+          window.sessionStorage.setItem("homecarex_last_live_jobs", JSON.stringify(next));
+        } catch {
+          /* ignore storage error */
+        }
 
         // Tell screen-reader users when a new job shows up.
         const known = knownIds.current;
@@ -908,6 +914,10 @@ export default function LiveJobsList({
     : jobs.length === 2
       ? "grid-cols-1 xl:grid-cols-2"
       : "grid-cols-1 xl:grid-cols-2 min-[1900px]:grid-cols-3";
+
+  if (hideWhenEmpty && (state === "loading" || (state === "ready" && jobs.length === 0) || state === "error")) {
+    return null;
+  }
 
   return (
     <section

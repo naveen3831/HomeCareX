@@ -2,14 +2,13 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/admin/Sidebar';
 import { Header } from '@/components/admin/Header';
-import { AdminSearch, hasPageSearch } from '@/components/admin/AdminSearch';
+import { AdminSearch } from '@/components/admin/AdminSearch';
 import '@/styles/admin.css';
 
 export const AdminLayout: React.FC = () => {
-  // The "Search pages…" jump bar is gone. The bar below the header only stays on the pages whose own
-  // table is filtered by it (Partners, Manage Partners, Audit Logs, Categories, Services).
+  // Customers has its own search bar under the page title, so the global one is hidden there.
   const { pathname } = useLocation();
-  const showPageSearch = hasPageSearch(pathname);
+  const hideGlobalSearch = pathname === '/admin/customers' || pathname.startsWith('/admin/customers/');
   // Manage Partners, Categories and Services: search sits on the left of the row under the navbar.
   const searchLeft = ['/admin/manage-partners', '/admin/categories', '/admin/services'].includes(pathname.replace(/\/+$/, ''));
   return (
@@ -18,7 +17,7 @@ export const AdminLayout: React.FC = () => {
     <Sidebar />
     <div className="admin-layout__content">
       <Header />
-      {showPageSearch && (
+      {!hideGlobalSearch && (
         <div className={`breadcrumb-bar${searchLeft ? ' breadcrumb-bar--left' : ''}`}>
           <AdminSearch />
           {pathname.replace(/\/+$/, '') === '/admin/services' && <div id="admin-search-slot" className="admin-search-slot" />}

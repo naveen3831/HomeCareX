@@ -5,9 +5,10 @@ import { partnerJobsService } from "./partner-jobs.service";
 import type { StatusBody } from "./partner-jobs.validation";
 
 export const listPartnerJobs = asyncHandler(
-  async (_req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
-    sendSuccess(res, await partnerJobsService.listLiveJobs(sub));
+    const tab = typeof req.query.tab === "string" ? req.query.tab : undefined;
+    sendSuccess(res, await partnerJobsService.listLiveJobs(sub, tab));
   },
 );
 

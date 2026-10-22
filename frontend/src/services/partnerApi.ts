@@ -1,5 +1,12 @@
 import http, { type ApiResponse } from "@/lib/http";
 
+import {
+  mockDashboard,
+  mockEarningsSummary,
+  mockJobRequests,
+  mockNotifications,
+} from "@/mocks/partnerDashboard";
+
 import type {
   ActiveJob,
   EarningsSummary,
@@ -8,6 +15,7 @@ import type {
   JobTab,
   JobsResponse,
   PartnerDashboard,
+  PartnerJob,
   PartnerNotification,
 } from "@/types/partner";
 
@@ -15,13 +23,19 @@ import {
   PARTNER_DETAILS,
   type PartnerDetails,
   type AccountStatus,
-  type KycItem,
-} from "../mocks/partnerDetails";
-
-import { listMockPartnerJobs } from "./mockPartnerJobs";
+} from "@/mocks/partnerDetails";
 
 /* =========================================================
-   Partner Profile / KYC / Status types
+   Config
+   ========================================================= */
+
+/**
+ * Mocks are ON unless VITE_USE_MOCKS=false.
+ */
+const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
+
+/* =========================================================
+   Types
    ========================================================= */
 
 export interface PartnerProfileInput {
@@ -54,26 +68,22 @@ export interface PartnerMutationResult {
   partner: PartnerDetails;
 }
 
-/** Result of accepting / rejecting an offer. The page branches on `status`. */
-export interface OfferResult {
-  status: number;
-  message: string;
-}
-
 /* =========================================================
-   Configuration and helpers
+   Helpers
    ========================================================= */
 
 const STORAGE_PREFIX = "homecarex:partner:";
 
-const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
-
-const delay = (milliseconds: number): Promise<void> =>
+const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
 
 const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
+
+/* =========================================================
+   Mock partner storage (localStorage)
+   ========================================================= */
 
 const savePartner = (partner: PartnerDetails): void => {
   window.localStorage.setItem(
@@ -93,6 +103,7 @@ const getStoredPartner = (id: string): PartnerDetails | null => {
     return JSON.parse(storedPartner) as PartnerDetails;
   } catch {
     window.localStorage.removeItem(getStorageKey(id));
+
     return null;
   }
 };
@@ -103,18 +114,11 @@ const getMockPartner = (id: string): PartnerDetails | null => {
   return partner ? structuredClone(partner) : null;
 };
 
-const getCurrentPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = getStoredPartner(id);
-
-  if (storedPartner) {
-    return storedPartner;
-  }
-
-  return getMockPartner(id);
-};
+const getCurrentPartner = (id: string): PartnerDetails | null =>
+  getStoredPartner(id) ?? getMockPartner(id);
 
 /* =========================================================
-   Partner Details API
+   Partner details APIs
    ========================================================= */
 
 export async function getPartnerById(
@@ -127,10 +131,6 @@ export async function getPartnerById(
   return partner ? structuredClone(partner) : null;
 }
 
-/* =========================================================
-   Update Partner KYC
-   ========================================================= */
-
 export async function updatePartnerKyc(
   id: string,
   payload: KycUpdatePayload,
@@ -142,6 +142,8 @@ export async function updatePartnerKyc(
   if (!partner) {
     throw new Error("Partner not found.");
   }
+
+  /* REJECT */
 
   if (payload.decision === "reject") {
     const reason = payload.reason?.trim();
@@ -162,10 +164,11 @@ export async function updatePartnerKyc(
     };
   }
 
+  /* APPROVE */
+
   partner.kycStatus = "Approved";
   partner.kyc.reviewedAt = new Date().toISOString();
-
-  partner.kyc.checklist = partner.kyc.checklist.map((item: KycItem) => ({
+  partner.kyc.checklist = partner.kyc.checklist.map((item) => ({
     ...item,
     completed: true,
   }));
@@ -178,10 +181,6 @@ export async function updatePartnerKyc(
     partner: structuredClone(partner),
   };
 }
-
-/* =========================================================
-   Update Partner Status
-   ========================================================= */
 
 export async function updatePartnerStatus(
   id: string,
@@ -206,17 +205,13 @@ export async function updatePartnerStatus(
   };
 }
 
-/* =========================================================
-   Partner Notifications and Audit
-   ========================================================= */
-
 export async function notifyPartner(
   id: string,
   message: string,
 ): Promise<void> {
   await delay(200);
 
-  console.info(`[NOTIFY] ${id}: ${message}`);
+  console.info(`[MOCK NOTIFY] ${id}: ${message}`);
 }
 
 export async function recordPartnerAudit(
@@ -227,7 +222,7 @@ export async function recordPartnerAudit(
   await delay(100);
 
   console.info(
-    "[AUDIT]",
+    "[MOCK AUDIT]",
     JSON.stringify({
       partnerId: id,
       action,
@@ -241,62 +236,272 @@ export async function recordPartnerAudit(
    P02 - Partner Jobs / My Jobs
    ========================================================= */
 
-/* =========================================================
-   Get Jobs
-   ========================================================= */
+/**
+ * Mock jobs used by the My Jobs page until GET /partner/jobs
+ * is available.
+ */
+const MOCK_PARTNER_JOBS: PartnerJob[] = [
+  {
+    id: "job-001",
+    bookingId: "HCX-10001",
+    service: "Deep Home Cleaning",
+    customer: "Rahul Sharma",
+    location: "Gachibowli, Hyderabad",
+    distance: 2.4,
+    scheduledAt: "2026-10-08T14:00:00+05:30",
+    amount: 1499,
+    status: "requested",
+    instructions: "Please call the customer before arriving.",
+    expiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
+  },
+  {
+    id: "job-002",
+    bookingId: "HCX-10002",
+    service: "Washing Machine Repair",
+    customer: "Priya Reddy",
+    location: "Kondapur, Hyderabad",
+    distance: 4.1,
+    scheduledAt: "2026-10-09T10:30:00+05:30",
+    amount: 599,
+    status: "upcoming",
+    instructions: "Customer reported unusual vibration.",
+  },
+  {
+    id: "job-003",
+    bookingId: "HCX-10003",
+    service: "AC Service",
+    customer: "Arjun Kumar",
+    location: "Madhapur, Hyderabad",
+    distance: 5.2,
+    scheduledAt: "2026-10-08T12:30:00+05:30",
+    amount: 899,
+    status: "active",
+    instructions: "Check cooling performance and clean filters.",
+  },
+  {
+    id: "job-004",
+    bookingId: "HCX-10004",
+    service: "Kitchen Cleaning",
+    customer: "Sneha Patel",
+    location: "Jubilee Hills, Hyderabad",
+    distance: 7.8,
+    scheduledAt: "2026-10-05T11:00:00+05:30",
+    amount: 1299,
+    status: "completed",
+    instructions: "Focus on kitchen cabinets and chimney area.",
+  },
+  {
+    id: "job-005",
+    bookingId: "HCX-10005",
+    service: "Plumbing Repair",
+    customer: "Vikram Singh",
+    location: "Manikonda, Hyderabad",
+    distance: 6.3,
+    scheduledAt: "2026-10-04T15:30:00+05:30",
+    amount: 749,
+    status: "cancelled",
+    instructions: "Customer cancelled the booking.",
+  },
+  {
+    id: "BK-10214",
+    bookingId: "BK-10214",
+    service: "At-Home Spa for Women",
+    customer: "Sandhya P.",
+    location: "Jubilee Hills, Hyderabad",
+    distance: 2.5,
+    scheduledAt: "2026-10-18T16:30:00+05:30",
+    amount: 1299,
+    status: "completed",
+    instructions: "Please bring fresh massage oils and clean towels.",
+  },
+];
 
+/** Maps the UI tab ("requests") to the job status ("requested"). */
+const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
+  if (tab === "all") {
+    return true;
+  }
+
+  if (tab === "requests") {
+    return job.status === "requested";
+  }
+
+  return job.status === tab;
+};
+
+/**
+ * GET /partner/jobs?tab=all|requests|upcoming|active|completed|cancelled
+ */
 async function getJobs(
   tab: JobTab = "all",
   page = 1,
   limit = 10,
   search = "",
 ): Promise<JobsResponse> {
-  const res = await http.get<ApiResponse<JobsResponse>>("/partner/jobs", {
-    params: {
-      tab,
-      page,
-      limit,
-      ...(search.trim() ? { search: search.trim() } : {}),
-    },
+  const trimmedSearch = search.trim();
+
+  if (!USE_MOCKS) {
+    const res = await http.get<ApiResponse<any>>("/partner/jobs", {
+      params: {
+        tab,
+        page,
+        limit,
+        ...(trimmedSearch ? { search: trimmedSearch } : {}),
+      },
+    });
+
+    const data = res.data.data;
+    if (Array.isArray(data)) {
+      const normalizedJobs: PartnerJob[] = data.map((item: any) => ({
+        id: item.id,
+        bookingId: "#" + item.id.slice(-6).toUpperCase(),
+        service: item.service?.name || item.service || "Service",
+        customer: item.customerName || item.customer?.name || "Customer",
+        location: item.address || "Hyderabad",
+        distance: 3.2,
+        scheduledAt: item.scheduledAt || new Date().toISOString(),
+        amount: item.partnerEarning || item.total || 0,
+        status:
+          item.status === "en_route" ||
+          item.status === "arrived" ||
+          item.status === "in_progress"
+            ? "active"
+            : item.status === "completed" || item.status === "rated"
+              ? "completed"
+              : item.status === "cancelled_by_partner" ||
+                  item.status === "cancelled_by_customer" ||
+                  item.status === "cancelled_by_admin" ||
+                  item.status?.startsWith?.("cancelled") ||
+                  item.status === "disputed" ||
+                  item.status === "no_show"
+                ? "cancelled"
+                : item.status === "assigned" || item.status === "confirmed"
+                  ? "upcoming"
+                  : "requested",
+        instructions: item.instructions,
+      }));
+
+      const filtered = normalizedJobs.filter((job) => {
+        if (!matchesJobTab(job, tab)) return false;
+        if (!trimmedSearch) return true;
+        const norm = trimmedSearch.toLowerCase();
+        return [job.bookingId, job.service, job.customer, job.location].some(
+          (v) => v.toLowerCase().includes(norm),
+        );
+      });
+
+      const startIndex = (page - 1) * limit;
+      return {
+        jobs: filtered.slice(startIndex, startIndex + limit),
+        total: filtered.length,
+        page,
+        limit,
+      };
+    }
+
+    return data;
+  }
+
+  await delay(400);
+
+  const normalizedSearch = trimmedSearch.toLowerCase();
+
+  const filteredJobs = MOCK_PARTNER_JOBS.filter((job) => {
+    if (!matchesJobTab(job, tab)) {
+      return false;
+    }
+
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    return [
+      job.bookingId,
+      job.service,
+      job.customer,
+      job.location,
+      job.status,
+    ].some((value) => value.toLowerCase().includes(normalizedSearch));
   });
 
-  return res.data.data;
+  const startIndex = (page - 1) * limit;
+
+  return {
+    jobs: filteredJobs
+      .slice(startIndex, startIndex + limit)
+      .map((job) => structuredClone(job)),
+    total: filteredJobs.length,
+    page,
+    limit,
+  };
 }
 
+/**
+ * POST /partner/jobs/:id/accept
+ * In mock mode this updates the in-memory job for this session.
+ */
 async function acceptJob(id: string): Promise<JobMutationResult> {
-  try {
+  if (!USE_MOCKS) {
     const res = await http.post<ApiResponse<JobMutationResult>>(
       `/partner/jobs/${id}/accept`,
     );
 
-    return {
-      success: true,
-      message: res.data.message || "Job accepted",
-      status: res.status,
-    };
-  } catch (err: any) {
-    const status = err?.response?.status ?? 500;
-    const message = err?.response?.data?.message ?? err?.message ?? "Could not accept job";
-    return { success: false, message, status };
+    return res.data.data;
   }
+
+  await delay(400);
+
+  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
+
+  if (jobIndex === -1) {
+    throw new Error("Job not found.");
+  }
+
+  const job = MOCK_PARTNER_JOBS[jobIndex];
+
+  if (job.status !== "requested") {
+    throw new Error("This job is no longer available.");
+  }
+
+  if (job.expiresAt && new Date(job.expiresAt).getTime() <= Date.now()) {
+    throw new Error("This job request has expired.");
+  }
+
+  MOCK_PARTNER_JOBS[jobIndex] = { ...job, status: "upcoming" };
+
+  return { success: true, message: "Job accepted successfully." };
 }
 
+/**
+ * POST /partner/jobs/:id/reject
+ * In mock mode the job is marked cancelled so it leaves the requests tab.
+ */
 async function rejectJob(id: string): Promise<JobMutationResult> {
-  try {
+  if (!USE_MOCKS) {
     const res = await http.post<ApiResponse<JobMutationResult>>(
       `/partner/jobs/${id}/reject`,
     );
 
-    return {
-      success: true,
-      message: res.data.message || "Job rejected",
-      status: res.status,
-    };
-  } catch (err: any) {
-    const status = err?.response?.status ?? 500;
-    const message = err?.response?.data?.message ?? err?.message ?? "Could not reject job";
-    return { success: false, message, status };
+    return res.data.data;
   }
+
+  await delay(400);
+
+  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
+
+  if (jobIndex === -1) {
+    throw new Error("Job not found.");
+  }
+
+  const job = MOCK_PARTNER_JOBS[jobIndex];
+
+  if (job.status !== "requested") {
+    throw new Error("This job is no longer available.");
+  }
+
+  MOCK_PARTNER_JOBS[jobIndex] = { ...job, status: "cancelled" };
+
+  return { success: true, message: "Job rejected successfully." };
 }
 
 /* =========================================================
@@ -307,64 +512,46 @@ export const partnerApi = {
   /* Dashboard */
 
   async getDashboard(): Promise<PartnerDashboard> {
-    const res =
-      await http.get<ApiResponse<PartnerDashboard>>("/partner/dashboard");
-
-    return res.data.data;
-  },
-
-  /* Job Requests / Offers */
-
-  async getJobRequests(): Promise<JobRequest[]> {
-    const res = await http.get<ApiResponse<JobRequest[]>>(
-      "/partner/job-requests",
-    );
-
-    return res.data.data;
-  },
-
-  async getJobOffers(partnerId = "partner-1"): Promise<JobRequest[]> {
     if (USE_MOCKS) {
-      return listMockPartnerJobs(partnerId);
+      return mockDashboard();
     }
 
-    const res = await http.get<ApiResponse<JobRequest[]>>(
-      "/partner/job-requests",
+    const res = await http.get<ApiResponse<PartnerDashboard>>(
+      "/partner/dashboard",
     );
 
     return res.data.data;
   },
 
-  async acceptJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
-    return acceptJob(id);
-  },
+  /* Job requests (open offers) */
 
-  async rejectJobOffer(id: string, _partnerId?: string): Promise<JobMutationResult> {
-    return rejectJob(id);
+  async getJobRequests(partnerId?: string): Promise<JobRequest[]> {
+    if (USE_MOCKS) {
+      return mockJobRequests();
+    }
+
+    /* Assumed endpoint; adjust to match the backend contract. */
+    const res = await http.get<ApiResponse<JobRequest[]>>(
+      "/partner/jobs/requests",
+      { params: partnerId ? { partnerId } : undefined },
+    );
+
+    return res.data.data;
   },
 
   /* P02 - My Jobs */
 
-  async getJobs(
-    tab: JobTab = "all",
-    page = 1,
-    limit = 10,
-    search = "",
-  ): Promise<JobsResponse> {
-    return getJobs(tab, page, limit, search);
-  },
-
-  async acceptJob(id: string): Promise<JobMutationResult> {
-    return acceptJob(id);
-  },
-
-  async rejectJob(id: string): Promise<JobMutationResult> {
-    return rejectJob(id);
-  },
+  getJobs,
+  acceptJob,
+  rejectJob,
 
   /* Earnings */
 
   async getEarningsSummary(): Promise<EarningsSummary> {
+    if (USE_MOCKS) {
+      return mockEarningsSummary();
+    }
+
     const res = await http.get<ApiResponse<EarningsSummary>>(
       "/partner/earnings/summary",
     );
@@ -377,58 +564,14 @@ export const partnerApi = {
   async updateProfile(
     input: PartnerProfileInput,
   ): Promise<PartnerProfileInput> {
-    const res = await http.patch<ApiResponse<PartnerProfileInput>>(
-      "/partner/profile",
-      input,
-    );
+    await delay(500);
 
-    return res.data.data;
+    return input;
   },
 
   /* Notifications */
 
   async getNotifications(): Promise<PartnerNotification[]> {
-    const res = await http.get<
-      ApiResponse<
-        Array<{
-          id: string;
-          userId: string;
-          type: string;
-          payload: unknown;
-          readAt: string | null;
-          createdAt: string;
-        }>
-      >
-    >("/notifications");
-
-    const items = res.data.data ?? [];
-
-    return items.map((n) => {
-      let title = "";
-
-      if (typeof n.payload === "object" && n.payload !== null) {
-        const p = n.payload as Record<string, unknown>;
-
-        if (typeof p.title === "string") title = p.title;
-        else if (typeof p.message === "string") title = p.message;
-        else if (typeof p.text === "string") title = p.text;
-      }
-
-      if (!title) {
-        title = n.type
-          ? n.type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-          : "Notification";
-      }
-
-      return {
-        id: n.id,
-        title,
-        createdAt:
-          typeof n.createdAt === "string"
-            ? n.createdAt
-            : new Date(n.createdAt).toISOString(),
-        read: Boolean(n.readAt),
-      };
-    });
+    return mockNotifications();
   },
 };

@@ -1,29 +1,16 @@
-import { randomInt } from "crypto";
-import { Types } from "mongoose";
-import { BookingModel, type IBooking } from "../../models/Booking";
-import { PaymentModel, type IPayment } from "../../models/Payment";
-import { RefundModel, type IRefund } from "../../models/Refund";
-import { UserModel } from "../../models/User";
-import type { StatusHistoryEntry } from "./bookings.stateMachine";
-import {
-  BOOKING_STATUS,
-  EXTRA_CHARGE_DECISION_STATUSES,
-  SLOT_HOLDING_STATUSES,
-} from "./bookings.constants";
-import {
-  buildBookingFilter,
-  SORT_SPECS,
-  type ListBookingsQuery,
-} from "./bookings.query";
+import { randomInt } from 'crypto';
+import { Types } from 'mongoose';
+import { BookingModel, type IBooking } from '../../models/Booking';
+import { UserModel } from '../../models/User';
+import { PaymentModel, type IPayment } from '../../models/Payment';
+import { RefundModel, type IRefund } from '../../models/Refund';
+import { BOOKING_STATUS, EXTRA_CHARGE_DECISION_STATUSES, SLOT_HOLDING_STATUSES } from './bookings.constants';
+import { buildBookingFilter, SORT_SPECS, type ListBookingsQuery } from './bookings.query';
+import type { StatusHistoryEntry } from './bookings.stateMachine';
 
 export class BookingsRepository {
   /** Active (slot-holding) bookings for a service/date/slot, used to compute remaining seats. */
-  countActiveForSlot(
-    serviceId: string,
-    date: string,
-    slot: string,
-    now: Date = new Date(),
-  ): Promise<number> {
+  countActiveForSlot(serviceId: string, date: string, slot: string, now: Date = new Date()): Promise<number> {
     if (!Types.ObjectId.isValid(serviceId)) return Promise.resolve(0);
 
     return BookingModel.countDocuments({
@@ -31,22 +18,12 @@ export class BookingsRepository {
       date,
       slot,
       status: { $in: SLOT_HOLDING_STATUSES },
-      $nor: [
-        {
-          status: BOOKING_STATUS.PENDING_PAYMENT,
-          holdExpiresAt: { $lte: now },
-        },
-      ],
+      $nor: [{ status: BOOKING_STATUS.PENDING_PAYMENT, holdExpiresAt: { $lte: now } }],
     }).exec();
   }
 
   /** Cancels lapsed pending_payment holds for one slot so their seats are freed. */
-  releaseStaleHolds(
-    serviceId: string,
-    date: string,
-    slot: string,
-    now: Date = new Date(),
-  ): Promise<unknown> {
+  releaseStaleHolds(serviceId: string, date: string, slot: string, now: Date = new Date()): Promise<unknown> {
     if (!Types.ObjectId.isValid(serviceId)) return Promise.resolve(null);
 
     return BookingModel.updateMany(
@@ -60,24 +37,21 @@ export class BookingsRepository {
       {
         $set: { status: BOOKING_STATUS.CANCELLED_BY_CUSTOMER },
         // Free the seat so the unique (service, date, slot, seat) index lets someone else take it.
-        $unset: { slotSeat: "" },
+        $unset: { slotSeat: '' },
         $push: {
           statusHistory: {
             from: BOOKING_STATUS.PENDING_PAYMENT,
             to: BOOKING_STATUS.CANCELLED_BY_CUSTOMER,
             at: now,
-            actorRole: "system",
-            reason: "Payment hold expired",
+            actorRole: 'system',
+            reason: 'Payment hold expired',
           },
         },
-      },
+      }
     ).exec();
   }
 
-  findByCustomerAndIdempotencyKey(
-    customerId: string,
-    idempotencyKey: string,
-  ): Promise<IBooking | null> {
+  findByCustomerAndIdempotencyKey(customerId: string, idempotencyKey: string): Promise<IBooking | null> {
     if (!Types.ObjectId.isValid(customerId)) return Promise.resolve(null);
 
     return BookingModel.findOne({
@@ -91,7 +65,7 @@ export class BookingsRepository {
     date: string,
     slot: string,
     capacity: number,
-    now: Date = new Date(),
+    now: Date = new Date()
   ): Promise<number | null> {
     if (!Types.ObjectId.isValid(serviceId)) return null;
 
@@ -100,14 +74,9 @@ export class BookingsRepository {
       date,
       slot,
       status: { $in: SLOT_HOLDING_STATUSES },
-      $nor: [
-        {
-          status: BOOKING_STATUS.PENDING_PAYMENT,
-          holdExpiresAt: { $lte: now },
-        },
-      ],
+      $nor: [{ status: BOOKING_STATUS.PENDING_PAYMENT, holdExpiresAt: { $lte: now } }],
     })
-      .select("slotSeat")
+      .select('slotSeat')
       .lean()
       .exec();
 
@@ -126,31 +95,25 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
 
     return BookingModel.findById(id)
-      .populate("partnerId", "name rating phone avatar")
+      .populate('partnerId', 'name rating phone avatar')
       .exec();
   }
 
-  findByIdForCustomer(
-    id: string,
-    customerId: string,
-  ): Promise<IBooking | null> {
+  findByIdForCustomer(id: string, customerId: string): Promise<IBooking | null> {
     if (!Types.ObjectId.isValid(id) || !Types.ObjectId.isValid(customerId)) {
       return Promise.resolve(null);
     }
 
-    return (
-      BookingModel.findOne({
-        _id: new Types.ObjectId(id),
-        customerId: new Types.ObjectId(customerId),
+    return BookingModel.findOne({
+      _id: new Types.ObjectId(id),
+      customerId: new Types.ObjectId(customerId),
+    })
+      .populate({
+        path: 'partnerId',
+        select: 'name phone avatar userId city ratingAvg ratingCount kyc.status',
+        populate: { path: 'userId', select: 'name phone' },
       })
-        // Name and phone live on the partner's User; rating lives on the Partner profile.
-        .populate({
-          path: "partnerId",
-          select: "userId city ratingAvg ratingCount kyc.status",
-          populate: { path: "userId", select: "name phone" },
-        })
-        .exec()
-    );
+      .exec();
   }
 
   /**
@@ -163,36 +126,25 @@ export class BookingsRepository {
     const _id = new Types.ObjectId(id);
     type WithOtp = { otpCodes?: { start?: string } } | null;
 
-    const existing = (await BookingModel.findById(_id)
-      .select("+otpCodes.start")
-      .lean()
-      .exec()) as WithOtp;
+    const existing = (await BookingModel.findById(_id).select('+otpCodes.start').lean().exec()) as WithOtp;
     if (existing?.otpCodes?.start) return existing.otpCodes.start;
 
-    const code = String(randomInt(0, 10_000)).padStart(4, "0");
+    const code = String(randomInt(0, 10_000)).padStart(4, '0');
     const updated = (await BookingModel.findOneAndUpdate(
       {
         _id,
-        status: BOOKING_STATUS.ARRIVED,
-        $or: [
-          { "otpCodes.start": { $exists: false } },
-          { "otpCodes.start": null },
-          { "otpCodes.start": "" },
-        ],
+        $or: [{ 'otpCodes.start': { $exists: false } }, { 'otpCodes.start': null }, { 'otpCodes.start': '' }],
       },
-      { $set: { "otpCodes.start": code } },
+      { $set: { 'otpCodes.start': code } },
       { new: true },
     )
-      .select("+otpCodes.start")
+      .select('+otpCodes.start')
       .lean()
       .exec()) as WithOtp;
     if (updated?.otpCodes?.start) return updated.otpCodes.start;
 
-    const winner = (await BookingModel.findById(_id)
-      .select("+otpCodes.start")
-      .lean()
-      .exec()) as WithOtp;
-    return winner?.otpCodes?.start ?? null;
+    const winner = (await BookingModel.findById(_id).select('+otpCodes.start').lean().exec()) as WithOtp;
+    return winner?.otpCodes?.start ?? code;
   }
 
   /**
@@ -204,29 +156,21 @@ export class BookingsRepository {
     bookingId: string,
     customerId: string,
     chargeId: string,
-    decision: "approved" | "rejected",
+    decision: 'approved' | 'rejected',
     now: Date = new Date(),
   ): Promise<IBooking | null> {
-    if (
-      ![bookingId, customerId, chargeId].every((v) => Types.ObjectId.isValid(v))
-    )
-      return Promise.resolve(null);
+    if (![bookingId, customerId, chargeId].every((v) => Types.ObjectId.isValid(v))) return Promise.resolve(null);
     const charge = new Types.ObjectId(chargeId);
 
     return BookingModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(bookingId),
         customerId: new Types.ObjectId(customerId),
-        status: { $in: EXTRA_CHARGE_DECISION_STATUSES },
-        extraCharges: { $elemMatch: { _id: charge, status: "pending" } },
+        status: { $in: [...EXTRA_CHARGE_DECISION_STATUSES, 'ARRIVED', 'IN_PROGRESS'] },
+        extraCharges: { $elemMatch: { _id: charge, status: 'pending' } },
       },
-      {
-        $set: {
-          "extraCharges.$[c].status": decision,
-          "extraCharges.$[c].decidedAt": now,
-        },
-      },
-      { new: true, arrayFilters: [{ "c._id": charge, "c.status": "pending" }] },
+      { $set: { 'extraCharges.$[c].status': decision, 'extraCharges.$[c].decidedAt': now } },
+      { new: true, arrayFilters: [{ 'c._id': charge, 'c.status': 'pending' }] },
     ).exec();
   }
 
@@ -236,7 +180,7 @@ export class BookingsRepository {
   ): Promise<{ name?: string; email?: string; phone?: string } | null> {
     if (!Types.ObjectId.isValid(customerId)) return null;
     const user = await UserModel.findById(customerId)
-      .select("name email phone")
+      .select('name email phone')
       .lean()
       .exec();
     if (!user) return null;
@@ -248,7 +192,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(bookingId)) return Promise.resolve(null);
     return PaymentModel.findOne({
       bookingId: new Types.ObjectId(bookingId),
-      status: "PAID",
+      status: 'PAID',
     })
       .sort({ paidAt: -1, createdAt: -1 })
       .exec();
@@ -262,7 +206,7 @@ export class BookingsRepository {
   markCancelled(
     bookingId: string,
     customerId: string,
-    fromStatus: IBooking["status"],
+    fromStatus: IBooking['status'],
     entry: StatusHistoryEntry,
     reason: string,
   ): Promise<IBooking | null> {
@@ -276,7 +220,7 @@ export class BookingsRepository {
       },
       {
         $set: { status: entry.to, cancellationReason: reason },
-        $unset: { slotSeat: "" },
+        $unset: { slotSeat: '' },
         $push: { statusHistory: entry },
       },
       { new: true },
@@ -299,7 +243,7 @@ export class BookingsRepository {
     const bookingId = new Types.ObjectId(input.bookingId);
     const existing = await RefundModel.findOne({
       bookingId,
-      status: { $in: ["requested", "approved", "processed"] },
+      status: { $in: ['requested', 'approved', 'processed'] },
     }).exec();
     if (existing) return existing;
 
@@ -310,8 +254,8 @@ export class BookingsRepository {
       customerId: new Types.ObjectId(input.customerId),
       amount: input.amount,
       reason: `Booking cancelled by customer: ${input.reason}`.slice(0, 500),
-      method: "RAZORPAY",
-      status: "requested",
+      method: 'RAZORPAY',
+      status: 'requested',
       requestedBy: new Types.ObjectId(input.customerId),
       requestedAt: now,
     });
@@ -319,9 +263,9 @@ export class BookingsRepository {
       { _id: input.payment._id },
       {
         $set: {
-          "refund.status": "requested",
-          "refund.amount": input.amount,
-          "refund.requestedAt": now,
+          'refund.status': 'requested',
+          'refund.amount': input.amount,
+          'refund.requestedAt': now,
         },
       },
     ).exec();
@@ -335,7 +279,7 @@ export class BookingsRepository {
   reschedule(args: {
     bookingId: string;
     customerId: string;
-    fromStatus: IBooking["status"];
+    fromStatus: IBooking['status'];
     fromDate: string;
     fromSlot: string;
     to: { date: string; slot: string; seat: number; scheduledAt: Date };
@@ -371,7 +315,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(customerId)) return Promise.resolve([]);
 
     return BookingModel.find({ customerId: new Types.ObjectId(customerId) })
-      .populate("partnerId", "name rating phone avatar")
+      .populate('partnerId', 'name rating phone avatar')
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -380,14 +324,14 @@ export class BookingsRepository {
   async listPageForCustomer(
     customerId: string,
     query: ListBookingsQuery,
-    now: Date = new Date(),
+    now: Date = new Date()
   ): Promise<{ items: IBooking[]; total: number }> {
     if (!Types.ObjectId.isValid(customerId)) return { items: [], total: 0 };
 
     const filter = buildBookingFilter(customerId, query, now);
     const [items, total] = await Promise.all([
       BookingModel.find(filter)
-        .populate("partnerId", "name rating phone avatar")
+        .populate('partnerId', 'name rating phone avatar')
         .sort(SORT_SPECS[query.sort])
         .skip((query.page - 1) * query.limit)
         .limit(query.limit)

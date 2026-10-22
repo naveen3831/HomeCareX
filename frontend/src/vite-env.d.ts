@@ -36,10 +36,9 @@ declare module 'jspdf' {
     output(type?: string): any;
   }
 }
-/// <reference types="vite/client" />
-interface ImportMetaEnv {
-  readonly VITE_USE_MOCKS?: string;
-  readonly VITE_API_BASE_URL?: string;
+
+declare module 'axe-core' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const axe: any;
+  export default axe;
 }
-interface ImportMeta { readonly env: ImportMetaEnv }
- 

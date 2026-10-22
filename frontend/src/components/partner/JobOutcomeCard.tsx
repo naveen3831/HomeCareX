@@ -67,7 +67,6 @@ export default function JobOutcomeCard({ status, request, onDismiss }: Props) {
               <p className="mt-1 text-sm font-semibold text-ink">
                 ₹{request.price.toLocaleString("en-IN")}
               </p>
-
               {/* Opens navigation, live location, chat and the masked call for this booking. */}
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Link

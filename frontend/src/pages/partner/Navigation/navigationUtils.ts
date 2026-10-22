@@ -32,7 +32,13 @@ export const buildGoogleMapsNavigationUrl = (
   destination: LatLng | null,
   fallbackAddress?: string,
 ): string | null => {
-  const point = destination && Number.isFinite(destination.lat) && Number.isFinite(destination.lng)
+  const point = destination &&
+    Number.isFinite(destination.lat) &&
+    Number.isFinite(destination.lng) &&
+    destination.lat >= -90 &&
+    destination.lat <= 90 &&
+    destination.lng >= -180 &&
+    destination.lng <= 180
     ? { lat: destination.lat, lng: destination.lng }
     : null;
   const target = point ? `${point.lat},${point.lng}` : (fallbackAddress ?? "").trim();

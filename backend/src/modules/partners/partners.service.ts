@@ -123,7 +123,7 @@ export async function ensurePartnerProfile(
         },
 
         kyc: {
-          status: 'approved',
+          status: 'not_started',
           documents: [],
         },
 

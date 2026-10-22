@@ -17,7 +17,7 @@ export interface QuoteRequest {
   addOns: BookingAddOnInput[];
   date: string;
   slot: string;
-  /** Optional: picks a city-specific PricingRule. */
+  /** Optional city, used by admin pricing preview to pick city-scoped rules. */
   city?: string;
   couponCode?: string;
 }
@@ -63,14 +63,15 @@ export interface PriceQuote {
   computedAt: string;
 }
 
-/** What the real POST /pricing/quote returns: a PriceQuote plus the fields the server adds. */
+/**
+ * The quote as returned to the admin pricing preview. Same as PriceQuote plus
+ * the pricing mode and the cancellation fee the admin wants to see.
+ */
 export interface ServerPriceQuote extends PriceQuote {
-  /** Server-issued id; the quote is valid until expiresAt. */
-  quoteId: string;
-  expiresAt: string;
   mode: "FIXED" | "HOURLY";
-  /** Fee charged if the customer cancels late. */
   cancellationFee: number;
+  quoteId?: string;
+  expiresAt?: string;
 }
 
 export interface CouponValidateRequest extends QuoteRequest {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTicket } from "@/hooks/useTicket";
+import { useLiveTicketMessages } from "@/hooks/useLiveTicketMessages";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { supportApi } from "@/services/supportApi";
 import {
@@ -15,6 +16,7 @@ import TicketReplyForm from "./TicketReplyForm";
 
 export default function CustomerTicketThread({ id }: { id: string }) {
   const query = useTicket(id);
+  const { live } = useLiveTicketMessages(id);
   const client = useQueryClient();
   const online = useOnlineStatus();
   const [earlier, setEarlier] = useState<CustomerMessage[]>([]);
@@ -91,7 +93,9 @@ export default function CustomerTicketThread({ id }: { id: string }) {
         )}
       </header>
       <p className="hcx-support-muted">
-        Replies update automatically while this page is open.
+        {live
+          ? "Live: replies appear here as soon as they are sent."
+          : "Replies refresh every few seconds while this page is open."}
       </p>
       {query.isError && (
         <p role="alert" className="hcx-support-error">

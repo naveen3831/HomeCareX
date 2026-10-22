@@ -1,1 +1,1 @@
-export type NotificationsTypes = Record<string, never>;
+export interface NotificationsTypes {}

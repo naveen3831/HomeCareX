@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CalendarDays,
   CalendarClock,
+  CircleAlert,
   Clock,
   CreditCard,
   Headset,
@@ -17,7 +18,7 @@ import {
   Wrench,
   Zap,
 } from "lucide-react";
-import BookingThumb from "@/pages/customer/Dashboard/sections/BookingThumb";
+import BookingThumb from "../Dashboard/sections/BookingThumb";
 import {
   EmptyState,
   ErrorState,
@@ -238,9 +239,11 @@ function DetailsBody({
   const [imgFailed, setImgFailed] = useState(false);
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
 
+  const bookingId = String(booking._id || (booking as any).id || "");
+  const normalizedStatus = String(booking.status || "").toLowerCase();
   const pill = statusPill(booking.status);
   const code =
-    booking.bookingNumber || `BK-${booking._id.slice(-5).toUpperCase()}`;
+    booking.bookingNumber || (bookingId ? `BK-${bookingId.slice(-5).toUpperCase()}` : "BK-BOOKING");
   const name = serviceNameOf(booking);
   const timeline = buildTimeline(booking);
   const price = buildPriceBreakdown(booking);
@@ -248,8 +251,8 @@ function DetailsBody({
   const pay = booking.paymentDetails;
   const address = booking.addressSnapshot;
   const cancelled = isCancelledStatus(booking.status);
-  const finished = booking.status === "completed" || booking.status === "rated";
-  const active = !finished && !cancelled && booking.status !== "disputed";
+  const finished = normalizedStatus === "completed" || normalizedStatus === "rated";
+  const active = !finished && !cancelled && normalizedStatus !== "disputed";
   // Same guards as the server's state machine; the server still has the final say.
   const canCancel = active && canCancelBooking(booking.status);
   const canReschedule =
@@ -257,8 +260,12 @@ function DetailsBody({
     canRescheduleBooking(booking.status) &&
     Boolean(booking.serviceId && booking.date && booking.slot);
   const showOtp =
-    Boolean(booking.partnerId) && (active || Boolean(booking.startOtp));
-  const isPaid = booking.paymentStatus === "PAID";
+    Boolean(booking.partnerId) &&
+    (normalizedStatus === "arrived" || Boolean(booking.startOtp));
+  const hasPendingExtraCharges = (booking.extraCharges ?? []).some(
+    (c) => c.status === "pending",
+  );
+  const isPaid = String(booking.paymentStatus || "").toUpperCase() === "PAID";
   const addOnLines = (booking.priceSnapshot?.lines ?? []).filter(
     (l) => l.kind === "ADDON",
   );
@@ -279,7 +286,7 @@ function DetailsBody({
   const paidOn = formatMoment(pay?.paidAt);
   const methodText = paymentMethodLabel(pay?.method);
   const txn = pay?.transactionId || pay?.paymentId;
-  const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(booking._id)}`;
+  const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(bookingId)}`;
   const slotHours = (() => {
     const m = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
       booking.slot || "",
@@ -364,6 +371,34 @@ function DetailsBody({
         </p>
       )}
 
+      {hasPendingExtraCharges && (
+        <div
+          role="region"
+          aria-label="Pending Extra Charge Approval"
+          className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <CircleAlert className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-bold text-amber-900">
+                Action Required: Your partner requested extra charges
+              </p>
+              <p className="text-xs text-amber-800">
+                Review and approve or reject the additional on-site items requested by your service partner.
+              </p>
+            </div>
+          </div>
+          <a
+            href="#extra-charges-heading"
+            className="inline-flex items-center justify-center shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            Review Charges
+          </a>
+        </div>
+      )}
+
       {/* Row one: Booking Status and Price Breakdown share the same top edge. */}
       <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left column */}
@@ -371,6 +406,16 @@ function DetailsBody({
           <Section id="timeline-heading" title="Booking Status" icon={Activity}>
             <StatusTimeline items={timeline} />
           </Section>
+
+          {(booking.extraCharges?.length ?? 0) > 0 && (
+            <ExtraChargeApproval
+              charges={booking.extraCharges}
+              canDecide={canDecideExtraCharges(booking.status)}
+              onDecide={(chargeId, decision) =>
+                decide.mutateAsync({ chargeId, decision })
+              }
+            />
+          )}
 
           <Section id="service-heading" title="Service Details" icon={Wrench}>
             <div className="flex flex-col gap-4 sm:flex-row">
@@ -443,7 +488,12 @@ function DetailsBody({
 
           <Section id="partner-heading" title="Service Partner" icon={Users}>
             <PartnerCard
-              partner={booking.partner}
+              partner={
+                booking.partner ||
+                (typeof booking.partnerId === "object" && booking.partnerId !== null
+                  ? (booking.partnerId as any)
+                  : null)
+              }
               hasPartner={Boolean(booking.partnerId)}
             />
           </Section>
@@ -509,19 +559,10 @@ function DetailsBody({
             )}
           </Section>
 
-          {booking.extraCharges.length > 0 && (
-            <ExtraChargeApproval
-              charges={booking.extraCharges}
-              canDecide={canDecideExtraCharges(booking.status)}
-              onDecide={(chargeId, decision) =>
-                decide.mutateAsync({ chargeId, decision })
-              }
-            />
-          )}
-
           {/* Start OTP: bottom of the left column, as in the design */}
           {showOtp && <OtpDisplay code={booking.startOtp} />}
         </div>
+
 
         {/* Right column */}
         <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
@@ -556,13 +597,13 @@ function DetailsBody({
           <Section id="actions-heading" title="Booking Actions" icon={Zap}>
             <div className="flex flex-col gap-2.5">
               <InvoiceCard
-                bookingId={booking._id}
+                bookingId={bookingId}
                 bookingCode={code}
                 enabled={isPaid}
               />
-              {TRACKABLE.has(booking.status) && (
+              {TRACKABLE.has(normalizedStatus) && (
                 <Link
-                  to={customerPath(`/bookings/${encodeURIComponent(booking._id)}/track`)}
+                  to={`${customerPath("/tracking")}?booking=${encodeURIComponent(bookingId)}`}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",
@@ -601,7 +642,7 @@ function DetailsBody({
                   Cancel Booking
                 </button>
               )}
-              {!cancelled && <RateExperience bookingId={booking._id} status={booking.status} />}
+              {!cancelled && <RateExperience bookingId={bookingId} status={booking.status} />}
               <BookAgainButton booking={booking} />
             </div>
           </Section>
@@ -630,11 +671,11 @@ function DetailsBody({
       </div>
 
       {dialog === "cancel" && (
-        <CancelDialog bookingId={booking._id} onClose={() => setDialog(null)} />
+        <CancelDialog bookingId={bookingId} onClose={() => setDialog(null)} />
       )}
       {dialog === "reschedule" && (
         <RescheduleDialog
-          bookingId={booking._id}
+          bookingId={bookingId}
           serviceId={booking.serviceId}
           date={booking.date}
           slot={booking.slot}

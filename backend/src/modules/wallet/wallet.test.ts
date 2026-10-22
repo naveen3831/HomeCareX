@@ -1,4 +1,3 @@
-
 import type { WalletRepository } from "./wallet.repository";
 import { walletRepository } from "./wallet.repository";
 import { rupeesToPaise } from "./wallet.money";
@@ -30,7 +29,7 @@ interface WalletError extends Error {
 function createError(
   message: string,
   code: string,
-  statusCode = 400
+  statusCode = 400,
 ): WalletError {
   const error = new Error(message) as WalletError;
   error.code = code;
@@ -52,9 +51,7 @@ function isDuplicateKeyError(error: unknown): boolean {
 }
 
 export class WalletService {
-  constructor(
-    private readonly repo: WalletRepository = walletRepository
-  ) {}
+  constructor(private readonly repo: WalletRepository = walletRepository) {}
 
   async credit(input: CreditInput) {
     if (
@@ -65,7 +62,7 @@ export class WalletService {
       throw createError(
         `Invalid credit wallet transaction type: ${input.type}`,
         "VALIDATION_ERROR",
-        400
+        400,
       );
     }
 
@@ -80,7 +77,7 @@ export class WalletService {
     if (input.idempotencyKey) {
       const existing = await this.repo.findLedgerByKey(
         input.customerId,
-        input.idempotencyKey
+        input.idempotencyKey,
       );
 
       if (existing) {
@@ -102,7 +99,7 @@ export class WalletService {
      */
     const balanceAfterPaise = await this.repo.creditBalance(
       input.customerId,
-      amountPaise
+      amountPaise,
     );
 
     try {
@@ -128,20 +125,20 @@ export class WalletService {
       if (input.idempotencyKey && isDuplicateKeyError(error)) {
         const rolledBackBalance = await this.repo.debitBalanceIfEnough(
           input.customerId,
-          amountPaise
+          amountPaise,
         );
 
         if (rolledBackBalance === null) {
           throw createError(
             "Unable to roll back duplicate wallet credit",
             "WALLET_ROLLBACK_FAILED",
-            500
+            500,
           );
         }
 
         const existing = await this.repo.findLedgerByKey(
           input.customerId,
-          input.idempotencyKey
+          input.idempotencyKey,
         );
 
         return {
@@ -155,10 +152,7 @@ export class WalletService {
        * Ledger creation failed for a non-idempotency reason. Roll back the
        * balance change so balance and ledger cannot diverge.
        */
-      await this.repo.debitBalanceIfEnough(
-        input.customerId,
-        amountPaise
-      );
+      await this.repo.debitBalanceIfEnough(input.customerId, amountPaise);
 
       throw error;
     }
@@ -169,7 +163,7 @@ export class WalletService {
       throw createError(
         `Invalid debit wallet transaction type: ${input.type}`,
         "VALIDATION_ERROR",
-        400
+        400,
       );
     }
 
@@ -178,7 +172,7 @@ export class WalletService {
     if (input.idempotencyKey) {
       const existing = await this.repo.findLedgerByKey(
         input.customerId,
-        input.idempotencyKey
+        input.idempotencyKey,
       );
 
       if (existing) {
@@ -198,14 +192,14 @@ export class WalletService {
      */
     const balanceAfterPaise = await this.repo.debitBalanceIfEnough(
       input.customerId,
-      amountPaise
+      amountPaise,
     );
 
     if (balanceAfterPaise === null) {
       throw createError(
         "Insufficient wallet balance",
         "INSUFFICIENT_BALANCE",
-        409
+        409,
       );
     }
 
@@ -228,15 +222,12 @@ export class WalletService {
       /*
        * Put the debited amount back if writing the ledger fails.
        */
-      await this.repo.creditBalance(
-        input.customerId,
-        amountPaise
-      );
+      await this.repo.creditBalance(input.customerId, amountPaise);
 
       if (input.idempotencyKey && isDuplicateKeyError(error)) {
         const existing = await this.repo.findLedgerByKey(
           input.customerId,
-          input.idempotencyKey
+          input.idempotencyKey,
         );
 
         const balancePaise = await this.repo.getBalance(input.customerId);
@@ -252,11 +243,7 @@ export class WalletService {
     }
   }
 
-  async getWallet(
-    customerId: string,
-    page = 1,
-    limit = 20
-  ) {
+  async getWallet(customerId: string, page = 1, limit = 20) {
     const safePage = Math.max(1, Math.floor(page));
     const safeLimit = Math.max(1, Math.min(100, Math.floor(limit)));
 
@@ -295,8 +282,6 @@ export class WalletService {
  * Factory used by tests and anywhere that needs to inject a custom
  * WalletRepository.
  */
-export function createWalletService(
-  repo: WalletRepository
-): WalletService {
+export function createWalletService(repo: WalletRepository): WalletService {
   return new WalletService(repo);
 }

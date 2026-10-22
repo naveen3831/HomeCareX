@@ -1,0 +1,20 @@
+
+User-agent: *
+
+# Block private dashboards
+Disallow: /customer
+Disallow: /customer/
+Disallow: /partner
+Disallow: /partner/
+Disallow: /admin
+Disallow: /admin/
+
+# Block authentication routes
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /verify-otp
+Disallow: /reset-password
+Disallow: /unauthorized
+
+Sitemap: http://localhost:3000/sitemap.xml

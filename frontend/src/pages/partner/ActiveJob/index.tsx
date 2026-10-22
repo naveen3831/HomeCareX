@@ -5,6 +5,7 @@ import {
   fetchJob,
   fetchExtraCharges,
   fetchAssignedServices,
+  completeJob,
   IS_MOCK_JOBS,
   resetMockPartnerJob,
   getErrorMessage,
@@ -73,6 +74,8 @@ export const ActiveJobPage: React.FC = () => {
 
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState<boolean>(false);
+  const [completing, setCompleting] = useState<boolean>(false);
 
   // Extra Charges state
   const [extraCharges, setExtraCharges] = useState<ExtraChargeItem[]>([]);
@@ -156,11 +159,35 @@ export const ActiveJobPage: React.FC = () => {
     void load();
   }, [load]);
 
+  const [completedSuccessJob, setCompletedSuccessJob] = useState<JobDetails | null>(null);
+
   // Handle job completion from modal
   const handleJobCompleted = (updated: JobDetails) => {
     setJob(updated);
     setShowCompletionModal(false);
-    navigate(`/partner/jobs/${updated.id}`);
+    setCompletedSuccessJob(updated);
+  };
+
+  const handleComplete = async () => {
+    if (!job || completing) return;
+    if (!online) {
+      setCompleteError('You are offline. Reconnect before completing the job.');
+      return;
+    }
+
+    setCompleting(true);
+    setCompleteError(null);
+
+    try {
+      const updated = await completeJob(job.id);
+      setJob(updated);
+      setShowCompleteConfirm(false);
+      setCompletedSuccessJob(updated);
+    } catch (err) {
+      setCompleteError(getErrorMessage(err, 'Could not complete the job. Try again.'));
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const handleExtraChargeCreated = (charge: ExtraChargeItem) => {
@@ -264,6 +291,7 @@ export const ActiveJobPage: React.FC = () => {
               <div>
                 <p className="aj-ref-eyebrow">Booking {job.bookingCode}</p>
                 <h1 className="aj-ref-title">Start the job</h1>
+                <h2 className="text-sm font-semibold text-slate-700">Customer OTP Verification</h2>
                 <p className="aj-ref-sub">Confirm the customer's code and take a photo before you begin.</p>
               </div>
               <span className="aj-badge">Arrived</span>
@@ -366,7 +394,7 @@ export const ActiveJobPage: React.FC = () => {
                   )}
                 </div>
                 <h2 id="aj-done-title" className="aj-done-title">
-                  {isDone ? 'Job completed' : 'Job Not In Progress'}
+                  Job Not In Progress
                 </h2>
                 <p className="aj-done-text">
                   Current status: <strong>{STATUS_LABEL[job.status]}</strong>.{' '}
@@ -412,6 +440,9 @@ export const ActiveJobPage: React.FC = () => {
                 <Link to={`/partner/jobs/${job.id}`} className="aj-btn-primary">
                   <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View Job Details
                 </Link>
+                <Link to="/partner/jobs" className="aj-btn-ghost">
+                  My Jobs
+                </Link>
                 <Link to="/partner/assigned" className="aj-btn-ghost">
                   Assigned services
                 </Link>
@@ -429,7 +460,7 @@ export const ActiveJobPage: React.FC = () => {
   }
 
   // Only a started job gets the live screen. Before that, the only way in is the code + photo step above.
-  if (job.status !== 'in_progress') {
+  if (job.status !== 'in_progress' && !(job.status === 'confirmed' && Boolean(job.schedule.startedAt))) {
     return (
       <div className="aj-ref-page">
         <div className="aj-ref-container">
@@ -469,6 +500,7 @@ export const ActiveJobPage: React.FC = () => {
 
   const doneCount = job.checklist.filter((c) => c.done).length;
   const totalCount = job.checklist.length;
+  const remainingItems = job.checklist.filter((c) => !c.done);
 
   // Compute progress bar percentage from elapsed time vs booked duration
   const bookedSeconds = (job.service.durationMinutes ?? 180) * 60;
@@ -502,7 +534,7 @@ export const ActiveJobPage: React.FC = () => {
 
         {/* Dark Teal Hero Timer Card: TIME ON JOB */}
         <section className="aj-ref-timer-hero" aria-label="Time on job">
-          <p className="aj-ref-timer-eyebrow">Time on job</p>
+          <p className="aj-ref-timer-eyebrow">TIME ON JOB</p>
           <div className="aj-ref-timer-value">
             <JobTimer
               startedAt={job.schedule.startedAt}
@@ -562,6 +594,16 @@ export const ActiveJobPage: React.FC = () => {
             }}
           />
         </section>
+
+        {/* Dashed Button: + Add item */}
+        <button
+          type="button"
+          onClick={() => setAddItemOpen(true)}
+          disabled={!online}
+          className="aj-ref-add-item-btn"
+        >
+          + Add item
+        </button>
 
         {/* EXTRA CHARGES Section */}
         <section className="aj-ref-card aj-card-extra-charges" aria-labelledby="extra-charges-title">
@@ -658,7 +700,7 @@ export const ActiveJobPage: React.FC = () => {
             type="button"
             onClick={() => {
               setCompleteError(null);
-              setShowCompletionModal(true);
+              setShowCompleteConfirm(true);
             }}
             disabled={!online}
             className="aj-ref-complete-btn"
@@ -667,6 +709,16 @@ export const ActiveJobPage: React.FC = () => {
           </button>
 
           <div className="aj-ref-demo-footer">
+            <button
+              type="button"
+              onClick={() => {
+                setCompleteError(null);
+                setShowCompletionModal(true);
+              }}
+              className="aj-ref-demo-link-btn"
+            >
+              Open Checklist & Finalize Payout →
+            </button>
             <Link to={`/partner/jobs/${job.id}`} className="aj-ref-demo-link">
               ← View Job Details
             </Link>
@@ -682,6 +734,59 @@ export const ActiveJobPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showCompleteConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="complete-confirm-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#eeecfb] text-[#4338ca]">
+              <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+            </div>
+            <h2 id="complete-confirm-title" className="text-lg font-bold text-slate-900">
+              Confirm Service Completion?
+            </h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Are you sure all tasks have been performed? This will complete the job.
+            </p>
+
+            {remainingItems.length > 0 && (
+              <p className="mt-2 rounded-lg bg-[#fff3ea] p-2.5 text-xs font-medium text-[#e0600f]">
+                Note: {remainingItems.length} checklist {remainingItems.length === 1 ? 'item is' : 'items are'} still unchecked.
+              </p>
+            )}
+
+            {completeError && (
+              <p className="mt-2 text-xs font-semibold text-red-600" role="alert">
+                {completeError}
+              </p>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCompleteConfirm(false)}
+                disabled={completing}
+                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Go Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleComplete()}
+                disabled={completing || !online}
+                aria-busy={completing}
+                className="flex-1 rounded-xl bg-[#4338ca] py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3] disabled:opacity-50"
+              >
+                {completing ? 'Completing…' : 'Yes, Complete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Completion Checklist & Verification Modal */}
       <CompletionChecklist
@@ -733,6 +838,88 @@ export const ActiveJobPage: React.FC = () => {
           );
         }}
       />
+
+      {/* Job Completion Success Popup */}
+      {completedSuccessJob && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="job-completed-success-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
+        >
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-7 shadow-2xl text-center border border-slate-100">
+            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 shadow-sm">
+              <CheckCircle2 className="h-9 w-9" aria-hidden="true" />
+            </div>
+
+            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 mb-2">
+              ✓ Service Completed
+            </span>
+
+            <h2 id="job-completed-success-title" className="text-xl font-bold text-slate-900">
+              Job Completed Successfully!
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              {completedSuccessJob.service.name} ({completedSuccessJob.bookingCode})
+            </p>
+
+            <div className="mt-5 rounded-2xl bg-slate-50 p-4 border border-slate-100 text-left space-y-2.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-medium">Customer:</span>
+                <span className="font-semibold text-slate-900">{completedSuccessJob.customer.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-500 font-medium">Base Payout:</span>
+                <span className="font-semibold text-slate-900">{inr.format(completedSuccessJob.price.partnerEarning)}</span>
+              </div>
+              {extraCharges.filter((c) => c.status === 'approved').length > 0 && (
+                <div className="flex justify-between items-center text-xs text-emerald-700">
+                  <span className="font-medium">Approved Extra Charges:</span>
+                  <span className="font-bold">
+                    + {inr.format(extraCharges.filter((c) => c.status === 'approved').reduce((s, c) => s + c.amount * (c.quantity || 1), 0))}
+                  </span>
+                </div>
+              )}
+              <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
+                <span className="font-bold text-slate-900">Total Payout:</span>
+                <span className="font-bold text-emerald-600 text-base">
+                  {inr.format(
+                    completedSuccessJob.price.partnerEarning +
+                    extraCharges.filter((c) => c.status === 'approved').reduce((s, c) => s + c.amount * (c.quantity || 1), 0)
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Your payout has been recorded to your wallet and earnings dashboard.
+            </p>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCompletedSuccessJob(null);
+                  navigate('/partner/jobs');
+                }}
+                className="flex-1 rounded-xl bg-[#4338ca] py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3] transition-colors shadow-sm"
+              >
+                Back to My Jobs
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCompletedSuccessJob(null);
+                  navigate(`/partner/jobs/${completedSuccessJob.id}`);
+                }}
+                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                View Job Details
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -46,6 +46,10 @@ const makeBooking = (status: Booking['status'], owner: Types.ObjectId | null = p
 
 let server: Server;
 let base: string;
+const getJobs = (tab?: string, bearer?: string) =>
+  fetch(`${base}/api/v1/partner/jobs${tab ? `?tab=${tab}` : ''}`, {
+    headers: bearer ? { Authorization: `Bearer ${bearer}` } : {},
+  });
 const get = (id: string, bearer?: string) =>
   fetch(`${base}/api/v1/partner/jobs/${id}`, { headers: bearer ? { Authorization: `Bearer ${bearer}` } : {} });
 const patch = (id: string, body: unknown, bearer?: string) =>
@@ -103,6 +107,11 @@ describe('partner jobs', () => {
     repo.findBooking = (async (id: string) => (id === bookingId.toString() ? booking : null)) as unknown as typeof repo.findBooking;
     repo.findCustomer = (async () => ({ name: 'Rahul Kumar', phone: '+919876543210' })) as unknown as typeof repo.findCustomer;
     repo.findService = (async () => ({ durationMinutes: 90, inclusions: ['Filter cleaning', 'Gas check'], addOns: [] })) as unknown as typeof repo.findService;
+    repo.listLiveForPartner = (async (pid: Types.ObjectId, statuses?: string[]) => {
+      if (pid.toString() !== partnerId.toString()) return [];
+      if (statuses && statuses.length > 0 && !statuses.includes(booking.status)) return [];
+      return [booking];
+    }) as unknown as typeof repo.listLiveForPartner;
     repo.findJobRequests = (async (pid: Types.ObjectId) => {
       if (pid.toString() === partnerId.toString()) {
         return [
@@ -170,6 +179,40 @@ describe('partner jobs', () => {
   after(() => server.close());
   beforeEach(() => {
     booking = makeBooking('assigned');
+  });
+
+  describe('GET /partner/jobs', () => {
+    it('200: lists live jobs by default', async () => {
+      const res = await getJobs(undefined, token('partner'));
+      assert.equal(res.status, 200);
+      const { data } = (await res.json()) as { data: Array<{ id: string; status: string }> };
+      assert.equal(data.length, 1);
+      assert.equal(data[0].id, bookingId.toString());
+      assert.equal(data[0].status, 'assigned');
+    });
+
+    it('200: filters by tab=completed (empty when assigned, returns when completed)', async () => {
+      const emptyRes = await getJobs('completed', token('partner'));
+      assert.equal(emptyRes.status, 200);
+      const { data: emptyData } = (await emptyRes.json()) as { data: Array<{ id: string }> };
+      assert.equal(emptyData.length, 0);
+
+      booking.status = 'completed';
+      const res = await getJobs('completed', token('partner'));
+      assert.equal(res.status, 200);
+      const { data } = (await res.json()) as { data: Array<{ id: string; status: string }> };
+      assert.equal(data.length, 1);
+      assert.equal(data[0].status, 'completed');
+    });
+
+    it('200: tab=all returns jobs regardless of status', async () => {
+      booking.status = 'completed';
+      const res = await getJobs('all', token('partner'));
+      assert.equal(res.status, 200);
+      const { data } = (await res.json()) as { data: Array<{ id: string; status: string }> };
+      assert.equal(data.length, 1);
+      assert.equal(data[0].status, 'completed');
+    });
   });
 
   describe('GET /partner/jobs/:id', () => {

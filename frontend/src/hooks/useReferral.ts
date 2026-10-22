@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import http, { type ApiResponse } from '@/lib/http';
-import { useAuth } from '@/hooks/useAuth';
-import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useQuery } from "@tanstack/react-query";
+import http, { type ApiResponse } from "@/lib/http";
+import { useAuth } from "@/hooks/useAuth";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export interface ReferralSummary {
   code: string;
@@ -9,7 +9,7 @@ export interface ReferralSummary {
   stats: { invited: number; completed: number; rewardsPaise: number };
   entries: {
     id: string;
-    status: 'invited' | 'completed' | 'rewarded';
+    status: "invited" | "completed" | "rewarded";
     rewardPaise: number;
     createdAt: string;
     rewardedAt: string | null;
@@ -20,10 +20,10 @@ export function useReferral(page = 1) {
   const { user } = useAuth();
   const online = useOnlineStatus();
   return useQuery({
-    queryKey: ['customer-referrals', user?.id, page],
+    queryKey: ["customer-referrals", user?.id, page],
     queryFn: async ({ signal }) =>
       (
-        await http.get<ApiResponse<ReferralSummary>>('/referrals', {
+        await http.get<ApiResponse<ReferralSummary>>("/referrals", {
           params: { page },
           signal,
         })

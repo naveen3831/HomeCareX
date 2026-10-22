@@ -52,20 +52,17 @@ import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
-import {
-  partnerPerformanceRoutes,
-} from "../modules/partner-performance/partner-performance.routes";
+import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
+import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
 import {
   partnerServiceAreaRoutes,
   partnerServicesRoutes,
 } from "../modules/partner-services/partner-services.routes";
 import paymentRoutes from "../modules/payments/payments.routes";
-import {
-  adminPricingRoutes,
-  pricingRoutes,
-} from "../modules/pricing/pricing.routes";
-import payoutsRoutes from "../modules/payouts/payouts.routes";
+import { pricingRoutes } from "../modules/pricing/pricing.routes";
+import { payoutsRoutes } from "../modules/payouts/payouts.routes";
+import { reportsRoutes } from "../modules/reports/reports.routes";
 import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
@@ -90,8 +87,8 @@ rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
 rootRouter.use("/admin/partners", partnersRoutes);
 rootRouter.use("/admin/coupons", couponsRoutes);
 rootRouter.use("/admin/banners", marketingRoutes);
-rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/incentives", incentivesRoutes);
+rootRouter.use("/admin/reports", reportsRoutes);
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);
@@ -128,6 +125,7 @@ rootRouter.use("/partner/services", partnerServicesRoutes);
 rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
 rootRouter.use("/partner/performance", partnerPerformanceRoutes);
 rootRouter.use("/partner/reviews", partnerReviewsRoutes);
+rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);

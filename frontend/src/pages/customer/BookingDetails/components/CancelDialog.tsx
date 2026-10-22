@@ -439,7 +439,7 @@ export default function CancelDialog({ bookingId, onClose }: Props) {
               />
             )}
             {isValidAmount(q.fee) && q.fee > 0
-              ? `Cancel · ${rupees(q.fee)} fee`
+              ? `Cancel and pay ${rupees(q.fee)} fee`
               : "Cancel booking"}
           </button>
         </div>

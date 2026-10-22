@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   CalendarClock,
+  CheckCircle2,
   Clock,
   ExternalLink,
   ListChecks,
@@ -26,7 +27,7 @@ import {
   updateBookingStatus,
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
-import { LIFECYCLE, STATUS_LABEL, type JobStatus } from './jobStatus';
+import { isCancelled, isFinished, LIFECYCLE, STATUS_LABEL, type JobStatus } from './jobStatus';
 import '@/styles/partnerJobs.css';
 import './jobDetails.css';
 
@@ -97,7 +98,8 @@ export default function JobDetailsPage() {
 
   // /partner/jobs/:id  -> that job's details.
   // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
-  const showList = !id;
+  const [viewMode, setViewMode] = useState<'list' | 'details'>(id ? 'details' : 'list');
+  const showList = viewMode === 'list' && !id;
   const [filterTab, setFilterTab] = useState<FilterTab>('accept');
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [assignedServices, setAssignedServices] = useState<JobDetails[]>([]);
@@ -150,6 +152,12 @@ export default function JobDetailsPage() {
   }, [id]);
 
   useEffect(() => {
+    if (id) {
+      setViewMode('details');
+    }
+  }, [id]);
+
+  useEffect(() => {
     void load();
   }, [load]);
 
@@ -173,8 +181,8 @@ export default function JobDetailsPage() {
       setJob(accepted);
       setStartHint(null);
       setJustAcceptedBanner(true);
+      setViewMode('details');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      navigate(`/partner/jobs/${serviceId}`, { state: { justAccepted: true } });
     } catch (err) {
       setListError(getErrorMessage(err, 'Could not open this service. Try again.'));
     } finally {
@@ -743,14 +751,27 @@ export default function JobDetailsPage() {
       )}
 
       <div className="jd-ref-container">
-        {/* Back navigation lives in the top bar (PartnerLayout) */}
-        {justAcceptedBanner && (
-          <div className="jd-back-bar">
+        <div className="jd-back-bar">
+          <button
+            type="button"
+            onClick={() => {
+              setJustAcceptedBanner(false);
+              setViewMode('list');
+              if (id) {
+                navigate('/partner/work');
+              }
+            }}
+            className="jd-back-to-services-btn"
+          >
+            ← Back to Assigned Services ({assignedServices.length || 6})
+          </button>
+
+          {justAcceptedBanner && (
             <span className="jd-accepted-toast" role="status">
               ✓ Service accepted — Total booked details unlocked
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Header: BOOKING #BK-20418 | Confirmed */}
         <header className="jd-ref-header">
@@ -845,7 +866,7 @@ export default function JobDetailsPage() {
         <section className="jd-ref-card jd-card-price" aria-label="Price and add-ons">
           <p className="jd-ref-card-label">
             <Receipt aria-hidden="true" />
-            Price &amp; add-ons
+            PRICE &amp; ADD-ONS
           </p>
           <div className="jd-ref-price-list">
             <div className="jd-ref-price-row">
@@ -979,59 +1000,89 @@ export default function JobDetailsPage() {
           </div>
         </section>
 
-        {/* Primary Bottom Button: Start job */}
-        <div className="jd-ref-cta-wrap">
-          <button
-            type="button"
-            className="jd-ref-primary-btn"
-            disabled={!online || actionBusy}
-            onClick={handlePrimaryStartClick}
-          >
-            {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
-          </button>
-          {startHint && (
-            <p className="jd-ref-otp-error" role="status">
-              {startHint}
+        {/* Primary Bottom Button: Completed / Cancelled / Start job */}
+        {isFinished(job.status) ? (
+          <div className="jd-ref-completed-banner rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5 text-center shadow-sm">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <h3 className="text-base font-bold text-emerald-950">Job Completed Successfully</h3>
+            <p className="mt-1 text-xs text-emerald-800">
+              This job has been finalized. Payout of {money.format(job.price.partnerEarning)} has been recorded to your earnings.
             </p>
-          )}
-
-          {/* Subtle navigation & demo controls */}
-          <div className="jd-ref-demo-footer">
-            <Link
-              to={`/partner/jobs/${job.id}/active`}
-              className="jd-ref-demo-link"
-            >
-              Open Active Job Screen →
-            </Link>
-            {job.status !== 'en_route' && job.status !== 'arrived' && job.status !== 'in_progress' && (
-              <button
-                type="button"
-                onClick={() => void handleStatusChange('en_route')}
-                className="jd-ref-demo-link-btn"
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/partner/jobs"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm"
               >
-                Mark En Route
-              </button>
-            )}
-            {job.status === 'en_route' && (
-              <button
-                type="button"
-                onClick={() => void handleStatusChange('arrived')}
-                className="jd-ref-demo-link-btn"
-              >
-                Mark Arrived
-              </button>
-            )}
-            {IS_MOCK_JOBS && (
-              <button
-                type="button"
-                onClick={handleResetDemo}
-                className="jd-ref-demo-link-btn"
-              >
-                Reset demo
-              </button>
-            )}
+                ← Back to My Jobs
+              </Link>
+            </div>
           </div>
-        </div>
+        ) : isCancelled(job.status) ? (
+          <div className="jd-ref-completed-banner rounded-2xl border border-rose-200 bg-rose-50/80 p-5 text-center shadow-sm">
+            <h3 className="text-base font-bold text-rose-950">Job Cancelled</h3>
+            <p className="mt-1 text-xs text-rose-800">This booking was cancelled and is no longer active.</p>
+            <div className="mt-4 flex justify-center">
+              <Link to="/partner/jobs" className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white">
+                Back to My Jobs
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="jd-ref-cta-wrap">
+            <button
+              type="button"
+              className="jd-ref-primary-btn"
+              disabled={!online || actionBusy}
+              onClick={handlePrimaryStartClick}
+            >
+              {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
+            </button>
+            {startHint && (
+              <p className="jd-ref-otp-error" role="status">
+                {startHint}
+              </p>
+            )}
+
+            {/* Subtle navigation & demo controls */}
+            <div className="jd-ref-demo-footer">
+              <Link
+                to={`/partner/jobs/${job.id}/active`}
+                className="jd-ref-demo-link"
+              >
+                Open Active Job Screen →
+              </Link>
+              {job.status !== 'en_route' && job.status !== 'arrived' && job.status !== 'in_progress' && (
+                <button
+                  type="button"
+                  onClick={() => void handleStatusChange('en_route')}
+                  className="jd-ref-demo-link-btn"
+                >
+                  Mark En Route
+                </button>
+              )}
+              {job.status === 'en_route' && (
+                <button
+                  type="button"
+                  onClick={() => void handleStatusChange('arrived')}
+                  className="jd-ref-demo-link-btn"
+                >
+                  Mark Arrived
+                </button>
+              )}
+              {IS_MOCK_JOBS && (
+                <button
+                  type="button"
+                  onClick={handleResetDemo}
+                  className="jd-ref-demo-link-btn"
+                >
+                  Reset demo
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
     </div>

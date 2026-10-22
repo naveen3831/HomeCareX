@@ -23,8 +23,7 @@ export const RoleRoute: React.FC<RoleRouteProps> = ({ allowedRoles, children }) 
   }
 
   if (!isAuthenticated || !user) {
-    const expired = status === 'expired' ? '?expired=1' : '';
-    return <Navigate to={`/login${expired}`} replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (!allowedRoles.includes(user.role)) {

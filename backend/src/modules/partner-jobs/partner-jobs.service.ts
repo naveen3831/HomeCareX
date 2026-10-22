@@ -5,6 +5,7 @@ import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
+import { getIOIfReady, rooms } from "../../sockets";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -45,6 +46,97 @@ export const actionsFor = (status: BookingStatus): JobActionDto[] => {
   return [];
 };
 
+export const getDefaultChecklist = (serviceName?: string): JobChecklistItemDto[] => {
+  const s = (serviceName ?? "").toLowerCase();
+  if (s.includes("spa") || s.includes("salon") || s.includes("massage") || s.includes("facial")) {
+    return [
+      { id: "chk-1", label: "Setup sanitized spa kit and clean towels", done: false },
+      { id: "chk-2", label: "Customer consultation and preference check", done: false },
+      { id: "chk-3", label: "Sanitize hands and prepare therapy area", done: false },
+      { id: "chk-4", label: "Perform requested spa / wellness service", done: false },
+      { id: "chk-5", label: "Client satisfaction review and area cleanup", done: false },
+    ];
+  }
+  if (s.includes("ac") || s.includes("air condition") || s.includes("cooling")) {
+    return [
+      { id: "chk-1", label: "Inspect AC performance and airflow", done: false },
+      { id: "chk-2", label: "Clean air filters and indoor cooling coil", done: false },
+      { id: "chk-3", label: "Check refrigerant pressure and test for leaks", done: false },
+      { id: "chk-4", label: "Clean drain tray and clear water pipe", done: false },
+      { id: "chk-5", label: "Final cooling temperature test run", done: false },
+    ];
+  }
+  if (s.includes("plumb") || s.includes("leak") || s.includes("tap") || s.includes("pipe")) {
+    return [
+      { id: "chk-1", label: "Inspect fixture and water leakage point", done: false },
+      { id: "chk-2", label: "Shut off valve and disassemble connection", done: false },
+      { id: "chk-3", label: "Replace worn washers, seals, or cartridges", done: false },
+      { id: "chk-4", label: "Reassemble and test water pressure", done: false },
+      { id: "chk-5", label: "Verify leak-free operation with customer", done: false },
+    ];
+  }
+  if (s.includes("electric") || s.includes("wiring") || s.includes("switch")) {
+    return [
+      { id: "chk-1", label: "Turn off mains and inspect electrical point", done: false },
+      { id: "chk-2", label: "Test voltage and verify circuit continuity", done: false },
+      { id: "chk-3", label: "Repair / replace damaged fixture or wiring", done: false },
+      { id: "chk-4", label: "Safety check insulation and earthing", done: false },
+      { id: "chk-5", label: "Restore power and test operation", done: false },
+    ];
+  }
+  if (s.includes("sofa") || s.includes("carpet") || s.includes("shampoo")) {
+    return [
+      { id: "chk-1", label: "Dry vacuum loose dust and fabric surface", done: false },
+      { id: "chk-2", label: "Apply stain spot treatment solution", done: false },
+      { id: "chk-3", label: "Deep foam shampoo cleaning and extraction", done: false },
+      { id: "chk-4", label: "Fabric grooming and moisture extraction", done: false },
+      { id: "chk-5", label: "Customer inspection and drying guidelines", done: false },
+    ];
+  }
+  if (s.includes("ro") || s.includes("water purifier")) {
+    return [
+      { id: "chk-1", label: "Test input and output water TDS levels", done: false },
+      { id: "chk-2", label: "Inspect sediment pre-filter and carbon candles", done: false },
+      { id: "chk-3", label: "Check RO membrane pressure and pump", done: false },
+      { id: "chk-4", label: "Sanitize internal storage tank", done: false },
+      { id: "chk-5", label: "Verify flow rate and purified water taste", done: false },
+    ];
+  }
+  if (s.includes("pest") || s.includes("termite")) {
+    return [
+      { id: "chk-1", label: "Inspect premises and mark pest hotspots", done: false },
+      { id: "chk-2", label: "Apply specialized eco-friendly treatment", done: false },
+      { id: "chk-3", label: "Apply gel bait in cracks and cabinet hinges", done: false },
+      { id: "chk-4", label: "Customer safety briefing and post-care guide", done: false },
+    ];
+  }
+  if (s.includes("paint")) {
+    return [
+      { id: "chk-1", label: "Cover furniture and floor with drop sheets", done: false },
+      { id: "chk-2", label: "Fill wall cracks with putty and sand surface", done: false },
+      { id: "chk-3", label: "Apply base primer coat", done: false },
+      { id: "chk-4", label: "Apply paint coats evenly across walls", done: false },
+      { id: "chk-5", label: "Clean paint splatter and final inspection", done: false },
+    ];
+  }
+  if (s.includes("clean")) {
+    return [
+      { id: "chk-1", label: "Dust and wipe accessible surfaces and fixtures", done: false },
+      { id: "chk-2", label: "Clean and sanitize designated rooms", done: false },
+      { id: "chk-3", label: "Scrub sink, tiles, and high-touch areas", done: false },
+      { id: "chk-4", label: "Sweep, vacuum, and mop floor areas", done: false },
+      { id: "chk-5", label: "Empty waste bins and customer walkthrough", done: false },
+    ];
+  }
+  return [
+    { id: "chk-1", label: "Confirm service scope with customer", done: false },
+    { id: "chk-2", label: "Inspect area and prepare professional tools", done: false },
+    { id: "chk-3", label: "Execute scheduled service tasks", done: false },
+    { id: "chk-4", label: "Clean up workspace and remove materials", done: false },
+    { id: "chk-5", label: "Customer demonstration and review", done: false },
+  ];
+};
+
 const toChecklist = (
   booking: JobBookingDoc,
   inclusions: string[],
@@ -56,11 +148,14 @@ const toChecklist = (
       done: c.done,
     }));
   }
-  return inclusions.map((label, i) => ({
-    id: `inc-${i + 1}`,
-    label,
-    done: false,
-  }));
+  if (inclusions && inclusions.length > 0) {
+    return inclusions.map((label, i) => ({
+      id: `inc-${i + 1}`,
+      label,
+      done: false,
+    }));
+  }
+  return getDefaultChecklist(booking.serviceName);
 };
 
 const toAddOns = (
@@ -124,7 +219,7 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
     repo.findCustomer(booking.customerId),
     booking.serviceId
       ? repo.findService(booking.serviceId)
-      : Promise.resolve(null),
+      : repo.findServiceByName(booking.serviceName),
   ]);
   const coords = booking.address.location?.coordinates;
   return {
@@ -205,10 +300,43 @@ const LIVE_STATUSES: BookingStatus[] = [
 ];
 
 export const partnerJobsService = {
-  /** GET /partner/jobs. The signed-in partner's live jobs, straight from the bookings collection. */
-  async listLiveJobs(userId: string): Promise<JobListItemDto[]> {
+  /** GET /partner/jobs. The signed-in partner's live or filtered jobs, straight from the bookings collection. */
+  async listLiveJobs(userId: string, tab?: string): Promise<JobListItemDto[]> {
     const partner = await getPartnerProfile(userId);
-    const rows = await repo.listLiveForPartner(partner._id, LIVE_STATUSES);
+    let statuses: BookingStatus[] | undefined = LIVE_STATUSES;
+    if (tab === "completed") {
+      statuses = ["completed", "rated"];
+    } else if (tab === "cancelled") {
+      statuses = [
+        "cancelled_by_partner",
+        "cancelled_by_customer",
+        "cancelled_by_admin",
+        "disputed",
+        "no_show",
+      ];
+    } else if (tab === "active") {
+      statuses = ["en_route", "arrived", "in_progress"];
+    } else if (tab === "upcoming") {
+      statuses = ["assigned", "confirmed"];
+    } else if (tab === "all") {
+      statuses = undefined;
+    } else if (tab === "requests") {
+      const requests = await repo.findJobRequests(partner._id, new Date());
+      return requests.map((b) => ({
+        id: b._id.toString(),
+        status: "requested" as BookingStatus,
+        service: { name: b.serviceName },
+        customerName: maskName(b.customerName),
+        address: [b.address.line1, b.address.area, b.address.city]
+          .filter(Boolean)
+          .join(", "),
+        scheduledAt: b.scheduledAt.toISOString(),
+        slot: b.slot ?? null,
+        partnerEarning: money(b.partnerEarning ?? 0),
+      }));
+    }
+
+    const rows = await repo.listLiveForPartner(partner._id, statuses);
     return rows.map((b) => ({
       id: b._id.toString(),
       status: b.status,
@@ -478,7 +606,7 @@ export const partnerJobsService = {
     data: { description: string; quantity: number; amount: number; reason?: string },
     now: Date = new Date(),
   ) {
-    const { partner } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
     const chargeId = new Types.ObjectId();
     const newCharge = {
       _id: chargeId,
@@ -490,7 +618,39 @@ export const partnerJobsService = {
       requestedAt: now,
     };
 
-    await repo.addExtraCharge(bookingId, partner._id, newCharge);
+    await repo.addExtraCharge(booking._id.toString(), partner._id, newCharge);
+
+    try {
+      const io = getIOIfReady();
+      if (io) {
+        const payload = {
+          bookingId: booking._id.toString(),
+          charge: {
+            id: chargeId.toString(),
+            _id: chargeId.toString(),
+            title: newCharge.title,
+            amount: newCharge.amount,
+            quantity: newCharge.quantity,
+            reason: newCharge.reason,
+            status: "pending",
+            requestedAt: now.toISOString(),
+          },
+        };
+        io.to(rooms.booking(booking._id.toString())).emit("booking:extra_charge", payload);
+        io.to(rooms.booking(booking._id.toString())).emit("booking:updated", { bookingId: booking._id.toString() });
+        if (bookingId && bookingId !== booking._id.toString()) {
+          io.to(rooms.booking(bookingId)).emit("booking:extra_charge", payload);
+          io.to(rooms.booking(bookingId)).emit("booking:updated", { bookingId });
+        }
+        if (booking?.customerId) {
+          io.to(rooms.user(booking.customerId.toString())).emit("booking:updated", {
+            bookingId: booking._id.toString(),
+          });
+        }
+      }
+    } catch {
+      // Best effort
+    }
 
     return {
       id: chargeId.toString(),
@@ -503,6 +663,7 @@ export const partnerJobsService = {
       requestedAt: now.toISOString(),
     };
   },
+
 
   /** PATCH /partner/jobs/:id/checklist/:itemId */
   async updateChecklistItem(
