@@ -4,15 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>HomeCareX</title>
+    <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&family=Poppins:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <style>
+      .boot-loader { display: flex; min-height: 100vh; align-items: center; justify-content: center; gap: 12px; font-family: Poppins, system-ui, sans-serif; font-size: 14px; color: #6b6880; background: #fafaff; }
+      .boot-spinner { width: 22px; height: 22px; border: 3px solid #e4e2f0; border-top-color: #4338ca; border-radius: 50%; animation: boot-spin .8s linear infinite; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until the app loads (slow network): React replaces this on mount, so the page is never a blank white screen. -->
+      <div role="status" aria-live="polite" class="boot-loader">
+        <span class="boot-spinner" aria-hidden="true"></span>
+        <span>Loading HomeCareX…</span>
+      </div>
+      <noscript>HomeCareX needs JavaScript to run. Please enable it and reload.</noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

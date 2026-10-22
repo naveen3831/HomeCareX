@@ -1081,3 +1081,15 @@ body {
   .delete-ring, .logout-ring { animation: none; opacity: 0; }
 }
 
+/* Customer area: people who ask for reduced motion get no looping or entrance animation (spinners keep turning so loading still shows). */
+@media (prefers-reduced-motion: reduce) {
+  .customer-shell *:not(.animate-spin),
+  .customer-shell *:not(.animate-spin)::before,
+  .customer-shell *:not(.animate-spin)::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

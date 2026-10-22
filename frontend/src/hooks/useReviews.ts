@@ -61,6 +61,7 @@ export function useCreateReview() {
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
     void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+    void queryClient.invalidateQueries({ queryKey: ["customer"] });
   };
   return useMutation<MyReview, NormalizedApiError, CreateReviewVariables>({
     mutationFn: ({ bookingId, ...input }) => createBookingReview(bookingId, input),
