@@ -16,7 +16,7 @@ interface Props {
 export const tabId = (tab: BookingTab): string => `booking-tab-${tab}`;
 
 /**
- * Upcoming / Live / Completed / Cancelled, with an optional action at the right.
+ * Equal-width booking tabs, with an optional action at the right.
  * ARIA tabs pattern: one tab stop, arrows/Home/End move between tabs.
  */
 export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
@@ -44,7 +44,10 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
       <div
         role="tablist"
         aria-label="Booking status"
-        className="grid min-w-0 flex-1 grid-cols-4"
+        className="grid min-w-0 flex-1"
+        style={{
+          gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`,
+        }}
       >
         {TABS.map((tab, i) => {
           const selected = tab.id === active;
@@ -63,7 +66,7 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => move(e, i)}
               className={clsx(
-                "-mb-px min-h-[44px] truncate border-b-2 px-0.5 text-[13px] font-medium transition-colors sm:px-1 sm:text-sm",
+                "-mb-px flex min-h-[44px] w-full min-w-0 items-center justify-center whitespace-nowrap border-b-2 px-0.5 text-center text-[11px] font-medium transition-colors sm:px-1 sm:text-sm",
                 selected
                   ? "border-brand text-brand"
                   : "border-transparent text-muted hover:text-ink",
