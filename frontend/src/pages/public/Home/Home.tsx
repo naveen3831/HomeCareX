@@ -4,7 +4,7 @@ import HeroSearch from "../../../components/public/HeroSearch";
 import CategoryCard from "../../../components/public/CategoryCard";
 import Seo from "../../../components/common/Seo";
 import OptimizedImage from "../../../components/common/OptimizedImage";
-
+import { organizationLd, websiteLd } from "../../../lib/jsonld";
 // Below-the-fold sections load in separate chunks so they do not block the first paint.
 const TrustStrip = lazy(() => import("../../../components/public/TrustStrip"));
 const Testimonials = lazy(() => import("../../../components/public/Testimonials"));
@@ -482,10 +482,10 @@ const Home: React.FC = () => {
   
 return (
   <div className="hcx overflow-x-hidden bg-white">
-    <Seo
+       <Seo
       title="HomeCareX | Trusted Home Services"
       description="Book trusted home cleaning, plumbing, electrical, painting, appliance repair and maintenance services with HomeCareX."
-      path="/"
+      jsonLd={[organizationLd(), websiteLd()]}
     />
 
     <style>{styles}</style>

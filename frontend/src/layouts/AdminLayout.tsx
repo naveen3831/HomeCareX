@@ -9,13 +9,14 @@ import '@/styles/admin.css';
 export const AdminLayout: React.FC = () => {
   const { pathname } = useLocation();
 
-  // Customers has its own search bar.
+  // Customers has its own search bar under the page title.
   const hideGlobalSearch =
     pathname === '/admin/customers' ||
     pathname.startsWith('/admin/customers/');
 
-  // These pages position search on the left.
+  // These pages position search on the left under the navbar.
   const normalizedPath = pathname.replace(/\/+$/, '');
+
   const searchLeft = [
     '/admin/manage-partners',
     '/admin/categories',
