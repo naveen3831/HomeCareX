@@ -1,8 +1,13 @@
 import type { PageMeta } from "@/types/catalog";
 import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 
-/** The four tabs on /customer/bookings. The server owns which statuses each one contains. */
-export type BookingTab = "upcoming" | "live" | "completed" | "cancelled";
+/** Overdue is a schedule-based view, not a stored completion or cancellation status. */
+export type BookingTab =
+  | "upcoming"
+  | "live"
+  | "overdue"
+  | "completed"
+  | "cancelled";
 
 export type BookingSort =
   | "newest"
@@ -17,6 +22,7 @@ export type BookingSort =
  * `status` is a tab name, a single status ("en_route") or a comma list ("completed,cancelled").
  */
 export interface BookingListParams {
+  tab?: BookingTab;
   status?: string;
   search?: string;
   date?: string; // YYYY-MM-DD

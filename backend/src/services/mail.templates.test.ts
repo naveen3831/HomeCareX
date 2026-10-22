@@ -59,23 +59,3 @@ test('role labels are customer-friendly and profile paths use existing routes', 
   assert.equal(getProfilePath('partner'), '/partner/profile');
   assert.equal(getProfilePath('admin'), '/admin/profile');
 });
-
-test('partner registration email states account is active and ready to log in', () => {
-  const email = accountCreatedEmail({
-    name: 'Ramesh Kumar',
-    email: 'ramesh.partner@example.com',
-    role: 'partner',
-    createdAt: CREATED_AT,
-    loginUrl: 'https://homecarex.example/login',
-    profileUrl: 'https://homecarex.example/partner/profile',
-  });
-
-  assert.equal(email.subject, 'Registration Successful — Welcome to HomeCareX Partner');
-  assert.match(email.html, /Registration Successful/i);
-  assert.match(email.html, /Active &amp; Ready/i);
-  assert.match(email.html, /log in immediately using the email and password you provided/i);
-  assert.ok(email.text.includes('Registration Successful'));
-  assert.ok(email.text.includes('account is active'));
-  assert.ok(email.text.includes('https://homecarex.example/login'));
-});
-

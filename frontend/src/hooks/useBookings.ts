@@ -1,4 +1,5 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { retryTransient } from "@/services/catalogApi";
 import { bookingApi, type NormalizedApiError } from "@/services/bookingApi";
 import type {
@@ -33,8 +34,8 @@ export interface UseBookingsParams {
   limit: number;
 }
 
-/** How often the Live tab re-checks for a partner moving to the next step. */
-const LIVE_REFRESH_MS = 30_000;
+/** Open service views also change when a scheduled window or payment hold ends. */
+const REFRESH_MS = 30_000;
 
 /**
  * One page of the customer's bookings for a tab and its filters.
@@ -44,16 +45,27 @@ const LIVE_REFRESH_MS = 30_000;
  * search or any filter changes.
  */
 export function useBookings(params: UseBookingsParams) {
+  const online = useOnlineStatus();
   const { tab, status, ...rest } = params;
-  const request: BookingListParams = { ...rest, status: status ?? tab };
+  const request: BookingListParams = { ...rest, tab, status: status ?? tab };
 
   return useQuery<BookingPage, NormalizedApiError>({
     queryKey: bookingKeys.list(request),
     queryFn: ({ signal }) => bookingApi.listBookings(request, signal),
-    placeholderData: keepPreviousData,
+    // Keep pagination smooth, but never show another tab's cards during a tab change.
+    placeholderData: (previousData, previousQuery) => {
+      const previous = previousQuery?.queryKey[2] as
+        | BookingListParams
+        | undefined;
+      return previous?.tab === tab ? previousData : undefined;
+    },
     staleTime: 15_000,
+    enabled: online,
     retry: retryTransient,
-    // Only the Live tab changes under the customer's feet; polling pauses while the tab is hidden.
-    refetchInterval: tab === "live" ? LIVE_REFRESH_MS : false,
+    refetchInterval:
+      online && (tab === "live" || tab === "upcoming" || tab === "overdue")
+        ? REFRESH_MS
+        : false,
+    refetchOnReconnect: true,
   });
 }

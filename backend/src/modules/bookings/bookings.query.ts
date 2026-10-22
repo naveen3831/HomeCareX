@@ -1,19 +1,21 @@
 import { Types, type FilterQuery } from 'mongoose';
 import { z } from 'zod';
 import type { IBooking } from '../../models/Booking';
-import { BOOKING_STATUSES, type BookingStatus } from './bookings.constants';
+import { BOOKING_STATUSES, SERVICE_SLOTS, type BookingStatus } from './bookings.constants';
+import { nowInBookingTz } from './bookings.time';
 
 /* ------------------------------------------------------------------ */
 /* Tabs: one place that says which statuses belong to which tab        */
 /* ------------------------------------------------------------------ */
 
-export const BOOKING_TABS = ['upcoming', 'live', 'completed', 'cancelled'] as const;
+export const BOOKING_TABS = ['upcoming', 'live', 'overdue', 'completed', 'cancelled'] as const;
 export type BookingTab = (typeof BOOKING_TABS)[number];
 
-/** Every status appears in exactly one tab. Mirrors the grouping the customer UI already uses. */
+/** Upcoming and Overdue share pre-service statuses; the schedule separates those two views. */
 export const TAB_STATUSES: Record<BookingTab, readonly BookingStatus[]> = {
   upcoming: ['pending_payment', 'confirmed', 'created', 'searching_for_partner', 'assigned'],
   live: ['en_route', 'arrived', 'in_progress'],
+  overdue: ['pending_payment', 'confirmed', 'created', 'searching_for_partner', 'assigned'],
   completed: ['completed', 'rated', 'disputed'],
   cancelled: ['cancelled_by_customer', 'cancelled_by_partner', 'cancelled_by_admin', 'no_show'],
 };
@@ -55,6 +57,7 @@ const statusList = z
   .pipe(z.array(statusToken).min(1, 'status must not be empty').max(20));
 
 export const listBookingsQuerySchema = z.object({
+  tab: z.preprocess(blankToUndefined, z.enum(BOOKING_TABS).optional()),
   status: z.preprocess(blankToUndefined, statusList.optional()),
   search: z.preprocess(blankToUndefined, z.string().trim().min(1).max(60).optional()),
   date: z.preprocess(
@@ -80,6 +83,26 @@ const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$
 const isTab = (t: string): t is BookingTab => (BOOKING_TABS as readonly string[]).includes(t);
 const isObjectId = (s: string): boolean => /^[0-9a-fA-F]{24}$/.test(s);
 
+/** A passed service window is overdue, never proof that a job was completed. */
+export function pastScheduleFilter(now: Date): FilterQuery<IBooking> {
+  const { date, minutes } = nowInBookingTz(now);
+  const endedSlots = SERVICE_SLOTS.filter((slot) => {
+    const [hour, minute] = slot.slice(-5).split(':').map(Number);
+    return hour * 60 + minute <= minutes;
+  });
+  const dayStart = new Date(now.getTime() - minutes * 60_000);
+  dayStart.setUTCSeconds(0, 0);
+
+  return {
+    $or: [
+      { date: { $lt: date, $ne: '' } },
+      { date, slot: { $in: endedSlots } },
+      // Older partner-created bookings may only have scheduledAt. Do not guess a missing slot duration.
+      { $and: [{ $or: [{ date: null }, { date: '' }] }, { scheduledAt: { $lt: dayStart } }] },
+    ],
+  };
+}
+
 /**
  * An unpaid booking whose slot hold ran out is shown as Cancelled, not Upcoming. The customer UI has always
  * classified it that way, so the server does too, otherwise tab counts and pages would disagree with the cards.
@@ -93,12 +116,15 @@ function statusConditions(tokens: string[], now: Date): FilterQuery<IBooking>[] 
       plain.add(token);
       continue;
     }
-    if (token === 'upcoming') {
-      TAB_STATUSES.upcoming.filter((s) => s !== 'pending_payment').forEach((s) => plain.add(s));
-      extra.push({
-        status: 'pending_payment',
-        $or: [{ holdExpiresAt: null }, { holdExpiresAt: { $gt: now } }],
-      });
+    if (token === 'upcoming' || token === 'overdue') {
+      const eligible: FilterQuery<IBooking> = {
+        $or: [
+          { status: { $in: TAB_STATUSES.upcoming.filter((s) => s !== 'pending_payment') } },
+          { status: 'pending_payment', $or: [{ holdExpiresAt: null }, { holdExpiresAt: { $gt: now } }] },
+        ],
+      };
+      const elapsed = pastScheduleFilter(now);
+      extra.push({ $and: [eligible, token === 'overdue' ? elapsed : { $nor: [elapsed] }] });
     } else if (token === 'cancelled') {
       TAB_STATUSES.cancelled.forEach((s) => plain.add(s));
       extra.push({ status: 'pending_payment', holdExpiresAt: { $lte: now } });
@@ -118,10 +144,16 @@ function statusConditions(tokens: string[], now: Date): FilterQuery<IBooking>[] 
  */
 export function buildBookingFilter(
   customerId: string,
-  q: Pick<ListBookingsQuery, 'status' | 'search' | 'date' | 'service'>,
+  q: Pick<ListBookingsQuery, 'tab' | 'status' | 'search' | 'date' | 'service'>,
   now: Date = new Date()
 ): FilterQuery<IBooking> {
   const and: FilterQuery<IBooking>[] = [];
+
+  // A selected raw status narrows its tab; it must never bypass the schedule boundary.
+  if (q.tab) {
+    const conditions = statusConditions([q.tab], now);
+    and.push(conditions.length === 1 ? conditions[0] : { $or: conditions });
+  }
 
   if (q.status) {
     const conditions = statusConditions(q.status, now);

@@ -445,7 +445,7 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                     const rating = clampRating(t.rating);
 
                     return (
-                      <div
+                      <article
                         key={t.id}
                         role="group"
                         aria-roledescription="slide"
@@ -507,7 +507,7 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                             </p>
                           </div>
                         </footer>
-                      </div>
+                      </article>
                     );
                   })}
                 </div>

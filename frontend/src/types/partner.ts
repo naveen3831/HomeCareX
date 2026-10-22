@@ -88,5 +88,4 @@ export interface JobsResponse {
 export interface JobMutationResult {
   success: boolean;
   message?: string;
-  status: number;
 }

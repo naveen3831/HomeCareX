@@ -1,0 +1,1049 @@
+
+/* ============================================
+   HomeCareX | Admin Reports
+   File: src/pages/admin/Reports/index.css
+   Professional admin dashboard
+============================================ */
+
+/* --------------------------------------------
+   1. Page foundation
+-------------------------------------------- */
+
+.admin-page-container {
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  color: #172033;
+  box-sizing: border-box;
+}
+
+.admin-page-container *,
+.admin-page-container *::before,
+.admin-page-container *::after {
+  box-sizing: border-box;
+}
+
+.admin-page-container h1,
+.admin-page-container h2,
+.admin-page-container h3 {
+  margin-top: 0;
+  line-height: 1.4;
+}
+
+.admin-page-container h1 {
+  margin-bottom: 0;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+}
+
+.admin-page-container h2 {
+  color: #172033;
+  font-weight: 700;
+}
+
+.admin-page-container p {
+  line-height: 1.6;
+}
+
+.admin-page-container button,
+.admin-page-container input,
+.admin-page-container select {
+  font-family: inherit;
+}
+
+/* --------------------------------------------
+   2. Buttons and keyboard accessibility
+-------------------------------------------- */
+
+.admin-page-container button {
+  min-height: 40px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.admin-page-container button:focus-visible {
+  outline: 3px solid rgb(59 130 246 / 35%);
+  outline-offset: 3px;
+}
+
+.admin-page-container button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-page-container button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.admin-page-container button.bg-blue-600 {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.admin-page-container button.bg-blue-600:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  box-shadow: 0 3px 8px rgb(37 99 235 / 16%);
+}
+
+.admin-page-container button.border-gray-300 {
+  border: 1px solid #dbe1ea;
+  background: #ffffff;
+  color: #344054;
+}
+
+.admin-page-container button.border-gray-300:hover:not(:disabled) {
+  border-color: #b8c5d6;
+  background: #f8fafc;
+}
+
+/* --------------------------------------------
+   3. Search and filter toolbar
+-------------------------------------------- */
+
+.admin-page-container .admin-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 20px;
+}
+
+/* Search box */
+
+.admin-page-container .admin-search-box {
+  display: flex;
+  width: min(100%, 560px);
+  min-width: 0;
+  min-height: 46px;
+  align-items: center;
+  gap: 11px;
+  padding: 0 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #98a2b3;
+  box-shadow: 0 2px 5px rgb(16 24 40 / 3%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-page-container .admin-search-box:focus-within {
+  border-color: #93b4f8;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 10%);
+}
+
+.admin-page-container .admin-search-box input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.admin-page-container .admin-search-box input:focus {
+  border: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.admin-page-container .admin-search-box input::placeholder {
+  color: #98a2b3;
+}
+
+/* Clear-search button */
+
+.admin-page-container button.admin-search-clear {
+  display: inline-flex;
+  width: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #667085;
+}
+
+.admin-page-container button.admin-search-clear:hover:not(:disabled) {
+  background: #f2f4f7;
+  color: #172033;
+}
+
+/* Revenue information */
+
+.admin-page-container .admin-search-note {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  color: #344054;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.admin-page-container .admin-search-note span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Filter toggle */
+
+.admin-page-container button.admin-filter-toggle {
+  display: inline-flex;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 16px;
+  border: 1px solid #dbe2ec;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #344054;
+  box-shadow: 0 2px 5px rgb(16 24 40 / 3%);
+  white-space: nowrap;
+}
+
+.admin-page-container button.admin-filter-toggle:hover:not(:disabled) {
+  border-color: #a9c2fb;
+  background: #f8faff;
+  color: #1d4ed8;
+}
+
+.admin-page-container button.admin-filter-toggle[aria-expanded="true"] {
+  border-color: #a9c2fb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+/* Active-filter counter */
+
+.admin-page-container .admin-filter-count {
+  display: inline-flex;
+  min-width: 21px;
+  height: 21px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+/* --------------------------------------------
+   4. Expandable filter panel
+-------------------------------------------- */
+
+.admin-page-container section.admin-filter-panel {
+  margin: 0 0 22px;
+  padding: 24px;
+  border: 1px solid #e4e9f1;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 4px 6px rgb(16 24 40 / 2%),
+    0 10px 24px rgb(16 24 40 / 3%);
+  animation: admin-filter-open 180ms ease-out;
+}
+
+.admin-page-container .admin-filter-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 19px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.admin-page-container .admin-filter-panel-header h2 {
+  margin: 0 0 5px;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.admin-page-container .admin-filter-panel-header p {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+}
+
+/* Close button */
+
+.admin-page-container button.admin-filter-close {
+  display: inline-flex;
+  width: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #e4e7ec;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #667085;
+}
+
+.admin-page-container button.admin-filter-close:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #172033;
+}
+
+/* --------------------------------------------
+   5. Filter fields
+-------------------------------------------- */
+
+.admin-page-container .admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 22px 0;
+}
+
+.admin-page-container label.admin-filter-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.admin-page-container .admin-filter-field > span {
+  display: block;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.admin-page-container .admin-filter-field input,
+.admin-page-container .admin-filter-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #101828;
+  font-size: 14px;
+  font-weight: 400;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 3%);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.admin-page-container .admin-filter-field input::placeholder {
+  color: #98a2b3;
+}
+
+.admin-page-container .admin-filter-field input:hover,
+.admin-page-container .admin-filter-field select:hover {
+  border-color: #aeb9c9;
+}
+
+.admin-page-container .admin-filter-field input:focus,
+.admin-page-container .admin-filter-field select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgb(59 130 246 / 12%);
+}
+
+/* --------------------------------------------
+   6. Filter footer and actions
+-------------------------------------------- */
+
+.admin-page-container .admin-filter-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid #edf0f5;
+}
+
+.admin-page-container .admin-filter-hint {
+  color: #667085;
+  font-size: 12px;
+}
+
+.admin-page-container .admin-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.admin-page-container button.admin-filter-reset {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px solid #d0d5dd;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #344054;
+}
+
+.admin-page-container button.admin-filter-reset:hover:not(:disabled) {
+  border-color: #b8c5d6;
+  background: #f8fafc;
+}
+
+.admin-page-container button.admin-filter-apply {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border: 1px solid #2563eb;
+  border-radius: 9px;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgb(37 99 235 / 12%);
+}
+
+.admin-page-container button.admin-filter-apply:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  box-shadow: 0 4px 9px rgb(37 99 235 / 16%);
+}
+
+@keyframes admin-filter-open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --------------------------------------------
+   7. Report tabs
+-------------------------------------------- */
+
+.admin-page-container nav[aria-label="Report type"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding-bottom: 3px;
+}
+
+.admin-page-container nav[aria-label="Report type"] button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border: 1px solid #d9dee8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #344054;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 2%);
+  white-space: nowrap;
+}
+
+.admin-page-container nav[aria-label="Report type"]
+  button[aria-pressed="true"] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 3px 8px rgb(37 99 235 / 18%);
+}
+
+.admin-page-container nav[aria-label="Report type"]
+  button[aria-pressed="true"]:hover:not(:disabled) {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+}
+
+.admin-page-container nav[aria-label="Report type"]
+  button:hover:not(:disabled) {
+  border-color: #a9c2fb;
+}
+
+/* --------------------------------------------
+   8. Report heading and export button
+-------------------------------------------- */
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"] {
+  min-width: 0;
+}
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"]
+  > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"]
+  > div:first-child
+  h2 {
+  margin: 0;
+  color: #172033;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.4px;
+}
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"]
+  > div:first-child
+  > button {
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 10px 17px;
+  border: 1px solid #d9dee8;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #344054;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 3%);
+}
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"]
+  > div:first-child
+  > button:hover:not(:disabled) {
+  border-color: #a9c2fb;
+  background: #f8faff;
+  color: #1d4ed8;
+}
+
+.admin-page-container
+  section[aria-labelledby="active-report-title"]
+  strong {
+  color: #344054;
+  font-weight: 700;
+}
+
+/* --------------------------------------------
+   9. Summary card grids
+-------------------------------------------- */
+
+.admin-page-container .admin-report-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
+}
+
+/* Bookings: five cards on wide screens */
+
+.admin-page-container .admin-report-metrics--bookings {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* Partner Performance: eight cards */
+
+.admin-page-container .admin-report-metrics--partners {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+/* Revenue cards */
+
+.admin-page-container .admin-report-metrics--revenue {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Shared metric card styling */
+
+.admin-page-container .admin-report-metrics > article {
+  display: flex;
+  min-width: 0;
+  min-height: 116px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgb(16 24 40 / 3%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.admin-page-container .admin-report-metrics > article:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 5px 14px rgb(16 24 40 / 5%);
+}
+
+.admin-page-container .admin-report-metrics > article p:first-child {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+.admin-page-container .admin-report-metrics > article p:last-child {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(20px, 1.5vw, 25px);
+  font-weight: 750;
+  letter-spacing: -0.45px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------
+   10. Partner Performance — neutral cards
+-------------------------------------------- */
+
+.admin-page-container
+  .admin-report-metrics--partners
+  > article {
+  display: flex;
+  position: relative;
+  min-width: 0;
+  min-height: 124px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 11px;
+  margin: 0;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgb(16 24 40 / 3%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* Uniform hover without colored accents */
+
+.admin-page-container
+  .admin-report-metrics--partners
+  > article:hover {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 5px 14px rgb(16 24 40 / 5%);
+}
+
+/* Partner card labels */
+
+.admin-page-container
+  .admin-report-metrics--partners
+  > article
+  p:first-child {
+  margin: 0;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.5;
+}
+
+/* Partner card values */
+
+.admin-page-container
+  .admin-report-metrics--partners
+  > article
+  p:last-child {
+  margin: 0;
+  color: #172033;
+  font-size: clamp(21px, 1.6vw, 25px);
+  font-weight: 750;
+  letter-spacing: -0.5px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------
+   11. Data tables
+-------------------------------------------- */
+
+.admin-page-container .overflow-x-auto {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e4e9f1;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgb(16 24 40 / 3%);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+}
+
+.admin-page-container table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.admin-page-container table th,
+.admin-page-container table td {
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-page-container thead {
+  background: #f8fafc;
+}
+
+.admin-page-container th {
+  padding: 15px 17px;
+  border-bottom: 1px solid #e4e9f1;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-page-container td {
+  padding: 15px 17px;
+  border-bottom: 1px solid #eef1f5;
+  color: #344054;
+  line-height: 1.55;
+  white-space: nowrap;
+}
+
+.admin-page-container tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.admin-page-container tbody tr:hover {
+  background-color: #f8faff;
+}
+
+.admin-page-container tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Shortened IDs */
+
+.admin-page-container td.report-id-cell {
+  color: #475467;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* --------------------------------------------
+   12. Loading, empty and error states
+-------------------------------------------- */
+
+.admin-page-container [role="status"] {
+  color: #667085;
+}
+
+.admin-page-container [role="status"].rounded-xl {
+  border: 1px dashed #d0d9e6;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.admin-page-container [role="alert"] {
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  background: #fff5f5;
+  color: #991b1b;
+}
+
+.admin-page-container [role="alert"] p {
+  margin: 0;
+}
+
+.admin-page-container [role="alert"] button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #991b1b;
+}
+
+.admin-page-container [role="alert"] button:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+/* Search result count */
+
+.admin-page-container .admin-search-results {
+  margin: 0 0 12px;
+  color: #667085;
+  font-size: 12px;
+}
+
+/* --------------------------------------------
+   13. Medium desktop
+-------------------------------------------- */
+
+@media (max-width: 1280px) {
+  .admin-page-container .admin-report-metrics--bookings {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-page-container .admin-report-metrics--partners {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* --------------------------------------------
+   14. Tablet layout
+-------------------------------------------- */
+
+@media (max-width: 900px) {
+  .admin-page-container .admin-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 17px;
+  }
+
+  .admin-page-container .admin-report-metrics,
+  .admin-page-container .admin-report-metrics--bookings,
+  .admin-page-container .admin-report-metrics--partners,
+  .admin-page-container .admin-report-metrics--revenue {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-page-container .admin-report-metrics > article {
+    min-height: 100px;
+    padding: 17px;
+  }
+
+  .admin-page-container
+    .admin-report-metrics--partners
+    > article {
+    min-height: 110px;
+    padding: 17px;
+  }
+
+  .admin-page-container th,
+  .admin-page-container td {
+    padding: 13px 14px;
+  }
+}
+
+/* --------------------------------------------
+   15. Mobile layout
+-------------------------------------------- */
+
+@media (max-width: 600px) {
+  .admin-page-container h1 {
+    font-size: 24px;
+  }
+
+  .admin-page-container .admin-filter-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .admin-page-container .admin-search-box {
+    width: 100%;
+    max-width: none;
+  }
+
+  .admin-page-container button.admin-filter-toggle {
+    align-self: flex-end;
+    gap: 7px;
+    padding: 9px 11px;
+    font-size: 13px;
+  }
+
+  .admin-page-container section.admin-filter-panel {
+    padding: 16px;
+  }
+
+  .admin-page-container .admin-filter-panel-header {
+    gap: 10px;
+    padding-bottom: 15px;
+  }
+
+  .admin-page-container .admin-filter-panel-header h2 {
+    font-size: 17px;
+  }
+
+  .admin-page-container .admin-filter-panel-header p {
+    font-size: 12px;
+  }
+
+  .admin-page-container .admin-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 15px;
+    padding: 18px 0;
+  }
+
+  .admin-page-container .admin-filter-panel-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-page-container .admin-filter-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .admin-page-container button.admin-filter-reset,
+  .admin-page-container button.admin-filter-apply {
+    width: 100%;
+    padding: 10px;
+  }
+
+  .admin-page-container nav[aria-label="Report type"] {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-page-container nav[aria-label="Report type"] button {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 12px;
+  }
+
+  .admin-page-container
+    section[aria-labelledby="active-report-title"]
+    > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .admin-page-container
+    section[aria-labelledby="active-report-title"]
+    > div:first-child
+    > button {
+    width: 100%;
+  }
+
+  .admin-page-container .admin-report-metrics,
+  .admin-page-container .admin-report-metrics--bookings,
+  .admin-page-container .admin-report-metrics--partners,
+  .admin-page-container .admin-report-metrics--revenue {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .admin-page-container .admin-report-metrics > article {
+    min-height: 92px;
+    padding: 13px;
+  }
+
+  .admin-page-container .admin-report-metrics > article p:first-child {
+    font-size: 11px;
+  }
+
+  .admin-page-container .admin-report-metrics > article p:last-child {
+    font-size: 19px;
+  }
+
+  /* Neutral Partner Performance cards on mobile */
+
+  .admin-page-container
+    .admin-report-metrics--partners
+    > article {
+    min-height: 100px;
+    gap: 9px;
+    padding: 14px;
+    border: 1px solid #e5eaf2;
+    border-radius: 10px;
+  }
+
+  .admin-page-container
+    .admin-report-metrics--partners
+    > article
+    p:first-child {
+    font-size: 11px;
+  }
+
+  .admin-page-container
+    .admin-report-metrics--partners
+    > article
+    p:last-child {
+    font-size: 19px;
+    letter-spacing: -0.3px;
+  }
+
+  .admin-page-container th,
+  .admin-page-container td {
+    padding: 11px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Very small mobile screens */
+
+@media (max-width: 360px) {
+  .admin-page-container .admin-report-metrics,
+  .admin-page-container .admin-report-metrics--bookings,
+  .admin-page-container .admin-report-metrics--partners,
+  .admin-page-container .admin-report-metrics--revenue {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .admin-page-container .admin-report-metrics > article {
+    min-height: 80px;
+  }
+}
+
+/* --------------------------------------------
+   16. Reduced-motion accessibility
+-------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-page-container *,
+  .admin-page-container *::before,
+  .admin-page-container *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,32 +1,4 @@
-import { useState } from "react";
-import {
-  Link,
-  useLocation,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
-import {
-  LifeBuoy,
-  Search,
-  Plus,
-  MessageSquare,
-  Ticket,
-  ChevronDown,
-} from "lucide-react";
-import { useTickets, useTicketUpdates } from "@/hooks/useTickets";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import {
-  CATEGORIES,
-  problem,
-  type TicketCategory,
-  type TicketStatus,
-} from "@/features/support/types";
-import { searchHelp } from "@/features/support/helpCenter";
-import TicketCard from "@/components/support/TicketCard";
-import TicketStatusFilter from "@/components/support/TicketStatusFilter";
-import CreateTicketForm from "@/components/support/CreateTicketForm";
-import CustomerTicketThread from "@/components/support/CustomerTicketThread";
-import "./Support.css";
+import PageShell from "../../../components/layout/PageShell";
 
 function HeroIllustration() {
   return (
@@ -230,79 +202,10 @@ function TicketList() {
   );
 }
 export default function Support() {
-  const { ticketId } = useParams<{ ticketId: string }>();
-  const [params] = useSearchParams();
-  const location = useLocation();
-  const online = useOnlineStatus();
-  useTicketUpdates();
-  const view = ticketId
-    ? "thread"
-    : (params.get("view") ??
-      (location.pathname.endsWith("/tickets") ? "tickets" : "help"));
-  const rawCategory = params.get("category");
-  const category = CATEGORIES.includes(rawCategory as TicketCategory)
-    ? (rawCategory as TicketCategory)
-    : "booking";
-  const showHelp = !ticketId && view !== "new" && view !== "tickets";
   return (
-    <div className="hcx-support hcx-support--proof hcx-support--reference">
-      <header className="hcx-support-hero">
-        <span className="hcx-support-icon">
-          <LifeBuoy size={30} aria-hidden="true" />
-        </span>
-        <div>
-          <p className="hcx-support-eyebrow">HERE TO HELP</p>
-          <h1>
-            How can we <span className="hcx-support-accent">help you?</span>
-          </h1>
-          <p>Find an answer or talk to the HomeCareX team.</p>
-        </div>
-        <HeroIllustration />
-      </header>
-      <nav className="hcx-support-tabs" aria-label="Support sections">
-        <Link
-          to="/customer/support"
-          aria-current={showHelp ? "page" : undefined}
-        >
-          <LifeBuoy size={18} aria-hidden="true" />
-          Help center
-        </Link>
-        <Link
-          to="/customer/support/tickets"
-          aria-current={
-            view === "tickets" || view === "thread" ? "page" : undefined
-          }
-        >
-          <Ticket size={18} aria-hidden="true" />
-          My tickets
-        </Link>
-        <Link
-          to="/customer/support?view=new"
-          aria-current={view === "new" ? "page" : undefined}
-        >
-          <Plus size={16} aria-hidden="true" />
-          New ticket
-        </Link>
-      </nav>
-      {!online && (
-        <p className="hcx-support-notice" role="status">
-          You’re offline. You can read help articles and any conversation
-          already loaded. Reconnect to send a request.
-        </p>
-      )}
-      <div
-        className={`hcx-support-panel${showHelp ? " hcx-support-panel--help" : ""}`}
-      >
-        {ticketId ? (
-          <CustomerTicketThread key={ticketId} id={ticketId} />
-        ) : view === "new" ? (
-          <CreateTicketForm key={category} category={category} />
-        ) : view === "tickets" ? (
-          <TicketList />
-        ) : (
-          <HelpCenter />
-        )}
-      </div>
-    </div>
+    <PageShell
+      title="Support"
+      description="Get help and contact support."
+    />
   );
 }

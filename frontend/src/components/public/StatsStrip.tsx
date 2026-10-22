@@ -82,12 +82,17 @@ const StatsStrip: React.FC = () => {
   const [ref, seen] = useSeen<HTMLDivElement>();
 
   /*
-   * Later, replace this with your actual API call.
+   * Load the statistics only once the section has scrolled into view,
+   * so the request does not compete with the page load.
    *
    * If the API returns approved statistics,
    * setStats() will automatically update the UI.
    */
   useEffect(() => {
+    if (!seen) return undefined;
+
+    let active = true;
+
     const fetchStats = async () => {
       try {
         const response = await fetch("/api/stats");
@@ -102,7 +107,7 @@ const StatsStrip: React.FC = () => {
          * Only replace the initial values when
          * valid data is returned.
          */
-        if (Array.isArray(data) && data.length > 0) {
+        if (active && Array.isArray(data) && data.length > 0) {
           setStats(data);
         }
       } catch (error) {
@@ -115,7 +120,11 @@ const StatsStrip: React.FC = () => {
     };
 
     fetchStats();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [seen]);
 
   /*
    * If there is no data at all, hide the section.
@@ -136,8 +145,7 @@ const StatsStrip: React.FC = () => {
             "opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1)",
         }}
       >
-        <ul
-          role="list"
+        <dl
           className="
             grid
             grid-cols-1
@@ -156,7 +164,7 @@ const StatsStrip: React.FC = () => {
           "
         >
           {stats.map((stat, index) => (
-            <li
+            <div
               key={stat.id}
               className="
                 group
@@ -198,24 +206,24 @@ const StatsStrip: React.FC = () => {
                   group-hover:scale-110
                   group-hover:bg-[#ff8a3d]
                 "
-                aria-hidden="true"
+                aria-hidden
               >
                 {stat.icon}
               </span>
 
               {/* Content */}
               <div>
-                <h3 className="display text-lg font-extrabold text-[#4338ca]">
+                <dt className="display text-lg font-extrabold text-[#4338ca]">
                   {stat.title}
-                </h3>
+                </dt>
 
-                <p className="mt-1 text-sm leading-6 text-[#5b5b7a]">
+                <dd className="mt-1 text-sm leading-6 text-[#5b5b7a]">
                   {stat.description}
-                </p>
+                </dd>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </dl>
       </div>
     </div>
   );

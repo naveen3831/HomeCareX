@@ -2,30 +2,100 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>HomeCareX</title>
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&family=Poppins:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
+
+    <meta name="theme-color" content="#ffffff" />
+
+    <meta
+      name="description"
+      content="HomeCareX connects you with trusted professionals for cleaning, plumbing, electrical work, appliance repair, and home maintenance."
+    />
+
+    <title>HomeCareX | Professional Home Services</title>
+
+    <!-- Establish early connections for Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="preconnect"
+      href="https://fonts.gstatic.com"
+      crossorigin
+    />
+
+    <!-- Start downloading the hero image immediately. It is otherwise only
+         discovered after the lazy-loaded route chunks have run. -->
+    <link
+      rel="preload"
+      as="image"
+      type="image/webp"
+      imagesrcset="/images/background-800.webp 800w, /images/background-1280.webp 1280w, /images/background.webp 1672w"
+      imagesizes="100vw"
+      fetchpriority="high"
+    />
+
+    <!-- ONE font request for the whole app (DM Sans = header/footer, Manrope + Poppins = pages,
+         Bricolage = footer headings). Do not add @import font rules in components. -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" />
+    </noscript>
+    <!-- Instant first screen for the Home page ("/" only). It is plain HTML + CSS,
+         so the hero photo can paint before any JavaScript has loaded.
+         Home.tsx removes it after the real hero image has loaded. Keep the heights below
+         slightly smaller than the real header so this image is never smaller
+         than the hero React draws. -->
     <style>
-      .boot-loader { display: flex; min-height: 100vh; align-items: center; justify-content: center; gap: 12px; font-family: Poppins, system-ui, sans-serif; font-size: 14px; color: #6b6880; background: #fafaff; }
-      .boot-spinner { width: 22px; height: 22px; border: 3px solid #e4e2f0; border-top-color: #4338ca; border-radius: 50%; animation: boot-spin .8s linear infinite; }
-      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      #hcx-shell { position: absolute; top: 0; left: 0; right: 0; z-index: 2147483000; pointer-events: none; background: #eef0ff; }
+      #hcx-shell .sp { height: 64px; background: linear-gradient(90deg, #fff, #eef0ff, #fff); }
+      #hcx-shell img {
+        display: block; width: 100%;
+        height: calc(100vh - 64px); height: calc(100svh - 64px);
+        object-fit: cover; object-position: right;
+      }
+      #hcx-shell .ov { position: absolute; top: 64px; right: 0; bottom: 0; left: 0; background: rgba(255, 255, 255, .75); }
+      @media (min-width: 768px) {
+        #hcx-shell .sp { height: 100px; }
+        #hcx-shell img { height: calc(100vh - 100px); height: calc(100svh - 100px); }
+        #hcx-shell .ov { top: 100px; right: auto; width: 62%; background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.65), rgba(255,255,255,0)); }
+      }
     </style>
   </head>
+
   <body>
-    <div id="root">
-      <!-- Shown until the app loads (slow network): React replaces this on mount, so the page is never a blank white screen. -->
-      <div role="status" aria-live="polite" class="boot-loader">
-        <span class="boot-spinner" aria-hidden="true"></span>
-        <span>Loading HomeCareX…</span>
-      </div>
-      <noscript>HomeCareX needs JavaScript to run. Please enable it and reload.</noscript>
-    </div>
+    <div id="root"></div>
+
+    <script>
+      /* Home page only: paint the hero photo from plain HTML, on top of the page.
+         It does not depend on JavaScript, so it can be the Largest Contentful Paint.
+         Home.tsx removes it once React's own hero image has loaded. The timer is a safety net. */
+      (function () {
+        if (location.pathname !== "/") return;
+        document.body.insertAdjacentHTML(
+          "beforeend",
+          '<div id="hcx-shell" aria-hidden="true">' +
+          '<div class="sp"></div>' +
+          '<img src="/images/background.webp"' +
+          ' srcset="/images/background-800.webp 800w, /images/background-1280.webp 1280w, /images/background.webp 1672w"' +
+          ' sizes="100vw" width="1672" height="941" alt=""' +
+          ' fetchpriority="high" decoding="async" />' +
+          '<div class="ov"></div>' +
+          "</div>"
+        );
+        setTimeout(function () {
+          var s = document.getElementById("hcx-shell");
+          if (s) s.remove();
+        }, 8000);
+      })();
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
