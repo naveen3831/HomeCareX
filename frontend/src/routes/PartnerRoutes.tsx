@@ -20,7 +20,9 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
-
+import SupportTicketPage from "../pages/partner/SupportTicket/SupportTicketPage";
+import HelpPage from "../pages/partner/Help/HelpPage";
+import PartnerSupportPage from "../pages/partner/Support";
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
 
@@ -116,6 +118,7 @@ const REAL_ROUTE_PATHS = new Set([
   "work",
   "services",
   "service-area",
+  "support",
 ]);
 
 // Mounted by AppRoutes at /partner/*.
@@ -202,6 +205,9 @@ export default function PartnerRoutes() {
         <Route path="reviews" element={<PartnerReviewsPage />} />
 
         <Route path="performance/reviews" element={<PartnerReviewsPage />} />
+        <Route path="support/:id" element={<SupportTicketPage />} />
+        <Route path="help" element={<HelpPage />} />
+        <Route path="support" element={<PartnerSupportPage />} />
 
         {/* =====================================================
             Remaining Placeholder Pages

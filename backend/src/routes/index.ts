@@ -54,6 +54,7 @@ import {
 } from "../modules/partner-wallet/partner-wallet.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
+import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
 import {
   partnerServiceAreaRoutes,
   partnerServicesRoutes,
@@ -131,6 +132,7 @@ rootRouter.use("/partner/services", partnerServicesRoutes);
 rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
 rootRouter.use("/partner/performance", partnerPerformanceRoutes);
 rootRouter.use("/partner/reviews", partnerReviewsRoutes);
+rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
