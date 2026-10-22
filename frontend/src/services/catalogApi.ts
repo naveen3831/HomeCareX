@@ -23,8 +23,13 @@ export const catalogKeys = {
 };
 
 /** Retry network blips and 5xx; never 4xx (a bad query can't be fixed by retrying). */
-export const retryTransient = (failureCount: number, error: NormalizedApiError): boolean =>
-  failureCount < 2 && (error.status === null || error.status >= 500);
+/** Retry network failures and server errors, but never client errors. */
+export const retryTransient = (
+  failureCount: number,
+  error: NormalizedApiError,
+): boolean =>
+  failureCount < 2 &&
+  (error.status === 0 || error.status >= 500);
 
 /** GET /categories: active, admin-ordered, each with its service count. */
 export async function fetchCategories(signal?: AbortSignal): Promise<CatalogCategory[]> {
@@ -36,15 +41,128 @@ export async function fetchCategories(signal?: AbortSignal): Promise<CatalogCate
   }
 }
 
+
+/**
+ * Removes invalid or empty query parameters before sending them to the API.
+ */
+
+function sanitizeServiceParams(
+  params: ServiceListParams,
+): Record<string, string | number> {
+  const sanitized: Record<string, string | number> = {};
+
+  if (typeof params.q === "string" && params.q.trim()) {
+    sanitized.q = params.q.trim();
+  }
+
+  if (typeof params.category === "string" && params.category.trim()) {
+    sanitized.category = params.category.trim();
+  }
+
+  if (
+    typeof params.rating === "number" &&
+    Number.isFinite(params.rating) &&
+    params.rating >= 1 &&
+    params.rating <= 5
+  ) {
+    sanitized.rating = params.rating;
+  }
+
+  if (
+    typeof params.minPrice === "number" &&
+    Number.isFinite(params.minPrice) &&
+    params.minPrice >= 0
+  ) {
+    sanitized.minPrice = params.minPrice;
+  }
+
+  if (
+    typeof params.maxPrice === "number" &&
+    Number.isFinite(params.maxPrice) &&
+    params.maxPrice >= 0
+  ) {
+    sanitized.maxPrice = params.maxPrice;
+  }
+
+  if (
+    typeof params.minPrice === "number" &&
+    typeof params.maxPrice === "number" &&
+    params.minPrice > params.maxPrice
+  ) {
+    delete sanitized.minPrice;
+    delete sanitized.maxPrice;
+  }
+
+  if (
+    typeof params.duration === "number" &&
+    Number.isInteger(params.duration) &&
+    params.duration > 0
+  ) {
+    sanitized.duration = params.duration;
+  }
+
+  if (
+    params.availability === "today" ||
+    params.availability === "tomorrow"
+  ) {
+    sanitized.availability = params.availability;
+  }
+
+  const allowedSorts = [
+    "popular",
+    "rating",
+    "price-asc",
+    "price-desc",
+    "newest",
+    "relevance",
+  ];
+
+  if (
+    typeof params.sort === "string" &&
+    allowedSorts.includes(params.sort)
+  ) {
+    sanitized.sort = params.sort;
+  }
+
+  sanitized.page =
+    Number.isInteger(params.page) && params.page >= 1
+      ? params.page
+      : 1;
+
+  sanitized.limit =
+    Number.isInteger(params.limit) && params.limit >= 1
+      ? Math.min(params.limit, 100)
+      : 10;
+
+  return sanitized;
+}
+
+
 /** GET /services with every filter, sort and page param. */
-export async function fetchServices(params: ServiceListParams, signal?: AbortSignal): Promise<ServicePage> {
+
+/** GET /services with sanitized filter, sort and page params. */
+export async function fetchServices(
+  params: ServiceListParams,
+  signal?: AbortSignal,
+): Promise<ServicePage> {
   try {
-    const { data } = await http.get<ApiListResponse<ServicePage["items"]>>("/services", { params, signal });
-    return { items: data.data, meta: data.meta };
+    const { data } = await http.get<ApiListResponse<ServicePage["items"]>>(
+      "/services",
+      {
+        params: sanitizeServiceParams(params),
+        signal,
+      },
+    );
+
+    return {
+      items: data.data,
+      meta: data.meta,
+    };
   } catch (err) {
     throw normalizeApiError(err);
   }
 }
+
 
 /** GET /services/:slug: everything the details page shows. Unknown or inactive slug is a 404. */
 export async function fetchServiceDetail(slug: string, signal?: AbortSignal): Promise<ServiceDetail> {

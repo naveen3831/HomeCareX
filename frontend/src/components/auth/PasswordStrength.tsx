@@ -33,14 +33,14 @@ export function evaluatePasswordStrength(password: string): StrengthInfo {
 
   switch (normalizedScore) {
     case 1:
-      return { score: 1, level: 'Weak', barColor: 'bg-red-500', textColor: 'text-red-700' };
+      return { score: 1, level: 'Weak', barColor: 'bg-red-500', textColor: 'text-red-600' };
     case 2:
-      return { score: 2, level: 'Fair', barColor: 'bg-amber-500', textColor: 'text-amber-800' };
+      return { score: 2, level: 'Fair', barColor: 'bg-amber-500', textColor: 'text-amber-600' };
     case 3:
       return { score: 3, level: 'Good', barColor: 'bg-[#4338ca]', textColor: 'text-[#4338ca]' };
     case 4:
     default:
-      return { score: 4, level: 'Strong', barColor: 'bg-emerald-600', textColor: 'text-emerald-700' };
+      return { score: 4, level: 'Strong', barColor: 'bg-emerald-600', textColor: 'text-emerald-600' };
   }
 }
 

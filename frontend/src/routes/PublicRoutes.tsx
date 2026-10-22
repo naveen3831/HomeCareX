@@ -5,9 +5,9 @@ import PublicLayout from "../layouts/PublicLayout";
 import PageLoader from "../components/common/PageLoader";
 import { ROUTES } from "../constants/routes";
 
-const Home = lazy(
-  () => import("../pages/public/Home/Home")
-);
+// Home is imported directly so the hero loads without an extra round trip.
+// All other pages stay lazy-loaded.
+import Home from "../pages/public/Home/Home";
 
 const Services = lazy(
   () => import("../pages/public/Services/index")
@@ -61,10 +61,13 @@ const PublicRoutes: React.FC = () => {
           />
 
           {/* Service Details */}
-          <Route
-            path="/services/:id"
-            element={<ServiceDetails />}
-          />
+         
+{/* Service Details */}
+<Route
+  path="/services/:slug"
+  element={<ServiceDetails />}
+/>
+
 
           {/* About */}
           <Route

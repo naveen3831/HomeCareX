@@ -67,20 +67,12 @@ const LinkCard: React.FC<{
 );
 
 export const PartnerAvailabilityPage: React.FC = () => {
-  const { online: headerOnline, setOnline: setHeaderOnline } = usePartnerStatus();
+  const { setOnline: setHeaderOnline } = usePartnerStatus();
   const [data, setData] = useState<Availability | null>(null);
   const [sched, setSched] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setData((prev) =>
-      prev && prev.isOnline !== headerOnline
-        ? { ...prev, isOnline: headerOnline }
-        : prev
-    );
-  }, [headerOnline]);
 
   const load = useCallback(async () => {
     setLoading(true);

@@ -89,7 +89,6 @@ export const ForgotPasswordPage: React.FC = () => {
         {error && (
           <div
             role="alert"
-            id="forgot-password-error"
             className={`mb-4 text-xs sm:text-sm rounded-lg p-3 flex items-start gap-2.5 animate-fadeUp ${
               errorStatus === 429
                 ? 'bg-amber-50 border border-amber-200 text-amber-800'
@@ -108,10 +107,10 @@ export const ForgotPasswordPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="group">
             <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-red-500" aria-hidden="true">*</span>
+              Email
             </label>
             <div className="relative">
-              <Mail size={18} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-500 transition-colors pointer-events-none" />
+              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-brand-500 transition-colors pointer-events-none" />
               <input
                 id="forgot-email"
                 type="email"
@@ -124,12 +123,7 @@ export const ForgotPasswordPage: React.FC = () => {
                 disabled={loading || !isOnline}
                 autoComplete="email"
                 autoFocus
-                aria-required="true"
-                aria-invalid={Boolean(error)}
-                aria-describedby={error ? "forgot-password-error" : undefined}
-                className={`w-full rounded-lg border pl-10 pr-3 py-2.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 hover:border-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed ${
-                  error ? 'border-red-400 focus:ring-red-400/30 focus:border-red-500' : 'border-gray-300'
-                }`}
+                className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-400 hover:border-gray-400 disabled:bg-gray-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -137,10 +131,10 @@ export const ForgotPasswordPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !isOnline}
-            className="w-full min-h-[44px] bg-gradient-to-r from-brand-500 to-brand-600 text-white font-medium py-2.5 rounded-lg
+            className="w-full bg-gradient-to-r from-brand-500 to-brand-600 text-white font-medium py-2.5 rounded-lg
                        hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5
                        active:translate-y-0 disabled:opacity-60 disabled:hover:translate-y-0 disabled:cursor-not-allowed
-                       transition-all duration-200 flex items-center justify-center gap-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                       transition-all duration-200 flex items-center justify-center gap-2 text-sm"
           >
             {loading ? (
               <>

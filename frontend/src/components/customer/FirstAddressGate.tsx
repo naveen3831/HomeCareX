@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAddresses } from "@/features/customer";
 import { customerPath } from "@/routes/customerPath";
-import { SKIP_ADDRESS_SETUP_KEY } from "@/pages/customer/SetupAddress";
+import { SKIP_ADDRESS_SETUP_KEY } from "@/pages/customer/SetupAddress/constants";
 
 /** Paths where a customer with no address may stay: they are already adding one. */
 const ALLOWED = [customerPath("/addresses"), customerPath("/setup-address")];
@@ -15,10 +15,7 @@ export default function FirstAddressGate() {
   const { data, isSuccess } = useAddresses();
 
   if (!isSuccess || data.length > 0) return null;
-  // Support must also work for customers who have never placed a booking.
-  if (/^\/customer\/(support|referrals)(\/|$)/i.test(pathname)) return null;
-  if (ALLOWED.some((p) => pathname.replace(/\/+$/, "").toLowerCase() === p))
-    return null;
+  if (ALLOWED.some((p) => pathname.replace(/\/+$/, "").toLowerCase() === p)) return null;
 
   let skipped = false;
   try {
@@ -28,11 +25,5 @@ export default function FirstAddressGate() {
   }
   if (skipped) return null;
 
-  return (
-    <Navigate
-      to={customerPath("/setup-address")}
-      replace
-      state={{ from: `${pathname}${search}` }}
-    />
-  );
+  return <Navigate to={customerPath("/setup-address")} replace state={{ from: `${pathname}${search}` }} />;
 }

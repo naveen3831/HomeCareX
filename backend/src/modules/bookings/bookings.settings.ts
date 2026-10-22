@@ -1,6 +1,4 @@
 import { SLOT_CAPACITY } from './bookings.constants';
-import { getSetting } from '../settings';
-import type { CancellationPolicy } from './bookings.cancel';
 
 /**
  * Booking-related Settings. There is no Settings collection in the backend yet (the admin
@@ -21,14 +19,5 @@ export const bookingSettings = {
    */
   async isPaymentRequired(): Promise<boolean> {
     return process.env.BOOKING_REQUIRE_PAYMENT === 'true';
-  },
-
-  /** Cancellation window and fee, read from the admin Settings (cancellation.windowHours / cancellation.feeAmount). */
-  async getCancellationPolicy(): Promise<CancellationPolicy> {
-    const [windowHours, feeAmount] = await Promise.all([
-      getSetting('cancellation.windowHours'),
-      getSetting('cancellation.feeAmount'),
-    ]);
-    return { windowHours: Number(windowHours), feeAmount: Number(feeAmount) };
   },
 };

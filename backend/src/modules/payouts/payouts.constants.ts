@@ -1,7 +1,1 @@
-
-export const PAYOUTS_CONSTANTS = {
-  DEFAULT_PAGE: 1,
-  DEFAULT_LIMIT: 20,
-  MAX_LIMIT: 100,
-  MAX_PERIOD_DAYS: 366,
-} as const;
+export const PAYOUTS_CONSTANTS = {};

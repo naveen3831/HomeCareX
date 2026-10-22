@@ -1,6 +1,5 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
-import { ROUTES } from "@/constants/routes";
 
 /* =========================================================
    STYLES (same design tokens as the other HomeCareX pages)
@@ -8,8 +7,6 @@ import { ROUTES } from "@/constants/routes";
 ========================================================= */
 
 const styles = `
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap');
-
 .hcx-nf { font-family: 'DM Sans', system-ui, sans-serif; color: #1b1b3a; }
 .hcx-nf h1, .hcx-nf h2, .hcx-nf .display {
   font-family: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;
@@ -43,10 +40,6 @@ const quickLinks = [
 ];
 
 const NotFound: React.FC = () => {
-  useEffect(() => {
-    document.title = "404 - Page Not Found | HomeCareX";
-  }, []);
-
   return (
     <div className="hcx-nf relative isolate flex min-h-[80vh] items-center justify-center overflow-hidden bg-gradient-to-b from-[#eef0ff] to-white px-6 py-16">
       <style>{styles}</style>
@@ -58,9 +51,9 @@ const NotFound: React.FC = () => {
         style={{ animationDelay: "-7s" }}
       />
 
-      <div className="w-full max-w-2xl text-center">
+      <main className="w-full max-w-2xl text-center">
         {/* Big 404 with a floating house as the zero */}
-        <div role="img" className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]" aria-label="Error 404">
+        <div className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]" aria-label="Error 404">
           <span className="nf-digit" style={{ animationDelay: "0.1s" }} aria-hidden>
             4
           </span>
@@ -87,38 +80,39 @@ const NotFound: React.FC = () => {
           style={{ animationDelay: "0.6s" }}
         >
           <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
-          404 Error
+          Page not found
         </p>
 
         <h1
           className="nf-in mt-5 text-3xl font-extrabold leading-[1.1] text-[#1e1b6e] sm:text-5xl"
           style={{ animationDelay: "0.7s" }}
         >
-          Page Not Found
+          We can&apos;t find that page
         </h1>
 
         <p
           className="nf-in mx-auto mt-5 max-w-md text-lg leading-8 text-[#5b5b7a]"
           style={{ animationDelay: "0.8s" }}
         >
-          The page you are looking for doesn&apos;t exist or has been moved. Head back home or explore our available services.
+          The page you are looking for may have moved or doesn&apos;t exist. Head back home or try one of
+          the links below.
         </p>
 
         <div className="nf-in mt-9 flex flex-wrap justify-center gap-4" style={{ animationDelay: "0.95s" }}>
           <Link
-            to={ROUTES.HOME}
-            className="group inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-7 py-4 font-bold text-[#1b1b3a] shadow-[0_10px_30px_-10px_rgba(255,138,61,0.9)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ff7a22] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#ff8a3d]"
+            to="/"
+            className="group inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-7 py-4 font-bold text-[#1b1b3a] shadow-[0_10px_30px_-10px_rgba(255,138,61,0.9)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ff7a22]"
           >
             <span className="transition-transform duration-300 group-hover:-translate-x-1" aria-hidden>
               ←
             </span>
-            Go Home
+            Go home
           </Link>
           <Link
-            to={ROUTES.SERVICES}
-            className="inline-flex items-center rounded-xl border-2 border-[#4338ca] px-7 py-4 font-bold text-[#4338ca] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4338ca] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#4338ca]"
+            to="/contact"
+            className="inline-flex items-center rounded-xl border-2 border-[#4338ca] px-7 py-4 font-bold text-[#4338ca] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4338ca] hover:text-white"
           >
-            Browse Services
+            Contact us
           </Link>
         </div>
 
@@ -138,7 +132,7 @@ const NotFound: React.FC = () => {
             </Link>
           ))}
         </nav>
-      </div>
+      </main>
     </div>
   );
 };

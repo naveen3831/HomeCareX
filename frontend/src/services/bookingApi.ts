@@ -12,8 +12,6 @@ import type {
   PartnerOption,
   BookingDetail,
 } from "@/types/booking";
-import type { PageMeta } from "@/types/catalog";
-import type { BookingListParams, BookingPage } from "@/types/bookingList";
 import type {
   BookingDetailView,
   CancelBookingResult,
@@ -21,6 +19,8 @@ import type {
   ExtraChargeDecision,
   RescheduleInput,
 } from "@/types/bookingDetail";
+import type { PageMeta } from "@/types/catalog";
+import type { BookingListParams, BookingPage } from "@/types/bookingList";
 import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 
 export interface NormalizedApiError {
@@ -92,11 +92,7 @@ export const bookingApi = {
   // CUSTOMER BOOKING APIs
   // =========================================================================
 
-  /**
-   * Fetch available slots for a service on a specific date.
-   *
-   * GET /services/:serviceId/slots?date=:date
-   */
+  /** GET /services/:serviceId/slots?date=:date */
   async getSlots(
     serviceId: string,
     date: string,
@@ -105,11 +101,7 @@ export const bookingApi = {
       const { data } =
         await http.get<ApiResponse<SlotsResponse>>(
           `/services/${serviceId}/slots`,
-          {
-            params: {
-              date,
-            },
-          },
+          { params: { date } },
         );
 
       return data.data;
@@ -119,13 +111,9 @@ export const bookingApi = {
   },
 
   /**
-   * Real-time slot availability check when moving
-   * from Step 3 to Step 4.
-   *
+   * Real-time slot availability check when moving from Step 3 to Step 4.
    * POST /bookings/check-slot
-   *
-   * Throws NormalizedApiError with status 409 if
-   * the slot has already been booked.
+   * Throws NormalizedApiError with status 409 if the slot has already been booked.
    */
   async checkSlot(
     serviceId: string,
@@ -136,11 +124,7 @@ export const bookingApi = {
       const { data } =
         await http.post<ApiResponse<SlotAvailability>>(
           "/bookings/check-slot",
-          {
-            serviceId,
-            date,
-            slot,
-          },
+          { serviceId, date, slot },
         );
 
       return data.data;
@@ -150,11 +134,8 @@ export const bookingApi = {
   },
 
   /**
-   * Create a booking.
-   *
-   * The same idempotency key must be reused when
+   * Create a booking. The same idempotency key must be reused when
    * retrying the SAME request.
-   *
    * POST /bookings
    */
   async createBooking(
@@ -164,17 +145,11 @@ export const bookingApi = {
     try {
       const { data } =
         await http.post<
-          ApiResponse<BookingView> & {
-            replayed?: boolean;
-          }
+          ApiResponse<BookingView> & { replayed?: boolean }
         >(
           "/bookings",
           input,
-          {
-            headers: {
-              "Idempotency-Key": idempotencyKey,
-            },
-          },
+          { headers: { "Idempotency-Key": idempotencyKey } },
         );
 
       return {
@@ -186,11 +161,7 @@ export const bookingApi = {
     }
   },
 
-  /**
-   * Fetch a single booking for the logged-in customer.
-   *
-   * GET /bookings/:id
-   */
+  /** GET /bookings/:id */
   async getBooking(
     id: string,
   ): Promise<BookingView> {
@@ -206,140 +177,9 @@ export const bookingApi = {
     }
   },
 
-  /**
-   * One of the customer's own bookings with everything the details page shows.
-   * 404 for a booking that doesn't exist or belongs to someone else.
-   *
-   * GET /bookings/:id
-   */
-  async getBookingDetail(
-    id: string,
-    signal?: AbortSignal,
-  ): Promise<BookingDetailView> {
-    try {
-      const { data } = await http.get<ApiResponse<BookingDetailView>>(
-        `/bookings/${encodeURIComponent(id)}`,
-        { signal },
-      );
-      return data.data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * Approve or reject one pending extra charge. Returns the refreshed booking.
-   *
-   * POST /bookings/:id/extra-charges/:chargeId/decision
-   */
-  async decideExtraCharge(
-    bookingId: string,
-    chargeId: string,
-    decision: ExtraChargeDecision,
-  ): Promise<BookingDetailView> {
-    try {
-      const { data } = await http.post<ApiResponse<BookingDetailView>>(
-        `/bookings/${encodeURIComponent(bookingId)}/extra-charges/${encodeURIComponent(chargeId)}/decision`,
-        { decision },
-      );
-      return data.data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * The invoice for one paid booking, as a complete HTML document.
-   * 404 for someone else's booking, 409 until the booking is paid.
-   *
-   * No responseType on purpose: an error reply is JSON and must still be parsed so its message survives,
-   * while the HTML invoice is not valid JSON and comes back untouched as a string.
-   *
-   * GET /bookings/:id/invoice
-   */
-  async getInvoice(bookingId: string, signal?: AbortSignal): Promise<string> {
-    try {
-      const { data } = await http.get<string>(
-        `/bookings/${encodeURIComponent(bookingId)}/invoice`,
-        { signal, headers: { Accept: "text/html" } },
-      );
-      if (typeof data !== "string" || !data.trim()) {
-        throw { message: "The invoice came back empty. Please try again." };
-      }
-      return data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * The exact fee and refund if the customer cancelled right now. 409 once the booking can't be cancelled.
-   *
-   * GET /bookings/:id/cancel-preview
-   */
-  async getCancelPreview(
-    bookingId: string,
-    signal?: AbortSignal,
-  ): Promise<CancellationSummary> {
-    try {
-      const { data } = await http.get<ApiResponse<CancellationSummary>>(
-        `/bookings/${encodeURIComponent(bookingId)}/cancel-preview`,
-        { signal },
-      );
-      return data.data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * Cancel the booking. Returns the refreshed booking and what was charged and refunded.
-   *
-   * POST /bookings/:id/cancel
-   */
-  async cancelBooking(
-    bookingId: string,
-    reason: string,
-  ): Promise<CancelBookingResult> {
-    try {
-      const { data } = await http.post<ApiResponse<CancelBookingResult>>(
-        `/bookings/${encodeURIComponent(bookingId)}/cancel`,
-        { reason },
-      );
-      return data.data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * Move the booking to another date and slot. 409 SLOT_UNAVAILABLE when the slot filled up.
-   *
-   * POST /bookings/:id/reschedule
-   */
-  async rescheduleBooking(
-    bookingId: string,
-    input: RescheduleInput,
-  ): Promise<BookingDetailView> {
-    try {
-      const { data } = await http.post<ApiResponse<BookingDetailView>>(
-        `/bookings/${encodeURIComponent(bookingId)}/reschedule`,
-        input,
-      );
-      return data.data;
-    } catch (err) {
-      throw normalizeApiError(err);
-    }
-  },
-
-  /**
-   * Fetch all live bookings for the logged-in customer.
-   *
-   * GET /bookings
-   */
+  /** GET /bookings (largest page the server allows) */
   async getBookings(): Promise<BookingView[]> {
     try {
-      // Callers that want everything at once (tracking) ask for the largest page the server allows.
       const { data } =
         await http.get<ApiResponse<BookingView[]>>(
           "/bookings",
@@ -354,10 +194,7 @@ export const bookingApi = {
 
   /**
    * One page of the signed-in customer's bookings, filtered and sorted by the server.
-   *
    * GET /bookings?status&search&date&service&sort&page&limit
-   *
-   * The customer is taken from the access token. There is no customer id to send.
    */
   async listBookings(
     params: BookingListParams,
@@ -387,26 +224,140 @@ export const bookingApi = {
     }
   },
 
-  // =========================================================================
-  // ADMIN BOOKINGS MODULE
-  // Day 4 / Day 5 - Issue #95
-  // =========================================================================
+  // -------------------------------------------------------------------------
+  // Customer booking detail, extra charges, invoice, cancel, reschedule
+  // (endpoint paths below are assumptions: match them to your backend routes)
+  // -------------------------------------------------------------------------
+
+  /** GET /bookings/:id (detail view with timeline, extra charges, etc.) */
+  async getBookingDetail(
+    id: string,
+    signal?: AbortSignal,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } =
+        await http.get<ApiResponse<BookingDetailView>>(
+          `/bookings/${encodeURIComponent(id)}`,
+          { signal },
+        );
+
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
 
   /**
-   * Fetch complete booking details for the Admin Booking Drawer.
-   *
-   * GET /admin/bookings/:id
-   *
-   * Includes:
-   * - booking information
-   * - customer information
-   * - assigned partner
-   * - service information
-   * - address
-   * - pricing
-   * - payment status
-   * - booking timeline
+   * Approve or reject one extra charge. Returns the refreshed booking.
+   * POST /bookings/:id/extra-charges/:chargeId/decision
+   * A 409 means it was already decided.
    */
+  async decideExtraCharge(
+    bookingId: string,
+    chargeId: string,
+    decision: ExtraChargeDecision,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } =
+        await http.post<ApiResponse<BookingDetailView>>(
+          `/bookings/${encodeURIComponent(bookingId)}/extra-charges/${encodeURIComponent(chargeId)}/decision`,
+          { decision },
+        );
+
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Invoice as an HTML string.
+   * GET /bookings/:id/invoice  (404 / 409 when not available)
+   */
+  async getInvoice(bookingId: string): Promise<string> {
+    try {
+      const { data } = await http.get<string>(
+        `/bookings/${encodeURIComponent(bookingId)}/invoice`,
+        {
+          responseType: "text",
+          headers: { Accept: "text/html" },
+        },
+      );
+
+      return data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Fee and refund if the customer cancelled now.
+   * GET /bookings/:id/cancel-preview
+   */
+  async getCancelPreview(
+    bookingId: string,
+    signal?: AbortSignal,
+  ): Promise<CancellationSummary> {
+    try {
+      const { data } =
+        await http.get<ApiResponse<CancellationSummary>>(
+          `/bookings/${encodeURIComponent(bookingId)}/cancel-preview`,
+          { signal },
+        );
+
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Cancel with a reason. Result carries the refreshed booking.
+   * POST /bookings/:id/cancel
+   */
+  async cancelBooking(
+    bookingId: string,
+    reason: string,
+  ): Promise<CancelBookingResult> {
+    try {
+      const { data } =
+        await http.post<ApiResponse<CancelBookingResult>>(
+          `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+          { reason },
+        );
+
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /**
+   * Move the booking to another date and slot. Returns the refreshed booking.
+   * POST /bookings/:id/reschedule
+   */
+  async rescheduleBooking(
+    bookingId: string,
+    input: RescheduleInput,
+  ): Promise<BookingDetailView> {
+    try {
+      const { data } =
+        await http.post<ApiResponse<BookingDetailView>>(
+          `/bookings/${encodeURIComponent(bookingId)}/reschedule`,
+          input,
+        );
+
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  // =========================================================================
+  // ADMIN BOOKINGS MODULE
+  // =========================================================================
+
+  /** GET /admin/bookings/:id */
   async getAdminBooking(
     id: string,
   ): Promise<BookingDetail> {
@@ -424,14 +375,7 @@ export const bookingApi = {
 
   /**
    * Assign or reassign a service partner to a booking.
-   *
-   * PATCH /admin/bookings/:id/assign
-   *
-   * Backend payload:
-   * {
-   *   partnerId,
-   *   reason
-   * }
+   * PATCH /admin/bookings/:id/assign  { partnerId, reason }
    */
   async assignPartner(
     id: string,
@@ -441,29 +385,14 @@ export const bookingApi = {
     try {
       await http.patch(
         `/admin/bookings/${id}/assign`,
-        {
-          partnerId,
-          reason,
-        },
+        { partnerId, reason },
       );
     } catch (err) {
       throw normalizeApiError(err);
     }
   },
 
-  /**
-   * Fetch partners eligible for assignment/reassignment.
-   *
-   * GET /admin/bookings/:bookingId/eligible-partners
-   *
-   * Backend eligibility rules:
-   * - partner approval
-   * - active account
-   * - category/service match
-   * - service area
-   * - availability
-   * - booking conflicts
-   */
+  /** GET /admin/bookings/:bookingId/eligible-partners */
   async getEligiblePartners(
     bookingId: string,
   ): Promise<PartnerOption[]> {
