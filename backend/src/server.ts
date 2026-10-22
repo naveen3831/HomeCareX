@@ -13,9 +13,10 @@ import { ServiceModel } from './models/Service';
 
 const server = http.createServer(app);
 initSockets(server);
+
 const PORT = process.env.PORT || 5000;
 
-const connectDB = async () => {
+const seedDefaults = async () => {
   try {
     await mongoose.connect(process.env.DATABASE_URL as string);
     console.log('Connected to MongoDB');
@@ -41,7 +42,29 @@ connectDB().then(() => {
   });
 });
 
-// Graceful shutdown
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error(
+        "[referrals] Reward reconciliation failed; it will retry.",
+        error instanceof Error ? error.message : "Unknown error",
+      ),
+    );
+
+    registerEarningsListeners();
+
+    // Run non-critical default seeding after the server starts.
+    void seedDefaults();
+  } catch (error) {
+    console.error("[startup] Failed to start HomeCareX:", error);
+    process.exitCode = 1;
+
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close().catch(() => {});
+    }
+
+    process.exit(1);
+  }
+};
+
 const shutdown = async () => {
   console.log('Stopping server gracefully...');
   server.close(async () => {
