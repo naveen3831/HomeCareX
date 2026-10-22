@@ -156,7 +156,29 @@ rootRouter.use(
 rootRouter.use(
   '/partner/wallet',
   partnerWalletSummaryRoutes,
-); // GET /partner/wallet (available, pending, recent)
+} from "../modules/partner-wallet/partner-wallet.routes";
+import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
+import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
+import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
+import { partnerSettingsRoutes } from "../modules/partner-settings/partner-settings.routes";
+import {
+  partnerServiceAreaRoutes,
+  partnerServicesRoutes,
+} from "../modules/partner-services/partner-services.routes";
+import paymentRoutes from "../modules/payments/payments.routes";
+import {
+  adminPricingRoutes,
+  pricingRoutes,
+} from "../modules/pricing/pricing.routes";
+import payoutsRoutes from "../modules/payouts/payouts.routes";
+import { reportsRoutes } from "../modules/reports/reports.routes";
+import refundsRoutes from "../modules/refunds/refunds.routes";
+import { reviewsRoutes } from "../modules/reviews/reviews.routes";
+import { servicesRoutes } from "../modules/services/services.routes";
+import { settingsRoutes } from "../modules/settings/settings.routes";
+import { ticketsRoutes } from "../modules/tickets/tickets.routes";
+import { referralsRoutes } from "../modules/referrals/referrals.routes";
+import walletRoutes from "../modules/wallet/wallet.routes";
 
 rootRouter.use(
   '/addresses',
@@ -173,68 +195,72 @@ rootRouter.use(
   walletRoutes,
 ); // GET /wallet
 
-rootRouter.use(
-  reviewsRoutes,
-); // POST /reviews, GET /reviews/mine, GET /admin/reviews, PATCH /admin/reviews/:id/status
+rootRouter.use("/auth", authRoutes);
 
-rootRouter.use(
-  '/partner/incentives',
-  incentivesRoutes,
-); // GET /partner/incentives, GET /partner/incentives/:id
+rootRouter.use("/admin/dashboard", adminDashboardRoutes);
+rootRouter.use("/admin/settings", settingsRoutes);
+rootRouter.use("/admin/designations", designationsRoutes);
+rootRouter.use("/admin/categories", categoriesRoutes);
+rootRouter.use("/admin/services", servicesRoutes);
+rootRouter.use("/admin/customers", adminCustomersRoutes);
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/tickets", adminTicketsRoutes);
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
+rootRouter.use("/admin/partners", partnersRoutes);
+rootRouter.use("/admin/coupons", couponsRoutes);
+rootRouter.use("/admin/banners", marketingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin/incentives", incentivesRoutes);
 
-rootRouter.use(
-  '/admin/customers',
-  adminCustomersRoutes,
-);
+rootRouter.use("/admin", payoutsRoutes);
+rootRouter.use("/admin", refundsRoutes);
+rootRouter.use("/admin", auditRoutes);
+rootRouter.use("/admin", adminRoutes);
 
-// =========================================================
-// Coupons
-// =========================================================
+// Admin reports and CSV exports.
+rootRouter.use("/admin/reports", reportsRoutes);
 
-// Admin coupon CRUD
-// GET    /api/v1/admin/coupons
-// GET    /api/v1/admin/coupons/:id
-// POST   /api/v1/admin/coupons
-// PATCH  /api/v1/admin/coupons/:id
-// DELETE /api/v1/admin/coupons/:id
+rootRouter.use(catalogRoutes);
+rootRouter.use("/notifications", notificationsRoutes);
+rootRouter.use("/partner/notifications", notificationsRoutes);
+rootRouter.use("/customer/notifications", customerNotificationsRoutes);
+rootRouter.use("/banners", publicMarketingRoutes);
+rootRouter.use("/serviceability", serviceabilityRoutes);
+rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use(leadsRoutes);
 
-rootRouter.use(
-  '/admin/coupons',
-  couponsRoutes,
-);
+rootRouter.use("/customer/dashboard", customerDashboardRoutes);
+rootRouter.use("/customer/profile", customerProfileRoutes);
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
+rootRouter.use("/addresses", addressesRoutes);
+rootRouter.use("/payments", paymentRoutes);
+rootRouter.use("/wallet", walletRoutes);
+rootRouter.use("/tickets", ticketsRoutes);
+rootRouter.use("/referrals", referralsRoutes);
+rootRouter.use("/coupons", couponCustomerRoutes);
 
-// Customer coupon APIs
-// POST /api/v1/coupons/validate
-// POST /api/v1/coupons/available
+rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
+rootRouter.use("/partner/availability", availabilityRoutes);
+rootRouter.use("/partner/blackout-dates", blackoutRoutes);
+rootRouter.use("/partner/schedule", scheduleRoutes);
+rootRouter.use("/partner/earnings", earningsRoutes);
+rootRouter.use("/partner/transactions", partnerWalletRoutes);
+rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
+rootRouter.use("/partner/incentives", incentivesRoutes);
+rootRouter.use("/partner/services", partnerServicesRoutes);
+rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
+rootRouter.use("/partner/performance", partnerPerformanceRoutes);
+rootRouter.use("/partner/reviews", partnerReviewsRoutes);
+rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
+rootRouter.use("/partner/settings", partnerSettingsRoutes);
+rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/jobs", maskedCallRoutes);
+rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
-rootRouter.use(
-  '/coupons',
-  couponCustomerRoutes,
-);
-
-// =========================================================
-// Marketing & Banners
-// =========================================================
-
-// Admin banner CRUD
-// GET    /api/v1/admin/banners
-// GET    /api/v1/admin/banners/:id
-// POST   /api/v1/admin/banners
-// PATCH  /api/v1/admin/banners/:id
-// DELETE /api/v1/admin/banners/:id
-
-rootRouter.use(
-  '/admin/banners',
-  marketingRoutes,
-);
-
-// Public banners
-// GET /api/v1/banners
-// GET /api/v1/banners?placement=HOME
-
-rootRouter.use(
-  '/banners',
-  publicMarketingRoutes,
-);
+rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
+rootRouter.use("/bookings", chatRoutes);
+rootRouter.use(reviewsRoutes);
 
 export default rootRouter;
