@@ -45,14 +45,6 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
-import {
-  getAvailability,
-  setOnline as setOnlineApi,
-  readStoredOnlineStatus,
-  writeStoredOnlineStatus,
-  PARTNER_ONLINE_STORAGE_KEY,
-} from "@/pages/partner/Availability/availability.api";
-import { setMockPartnerOnline } from "@/services/mockPartnerJobs";
 import OnlineIndicator from "@/components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
@@ -429,14 +421,21 @@ function PartnerSidebar({
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
 
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate("/login");
+    }
+  };
+
   const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
     .filter(Boolean)
     .join(" ");
 
   return (
-    <>
-      <aside className={cls} aria-label="Partner navigation">
-        <div className="sidebar-brand">
+    <aside className={cls} aria-label="Partner navigation">
+      <div className="sidebar-brand">
           <div
             className="sidebar-brand__top"
             style={{
@@ -471,7 +470,6 @@ function PartnerSidebar({
               )}
             </button>
           </div>
-        </div>
 
         {!collapsed && (
           <p className="sidebar-brand__guide">
