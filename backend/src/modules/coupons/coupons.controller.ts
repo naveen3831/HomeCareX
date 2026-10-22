@@ -61,19 +61,11 @@ export class CouponsController {
   }
 
   async validate(req: Request, res: Response) {
-    const user = req.user;
-
-    if (!user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-        code: 'UNAUTHORIZED',
-      });
-    }
+    const userId = req.user?.id || '';
 
     const result = await couponsService.validate(
       req.body,
-      user.id,
+      userId,
     );
 
     return sendSuccess(res, result);
@@ -83,20 +75,12 @@ export class CouponsController {
     req: Request,
     res: Response,
   ) {
-    const user = req.user;
-
-    if (!user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-        code: 'UNAUTHORIZED',
-      });
-    }
+    const userId = req.user?.id || '';
 
     const coupons =
       await couponsService.listAvailable(
         req.body,
-        user.id,
+        userId,
       );
 
     return sendSuccess(res, coupons);

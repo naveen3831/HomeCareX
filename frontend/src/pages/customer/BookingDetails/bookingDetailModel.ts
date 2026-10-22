@@ -38,8 +38,27 @@ const PILLS: Record<string, StatusPill> = {
 const normalizeStatus = (status?: string): string =>
   typeof status === "string" ? status.trim().toLowerCase() : "";
 
-export const statusPill = (status: string): StatusPill => {
-  const normalized = normalizeStatus(status);
+export const isExpiredHold = (
+  booking: { status?: string; holdExpiresAt?: string | null },
+  now: number = Date.now(),
+): boolean => {
+  if (normalizeStatus(booking.status) !== "pending_payment") return false;
+  if (!booking.holdExpiresAt) return true;
+  const time = new Date(booking.holdExpiresAt).getTime();
+  return Number.isNaN(time) || time <= now;
+};
+
+export const statusPill = (
+  bookingOrStatus: string | { status?: string; holdExpiresAt?: string | null },
+  now: number = Date.now(),
+): StatusPill => {
+  if (typeof bookingOrStatus === "object" && bookingOrStatus !== null) {
+    if (isExpiredHold(bookingOrStatus, now)) {
+      return { label: "Payment expired", tone: "red" };
+    }
+    return statusPill(bookingOrStatus.status ?? "", now);
+  }
+  const normalized = normalizeStatus(bookingOrStatus);
   return PILLS[normalized] ?? { label: "Updating", tone: "amber" };
 };
 
@@ -47,6 +66,11 @@ export const isCancelledStatus = (status?: string): boolean => {
   const normalized = normalizeStatus(status);
   return normalized.startsWith("cancelled") || normalized === "no_show";
 };
+
+export const isCancelledBooking = (
+  booking: { status?: string; holdExpiresAt?: string | null },
+  now: number = Date.now(),
+): boolean => isCancelledStatus(booking.status) || isExpiredHold(booking, now);
 
 /** The partner is on site, so extra charges can be decided. Mirrors the server rule. */
 export const canDecideExtraCharges = (status: string): boolean => {
@@ -149,12 +173,15 @@ const reachedAt = (
 export function buildTimeline(
   booking: Pick<BookingDetailView, "status" | "statusHistory"> & {
     createdAt?: string;
+    holdExpiresAt?: string;
   },
+  now: number = Date.now(),
 ): TimelineItem[] {
   const history = booking.statusHistory ?? [];
   const status = normalizeStatus(booking.status);
+  const expired = isExpiredHold(booking, now);
 
-  if (isCancelledStatus(status) || status === "disputed") {
+  if (isCancelledStatus(status) || expired || status === "disputed") {
     // Only steps the booking really went through, never ones it skipped.
     const done: TimelineItem[] = STEPS.filter(
       (s) => reachedAt(history, s.statuses) !== undefined,
@@ -166,13 +193,14 @@ export function buildTimeline(
     }));
     const last = history[history.length - 1];
     done.push({
-      key: status,
-      label:
-        status === "disputed"
-          ? "Booking is under review"
-          : (TERMINAL_LABEL[status] ?? "Booking cancelled"),
+      key: expired ? "payment_expired" : status,
+      label: expired
+        ? "Payment expired"
+        : status === "disputed"
+        ? "Booking is under review"
+        : (TERMINAL_LABEL[status] ?? "Booking cancelled"),
       state: status === "disputed" ? "current" : "failed",
-      at: last?.at,
+      at: last?.at ?? (expired ? booking.holdExpiresAt : undefined),
     });
     return done;
   }

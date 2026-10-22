@@ -42,6 +42,16 @@ export const BOOKING_STATUS = {
   CANCELLED_BY_ADMIN: 'cancelled_by_admin',
 } as const satisfies Record<string, BookingStatus>;
 
+/**
+ * Statuses in which the customer may move the booking to another slot. Once a partner is assigned
+ * (or on the way) the time is committed, so the customer cancels and rebooks instead.
+ */
+export const RESCHEDULABLE_STATUSES: BookingStatus[] = [
+  'confirmed',
+  'created',
+  'searching_for_partner',
+];
+
 /** Statuses that hold a slot seat. */
 export const SLOT_HOLDING_STATUSES: BookingStatus[] = [
   'pending_payment',
@@ -288,3 +298,12 @@ export const BOOKINGS_CONSTANTS = {
   SERVICE_SLOTS,
   CONVENIENCE_FEE,
 };
+
+
+export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
+  'en_route',
+  'arrived',
+  'in_progress',
+];
+
+export const START_OTP_STATUS: BookingStatus = 'arrived';

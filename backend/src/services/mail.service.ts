@@ -115,6 +115,22 @@ export const mailService = {
       attachments,
     });
   },
+
+  async sendStaffInviteEmail(data: { name: string; email: string; inviteUrl: string; invitedBy?: string }) {
+    const { src, attachments } = logo();
+    const subject = 'You have been invited to join HomeCareX';
+    const text = `Hello ${data.name},\n\nYou have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.\nPlease accept your invite by visiting: ${data.inviteUrl}\n\nHomeCareX Team`;
+    const html = `<p>Hello ${data.name},</p><p>You have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.</p><p><a href="${data.inviteUrl}">Accept Invite</a></p><p>HomeCareX Team</p>`;
+
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to: data.email,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+  },
 };
 
 export default mailService;

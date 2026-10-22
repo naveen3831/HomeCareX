@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import {
   NavLink,
   Outlet,
@@ -30,6 +30,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -39,6 +40,27 @@ import { HomeCarexMark } from "@/components/band/Homecarexmark";
 import OnlineIndicator from "@/components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 import "@/styles/admin.css";
+
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+} from '@/pages/partner/Availability/availability.api';
+import { setMockPartnerOnline } from '@/services/mockPartnerJobs';
+
+const PARTNER_ONLINE_STORAGE_KEY = 'partner_online';
+const readStoredOnlineStatus = (): boolean => {
+  try {
+    return localStorage.getItem(PARTNER_ONLINE_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+const writeStoredOnlineStatus = (online: boolean) => {
+  try {
+    localStorage.setItem(PARTNER_ONLINE_STORAGE_KEY, String(online));
+  } catch {}
+};
+
 
 // -----------------------------------------------------------------------------
 // Helpers
@@ -58,26 +80,6 @@ type NavItem = NavChild & {
 };
 
 export const NAV: NavItem[] = [
-  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
-
-  {
-    key: "jobs",
-    label: "My Jobs",
-    to: "/partner/jobs",
-    icon: Briefcase,
-    children: [
-      {
-        key: "job-requests",
-        label: "Job Requests",
-        to: "/partner/jobs/requests",
-        icon: ClipboardList,
-      },
-    ],
-  },
-
-  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
-
-export const NAV = [
   { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
   { key: "jobs", label: "My Jobs", to: "/partner/jobs", icon: ClipboardList },
   { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
@@ -555,10 +557,7 @@ function PartnerSidebar({
             type="button"
             className="sidebar-signout-btn"
             title="Sign out"
-            onClick={async () => {
-              await logout();
-              navigate("/login", { replace: true });
-            }}
+            onClick={handleSignOut}
           >
             <LogOut size={18} />
 
@@ -697,7 +696,8 @@ export default function PartnerLayout() {
     }
 
     const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
-
+    if (typeof hasHistory === 'number' && hasHistory > 0) {
+      navigate(-1);
       return;
     }
 

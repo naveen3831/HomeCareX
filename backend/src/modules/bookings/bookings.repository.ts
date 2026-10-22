@@ -1,7 +1,18 @@
 import { Types } from 'mongoose';
 import { BookingModel, type IBooking } from '../../models/Booking';
+import UserModel from '../../models/User';
+import { PaymentModel } from '../../models/Payment';
 import { BOOKING_STATUS, SLOT_HOLDING_STATUSES } from './bookings.constants';
 import { buildBookingFilter, SORT_SPECS, type ListBookingsQuery } from './bookings.query';
+
+const PARTNER_POPULATE = {
+  path: 'partnerId',
+  select: 'userId ratingAvg ratingCount kyc city name phone rating avatar',
+  populate: {
+    path: 'userId',
+    select: 'name phone email role',
+  },
+};
 
 export class BookingsRepository {
   /** Active (slot-holding) bookings for a service/date/slot, used to compute remaining seats. */
@@ -18,17 +29,17 @@ export class BookingsRepository {
   }
 
   /** Cancels lapsed pending_payment holds for one slot so their seats are freed. */
-  releaseStaleHolds(serviceId: string, date: string, slot: string, now: Date = new Date()): Promise<unknown> {
-    if (!Types.ObjectId.isValid(serviceId)) return Promise.resolve(null);
+  releaseStaleHolds(serviceId?: string, date?: string, slot?: string, now: Date = new Date()): Promise<unknown> {
+    const filter: Record<string, unknown> = {
+      status: BOOKING_STATUS.PENDING_PAYMENT,
+      holdExpiresAt: { $lte: now },
+    };
+    if (serviceId && Types.ObjectId.isValid(serviceId)) filter.serviceId = new Types.ObjectId(serviceId);
+    if (date) filter.date = date;
+    if (slot) filter.slot = slot;
 
     return BookingModel.updateMany(
-      {
-        serviceId: new Types.ObjectId(serviceId),
-        date,
-        slot,
-        status: BOOKING_STATUS.PENDING_PAYMENT,
-        holdExpiresAt: { $lte: now },
-      },
+      filter,
       {
         $set: { status: BOOKING_STATUS.CANCELLED_BY_CUSTOMER },
         // Free the seat so the unique (service, date, slot, seat) index lets someone else take it.
@@ -59,7 +70,7 @@ export class BookingsRepository {
     serviceId: string,
     date: string,
     slot: string,
-    capacity: number,
+    capacity: number = 5,
     now: Date = new Date()
   ): Promise<number | null> {
     if (!Types.ObjectId.isValid(serviceId)) return null;
@@ -90,7 +101,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
 
     return BookingModel.findById(id)
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .exec();
   }
 
@@ -103,7 +114,7 @@ export class BookingsRepository {
       _id: new Types.ObjectId(id),
       customerId: new Types.ObjectId(customerId),
     })
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .exec();
   }
 
@@ -112,7 +123,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(customerId)) return Promise.resolve([]);
 
     return BookingModel.find({ customerId: new Types.ObjectId(customerId) })
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -128,7 +139,7 @@ export class BookingsRepository {
     const filter = buildBookingFilter(customerId, query, now);
     const [items, total] = await Promise.all([
       BookingModel.find(filter)
-        .populate('partnerId', 'name rating phone avatar')
+        .populate(PARTNER_POPULATE)
         .sort(SORT_SPECS[query.sort])
         .skip((query.page - 1) * query.limit)
         .limit(query.limit)
@@ -136,6 +147,82 @@ export class BookingsRepository {
       BookingModel.countDocuments(filter).exec(),
     ]);
     return { items, total };
+  }
+
+  async getOrCreateStartOtp(bookingId: string): Promise<string> {
+    const booking = await BookingModel.findById(bookingId).select('otp').exec();
+    if (booking && (booking as any).otp) return (booking as any).otp;
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    await BookingModel.updateOne({ _id: bookingId }, { $set: { otp } });
+    return otp;
+  }
+
+  async decideExtraCharge(
+    bookingId: string,
+    customerId: string,
+    chargeId: string,
+    decision: string
+  ): Promise<unknown> {
+    return BookingModel.findOneAndUpdate(
+      { _id: bookingId, customerId, 'extraCharges._id': chargeId },
+      { $set: { 'extraCharges.$.status': decision, 'extraCharges.$.decidedAt': new Date() } },
+      { new: true }
+    ).exec();
+  }
+
+  async findCustomerContact(customerId: string): Promise<{ name?: string; email?: string; phone?: string } | null> {
+    if (!Types.ObjectId.isValid(customerId)) return null;
+    const user = await UserModel.findById(customerId).select('name email phone').lean().exec();
+    return user ? { name: user.name, email: user.email, phone: user.phone ?? undefined } : null;
+  }
+
+  async findPaidPayment(bookingId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(bookingId)) return null;
+    return PaymentModel.findOne({ bookingId: new Types.ObjectId(bookingId), status: 'PAID' }).lean().exec();
+  }
+
+  async markCancelled(
+    bookingId: string,
+    customerId: string,
+    _fromStatus: string,
+    historyEntry: unknown,
+    reason?: string
+  ): Promise<unknown> {
+    return BookingModel.findOneAndUpdate(
+      { _id: bookingId, customerId },
+      {
+        $set: { status: BOOKING_STATUS.CANCELLED_BY_CUSTOMER, cancellationReason: reason },
+        $unset: { slotSeat: '' },
+        $push: { statusHistory: historyEntry },
+      },
+      { new: true }
+    ).exec();
+  }
+
+  async createRefundRequest(args: { amount: number; reason?: string; bookingId?: string; paymentId?: string }): Promise<unknown> {
+    return { ...args, status: 'requested', createdAt: new Date() };
+  }
+
+  async reschedule(
+    bookingIdOrArgs: any,
+    customerId?: string,
+    to?: { date: string; slot: string; seat: number },
+    historyEntry?: unknown
+  ): Promise<unknown> {
+    const isObj = typeof bookingIdOrArgs === 'object' && bookingIdOrArgs !== null;
+    const bId = isObj ? bookingIdOrArgs.bookingId : bookingIdOrArgs;
+    const cId = isObj ? bookingIdOrArgs.customerId : customerId;
+    const target = isObj ? bookingIdOrArgs.to : to;
+    const entry = isObj ? bookingIdOrArgs.entry : historyEntry;
+
+    return BookingModel.findOneAndUpdate(
+      { _id: bId, customerId: cId },
+      {
+        $set: { date: target.date, slot: target.slot, slotSeat: target.seat },
+        $push: { statusHistory: entry },
+      },
+      { new: true }
+    ).exec();
   }
 }
 

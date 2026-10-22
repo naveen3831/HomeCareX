@@ -27,7 +27,7 @@ export function maskAuthor(fullName: string): string {
 const toPublicReview = (r: VisibleReviewRow): PublicReviewDto => ({
   id: String(r._id),
   rating: r.rating,
-  comment: r.message,
+  comment: r.message ?? '',
   author: maskAuthor(r.customerName),
   verified: r.verified === true,
   createdAt: new Date(r.createdAt).toISOString(),

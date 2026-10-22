@@ -456,8 +456,18 @@ export default function StepReview() {
   const quoteReady = Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
   const payDisabled = !quoteReady || !online;
   const compactCoupons = (Array.isArray(availableCoupons) ? availableCoupons : []) as unknown as CompactCoupon[];
-  const visibleCoupons = showAllCoupons ? compactCoupons : compactCoupons.slice(0, 4);
-  const hiddenCouponCount = Math.max(compactCoupons.length - 4, 0);
+  const sortedCoupons = useMemo(() => {
+    return [...compactCoupons].sort((a, b) => {
+      const aEligible = (a as any).eligible !== false;
+      const bEligible = (b as any).eligible !== false;
+      if (aEligible && !bEligible) return -1;
+      if (!aEligible && bEligible) return 1;
+      return 0;
+    });
+  }, [compactCoupons]);
+  const INITIAL_COUPON_LIMIT = 6;
+  const visibleCoupons = showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT ? sortedCoupons : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
+  const hiddenCouponCount = Math.max(sortedCoupons.length - INITIAL_COUPON_LIMIT, 0);
   const address = draft.addressSnapshot;
   const dateLabel = draft.date ? prettyDate(draft.date) : "";
   const payLabel = isSubmitting ? "Processing…" : method === "cod" ? "Place order" : "Confirm & Pay";
@@ -721,28 +731,44 @@ export default function StepReview() {
                   {visibleCoupons.map((coupon, index) => {
                     const code = coupon.code ?? `COUPON-${index + 1}`;
                     const selected = Boolean(coupon.code) && draft.couponCode === coupon.code;
+                    const eligible = (coupon as any).eligible !== false;
+                    const reason = (coupon as any).reason;
                     return (
                       <li key={`${code}-${index}`}>
                         <button
                           type="button"
-                          disabled={!coupon.code || couponBusy}
-                          onClick={() => coupon.code && void handleApplyCoupon(coupon.code)}
+                          disabled={!coupon.code || couponBusy || !eligible}
+                          onClick={() => coupon.code && eligible && void handleApplyCoupon(coupon.code)}
                           aria-pressed={selected}
                           className={clsx(
                             "relative flex h-full w-full items-stretch overflow-hidden rounded-2xl border border-dashed text-left transition-all disabled:opacity-50 motion-safe:hover:-translate-y-px",
-                            selected ? "border-brand bg-brand-soft" : "border-line bg-panel hover:border-brand/60",
+                            selected ? "border-brand bg-brand-soft" : eligible ? "border-line bg-panel hover:border-brand/60" : "border-line/60 bg-canvas/60",
                             FOCUS_RING,
                           )}
                         >
-                          <span className={clsx("flex w-11 shrink-0 items-center justify-center", selected ? "bg-brand text-white" : "bg-accent-soft text-accent")}>
+                          <span className={clsx("flex w-11 shrink-0 items-center justify-center", selected ? "bg-brand text-white" : eligible ? "bg-accent-soft text-accent" : "bg-line/40 text-muted")}>
                             {selected ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : <Tag className="h-4 w-4" aria-hidden="true" />}
                           </span>
                           <span className="min-w-0 flex-1 px-3.5 py-3">
                             <span className="flex items-center justify-between gap-2">
-                              <strong className="truncate text-sm font-bold tracking-wide text-ink">{code}</strong>
-                              <span className={clsx("shrink-0 text-xs font-bold", selected ? "text-brand" : "text-brand/80")}>{selected ? "Applied" : "Apply"}</span>
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <strong className="truncate text-sm font-bold tracking-wide text-ink">{code}</strong>
+                                {coupon.title && (
+                                  <span className="shrink-0 rounded bg-brand/10 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
+                                    {coupon.title}
+                                  </span>
+                                )}
+                              </span>
+                              <span className={clsx("shrink-0 text-xs font-bold", selected ? "text-brand" : eligible ? "text-brand/80" : "text-muted")}>
+                                {selected ? "Applied" : eligible ? "Apply" : "Ineligible"}
+                              </span>
                             </span>
-                            <span className="mt-0.5 block text-xs leading-4 text-muted">{compactCouponDescription(coupon)}</span>
+                            <span className="mt-0.5 block text-xs leading-4 text-muted">{coupon.description || compactCouponDescription(coupon)}</span>
+                            {!eligible && reason && (
+                              <span className="mt-1 block text-[11px] font-medium text-danger">
+                                {couponErrorText(reason.code, reason.minOrder)}
+                              </span>
+                            )}
                           </span>
                         </button>
                       </li>

@@ -20,4 +20,8 @@ export const bookingSettings = {
   async isPaymentRequired(): Promise<boolean> {
     return process.env.BOOKING_REQUIRE_PAYMENT === 'true';
   },
+
+  async getCancellationPolicy(): Promise<{ windowHours: number; feeAmount: number }> {
+    return { windowHours: 4, feeAmount: 99 };
+  },
 };

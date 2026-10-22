@@ -7,13 +7,14 @@ import {
 } from '@/features/support/types';
 
 export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
+  const id = ticket.id || (ticket as any)._id || '';
   return (
     <li className="hcx-support-ticket">
       <div>
-        <span className="hcx-support-eyebrow">{ticketRef(ticket.id)}</span>
+        <span className="hcx-support-eyebrow">{ticketRef(id)}</span>
         <h3>
-          <Link to={`/customer/support/tickets/${ticket.id}`}>
-            {ticket.subject}
+          <Link to={`/customer/support/tickets/${id}`}>
+            {ticket.subject || 'Support Ticket'}
           </Link>
         </h3>
         <p className="hcx-support-muted">
@@ -25,12 +26,14 @@ export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
       </div>
       <div className="hcx-support-ticket-meta">
         <span
-          className={`hcx-support-badge hcx-support-badge--${ticket.status}`}
+          className={`hcx-support-badge hcx-support-badge--${ticket.status || 'open'}`}
         >
-          {label(ticket.status)}
+          {label(ticket.status || 'open')}
         </span>
-        <span>{label(ticket.priority)} priority</span>
-        <time dateTime={ticket.updatedAt}>{when(ticket.updatedAt)}</time>
+        <span>{label(ticket.priority || 'normal')} priority</span>
+        <time dateTime={ticket.updatedAt || ticket.createdAt}>
+          {when(ticket.updatedAt || ticket.createdAt)}
+        </time>
       </div>
     </li>
   );

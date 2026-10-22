@@ -1,11 +1,17 @@
 import type { NextFunction, Request, Response } from 'express';
 import { HttpError } from '../modules/auth/auth.types';
 
+export interface RateLimitOptions {
+  windowMs: number;
+  max: number;
+  keyGenerator?: (req: Request) => string;
+}
+
 /** Fixed-window, per-IP, in-memory limiter. Swap for Redis when running more than one instance. */
-export const rateLimit = ({ windowMs, max }: { windowMs: number; max: number }) => {
+export const rateLimit = ({ windowMs, max, keyGenerator }: RateLimitOptions) => {
   const hits = new Map<string, { count: number; resetAt: number }>();
-  return (req: Request, _res: Response, next: NextFunction) => {
-    const key = `${req.ip}:${req.baseUrl}${req.path}`;
+  return (req: Request, res: Response, next: NextFunction) => {
+    const key = keyGenerator ? keyGenerator(req) : `${req.ip}:${req.baseUrl}${req.path}`;
     const now = Date.now();
     const entry = hits.get(key);
     if (!entry || entry.resetAt <= now) {
@@ -14,6 +20,8 @@ export const rateLimit = ({ windowMs, max }: { windowMs: number; max: number }) 
     }
     entry.count += 1;
     if (entry.count > max) {
+      const retryAfterSeconds = Math.ceil((entry.resetAt - now) / 1000);
+      res.setHeader('Retry-After', String(Math.max(1, retryAfterSeconds)));
       return next(new HttpError(429, 'Too many requests. Please wait a minute and try again.', 'RATE_LIMITED'));
     }
     next();

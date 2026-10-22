@@ -191,7 +191,7 @@ export class CouponsService {
 
   async validate(
     input: CouponValidateInput,
-    userId: string,
+    userId?: string,
   ): Promise<CouponValidateResult> {
     const code = input.couponCode
       .trim()
@@ -253,22 +253,24 @@ export class CouponsService {
       );
     }
 
-    const userUsage =
-      await couponsRepository.countUsage(
-        coupon._id.toString(),
-        userId,
-      );
+    if (userId) {
+      const userUsage =
+        await couponsRepository.countUsage(
+          coupon._id.toString(),
+          userId,
+        );
 
-    if (
-      coupon.perUserLimit !== null &&
-      coupon.perUserLimit !== undefined &&
-      userUsage >= coupon.perUserLimit
-    ) {
-      throw new HttpError(
-        422,
-        'You have reached the usage limit for this coupon',
-        'COUPON_PER_USER_LIMIT',
-      );
+      if (
+        coupon.perUserLimit !== null &&
+        coupon.perUserLimit !== undefined &&
+        userUsage >= coupon.perUserLimit
+      ) {
+        throw new HttpError(
+          422,
+          'You have reached the usage limit for this coupon',
+          'COUPON_PER_USER_LIMIT',
+        );
+      }
     }
 
     if (!Types.ObjectId.isValid(input.serviceId)) {
@@ -315,9 +317,9 @@ export class CouponsService {
       service.basePrice * quantity;
 
     for (const addOnInput of input.addOns ?? []) {
-      const addOn = service.addOns.find(
+      const addOn = (service.addOns ?? []).find(
         (item) =>
-          item._id.toString() ===
+          String((item as any)._id ?? (item as any).id) ===
           addOnInput.addOnId,
       );
 
@@ -381,7 +383,7 @@ export class CouponsService {
       CouponValidateInput,
       'couponCode'
     >,
-    userId: string,
+    userId?: string,
   ): Promise<
     {
       code: string;
@@ -394,12 +396,14 @@ export class CouponsService {
       };
     }[]
   > {
-    const coupons =
-      await CouponModel.find({
-        active: true,
-      }).sort({
-        createdAt: -1,
-      });
+    const now = new Date();
+    const coupons = await CouponModel.find({
+      active: true,
+      startAt: { $lte: now },
+      endAt: { $gte: now },
+    }).sort({
+      createdAt: -1,
+    });
 
     const results: {
       code: string;
@@ -413,59 +417,90 @@ export class CouponsService {
     }[] = [];
 
     for (const coupon of coupons) {
+      if (
+        coupon.totalLimit !== null &&
+        coupon.totalLimit !== undefined &&
+        coupon.usedCount >= coupon.totalLimit
+      ) {
+        continue;
+      }
+
       const title =
         coupon.type === 'PERCENT'
           ? `${coupon.value}% off`
           : `Flat ₹${coupon.value} off`;
 
       const description =
-        coupon.minOrder > 0
-          ? `On orders of ₹${coupon.minOrder} and above`
-          : 'Available on eligible services';
+        coupon.maxDiscount && coupon.type === 'PERCENT'
+          ? `${coupon.value}% off up to ₹${coupon.maxDiscount}${coupon.minOrder > 0 ? ` on orders of ₹${coupon.minOrder}+` : ''}`
+          : coupon.minOrder > 0
+          ? `${title} on orders of ₹${coupon.minOrder} and above`
+          : `${title} on all eligible services`;
 
-      try {
-        await this.validate(
-          {
-            ...input,
-            couponCode: coupon.code,
-          },
-          userId,
-        );
+      if (input && input.serviceId) {
+        try {
+          await this.validate(
+            {
+              ...input,
+              couponCode: coupon.code,
+            },
+            userId,
+          );
 
+          results.push({
+            code: coupon.code,
+            title,
+            description,
+            eligible: true,
+          });
+        } catch (error) {
+          const err = error as HttpError;
+          if (err.code === 'COUPON_NOT_APPLICABLE') {
+            continue;
+          }
+          if (err.code === 'COUPON_EXPIRED' || err.code === 'COUPON_NOT_STARTED') {
+            continue;
+          }
+
+          results.push({
+            code: coupon.code,
+            title,
+            description,
+            eligible: false,
+            reason: {
+              code: err.code ?? 'COUPON_INVALID',
+              ...(err.details?.[0]?.message
+                ? {
+                    minOrder: Number(err.details[0].message),
+                  }
+                : {}),
+            },
+          });
+        }
+      } else {
         results.push({
           code: coupon.code,
           title,
           description,
           eligible: true,
         });
-      } catch (error) {
-        const err = error as HttpError;
-
-        results.push({
-          code: coupon.code,
-          title,
-          description,
-          eligible: false,
-          reason: {
-            code:
-              err.code ??
-              'COUPON_INVALID',
-            ...(err.details?.[0]?.message
-              ? {
-                  minOrder: Number(
-                    err.details[0].message,
-                  ),
-                }
-              : {}),
-          },
-        });
       }
     }
 
     return results;
   }
+
+  async recordUsage(
+    code: string,
+    userId: string,
+    bookingId?: string,
+  ): Promise<void> {
+    const coupon = await couponsRepository.findByCode(code);
+    if (!coupon) return;
+    await couponsRepository.recordUsage(coupon._id.toString(), userId, bookingId);
+    await CouponModel.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
+  }
 }
 
 export const couponsService =
   new CouponsService();
-

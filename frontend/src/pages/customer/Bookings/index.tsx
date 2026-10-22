@@ -233,13 +233,7 @@ export default function MyBookingsPage() {
               tab={state.tab}
               now={now}
               index={i}
-              note={
-                state.tab === "overdue"
-                  ? "Scheduled window passed; service completion has not been confirmed."
-                  : state.tab === "cancelled"
-                    ? cancelNote(b, now)
-                    : undefined
-              }
+              note={state.tab === "cancelled" ? cancelNote(b, now) : undefined}
               footer={renderFooter(b)}
             />
           ))}

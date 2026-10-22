@@ -25,5 +25,10 @@
     "mongodb"
   ],
   "author": "HomeCareX Team",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@mongodb-js/saslprep": "^1.6.1",
+    "@types/multer": "^2.3.0",
+    "multer": "^2.5.0"
+  }
 }

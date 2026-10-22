@@ -20,11 +20,43 @@ function cleanParams(obj: object): Record<string, string | number> {
 export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
-    const { data } = await http.get<ApiResponse<TicketPage>>("/support/tickets", {
+    const response = await http.get<any>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
-    return data.data;
+    const body = response.data;
+    if (Array.isArray(body?.data)) {
+      return {
+        items: body.data,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.data.length,
+          pages: 1,
+        },
+      };
+    }
+    if (body?.data?.items && Array.isArray(body.data.items)) {
+      return body.data;
+    }
+    if (body?.items && Array.isArray(body.items)) {
+      return body;
+    }
+    if (Array.isArray(body)) {
+      return {
+        items: body,
+        meta: {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.length,
+          pages: 1,
+        },
+      };
+    }
+    return {
+      items: [],
+      meta: { page: 1, limit: 10, total: 0, pages: 1 },
+    };
   },
 
   /** GET /support/tickets/:id -> { ticket, messages, nextBefore } */
