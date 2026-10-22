@@ -26,6 +26,8 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  Shield,
+  Globe,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -167,7 +169,19 @@ export const NAV: NavItem[] = [
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
-  { key: "system", label: "System", to: "/partner/system", icon: Settings },
+  {
+    key: "system",
+    label: "Settings",
+    to: "/partner/settings",
+    icon: Settings,
+    children: [
+      { key: "settings-account", label: "Account", to: "/partner/settings/account", icon: User },
+      { key: "settings-notifications", label: "Notifications", to: "/partner/settings/notifications", icon: Bell },
+      { key: "settings-privacy", label: "Privacy", to: "/partner/settings/privacy", icon: MapPin },
+      { key: "settings-security", label: "Security", to: "/partner/settings/security", icon: Shield },
+      { key: "settings-other", label: "Other", to: "/partner/settings/other", icon: Globe },
+    ],
+  },
 ];
 
 // Parents and children in one list (used for titles and "current page" lookup)
@@ -196,6 +210,12 @@ const PAGE_TITLES: Record<string, string> = {
 // They also hide the Online/Offline pill
 const EXTRA_TITLES: Record<string, string> = {
   "/partner/incentives": "Partner Incentives",
+  "/partner/settings": "Settings",
+  "/partner/settings/security/password": "Change Password",
+  "/partner/settings/security/sessions": "Active Sessions",
+  "/partner/settings/security/history": "Login History",
+  "/partner/settings/other/terms": "Terms of Service",
+  "/partner/settings/other/privacy-policy": "Privacy Policy",
   "/partner/earnings/incentives": "Partner Incentives",
   "/partner/payouts": "Partner Payouts",
   "/partner/earnings/payouts": "Partner Payouts",
@@ -322,10 +342,12 @@ function PartnerSidebar({
   collapsed,
   currentKey,
   currentLabel,
+  onToggle,
 }: {
   collapsed: boolean;
   currentKey?: string;
   currentLabel?: string;
+  onToggle: () => void;
 }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -374,7 +396,16 @@ function PartnerSidebar({
     <>
       <aside className={cls} aria-label="Partner navigation">
         <div className="sidebar-brand">
-          <div className="sidebar-brand__top">
+          <div
+            className="sidebar-brand__top"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: collapsed ? "center" : "space-between",
+              flexDirection: collapsed ? "column" : "row",
+              gap: collapsed ? 8 : 0,
+            }}
+          >
             <div className="sidebar-brand__logo">
               <span className="sidebar-brand__icon">
                 <HomeCarexMark size={22} />
@@ -384,6 +415,20 @@ function PartnerSidebar({
                 <span className="sidebar-brand__name">HomeCareX</span>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
+            >
+              {collapsed ? (
+                <PanelLeftOpen size={20} />
+              ) : (
+                <PanelLeftClose size={20} />
+              )}
+            </button>
           </div>
 
           {!collapsed && (
@@ -687,6 +732,12 @@ export default function PartnerLayout() {
 
     const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
 
+    // Opened directly (no history): go up one level inside Settings.
+    if (!hasHistory && cleanPath.startsWith("/partner/settings/")) {
+      const parts = cleanPath.split("/");
+      return navigate(parts.length > 4 ? parts.slice(0, -1).join("/") : "/partner");
+    }
+
     if (hasHistory) {
       return navigate(-1);
     }
@@ -713,6 +764,7 @@ export default function PartnerLayout() {
           collapsed={collapsed}
           currentKey={current?.key}
           currentLabel={current?.label}
+          onToggle={() => setCollapsedPref((v) => !v)}
         />
 
         <div className={`flex min-w-0 flex-1 flex-col ${fullBleed ? "min-h-0" : ""}`}>
@@ -727,23 +779,12 @@ export default function PartnerLayout() {
                 <button
                   onClick={goBack}
                   aria-label="Go back"
-                  className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:hidden"
+                  title="Back"
+                  className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
                 >
                   <ArrowLeft size={20} />
                 </button>
               )}
-
-              <button
-                onClick={() => setCollapsedPref((v) => !v)}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen size={20} />
-                ) : (
-                  <PanelLeftClose size={20} />
-                )}
-              </button>
 
               <h1 className="truncate text-base font-semibold text-[#4338ca] sm:text-lg">
                 {title}

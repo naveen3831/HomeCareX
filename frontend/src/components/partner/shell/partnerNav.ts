@@ -143,7 +143,7 @@ export const PARTNER_SIDEBAR_GROUPS: PartnerNavGroup[] = [
         to: partnerPath("/profile/verification"),
         icon: UserCheck,
       },
-      { label: "Settings", to: partnerPath("/system"), icon: Settings },
+      { label: "Settings", to: partnerPath("/settings"), icon: Settings },
     ],
   },
   {
