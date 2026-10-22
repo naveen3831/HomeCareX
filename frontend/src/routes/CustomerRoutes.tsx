@@ -1,37 +1,38 @@
-import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router-dom';
 
-import CustomerLayout from "../layouts/CustomerLayout";
+import CustomerLayout from '../layouts/CustomerLayout';
+import PageLoader from '@/components/common/PageLoader';
 
-import Dashboard from "../pages/customer/Dashboard";
-import Addresses from "../pages/customer/Addresses";
-import SetupAddress from "../pages/customer/SetupAddress";
-import Bookings from "../pages/customer/Bookings";
-import Categories from "../pages/customer/Categories";
-import Notifications from "../pages/customer/Notifications";
-import Payments from "../pages/customer/Payments";
-import Profile from "../pages/customer/Profile";
-import EditProfilePage from "../pages/customer/Profile/EditProfilePage";
-import ChangePasswordPage from "../pages/customer/Profile/ChangePasswordPage";
-import AccountSecurityPage from "@/pages/shared/AccountSecurity";
-import NotificationsPage from "../pages/customer/Profile/NotificationsPage";
-import TermsPage from "../pages/customer/Profile/TermsPage";
-import PrivacyPage from "../pages/customer/Profile/PrivacyPage";
-import Referrals from "../pages/customer/Referrals";
-import Reviews from "../pages/customer/Reviews";
-import Services from "../pages/customer/Services";
-import ServiceDetails from "../pages/customer/ServiceDetails";
-import Support from "../pages/customer/Support";
-import Tracking from "../pages/customer/Tracking";
-import TrackingRedirect from "../pages/customer/Tracking/TrackingRedirect";
-import Wallet from "../pages/customer/Wallet";
+// Lazy-load customer pages
+const Dashboard = lazy(() => import('../pages/customer/Dashboard'));
+const Addresses = lazy(() => import('../pages/customer/Addresses'));
+const SetupAddress = lazy(() => import('../pages/customer/SetupAddress'));
+const Bookings = lazy(() => import('../pages/customer/Bookings'));
+const BookingDetails = lazy(
+  () => import('../pages/customer/BookingDetails/BookingDetailsPage'),
+);
+const Categories = lazy(() => import('../pages/customer/Categories'));
+const Notifications = lazy(() => import('../pages/customer/Notifications'));
+const Payments = lazy(() => import('../pages/customer/Payments'));
+const Profile = lazy(() => import('../pages/customer/Profile'));
+const Referrals = lazy(() => import('../pages/customer/Referrals'));
+const Reviews = lazy(() => import('../pages/customer/Reviews'));
+const Services = lazy(() => import('../pages/customer/Services'));
+const ServiceDetails = lazy(() => import('../pages/customer/ServiceDetails'));
+const Support = lazy(() => import('../pages/customer/Support'));
+const Tracking = lazy(() => import('../pages/customer/Tracking'));
+const Wallet = lazy(() => import('../pages/customer/Wallet'));
 
-import Tickets from "@/pages/customer/Tickets";
-import BookServiceShell from "../pages/customer/Book";
+const Tickets = lazy(() => import('@/pages/customer/Tickets'));
+const BookServiceShell = lazy(() => import('../pages/customer/Book'));
+const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
 
-import BookingSuccess from "../pages/customer/BookingSuccess";
-import BookingFailed from "../pages/customer/BookingFailed";
-import ServiceBooked from "../pages/customer/BookingSuccess/ServiceBooked";
-import BookingDetails from "@/pages/customer/BookingDetails";
+const BookingSuccess = lazy(() => import('../pages/customer/BookingSuccess'));
+const BookingFailed = lazy(() => import('../pages/customer/BookingFailed'));
+const ServiceBooked = lazy(
+  () => import('../pages/customer/BookingSuccess/ServiceBooked'),
+);
 
 /**
  * CustomerRoutes — every route the Customer Dashboard serves,
@@ -39,46 +40,39 @@ import BookingDetails from "@/pages/customer/BookingDetails";
  */
 export default function CustomerRoutes() {
   return (
-    <Routes>
-      {/* First-login map setup: full screen, outside the dashboard layout */}
-      <Route path="/setup-address" element={<SetupAddress />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* First-login map setup: outside the dashboard layout */}
+        <Route path="/setup-address" element={<SetupAddress />} />
 
-      <Route element={<CustomerLayout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/addresses" element={<Addresses />} />
-        <Route path="/bookings" element={<Bookings />} />
+        <Route element={<CustomerLayout />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/addresses" element={<Addresses />} />
+          <Route path="/bookings" element={<Bookings />} />
 
-        {/* ✅ View Details route with :id matching useParams in BookingDetails */}
-        <Route path="/bookings/:id" element={<BookingDetails />} />
-        <Route path="/bookings/:id/track" element={<Tracking />} />
+          <Route path="/bookings/:id" element={<BookingDetails />} />
 
-        <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/notifications" element={<Notifications />} />
-        <Route path="/payments" element={<Payments />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/edit" element={<EditProfilePage />} />
-        <Route path="/profile/password" element={<ChangePasswordPage />} />
-        <Route path="/profile/security" element={<AccountSecurityPage />} />
-        <Route path="/security" element={<AccountSecurityPage />} />
-        <Route path="/profile/notifications" element={<NotificationsPage />} />
-        <Route path="/profile/terms" element={<TermsPage />} />
-        <Route path="/profile/privacy" element={<PrivacyPage />} />
+          <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/payments" element={<Payments />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/edit" element={<EditProfile />} />
 
-        <Route path="/referrals" element={<Referrals />} />
-        <Route path="/reviews" element={<Reviews />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/services/:slug" element={<ServiceDetails />} />
-        <Route path="/support" element={<Support />} />
-        <Route path="/support/tickets" element={<Tickets />} />
-        <Route path="/support/tickets/:ticketId" element={<Support />} />
-        <Route path="/tracking" element={<TrackingRedirect />} />
-        <Route path="/wallet" element={<Wallet />} />
+          <Route path="/referrals" element={<Referrals />} />
+          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services/:slug" element={<ServiceDetails />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/support/tickets" element={<Tickets />} />
+          <Route path="/tracking" element={<Tracking />} />
+          <Route path="/wallet" element={<Wallet />} />
 
-        <Route path="/booking/success/:id" element={<BookingSuccess />} />
-        <Route path="/booking/failed/:id" element={<BookingFailed />} />
-        <Route path="/booking/booked/:id" element={<ServiceBooked />} />
-      </Route>
-    </Routes>
+          <Route path="/booking/success/:id" element={<BookingSuccess />} />
+          <Route path="/booking/failed/:id" element={<BookingFailed />} />
+          <Route path="/booking/booked/:id" element={<ServiceBooked />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }

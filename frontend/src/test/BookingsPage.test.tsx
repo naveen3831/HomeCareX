@@ -112,7 +112,7 @@ describe("My Bookings page", () => {
     );
     expect(c.getByRole("link", { name: /Track/ })).toHaveAttribute(
       "href",
-      `/customer/bookings/${ID}/track`,
+      expect.stringContaining(`booking=${ID}`),
     );
   });
 

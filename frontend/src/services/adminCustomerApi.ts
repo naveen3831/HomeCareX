@@ -1,4 +1,5 @@
 import http, { type ApiResponse } from '@/lib/http';
+import type { RevokeResult } from '@/types/auth';
 import type {
   AdminCustomerDetail,
   AdminCustomersPage,
@@ -60,10 +61,11 @@ export const adminCustomerApi = {
     return data.data;
   },
 
-  /** POST /auth/revoke-user-sessions/:userId. Admin-only: revokes all sessions for a specified user. */
-  async revokeUserSessions(userId: string) {
-    const { data } = await http.post<ApiResponse<{ revoked: boolean }>>(`/auth/revoke-user-sessions/${encodeURIComponent(userId)}`);
+  /** POST /auth/revoke-user-sessions/:userId (admin only). Revokes every active session for that user. */
+  async revokeUserSessions(userId: string): Promise<RevokeResult> {
+    const { data } = await http.post<ApiResponse<RevokeResult>>(
+      `/auth/revoke-user-sessions/${encodeURIComponent(userId)}`,
+    );
     return data.data;
   },
 };
-

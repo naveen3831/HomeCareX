@@ -1,10 +1,10 @@
 export type UserRole = "admin" | "customer" | "partner";
- 
+
 export const ADMIN_ROLES: UserRole[] = ["admin"];
- 
+
 /** 'expired' = a previously valid session ended (401 / refresh failed). */
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated" | "expired";
- 
+
 export interface AuthUser {
   id: string;
   name: string;
@@ -16,7 +16,7 @@ export interface AuthUser {
   /** Landing route for the role: /customer, /partner or /admin. */
   home: string;
 }
- 
+
 export interface LoginInput {
   email: string;
   password: string;
@@ -30,25 +30,36 @@ export interface RegisterInput {
   confirmPassword?: string;
   referralCode?: string;
   role?: "customer" | "partner";
+
+  /* ---- Partner registration: personal ---- */
+  /** Profile photo as a data URL. */
   avatar?: string;
+  gender?: string;
+  /** Date of birth, YYYY-MM-DD. */
   dob?: string;
-  gender?: 'male' | 'female' | 'other' | string;
+
+  /* ---- Partner registration: identity proof ---- */
   idProofType?: string;
   idProofNumber?: string;
   idProofDocument?: string;
+
+  /* ---- Partner registration: address proof ---- */
   address?: string;
   city?: string;
   state?: string;
   pincode?: string;
   addressProofDocument?: string;
+
+  /* ---- Partner registration: professional ---- */
   category?: string;
-  categories?: string[];
   skills?: string[];
   experienceYears?: number;
   serviceRadiusKm?: number;
   workingDays?: string[];
   workingHoursStart?: string;
   workingHoursEnd?: string;
+
+  /* ---- Partner registration: payout ---- */
   accountHolder?: string;
   accountNumber?: string;
   ifsc?: string;
@@ -71,36 +82,27 @@ export interface AuthContextValue {
   updateProfile: (patch: ProfilePatch) => void;
 }
 
+/** One active login session as returned by GET /auth/sessions. Never contains tokens. */
 export interface UserSession {
   id: string;
-  device?: string;
-  browser?: string;
+  device: string;
+  browser: string;
   os?: string;
-  ipAddress?: string;
-  lastActiveAt: string;
-  createdAt?: string;
-  isCurrent?: boolean;
+  ipAddress: string;
+  lastActiveAt: string; // ISO date
+  isCurrent: boolean;
 }
 
 export interface ChangePasswordInput {
   currentPassword: string;
   newPassword: string;
-  confirmPassword?: string;
+  confirmPassword: string;
 }
 
 export interface ChangePasswordResult {
   changed: boolean;
 }
 
-export interface SessionRevokeResult {
+export interface RevokeResult {
   revoked: boolean;
 }
-
-export interface LogoutAllResult {
-  revoked: boolean;
-}
-
-export interface RevokeUserSessionsResult {
-  revoked: boolean;
-}
-

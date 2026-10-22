@@ -35,7 +35,7 @@ const PincodeInput: React.FC<PincodeInputProps> = ({
         placeholder="Enter 6-digit pincode"
         aria-invalid={Boolean(error)}
         aria-describedby={error ? "pincode-error" : undefined}
-        className={`w-full rounded-lg border px-4 py-3 outline-none transition focus:ring-2 ${
+        className={`h-12 w-full rounded-lg border px-4 text-sm outline-none transition focus:ring-2 ${
           error
             ? "border-red-500 focus:ring-red-200"
             : "border-gray-300 focus:border-[#4338ca] focus:ring-indigo-100"

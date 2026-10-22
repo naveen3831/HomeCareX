@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
-import { CalendarCheck, IndianRupee, LifeBuoy, Pencil, ShieldAlert, Star, Trash2 } from 'lucide-react';
+import { CalendarCheck, IndianRupee, LifeBuoy, Pencil, Star, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog, Modal, PageHeader, StatCard, StatusBadge, Timeline } from '@/components/admin';
 import type { TimelineItem } from '@/components/admin';
@@ -307,20 +307,6 @@ const AdminCustomerDetailsPage: React.FC = () => {
     onError: (e) => setRemoveError(errMessage(e, 'Could not remove the customer. Please try again.')),
   });
 
-  const [revokeSessionsOpen, setRevokeSessionsOpen] = useState(false);
-  const [revokeSessionsError, setRevokeSessionsError] = useState<string | null>(null);
-
-  const revokeSessionsMutation = useMutation({
-    mutationFn: () => adminCustomerApi.revokeUserSessions(id),
-    onSuccess: async () => {
-      setRevokeSessionsOpen(false);
-      setRevokeSessionsError(null);
-      setNotice('All active sessions for this customer have been revoked.');
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'customers', 'detail', id] });
-    },
-    onError: (e) => setRevokeSessionsError(errMessage(e, 'Could not revoke sessions for this customer. Please try again.')),
-  });
-
   const onTabKey = (e: React.KeyboardEvent, index: number) => {
     const next = e.key === 'ArrowRight' ? index + 1 : e.key === 'ArrowLeft' ? index - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : null;
     if (next === null) return;
@@ -396,13 +382,6 @@ const AdminCustomerDetailsPage: React.FC = () => {
               onClick={() => { setNotice(null); setEditOpen(true); }}
             >
               <Pencil size={14} aria-hidden /> Edit
-            </button>
-            <button
-              type="button"
-              className="cd-action cd-action--revoke hcx-btn"
-              onClick={() => { setNotice(null); setRevokeSessionsError(null); setRevokeSessionsOpen(true); }}
-            >
-              <ShieldAlert size={14} aria-hidden /> Revoke sessions
             </button>
             <button
               type="button"
@@ -483,22 +462,6 @@ const AdminCustomerDetailsPage: React.FC = () => {
         onConfirm={(reason) => {
           if (confirmTo && reason) mutation.mutate({ status: confirmTo, reason });
         }}
-      />
-
-      <ConfirmDialog
-        open={revokeSessionsOpen}
-        tone="danger"
-        title={`Revoke all sessions for ${o.name}?`}
-        confirmLabel="Revoke sessions"
-        loading={revokeSessionsMutation.isPending}
-        message={
-          <>
-            This will terminate all active login sessions for this customer across all devices immediately.
-            {revokeSessionsError && <div role="alert" style={{ marginTop: 8, color: 'var(--hcx-danger)' }}>{revokeSessionsError}</div>}
-          </>
-        }
-        onCancel={() => { if (!revokeSessionsMutation.isPending) { setRevokeSessionsOpen(false); setRevokeSessionsError(null); } }}
-        onConfirm={() => revokeSessionsMutation.mutate()}
       />
 
       <EditCustomerModal

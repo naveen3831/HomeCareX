@@ -1,7 +1,18 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Briefcase, CalendarCheck, CalendarClock, CheckCircle2, Headset, IndianRupee, Percent, Star, ThumbsUp, Wallet } from "lucide-react";
+import {
+  Briefcase,
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle2,
+  Headset,
+  IndianRupee,
+  Percent,
+  Star,
+  ThumbsUp,
+  Wallet,
+} from "lucide-react";
 import KpiCard from "@/components/partner/KpiCard";
 import ActiveJobCard from "@/components/partner/ActiveJobCard";
 import JobRequestCard from "@/components/partner/JobRequestCard";
@@ -15,12 +26,20 @@ import { partnerApi } from "@/services/partnerApi";
 
 const greeting = () => {
   const h = new Date().getHours();
+
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 };
+
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+
+  if (Number.isNaN(m) || m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  if (m < 1440) return `${Math.round(m / 60)} h ago`;
+
+  return `${Math.round(m / 1440)} d ago`;
 };
 
 const QUICK_ACTIONS = [
@@ -30,12 +49,18 @@ const QUICK_ACTIONS = [
   { label: "Get support", to: "/partner/support", icon: Headset },
 ];
 
-const Card = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
-  <section className="rounded-xl border border-line bg-panel p-5 shadow-sm">
-    <div className="mb-3.5 flex items-center justify-between border-b border-line/60 pb-2.5">
-      <h3 className="inline-flex items-center rounded-md border-l-[3px] border-[#ff8a3d] bg-[#eeecfb] px-2.5 py-1 text-xs font-extrabold uppercase tracking-wider text-[#4338ca]">
-        {title}
-      </h3>
+const Card = ({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) => (
+  <section className="rounded border border-line bg-panel p-5">
+    <div className="mb-3 flex items-center justify-between">
+      <h3 className="font-semibold text-ink">{title}</h3>
       {action}
     </div>
     {children}
@@ -64,23 +89,77 @@ export default function PartnerDashboard() {
   const networkOnline = useOnlineStatus();
   const [handled, setHandled] = useState<string[]>([]);
 
-  const dashboard = useQuery({ queryKey: ["partner", "dashboard"], queryFn: partnerApi.getDashboard, retry: 1, refetchInterval: 30_000 });
-  const requests = useQuery({ queryKey: ["partner", "requests"], queryFn: partnerApi.getJobRequests, retry: 1 });
-  const earnings = useQuery({ queryKey: ["partner", "earnings-summary"], queryFn: partnerApi.getEarningsSummary, retry: 1 });
-  const notifications = useQuery({ queryKey: ["partner", "notifications"], queryFn: partnerApi.getNotifications, retry: 1 });
+  /*
+   * Wrap each queryFn in an arrow. React Query passes a context object as the
+   * first argument, which would otherwise be received as `partnerId` by
+   * partnerApi.getJobRequests(partnerId?).
+   */
+  const dashboard = useQuery({
+    queryKey: ["partner", "dashboard"],
+    queryFn: () => partnerApi.getDashboard(),
+    retry: 1,
+    refetchInterval: 30_000,
+  });
+
+  const requests = useQuery({
+    queryKey: ["partner", "requests"],
+    queryFn: () => partnerApi.getJobRequests(),
+    retry: 1,
+  });
+
+  const earnings = useQuery({
+    queryKey: ["partner", "earnings-summary"],
+    queryFn: () => partnerApi.getEarningsSummary(),
+    retry: 1,
+  });
+
+  const notifications = useQuery({
+    queryKey: ["partner", "notifications"],
+    queryFn: () => partnerApi.getNotifications(),
+    retry: 1,
+  });
 
   const data = dashboard.data;
-  const openRequests = (requests.data ?? []).filter((r) => !handled.includes(r.id));
-  const handle = (id: string) => setHandled((h) => [...h, id]); // TODO(backend): POST /bookings/:id/accept | reject
 
-  let body;
+  const openRequests = (requests.data ?? []).filter(
+    (r) => !handled.includes(r.id),
+  );
+
+  // TODO(backend): POST /bookings/:id/accept | reject
+  const handle = (id: string) => setHandled((h) => [...h, id]);
+
+  let body: ReactNode;
+
   if (!data && !networkOnline) {
     body = <OfflineState onRetry={() => void dashboard.refetch()} />;
   } else if (dashboard.isPending) {
     body = <DashboardSkeleton />;
   } else if (dashboard.isError || !data) {
-    body = <ErrorState message={dashboard.error?.message} onRetry={() => void dashboard.refetch()} />;
+    body = (
+      <ErrorState
+        message={dashboard.error?.message}
+        onRetry={() => void dashboard.refetch()}
+      />
+    );
   } else {
+    const scorecard = [
+      {
+        label: "Rating",
+        text: data.rating > 0 ? `${data.rating.toFixed(1)} / 5` : "No ratings yet",
+        pct: (data.rating / 5) * 100,
+      },
+      {
+        label: "Acceptance rate",
+        text: `${data.acceptanceRate}%`,
+        pct: data.acceptanceRate,
+      },
+      {
+        label: "Completion rate",
+        text: `${data.completionRate}%`,
+        pct: data.completionRate,
+      },
+    ];
+
     body = (
       <div className="space-y-6">
         <ActiveJobCard job={data.activeJob} />
@@ -99,7 +178,10 @@ export default function PartnerDashboard() {
         </div>
 
         {!online && (
-          <p className="rounded border border-accent/40 bg-accent-soft px-4 py-2.5 text-sm text-[#9a4a00]" role="status">
+          <p
+            className="rounded border border-accent/40 bg-accent-soft px-4 py-2.5 text-sm text-[#9a4a00]"
+            role="status"
+          >
             You're offline. Go online to receive new job requests.
           </p>
         )}
@@ -110,8 +192,14 @@ export default function PartnerDashboard() {
           <KpiCard label="Completed" value={data.completedJobs} icon={CheckCircle2} hint="Finished today" />
           <KpiCard label="Today's earnings" value={inr(data.todayEarnings)} icon={IndianRupee} hint="After commission" />
         </div>
+
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          <KpiCard label="Rating" value={data.rating > 0 ? data.rating.toFixed(1) : "–"} icon={Star} hint={data.rating > 0 ? "Out of 5" : "No ratings yet"} />
+          <KpiCard
+            label="Rating"
+            value={data.rating > 0 ? data.rating.toFixed(1) : "–"}
+            icon={Star}
+            hint={data.rating > 0 ? "Out of 5" : "No ratings yet"}
+          />
           <KpiCard label="Acceptance rate" value={`${data.acceptanceRate}%`} icon={ThumbsUp} hint="Requests accepted" />
           <KpiCard label="Completion rate" value={`${data.completionRate}%`} icon={Percent} hint="Jobs completed" />
         </div>
@@ -129,13 +217,24 @@ export default function PartnerDashboard() {
               {requests.isPending ? (
                 <Skeleton className="h-24" />
               ) : requests.isError ? (
-                <ErrorState title="Couldn't load requests" message={requests.error.message} onRetry={() => void requests.refetch()} />
+                <ErrorState
+                  title="Couldn't load requests"
+                  message={requests.error.message}
+                  onRetry={() => void requests.refetch()}
+                />
               ) : openRequests.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted">No new requests right now.</p>
+                <p className="py-4 text-center text-sm text-muted">
+                  No new requests right now.
+                </p>
               ) : (
                 <ul className="space-y-3">
                   {openRequests.map((r) => (
-                    <JobRequestCard key={r.id} request={r} onAccept={handle} onReject={handle} />
+                    <JobRequestCard
+                      key={r.id}
+                      request={r}
+                      onAccept={handle}
+                      onReject={handle}
+                    />
                   ))}
                 </ul>
               )}
@@ -145,18 +244,17 @@ export default function PartnerDashboard() {
           <div className="space-y-6">
             <Card title="Performance scorecard">
               <ul className="space-y-3">
-                {[
-                  ["Rating", data.rating > 0 ? `${data.rating.toFixed(1)} / 5` : "No ratings yet", (data.rating / 5) * 100],
-                  ["Acceptance rate", `${data.acceptanceRate}%`, data.acceptanceRate],
-                  ["Completion rate", `${data.completionRate}%`, data.completionRate],
-                ].map(([label, text, pct]) => (
-                  <li key={String(label)}>
+                {scorecard.map((item) => (
+                  <li key={item.label}>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted">{label}</span>
-                      <span className="font-medium text-ink">{text}</span>
+                      <span className="text-muted">{item.label}</span>
+                      <span className="font-medium text-ink">{item.text}</span>
                     </div>
                     <div className="mt-1 h-1.5 rounded-full bg-canvas" role="presentation">
-                      <div className="h-1.5 rounded-full bg-brand" style={{ width: `${Math.min(100, Number(pct))}%` }} />
+                      <div
+                        className="h-1.5 rounded-full bg-brand"
+                        style={{ width: `${Math.max(0, Math.min(100, item.pct))}%` }}
+                      />
                     </div>
                   </li>
                 ))}
@@ -170,17 +268,21 @@ export default function PartnerDashboard() {
               {earnings.isPending ? (
                 <Skeleton className="h-20" />
               ) : earnings.isError ? (
-                <ErrorState title="Couldn't load earnings" message={earnings.error.message} onRetry={() => void earnings.refetch()} />
+                <ErrorState
+                  title="Couldn't load earnings"
+                  message={earnings.error.message}
+                  onRetry={() => void earnings.refetch()}
+                />
               ) : (
                 <dl className="space-y-2 text-sm">
                   {[
-                    ["Today", earnings.data.today],
-                    ["This week", earnings.data.week],
-                    ["This month", earnings.data.month],
-                  ].map(([k, v]) => (
-                    <div key={String(k)} className="flex justify-between">
-                      <dt className="text-muted">{k}</dt>
-                      <dd className="font-medium text-ink">{inr(Number(v))}</dd>
+                    { label: "Today", value: earnings.data.today },
+                    { label: "This week", value: earnings.data.week },
+                    { label: "This month", value: earnings.data.month },
+                  ].map((row) => (
+                    <div key={row.label} className="flex justify-between">
+                      <dt className="text-muted">{row.label}</dt>
+                      <dd className="font-medium text-ink">{inr(row.value)}</dd>
                     </div>
                   ))}
                 </dl>
@@ -201,16 +303,29 @@ export default function PartnerDashboard() {
               {notifications.isPending ? (
                 <Skeleton className="h-24" />
               ) : notifications.isError ? (
-                <ErrorState title="Couldn't load notifications" message={notifications.error.message} onRetry={() => void notifications.refetch()} />
+                <ErrorState
+                  title="Couldn't load notifications"
+                  message={notifications.error.message}
+                  onRetry={() => void notifications.refetch()}
+                />
               ) : notifications.data.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted">You're all caught up.</p>
+                <p className="py-4 text-center text-sm text-muted">
+                  You're all caught up.
+                </p>
               ) : (
                 <ul className="divide-y divide-line">
                   {notifications.data.map((n) => (
                     <li key={n.id} className="flex items-start gap-2 py-2.5">
-                      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-accent"}`} aria-hidden />
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                          n.read ? "bg-transparent" : "bg-accent"
+                        }`}
+                        aria-hidden="true"
+                      />
                       <div className="min-w-0">
-                        <p className={`text-sm ${n.read ? "text-muted" : "font-medium text-ink"}`}>{n.title}</p>
+                        <p className={`text-sm ${n.read ? "text-muted" : "font-medium text-ink"}`}>
+                          {n.title}
+                        </p>
                         <p className="text-xs text-muted">{ago(n.createdAt)}</p>
                       </div>
                     </li>
@@ -228,7 +343,7 @@ export default function PartnerDashboard() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-ink">
-          {greeting()}, {user?.name?.split(" ")[0] ?? "Partner"} 👋
+          {greeting()}, {user?.name?.split(" ")[0] || "Partner"} 👋
         </h2>
         <p className="mt-1 text-sm text-muted">Here's an overview of your day.</p>
       </div>

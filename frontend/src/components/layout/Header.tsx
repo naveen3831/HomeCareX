@@ -233,7 +233,11 @@ const Header: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  /* HEADER HEIGHT */
+  /* HEADER HEIGHT
+     Uses the ResizeObserver entry size instead of reading offsetHeight,
+     so no synchronous layout read (forced reflow) happens on first render.
+     The observer fires once on observe() and again whenever the size changes,
+     which also covers window resizes. */
 
   useEffect(() => {
     const element = headerRef.current;
@@ -242,27 +246,25 @@ const Header: React.FC = () => {
       return undefined;
     }
 
-    const publishHeaderHeight = () => {
+    const resizeObserver = new ResizeObserver((entries) => {
       if (window.scrollY > 8) {
         return;
       }
 
+      const entry = entries[0];
+      const height =
+        entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+
       document.documentElement.style.setProperty(
         "--hcx-nav",
-        `${element.offsetHeight}px`
+        `${Math.round(height)}px`
       );
-    };
+    });
 
-    publishHeaderHeight();
-
-    const resizeObserver = new ResizeObserver(publishHeaderHeight);
     resizeObserver.observe(element);
-
-    window.addEventListener("resize", publishHeaderHeight);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("resize", publishHeaderHeight);
       document.documentElement.style.removeProperty("--hcx-nav");
     };
   }, []);
@@ -400,9 +402,15 @@ const Header: React.FC = () => {
             aria-label="HomeCareX Home"
             className="flex items-center justify-self-start rounded-xl"
           >
+            {/* Resized logo (about 330x128, WebP). width/height reserve space so
+                the header does not shift while the image loads. */}
             <img
-              src="/logo.png"
+              src="/logo.webp"
               alt="HomeCareX"
+              width={326}
+              height={128}
+              fetchPriority="high"
+              decoding="async"
               className="h-14 w-auto object-contain mix-blend-multiply transition-transform duration-300 hover:scale-105 sm:h-16"
             />
           </NavLink>

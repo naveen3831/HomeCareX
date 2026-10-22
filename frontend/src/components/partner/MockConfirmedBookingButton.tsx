@@ -1,8 +1,10 @@
 import { confirmMockBooking } from "@/services/mockBookingFlow";
+import { stopAllReofferSessions } from "@/services/mockJobReoffer";
+import { clearMockJobs } from "@/services/mockPartnerJobActions";
+import { resetMockPartnerBookings } from "@/services/mockPartnerJobs";
 
 /* Each click books a slot 3 hours after the previous one.
    A booking lasts 2 hours, so slots never overlap. */
-
 const SLOT_GAP_MS = 3 * 60 * 60 * 1000;
 
 let slotCount = 0;
@@ -12,7 +14,8 @@ export default function MockConfirmedBookingButton() {
     slotCount += 1;
 
     confirmMockBooking({
-      id: `booking-${Date.now()}`,
+      /* slotCount keeps ids unique even for clicks in the same millisecond */
+      id: `booking-${Date.now()}-${slotCount}`,
       service: "Deep home cleaning",
       area: "Gachibowli",
       address: "Flat 402, Sai Residency, Road No. 3, Gachibowli, Hyderabad",
@@ -20,6 +23,15 @@ export default function MockConfirmedBookingButton() {
       scheduledAt: new Date(Date.now() + slotCount * SLOT_GAP_MS).toISOString(),
       durationMinutes: 120,
     });
+  };
+
+  /* Clean slate without refreshing the page */
+  const resetMockData = () => {
+    stopAllReofferSessions();
+    clearMockJobs();
+    resetMockPartnerBookings();
+
+    slotCount = 0;
   };
 
   return (
@@ -32,13 +44,13 @@ export default function MockConfirmedBookingButton() {
         Simulate Confirmed Booking
       </button>
 
-      {/* <button
+      <button
         type="button"
         onClick={resetMockData}
         className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-canvas"
       >
         Reset mock data
-      </button> */}
+      </button>
     </div>
   );
 }
