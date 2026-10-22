@@ -1,4 +1,21 @@
-import PageShell from "../../../components/layout/PageShell";
+import { useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ChevronDown, MessageSquare, Search } from "lucide-react";
+
+import "./Support.css";
+
+import { searchHelp } from "@/features/support/helpCenter";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useTickets } from "@/hooks/useTickets";
+import type { TicketStatus } from "@/features/support/types";
+import TicketStatusFilter from "@/components/support/TicketStatusFilter";
+import TicketCard from "@/components/support/TicketCard";
+
+/** Turns an unknown error into a short message for the screen. */
+function problem(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Something went wrong. Please try again.";
+}
 
 function HeroIllustration() {
   return (
@@ -118,6 +135,7 @@ function HelpCenter() {
     </section>
   );
 }
+
 function TicketList() {
   const online = useOnlineStatus();
   const [page, setPage] = useState(1);
@@ -134,7 +152,7 @@ function TicketList() {
         </div>
         <TicketStatusFilter
           value={status}
-          onChange={(nextStatus) => {
+          onChange={(nextStatus: TicketStatus | "") => {
             setStatus(nextStatus);
             setPage(1);
           }}
@@ -201,11 +219,44 @@ function TicketList() {
     </section>
   );
 }
+
 export default function Support() {
+  const [params, setParams] = useSearchParams();
+  const view = params.get("view") === "help" ? "help" : "tickets";
+
+  const show = (next: "help" | "tickets") => setParams({ view: next });
+
   return (
-    <PageShell
-      title="Support"
-      description="Get help and contact support."
-    />
+    <div className="hcx-support-page">
+      <header className="hcx-support-hero">
+        <div>
+          <h1>Support</h1>
+          <p className="hcx-support-muted">Get help and contact support.</p>
+        </div>
+        <HeroIllustration />
+      </header>
+
+      <div className="hcx-support-tabs" role="tablist" aria-label="Support">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "tickets"}
+          onClick={() => show("tickets")}
+        >
+          My tickets
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "help"}
+          onClick={() => show("help")}
+        >
+          Help center
+        </button>
+        <Link to="/customer/support?view=new">New ticket</Link>
+      </div>
+
+      {view === "help" ? <HelpCenter /> : <TicketList />}
+    </div>
   );
 }
