@@ -10,7 +10,8 @@
   "scripts": {
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
-    "build:frontend": "npm run build --workspace=frontend",
+   "generate:sitemap": "node frontend/scripts/generate-sitemap.ts",
+    "build:frontend": "npm run generate:sitemap && npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
     "lint": "npm run lint --workspaces",
     "seed:users": "npm run seed:users --workspace=backend",
@@ -24,5 +25,8 @@
     "mongodb"
   ],
   "author": "HomeCareX Team",
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@types/node": "^26.6.5"
+  }
 }

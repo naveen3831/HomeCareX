@@ -13,6 +13,8 @@ import { Link, useLocation } from 'react-router-dom';
 import ContactForm from '@/components/public/ContactForm';
 import MapEmbed from '@/components/public/MapEmbed';
 import PartnerInterestForm from '@/components/public/PartnerInterestForm';
+import Seo from '@/components/common/Seo';
+import { breadcrumbLd } from '@/lib/jsonld';
 import './Contact.css';
 
 const contactItems = [
@@ -66,6 +68,14 @@ const Contact: React.FC = () => {
 
   return (
     <div className="contact-page">
+            <Seo
+        title="Contact Us | HomeCareX"
+        description="Get in touch with HomeCareX for booking help, support or partner enquiries. Choose the way that suits you."
+        jsonLd={breadcrumbLd([
+          { name: 'Home', path: '/' },
+          { name: 'Contact', path: '/contact' },
+        ])}
+      />
       <section id="contact-methods" className="contact-ways" aria-labelledby="contact-ways-title">
         <div className="contact-shell">
           <div className="contact-section-heading">
