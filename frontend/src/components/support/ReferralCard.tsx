@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react';
-import { Copy, Share2 } from 'lucide-react';
-import type { ReferralSummary } from '@/hooks/useReferral';
+import { useRef, useState } from "react";
+import { Copy, Share2 } from "lucide-react";
+import type { ReferralSummary } from "@/hooks/useReferral";
 export const money = (paise: number) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(
     paise / 100,
   );
 
 export default function ReferralCard({ data }: { data: ReferralSummary }) {
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState("");
   const codeInput = useRef<HTMLInputElement>(null);
   const shareUrl = new URL(
     `/register?ref=${encodeURIComponent(data.code)}`,
@@ -16,11 +16,11 @@ export default function ReferralCard({ data }: { data: ReferralSummary }) {
   async function copy(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setNotice('Copied to clipboard.');
+      setNotice("Copied to clipboard.");
     } catch {
       codeInput.current?.focus();
       codeInput.current?.select();
-      setNotice('Select and copy your code from the field above.');
+      setNotice("Select and copy your code from the field above.");
     }
   }
   return (
@@ -44,16 +44,16 @@ export default function ReferralCard({ data }: { data: ReferralSummary }) {
             try {
               if (navigator.share) {
                 await navigator.share({
-                  title: 'Join me on HomeCareX',
+                  title: "Join me on HomeCareX",
                   text: `Use my referral code ${data.code} when signing up.`,
                   url: shareUrl,
                 });
-                setNotice('Share options opened.');
+                setNotice("Share options opened.");
               } else await copy(shareUrl);
             } catch (error) {
-              if ((error as { name?: string }).name !== 'AbortError')
+              if ((error as { name?: string }).name !== "AbortError")
                 setNotice(
-                  'Could not share. You can copy your referral code instead.',
+                  "Could not share. You can copy your referral code instead.",
                 );
             }
           }}
@@ -65,8 +65,8 @@ export default function ReferralCard({ data }: { data: ReferralSummary }) {
       <p role="status">{notice}</p>
       <p className="hcx-support-muted">
         {data.rewardPerReferralPaise > 0
-          ? `${money(data.rewardPerReferralPaise)} is credited to your wallet after your friend’s first completed booking. Each friend can earn one referral reward.`
-          : 'Referral rewards will be announced by HomeCareX. Your invitations and completed bookings are still tracked.'}
+          ? `${money(data.rewardPerReferralPaise)} is credited to your wallet after your friend’s first paid booking. Each friend can earn one referral reward.`
+          : "Referral rewards will be announced by HomeCareX. Your invitations and completed bookings are still tracked."}
       </p>
     </section>
   );

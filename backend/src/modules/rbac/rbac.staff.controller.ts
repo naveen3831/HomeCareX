@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 
-import { rbacStaffService, type StaffStatus } from './rbac.staff.service';
+import type { StaffStatusValue } from '../../models/Staff';
+import { rbacStaffService } from './rbac.staff.service';
 
 const actorOf = (req: Request, res: Response) => ({ id: String(res.locals.auth?.sub ?? ''), ip: req.ip ?? 'unknown' });
 
@@ -15,7 +16,7 @@ export const rbacStaffController = {
   },
 
   async setStatus(req: Request, res: Response) {
-    const data = await rbacStaffService.setStatus(String(req.params.id), req.body?.status as StaffStatus, actorOf(req, res));
+    const data = await rbacStaffService.setStatus(String(req.params.id), req.body?.status as StaffStatusValue, actorOf(req, res));
     res.json({ success: true, data });
   },
 };

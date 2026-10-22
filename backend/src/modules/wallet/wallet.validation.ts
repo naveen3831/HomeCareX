@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { LEDGER_TYPES } from './wallet.constants';
+import { z } from "zod";
+import { LEDGER_TYPES } from "./wallet.constants";
 
 export const walletQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

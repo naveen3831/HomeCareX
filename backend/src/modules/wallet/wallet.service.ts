@@ -17,9 +17,22 @@ export class WalletService {
     const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
     const skip = (numPage - 1) * numLimit;
 
-    let wallet = await WalletModel.findOne({ userId });
-    if (!wallet) {
-      wallet = await WalletModel.create({ userId, balance: 0 });
+    let wallet;
+    try {
+      wallet = await WalletModel.findOneAndUpdate(
+        { userId },
+        { $setOnInsert: { userId, balance: 0 } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
+    } catch (err: any) {
+      if (err?.code === 11000) {
+        console.error("Wallet upsert E11000:", err.keyPattern, err.keyValue);
+        // Another request may have created it just now; re-read before failing.
+        wallet = await WalletModel.findOne({ userId });
+        if (!wallet) throw err;
+      } else {
+        throw err;
+      }
     }
 
     const query: Record<string, any> = { userId };
@@ -38,12 +51,7 @@ export class WalletService {
 
     return {
       balance: wallet.balance,
-      ledger: {
-        items,
-        total,
-        page: numPage,
-        limit: numLimit,
-      },
+      ledger: { items, total, page: numPage, limit: numLimit },
     };
   }
 
