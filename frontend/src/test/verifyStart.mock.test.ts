@@ -58,7 +58,7 @@ describe('verifyStart (demo store): same rules as POST /partner/jobs/:id/verify-
     expect(err).toBeNull();
     expect(job?.status).toBe('in_progress');
     expect(job?.startVerification).toBeNull();
-    expect(job?.history.at(-1)?.status).toBe('in_progress');
+    expect(job?.history[job.history.length - 1]?.status).toBe('in_progress');
     expect((await api.fetchJob(ID)).status).toBe('in_progress'); // persisted
   });
 
