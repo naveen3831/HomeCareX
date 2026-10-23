@@ -12,12 +12,18 @@ import {
   BOOKING_WINDOW_DAYS,
   PRICE_CHANGED_TOLERANCE,
   SERVICE_SLOTS,
+  START_OTP_STATUS,
+  type BookingStatus,
 } from './bookings.constants';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, isRealDate, nowInBookingTz, slotStartMinutes } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
 import { ServiceModel } from '../../models/Service';
 import { calculatePricing } from '../pricing/pricing.service';
+import { canTransition } from './bookings.stateMachine';
+import { computeCancellation } from './bookings.cancel';
+import { buildDetailView } from './bookings.detail';
+import { buildInvoiceData, renderInvoiceHtml } from './bookings.invoice';
 
 export interface SlotAvailability {
   slot: string;
@@ -72,9 +78,22 @@ function slotStartDate(date: string, slot: string): Date {
   return new Date(`${date}T${slot.slice(0, 5)}:00+05:30`);
 }
 
+function plainBooking(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && 'toObject' in value && typeof value.toObject === 'function') {
+    return value.toObject() as Record<string, unknown>;
+  }
+  return { ...(value as Record<string, unknown>) };
+}
+
 function isDuplicateKey(err: unknown, indexName: string): boolean {
   const e = err as { code?: number; message?: string };
   return e?.code === 11000 && String(e.message ?? '').includes(indexName);
+}
+
+function assertCustomerCanCancel(status: BookingStatus): void {
+  if (!canTransition(status, BOOKING_STATUS.CANCELLED_BY_CUSTOMER, 'customer')) {
+    throw new AppError(409, 'INVALID_STATE_TRANSITION', `Cannot cancel a booking in ${status} status`);
+  }
 }
 
 export const BookingService = {
@@ -292,7 +311,12 @@ export const BookingService = {
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
     }
-    return toView(booking as never);
+    const raw = plainBooking(booking);
+    const startOtp =
+      raw.status === START_OTP_STATUS
+        ? await bookingsRepository.getOrCreateStartOtp(bookingId)
+        : null;
+    return buildDetailView(raw, startOtp);
   },
 
   async listBookings(customerId: string, query: ListBookingsQuery) {
@@ -301,5 +325,185 @@ export const BookingService = {
       items: items.map((b) => toView(b as never)),
       meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit) },
     };
+  },
+
+  async decideExtraCharge(
+    customerId: string,
+    bookingId: string,
+    chargeId: string,
+    decision: 'approve' | 'reject',
+  ) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    const raw = plainBooking(booking);
+    const charges = Array.isArray(raw.extraCharges) ? raw.extraCharges as Record<string, unknown>[] : [];
+    if (raw.status !== 'in_progress') {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'Extra charges can only be decided while a job is in progress');
+    }
+    const charge = charges.find((item) => String(item._id) === chargeId);
+    if (!charge) throw new AppError(404, 'EXTRA_CHARGE_NOT_FOUND', 'Extra charge not found');
+    const desiredStatus = decision === 'approve' ? 'approved' : 'rejected';
+    if (charge.status === desiredStatus) return buildDetailView(raw, null);
+    if (charge.status !== 'pending') {
+      throw new AppError(409, 'EXTRA_CHARGE_ALREADY_DECIDED', 'This extra charge has already been decided');
+    }
+    const updated = await bookingsRepository.decideExtraCharge(
+      bookingId,
+      customerId,
+      chargeId,
+      desiredStatus,
+    );
+    if (!updated) throw new AppError(409, 'EXTRA_CHARGE_ALREADY_DECIDED', 'This extra charge has already been decided');
+    const refreshed = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!refreshed) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    return buildDetailView(plainBooking(refreshed), null);
+  },
+
+  async getInvoice(customerId: string, bookingId: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    const raw = plainBooking(booking);
+    const payment = await bookingsRepository.findPaidPayment(bookingId);
+    if (String(payment?.status ?? raw.paymentStatus).toUpperCase() !== 'PAID') {
+      throw new AppError(409, 'INVOICE_NOT_AVAILABLE', 'The invoice is available after payment.');
+    }
+    const customer = await bookingsRepository.findCustomerContact(customerId);
+    const view = {
+      ...raw,
+      paymentStatus: 'PAID',
+      paymentDetails: {
+        ...(typeof raw.paymentDetails === 'object' && raw.paymentDetails ? raw.paymentDetails : {}),
+        method: payment?.method,
+        paymentId: payment?.razorpayPaymentId,
+        paidAt: payment?.paidAt,
+      },
+    };
+    const data = buildInvoiceData(
+      view,
+      customer
+        ? { name: customer.name, email: customer.email, phone: customer.phone ?? undefined }
+        : {},
+    );
+    return { invoiceNo: data.invoiceNo, html: renderInvoiceHtml(data) };
+  },
+
+  async previewCancellation(customerId: string, bookingId: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    assertCustomerCanCancel(booking.status);
+    const [policy, payment] = await Promise.all([
+      bookingSettings.getCancellationPolicy(),
+      bookingsRepository.findPaidPayment(bookingId),
+    ]);
+    const quote = computeCancellation({
+      slotStart: booking.scheduledAt,
+      now: new Date(),
+      paidAmount: payment?.status === 'PAID' ? payment.amount : 0,
+      policy,
+    });
+    return {
+      ...quote,
+      refundAmount: quote.refundAmount,
+      freeCancellation: quote.freeCancellation,
+    };
+  },
+
+  async cancelBooking(customerId: string, bookingId: string, reason: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    assertCustomerCanCancel(booking.status);
+    const [policy, payment] = await Promise.all([
+      bookingSettings.getCancellationPolicy(),
+      bookingsRepository.findPaidPayment(bookingId),
+    ]);
+    const quote = computeCancellation({
+      slotStart: booking.scheduledAt,
+      now: new Date(),
+      paidAmount: payment?.status === 'PAID' ? payment.amount : 0,
+      policy,
+    });
+    const entry = {
+      from: booking.status,
+      to: BOOKING_STATUS.CANCELLED_BY_CUSTOMER,
+      at: new Date(),
+      actorId: customerId,
+      actorRole: 'customer' as const,
+      reason,
+    };
+    const updated = await bookingsRepository.markCancelled(
+      bookingId,
+      customerId,
+      booking.status,
+      entry,
+      reason,
+    );
+    if (!updated) throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking changed. Refresh and try again.');
+
+    let refundStatus: 'requested' | 'none' = 'none';
+    if (payment?.status === 'PAID' && quote.refundAmount > 0) {
+      await bookingsRepository.createRefundRequest({
+        bookingId,
+        customerId,
+        paymentId: String(payment._id),
+        amount: quote.refundAmount,
+        reason: `Booking cancellation: ${reason}`,
+      });
+      refundStatus = 'requested';
+    }
+    return {
+      booking: toView(updated as never),
+      cancellation: {
+        fee: quote.fee,
+        refundAmount: quote.refundAmount,
+        refundStatus,
+      },
+    };
+  },
+
+  async rescheduleBooking(
+    customerId: string,
+    bookingId: string,
+    target: { date: string; slot: string },
+  ) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    if (!['created', 'pending_payment', 'confirmed', 'searching_for_partner'].includes(booking.status)) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This booking can no longer be rescheduled.');
+    }
+    if (booking.date === target.date && booking.slot === target.slot) {
+      throw new AppError(400, 'SAME_SLOT', 'Choose a different date or time slot.');
+    }
+    assertBookableDate(target.date);
+    if (!(SERVICE_SLOTS as readonly string[]).includes(target.slot)) {
+      throw new AppError(400, 'INVALID_SLOT', 'Choose a valid service time slot.');
+    }
+    const serviceId = String(booking.serviceId);
+    const capacity = await bookingSettings.getSlotCapacity(serviceId);
+    const moved = await withSlotLock(
+      `booking:${serviceId}:${target.date}:${target.slot}`,
+      async () => {
+        await bookingsRepository.releaseStaleHolds(serviceId, target.date, target.slot);
+        const seat = await bookingsRepository.findFreeSeat(serviceId, target.date, target.slot, capacity);
+        if (seat === null) throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+        const entry = {
+          from: booking.status,
+          to: booking.status,
+          at: new Date(),
+          actorId: customerId,
+          actorRole: 'customer' as const,
+          reason: `Rescheduled from ${booking.date} ${booking.slot}`,
+        };
+        return bookingsRepository.reschedule({
+          bookingId,
+          customerId,
+          fromStatus: booking.status,
+          to: { date: target.date, slot: target.slot, seat },
+          entry,
+          scheduledAt: slotStartDate(target.date, target.slot),
+        });
+      },
+    );
+    if (!moved) throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking changed. Refresh and try again.');
+    return toView(moved as never);
   },
 };

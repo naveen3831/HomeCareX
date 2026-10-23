@@ -13,27 +13,50 @@ export function calculatePricing({
   lines,
   slot,
   discount = 0,
+  rule,
 }: {
   lines: { amount: number }[];
   slot: string;
   discount?: number;
+  rule?: { surgeWindows?: { label: string; startTime: string; endTime: string; percent: number }[] };
 }): PricingBreakdown {
   const baseAmount = lines[0]?.amount ?? 0;
   const addOnsTotal = lines.slice(1).reduce((sum, l) => sum + l.amount, 0);
-  const hasSurge = slotStartMinutes(slot) >= SURGE_FROM_MINUTES;
-  const surge = hasSurge ? Math.round((baseAmount + addOnsTotal) * SURGE_RATE) : 0;
+  const slotStart = slotStartMinutes(slot);
+  const minute = (time: string) => {
+    const [hour, min] = time.split(':').map(Number);
+    return hour * 60 + min;
+  };
+  const customWindow = rule?.surgeWindows?.find(({ startTime, endTime }) => {
+    const start = minute(startTime);
+    const end = minute(endTime);
+    return start <= end
+      ? slotStart >= start && slotStart < end
+      : slotStart >= start || slotStart < end;
+  });
+  const hasSurge = rule
+    ? Boolean(customWindow)
+    : slotStart >= SURGE_FROM_MINUTES;
+  const surgeRate = customWindow ? customWindow.percent / 100 : SURGE_RATE;
+  const surge = hasSurge ? Math.round((baseAmount + addOnsTotal) * surgeRate) : 0;
   const subtotal = baseAmount + addOnsTotal + surge;
   const gst = Math.round((subtotal - discount + CONVENIENCE_FEE) * GST_RATE);
   return {
     addOnsTotal,
     surge,
-    ...(hasSurge ? { surgeLabel: SURGE_LABEL } : {}),
+    ...(hasSurge ? { surgeLabel: customWindow?.label ?? SURGE_LABEL } : {}),
     subtotal,
     discount,
     convenienceFee: CONVENIENCE_FEE,
     gst,
     total: subtotal - discount + CONVENIENCE_FEE + gst,
   };
+}
+
+export function toQuoteCouponCode(code: string): string {
+  if (code === 'COUPON_PER_USER_LIMIT') return 'COUPON_USAGE_LIMIT';
+  if (code === 'COUPON_INACTIVE' || code === 'COUPON_NOT_STARTED') return 'COUPON_INVALID';
+  return code;
 }
 
 export const pricingService = {

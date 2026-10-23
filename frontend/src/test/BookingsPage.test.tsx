@@ -76,7 +76,7 @@ const renderPage = (entry = "/customer/bookings") => {
 };
 
 const lastParams = () =>
-  listBookings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+  listBookings.mock.calls[listBookings.mock.calls.length - 1]?.[0] as Record<string, unknown>;
 
 let online = true;
 beforeEach(() => {

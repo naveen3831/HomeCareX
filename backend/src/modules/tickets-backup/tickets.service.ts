@@ -1,1 +1,1 @@
-export class TicketsService {}
+export * from '../tickets/tickets.service';

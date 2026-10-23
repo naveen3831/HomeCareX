@@ -1,1 +1,1 @@
-export class TicketsController {}
+export * from '../tickets/tickets.controller';

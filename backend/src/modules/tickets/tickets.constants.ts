@@ -1,5 +1,5 @@
 /** Ticket + TicketMessage contract (published by D02 for the Support module). Change only via PR review. */
-export const TICKET_STATUSES = ['open', 'in_progress', 'resolved', 'closed'] as const;
+export const TICKET_STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'] as const;
 export type TicketStatus = (typeof TICKET_STATUSES)[number];
 
 export const TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;

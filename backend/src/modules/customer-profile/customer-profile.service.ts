@@ -112,7 +112,6 @@ export class CustomerProfileService {
 
   /** Validates the raw upload (type by content, size) and stores it as a data URL. Returns the new profile. */
   async setAvatar(userId: string, body: unknown, declaredType: string | undefined): Promise<ProfileView> {
-    await this.mustFind(userId);
     if (!Buffer.isBuffer(body) || body.length === 0) {
       throw new AppError(400, 'AVATAR_REQUIRED', 'Choose a JPG, PNG or WebP image to upload.');
     }
@@ -123,6 +122,7 @@ export class CustomerProfileService {
     if (!actual || (declaredType && declaredType !== actual)) {
       throw new AppError(415, 'AVATAR_UNSUPPORTED_TYPE', 'Only JPG, PNG and WebP images are allowed.');
     }
+    await this.mustFind(userId); // cheap checks first: a bad upload never costs a database round trip
     const avatar = `data:${actual};base64,${body.toString('base64')}`;
     const updated = await this.repo.update(userId, { $set: { avatar } });
     if (!updated) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Your account was not found.');

@@ -1,1 +1,1 @@
-export const ticketsValidation = {};
+export * from '../tickets/tickets.validation';

@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
   NavLink,
   Outlet,
@@ -14,6 +14,7 @@ import {
   CalendarOff,
   Clock,
   Wrench,
+  MapPin,
   Wallet,
   Gift,
   Banknote,
@@ -36,6 +37,10 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+} from "@/pages/partner/Availability/availability.api";
 import OnlineIndicator from "@/components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 import "@/styles/admin.css";
@@ -50,32 +55,6 @@ type NavChild = {
   to: string;
   icon: LucideIcon;
 };
-
-type NavItem = NavChild & {
-  end?: boolean;
-  /** Sub-pages. Clicking the parent opens this list. */
-  children?: NavChild[];
-};
-
-export const NAV: NavItem[] = [
-  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
-
-  {
-    key: "jobs",
-    label: "My Jobs",
-    to: "/partner/jobs",
-    icon: Briefcase,
-    children: [
-      {
-        key: "job-requests",
-        label: "Job Requests",
-        to: "/partner/jobs/requests",
-        icon: ClipboardList,
-      },
-    ],
-  },
-
-  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
 
 export const NAV = [
   { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
@@ -555,10 +534,7 @@ function PartnerSidebar({
             type="button"
             className="sidebar-signout-btn"
             title="Sign out"
-            onClick={async () => {
-              await logout();
-              navigate("/login", { replace: true });
-            }}
+            onClick={handleSignOut}
           >
             <LogOut size={18} />
 
@@ -575,47 +551,38 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
-  const [online, setOnlineState] = useState<boolean>(
-    () => readStoredOnlineStatus() ?? false
-  );
+  // The backend is the source of truth for the partner's online status (no local/mock copy).
+  const [online, setOnlineState] = useState<boolean>(false);
+  const onlineRef = useRef(false);
 
-  const setOnline = useCallback((next: boolean) => {
+  const applyOnline = useCallback((next: boolean) => {
+    onlineRef.current = next;
     setOnlineState(next);
-    writeStoredOnlineStatus(next);
-    setMockPartnerOnline("partner-1", next);
-    void setOnlineApi(next).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    setMockPartnerOnline("partner-1", online);
-  }, [online]);
+  // Optimistic toggle: flip at once, then settle on what the server says; put it back if the request fails.
+  const setOnline = useCallback(
+    (next: boolean) => {
+      const previous = onlineRef.current;
+      applyOnline(next);
+      setOnlineApi(next)
+        .then((avail) => applyOnline(avail.isOnline))
+        .catch(() => applyOnline(previous));
+    },
+    [applyOnline],
+  );
 
   useEffect(() => {
     let active = true;
     getAvailability()
       .then((avail) => {
-        if (!active) return;
-        setOnlineState(avail.isOnline);
-        writeStoredOnlineStatus(avail.isOnline);
-        setMockPartnerOnline("partner-1", avail.isOnline);
+        if (active) applyOnline(avail.isOnline);
       })
       .catch(() => {});
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === PARTNER_ONLINE_STORAGE_KEY) {
-        const next = readStoredOnlineStatus();
-        if (next !== null) {
-          setOnlineState(next);
-          setMockPartnerOnline("partner-1", next);
-        }
-      }
-    };
-    window.addEventListener("storage", onStorage);
     return () => {
       active = false;
-      window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [applyOnline]);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
 
@@ -697,7 +664,8 @@ export default function PartnerLayout() {
     }
 
     const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
-
+    if (typeof hasHistory === "number" && hasHistory > 0) {
+      navigate(-1);
       return;
     }
 

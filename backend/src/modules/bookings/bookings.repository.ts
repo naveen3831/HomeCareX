@@ -1,5 +1,9 @@
 import { Types } from 'mongoose';
+import { randomInt } from 'node:crypto';
 import { BookingModel, type IBooking } from '../../models/Booking';
+import PaymentModel from '../../models/Payment';
+import { RefundModel } from '../../models/Refund';
+import { UserModel } from '../../models/User';
 import { BOOKING_STATUS, SLOT_HOLDING_STATUSES } from './bookings.constants';
 import { buildBookingFilter, SORT_SPECS, type ListBookingsQuery } from './bookings.query';
 
@@ -136,6 +140,104 @@ export class BookingsRepository {
       BookingModel.countDocuments(filter).exec(),
     ]);
     return { items, total };
+  }
+
+  async getOrCreateStartOtp(bookingId: string): Promise<string | null> {
+    const otp = String(randomInt(1000, 10_000));
+    const updated = await BookingModel.findOneAndUpdate(
+      { _id: bookingId, status: 'arrived', 'otpCodes.start': { $exists: false } },
+      { $set: { 'otpCodes.start': otp } },
+      { new: true },
+    ).select('+otpCodes.start');
+    if (updated?.otpCodes?.start) return updated.otpCodes.start;
+    const existing = await BookingModel.findById(bookingId).select('+otpCodes.start');
+    return existing?.status === 'arrived' ? existing.otpCodes?.start ?? null : null;
+  }
+
+  decideExtraCharge(
+    bookingId: string,
+    customerId: string,
+    chargeId: string,
+    status: 'approved' | 'rejected',
+  ): Promise<IBooking | null> {
+    return BookingModel.findOneAndUpdate(
+      {
+        _id: bookingId,
+        customerId,
+        status: 'in_progress',
+        extraCharges: { $elemMatch: { _id: chargeId, status: 'pending' } },
+      },
+      { $set: { 'extraCharges.$.status': status } },
+      { new: true },
+    ).exec();
+  }
+
+  findCustomerContact(customerId: unknown) {
+    return UserModel.findById(customerId).select('name email phone').lean();
+  }
+
+  findPaidPayment(bookingId: string) {
+    return PaymentModel.findOne({ bookingId, status: 'PAID' })
+      .sort({ paidAt: -1, _id: -1 })
+      .lean();
+  }
+
+  markCancelled(
+    bookingId: string,
+    customerId: string,
+    fromStatus: string,
+    entry: { from: string; to: string; at: Date; actorId: string; actorRole: 'customer'; reason: string },
+    reason: string,
+  ): Promise<IBooking | null> {
+    return BookingModel.findOneAndUpdate(
+      { _id: bookingId, customerId, status: fromStatus },
+      {
+        $set: { status: 'cancelled_by_customer', cancellationReason: reason },
+        $unset: { slotSeat: '' },
+        $push: { statusHistory: entry },
+      },
+      { new: true },
+    ).exec();
+  }
+
+  createRefundRequest(input: {
+    bookingId: string;
+    customerId: string;
+    paymentId: string;
+    amount: number;
+    reason: string;
+  }) {
+    return RefundModel.create({
+      ...input,
+      requestedBy: input.customerId,
+      currency: 'INR',
+      method: 'RAZORPAY',
+      status: 'requested',
+      requestedAt: new Date(),
+    });
+  }
+
+  reschedule(input: {
+    bookingId: string;
+    customerId: string;
+    fromStatus: string;
+    to: { date: string; slot: string; seat: number };
+    entry: { from: string; to: string; at: Date; actorId: string; actorRole: 'customer'; reason: string };
+    scheduledAt: Date;
+  }): Promise<IBooking | null> {
+    return BookingModel.findOneAndUpdate(
+      { _id: input.bookingId, customerId: input.customerId, status: input.fromStatus },
+      {
+        $set: {
+          date: input.to.date,
+          slot: input.to.slot,
+          slotSeat: input.to.seat,
+          scheduledAt: input.scheduledAt,
+        },
+        $push: { statusHistory: input.entry },
+      },
+      { new: true },
+    ).exec();
   }
 }
 

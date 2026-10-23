@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { roleMiddleware } from '../../middleware/role.middleware';
-import { validationMiddleware } from '../../middleware/validation.middleware';
+import { noQuery, validationMiddleware } from '../../middleware/validation.middleware';
 import { addressesController } from './addresses.controller';
 import {
   addressParamsSchema,
@@ -29,7 +29,7 @@ addressesRoutes.use(authMiddleware, roleMiddleware('customer'));
 addressesRoutes.get('/serviceability', ...checkServiceability);
 
 // GET /addresses
-addressesRoutes.get('/', asyncHandler(async (req, res) => addressesController.list(req, res)));
+addressesRoutes.get('/', noQuery, asyncHandler(async (req, res) => addressesController.list(req, res)));
 
 // POST /addresses
 addressesRoutes.post(

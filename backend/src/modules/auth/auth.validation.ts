@@ -30,11 +30,18 @@ export const registerSchema = z.object({
     .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
   confirmPassword: z.string().optional(),
   referralCode: z.string().trim().optional(),
+  gender: z.enum(['male', 'female', 'other']).optional(),
   role: z.enum(['customer', 'partner']).default('customer'),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterInput = z.infer<typeof registerSchema> & {
+  accountHolder?: string;
+  accountNumber?: string;
+  ifsc?: string;
+  upiId?: string;
+  skills?: string[];
+};
 
 export const forgotPasswordSchema = z.object({
   email: z.string().trim().toLowerCase().email('Please enter a valid email address'),
@@ -70,6 +77,30 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+const strongPassword = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password needs an uppercase letter')
+  .regex(/[0-9]/, 'Password needs a number')
+  .regex(/[^A-Za-z0-9]/, 'Password needs a special character');
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: strongPassword,
+    confirmPassword: strongPassword,
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((value) => value.newPassword !== value.currentPassword, {
+    message: 'Choose a different password',
+    path: ['newPassword'],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 /** Parses a body or throws a 400 with per-field details. */
 export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {
