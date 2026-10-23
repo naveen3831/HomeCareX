@@ -19,6 +19,7 @@ import {
 import { applyTransition } from '../bookings/bookings.stateMachine';
 
 import { getRazorpay } from '../../integrations/razorpay';
+import { auditService } from '../audit/audit.service';
 
 type AdminPaymentStatus =
   | 'Pending'
@@ -180,6 +181,38 @@ export class AdminBookingsController {
     }
 
     return user;
+  }
+
+  /**
+   * Record a booking mutation in the admin audit log.
+   * Audit failures must not turn a successful booking mutation
+   * into a failed API request.
+   */
+  private async recordBookingAudit(
+    action: string,
+    bookingId: string,
+    actorId: string,
+    ip: string,
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await auditService.recordAudit({
+        actor: actorId,
+        action,
+        entity: 'Booking',
+        entityId: bookingId,
+        ip,
+        result: 'Success',
+        before,
+        after,
+      });
+    } catch (error) {
+      console.error(
+        '[Audit] Failed to record booking action:',
+        error,
+      );
+    }
   }
 
   /**
@@ -1433,6 +1466,11 @@ export class AdminBookingsController {
     const previousStatus =
       booking.status;
 
+    const auditBefore: Record<string, unknown> = {
+      partnerId: previousPartnerId,
+      status: previousStatus,
+    };
+
     booking.partnerId =
       partner._id;
 
@@ -1472,6 +1510,19 @@ export class AdminBookingsController {
     }
 
     await booking.save();
+
+    await this.recordBookingAudit(
+      'booking.partner_assigned',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        partnerId: partner._id.toString(),
+        status: booking.status,
+        reason: reason.trim(),
+      },
+    );
 
     const payment =
       await this.getPaymentForBooking(
@@ -1579,6 +1630,10 @@ export class AdminBookingsController {
     const previousStatus =
       booking.status;
 
+    const auditBefore: Record<string, unknown> = {
+      status: previousStatus,
+    };
+
     const trimmedReason =
       reason.trim();
 
@@ -1614,6 +1669,18 @@ export class AdminBookingsController {
         },
       },
     ).exec();
+
+    await this.recordBookingAudit(
+      'booking.status_overridden',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        status,
+        reason: trimmedReason,
+      },
+    );
 
     res.status(200).json({
       success: true,
@@ -1741,6 +1808,16 @@ export class AdminBookingsController {
 
       return;
     }
+
+    const auditBefore: Record<string, unknown> = {
+      status: booking.status,
+      partnerId: booking.partnerId
+        ? booking.partnerId.toString()
+        : null,
+      cancellationReason: (
+        booking as unknown as Record<string, unknown>
+      ).cancellationReason,
+    };
 
     const payment =
       await this.getPaymentForBooking(
@@ -1958,6 +2035,20 @@ export class AdminBookingsController {
         },
       },
     ).exec();
+
+    await this.recordBookingAudit(
+      'booking.cancelled_by_admin',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        status: 'cancelled_by_admin',
+        cancellationReason: trimmedReason,
+        refundStatus: refundResult.status,
+        refundAmount: refundResult.amount,
+      },
+    );
 
     const updatedBooking =
       await BookingModel.findById(

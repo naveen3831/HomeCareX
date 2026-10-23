@@ -134,8 +134,6 @@ rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
 rootRouter.use(bookingsRoutes);
-rootRouter.use("/bookings", bookingStatusRoutes);
-rootRouter.use("/bookings", chatRoutes);
 rootRouter.use(reviewsRoutes);
 
 export default rootRouter;

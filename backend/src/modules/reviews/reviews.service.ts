@@ -4,6 +4,7 @@ import { ReviewModel } from '../../models/Review';
 import { UserModel } from '../../models/User';
 import { HttpError } from '../auth/auth.types';
 import { COMPLETED_STATUSES, type BookingStatus } from '../bookings/bookings.constants';
+import { auditService } from '../audit/audit.service';
 import { STAR_VALUES } from './reviews.constants';
 import { reviewsRepository, type VisibleReviewRow } from './reviews.repository';
 import type { PublicReviewDto, ReviewSummaryDto, ServiceReviewsResult, StarDistribution } from './reviews.types';
@@ -15,6 +16,11 @@ import {
   serviceReviewsQuerySchema,
   type ReviewStatus,
 } from './reviews.validation';
+
+interface ReviewAuditActor {
+  id: string;
+  ip: string;
+}
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
@@ -50,6 +56,33 @@ export function buildSummary(counts: Map<number, number>): ReviewSummaryDto {
 const isDuplicateKey = (err: unknown): boolean => (err as { code?: number })?.code === 11000;
 
 export class ReviewsService {
+  /**
+   * Fail-safe audit helper. A logging failure must not make a successful review
+   * status change fail for the admin.
+   */
+  private async recordReviewAudit(
+    action: string,
+    reviewId: string,
+    actor: ReviewAuditActor,
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await auditService.recordAudit({
+        actor: actor.id,
+        action,
+        entity: 'Review',
+        entityId: reviewId,
+        ip: actor.ip || 'unknown',
+        result: 'Success',
+        before,
+        after,
+      });
+    } catch (error) {
+      console.error('[Audit] Failed to record review action:', error);
+    }
+  }
+
   async createReview(customerId: string, input: unknown) {
     const parsed = createReviewSchema.safeParse(input);
     if (!parsed.success) {
@@ -139,16 +172,39 @@ export class ReviewsService {
     };
   }
 
-  async updateReviewStatus(id: string, status: unknown) {
+  async updateReviewStatus(
+    id: string,
+    status: unknown,
+    actor: ReviewAuditActor,
+  ) {
     if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
     const parsedStatus = reviewStatusSchema.safeParse(status);
     if (!parsedStatus.success) throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
+
+    // Read first so the audit entry contains the actual previous status.
+    const existingReview = await ReviewModel.findById(id).select('_id status').lean();
+    if (!existingReview) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+
+    const previousStatus = existingReview.status;
+    const nextStatus = parsedStatus.data as ReviewStatus;
+
     const review = await ReviewModel.findByIdAndUpdate(
       id,
-      { $set: { status: parsedStatus.data as ReviewStatus } },
+      { $set: { status: nextStatus } },
       { new: true, runValidators: true },
     ).lean();
+
     if (!review) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+
+    // Only record after the update succeeds.
+    await this.recordReviewAudit(
+      'review.status_updated',
+      String(review._id),
+      actor,
+      { status: previousStatus },
+      { status: review.status },
+    );
+
     return review;
   }
 }
