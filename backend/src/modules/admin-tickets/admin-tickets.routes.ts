@@ -23,13 +23,9 @@ import {
  */
 export const adminTicketsRoutes = Router();
 
-adminTicketsRoutes.use(
-  authenticate,
-  requireAdmin,
-  requirePermission(TICKETS_MANAGE),
-);
-
-// GET /admin/tickets
+adminTicketsRoutes.use(authenticate, requireAdmin, requirePermission(TICKETS_MANAGE));
+// GET /admin/tickets?status=&priority=&category=&assignee=&requester=&requesterRole=&booking=&sla=&from=&to=&page=&limit=
+// One queue for customer AND partner tickets. status/priority/category accept comma lists (status=open,in_progress).
 adminTicketsRoutes.get(
   '/',
   validate(listTicketsQuerySchema, 'query'),

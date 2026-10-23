@@ -139,7 +139,7 @@ const reachedAt = (
   history: readonly BookingHistoryEntry[],
   statuses: readonly string[],
 ): string | undefined =>
-  [...history].reverse().find((h) => statuses.includes(h.to))?.at;
+  [...history].reverse().find((h) => h && h.to && statuses.includes(String(h.to).toLowerCase()))?.at;
 
 /**
  * The booking's journey as a list of steps.
@@ -151,8 +151,12 @@ export function buildTimeline(
     createdAt?: string;
   },
 ): TimelineItem[] {
-  const history = booking.statusHistory ?? [];
-  const status = normalizeStatus(booking.status);
+  const history = Array.isArray(booking?.statusHistory)
+    ? booking.statusHistory
+    : Array.isArray((booking as any)?.history)
+    ? (booking as any).history
+    : [];
+  const status = normalizeStatus(booking?.status);
 
   if (isCancelledStatus(status) || status === "disputed") {
     // Only steps the booking really went through, never ones it skipped.
@@ -181,7 +185,7 @@ export function buildTimeline(
   const finished = status === "completed" || status === "rated";
 
   if (current < 0) {
-    return STEPS.filter(
+    const list: TimelineItem[] = STEPS.filter(
       (s) => reachedAt(history, s.statuses) !== undefined,
     ).map((s) => ({
       key: s.key,
@@ -189,6 +193,16 @@ export function buildTimeline(
       state: "done",
       at: reachedAt(history, s.statuses),
     }));
+    return list.length > 0
+      ? list
+      : [
+          {
+            key: "confirmed",
+            label: "Booking confirmed",
+            state: "current",
+            at: booking?.createdAt,
+          },
+        ];
   }
 
   return STEPS.map((s, i) => ({

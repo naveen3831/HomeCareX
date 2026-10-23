@@ -135,7 +135,7 @@ async function findPartnerUser(id: string) {
  * ENSURE PARTNER PROFILE
  * ---------------------------------------------------------
  */
-async function ensurePartnerProfile(
+export async function ensurePartnerProfile(
   userId: string | Types.ObjectId,
 ) {
   const normalizedUserId =

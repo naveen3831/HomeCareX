@@ -44,6 +44,18 @@ export interface JobListItemDto {
   partnerEarning: number;
 }
 
+export interface ExtraChargeItemDto {
+  id: string;
+  title: string;
+  description?: string;
+  quantity: number;
+  amount: number;
+  reason?: string;
+  status: "pending" | "approved" | "rejected";
+  requestedAt?: string;
+  decidedAt?: string;
+}
+
 export interface JobDetailDto {
   id: string;
   status: BookingStatus;
@@ -74,6 +86,7 @@ export interface JobDetailDto {
   addOns: JobAddOnDto[];
   instructions: string | null;
   checklist: JobChecklistItemDto[];
+  extraCharges?: ExtraChargeItemDto[];
   payment: {
     status: string;
     paidAt: string | null;
@@ -127,6 +140,17 @@ export interface JobBookingDoc {
   paymentDetails?: { paidAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    reason?: string;
+    amount: number;
+    quantity: number;
+    status: "pending" | "approved" | "rejected";
+    requestedAt?: Date;
+    decidedAt?: Date;
+  }>;
+  otpCodes?: { start?: string; end?: string };
 }
 
 export interface JobServiceDoc {

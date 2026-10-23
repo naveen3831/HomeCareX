@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { bookingApi, type NormalizedApiError } from "@/services/bookingApi";
 import { EmptyState, ErrorState, LoadingState } from "@/components/customer";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { BookingView } from "@/types/booking";
+import { BOOKINGS } from "@/mocks/customerMockData";
 
 // Timeline steps corresponding to booking lifecycle
 const TIMELINE_STEPS = [
@@ -18,6 +19,9 @@ const TIMELINE_STEPS = [
 ];
 
 export default function TrackingPage() {
+  const [searchParams] = useSearchParams();
+  const requestedBookingId = searchParams.get("booking");
+
   // Fetch real customer bookings from MongoDB; poll every 15s for live status updates
   const {
     data: bookings = [],
@@ -31,9 +35,60 @@ export default function TrackingPage() {
     refetchInterval: 15000,
   });
 
-  // Pick the latest confirmed / active booking from MongoDB
+  // Pick the requested booking or latest confirmed / active booking from MongoDB or mock fallback
   const activeBooking = useMemo(() => {
-    return bookings.find((b: any) => {
+    // 1. If a specific booking was requested, search for it first
+    if (requestedBookingId) {
+      const target = requestedBookingId.trim().toLowerCase();
+      const direct = bookings.find((b: any) =>
+        String(b._id || b.id || "").toLowerCase() === target ||
+        String(b.bookingNumber || "").toLowerCase() === target
+      );
+      if (direct) return direct;
+
+      // Check mock catalog
+      const mock = BOOKINGS.find(
+        (b) =>
+          b.id.toLowerCase() === target ||
+          b.id.replace(/-/g, "").toLowerCase() === target.replace(/-/g, "") ||
+          b.service.toLowerCase().includes(target)
+      );
+      if (mock) {
+        return {
+          _id: mock.id,
+          id: mock.id,
+          bookingNumber: mock.id,
+          serviceName: mock.service,
+          status: mock.status.toUpperCase().replace(/ /g, "_"),
+          scheduledAt: mock.scheduledAt,
+          date: mock.scheduledAt,
+          slot: "Scheduled Slot",
+          addressSnapshot: {
+            addressLine1: mock.address,
+            city: "Hyderabad",
+          },
+          priceSnapshot: {
+            total: mock.price,
+            lines: [{ kind: "BASE", name: mock.service, amount: mock.price }],
+          },
+          partner: mock.partner
+            ? {
+                name: mock.partner.name,
+                phone: "+91 98765 43210",
+                rating: mock.partner.rating,
+              }
+            : null,
+          createdAt: new Date().toISOString(),
+          statusHistory: [
+            { to: "CONFIRMED", at: new Date(Date.now() - 3600000).toISOString() },
+            { to: mock.status.toUpperCase().replace(/ /g, "_"), at: new Date().toISOString() },
+          ],
+        };
+      }
+    }
+
+    // 2. Pick the latest confirmed / active booking from MongoDB
+    const found = bookings.find((b: any) => {
       const status = (b.status || "").toUpperCase();
       return (
         status === "CONFIRMED" ||
@@ -47,7 +102,47 @@ export default function TrackingPage() {
         status === "PENDING"
       );
     });
-  }, [bookings]);
+    if (found) return found;
+
+    // 3. Fallback to active mock booking
+    const activeMock = BOOKINGS.find(
+      (b) => b.status === "In Progress" || b.status === "En Route" || b.status === "Confirmed"
+    );
+    if (activeMock) {
+      return {
+        _id: activeMock.id,
+        id: activeMock.id,
+        bookingNumber: activeMock.id,
+        serviceName: activeMock.service,
+        status: activeMock.status.toUpperCase().replace(/ /g, "_"),
+        scheduledAt: activeMock.scheduledAt,
+        date: activeMock.scheduledAt,
+        slot: "Scheduled Slot",
+        addressSnapshot: {
+          addressLine1: activeMock.address,
+          city: "Hyderabad",
+        },
+        priceSnapshot: {
+          total: activeMock.price,
+          lines: [{ kind: "BASE", name: activeMock.service, amount: activeMock.price }],
+        },
+        partner: activeMock.partner
+          ? {
+              name: activeMock.partner.name,
+              phone: "+91 98765 43210",
+              rating: activeMock.partner.rating,
+            }
+          : null,
+        createdAt: new Date().toISOString(),
+        statusHistory: [
+          { to: "CONFIRMED", at: new Date(Date.now() - 3600000).toISOString() },
+          { to: activeMock.status.toUpperCase().replace(/ /g, "_"), at: new Date().toISOString() },
+        ],
+      };
+    }
+
+    return null;
+  }, [bookings, requestedBookingId]);
 
   if (isLoading) {
     return (
@@ -212,15 +307,23 @@ export default function TrackingPage() {
 
       {/* 2. Real Service Details & Timeline Card */}
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="border-b border-gray-100 pb-4">
-          <h2 className="text-base font-semibold text-gray-900">
-            {serviceName} · {bookingCode}
-          </h2>
-          <div className="mt-1 flex flex-wrap gap-4 text-xs text-gray-500">
-            <span>📅 {b.date} ({b.slot})</span>
-            <span>📍 {b.addressSnapshot?.city || b.addressSnapshot?.addressLine1 || "Customer Address"}</span>
-            <span>💰 ₹{b.priceSnapshot?.total ?? 0}</span>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">
+              {serviceName} · {bookingCode}
+            </h2>
+            <div className="mt-1 flex flex-wrap gap-4 text-xs text-gray-500">
+              <span>📅 {b.date} ({b.slot})</span>
+              <span>📍 {b.addressSnapshot?.city || b.addressSnapshot?.addressLine1 || "Customer Address"}</span>
+              <span>💰 ₹{b.priceSnapshot?.total ?? 0}</span>
+            </div>
           </div>
+          <Link
+            to={`/customer/bookings/${encodeURIComponent(b._id || b.id || requestedBookingId || "")}`}
+            className="rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+          >
+            View Job Details
+          </Link>
         </div>
 
         <div className="mt-6 flow-root">

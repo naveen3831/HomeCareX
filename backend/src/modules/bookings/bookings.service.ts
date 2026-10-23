@@ -6,18 +6,26 @@ import { bookingsRepository } from './bookings.repository';
 import type { ListBookingsQuery } from './bookings.query';
 import { bookingSettings } from './bookings.settings';
 import { withSlotLock } from './bookings.lock';
+import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
+import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
+import { PaymentModel } from '../../models/Payment';
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
   BOOKING_WINDOW_DAYS,
   PRICE_CHANGED_TOLERANCE,
+  RESCHEDULABLE_STATUSES,
   SERVICE_SLOTS,
+  START_OTP_STATUS,
+  type BookingStatus,
 } from './bookings.constants';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, isRealDate, nowInBookingTz, slotStartMinutes } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
 import { ServiceModel } from '../../models/Service';
 import { calculatePricing } from '../pricing/pricing.service';
+import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
+import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 
 export interface SlotAvailability {
   slot: string;
@@ -57,19 +65,83 @@ function hasSlotStarted(date: string, slot: string): boolean {
   return date === now.date && slotStartMinutes(slot) <= now.minutes;
 }
 
+/** A mongoose document (or plain object) as a plain object. */
+function rawObject(doc: unknown): Record<string, unknown> {
+  const d = doc as { toObject?: () => Record<string, unknown> };
+  return typeof d?.toObject === 'function' ? d.toObject() : { ...(doc as Record<string, unknown>) };
+}
+
+/** Catalog details for the details page. Best effort: a missing or deleted service never breaks the booking. */
+async function loadServiceInfo(serviceId: unknown, serviceName?: unknown): Promise<ServiceInfo | null> {
+  const hasId = Boolean(serviceId) && Types.ObjectId.isValid(String(serviceId));
+  if (!hasId && (typeof serviceName !== 'string' || !serviceName.trim())) return null;
+  try {
+    const query = hasId
+      ? ServiceModel.findById(String(serviceId))
+      : ServiceModel.findOne({ name: String(serviceName).trim() });
+    const svc = (await query
+      .select('name description durationMinutes media categoryId')
+      .populate('categoryId', 'name')
+      .lean()
+      .exec()) as {
+      name?: string;
+      description?: string;
+      durationMinutes?: number;
+      media?: Array<{ url?: string }>;
+      categoryId?: { name?: string } | null;
+    } | null;
+    if (!svc) return null;
+    return {
+      name: svc.name,
+      description: svc.description || undefined,
+      durationMinutes: svc.durationMinutes,
+      image: svc.media?.[0]?.url || undefined,
+      categoryName: svc.categoryId && typeof svc.categoryId === 'object' ? svc.categoryId.name : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** The latest payment attempt, preferring a paid one. Best effort. */
+async function loadPaymentInfo(bookingId: string): Promise<PaymentInfo | null> {
+  try {
+    const rows = await PaymentModel.find({ bookingId: new Types.ObjectId(bookingId) })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean()
+      .exec();
+    const pick = rows.find((r) => r.status === 'PAID') ?? rows[0];
+    if (!pick) return null;
+    return { status: pick.status, method: pick.method, transactionId: pick.razorpayPaymentId, paidAt: pick.paidAt };
+  } catch {
+    return null;
+  }
+}
+
 function toView(doc: { toObject?: () => Record<string, unknown> } | Record<string, unknown>): Record<string, unknown> {
   const obj =
     typeof (doc as { toObject?: unknown }).toObject === 'function'
       ? (doc as { toObject: () => Record<string, unknown> }).toObject()
       : { ...(doc as Record<string, unknown>) };
- const rest = { ...obj };
-for (const key of ['requestHash', 'idempotencyKey', 'slotSeat', '__v', 'otp']) delete rest[key];
+  const rest = { ...obj };
+  for (const key of INTERNAL_KEYS) delete rest[key];
   return rest;
 }
 
 /** "2026-10-01" + "10:00-12:00" -> the slot start instant in Asia/Kolkata. */
 function slotStartDate(date: string, slot: string): Date {
   return new Date(`${date}T${slot.slice(0, 5)}:00+05:30`);
+}
+
+function bookingSlotStart(booking: { scheduledAt?: Date; date?: string; slot?: string }): Date {
+  if (booking.scheduledAt instanceof Date && !Number.isNaN(booking.scheduledAt.getTime())) {
+    return booking.scheduledAt;
+  }
+  if (booking.date && booking.slot) {
+    return slotStartDate(booking.date, booking.slot);
+  }
+  return new Date();
 }
 
 function isDuplicateKey(err: unknown, indexName: string): boolean {
@@ -217,63 +289,97 @@ export const BookingService = {
     const now = new Date();
 
     try {
-      const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
-        await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
-        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
-        if (seat === null) {
-          throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
-        }
-        return bookingsRepository.create({
-          customerId: new Types.ObjectId(customerId),
-          serviceId: new Types.ObjectId(input.serviceId),
-          quantity: input.quantity,
-          addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
-          addressSnapshot: {
-            ...addressSnapshot,
-            sourceAddressId: addressSnapshot.sourceAddressId ? new Types.ObjectId(addressSnapshot.sourceAddressId) : undefined,
-          },
-          // Fields read by the partner jobs/dashboard side (P02-P05).
-          serviceName: service.name,
-          address: {
-            line1: addressSnapshot.line1,
-            area: addressSnapshot.line2,
-            city: addressSnapshot.city,
-            pincode: addressSnapshot.pincode,
-            ...(addressSnapshot.location
-              ? { location: { type: 'Point', coordinates: [addressSnapshot.location.lng, addressSnapshot.location.lat] } }
-              : {}),
-          },
-          scheduledAt: slotStartDate(input.date, input.slot),
-          priceBreakdown: {
-            base: lines[0].amount,
-            addOns: pricing.addOnsTotal,
-            surge: pricing.surge,
-            discount: priceSnapshot.discount,
-            convenienceFee: priceSnapshot.convenienceFee,
-            tax: pricing.gst,
-            total: priceSnapshot.total,
-          },
-          date: input.date,
-          slot: input.slot,
-          priceSnapshot,
-          status: initialStatus,
-          paymentStatus: initialPaymentStatus,
-          statusHistory: [
-            {
-              from: null,
-              to: initialStatus,
-              at: now,
-              actorId: customerId,
-              actorRole: 'customer',
-              reason: requirePayment ? 'Booking created, awaiting payment' : 'Booking confirmed',
+      const created = await withSlotLock(
+        `booking:${input.serviceId}:${input.date}:${input.slot}`,
+        async () => {
+          await bookingsRepository.releaseStaleHolds(
+            input.serviceId,
+            input.date,
+            input.slot,
+            now,
+          );
+          const seat = await bookingsRepository.findFreeSeat(
+            input.serviceId,
+            input.date,
+            input.slot,
+            capacity,
+          );
+          if (seat === null) {
+            throw new AppError(
+              409,
+              "SLOT_UNAVAILABLE",
+              "Selected slot is no longer available",
+            );
+          }
+          return bookingsRepository.create({
+            customerId: new Types.ObjectId(customerId),
+            serviceId: new Types.ObjectId(input.serviceId),
+            quantity: input.quantity,
+            addOns: input.addOns.map((a) => ({
+              addOnId: new Types.ObjectId(a.addOnId),
+              quantity: a.quantity,
+            })),
+            addressSnapshot: {
+              ...addressSnapshot,
+              sourceAddressId: addressSnapshot.sourceAddressId
+                ? new Types.ObjectId(addressSnapshot.sourceAddressId)
+                : undefined,
             },
-          ],
-          slotSeat: seat,
-          idempotencyKey,
-          requestHash,
-          holdExpiresAt: requirePayment ? new Date(now.getTime() + BOOKING_HOLD_MS) : undefined,
-        } as never);
-      });
+            // Fields read by the partner jobs/dashboard side (P02-P05).
+            serviceName: service.name,
+            address: {
+              line1: addressSnapshot.line1,
+              area: addressSnapshot.line2,
+              city: addressSnapshot.city,
+              pincode: addressSnapshot.pincode,
+              ...(addressSnapshot.location
+                ? {
+                    location: {
+                      type: "Point",
+                      coordinates: [
+                        addressSnapshot.location.lng,
+                        addressSnapshot.location.lat,
+                      ],
+                    },
+                  }
+                : {}),
+            },
+            scheduledAt: slotStartDate(input.date, input.slot),
+            priceBreakdown: {
+              base: lines[0].amount,
+              addOns: pricing.addOnsTotal,
+              surge: pricing.surge,
+              discount: priceSnapshot.discount,
+              convenienceFee: priceSnapshot.convenienceFee,
+              tax: pricing.gst,
+              total: priceSnapshot.total,
+            },
+            date: input.date,
+            slot: input.slot,
+            priceSnapshot,
+            status: initialStatus,
+            paymentStatus: initialPaymentStatus,
+            statusHistory: [
+              {
+                from: null,
+                to: initialStatus,
+                at: now,
+                actorId: customerId,
+                actorRole: "customer",
+                reason: requirePayment
+                  ? "Booking created, awaiting payment"
+                  : "Booking confirmed",
+              },
+            ],
+            slotSeat: seat,
+            idempotencyKey,
+            requestHash,
+            holdExpiresAt: requirePayment
+              ? new Date(now.getTime() + BOOKING_HOLD_MS)
+              : undefined,
+          } as never);
+        },
+      );
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
       if (isDuplicateKey(err, 'uniq_customer_idem_key')) {
@@ -287,12 +393,253 @@ export const BookingService = {
     }
   },
 
+  /**
+   * One booking for its owner. A booking that belongs to someone else is indistinguishable from one
+   * that does not exist: both are 404, so ids can't be probed.
+   */
   async getBooking(customerId: string, bookingId: string) {
     const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
     }
-    return toView(booking as never);
+    const normalizedStatus = String(booking.status || '').toLowerCase();
+    const isArrived =
+      normalizedStatus === START_OTP_STATUS ||
+      normalizedStatus === 'arrived' ||
+      booking.status === START_OTP_STATUS;
+    const startOtp = isArrived
+      ? await bookingsRepository.getOrCreateStartOtp(String((booking as any)._id || bookingId))
+      : null;
+    const raw = rawObject(booking);
+    const [service, payment] = await Promise.all([
+      loadServiceInfo(raw.serviceId, raw.serviceName),
+      loadPaymentInfo(bookingId),
+    ]);
+    return buildDetailView(raw, startOtp, { service, payment });
+  },
+
+  /** Approve or reject one pending extra charge, then return the refreshed booking. */
+  async decideExtraCharge(
+    customerId: string,
+    bookingId: string,
+    chargeId: string,
+    decision: 'approve' | 'reject',
+  ) {
+    const next = decision === 'approve' ? 'approved' : 'rejected';
+    const updated = await bookingsRepository.decideExtraCharge(bookingId, customerId, chargeId, next);
+
+    if (!updated) {
+      // Nothing was changed. Work out why so the client gets an honest answer (own bookings only).
+      const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+      if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+
+      const charge = (booking as any).extraCharges?.find((c: any) => String(c._id) === chargeId);
+      if (!charge) throw new AppError(404, 'EXTRA_CHARGE_NOT_FOUND', 'Extra charge not found');
+      if (charge.status !== 'pending') {
+        throw new AppError(409, 'EXTRA_CHARGE_ALREADY_DECIDED', `This extra charge was already ${charge.status}`);
+      }
+      throw new AppError(
+        409,
+        'INVALID_STATE_TRANSITION',
+        `An extra charge can't be decided while the booking is ${booking.status}`,
+      );
+    }
+
+    return BookingService.getBooking(customerId, bookingId);
+  },
+
+  /**
+   * The invoice (HTML) for one of the customer's own bookings.
+   * 404 for someone else's booking (same answer as GET /bookings/:id, so ids can't be probed);
+   * 409 until the booking is paid or settled, because there is nothing to invoice before that.
+   */
+  async getInvoice(
+    customerId: string,
+    bookingId: string,
+  ): Promise<{ html: string; invoiceNo: string }> {
+    const view = await BookingService.getBooking(customerId, bookingId);
+    if (view.paymentStatus !== 'PAID') {
+      throw new AppError(
+        409,
+        'INVOICE_NOT_AVAILABLE',
+        'The invoice is available once the booking is paid',
+      );
+    }
+    const customer =
+      (await bookingsRepository.findCustomerContact(customerId)) ?? {};
+    // The booking view's payment lookup is best-effort; read the paid Payment record directly so the
+    // method, transaction ID and payment date on the receipt are always filled when they exist.
+    const paidRecord = await bookingsRepository
+      .findPaidPayment(bookingId)
+      .catch(() => null);
+    const data = buildInvoiceData(
+      withPaymentRecord(view, paidRecord as never),
+      customer,
+    );
+    return { html: renderInvoiceHtml(data), invoiceNo: data.invoiceNo };
+  },
+
+  /**
+   * Fee and refund summary if the customer cancelled right now.
+   */
+  async previewCancellation(customerId: string, bookingId: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+    if (!canTransition(booking.status as BookingStatus, 'cancelled_by_customer', 'customer')) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking in ${booking.status} cannot be cancelled`);
+    }
+
+    const policy = await bookingSettings.getCancellationPolicy();
+    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
+    const paidAmount = paidRecord ? paidRecord.amount : 0;
+    const slotStart = bookingSlotStart(booking as never);
+    const now = new Date();
+    const quote = computeCancellation({ slotStart, now, paidAmount, policy });
+    const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
+
+    return {
+      ...quote,
+      hoursUntilSlot,
+      refundMethod: quote.refundAmount > 0 && paidRecord ? ('RAZORPAY' as const) : null,
+      refundStatus: quote.refundAmount > 0 && paidRecord ? ('requested' as const) : ('none' as const),
+    };
+  },
+
+  /**
+   * Cancels the booking with a customer-supplied reason, atomically.
+   */
+  async cancelBooking(customerId: string, bookingId: string, reason: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+    if (!canTransition(booking.status as BookingStatus, 'cancelled_by_customer', 'customer')) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking in ${booking.status} cannot be cancelled`);
+    }
+
+    const policy = await bookingSettings.getCancellationPolicy();
+    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
+    const paidAmount = paidRecord ? paidRecord.amount : 0;
+    const slotStart = bookingSlotStart(booking as never);
+    const now = new Date();
+    const quote = computeCancellation({ slotStart, now, paidAmount, policy });
+
+    const historyEntry: StatusHistoryEntry = {
+      from: booking.status as BookingStatus,
+      to: 'cancelled_by_customer',
+      at: now,
+      actorId: customerId,
+      actorRole: 'customer',
+      reason,
+    };
+
+    const cancelled = await bookingsRepository.markCancelled(
+      bookingId,
+      customerId,
+      booking.status as BookingStatus,
+      historyEntry,
+      reason,
+    );
+
+    if (!cancelled) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
+    }
+
+    if (quote.refundAmount > 0 && paidRecord) {
+      await bookingsRepository.createRefundRequest({
+        payment: paidRecord,
+        bookingId,
+        customerId,
+        amount: quote.refundAmount,
+        reason,
+        now,
+      } as any);
+    }
+
+    const updatedBooking = await BookingService.getBooking(customerId, bookingId);
+    const refundStatus = quote.refundAmount > 0 && paidRecord ? ('requested' as const) : ('none' as const);
+    const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
+
+    return {
+      booking: updatedBooking,
+      cancellation: {
+        ...quote,
+        hoursUntilSlot,
+        refundMethod: quote.refundAmount > 0 && paidRecord ? ('RAZORPAY' as const) : null,
+        refundStatus,
+      },
+    };
+  },
+
+  /**
+   * Reschedules the booking to a new date and slot.
+   */
+  async rescheduleBooking(
+    customerId: string,
+    bookingId: string,
+    input: { date: string; slot: string },
+  ) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+
+    if (!RESCHEDULABLE_STATUSES.includes(booking.status as BookingStatus)) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This booking cannot be rescheduled in its current status');
+    }
+
+    if (booking.date === input.date && booking.slot === input.slot) {
+      throw new AppError(400, 'SAME_SLOT', 'Pick a different date or slot to reschedule');
+    }
+
+    assertBookableDate(input.date);
+    if (hasSlotStarted(input.date, input.slot)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+
+    const serviceId = String((booking as any).serviceId?._id ?? (booking as any).serviceId);
+    const capacity = await bookingSettings.getSlotCapacity(serviceId);
+    const now = new Date();
+
+    return withSlotLock(`booking:${serviceId}:${input.date}:${input.slot}`, async () => {
+      await bookingsRepository.releaseStaleHolds(serviceId, input.date, input.slot, now);
+      const seat = await bookingsRepository.findFreeSeat(serviceId, input.date, input.slot, capacity);
+      if (seat === null) {
+        throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+      }
+
+      const historyEntry: StatusHistoryEntry = {
+        from: booking.status as BookingStatus,
+        to: booking.status as BookingStatus,
+        at: now,
+        actorId: customerId,
+        actorRole: 'customer',
+        reason: `Rescheduled from ${booking.date} (${booking.slot}) to ${input.date} (${input.slot})`,
+      };
+
+      const updated = await bookingsRepository.reschedule({
+        bookingId,
+        customerId,
+        fromStatus: booking.status as BookingStatus,
+        fromDate: booking.date,
+        fromSlot: booking.slot,
+        to: {
+          date: input.date,
+          slot: input.slot,
+          seat,
+          scheduledAt: slotStartDate(input.date, input.slot),
+        },
+        entry: historyEntry,
+      } as any);
+
+      if (!updated) {
+        throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
+      }
+
+      return BookingService.getBooking(customerId, bookingId);
+    });
   },
 
   async listBookings(customerId: string, query: ListBookingsQuery) {

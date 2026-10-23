@@ -179,6 +179,13 @@ export const authService = {
       // Token already invalid: nothing to revoke.
     }
   },
+
+  async revokeUserSessions(userId: string) {
+    const user = await authRepository.findById(userId);
+    if (!user) return;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+  },
  
   verifyAccessToken(token: string): AccessTokenPayload {
     try {
@@ -344,144 +351,6 @@ export const authService = {
       resetToken: rawResetToken,
       data: { resetToken: rawResetToken },
       message: 'Code verified successfully.',
-    };
-  },
-
-  /** Resends a fresh OTP after the cooldown window, returning the same generic message as forgotPassword. */
-
-  async resendOtp({ email }: ResendOtpInput) {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const latestOtp = await authRepository.findLatestOtp(
-      normalizedEmail,
-      "PASSWORD_RESET",
-    );
-
-    if (
-      latestOtp &&
-      Date.now() - new Date(latestOtp.createdAt).getTime() < RESEND_COOLDOWN_MS
-    ) {
-      throw new HttpError(
-        429,
-        "Please wait 30 seconds before requesting another code.",
-        "RATE_LIMITED",
-      );
-    }
-
-    const user = await authRepository.findByEmail(normalizedEmail);
-
-    if (user && user.status !== "blocked") {
-      await issuePasswordResetOtp(user);
-    }
-
-    return {
-      success: true,
-
-      message: "If an account exists, a verification code has been sent.",
-    };
-  },
-
-  /**
-   * Admin: invites a teammate. Creates the account in "invited" state with no usable password,
-   * stores only the SHA-256 hash of a single-use token, and emails the accept-invite link.
-   * Inviting an address that is still "invited" re-sends a fresh link.
-   */
-  async inviteStaff({ name, email, roleId }: InviteStaffInput, invitedBy?: string) {
-    const existing = await authRepository.findByEmail(email);
-    if (existing && existing.status !== "invited") {
-      throw new HttpError(
-        409,
-        "Someone with this email already has an account.",
-        "EMAIL_TAKEN",
-      );
-    }
-
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const inviteTokenHash = hashSecret(rawToken);
-    const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 3_600_000);
-
-    let user: { id: string; name: string; email: string };
-    if (existing) {
-      existing.name = name;
-      existing.inviteTokenHash = inviteTokenHash;
-      existing.inviteExpiresAt = inviteExpiresAt;
-      await existing.save();
-      user = { id: String(existing._id), name: existing.name, email: existing.email };
-    } else {
-      // Random, never-disclosed password: nobody can log in until the invite is accepted.
-      const unusable = await bcrypt.hash(crypto.randomBytes(32).toString("hex"), 12);
-      const created = await authRepository.create({
-        name,
-        email,
-        passwordHash: unusable,
-        role: "admin",
-        status: "invited",
-        inviteTokenHash,
-        inviteExpiresAt,
-      });
-      user = { id: String(created._id), name: created.name, email: created.email };
-    }
-
-    // The team record (role, status, who invited) lives in the `staff` collection; `users` only holds the login.
-    await StaffModel.findOneAndUpdate(
-      { userId: user.id },
-      { $set: { name, email, roleId, status: "invited", ...(invitedBy ? { invitedBy } : {}) } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    );
-
-    const inviter = invitedBy ? await authRepository.findById(invitedBy) : null;
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    const inviteUrl = `${frontendUrl}/accept-invite?token=${rawToken}`;
-
-    let emailSent = true;
-    try {
-      await mailService.sendStaffInviteEmail({ name, email, inviteUrl, invitedBy: inviter?.name });
-    } catch (err) {
-      emailSent = false;
-      console.error("Staff invite email failed for user", user.id, err);
-    }
-    if (process.env.NODE_ENV !== "production") {
-      console.info(`[DEV ONLY] Staff invite link for ${maskEmail(email)}: ${inviteUrl}`);
-    }
-
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      roleId,
-      // TODO(rbac module): resolve the real role name / key from the Role model.
-      roleName: "Admin",
-      status: "invited" as const,
-      lastLoginAt: null,
-      emailSent,
-    };
-  },
-
-  /** Public: lets the accept-invite page greet the person before they set a password. */
-  async verifyInvite({ token }: VerifyInviteInput) {
-    const user = await authRepository.findByInviteTokenHash(hashSecret(token));
-    if (!user) throw invalidInvite();
-    return { name: user.name, email: user.email };
-  },
-
-  /** Public: consumes the single-use invite token, sets the password and activates the account. */
-  async acceptInvite({ token, password }: AcceptInviteInput) {
-    const user = await authRepository.findByInviteTokenHash(hashSecret(token));
-    if (!user) throw invalidInvite();
-
-    user.passwordHash = await bcrypt.hash(password, 12);
-    user.status = "active";
-    user.inviteTokenHash = undefined;
-    user.inviteExpiresAt = undefined;
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    user.failedLogins = 0;
-    user.lockedUntil = undefined;
-    await user.save();
-    await StaffModel.updateOne({ userId: user.id }, { $set: { status: "active" } });
-
-    return {
-      email: user.email,
-      message: "Your account is ready. Please log in with your new password.",
     };
   },
 

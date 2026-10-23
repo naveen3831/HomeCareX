@@ -32,7 +32,14 @@ export const TRANSITIONS: Record<
   },
 
   confirmed: {
-    searching_for_partner: ['system'],
+    searching_for_partner: [
+      'system',
+      'admin',
+    ],
+    assigned: [
+      'admin',
+      'system',
+    ],
     cancelled_by_customer: [
       'customer',
       'admin',
@@ -41,7 +48,14 @@ export const TRANSITIONS: Record<
   },
 
   created: {
-    searching_for_partner: ['system'],
+    searching_for_partner: [
+      'system',
+      'admin',
+    ],
+    assigned: [
+      'admin',
+      'system',
+    ],
     cancelled_by_customer: [
       'customer',
       'admin',
