@@ -4,9 +4,11 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { roleMiddleware } from '../../middleware/role.middleware';
 import { validationMiddleware } from '../../middleware/validation.middleware';
 import { pricingController } from './pricing.controller';
-import { quoteBodySchema } from './pricing.validation';
+import { getPricingQuerySchema, putPricingBodySchema, quoteBodySchema } from './pricing.validation';
+import { z } from 'zod';
 
 export const pricingRoutes = Router();
+export const adminPricingRoutes = Router();
 
 // POST /pricing/quote: the price the customer will be charged for this exact order
 pricingRoutes.post(
@@ -15,6 +17,23 @@ pricingRoutes.post(
   roleMiddleware('customer'),
   validationMiddleware({ body: quoteBodySchema }),
   asyncHandler(async (req, res) => pricingController.quote(req, res)),
+);
+
+adminPricingRoutes.use(authMiddleware, roleMiddleware('admin'));
+adminPricingRoutes.get(
+  '/',
+  validationMiddleware({ query: getPricingQuerySchema }),
+  asyncHandler(async (req, res) => pricingController.listAdmin(req, res)),
+);
+adminPricingRoutes.put(
+  '/',
+  validationMiddleware({ body: putPricingBodySchema }),
+  asyncHandler(async (req, res) => pricingController.saveAdmin(req, res)),
+);
+adminPricingRoutes.delete(
+  '/:id',
+  validationMiddleware({ params: z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/) }) }),
+  asyncHandler(async (req, res) => pricingController.deleteAdmin(req, res)),
 );
 
 export default pricingRoutes;

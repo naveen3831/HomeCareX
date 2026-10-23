@@ -1,275 +1,435 @@
+import { Types } from 'mongoose';
 
-import mongoose from 'mongoose';
 import { AppError } from '../../utils/AppError';
+import PayoutModel from '../../models/Payout';
+import PayoutBatchModel from '../../models/PayoutBatch';
 import { auditService } from '../audit/audit.service';
-import { PayoutsRepository } from './payouts.repository';
-import { PAYOUTS_CONSTANTS } from './payouts.constants';
+import {
+  payoutsRepository,
+  PayoutRepositoryError,
+} from './payouts.repository';
+import { payoutsDemoRepository } from './payouts.demo.repository';
+import { alertPayoutFailed } from '../notifications/admin-alerts';
 
-type AuditWriter = {
-  recordAudit(input: {
-    actor: string;
-    action: string;
-    entity: string;
-    entityId: string;
-    before?: unknown;
-    after?: unknown;
-    ip: string;
-    result: 'Success' | 'Failed';
-  }): Promise<unknown>;
+export interface GeneratePayoutBatchInput {
+  periodStart: string;
+  periodEnd: string;
+  adminId: string;
+  ip: string;
+}
+
+export interface ListPayoutBatchesInput {
+  page?: number;
+  limit?: number;
+  status?: string;
+}
+
+type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
+
+interface PopulatedPartner {
+  _id?: Types.ObjectId | string;
+  name?: string;
+  email?: string;
+}
+
+interface PopulatedBatch {
+  _id?: Types.ObjectId | string;
+  periodStart?: Date | string;
+  periodEnd?: Date | string;
+  status?: string;
+}
+
+interface PayoutRecord {
+  _id: Types.ObjectId | string;
+  partnerId: Types.ObjectId | string | PopulatedPartner;
+  batchId: Types.ObjectId | string | PopulatedBatch;
+  amount: number;
+  status: PayoutStatus;
+  paidAt?: Date | string | null;
+  createdAt?: Date | string;
+}
+
+interface PayoutBatchRecord {
+  _id: Types.ObjectId | string;
+  periodStart: Date | string;
+  periodEnd: Date | string;
+  gross: number;
+  commission: number;
+  net: number;
+  status: string;
+}
+
+type GenerateBatchRepositoryInput = {
+  periodStart: Date;
+  periodEnd: Date;
+  adminId: string;
 };
 
-type PayoutRepositoryLike = {
-  generateBatch(input: {
-    periodStart: Date;
-    periodEnd: Date;
-    adminId: string;
-  }): Promise<unknown>;
+type PayoutsRepositoryDependency = {
+  generateBatch: (
+    input: GenerateBatchRepositoryInput,
+  ) => Promise<unknown>;
 
-  listBatches(input: {
+  listBatches: (input: {
     page: number;
     limit: number;
     status?: string;
-  }): Promise<unknown>;
+  }) => Promise<unknown>;
 
-  findBatchById(batchId: string): Promise<unknown>;
-  listPayouts(batchId: string): Promise<unknown>;
+  findBatchById: (batchId: string) => Promise<unknown>;
 
-  findPayoutById?(payoutId: string): Promise<unknown>;
-
-  updatePayoutStatus?(
-    payoutId: string,
-    status: 'paid',
-  ): Promise<unknown>;
-
-  updateBatchStatusForPayout?(
-    payoutId: string,
-  ): Promise<unknown>;
-
-  exportPayouts?(batchId: string): Promise<unknown>;
+  listPayouts: (batchId: string) => Promise<unknown>;
 };
 
-function isRecord(
-  value: unknown,
-): value is Record<string, unknown> {
+type AuditDependency = {
+  recordAudit: (
+    ...args: Parameters<typeof auditService.recordAudit>
+  ) => Promise<unknown> | unknown;
+};
+
+const allowedTransitions: Record<PayoutStatus, PayoutStatus[]> = {
+  pending: ['processing', 'failed', 'paid'],
+  processing: ['failed', 'paid'],
+  failed: ['processing'],
+  paid: [],
+};
+
+function isObjectId(value: string): boolean {
+  return Types.ObjectId.isValid(value);
+}
+
+function isPayoutStatus(value: unknown): value is PayoutStatus {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value)
+    value === 'pending' ||
+    value === 'processing' ||
+    value === 'paid' ||
+    value === 'failed'
   );
 }
 
-function csvValue(value: unknown): string {
-  if (value === null || value === undefined) {
+function parseDate(value: string, field: string): Date {
+  if (
+    typeof value !== 'string' ||
+    !value.trim() ||
+    !Number.isFinite(new Date(value).getTime())
+  ) {
+    throw new AppError(
+      400,
+      'INVALID_PAYOUT_PERIOD',
+      `${field} must be a valid date`,
+    );
+  }
+
+  return new Date(value);
+}
+
+function mapRepositoryError(error: unknown): never {
+  if (error instanceof PayoutRepositoryError) {
+    const err = error as PayoutRepositoryError;
+    const status =
+      err.code === 'INVALID_ADMIN_ID' ||
+      err.code === 'INVALID_PERIOD'
+        ? 400
+        : err.code === 'NO_ELIGIBLE_EARNINGS'
+          ? 422
+          : err.code === 'PAYOUT_BATCH_ALREADY_EXISTS' ||
+              err.code === 'PAYOUT_EARNINGS_RESERVATION_CONFLICT'
+            ? 409
+            : 500;
+
+    throw new AppError(status, err.code, err.message);
+  }
+
+  const code = getErrorCode(error);
+
+  if (code === 'INVALID_PAYOUT_ID') {
+    throw new AppError(400, code, 'Invalid payout ID');
+  }
+
+  if (code === 'PAYOUT_NOT_FOUND') {
+    throw new AppError(404, code, 'Payout not found');
+  }
+
+  if (code === 'PAYOUT_ALREADY_PAID') {
+    throw new AppError(
+      409,
+      code,
+      'This payout is already marked as paid',
+    );
+  }
+
+  if (code === 'PAYOUT_STATUS_CONFLICT') {
+    throw new AppError(
+      409,
+      code,
+      'The requested payout status transition is not allowed',
+    );
+  }
+
+  if (code === 'INVALID_PAYOUT_STATUS') {
+    throw new AppError(
+      400,
+      code,
+      'Invalid payout status',
+    );
+  }
+
+  throw error;
+}
+
+function getErrorCode(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error
+  ) {
+    return String(error.code);
+  }
+
+  return '';
+}
+
+function toIsoString(
+  value: Date | string | null | undefined,
+): string {
+  if (value == null) {
     return '';
   }
 
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? String(value) : '';
+  const date = value instanceof Date ? value : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+}
+
+function idToString(value: unknown): string {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    '_id' in value
+  ) {
+    return String(value._id);
   }
 
-  const text = String(value);
+  return String(value ?? '');
+}
 
-  // Prevent spreadsheet formula injection for text values.
-  return /^[\s]*[=+\-@]/.test(text)
-    ? `'${text}`
-    : text;
+function getPartner(
+  value: PayoutRecord['partnerId'],
+): PopulatedPartner | null {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'name' in value
+  ) {
+    return value;
+  }
+
+  return null;
+}
+
+function getPopulatedBatch(
+  value: PayoutRecord['batchId'],
+): PopulatedBatch | null {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    ('periodStart' in value || 'periodEnd' in value)
+  ) {
+    return value;
+  }
+
+  return null;
 }
 
 /**
- * Produces a quoted CSV cell and protects against
- * spreadsheet formula injection.
+ * Escapes CSV cells and reduces spreadsheet formula-injection risk.
  */
 export function escapeCsv(value: unknown): string {
-  const safeValue = csvValue(value).replace(/"/g, '""');
-  return `"${safeValue}"`;
+  let text = value == null ? '' : String(value);
+
+  if (
+    typeof value !== 'number' &&
+    /^[\s]*[=+\-@]/.test(text)
+  ) {
+    text = `'${text}`;
+  }
+
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+const CSV_HEADERS = [
+  'Payout ID',
+  'Partner ID',
+  'Partner Name',
+  'Partner Email',
+  'Batch ID',
+  'Period Start',
+  'Period End',
+  'Amount INR',
+  'Status',
+  'Paid At',
+  'Created At',
+];
+
+function payoutToCsvRow(payout: PayoutRecord): unknown[] {
+  const partner = getPartner(payout.partnerId);
+  const batch = getPopulatedBatch(payout.batchId);
+
+  return [
+    idToString(payout._id),
+    idToString(payout.partnerId),
+    partner?.name ?? '',
+    partner?.email ?? '',
+    idToString(payout.batchId),
+    toIsoString(batch?.periodStart),
+    toIsoString(batch?.periodEnd),
+    Number(payout.amount).toFixed(2),
+    payout.status,
+    toIsoString(payout.paidAt),
+    toIsoString(payout.createdAt),
+  ];
+}
+
+function buildCsv(rows: unknown[][]): string {
+  return rows
+    .map((row) => row.map(escapeCsv).join(','))
+    .join('\r\n');
 }
 
 export class PayoutsService {
   constructor(
-    private readonly repository: PayoutRepositoryLike =
-      new PayoutsRepository(),
-    private readonly audit: AuditWriter = auditService,
+    private readonly repository: PayoutsRepositoryDependency =
+      payoutsRepository,
+    private readonly audit: AuditDependency = auditService,
+    private readonly demoMode = false,
   ) {}
 
-  private requireObjectId(
-    value: string,
-    code: string,
-    statusCode = 400,
-  ): void {
-    if (
-      typeof value !== 'string' ||
-      !mongoose.Types.ObjectId.isValid(value) ||
-      !/^[a-f\d]{24}$/i.test(value)
-    ) {
+  async generateBatch(input: GeneratePayoutBatchInput) {
+    if (!isObjectId(input.adminId)) {
       throw new AppError(
-        statusCode,
-        code,
-        'Invalid identifier',
+        401,
+        'INVALID_ADMIN_ID',
+        'Authenticated admin ID is invalid',
       );
     }
-  }
 
-  async generateBatch(input: {
-    periodStart: string;
-    periodEnd: string;
-    adminId: string;
-    ip: string;
-  }): Promise<unknown> {
-    this.requireObjectId(
-      input.adminId,
-      'INVALID_ADMIN_ID',
-      401,
+    const periodStart = parseDate(
+      input.periodStart,
+      'periodStart',
     );
 
-    const start = new Date(input.periodStart);
-    const end = new Date(input.periodEnd);
+    const periodEnd = parseDate(
+      input.periodEnd,
+      'periodEnd',
+    );
 
-    if (
-      !input.periodStart ||
-      !input.periodEnd ||
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
-      start >= end
-    ) {
+    if (periodStart >= periodEnd) {
       throw new AppError(
         400,
         'INVALID_PAYOUT_PERIOD',
-        'The payout period must have valid dates and the start must be before the end',
+        'periodStart must be earlier than periodEnd',
       );
     }
 
-    let batch: unknown;
-
     try {
-      batch = await this.repository.generateBatch({
-        periodStart: start,
-        periodEnd: end,
+      const result = await this.repository.generateBatch({
+        periodStart,
+        periodEnd,
         adminId: input.adminId,
       });
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message === 'NO_PENDING_EARNINGS'
-      ) {
-        throw new AppError(
-          400,
-          'NO_PENDING_EARNINGS',
-          'No pending earnings were found for the selected payout period.',
+
+      const batch = result as PayoutBatchRecord | null;
+
+      if (!batch?._id) {
+        throw new Error(
+          'Payout repository did not return a valid batch document',
         );
       }
 
-      if (
-        error instanceof Error &&
-        error.message === 'PAYOUT_BATCH_PERIOD_EXISTS'
-      ) {
-        throw new AppError(
-          409,
-          'PAYOUT_BATCH_PERIOD_EXISTS',
-          'A payout batch already exists for this period.',
-        );
-      }
+      await this.audit.recordAudit({
+        actor: input.adminId,
+        action: 'payout.batch_generated',
+        entity: 'PayoutBatch',
+        entityId: String(batch._id),
+        before: null,
+        after: {
+          periodStart,
+          periodEnd,
+          gross: batch.gross,
+          commission: batch.commission,
+          net: batch.net,
+          status: batch.status,
+        },
+        ip: input.ip,
+        result: 'Success',
+      });
 
-      if (
-        error instanceof Error &&
-        error.message === 'EARNINGS_SETTLEMENT_CONFLICT'
-      ) {
-        throw new AppError(
-          409,
-          'EARNINGS_SETTLEMENT_CONFLICT',
-          'Some earnings changed during payout generation. Please retry after checking the current records.',
-        );
-      }
-
-      // Preserve unexpected errors for centralized error handling.
-      throw error;
+      return result;
+    } catch (error) {
+      mapRepositoryError(error);
     }
-
-    const batchId =
-      isRecord(batch) && batch._id !== undefined
-        ? String(batch._id)
-        : `${start.toISOString()}_${end.toISOString()}`;
-
-    await this.audit.recordAudit({
-      actor: input.adminId,
-      action: 'PAYOUT_BATCH_GENERATED',
-      entity: 'PayoutBatch',
-      entityId: batchId,
-      after: batch,
-      ip: input.ip,
-      result: 'Success',
-    });
-
-    return batch;
   }
 
-  async listBatches(
-    input: {
-      page?: number;
-      limit?: number;
-      status?: string;
-    } = {},
-  ): Promise<unknown> {
-    const page =
-      input.page ?? PAYOUTS_CONSTANTS.DEFAULT_PAGE;
-
-    const limit =
-      input.limit ?? PAYOUTS_CONSTANTS.DEFAULT_LIMIT;
+  async listBatches(input: ListPayoutBatchesInput) {
+    const page = input.page ?? 1;
+    const limit = input.limit ?? 20;
 
     if (!Number.isInteger(page) || page < 1) {
       throw new AppError(
         400,
         'INVALID_PAGE',
-        'Page must be a positive integer',
+        'page must be a positive integer',
       );
     }
 
-    if (
-      !Number.isInteger(limit) ||
-      limit < 1 ||
-      limit > PAYOUTS_CONSTANTS.MAX_LIMIT
-    ) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new AppError(
         400,
         'INVALID_LIMIT',
-        `Limit must be between 1 and ${PAYOUTS_CONSTANTS.MAX_LIMIT}`,
+        'limit must be between 1 and 100',
       );
     }
 
+    const validStatuses = [
+      'pending',
+      'processing',
+      'completed',
+      'failed',
+    ];
+
     if (
       input.status &&
-      !(
-        PAYOUTS_CONSTANTS.BATCH_STATUSES as readonly string[]
-      ).includes(input.status)
+      !validStatuses.includes(input.status)
     ) {
       throw new AppError(
         400,
         'INVALID_BATCH_STATUS',
-        'Unsupported payout batch status',
+        'Invalid payout batch status',
       );
     }
 
     return this.repository.listBatches({
       page,
       limit,
-      ...(input.status
-        ? { status: input.status }
-        : {}),
+      status: input.status,
     });
   }
 
-  async getBatch(batchId: string): Promise<unknown> {
-    this.requireObjectId(
-      batchId,
-      'INVALID_BATCH_ID',
-    );
+  async getBatch(batchId: string) {
+    if (!isObjectId(batchId)) {
+      throw new AppError(
+        400,
+        'INVALID_BATCH_ID',
+        'Invalid payout batch ID',
+      );
+    }
 
-    const batch =
-      await this.repository.findBatchById(batchId);
+    const batch = await this.repository.findBatchById(batchId);
 
     if (!batch) {
       throw new AppError(
         404,
-        'BATCH_NOT_FOUND',
+        'PAYOUT_BATCH_NOT_FOUND',
         'Payout batch not found',
       );
     }
@@ -277,57 +437,97 @@ export class PayoutsService {
     return batch;
   }
 
-  async listPayouts(batchId: string): Promise<unknown> {
-    this.requireObjectId(
-      batchId,
-      'INVALID_BATCH_ID',
-    );
+  async listPayouts(batchId: string) {
+    if (!isObjectId(batchId)) {
+      throw new AppError(
+        400,
+        'INVALID_BATCH_ID',
+        'Invalid payout batch ID',
+      );
+    }
 
-    const payouts =
-      await this.repository.listPayouts(batchId);
+    const batch = await this.repository.findBatchById(batchId);
 
-    if (payouts === null) {
+    if (!batch) {
       throw new AppError(
         404,
-        'BATCH_NOT_FOUND',
+        'PAYOUT_BATCH_NOT_FOUND',
         'Payout batch not found',
       );
     }
 
-    return payouts;
+    return this.repository.listPayouts(batchId);
   }
 
-  async markPaid(input: {
+  /**
+   * Update a payout's status.
+   *
+   * Demo mode writes only to the local demo JSON repository.
+   * Normal mode updates MongoDB and records the change in the audit log.
+   */
+  async updateStatus(input: {
     payoutId: string;
+    status: unknown;
     adminId: string;
     ip: string;
-  }): Promise<unknown> {
-    this.requireObjectId(
-      input.payoutId,
-      'INVALID_PAYOUT_ID',
-    );
+  }) {
+    const { payoutId, status, adminId, ip } = input;
 
-    this.requireObjectId(
-      input.adminId,
-      'INVALID_ADMIN_ID',
-      401,
-    );
-
-    if (
-      !this.repository.findPayoutById ||
-      !this.repository.updatePayoutStatus
-    ) {
+    if (!isObjectId(payoutId)) {
       throw new AppError(
-        500,
-        'PAYOUT_REPOSITORY_INCOMPLETE',
-        'Payout repository cannot update payouts',
+        400,
+        'INVALID_PAYOUT_ID',
+        'Invalid payout ID',
       );
     }
 
-    const before =
-      await this.repository.findPayoutById(
-        input.payoutId,
+    if (!isObjectId(adminId)) {
+      throw new AppError(
+        401,
+        'INVALID_ADMIN_ID',
+        'Authenticated admin ID is invalid',
       );
+    }
+
+    if (!isPayoutStatus(status)) {
+      throw new AppError(
+        400,
+        'INVALID_PAYOUT_STATUS',
+        'Status must be pending, processing, paid, or failed',
+      );
+    }
+
+    const nextStatus = status;
+
+    if (this.demoMode) {
+  try {
+    const demoUpdated = await payoutsDemoRepository.updateStatus(
+      payoutId,
+      nextStatus,
+    );
+
+    if (nextStatus === 'failed') {
+      const demoPartner = getPartner(
+        (demoUpdated as unknown as PayoutRecord).partnerId,
+      );
+      alertPayoutFailed({
+        payoutId,
+        amount: (demoUpdated as unknown as PayoutRecord).amount,
+        partnerId: demoPartner?._id ? String(demoPartner._id) : undefined,
+        partnerName: demoPartner?.name,
+        batchId: idToString(
+          (demoUpdated as unknown as PayoutRecord).batchId,
+        ),
+      });
+    }
+
+    return demoUpdated;
+  } catch (error) {
+    mapRepositoryError(error);
+  }
+}
+    const beforeResult = await PayoutModel.findById(payoutId).lean();
+    const before = beforeResult as unknown as PayoutRecord | null;
 
     if (!before) {
       throw new AppError(
@@ -337,145 +537,262 @@ export class PayoutsService {
       );
     }
 
-    if (!isRecord(before)) {
-      throw new AppError(
-        500,
-        'INVALID_PAYOUT_RECORD',
-        'Payout record is invalid',
-      );
-    }
+    if (before.status === nextStatus) {
+      if (nextStatus === 'paid') {
+        throw new AppError(
+          409,
+          'PAYOUT_ALREADY_PAID',
+          'This payout is already marked as paid',
+        );
+      }
 
-    if (before.status === 'paid') {
-      throw new AppError(
-        409,
-        'PAYOUT_ALREADY_PAID',
-        'Payout is already paid',
-      );
-    }
-
-    if (
-      before.status !== 'pending' &&
-      before.status !== 'processing'
-    ) {
       throw new AppError(
         409,
-        'PAYOUT_STATUS_INVALID',
-        'Only pending or processing payouts can be marked paid',
+        'PAYOUT_STATUS_CONFLICT',
+        `Payout is already in ${nextStatus} status`,
       );
     }
 
-    const updated =
-      await this.repository.updatePayoutStatus(
-        input.payoutId,
-        'paid',
+    if (!allowedTransitions[before.status].includes(nextStatus)) {
+      throw new AppError(
+        409,
+        'PAYOUT_STATUS_CONFLICT',
+        `Cannot change payout status from ${before.status} to ${nextStatus}`,
       );
+    }
+
+    const updatedResult = await PayoutModel.findOneAndUpdate(
+      {
+        _id: payoutId,
+        status: before.status,
+      },
+      {
+        $set: {
+          status: nextStatus,
+          paidAt: nextStatus === 'paid' ? new Date() : null,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate('partnerId', 'name email')
+      .populate('batchId', 'periodStart periodEnd status')
+      .lean();
+
+    const updated = updatedResult as unknown as PayoutRecord | null;
 
     if (!updated) {
       throw new AppError(
         409,
         'PAYOUT_STATUS_CONFLICT',
-        'Payout status changed; refresh and try again',
+        'The payout status changed concurrently. Refresh and try again.',
       );
     }
 
-    await this.repository
-      .updateBatchStatusForPayout?.(
-        input.payoutId,
-      );
+    const batchId = idToString(before.batchId);
+
+    const remaining = await PayoutModel.countDocuments({
+      batchId: new Types.ObjectId(batchId),
+      status: { $ne: 'paid' },
+    });
+
+    let batchStatus = 'pending';
+
+    if (remaining === 0) {
+      batchStatus = 'completed';
+    } else if (
+      await PayoutModel.exists({
+        batchId: new Types.ObjectId(batchId),
+        status: 'processing',
+      })
+    ) {
+      batchStatus = 'processing';
+    } else if (
+      await PayoutModel.exists({
+        batchId: new Types.ObjectId(batchId),
+        status: 'paid',
+      })
+    ) {
+      batchStatus = 'processing';
+    } else if (
+      await PayoutModel.exists({
+        batchId: new Types.ObjectId(batchId),
+        status: 'failed',
+      })
+    ) {
+      batchStatus = 'failed';
+    }
+
+    await PayoutBatchModel.findByIdAndUpdate(batchId, {
+      $set: {
+        status: batchStatus,
+        updatedAt: new Date(),
+      },
+    });
 
     await this.audit.recordAudit({
-      actor: input.adminId,
-      action: 'PAYOUT_MARKED_PAID',
+      actor: adminId,
+      action:
+        nextStatus === 'paid'
+          ? 'payout.marked_paid'
+          : 'payout.status_updated',
       entity: 'Payout',
-      entityId: input.payoutId,
-      before,
-      after: updated,
-      ip: input.ip,
+      entityId: payoutId,
+      before: {
+        status: before.status,
+        paidAt: before.paidAt ?? null,
+        amount: before.amount,
+      },
+      after: {
+        status: nextStatus,
+        paidAt: updated.paidAt ?? null,
+        amount: updated.amount,
+        batchId,
+        batchStatus,
+      },
+      ip,
       result: 'Success',
     });
+
+    if (nextStatus === 'failed') {
+      const partner = getPartner(updated.partnerId);
+      alertPayoutFailed({
+        payoutId,
+        amount: updated.amount,
+        partnerId: partner?._id ? String(partner._id) : undefined,
+        partnerName: partner?.name,
+        batchId,
+      });
+    }
 
     return updated;
   }
 
-  async exportCsv(batchId: string): Promise<string> {
-    this.requireObjectId(
-      batchId,
-      'INVALID_BATCH_ID',
-    );
+  /**
+   * Backwards-compatible method for callers that specifically mark paid.
+   */
+  async markPaid(input: {
+    payoutId: string;
+    adminId: string;
+    ip: string;
+  }) {
+    return this.updateStatus({
+      ...input,
+      status: 'paid',
+    });
+  }
 
-    if (!this.repository.exportPayouts) {
+  async exportCsv(batchId?: string): Promise<string> {
+    if (batchId && !isObjectId(batchId)) {
       throw new AppError(
-        500,
-        'PAYOUT_REPOSITORY_INCOMPLETE',
-        'Payout export is not configured',
+        400,
+        'INVALID_BATCH_ID',
+        'Invalid payout batch ID',
       );
     }
 
-    const exported =
-      await this.repository.exportPayouts(batchId);
+    if (this.demoMode) {
+      if (batchId) {
+        const batch = await this.repository.findBatchById(batchId);
 
-    if (!exported) {
-      throw new AppError(
-        404,
-        'BATCH_NOT_FOUND',
-        'Payout batch not found',
-      );
+        if (!batch) {
+          throw new AppError(
+            404,
+            'PAYOUT_BATCH_NOT_FOUND',
+            'Payout batch not found',
+          );
+        }
+
+        const rawPayouts = await this.repository.listPayouts(batchId);
+        const payouts = rawPayouts as PayoutRecord[];
+
+        return buildCsv([
+          CSV_HEADERS,
+          ...payouts.map(payoutToCsvRow),
+        ]);
+      }
+
+      const rawBatches = await this.repository.listBatches({
+        page: 1,
+        limit: 100,
+      });
+
+      const batchResult = rawBatches as {
+        items?: Array<{ _id: Types.ObjectId | string }>;
+      };
+
+      const batches = batchResult.items ?? [];
+      const allPayouts: PayoutRecord[] = [];
+
+      for (const batch of batches) {
+        const rawPayouts = await this.repository.listPayouts(
+          String(batch._id),
+        );
+
+        allPayouts.push(...(rawPayouts as PayoutRecord[]));
+      }
+
+      return buildCsv([
+        CSV_HEADERS,
+        ...allPayouts.map(payoutToCsvRow),
+      ]);
     }
 
-    if (
-      !isRecord(exported) ||
-      !Array.isArray(exported.payouts)
-    ) {
-      throw new AppError(
-        500,
-        'INVALID_PAYOUT_EXPORT',
-        'Payout export data is invalid',
-      );
+    const filter: Record<string, unknown> = {};
+
+    if (batchId) {
+      const batchExists = await PayoutBatchModel.exists({
+        _id: batchId,
+      });
+
+      if (!batchExists) {
+        throw new AppError(
+          404,
+          'PAYOUT_BATCH_NOT_FOUND',
+          'Payout batch not found',
+        );
+      }
+
+      filter.batchId = new Types.ObjectId(batchId);
     }
 
-    const header = [
-      'Payout ID',
-      'Partner',
-      'Email',
-      'Amount',
-      'Gross',
-      'Commission',
-      'Status',
-      'Paid At',
-    ];
+    const payoutResults = await PayoutModel.find(filter)
+      .populate('partnerId', 'name email')
+      .populate('batchId', 'periodStart periodEnd status')
+      .sort({ createdAt: 1 })
+      .lean()
+      .exec();
 
-    const rows = exported.payouts.map(
-      (item: unknown) => {
-        const payout = isRecord(item) ? item : {};
-        const partner = isRecord(payout.partnerId)
-          ? payout.partnerId
-          : {};
-        const user = isRecord(partner.userId)
-          ? partner.userId
-          : {};
+    const payouts = payoutResults as unknown as PayoutRecord[];
 
-        return [
-          payout._id,
-          user.name ?? partner.name,
-          user.email ?? partner.email,
-          payout.amount,
-          payout.gross,
-          payout.commission,
-          payout.status,
-          payout.paidAt instanceof Date
-            ? payout.paidAt.toISOString()
-            : payout.paidAt,
-        ]
-          .map(escapeCsv)
-          .join(',');
-      },
-    );
-
-    return [
-      header.map(escapeCsv).join(','),
-      ...rows,
-    ].join('\r\n');
+    return buildCsv([
+      CSV_HEADERS,
+      ...payouts.map(payoutToCsvRow),
+    ]);
   }
 }
 
-export default PayoutsService;
+/*
+ * Demo mode is enabled only when both environment flags are set.
+ * Demo audit is intentionally a no-op so local demo changes don't
+ * create audit documents in the shared database.
+ */
+const payoutsDemoMode =
+  process.env.NODE_ENV === 'development' &&
+  process.env.PAYOUTS_DEMO_MODE === 'true';
+
+const demoAudit: AuditDependency = {
+  recordAudit: async () => undefined,
+};
+
+export const payoutsService = payoutsDemoMode
+  ? new PayoutsService(
+      payoutsDemoRepository,
+      demoAudit,
+      true,
+    )
+  : new PayoutsService();
+
+export default payoutsService;

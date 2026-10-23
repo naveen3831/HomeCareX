@@ -75,6 +75,10 @@ export const bookingsController = {
     res.json({ success: true, data: result });
   },
 
+  async previewCancel(req: Request, res: Response) {
+    return this.previewCancellation(req, res);
+  },
+
   async cancelBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
     const { reason } = req.body as { reason: string };
@@ -106,4 +110,4 @@ export const bookingsController = {
     const { items, meta } = await BookingService.listBookings(customerId, query);
     res.json({ success: true, count: items.length, data: items, meta });
   },
-};
+};

@@ -18,7 +18,8 @@ const addressFields = z.object({
   pincode,
   location: z.object({ lat: z.number().gte(-90).lte(90), lng: z.number().gte(-180).lte(180) }).optional(),
   isDefault: z.boolean().optional(),
-});
+  // Unknown keys (customerId, _id, role, anything else) are rejected with a 400 instead of being silently dropped.
+}).strict();
 
 export const createAddressBodySchema = addressFields.refine((v) => Boolean(v.line1) || (Boolean(v.house) && Boolean(v.street)), {
   message: 'House and street are required',
@@ -29,6 +30,7 @@ export const updateAddressBodySchema = addressFields
   .partial()
   .refine((v) => Object.values(v).some((x) => x !== undefined), { message: 'Send at least one field to update' });
 
-export const serviceabilityQuerySchema = z.object({ pincode });
+/** `.strict()`: a stray param is a 400, like every other query in the API. */
+export const serviceabilityQuerySchema = z.object({ pincode }).strict();
 
 export const addressParamsSchema = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid id') });

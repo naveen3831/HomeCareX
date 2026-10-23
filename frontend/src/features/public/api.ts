@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import http from '@/lib/http';
 import { classifyApiError } from '@/lib/apiError';
+import { sanitizeLimit, sanitizePage, sanitizePathSegment, sanitizeServicesParams } from '@/lib/querySanitize';
 import {
   bannersSchema,
   categoriesSchema,
@@ -101,13 +102,13 @@ async function get(path: string, params: object | undefined, signal?: AbortSigna
 }
 
 const delay = <T>(value: T, ms = 250) => new Promise<T>((resolve) => setTimeout(() => resolve(value), ms));
-const clean = (p: object) => Object.fromEntries(Object.entries(p).filter(([, v]) => v !== undefined && v !== ''));
 
 /* -------------------------------- mocks --------------------------------- */
 
 function mockServicesPage(p: ServicesParams): ServicesPage {
-  const page = p.page ?? 1;
-  const limit = p.limit ?? 12;
+  // Same rules as the real request, so mocks and backend behave alike (page >= 1, limit capped).
+  const page = sanitizePage(p.page);
+  const limit = sanitizeLimit(p.limit);
   const q = p.q?.trim().toLowerCase();
 
   let items = mockServices.filter((s) => {
@@ -147,12 +148,17 @@ export const publicApi = {
   /** GET /services */
   async getServices(params: ServicesParams = {}, signal?: AbortSignal): Promise<ServicesPage> {
     if (USE_MOCKS) return delay(mockServicesPage(params));
-    const body = await get('/services', clean(params), signal);
+    // Only allow-listed, length-capped values ever reach the backend.
+    const body = await get('/services', sanitizeServicesParams(params), signal);
     return parse(servicesPageSchema, { items: body.data, meta: body.meta }, 'GET /services');
   },
 
   /** GET /services/:slug */
-  async getService(slug: string, signal?: AbortSignal): Promise<ServiceDetail> {
+  async getService(rawSlug: string, signal?: AbortSignal): Promise<ServiceDetail> {
+    // A slug with spaces, slashes, "..", markup etc. can never match a service: 404 without a request.
+    const slug = sanitizePathSegment(rawSlug);
+    if (!slug) throw new ApiError('not_found', MESSAGES.not_found, 404);
+
     if (USE_MOCKS) {
       const found = mockServiceDetails.find((s) => s.slug === slug || s.id === slug);
       if (!found) throw new ApiError('not_found', MESSAGES.not_found, 404);
@@ -163,8 +169,12 @@ export const publicApi = {
   },
 
   /** GET /services/:id/reviews */
-  async getServiceReviews(serviceId: string, params: ReviewsParams = {}, signal?: AbortSignal): Promise<ReviewsPage> {
-    const { page = 1, limit = 10 } = params;
+  async getServiceReviews(rawServiceId: string, params: ReviewsParams = {}, signal?: AbortSignal): Promise<ReviewsPage> {
+    const serviceId = sanitizePathSegment(rawServiceId);
+    if (!serviceId) throw new ApiError('not_found', MESSAGES.not_found, 404);
+    const page = sanitizePage(params.page);
+    const limit = sanitizeLimit(params.limit ?? 10);
+
     if (USE_MOCKS) return delay(mockReviewsFor(serviceId, page, limit));
     const body = await get(`/services/${encodeURIComponent(serviceId)}/reviews`, { page, limit }, signal);
     const data = (body.data ?? {}) as { summary?: unknown; reviews?: unknown };

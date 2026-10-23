@@ -1,6 +1,29 @@
 {
   "batches": [
     {
+      "_id": "6adb187cee784847709ce3dd",
+      "periodStart": "2026-10-01T00:00:00.000Z",
+      "periodEnd": "2026-10-15T00:00:00.000Z",
+      "gross": 25000,
+      "commission": 2500,
+      "net": 22500,
+      "status": "failed",
+      "createdBy": "6abb7fd4f4ae29d02df7c558",
+      "earningIds": [],
+      "payoutIds": [
+        "6adb187cee784847709ce3de",
+        "6adb187cee784847709ce3e0",
+        "6adb187cee784847709ce3e2",
+        "6adb187cee784847709ce3e4",
+        "6adb187cee784847709ce3e6",
+        "6adb187cee784847709ce3e8",
+        "6adb187cee784847709ce3ea",
+        "6adb187cee784847709ce3ec"
+      ],
+      "createdAt": "2026-10-23T08:19:08.675Z",
+      "updatedAt": "2026-10-23T08:35:24.212Z"
+    },
+    {
       "_id": "6ad076511ebf9a6fa3a57bfa",
       "periodStart": "2026-10-15T00:00:00.000Z",
       "periodEnd": "2026-10-22T00:00:00.000Z",
@@ -57,6 +80,126 @@
     }
   ],
   "payouts": [
+    {
+      "_id": "6adb187cee784847709ce3de",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3df",
+        "name": "Rahul Sharma",
+        "email": "rahul.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 3000,
+      "commission": 300,
+      "amount": 2700,
+      "status": "failed",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3e0",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3e1",
+        "name": "Priya Reddy",
+        "email": "priya.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 2500,
+      "commission": 250,
+      "amount": 2250,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3e2",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3e3",
+        "name": "Arjun Kumar",
+        "email": "arjun.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 4200,
+      "commission": 420,
+      "amount": 3780,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3e4",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3e5",
+        "name": "Sneha Patel",
+        "email": "sneha.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 1800,
+      "commission": 180,
+      "amount": 1620,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3e6",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3e7",
+        "name": "Vikram Rao",
+        "email": "vikram.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 3500,
+      "commission": 350,
+      "amount": 3150,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3e8",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3e9",
+        "name": "Ananya Singh",
+        "email": "ananya.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 2800,
+      "commission": 280,
+      "amount": 2520,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3ea",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3eb",
+        "name": "Kiran Reddy",
+        "email": "kiran.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 5000,
+      "commission": 500,
+      "amount": 4500,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
+    {
+      "_id": "6adb187cee784847709ce3ec",
+      "partnerId": {
+        "_id": "6adb187cee784847709ce3ed",
+        "name": "Meera Nair",
+        "email": "meera.demo@example.com"
+      },
+      "batchId": "6adb187cee784847709ce3dd",
+      "gross": 2200,
+      "commission": 220,
+      "amount": 1980,
+      "status": "pending",
+      "paidAt": null,
+      "createdAt": "2026-10-23T08:19:08.675Z"
+    },
     {
       "_id": "6ad076511ebf9a6fa3a57bfb",
       "partnerId": {

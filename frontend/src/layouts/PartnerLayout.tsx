@@ -50,24 +50,13 @@ import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
 
-const PARTNER_ONLINE_STORAGE_KEY = "partner-online-status";
-
-function readStoredOnlineStatus(): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(PARTNER_ONLINE_STORAGE_KEY);
-    return raw === null ? null : raw === "true";
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredOnlineStatus(value: boolean): void {
-  try {
-    window.localStorage.setItem(PARTNER_ONLINE_STORAGE_KEY, String(value));
-  } catch {
-    // Ignore unavailable storage.
-  }
-}
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+  readStoredOnlineStatus,
+  writeStoredOnlineStatus,
+  PARTNER_ONLINE_STORAGE_KEY,
+} from '@/pages/partner/Availability/availability.api';
 
 type NavChild = {
   key: string;
@@ -103,12 +92,7 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-  {
-    key: "work",
-    label: "Work",
-    to: "/partner/work",
-    icon: Briefcase,
-  },
+  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
   {
     key: "availability",
     label: "Availability",
@@ -193,24 +177,9 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-  {
-    key: "profile",
-    label: "Profile",
-    to: "/partner/profile",
-    icon: User,
-  },
-  {
-    key: "support",
-    label: "Support",
-    to: "/partner/support",
-    icon: LifeBuoy,
-  },
-  {
-    key: "help",
-    label: "Help",
-    to: "/partner/help",
-    icon: HelpCircle,
-  },
+  { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
+  { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
+  { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
   {
     key: "system",
     label: "Settings",
@@ -488,10 +457,8 @@ function PartnerSidebar({
   };
 
   const toggleItem = (key: string) => {
-    setOpenItems((current) =>
-      current.includes(key)
-        ? current.filter((itemKey) => itemKey !== key)
-        : [...current, key],
+    setOpenItems((cur) =>
+      cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
   };
 
@@ -554,12 +521,8 @@ function PartnerSidebar({
 
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group) => {
-          const items = NAV.filter((item) =>
-            group.keys.includes(item.key),
-          );
-
-          const isOpen =
-            collapsed || openGroup === group.groupName;
+          const items = NAV.filter((n) => group.keys.includes(n.key));
+          const isOpen = collapsed || openGroup === group.groupName;
 
           return (
             <div key={group.groupName} className="nav-group">
@@ -714,12 +677,8 @@ function PartnerSidebar({
           title={collapsed ? displayName : undefined}
           onClick={() => navigate("/partner/profile")}
         >
-          <span className="avatar">
-            {displayName.charAt(0).toUpperCase()}
-          </span>
-          {!collapsed && (
-            <span className="profile-name">{displayName}</span>
-          )}
+          <span className="avatar">{displayName.charAt(0).toUpperCase()}</span>
+          {!collapsed && <span className="profile-name">{displayName}</span>}
         </button>
 
         <button
@@ -744,6 +703,22 @@ export default function PartnerLayout() {
   const setOnline = useCallback((next: boolean) => {
     setOnlineState(next);
     writeStoredOnlineStatus(next);
+    void setOnlineApi(next).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void getAvailability()
+      .then((res) => {
+        if (mounted && typeof res?.isOnline === 'boolean') {
+          setOnlineState(res.isOnline);
+          writeStoredOnlineStatus(res.isOnline);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -793,8 +768,7 @@ export default function PartnerLayout() {
   const current = FLAT_NAV.filter((item) =>
     item.to === "/partner"
       ? cleanPath === "/partner"
-      : cleanPath === item.to ||
-        cleanPath.startsWith(item.to + "/"),
+      : cleanPath === item.to || cleanPath.startsWith(item.to + "/"),
   ).sort((a, b) => b.to.length - a.to.length)[0];
 
   const title =

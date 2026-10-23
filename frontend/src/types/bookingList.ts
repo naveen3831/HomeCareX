@@ -1,11 +1,9 @@
 import type { PageMeta } from "@/types/catalog";
 import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 
-/** Overdue is a schedule-based view, not a stored completion or cancellation status. */
 export type BookingTab =
   | "upcoming"
   | "live"
-  | "overdue"
   | "completed"
   | "cancelled";
 

@@ -58,7 +58,7 @@ describe('verifyStart (demo store): same rules as POST /partner/jobs/:id/verify-
     expect(err).toBeNull();
     expect(job?.status).toBe('in_progress');
     expect(job?.startVerification).toBeNull();
-    expect(job?.history.at(-1)?.status).toBe('in_progress');
+    expect(job?.history[job.history.length - 1]?.status).toBe('in_progress');
     expect((await api.fetchJob(ID)).status).toBe('in_progress'); // persisted
   });
 
@@ -99,7 +99,7 @@ describe('verifyStart (demo store): same rules as POST /partner/jobs/:id/verify-
 
   it('expired: 410 OTP_EXPIRED even with the correct code, and no attempt is used', async () => {
     const stored = JSON.parse(window.localStorage.getItem(api.MOCK_PARTNER_ROUTE_STORAGE_KEY) ?? '{}') as JobDetails;
-    stored.history = stored.history.map((h) =>
+    stored.history = stored.history.map((h: any) =>
       h.status === 'arrived' ? { ...h, at: new Date(Date.now() - 61 * 60_000).toISOString() } : h,
     );
     window.localStorage.setItem(api.MOCK_PARTNER_ROUTE_STORAGE_KEY, JSON.stringify(stored));
@@ -164,7 +164,7 @@ describe('verifyStart (demo store): same rules as POST /partner/jobs/:id/verify-
       expect((await attempt(api.DEMO_START_OTP)).err).toBeNull();
       const again = await attempt(api.DEMO_START_OTP);
       expect(api.getHttpStatus(again.err)).toBe(409);
-      const started = (await api.fetchJob(ID)).history.filter((h) => h.status === 'in_progress');
+      const started = (await api.fetchJob(ID)).history.filter((h: any) => h.status === 'in_progress');
       expect(started).toHaveLength(1);
     });
   });

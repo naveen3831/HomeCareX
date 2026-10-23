@@ -3,6 +3,7 @@ import { OtpModel } from '../../models/Otp';
 
 export const authRepository = {
   findByEmailWithPassword: (email: string) => UserModel.findOne({ email }).select('+passwordHash'),
+  findByIdWithPassword: (id: string) => UserModel.findById(id).select('+passwordHash'),
   findByEmail: (email: string) => UserModel.findOne({ email }),
   findById: (id: string) => UserModel.findById(id),
   findByResetTokenHash: (tokenHash: string) =>
@@ -10,10 +11,25 @@ export const authRepository = {
       passwordResetTokenHash: tokenHash,
       passwordResetExpiresAt: { $gt: new Date() },
     }).select('+passwordHash +passwordResetTokenHash'),
+  findByInviteTokenHash: (tokenHash: string) =>
+    UserModel.findOne({
+      inviteTokenHash: tokenHash,
+      inviteExpiresAt: { $gt: new Date() },
+    }).select('+inviteTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
-  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string }) =>
-    UserModel.create(data),
+  create: (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    passwordHash: string;
+    role: string;
+    referralCode?: string;
+    gender?: 'male' | 'female' | 'other';
+    status?: 'active' | 'blocked' | 'invited';
+    inviteTokenHash?: string;
+    inviteExpiresAt?: Date;
+  }) => UserModel.create(data),
 
   // OTP repository methods
   createOtp: (data: {

@@ -36,7 +36,7 @@ export const StaffTab: React.FC<StaffTabProps> = ({ notify }) => {
   const [pending, setPending] = useState<Pending>(null);
 
   const [query, setQuery] = useState('');
-  const allStaff = staffQuery.data ?? [];
+const allStaff = useMemo(() => staffQuery.data ?? [], [staffQuery.data]);
   const staff = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? allStaff.filter((m) => `${m.name} ${m.email} ${m.roleName}`.toLowerCase().includes(q)) : allStaff;

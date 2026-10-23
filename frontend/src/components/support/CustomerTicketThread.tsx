@@ -28,7 +28,7 @@ export default function CustomerTicketThread({ id }: { id: string }) {
       setEarlier((previous) =>
         Array.from(
           new Map(
-            [...previous, ...query.data.messages].map((message) => [
+            [...previous, ...(query.data.messages || [])].map((message) => [
               message.id,
               message,
             ]),
@@ -67,7 +67,7 @@ export default function CustomerTicketThread({ id }: { id: string }) {
   const nextBefore = cursor === undefined ? query.data.nextBefore : cursor;
   const messages = Array.from(
     new Map(
-      [...earlier, ...query.data.messages].map((m) => [m.id, m]),
+      [...earlier, ...(query.data.messages || [])].map((m) => [m.id, m]),
     ).values(),
   ).sort((a, b) => a.id.localeCompare(b.id));
   return (

@@ -1,99 +1,265 @@
+import mongoose, { Types } from 'mongoose';
 
-import mongoose from 'mongoose';
-import { PayoutModel } from '../../models/Payout';
-import { PayoutBatchModel } from '../../models/PayoutBatch';
-import { EarningModel } from '../earnings/Earning';
+import EarningModel from '../earnings/Earning';
+import PayoutModel from '../../models/Payout';
+import PayoutBatchModel from '../../models/PayoutBatch';
 
-export interface GeneratePayoutBatchInput {
+export class PayoutRepositoryError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'PayoutRepositoryError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export interface GeneratePayoutBatchRepositoryInput {
   periodStart: Date;
   periodEnd: Date;
   adminId: string;
 }
 
-export interface ListPayoutBatchesInput {
+export interface ListPayoutBatchesRepositoryInput {
   page: number;
   limit: number;
   status?: string;
 }
 
-interface BatchPayoutIds {
-  payoutIds?: unknown[];
-  periodStart?: Date;
-  periodEnd?: Date;
+const PAYOUT_BATCH_STATUSES = [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+] as const;
+
+function isValidDate(value: unknown): value is Date {
+  return value instanceof Date && Number.isFinite(value.getTime());
+}
+
+function roundMoney(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function isDuplicateBatchError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const mongoError = error as {
+    code?: number;
+    keyPattern?: Record<string, unknown>;
+    message?: string;
+  };
+
+  if (mongoError.code !== 11000) {
+    return false;
+  }
+
+  // The batch index is unique across both period fields.
+  if (
+    mongoError.keyPattern?.periodStart ||
+    mongoError.keyPattern?.periodEnd
+  ) {
+    return true;
+  }
+
+  // Some MongoDB errors identify the index in the message instead.
+  return Boolean(
+    mongoError.message?.includes('periodStart_1_periodEnd_1'),
+  );
 }
 
 export class PayoutsRepository {
+  async listBatches(query: ListPayoutBatchesRepositoryInput) {
+    if (
+      !Number.isInteger(query.page) ||
+      query.page < 1 ||
+      !Number.isInteger(query.limit) ||
+      query.limit < 1 ||
+      query.limit > 100
+    ) {
+      throw new PayoutRepositoryError(
+        'INVALID_PAGINATION',
+        'Page must be positive and limit must be between 1 and 100.',
+      );
+    }
+
+    const filter: Record<string, unknown> = {};
+
+    if (query.status) {
+      if (
+        !PAYOUT_BATCH_STATUSES.includes(
+          query.status as (typeof PAYOUT_BATCH_STATUSES)[number],
+        )
+      ) {
+        throw new PayoutRepositoryError(
+          'INVALID_BATCH_STATUS',
+          'The payout batch status is invalid.',
+        );
+      }
+
+      filter.status = query.status;
+    }
+
+    const skip = (query.page - 1) * query.limit;
+
+    const [items, total] = await Promise.all([
+      PayoutBatchModel.find(filter)
+        .populate('createdBy', 'name email')
+        .sort({ createdAt: -1, _id: -1 })
+        .skip(skip)
+        .limit(query.limit)
+        .lean()
+        .exec(),
+
+      PayoutBatchModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total,
+        pages: Math.ceil(total / query.limit),
+      },
+    };
+  }
+
+  async findBatchById(id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      return null;
+    }
+
+    return PayoutBatchModel.findById(id)
+      .populate('createdBy', 'name email')
+      .populate({
+        path: 'payoutIds',
+        populate: {
+          path: 'partnerId',
+          select: 'name email',
+        },
+      })
+      .lean()
+      .exec();
+  }
+
+  async listPayouts(batchId: string) {
+    if (!Types.ObjectId.isValid(batchId)) {
+      return [];
+    }
+
+    return PayoutModel.find({
+      batchId: new Types.ObjectId(batchId),
+    })
+      .populate('partnerId', 'name email')
+      .sort({ createdAt: 1, _id: 1 })
+      .lean()
+      .exec();
+  }
+
+  async findEligibleEarnings(periodStart: Date, periodEnd: Date) {
+    if (
+      !isValidDate(periodStart) ||
+      !isValidDate(periodEnd) ||
+      periodStart >= periodEnd
+    ) {
+      throw new PayoutRepositoryError(
+        'INVALID_PERIOD',
+        'The payout period is invalid.',
+      );
+    }
+
+    return EarningModel.find({
+      status: 'settled',
+      payoutBatchId: null,
+      earnedAt: {
+        $gte: periodStart,
+        $lt: periodEnd,
+      },
+    })
+      .select('_id partnerId bookingId gross commission net earnedAt')
+      .lean()
+      .exec();
+  }
+
   /**
-   * Generate a payout batch from real pending earnings.
-   *
-   * Earnings, payouts, and the batch are updated in one MongoDB
-   * transaction so a failed operation cannot partially settle earnings.
-   *
-   * Requires MongoDB transaction support (replica set or sharded cluster).
+   * Creates a payout batch, reserves eligible earnings, and creates
+   * one payout per partner within a single MongoDB transaction.
    */
-  async generateBatch(input: GeneratePayoutBatchInput) {
+  async generateBatch(input: GeneratePayoutBatchRepositoryInput) {
+    if (
+      typeof input.adminId !== 'string' ||
+      !Types.ObjectId.isValid(input.adminId)
+    ) {
+      throw new PayoutRepositoryError(
+        'INVALID_ADMIN_ID',
+        'The admin ID is invalid.',
+      );
+    }
+
+    if (
+      !isValidDate(input.periodStart) ||
+      !isValidDate(input.periodEnd) ||
+      input.periodStart >= input.periodEnd
+    ) {
+      throw new PayoutRepositoryError(
+        'INVALID_PERIOD',
+        'The payout period is invalid.',
+      );
+    }
+
     const session = await mongoose.startSession();
+    let createdBatchId: string | null = null;
 
     try {
-      let result: Record<string, unknown> | null = null;
-
       await session.withTransaction(async () => {
         const existingBatch = await PayoutBatchModel.findOne({
           periodStart: input.periodStart,
           periodEnd: input.periodEnd,
-        }).session(session);
+        })
+          .session(session)
+          .exec();
 
         if (existingBatch) {
-          throw new Error('PAYOUT_BATCH_PERIOD_EXISTS');
+          throw new PayoutRepositoryError(
+            'PAYOUT_BATCH_ALREADY_EXISTS',
+            'A payout batch already exists for this period.',
+          );
         }
 
         const earnings = await EarningModel.find({
-          status: 'pending',
+          status: 'settled',
+          payoutBatchId: null,
           earnedAt: {
             $gte: input.periodStart,
             $lt: input.periodEnd,
           },
         })
           .session(session)
-          .lean();
+          .exec();
 
         if (earnings.length === 0) {
-          throw new Error('NO_PENDING_EARNINGS');
+          throw new PayoutRepositoryError(
+            'NO_ELIGIBLE_EARNINGS',
+            'No eligible settled earnings were found for this period.',
+          );
         }
 
-        const partnerTotals = new Map<
-          string,
-          { gross: number; commission: number; net: number }
-        >();
+        const earningIds = earnings.map((earning) => earning._id);
 
-        for (const earning of earnings) {
-          const partnerId = String(earning.partnerId);
-          const totals = partnerTotals.get(partnerId) ?? {
-            gross: 0,
-            commission: 0,
-            net: 0,
-          };
-
-          totals.gross += earning.gross;
-          totals.commission += earning.commission;
-          totals.net += earning.net;
-
-          partnerTotals.set(partnerId, totals);
-        }
-
-        const gross = earnings.reduce(
-          (sum, earning) => sum + earning.gross,
-          0,
+        const gross = roundMoney(
+          earnings.reduce((sum, earning) => sum + earning.gross, 0),
         );
 
-        const commission = earnings.reduce(
-          (sum, earning) => sum + earning.commission,
-          0,
+        const commission = roundMoney(
+          earnings.reduce((sum, earning) => sum + earning.commission, 0),
         );
 
-        const net = earnings.reduce(
-          (sum, earning) => sum + earning.net,
-          0,
+        const net = roundMoney(
+          earnings.reduce((sum, earning) => sum + earning.net, 0),
         );
 
         const [batch] = await PayoutBatchModel.create(
@@ -104,238 +270,152 @@ export class PayoutsRepository {
               gross,
               commission,
               net,
-              earningIds: earnings.map((earning) => earning._id),
+              earningIds,
               payoutIds: [],
               status: 'pending',
-              createdBy: new mongoose.Types.ObjectId(input.adminId),
+              createdBy: new Types.ObjectId(input.adminId),
             },
           ],
           { session },
         );
 
-        const payoutDocuments = Array.from(partnerTotals.entries()).map(
-          ([partnerId, totals]) => ({
-            partnerId: new mongoose.Types.ObjectId(partnerId),
-            amount: totals.net,
-            status: 'pending',
-          }),
-        );
-
-        const payouts = await PayoutModel.insertMany(payoutDocuments, {
-          session,
-        });
-
-        batch.payoutIds = payouts.map((payout) => payout._id);
-        await batch.save({ session });
-
-        // Only settle earnings that are still pending.
-        const settlement = await EarningModel.updateMany(
+        // Reserve only earnings that remain eligible.
+        const reservation = await EarningModel.updateMany(
           {
-            _id: { $in: earnings.map((earning) => earning._id) },
-            status: 'pending',
+            _id: { $in: earningIds },
+            status: 'settled',
+            payoutBatchId: null,
           },
           {
             $set: {
-              status: 'settled',
-              settledAt: new Date(),
+              payoutBatchId: batch._id,
             },
           },
           { session },
-        );
+        ).exec();
 
-        if (settlement.modifiedCount !== earnings.length) {
-          throw new Error('EARNINGS_SETTLEMENT_CONFLICT');
+        if (reservation.modifiedCount !== earnings.length) {
+          throw new PayoutRepositoryError(
+            'PAYOUT_EARNINGS_RESERVATION_CONFLICT',
+            'Some earnings have already been assigned to another batch.',
+          );
         }
 
-        result = batch.toObject() as unknown as Record<string, unknown>;
-      });
+        // Group earnings by partner so each partner receives one payout.
+        const partnerTotals = new Map<
+          string,
+          {
+            partnerId: Types.ObjectId;
+            amount: number;
+          }
+        >();
 
-      return result;
+        for (const earning of earnings) {
+          const partnerId = earning.partnerId as Types.ObjectId;
+
+          if (!Types.ObjectId.isValid(String(partnerId))) {
+            throw new PayoutRepositoryError(
+              'INVALID_PARTNER_ID',
+              'An eligible earning has an invalid partner ID.',
+            );
+          }
+
+          const partnerKey = String(partnerId);
+          const existing = partnerTotals.get(partnerKey);
+
+          if (existing) {
+            existing.amount += earning.net;
+          } else {
+            partnerTotals.set(partnerKey, {
+              partnerId,
+              amount: earning.net,
+            });
+          }
+        }
+
+        const payoutDocuments = Array.from(partnerTotals.values()).map(
+          (partner) => ({
+            partnerId: partner.partnerId,
+            batchId: batch._id,
+            amount: roundMoney(partner.amount),
+            status: 'pending' as const,
+          }),
+        );
+
+        if (payoutDocuments.length === 0) {
+          throw new PayoutRepositoryError(
+            'NO_ELIGIBLE_EARNINGS',
+            'No partner payouts could be generated.',
+          );
+        }
+
+        const payouts = await PayoutModel.create(payoutDocuments, {
+          session,
+        });
+
+        const payoutIds = payouts.map((payout) => payout._id);
+
+        const batchUpdate = await PayoutBatchModel.updateOne(
+          { _id: batch._id },
+          {
+            $set: {
+              payoutIds,
+            },
+          },
+          { session },
+        ).exec();
+
+        if (batchUpdate.matchedCount !== 1) {
+          throw new PayoutRepositoryError(
+            'PAYOUT_BATCH_CREATION_FAILED',
+            'The generated payouts could not be linked to the batch.',
+          );
+        }
+
+        // Retain the ID after the transaction callback finishes.
+        createdBatchId = String(batch._id);
+      });
+    } catch (error: unknown) {
+      // Preserve deliberate business-validation errors.
+      if (error instanceof PayoutRepositoryError) {
+        throw error;
+      }
+
+      // Handle races where another request creates the same period.
+      if (isDuplicateBatchError(error)) {
+        throw new PayoutRepositoryError(
+          'PAYOUT_BATCH_ALREADY_EXISTS',
+          'A payout batch already exists for this period.',
+        );
+      }
+
+      throw error;
     } finally {
       await session.endSession();
     }
-  }
 
-  /**
-   * List payout batches with pagination and optional status filtering.
-   */
-  async listBatches(input: ListPayoutBatchesInput) {
-    const filter: Record<string, unknown> = {};
+    const batchId = createdBatchId;
 
-    if (input.status) {
-      filter.status = input.status;
+    if (!batchId) {
+      throw new PayoutRepositoryError(
+        'PAYOUT_BATCH_CREATION_FAILED',
+        'The payout batch could not be created.',
+      );
     }
 
-    const skip = (input.page - 1) * input.limit;
+    const result = await this.findBatchById(batchId);
 
-    const [items, total] = await Promise.all([
-      PayoutBatchModel.find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(input.limit)
-        .populate('createdBy', 'name email')
-        .lean(),
-
-      PayoutBatchModel.countDocuments(filter),
-    ]);
-
-    return {
-      items,
-      pagination: {
-        page: input.page,
-        limit: input.limit,
-        total,
-        pages: Math.ceil(total / input.limit),
-      },
-    };
-  }
-
-  /**
-   * Retrieve one payout batch.
-   */
-  async findBatchById(batchId: string) {
-    return PayoutBatchModel.findById(batchId)
-      .populate('createdBy', 'name email')
-      .lean();
-  }
-
-  /**
-   * List payouts belonging to a batch.
-   * Returns null if the batch does not exist.
-   */
-  async listPayouts(batchId: string) {
-    const batchResult: unknown = await PayoutBatchModel.findById(batchId)
-      .select('payoutIds')
-      .lean();
-
-    if (
-      !batchResult ||
-      typeof batchResult !== 'object' ||
-      Array.isArray(batchResult)
-    ) {
-      return null;
+    if (!result) {
+      throw new PayoutRepositoryError(
+        'PAYOUT_BATCH_NOT_FOUND',
+        'The generated payout batch could not be retrieved.',
+      );
     }
 
-    const batch = batchResult as BatchPayoutIds;
-
-    return PayoutModel.find({
-      _id: { $in: batch.payoutIds ?? [] },
-    })
-      .populate({
-        path: 'partnerId',
-        populate: {
-          path: 'userId',
-          select: 'name email',
-        },
-      })
-      .sort({ createdAt: -1 })
-      .lean();
-  }
-
-  /**
-   * Retrieve one payout.
-   */
-  async findPayoutById(payoutId: string) {
-    return PayoutModel.findById(payoutId).lean();
-  }
-
-  /**
-   * Mark a payout as paid.
-   *
-   * This updates the application's recorded status only. It does not
-   * execute or verify a bank transfer.
-   */
-  async updatePayoutStatus(payoutId: string, status: 'paid') {
-    return PayoutModel.findOneAndUpdate(
-      {
-        _id: payoutId,
-        status: { $in: ['pending', 'processing'] },
-      },
-      {
-        $set: {
-          status,
-          paidAt: new Date(),
-        },
-      },
-      { new: true },
-    ).lean();
-  }
-
-  /**
-   * Recalculate the associated batch status after a payout changes.
-   */
-  async updateBatchStatusForPayout(payoutId: string) {
-    const payout = await PayoutModel.findById(payoutId).lean();
-
-    if (!payout) {
-      return;
-    }
-
-    const batch = await PayoutBatchModel.findOne({
-      payoutIds: payout._id,
-    });
-
-    if (!batch) {
-      return;
-    }
-
-    const payouts = await PayoutModel.find({
-      _id: { $in: batch.payoutIds },
-    }).lean();
-
-    if (
-      payouts.length > 0 &&
-      payouts.every((item) => item.status === 'paid')
-    ) {
-      batch.status = 'completed';
-    } else if (payouts.some((item) => item.status === 'failed')) {
-      batch.status = 'failed';
-    } else if (payouts.some((item) => item.status === 'processing')) {
-      batch.status = 'processing';
-    } else {
-      batch.status = 'pending';
-    }
-
-    await batch.save();
-  }
-
-  /**
-   * Retrieve batch payout records for CSV export.
-   * Returns null if the batch does not exist.
-   */
-  async exportPayouts(batchId: string) {
-    const batchResult: unknown = await PayoutBatchModel.findById(batchId)
-      .select('payoutIds periodStart periodEnd')
-      .lean();
-
-    if (
-      !batchResult ||
-      typeof batchResult !== 'object' ||
-      Array.isArray(batchResult)
-    ) {
-      return null;
-    }
-
-    const batch = batchResult as BatchPayoutIds;
-
-    const payouts = await PayoutModel.find({
-      _id: { $in: batch.payoutIds ?? [] },
-    })
-      .populate({
-        path: 'partnerId',
-        populate: {
-          path: 'userId',
-          select: 'name email',
-        },
-      })
-      .sort({ createdAt: 1 })
-      .lean();
-
-    return {
-      batch: batchResult,
-      payouts,
-    };
+    return result;
   }
 }
 
-export default PayoutsRepository;
+export const payoutsRepository = new PayoutsRepository();
+
+export default payoutsRepository;

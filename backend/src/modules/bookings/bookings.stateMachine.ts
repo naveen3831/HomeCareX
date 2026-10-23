@@ -21,7 +21,7 @@ export const TRANSITIONS: Record<
 > = {
   // Customer checkout:
   // payment hold -> confirmed -> matching.
-  pending_payment: {
+    pending_payment: {
     confirmed: ['system'],
     cancelled_by_customer: [
       'customer',
@@ -32,30 +32,16 @@ export const TRANSITIONS: Record<
   },
 
   confirmed: {
-    searching_for_partner: [
-      'system',
-      'admin',
-    ],
-    assigned: [
-      'admin',
-      'system',
-    ],
+    searching_for_partner: ['system'],
+    assigned: ['admin'],
     cancelled_by_customer: [
       'customer',
       'admin',
     ],
     cancelled_by_admin: ['admin'],
   },
-
   created: {
-    searching_for_partner: [
-      'system',
-      'admin',
-    ],
-    assigned: [
-      'admin',
-      'system',
-    ],
+    searching_for_partner: ['system'],
     cancelled_by_customer: [
       'customer',
       'admin',

@@ -324,7 +324,7 @@ export default function Payouts() {
 
   const closeDetails = useCallback(() => setSelectedId(null), []);
 
-  const history = data?.history ?? [];
+ const history = useMemo(() => data?.history ?? [], [data?.history]);
   const selected =
     selectedId === null ? undefined : history.find(p => p.id === selectedId);
 

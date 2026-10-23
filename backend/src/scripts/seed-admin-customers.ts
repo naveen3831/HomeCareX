@@ -12,8 +12,6 @@ import mongoose, { Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { BookingModel } from '../models/Booking';
 import { UserModel } from '../models/User';
-import { ServiceModel } from '../models/Service';
-import { CategoryModel } from '../models/Category';
 
 dotenv.config();
 
@@ -59,28 +57,15 @@ async function main() {
   });
   await UserModel.insertMany(customers);
 
-  const [dbServices, dbCategories] = await Promise.all([
-    ServiceModel.find({}).lean(),
-    CategoryModel.find({ active: true }).lean(),
-  ]);
-  const defaultCategory = dbCategories[0]?._id;
-
   const bookings = customers.flatMap((c, i) => {
     const count = i % 4 === 3 ? 0 : (i * 5) % 7; // 0..6, with a few zero-booking customers
     return Array.from({ length: count }, (_, j) => {
       const paymentStatus = PAYMENT[(i + j) % PAYMENT.length];
       const total = 400 + ((i * 137 + j * 211) % 1600);
-      const svcName = SERVICES[(i + j) % SERVICES.length];
-      const matchedSvc = dbServices.find(
-        (s) => s.name.trim().toLowerCase() === svcName.trim().toLowerCase(),
-      );
-      const catId = matchedSvc?.categoryId ?? defaultCategory;
       return {
         customerId: c._id,
         customerName: c.name,
-        serviceName: svcName,
-        ...(matchedSvc ? { serviceId: matchedSvc._id } : {}),
-        ...(catId ? { categoryId: catId } : {}),
+        serviceName: SERVICES[(i + j) % SERVICES.length],
         status: STATUS_FOR[paymentStatus],
         paymentStatus,
         scheduledAt: daysAgo(100 - i * 3 - j * 5),

@@ -1,11 +1,10 @@
-import { Types } from "mongoose";
+import type { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
-import { getIOIfReady, rooms } from "../../sockets";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -20,7 +19,7 @@ import type {
   JobRequestDto,
 } from "./partner-jobs.types";
 import { ensurePartnerProfile } from "../partners/partners.service";
-import { emitJobCompleted } from "../events/eventBus";
+import { alertSos } from "../notifications/admin-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
 
@@ -47,97 +46,6 @@ export const actionsFor = (status: BookingStatus): JobActionDto[] => {
   return [];
 };
 
-export const getDefaultChecklist = (serviceName?: string): JobChecklistItemDto[] => {
-  const s = (serviceName ?? "").toLowerCase();
-  if (s.includes("spa") || s.includes("salon") || s.includes("massage") || s.includes("facial")) {
-    return [
-      { id: "chk-1", label: "Setup sanitized spa kit and clean towels", done: false },
-      { id: "chk-2", label: "Customer consultation and preference check", done: false },
-      { id: "chk-3", label: "Sanitize hands and prepare therapy area", done: false },
-      { id: "chk-4", label: "Perform requested spa / wellness service", done: false },
-      { id: "chk-5", label: "Client satisfaction review and area cleanup", done: false },
-    ];
-  }
-  if (s.includes("ac") || s.includes("air condition") || s.includes("cooling")) {
-    return [
-      { id: "chk-1", label: "Inspect AC performance and airflow", done: false },
-      { id: "chk-2", label: "Clean air filters and indoor cooling coil", done: false },
-      { id: "chk-3", label: "Check refrigerant pressure and test for leaks", done: false },
-      { id: "chk-4", label: "Clean drain tray and clear water pipe", done: false },
-      { id: "chk-5", label: "Final cooling temperature test run", done: false },
-    ];
-  }
-  if (s.includes("plumb") || s.includes("leak") || s.includes("tap") || s.includes("pipe")) {
-    return [
-      { id: "chk-1", label: "Inspect fixture and water leakage point", done: false },
-      { id: "chk-2", label: "Shut off valve and disassemble connection", done: false },
-      { id: "chk-3", label: "Replace worn washers, seals, or cartridges", done: false },
-      { id: "chk-4", label: "Reassemble and test water pressure", done: false },
-      { id: "chk-5", label: "Verify leak-free operation with customer", done: false },
-    ];
-  }
-  if (s.includes("electric") || s.includes("wiring") || s.includes("switch")) {
-    return [
-      { id: "chk-1", label: "Turn off mains and inspect electrical point", done: false },
-      { id: "chk-2", label: "Test voltage and verify circuit continuity", done: false },
-      { id: "chk-3", label: "Repair / replace damaged fixture or wiring", done: false },
-      { id: "chk-4", label: "Safety check insulation and earthing", done: false },
-      { id: "chk-5", label: "Restore power and test operation", done: false },
-    ];
-  }
-  if (s.includes("sofa") || s.includes("carpet") || s.includes("shampoo")) {
-    return [
-      { id: "chk-1", label: "Dry vacuum loose dust and fabric surface", done: false },
-      { id: "chk-2", label: "Apply stain spot treatment solution", done: false },
-      { id: "chk-3", label: "Deep foam shampoo cleaning and extraction", done: false },
-      { id: "chk-4", label: "Fabric grooming and moisture extraction", done: false },
-      { id: "chk-5", label: "Customer inspection and drying guidelines", done: false },
-    ];
-  }
-  if (s.includes("ro") || s.includes("water purifier")) {
-    return [
-      { id: "chk-1", label: "Test input and output water TDS levels", done: false },
-      { id: "chk-2", label: "Inspect sediment pre-filter and carbon candles", done: false },
-      { id: "chk-3", label: "Check RO membrane pressure and pump", done: false },
-      { id: "chk-4", label: "Sanitize internal storage tank", done: false },
-      { id: "chk-5", label: "Verify flow rate and purified water taste", done: false },
-    ];
-  }
-  if (s.includes("pest") || s.includes("termite")) {
-    return [
-      { id: "chk-1", label: "Inspect premises and mark pest hotspots", done: false },
-      { id: "chk-2", label: "Apply specialized eco-friendly treatment", done: false },
-      { id: "chk-3", label: "Apply gel bait in cracks and cabinet hinges", done: false },
-      { id: "chk-4", label: "Customer safety briefing and post-care guide", done: false },
-    ];
-  }
-  if (s.includes("paint")) {
-    return [
-      { id: "chk-1", label: "Cover furniture and floor with drop sheets", done: false },
-      { id: "chk-2", label: "Fill wall cracks with putty and sand surface", done: false },
-      { id: "chk-3", label: "Apply base primer coat", done: false },
-      { id: "chk-4", label: "Apply paint coats evenly across walls", done: false },
-      { id: "chk-5", label: "Clean paint splatter and final inspection", done: false },
-    ];
-  }
-  if (s.includes("clean")) {
-    return [
-      { id: "chk-1", label: "Dust and wipe accessible surfaces and fixtures", done: false },
-      { id: "chk-2", label: "Clean and sanitize designated rooms", done: false },
-      { id: "chk-3", label: "Scrub sink, tiles, and high-touch areas", done: false },
-      { id: "chk-4", label: "Sweep, vacuum, and mop floor areas", done: false },
-      { id: "chk-5", label: "Empty waste bins and customer walkthrough", done: false },
-    ];
-  }
-  return [
-    { id: "chk-1", label: "Confirm service scope with customer", done: false },
-    { id: "chk-2", label: "Inspect area and prepare professional tools", done: false },
-    { id: "chk-3", label: "Execute scheduled service tasks", done: false },
-    { id: "chk-4", label: "Clean up workspace and remove materials", done: false },
-    { id: "chk-5", label: "Customer demonstration and review", done: false },
-  ];
-};
-
 const toChecklist = (
   booking: JobBookingDoc,
   inclusions: string[],
@@ -149,14 +57,11 @@ const toChecklist = (
       done: c.done,
     }));
   }
-  if (inclusions && inclusions.length > 0) {
-    return inclusions.map((label, i) => ({
-      id: `inc-${i + 1}`,
-      label,
-      done: false,
-    }));
-  }
-  return getDefaultChecklist(booking.serviceName);
+  return inclusions.map((label, i) => ({
+    id: `inc-${i + 1}`,
+    label,
+    done: false,
+  }));
 };
 
 const toAddOns = (
@@ -220,7 +125,7 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
     repo.findCustomer(booking.customerId),
     booking.serviceId
       ? repo.findService(booking.serviceId)
-      : repo.findServiceByName(booking.serviceName),
+      : Promise.resolve(null),
   ]);
   const coords = booking.address.location?.coordinates;
   return {
@@ -259,17 +164,6 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
     addOns: toAddOns(booking, service?.addOns ?? []),
     instructions: booking.instructions ?? null,
     checklist: toChecklist(booking, service?.inclusions ?? []),
-    extraCharges: (booking.extraCharges ?? []).map((c) => ({
-      id: c._id.toString(),
-      title: c.title,
-      description: c.title,
-      quantity: c.quantity || 1,
-      amount: money(c.amount),
-      reason: c.reason,
-      status: c.status as "pending" | "approved" | "rejected",
-      requestedAt: c.requestedAt ? c.requestedAt.toISOString() : undefined,
-      decidedAt: c.decidedAt ? c.decidedAt.toISOString() : undefined,
-    })),
     payment: {
       status: booking.paymentStatus,
       paidAt: booking.paymentDetails?.paidAt
@@ -301,43 +195,10 @@ const LIVE_STATUSES: BookingStatus[] = [
 ];
 
 export const partnerJobsService = {
-  /** GET /partner/jobs. The signed-in partner's live or filtered jobs, straight from the bookings collection. */
-  async listLiveJobs(userId: string, tab?: string): Promise<JobListItemDto[]> {
+  /** GET /partner/jobs. The signed-in partner's live jobs, straight from the bookings collection. */
+  async listLiveJobs(userId: string): Promise<JobListItemDto[]> {
     const partner = await getPartnerProfile(userId);
-    let statuses: BookingStatus[] | undefined = LIVE_STATUSES;
-    if (tab === "completed") {
-      statuses = ["completed", "rated"];
-    } else if (tab === "cancelled") {
-      statuses = [
-        "cancelled_by_partner",
-        "cancelled_by_customer",
-        "cancelled_by_admin",
-        "disputed",
-        "no_show",
-      ];
-    } else if (tab === "active") {
-      statuses = ["en_route", "arrived", "in_progress"];
-    } else if (tab === "upcoming") {
-      statuses = ["assigned", "confirmed"];
-    } else if (tab === "all") {
-      statuses = undefined;
-    } else if (tab === "requests") {
-      const requests = await repo.findJobRequests(partner._id, new Date());
-      return requests.map((b) => ({
-        id: b._id.toString(),
-        status: "requested" as BookingStatus,
-        service: { name: b.serviceName },
-        customerName: maskName(b.customerName),
-        address: [b.address.line1, b.address.area, b.address.city]
-          .filter(Boolean)
-          .join(", "),
-        scheduledAt: b.scheduledAt.toISOString(),
-        slot: b.slot ?? null,
-        partnerEarning: money(b.partnerEarning ?? 0),
-      }));
-    }
-
-    const rows = await repo.listLiveForPartner(partner._id, statuses);
+    const rows = await repo.listLiveForPartner(partner._id, LIVE_STATUSES);
     return rows.map((b) => ({
       id: b._id.toString(),
       status: b.status,
@@ -417,6 +278,27 @@ export const partnerJobsService = {
   },
 
   /** PATCH /bookings/:id/status for partners. Goes through the booking state machine. */
+  /**
+   * POST /partner/jobs/:id/sos. The partner presses SOS on one of THEIR live jobs. Admins get a highlighted
+   * bell alert at once (socket). Only the owner can raise it, and only while the job is live.
+   */
+  async raiseSos(
+    userId: string,
+    bookingId: string,
+    coordinates?: { lat: number; lng: number } | null,
+  ): Promise<{ sent: true }> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    if (!LIVE_STATUSES.includes(booking.status)) {
+      throw invalid("SOS is only available while a job is active");
+    }
+    alertSos({
+      bookingId: booking._id.toString(),
+      partnerId: partner._id.toString(),
+      coordinates: coordinates ?? null,
+    });
+    return { sent: true };
+  },
+
   async updateStatus(
     userId: string,
     bookingId: string,
@@ -478,229 +360,5 @@ export const partnerJobsService = {
     if (!fresh)
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     return buildDetail(fresh);
-  },
-
-  /** POST /partner/jobs/:id/verify-start */
-  async verifyStart(
-    userId: string,
-    bookingId: string,
-    otp: string,
-    now: Date = new Date(),
-  ): Promise<JobDetailDto> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
-
-    if (booking.status === "in_progress") {
-      return buildDetail(booking);
-    }
-
-    if (booking.status !== "arrived") {
-      throw invalid("You can only start a job after you have arrived");
-    }
-
-    const expectedOtp = booking.otpCodes?.start || "1234";
-    if (otp !== expectedOtp && otp !== "1234") {
-      throw httpError(
-        422,
-        ERROR_CODES.INVALID_OTP,
-        "Incorrect code. Please verify with the customer.",
-        [{ field: "attemptsRemaining", message: "3" }],
-      );
-    }
-
-    const probe = {
-      status: booking.status,
-      statusHistory: [] as JobBookingDoc["statusHistory"],
-    };
-    const entry = applyTransition(
-      probe,
-      "in_progress",
-      { role: "partner", id: userId },
-      "Start verification code verified",
-      now,
-    );
-
-    const applied = await repo.verifyStartJob(bookingId, partner._id, entry, now);
-    if (!applied) {
-      throw invalid("This job was already updated. Refresh to see its latest status");
-    }
-
-    trackingService.emitStatus(bookingId, "in_progress", entry.at);
-
-    const fresh = await repo.findBooking(bookingId);
-    if (!fresh)
-      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
-    return buildDetail(fresh);
-  },
-
-  /** POST /partner/jobs/:id/complete */
-  async completeJob(
-    userId: string,
-    bookingId: string,
-    notes?: string,
-    now: Date = new Date(),
-  ): Promise<JobDetailDto> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
-
-    if (booking.status === "completed") {
-      return buildDetail(booking);
-    }
-
-    if (booking.status !== "in_progress") {
-      throw invalid("You can only complete a job that is currently in progress");
-    }
-
-    const pending = (booking.extraCharges ?? []).filter((c) => c.status === "pending");
-    if (pending.length > 0) {
-      throw httpError(
-        422,
-        ERROR_CODES.VALIDATION_ERROR,
-        "Cannot complete job while extra charges are still pending customer approval",
-      );
-    }
-
-    const probe = {
-      status: booking.status,
-      statusHistory: [] as JobBookingDoc["statusHistory"],
-    };
-    const entry = applyTransition(
-      probe,
-      "completed",
-      { role: "partner", id: userId },
-      notes || "Job completed by partner",
-      now,
-    );
-
-    const applied = await repo.completePartnerJob(bookingId, partner._id, entry, now);
-    if (!applied) {
-      throw invalid("This job was already updated. Refresh to see its latest status");
-    }
-
-    trackingService.emitStatus(bookingId, "completed", entry.at);
-
-    const fresh = await repo.findBooking(bookingId);
-    if (!fresh)
-      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
-
-    // Emit only after the database confirms the booking was completed.
-    // Use the persisted booking values and the Partner._id, not the user id.
-    const gross = Number(fresh.priceBreakdown?.total ?? 0);
-
-    emitJobCompleted({
-      bookingId: fresh._id.toString(),
-      partnerId: partner._id.toString(),
-      gross,
-      completedAt: entry.at,
-    });
-
-    return buildDetail(fresh);
-  },
-
-  /** GET /partner/jobs/:id/extra-charges */
-  async listExtraCharges(userId: string, bookingId: string) {
-    const { booking } = await loadOwnedBooking(userId, bookingId);
-    return (booking.extraCharges ?? []).map((c) => ({
-      id: c._id.toString(),
-      title: c.title,
-      description: c.title,
-      quantity: c.quantity || 1,
-      amount: money(c.amount),
-      reason: c.reason,
-      status: c.status,
-      requestedAt: c.requestedAt ? c.requestedAt.toISOString() : undefined,
-      decidedAt: c.decidedAt ? c.decidedAt.toISOString() : undefined,
-    }));
-  },
-
-  /** POST /partner/jobs/:id/extra-charges */
-  async createExtraCharge(
-    userId: string,
-    bookingId: string,
-    data: { description: string; quantity: number; amount: number; reason?: string },
-    now: Date = new Date(),
-  ) {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
-    const chargeId = new Types.ObjectId();
-    const newCharge = {
-      _id: chargeId,
-      title: data.description,
-      reason: data.reason,
-      amount: money(data.amount),
-      quantity: data.quantity || 1,
-      status: "pending" as const,
-      requestedAt: now,
-    };
-
-    await repo.addExtraCharge(booking._id.toString(), partner._id, newCharge);
-
-    try {
-      const io = getIOIfReady();
-      if (io) {
-        const payload = {
-          bookingId: booking._id.toString(),
-          charge: {
-            id: chargeId.toString(),
-            _id: chargeId.toString(),
-            title: newCharge.title,
-            amount: newCharge.amount,
-            quantity: newCharge.quantity,
-            reason: newCharge.reason,
-            status: "pending",
-            requestedAt: now.toISOString(),
-          },
-        };
-        io.to(rooms.booking(booking._id.toString())).emit("booking:extra_charge", payload);
-        io.to(rooms.booking(booking._id.toString())).emit("booking:updated", { bookingId: booking._id.toString() });
-        if (bookingId && bookingId !== booking._id.toString()) {
-          io.to(rooms.booking(bookingId)).emit("booking:extra_charge", payload);
-          io.to(rooms.booking(bookingId)).emit("booking:updated", { bookingId });
-        }
-        if (booking?.customerId) {
-          io.to(rooms.user(booking.customerId.toString())).emit("booking:updated", {
-            bookingId: booking._id.toString(),
-          });
-        }
-      }
-    } catch {
-      // Best effort
-    }
-
-    return {
-      id: chargeId.toString(),
-      title: newCharge.title,
-      description: newCharge.title,
-      quantity: newCharge.quantity,
-      amount: newCharge.amount,
-      reason: newCharge.reason,
-      status: "pending",
-      requestedAt: now.toISOString(),
-    };
-  },
-
-  /** PATCH /partner/jobs/:id/checklist/:itemId */
-  async updateChecklistItem(
-    userId: string,
-    bookingId: string,
-    itemId: string,
-    done: boolean,
-  ) {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
-    let checklist =
-      booking.checklist && booking.checklist.length > 0
-        ? [...booking.checklist]
-        : [];
-    if (checklist.length === 0 && booking.serviceId) {
-      const svc = await repo.findService(booking.serviceId);
-      checklist = toChecklist(booking, svc?.inclusions ?? []);
-    }
-
-    const idx = checklist.findIndex((c) => c.id === itemId);
-    if (idx >= 0) {
-      checklist[idx] = { ...checklist[idx], done };
-    } else {
-      checklist.push({ id: itemId, label: itemId, done });
-    }
-
-    await repo.updateChecklist(bookingId, partner._id, checklist);
-    return { checklist };
   },
 };

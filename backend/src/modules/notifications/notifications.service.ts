@@ -1,5 +1,12 @@
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { NotificationModel } from '../../models/Notification';
+<<<<<<< HEAD
+import { UserModel } from '../../models/User';
+import { getSetting } from '../settings';
+import { HttpError } from '../auth/auth.types';
+import { emitToUser } from '../../sockets';
+import { ADMIN_ALERT_SETTING, GROUP_PREFIXES, NOTIFICATION_GROUPS, NOTIFICATION_SOCKET_EVENT, groupOf, type NotificationGroup, type NotificationType } from './notifications.constants';
+=======
 import { emitToUser } from '../../sockets';
 import { Errors } from '../../utils/errors';
 import {
@@ -10,6 +17,8 @@ import {
   type NotificationGroup,
   type NotificationType,
 } from './notifications.constants';
+import { HttpError } from '../auth/auth.types';
+>>>>>>> origin/develop
 
 export interface NotificationDto {
   id: string;
@@ -18,16 +27,18 @@ export interface NotificationDto {
   payload: unknown;
   readAt: Date | null;
   createdAt: Date;
+  group?: NotificationGroup;
 }
 
-function toDto(n: InstanceType<typeof NotificationModel>): NotificationDto {
+function toDto(n: { _id?: unknown; id?: string; userId: unknown; type: string; payload: unknown; readAt?: Date | null; createdAt: Date }): NotificationDto {
   return {
-    id: n.id,
+    id: String(n.id || n._id),
     userId: String(n.userId),
     type: n.type,
     payload: n.payload,
     readAt: n.readAt ?? null,
-    createdAt: (n as unknown as { createdAt: Date }).createdAt,
+    createdAt: n.createdAt,
+    group: groupOf(n.type),
   };
 }
 
@@ -38,7 +49,7 @@ function toDto(n: InstanceType<typeof NotificationModel>): NotificationDto {
  */
 export async function notify(userId: string, type: NotificationType, payload: Record<string, unknown> = {}): Promise<NotificationDto> {
   const doc = await NotificationModel.create({ userId, type, payload });
-  const dto = toDto(doc);
+  const dto = toDto(doc as never);
   try {
     emitToUser(userId, NOTIFICATION_SOCKET_EVENT, dto);
   } catch {
@@ -47,18 +58,39 @@ export async function notify(userId: string, type: NotificationType, payload: Re
   return dto;
 }
 
+/**
+ * Sends one notification to every active admin (the bell on /admin). Types an admin switched off on the Settings
+ * page are skipped, except SOS which is always sent. Returns how many admins were notified.
+ */
+export async function notifyAdmins(type: NotificationType, payload: Record<string, unknown> = {}): Promise<number> {
+  if (mongoose.connection.readyState !== 1) return 0; // no database (scripts, unit tests): nothing to notify
+  const settingKey = ADMIN_ALERT_SETTING[type];
+  if (settingKey && (await getSetting(settingKey)) === false) return 0;
+  const admins = await UserModel.find({ role: 'admin', status: 'active' }).select('_id').lean();
+  await Promise.all(admins.map((a) => notify(String(a._id), type, payload)));
+  return admins.length;
+}
+
 export class NotificationsService {
   notify = notify;
 
+<<<<<<< HEAD
+  async listForUser(userId: string, limit = 30, unreadOnly = false) {
+    const rows = await NotificationModel.find({ userId, ...(unreadOnly ? { readAt: null } : {}) })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+    return rows.map(toDto);
+=======
   async listForCustomer(
     userId: string,
     options: {
       group?: NotificationGroup;
-      unreadOnly: boolean;
-      limit: number;
-    },
+      unreadOnly?: boolean;
+      limit?: number;
+    } = {},
   ) {
-    const objectId = new Types.ObjectId(userId);
+    const limit = options.limit ?? 50;
+    const objectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
     const baseFilter = { userId };
     const groupTypes: Record<Exclude<NotificationGroup, 'system'>, unknown> = {
       booking: /^booking\./,
@@ -95,23 +127,25 @@ export class NotificationsService {
     const [rows, grouped] = await Promise.all([
       NotificationModel.find(filters.length === 1 ? baseFilter : { $and: filters })
         .sort({ createdAt: -1 })
-        .limit(options.limit),
-      NotificationModel.aggregate<{
-        _id: string;
-        total: number;
-        unread: number;
-      }>([
-        { $match: { userId: objectId } },
-        {
-          $group: {
-            _id: '$type',
-            total: { $sum: 1 },
-            unread: {
-              $sum: { $cond: [{ $eq: ['$readAt', null] }, 1, 0] },
+        .limit(limit),
+      objectId
+        ? NotificationModel.aggregate<{
+            _id: string;
+            total: number;
+            unread: number;
+          }>([
+            { $match: { userId: objectId } },
+            {
+              $group: {
+                _id: '$type',
+                total: { $sum: 1 },
+                unread: {
+                  $sum: { $cond: [{ $eq: ['$readAt', null] }, 1, 0] },
+                },
+              },
             },
-          },
-        },
-      ]),
+          ])
+        : Promise.resolve([]),
     ]);
 
     const groups = Object.fromEntries(
@@ -125,7 +159,7 @@ export class NotificationsService {
 
     const items = rows.map((row) => ({
       ...toDto(row),
-      readAt: row.readAt?.toISOString() ?? null,
+      readAt: row.readAt ? row.readAt.toISOString() : null,
       group: groupOf(row.type),
     }));
 
@@ -151,7 +185,7 @@ export class NotificationsService {
     }
     return {
       ...toDto(notification),
-      readAt: notification.readAt?.toISOString() ?? null,
+      readAt: notification.readAt ? notification.readAt.toISOString() : null,
       group: groupOf(notification.type),
     };
   }
@@ -179,7 +213,8 @@ export class NotificationsService {
 
   async listForUser(userId: string, limit = 30) {
     const rows = await NotificationModel.find({ userId }).sort({ createdAt: -1 }).limit(limit);
-    return rows.map(toDto);
+    return rows.map((r) => toDto(r as never));
+>>>>>>> origin/develop
   }
 
   unreadCount(userId: string) {

@@ -1,26 +1,22 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarClock, CheckCircle2, AlertCircle, Info, MapPin, Plus, RotateCw, User } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
+  DEMO_START_OTP,
   fetchJob,
-  fetchExtraCharges,
-  fetchAssignedServices,
   completeJob,
-  IS_MOCK_JOBS,
+  startJob,
+  verifyJobOtp,
   resetMockPartnerJob,
   getErrorMessage,
   getHttpStatus,
 } from '@/pages/partner/JobDetails/jobDetails.api';
-import type { ExtraChargeItem, JobDetails, StartVerification } from '@/pages/partner/JobDetails/jobDetails.types';
+import type { JobDetails } from '@/pages/partner/JobDetails/jobDetails.types';
 import { STATUS_LABEL } from '@/pages/partner/JobDetails/jobStatus';
 import JobTimer from '@/components/partner/JobTimer';
 import Checklist from '@/components/partner/Checklist';
 import SosButton from '@/components/partner/SosButton';
 import AddItemDialog from '@/components/partner/AddItemDialog';
-import ExtraChargeForm from '@/components/partner/ExtraChargeForm';
-import CompletionChecklist from '@/components/partner/CompletionChecklist';
-import StartVerificationForm from './StartVerificationForm';
-import '@/styles/partnerJobs.css';
 import './activeJob.css';
 
 type LoadState = 'loading' | 'ready' | 'notfound' | 'error';
@@ -32,18 +28,6 @@ function formatBookedDuration(minutes: number | null | undefined): string {
     return `${hrs} ${hrs === 1 ? 'hr' : 'hrs'}`;
   }
   return `${minutes} mins`;
-}
-
-const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
-
-function formatElapsedLabel(startedAt: string | null | undefined, completedAt: string | null | undefined): string | null {
-  if (!startedAt || !completedAt) return null;
-  const ms = new Date(completedAt).getTime() - new Date(startedAt).getTime();
-  if (!Number.isFinite(ms) || ms <= 0) return null;
-  const mins = Math.round(ms / 60000);
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h} hr${m ? ` ${m} min` : ''}` : `${m} min`;
 }
 
 function formatStartedTime(
@@ -63,8 +47,7 @@ function formatStartedTime(
 
 export const ActiveJobPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [resolvedId, setResolvedId] = useState<string | null>(id ?? null);
-  const effectiveId = resolvedId || id || (IS_MOCK_JOBS ? 'BK-20418' : '');
+  const effectiveId = id || 'BK-20418';
   const navigate = useNavigate();
 
   const [job, setJob] = useState<JobDetails | null>(null);
@@ -72,19 +55,20 @@ export const ActiveJobPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [online, setOnline] = useState<boolean>(navigator.onLine);
 
-  const [completeError, setCompleteError] = useState<string | null>(null);
-  const [showCompletionModal, setShowCompletionModal] = useState<boolean>(false);
-  const [showCompleteConfirm, setShowCompleteConfirm] = useState<boolean>(false);
+  // Complete Job action state
   const [completing, setCompleting] = useState<boolean>(false);
-
-  // Extra Charges state
-  const [extraCharges, setExtraCharges] = useState<ExtraChargeItem[]>([]);
-  const [extraChargesLoading, setExtraChargesLoading] = useState<boolean>(false);
-  const [extraChargesError, setExtraChargesError] = useState<string | null>(null);
-  const [showExtraChargeModal, setShowExtraChargeModal] = useState<boolean>(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState<boolean>(false);
 
   // Add Item dialog state
   const [addItemOpen, setAddItemOpen] = useState<boolean>(false);
+
+  // OTP start flow (if navigated here while status is 'arrived')
+  const [otpInput, setOtpInput] = useState<string>('');
+  const [otpVerified, setOtpVerified] = useState<boolean>(false);
+  const [otpVerifying, setOtpVerifying] = useState<boolean>(false);
+  const [starting, setStarting] = useState<boolean>(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   // Online / offline detector
   useEffect(() => {
@@ -98,52 +82,14 @@ export const ActiveJobPage: React.FC = () => {
     };
   }, []);
 
-  const loadExtraCharges = useCallback(async (jobIdToLoad?: string) => {
-    const target = jobIdToLoad || effectiveId;
-    if (!target) return;
-    setExtraChargesLoading(true);
-    setExtraChargesError(null);
-    try {
-      const items = await fetchExtraCharges(target);
-      setExtraCharges(items);
-    } catch (err) {
-      setExtraChargesError(getErrorMessage(err, 'Failed to load extra charges.'));
-    } finally {
-      setExtraChargesLoading(false);
-    }
-  }, [effectiveId]);
-
   // Fetch job from local mock store / API module
   const load = useCallback(async () => {
     setLoadState('loading');
     setErrorMsg('');
     try {
-      let targetId = id;
-      if (!targetId) {
-        if (!IS_MOCK_JOBS) {
-          const list = await fetchAssignedServices();
-          const active =
-            list.find((j) => ['in_progress', 'arrived'].includes(j.status)) ||
-            list.find((j) => ['en_route', 'assigned'].includes(j.status)) ||
-            list[0];
-          if (active) {
-            targetId = active.id;
-          }
-        } else {
-          targetId = 'BK-20418';
-        }
-      }
-
-      if (!targetId) {
-        setLoadState('notfound');
-        return;
-      }
-
-      setResolvedId(targetId);
-      const data = await fetchJob(targetId);
+      const data = await fetchJob(effectiveId);
       setJob(data);
       setLoadState('ready');
-      void loadExtraCharges(targetId);
     } catch (err) {
       const status = getHttpStatus(err);
       if (status === 404 || status === 403) {
@@ -153,21 +99,13 @@ export const ActiveJobPage: React.FC = () => {
         setLoadState('error');
       }
     }
-  }, [id, loadExtraCharges]);
+  }, [effectiveId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const [completedSuccessJob, setCompletedSuccessJob] = useState<JobDetails | null>(null);
-
-  // Handle job completion from modal
-  const handleJobCompleted = (updated: JobDetails) => {
-    setJob(updated);
-    setShowCompletionModal(false);
-    setCompletedSuccessJob(updated);
-  };
-
+  // Handle Complete Job
   const handleComplete = async () => {
     if (!job || completing) return;
     if (!online) {
@@ -182,7 +120,7 @@ export const ActiveJobPage: React.FC = () => {
       const updated = await completeJob(job.id);
       setJob(updated);
       setShowCompleteConfirm(false);
-      setCompletedSuccessJob(updated);
+      navigate(`/partner/jobs/${job.id}`);
     } catch (err) {
       setCompleteError(getErrorMessage(err, 'Could not complete the job. Try again.'));
     } finally {
@@ -190,32 +128,45 @@ export const ActiveJobPage: React.FC = () => {
     }
   };
 
-  const handleExtraChargeCreated = (charge: ExtraChargeItem) => {
-    setExtraCharges((prev) => [...prev, charge]);
+  // OTP Verification
+  const handleVerifyOtp = async () => {
+    if (!job || otpVerifying || !otpInput.trim()) return;
+    setOtpVerifying(true);
+    setStartError(null);
+    try {
+      const res = await verifyJobOtp(job.id, otpInput.trim());
+      if (res.verified) {
+        setOtpVerified(true);
+      } else {
+        setStartError(res.message || 'OTP verification failed. Check code with customer.');
+      }
+    } catch (err) {
+      setStartError(getErrorMessage(err, 'OTP verification request failed.'));
+    } finally {
+      setOtpVerifying(false);
+    }
   };
 
-  // Start verification: keep the OTP state the server reported (attempts left, locked, expired).
-  const patchVerification = useCallback((patch: Partial<StartVerification>) => {
-    setJob((current) =>
-      current && current.startVerification ? { ...current, startVerification: { ...current.startVerification, ...patch } }
-        : current,
-    );
-  }, []);
-
-  /** Reload without the skeleton, so an inline message on the page is not wiped. */
-  const refreshQuietly = useCallback(async () => {
+  // Start Job (only possible after OTP verified)
+  const handleStartJob = async () => {
+    if (!job || starting || !otpVerified) return;
+    setStarting(true);
+    setStartError(null);
     try {
-      setJob(await fetchJob(effectiveId));
-    } catch {
-      /* keep what is on screen; the partner can reload */
+      const updated = await startJob(job.id, otpInput.trim());
+      setJob(updated);
+    } catch (err) {
+      setStartError(getErrorMessage(err, 'Could not start job. Please try again.'));
+    } finally {
+      setStarting(false);
     }
-  }, [effectiveId]);
+  };
 
   const handleResetDemo = () => {
     const fresh = resetMockPartnerJob(effectiveId);
     setJob(fresh);
     setCompleteError(null);
-    setShowCompletionModal(false);
+    setShowCompleteConfirm(false);
   };
 
   if (loadState === 'loading') {
@@ -237,19 +188,15 @@ export const ActiveJobPage: React.FC = () => {
         <div className="aj-ref-container">
           <div className="aj-error-box">
             <AlertCircle className="mx-auto h-12 w-12 text-slate-400 mb-2" aria-hidden="true" />
-            <h1 className="text-xl font-bold text-slate-800">
-              {!id ? 'No Active Job' : 'Job Not Found'}
-            </h1>
+            <h1 className="text-xl font-bold text-slate-800">Job Not Found</h1>
             <p className="mt-1 text-sm text-slate-600">
-              {!id
-                ? 'You do not currently have any job in progress or awaiting verification.'
-                : 'This job could not be found, or it is not assigned to your partner account.'}
+              This job could not be found, or it is not assigned to your partner account.
             </p>
             <Link
-              to={!id ? '/partner/work/requests' : '/partner/jobs'}
-              className="aj-btn-primary" style={{ marginTop: 16 }}
+              to="/partner/jobs"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3730a3]"
             >
-              <ArrowLeft className="h-4 w-4" /> {!id ? 'View Job Requests' : 'Back to My Jobs'}
+              <ArrowLeft className="h-4 w-4" /> Back to My Jobs
             </Link>
           </div>
         </div>
@@ -270,7 +217,7 @@ export const ActiveJobPage: React.FC = () => {
             <button
               type="button"
               onClick={() => void load()}
-              className="aj-btn-primary" style={{ marginTop: 16 }}
+              className="mt-4 inline-flex items-center rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white hover:bg-[#3730a3]"
             >
               Try Again
             </button>
@@ -280,77 +227,94 @@ export const ActiveJobPage: React.FC = () => {
     );
   }
 
-  // Arrived: the job can only start with the customer's code AND a start photo.
+  // Handle arrived status with OTP entry
   if (job.status === 'arrived') {
-    const address = [job.location.address, job.location.city].filter(Boolean).join(', ');
     return (
       <div className="aj-ref-page">
+        {!online && (
+          <div className="aj-offline" role="status">
+            You are offline. Actions will fail until your internet connection is restored.
+          </div>
+        )}
+
         <div className="aj-ref-container">
-          <div className="sv-wrap">
-            <header className="aj-ref-header" style={{ marginBottom: 14 }}>
+          <header className="aj-ref-header">
+            <div>
+              <p className="aj-ref-eyebrow">ARRIVED AT LOCATION</p>
+              <h1 className="aj-ref-title">{job.service.name}</h1>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Booking {job.bookingCode} · Start Verification Required
+              </p>
+            </div>
+            <span className="aj-badge">Arrived at location</span>
+          </header>
+
+          <div className="aj-ref-card">
+            <h2 className="text-lg font-bold text-slate-900 mb-2">Customer OTP Verification</h2>
+            <p className="text-sm text-slate-600 mb-4">
+              Ask customer {job.customer.name} ({job.customer.phoneMasked}) for the start OTP (Demo:{' '}
+              <code>{DEMO_START_OTP}</code>).
+            </p>
+
+            <div className="space-y-4">
               <div>
-                <p className="aj-ref-eyebrow">Booking {job.bookingCode}</p>
-                <h1 className="aj-ref-title">Start the job</h1>
-                <h2 className="text-sm font-semibold text-slate-700">Customer OTP Verification</h2>
-                <p className="aj-ref-sub">Confirm the customer's code and take a photo before you begin.</p>
-              </div>
-              <span className="aj-badge">Arrived</span>
-            </header>
-
-            <ol className="sv-progress" aria-label="Job progress">
-              <li className="is-done">Arrived</li>
-              <li className="is-current" aria-current="step">
-                Verify customer
-              </li>
-              <li>Start work</li>
-            </ol>
-
-            <div className="sv-layout">
-              <aside className="sv-summary" aria-label="Visit summary">
-                <div>
-                  <p className="sv-summary-title">You are here for</p>
-                  <p className="sv-summary-service">{job.service.name}</p>
+                <label htmlFor="otp-input-box" className="block text-xs font-semibold text-slate-700 mb-1">
+                  Enter Customer OTP
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="otp-input-box"
+                    type="text"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => {
+                      setOtpInput(e.target.value);
+                      setOtpVerified(false);
+                    }}
+                    placeholder="Enter code"
+                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-base tracking-widest font-mono text-center font-bold focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleVerifyOtp()}
+                    disabled={otpVerifying || !otpInput.trim() || !online}
+                    aria-busy={otpVerifying}
+                    className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    {otpVerifying ? 'Verifying…' : 'Verify OTP'}
+                  </button>
                 </div>
-                <ul className="sv-summary-list">
-                  <li>
-                    <User aria-hidden="true" />
-                    <span>
-                      {job.customer.name}
-                      <small>{job.customer.phoneMasked}</small>
-                    </span>
-                  </li>
-                  {address && (
-                    <li>
-                      <MapPin aria-hidden="true" />
-                      <span>
-                        {address}
-                        {job.location.hint && <small>{job.location.hint}</small>}
-                      </span>
-                    </li>
-                  )}
-                  <li>
-                    <CalendarClock aria-hidden="true" />
-                    <span>
-                      {job.schedule.dateLabel ?? 'Today'}
-                      {job.schedule.slot && <small>{job.schedule.slot}</small>}
-                    </span>
-                  </li>
-                </ul>
-              </aside>
+              </div>
 
-              <div>
-                <StartVerificationForm
-                  job={job}
-                  onStarted={setJob}
-                  onVerificationChange={patchVerification}
-                  onStale={() => void refreshQuietly()}
-                />
+              {otpVerified && (
+                <div className="flex items-center gap-2 rounded-lg bg-[#eeecfb] p-3 text-xs font-semibold text-[#4338ca]">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>OTP verified successfully! You may now begin the job.</span>
+                </div>
+              )}
 
-                <p className="sv-back">
-                  <Link to={`/partner/jobs/${job.id}`}>
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Job details
-                  </Link>
+              {startError && (
+                <p className="text-xs font-semibold text-red-600" role="alert">
+                  {startError}
                 </p>
+              )}
+
+              <div className="pt-2 flex gap-3">
+                <Link
+                  to={`/partner/jobs/${job.id}`}
+                  className="flex-1 text-center rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Job Details
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void handleStartJob()}
+                  disabled={!otpVerified || starting || !online}
+                  aria-busy={starting}
+                  className="flex-1 rounded-xl bg-[#4338ca] py-2.5 text-sm font-bold text-white hover:bg-[#3730a3] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {starting ? 'Starting…' : 'Start Job'}
+                </button>
               </div>
             </div>
           </div>
@@ -368,130 +332,37 @@ export const ActiveJobPage: React.FC = () => {
     job.status === 'disputed';
 
   if (isFinishedOrCancelled) {
-    const isDone = job.status === 'completed' || job.status === 'rated';
-    const timeOnJob =
-      formatElapsedLabel(job.schedule.startedAt, job.schedule.completedAt) ??
-      formatBookedDuration(job.service.durationMinutes);
     return (
       <div className="aj-ref-page">
         <div className="aj-ref-container">
-          <div className="aj-wide">
-            <header className="aj-ref-header" style={{ marginBottom: 14 }}>
-              <div>
-                <p className="aj-ref-eyebrow">Booking {job.bookingCode}</p>
-                <h1 className="aj-ref-title">{job.service.name}</h1>
-              </div>
-              <span className={`aj-badge aj-badge-${job.status}`}>{STATUS_LABEL[job.status]}</span>
-            </header>
+          <header className="aj-ref-header">
+            <div>
+              <p className="aj-ref-eyebrow">BOOKING {job.bookingCode}</p>
+              <h1 className="aj-ref-title">{job.service.name}</h1>
+            </div>
+            <span className={`aj-badge aj-badge-${job.status}`}>{STATUS_LABEL[job.status]}</span>
+          </header>
 
-            <section className="aj-done" aria-labelledby="aj-done-title">
-              <div className={`aj-done-top${isDone ? '' : ' aj-done-top-muted'}`}>
-                <div className={`aj-done-badge${isDone ? '' : ' aj-done-badge-muted'}`}>
-                  {isDone ? (
-                    <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
-                  ) : (
-                    <Info className="h-8 w-8" aria-hidden="true" />
-                  )}
-                </div>
-                <h2 id="aj-done-title" className="aj-done-title">
-                  Job Not In Progress
-                </h2>
-                <p className="aj-done-text">
-                  Current status: <strong>{STATUS_LABEL[job.status]}</strong>.{' '}
-                  {isDone
-                    ? 'Nice work. The checklist is locked and your payout is on its way to your wallet.'
-                    : 'There is nothing left to do on this screen.'}
-                </p>
-              </div>
-
-              <div className="aj-done-tear" aria-hidden="true" />
-
-              <dl className="aj-done-stats">
-                <div className="aj-done-stat">
-                  <dt>Customer</dt>
-                  <dd>{job.customer.name}</dd>
-                </div>
-                {isDone ? (
-                  <>
-                    <div className="aj-done-stat">
-                      <dt>Time on job</dt>
-                      <dd>{timeOnJob}</dd>
-                    </div>
-                    <div className="aj-done-stat aj-done-stat-pay">
-                      <dt>Your payout</dt>
-                      <dd>{inr.format(job.price.partnerEarning)}</dd>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="aj-done-stat">
-                      <dt>Scheduled</dt>
-                      <dd>{job.schedule.dateLabel ?? job.schedule.slot ?? '—'}</dd>
-                    </div>
-                    <div className="aj-done-stat">
-                      <dt>Booking</dt>
-                      <dd>{job.bookingCode}</dd>
-                    </div>
-                  </>
-                )}
-              </dl>
-
-              <div className="aj-done-actions">
-                <Link to={`/partner/jobs/${job.id}`} className="aj-btn-primary">
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View Job Details
-                </Link>
-                <Link to="/partner/jobs" className="aj-btn-ghost">
-                  My Jobs
-                </Link>
-                <Link to="/partner/assigned" className="aj-btn-ghost">
-                  Assigned services
-                </Link>
-                {IS_MOCK_JOBS && (
-                  <button type="button" onClick={handleResetDemo} className="aj-btn-ghost">
-                    Reset demo
-                  </button>
-                )}
-              </div>
-            </section>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Only a started job gets the live screen. Before that, the only way in is the code + photo step above.
-  if (job.status !== 'in_progress' && !(job.status === 'confirmed' && Boolean(job.schedule.startedAt))) {
-    return (
-      <div className="aj-ref-page">
-        <div className="aj-ref-container">
-          <div className="aj-wide">
-            <header className="aj-ref-header" style={{ marginBottom: 14 }}>
-              <div>
-                <p className="aj-ref-eyebrow">Booking {job.bookingCode}</p>
-                <h1 className="aj-ref-title">{job.service.name}</h1>
-              </div>
-              <span className={`aj-badge aj-badge-${job.status}`}>{STATUS_LABEL[job.status]}</span>
-            </header>
-
-            <section className="aj-done" aria-labelledby="aj-not-started-title">
-              <div className="aj-done-top aj-done-top-muted">
-                <div className="aj-done-badge aj-done-badge-muted">
-                  <Info className="h-8 w-8" aria-hidden="true" />
-                </div>
-                <h2 id="aj-not-started-title" className="aj-done-title">
-                  Job not started yet
-                </h2>
-                <p className="aj-done-text">
-                  Current status: <strong>{STATUS_LABEL[job.status]}</strong>. Mark yourself as arrived first.
-                  Starting needs the customer&apos;s code and a start photo at the location.
-                </p>
-              </div>
-              <div className="aj-done-actions">
-                <Link to={`/partner/jobs/${job.id}`} className="aj-btn-primary">
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View Job Details
-                </Link>
-              </div>
-            </section>
+          <div className="aj-ref-card text-center py-8">
+            <h2 className="text-lg font-bold text-slate-900">Job Not In Progress</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Current status: <span className="font-semibold">{STATUS_LABEL[job.status]}</span>.
+            </p>
+            <div className="mt-6 flex items-center justify-center gap-3">
+              <Link
+                to={`/partner/jobs/${job.id}`}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3]"
+              >
+                <ArrowLeft className="h-4 w-4" /> View Job Details
+              </Link>
+              <button
+                type="button"
+                onClick={handleResetDemo}
+                className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Reset demo
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -524,8 +395,7 @@ export const ActiveJobPage: React.FC = () => {
         <header className="aj-ref-header">
           <div>
             <p className="aj-ref-eyebrow">
-              <span className="aj-live-dot" aria-hidden="true" />
-              In progress <span className="sr-only">Booking {job.bookingCode}</span>
+              IN PROGRESS <span className="sr-only">Booking {job.bookingCode}</span>
             </p>
             <h1 className="aj-ref-title">{job.service.name}</h1>
           </div>
@@ -558,32 +428,22 @@ export const ActiveJobPage: React.FC = () => {
 
         {/* CUSTOMER (MASKED) Card */}
         <section className="aj-ref-card aj-card-customer" aria-label="Customer">
-          <p className="aj-ref-card-label">Customer</p>
-          <div className="aj-customer">
-            <span className="aj-avatar" aria-hidden="true">
-              {job.customer.name.trim().charAt(0).toUpperCase() || '?'}
-            </span>
-            <div className="aj-customer-body">
-              <p className="aj-ref-customer-name">{job.customer.name}</p>
-              <span className="aj-ref-customer-phone">{job.customer.phoneMasked}</span>
-            </div>
-            <span className="aj-masked-note">Number hidden</span>
+          <p className="aj-ref-card-label">CUSTOMER (MASKED)</p>
+          <div className="aj-ref-row-between">
+            <p className="aj-ref-customer-name">{job.customer.name}</p>
+            <span className="aj-ref-customer-phone">{job.customer.phoneMasked}</span>
           </div>
         </section>
 
         {/* CHECKLIST Card */}
         <section className="aj-ref-card aj-card-checklist" aria-labelledby="checklist-title">
           <div className="aj-ref-checklist-header">
-            <h2 id="checklist-title" className="aj-ref-card-label">
-              Checklist
+            <h2 id="checklist-title" className="aj-ref-card-label mb-0">
+              CHECKLIST
             </h2>
             <span className="aj-ref-checklist-count">
               {doneCount} of {totalCount} done
             </span>
-          </div>
-
-          <div className="aj-check-meter" aria-hidden="true">
-            <span style={{ width: `${totalCount ? Math.round((doneCount / totalCount) * 100) : 0}%` }} />
           </div>
 
           <Checklist
@@ -605,91 +465,8 @@ export const ActiveJobPage: React.FC = () => {
           + Add item
         </button>
 
-        {/* EXTRA CHARGES Section */}
-        <section className="aj-ref-card aj-card-extra-charges" aria-labelledby="extra-charges-title">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 id="extra-charges-title" className="aj-ref-card-label">
-                Extra Charges
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Additional on-site work approved by the customer
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void loadExtraCharges()}
-                title="Refresh extra charges"
-                aria-label="Refresh extra charges"
-                className="text-xs text-slate-500 hover:text-slate-800 p-1 rounded-md hover:bg-slate-100 transition-colors"
-              >
-                <RotateCw className={`h-3.5 w-3.5 ${extraChargesLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowExtraChargeModal(true)}
-                disabled={!online}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[#4338ca] bg-[#eef0ff] hover:bg-[#e0e3ff] px-2.5 py-1.5 rounded-lg transition-colors"
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Request charge
-              </button>
-            </div>
-          </div>
-
-          {extraChargesError && (
-            <div className="rounded-lg bg-red-50 p-2.5 text-xs text-red-700 mb-3" role="alert">
-              {extraChargesError}
-            </div>
-          )}
-
-          {extraCharges.length === 0 ? (
-            <p className="text-xs text-slate-500 py-3 text-center border border-dashed border-slate-200 rounded-xl">
-              No extra charges requested for this job.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {extraCharges.map((charge) => {
-                const statusColor =
-                  charge.status === 'approved'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : charge.status === 'rejected'
-                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200';
-                return (
-                  <div
-                    key={charge.id}
-                    className="flex items-start justify-between p-3 rounded-xl border border-slate-100 bg-slate-50 text-xs"
-                  >
-                    <div>
-                      <p className="font-semibold text-slate-900">{charge.title}</p>
-                      <p className="text-slate-500">
-                        Qty: {charge.quantity} × ₹{charge.amount} = <span className="font-semibold text-slate-700">₹{charge.quantity * charge.amount}</span>
-                      </p>
-                      {charge.reason && <p className="text-slate-400 text-[11px] mt-0.5">{charge.reason}</p>}
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-full border text-[11px] font-semibold uppercase ${statusColor}`}>
-                      {charge.status}
-                    </span>
-                  </div>
-                );
-              })}
-
-              <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-xs">
-                <span className="font-medium text-slate-600">Approved extra total:</span>
-                <span className="font-bold text-slate-900">
-                  ₹{extraCharges
-                    .filter((c) => c.status === 'approved')
-                    .reduce((sum, c) => sum + c.quantity * c.amount, 0)
-                    .toLocaleString('en-IN')}
-                </span>
-              </div>
-            </div>
-          )}
-        </section>
-
         {completeError && (
-          <p className="aj-error-line" role="alert">
+          <p className="text-xs font-semibold text-red-600 px-1" role="alert">
             {completeError}
           </p>
         )}
@@ -702,45 +479,34 @@ export const ActiveJobPage: React.FC = () => {
               setCompleteError(null);
               setShowCompleteConfirm(true);
             }}
-            disabled={!online}
+            disabled={completing || !online}
             className="aj-ref-complete-btn"
           >
             Complete job
           </button>
 
           <div className="aj-ref-demo-footer">
-            <button
-              type="button"
-              onClick={() => {
-                setCompleteError(null);
-                setShowCompletionModal(true);
-              }}
-              className="aj-ref-demo-link-btn"
-            >
-              Open Checklist & Finalize Payout →
-            </button>
             <Link to={`/partner/jobs/${job.id}`} className="aj-ref-demo-link">
               ← View Job Details
             </Link>
-            {IS_MOCK_JOBS && (
-              <button
-                type="button"
-                onClick={handleResetDemo}
-                className="aj-ref-demo-link-btn"
-              >
-                Reset demo
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleResetDemo}
+              className="aj-ref-demo-link-btn"
+            >
+              Reset demo
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Confirmation Modal for Complete Job */}
       {showCompleteConfirm && (
         <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="complete-confirm-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
         >
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#eeecfb] text-[#4338ca]">
@@ -788,23 +554,6 @@ export const ActiveJobPage: React.FC = () => {
         </div>
       )}
 
-      {/* Completion Checklist & Verification Modal */}
-      <CompletionChecklist
-        job={job}
-        extraCharges={extraCharges.length > 0 ? extraCharges : (job.extraCharges ?? [])}
-        isOpen={showCompletionModal}
-        onClose={() => setShowCompletionModal(false)}
-        onCompleted={handleJobCompleted}
-      />
-
-      {/* Request Extra Charge Form Modal */}
-      <ExtraChargeForm
-        bookingId={job.id}
-        isOpen={showExtraChargeModal}
-        onClose={() => setShowExtraChargeModal(false)}
-        onChargeCreated={handleExtraChargeCreated}
-      />
-
       {/* Add Item Dialog */}
       <AddItemDialog
         bookingId={job.id}
@@ -838,88 +587,6 @@ export const ActiveJobPage: React.FC = () => {
           );
         }}
       />
-
-      {/* Job Completion Success Popup */}
-      {completedSuccessJob && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="job-completed-success-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in"
-        >
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 sm:p-7 shadow-2xl text-center border border-slate-100">
-            <div className="mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 shadow-sm">
-              <CheckCircle2 className="h-9 w-9" aria-hidden="true" />
-            </div>
-
-            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 mb-2">
-              ✓ Service Completed
-            </span>
-
-            <h2 id="job-completed-success-title" className="text-xl font-bold text-slate-900">
-              Job Completed Successfully!
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              {completedSuccessJob.service.name} ({completedSuccessJob.bookingCode})
-            </p>
-
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4 border border-slate-100 text-left space-y-2.5">
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-medium">Customer:</span>
-                <span className="font-semibold text-slate-900">{completedSuccessJob.customer.name}</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 font-medium">Base Payout:</span>
-                <span className="font-semibold text-slate-900">{inr.format(completedSuccessJob.price.partnerEarning)}</span>
-              </div>
-              {extraCharges.filter((c) => c.status === 'approved').length > 0 && (
-                <div className="flex justify-between items-center text-xs text-emerald-700">
-                  <span className="font-medium">Approved Extra Charges:</span>
-                  <span className="font-bold">
-                    + {inr.format(extraCharges.filter((c) => c.status === 'approved').reduce((s, c) => s + c.amount * (c.quantity || 1), 0))}
-                  </span>
-                </div>
-              )}
-              <div className="border-t border-slate-200 pt-2 flex justify-between items-center text-sm">
-                <span className="font-bold text-slate-900">Total Payout:</span>
-                <span className="font-bold text-emerald-600 text-base">
-                  {inr.format(
-                    completedSuccessJob.price.partnerEarning +
-                    extraCharges.filter((c) => c.status === 'approved').reduce((s, c) => s + c.amount * (c.quantity || 1), 0)
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <p className="mt-3 text-xs text-slate-500">
-              Your payout has been recorded to your wallet and earnings dashboard.
-            </p>
-
-            <div className="mt-6 flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setCompletedSuccessJob(null);
-                  navigate('/partner/jobs');
-                }}
-                className="flex-1 rounded-xl bg-[#4338ca] py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3] transition-colors shadow-sm"
-              >
-                Back to My Jobs
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setCompletedSuccessJob(null);
-                  navigate(`/partner/jobs/${completedSuccessJob.id}`);
-                }}
-                className="flex-1 rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                View Job Details
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

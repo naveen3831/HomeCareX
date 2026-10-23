@@ -17,9 +17,10 @@ import { customerPath } from "@/routes/customerPath";
 /**
  * CustomerLayout — the shell every /customer/* page renders inside.
  *  - md+   : Sidebar (left, grouped; the TopBar hamburger collapses it) + TopBar + content
- *  - mobile: TopBar (address picker + bell) + content + BottomNav
- *            (Categories / Services / Home / My Bookings / Profile), hidden on the Profile page
- *            itself. No hamburger: the rest of the menu (Account, Support, Referrals, Log out…)
+ *  - mobile: TopBar + content + BottomNav (Categories / Services / Home / My Bookings / Profile).
+ *            The TopBar is address picker + bell on Home and "← Page name" everywhere else, and is
+ *            pinned to the top of the screen on every page. A bottom tab lights up only on its own
+ *            page. No hamburger: the rest of the menu (Account, Support, Referrals, Log out…)
  *            lives on the Profile page.
  * The content area always shows something: a spinner while a page chunk loads,
  * an error card if a page crashes, and an offline banner when the network drops.
@@ -40,8 +41,10 @@ export default function CustomerLayout() {
   }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
-  // The Profile page is the mobile menu itself, so it shows no bottom nav (its sub-pages still do).
-  const hideBottomNav = pathname.replace(/\/+$/, "").toLowerCase() === customerPath("/profile");
+  // Edit profile / Change password / Notifications settings / Terms / Privacy are focused full pages on phones: no bottom nav
+  // (the top bar still shows the back arrow + title like every other inner page).
+  const path = pathname.replace(/\/+$/, "").toLowerCase();
+  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
 
   return (
     <div className="customer-shell flex min-h-screen overflow-x-clip bg-canvas">
@@ -57,7 +60,9 @@ export default function CustomerLayout() {
       <Sidebar open={sidebarOpen} onClose={toggleSidebar} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={hideBottomNav ? "hidden md:block" : undefined}>
+        {/* The wrapper is the sticky element: a sticky child cannot leave a wrapper that is only as tall as itself, which is why the bar scrolled away.
+            It is shown on every page (Home included) and keeps clear of the phone's status bar / notch. */}
+        <div className="sticky top-0 z-30 bg-canvas pt-[env(safe-area-inset-top)] md:bg-transparent md:pt-0">
           <TopBar sidebarOpen={sidebarOpen} onToggleSidebar={toggleSidebar} />
         </div>
         <OfflineBanner />
@@ -69,7 +74,7 @@ export default function CustomerLayout() {
           className={clsx(
             "flex-1 px-4 py-6 outline-none md:px-8 md:pb-6",
             // Leave room for the fixed bottom nav (it shows on every page, Profile included).
-            "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            focusPage ? "pb-[calc(2rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
           )}
         >
           <RouteErrorBoundary resetKey={pathname}>
@@ -80,7 +85,7 @@ export default function CustomerLayout() {
         </main>
       </div>
 
-      { <BottomNav />}
+      {!focusPage && <BottomNav />}
     </div>
   );
 }

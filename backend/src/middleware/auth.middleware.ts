@@ -91,3 +91,27 @@ export function getAuthUser(req: Request): AuthUser {
  * Alias maintained for routes importing `authenticate`.
  */
 export const authenticate = authMiddleware;
+
+/**
+ * Optional authentication:
+ * If `Authorization: Bearer <token>` is present, verifies the token and sets req.user.
+ * If missing or invalid, does not fail; proceeds with req.user undefined.
+ */
+export const optionalAuth: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const payload = authService.verifyAccessToken(token);
+    res.locals.auth = payload;
+    req.user = { id: payload.sub, role: payload.role as UserRole };
+  } catch {
+    // Proceed unauthenticated
+  }
+
+  return next();
+};

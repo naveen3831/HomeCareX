@@ -9,7 +9,7 @@ export default function BackToService({ slug }: { slug: string }) {
   return (
     <Link
       to={customerPath(`/services/${slug}`)}
-      className={clsx("inline-flex min-h-[40px] items-center gap-2 rounded-full text-sm font-semibold text-muted transition-colors hover:text-brand", FOCUS_RING)}
+      className={clsx("inline-flex max-md:hidden min-h-[40px] items-center gap-2 rounded-full text-sm font-semibold text-muted transition-colors hover:text-brand", FOCUS_RING)}
     >
       <ArrowLeft className="h-4 w-4" aria-hidden="true" />
       Back to service details

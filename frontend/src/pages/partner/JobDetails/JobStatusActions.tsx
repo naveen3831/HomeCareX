@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2 } from 'lucide-react';
 import {
   getErrorMessage,
@@ -19,9 +19,9 @@ interface Props {
 }
 
 export default function JobStatusActions({ job, onChanged, onStale }: Props) {
+  const navigate = useNavigate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
 
   // OTP gated start flow
   const [showOtpInput, setShowOtpInput] = useState(false);
@@ -29,6 +29,28 @@ export default function JobStatusActions({ job, onChanged, onStale }: Props) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [startingJob, setStartingJob] = useState(false);
+
+  const handleClick = async (next: (typeof job.actions)[number]['status']) => {
+    if (pending) return; // blocks duplicate taps
+    if (!navigator.onLine) {
+      setError('You are offline. Reconnect and try again.');
+      return;
+    }
+    setPending(true);
+    setError(null);
+    try {
+      onChanged(await updateBookingStatus(job.id, next));
+    } catch (err) {
+      if (getHttpStatus(err) === 422) {
+        setError('This job was already updated. Showing the latest status.');
+        onStale();
+      } else {
+        setError(getErrorMessage(err, 'Could not update the status. Try again.'));
+      }
+    } finally {
+      setPending(false);
+    }
+  };
 
   const handleVerifyOtp = async () => {
     if (verifyingOtp || !otp.trim()) return;
@@ -63,32 +85,11 @@ export default function JobStatusActions({ job, onChanged, onStale }: Props) {
     try {
       const updated = await startJob(job.id, otp.trim());
       onChanged(updated);
+      navigate(`/partner/jobs/${job.id}/active`);
     } catch (err) {
       setError(getErrorMessage(err, 'Could not start the job. Please try again.'));
     } finally {
       setStartingJob(false);
-    }
-  };
-
-  const handleClick = async (next: (typeof job.actions)[number]['status']) => {
-    if (pending) return; // blocks duplicate taps
-    if (!navigator.onLine) {
-      setError('You are offline. Reconnect and try again.');
-      return;
-    }
-    setPending(true);
-    setError(null);
-    try {
-      onChanged(await updateBookingStatus(job.id, next));
-    } catch (err) {
-      if (getHttpStatus(err) === 422) {
-        setError('This job was already updated. Showing the latest status.');
-        onStale();
-      } else {
-        setError(getErrorMessage(err, 'Could not update the status. Try again.'));
-      }
-    } finally {
-      setPending(false);
     }
   };
 

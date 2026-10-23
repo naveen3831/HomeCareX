@@ -5,7 +5,33 @@ import {
   TICKET_STATUSES,
 } from '../modules/tickets/tickets.constants';
 
+<<<<<<< HEAD
+/**
+ * Support ticket, one queue for customers and partners (contract: modules/tickets/tickets.constants.ts).
+ * SLA is deliberately NOT stored: admin-tickets derives it from `priority` + `createdAt`.
+ */
+export interface Ticket {
+  /** User._id of whoever raised it (customers and partners are both Users). */
+  createdBy: Types.ObjectId;
+  createdByRole: 'customer' | 'partner';
+  bookingId?: Types.ObjectId | null;
+  category: TicketCategory;
+  subject: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  /** Admin User._id handling it. */
+  assignedTo?: Types.ObjectId | null;
+  lastMessageAt: Date;
+  /** Set once admins have been told this ticket breached its SLA, so the sweep never alerts twice. */
+  slaBreachNotifiedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const TicketSchema = new Schema<Ticket>(
+=======
 const TicketSchema = new Schema(
+>>>>>>> origin/develop
   {
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     createdByRole: { type: String, enum: ['customer', 'partner'], required: true },
@@ -16,6 +42,7 @@ const TicketSchema = new Schema(
     priority: { type: String, enum: TICKET_PRIORITIES, default: 'normal' },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     lastMessageAt: { type: Date, default: Date.now },
+    slaBreachNotifiedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
