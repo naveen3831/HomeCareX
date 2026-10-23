@@ -12,6 +12,8 @@ export const NOTIFICATION_TYPES = [
   'offer.new',
   'ticket.reply',
   'system.announcement',
+  /** A partner or customer pressed SOS. Admins see it highlighted in the bell and it can never be muted. */
+  'sos.alert',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -34,6 +36,15 @@ export const groupOf = (type: string): NotificationGroup => {
     if (prefixes.some((p) => type.startsWith(p))) return group as NotificationGroup;
   }
   return 'system';
+};
+
+/** Types that must stand out in the admin bell. */
+export const HIGH_PRIORITY_TYPES: readonly string[] = ['sos.alert'];
+
+/** Admin-facing types an admin can switch off on the Settings page (setting key per type). SOS is not listed on purpose. */
+export const ADMIN_ALERT_SETTING: Partial<Record<(typeof NOTIFICATION_TYPES)[number], 'notifications.adminBookingAlerts' | 'notifications.adminTicketAlerts'>> = {
+  'booking.created': 'notifications.adminBookingAlerts',
+  'ticket.reply': 'notifications.adminTicketAlerts',
 };
 
 /** Socket.IO event the clients listen for. */

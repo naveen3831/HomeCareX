@@ -219,6 +219,7 @@ export const adminRoutes: AdminRoute[] = [
   {
     path: 'settings',
     element: <AdminSettingsPage />,
+    permission: 'settings:manage',
   },
 
   // Header pages

@@ -9,7 +9,6 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 const PAGE_SEARCH: Record<string, string> = {
   '/admin/partners': 'Search name, email, phone or city…',
   '/admin/manage-partners': 'Search name, designation, email or phone…',
-  '/admin/audit-logs': 'Search actor, action, entity, ID or IP…',
   '/admin/categories': 'Search name, slug or description…',
   '/admin/services': 'Search name, slug or category…',
 };

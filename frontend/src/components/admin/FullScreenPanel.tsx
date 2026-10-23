@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, Bell, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';
@@ -31,18 +32,6 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const left = isDesktop ? (collapsed ? 68 : 260) : 0;
 
-  const [bellOpen, setBellOpen] = useState(false);
-  const bellRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!bellOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (bellRef.current && !bellRef.current.contains(e.target as Node)) setBellOpen(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, [bellOpen]);
-  useEffect(() => { if (!open) setBellOpen(false); }, [open]);
-
   if (!open) return null;
 
   return createPortal(
@@ -53,15 +42,8 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
             {collapsed ? <PanelLeftOpen size={20} aria-hidden /> : <PanelLeftClose size={20} aria-hidden />}
           </button>
         )}
-        <div className="hcx-fs__bellwrap" ref={bellRef}>
-          <button
-            type="button" className="hcx-fs__navbtn" aria-label="Notifications" aria-expanded={bellOpen} aria-haspopup="true"
-            onClick={() => setBellOpen((o) => !o)}
-          >
-            <Bell size={20} aria-hidden />
-          </button>
-          {bellOpen && <div className="hcx-fs__bellpanel" role="status">You&apos;re all caught up.</div>}
-        </div>
+        {/* Same live bell as the main header: real notifications, unread count, mark read. */}
+        <div className="hcx-fs__bellwrap"><NotificationBell /></div>
       </div>
 
       <header className="hcx-fs__head">

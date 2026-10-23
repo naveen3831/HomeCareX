@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { notifyAdmins } from "../notifications";
 import { Types } from "mongoose";
 import { AppError } from "../../utils/AppError";
 import {
@@ -535,6 +536,11 @@ export const BookingService = {
           } as never);
         },
       );
+      // Tell the admins (bell, live). Fire-and-forget: a failed alert must never fail the booking.
+      void notifyAdmins("booking.created", {
+        bookingId: String((created as { _id?: unknown })._id ?? ""),
+        serviceId: input.serviceId,
+      }).catch(() => undefined);
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
       if (isDuplicateKey(err, "uniq_customer_idem_key")) {

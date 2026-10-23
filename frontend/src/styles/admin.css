@@ -633,3 +633,19 @@
   .breadcrumb-bar.breadcrumb-bar--left:has(.admin-search-slot) .topbar-search { flex: 1 1 0; min-width: 0; width: auto; }
   .breadcrumb-bar.breadcrumb-bar--left:has(.admin-search-slot) .admin-search-slot { flex: 0 0 auto; }
 }
+/* Admin notification bell: count badge, mark-all header, unread + SOS rows */
+.hcx-bell__count { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--hcx-brand); color: #fff; font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
+.hcx-bell__count--sos { background: #dc2626; animation: hcx-sos-pulse 1.4s ease-in-out infinite; }
+@keyframes hcx-sos-pulse { 50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.25); } }
+@media (prefers-reduced-motion: reduce) { .hcx-bell__count--sos { animation: none; } }
+.hcx-notif-panel--wide { width: 340px; }
+.hcx-notif-panel__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--hcx-line); font-size: 13px; }
+.hcx-notif-panel__head button { border: 0; background: none; font-size: 12px; color: var(--hcx-accent); cursor: pointer; }
+.hcx-notif-panel__head button:disabled { color: var(--hcx-faint); cursor: default; }
+.hcx-notif-panel li.is-unread button { background: #f5f7ff; font-weight: 600; }
+.hcx-notif-panel li.is-sos button { background: #fef2f2; border-left: 3px solid #dc2626; color: #991b1b; }
+.hcx-notif-panel li button em { font-style: normal; font-weight: 400; font-size: 12px; color: var(--hcx-muted); }
+.admin-layout .admin-topbar { position: sticky; top: 0; z-index: 25; }
+@media (max-width: 768px) {
+  html, body { overflow-x: clip !important; }
+}

@@ -1,8 +1,10 @@
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { NotificationModel } from '../../models/Notification';
+import { UserModel } from '../../models/User';
+import { getSetting } from '../settings';
 import { HttpError } from '../auth/auth.types';
 import { emitToUser } from '../../sockets';
-import { GROUP_PREFIXES, NOTIFICATION_GROUPS, NOTIFICATION_SOCKET_EVENT, groupOf, type NotificationGroup, type NotificationType } from './notifications.constants';
+import { ADMIN_ALERT_SETTING, GROUP_PREFIXES, NOTIFICATION_GROUPS, NOTIFICATION_SOCKET_EVENT, groupOf, type NotificationGroup, type NotificationType } from './notifications.constants';
 
 export interface NotificationDto {
   id: string;
@@ -67,11 +69,26 @@ export async function notify(userId: string, type: NotificationType, payload: Re
   return dto;
 }
 
+/**
+ * Sends one notification to every active admin (the bell on /admin). Types an admin switched off on the Settings
+ * page are skipped, except SOS which is always sent. Returns how many admins were notified.
+ */
+export async function notifyAdmins(type: NotificationType, payload: Record<string, unknown> = {}): Promise<number> {
+  if (mongoose.connection.readyState !== 1) return 0; // no database (scripts, unit tests): nothing to notify
+  const settingKey = ADMIN_ALERT_SETTING[type];
+  if (settingKey && (await getSetting(settingKey)) === false) return 0;
+  const admins = await UserModel.find({ role: 'admin', status: 'active' }).select('_id').lean();
+  await Promise.all(admins.map((a) => notify(String(a._id), type, payload)));
+  return admins.length;
+}
+
 export class NotificationsService {
   notify = notify;
 
-  async listForUser(userId: string, limit = 30) {
-    const rows = await NotificationModel.find({ userId }).sort({ createdAt: -1 }).limit(limit);
+  async listForUser(userId: string, limit = 30, unreadOnly = false) {
+    const rows = await NotificationModel.find({ userId, ...(unreadOnly ? { readAt: null } : {}) })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
     return rows.map(toDto);
   }
 
