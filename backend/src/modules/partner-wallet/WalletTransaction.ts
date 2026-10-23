@@ -43,6 +43,11 @@ WalletTransactionSchema.pre('validate', function () {
 
 WalletTransactionSchema.index({ partnerId: 1, createdAt: -1 });
 WalletTransactionSchema.index({ partnerId: 1, type: 1, createdAt: -1 });
+// One ledger line per source (earning id / payout id): what makes crediting and paying idempotent.
+WalletTransactionSchema.index(
+  { partnerId: 1, type: 1, referenceId: 1 },
+  { unique: true, partialFilterExpression: { referenceId: { $type: 'string' } } },
+);
 
 export type WalletTransaction = InferSchemaType<typeof WalletTransactionSchema>;
 

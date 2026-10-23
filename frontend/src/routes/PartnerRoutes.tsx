@@ -33,6 +33,7 @@ import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
 import SettingsHome from "../pages/partner/Settings/SettingsHome";
 import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
+import PartnerSafetyPage from "../pages/partner/Safety";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -189,6 +190,8 @@ export default function PartnerRoutes() {
         <Route path="support/tickets/:id" element={<SupportTicketPage />} />
         <Route path="support/tickets/:ticketId" element={<SupportTicketPage />} />
         <Route path="help" element={<HelpPage />} />
+        <Route path="safety" element={<PartnerSafetyPage />} />
+     <Route path="support/safety" element={<PartnerSafetyPage />} />
         <Route path="settings" element={<SettingsHome />} />
         <Route path="settings/security/password" element={<ChangePasswordPage />} />
         <Route path="settings/security/sessions" element={<ActiveSessionsPage />} />

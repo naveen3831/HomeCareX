@@ -5,6 +5,7 @@ import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
+import { emitJobCompleted } from "../events/eventBus";
 import { getIOIfReady, rooms } from "../../sockets";
 import {
   partnerJobsRepository as repo,
@@ -580,6 +581,13 @@ export const partnerJobsService = {
     const fresh = await repo.findBooking(bookingId);
     if (!fresh)
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+
+    // Creates the partner's earning (and its wallet line). Idempotent per booking, so a repeat is harmless.
+    const gross = Number((fresh as { priceBreakdown?: { total?: number } }).priceBreakdown?.total ?? 0);
+    if (Number.isFinite(gross) && gross > 0) {
+      emitJobCompleted({ bookingId, partnerId: String(partner._id), gross, completedAt: now });
+    }
+
     return buildDetail(fresh);
   },
 
@@ -693,4 +701,3 @@ export const partnerJobsService = {
     return { checklist };
   },
 };
-  

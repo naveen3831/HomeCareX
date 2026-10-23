@@ -12,6 +12,7 @@ import {
 } from './auth.constants';
 import { HttpError, type AccessTokenPayload, type AuthUserDto, type RefreshTokenPayload } from './auth.types';
 import type {
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -201,6 +202,18 @@ export const authService = {
     return toAuthUser(user);
   },
  
+  /** Signed-in user changes their own password. Wrong current password is a 400 (not 401) so the client does not log the user out. */
+  async changePassword(userId: string, { currentPassword, newPassword }: ChangePasswordInput) {
+    const user = await authRepository.findByIdWithPassword(userId);
+    if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+      throw new HttpError(400, 'Current password is incorrect', 'INVALID_CURRENT_PASSWORD');
+    }
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+    return { changed: true };
+  },
+
   /** Generates and dispatches a secure 6-digit OTP for password reset. */
   async forgotPassword({ email }: ForgotPasswordInput) {
     const normalizedEmail = email.trim().toLowerCase();
@@ -383,5 +396,3 @@ export const authService = {
     };
   },
 };
- 
- 

@@ -3,17 +3,21 @@ import { ShieldAlert } from 'lucide-react';
 import { triggerSos, getErrorMessage } from '@/pages/partner/JobDetails/jobDetails.api';
 
 export interface SosButtonProps {
-  bookingId: string;
+  /** The job the partner is on. Leave out on the Safety page, where SOS can be raised with no job open. */
+  bookingId?: string | null;
   coordinates?: { lat: number; lng: number } | null;
   onSuccess?: () => void;
   className?: string;
+  /** `pill` is the small button on the active-job header; `large` is the full-width button on the Safety page. */
+  variant?: 'pill' | 'large';
 }
 
 export const SosButton: React.FC<SosButtonProps> = ({
-  bookingId,
+  bookingId = null,
   coordinates = null,
   onSuccess,
   className = '',
+  variant = 'pill',
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,10 +56,28 @@ export const SosButton: React.FC<SosButtonProps> = ({
         }}
         disabled={loading}
         aria-label="Emergency SOS"
-        className="sos-btn inline-flex items-center justify-center rounded-full bg-[#dc2626] px-4 py-1.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#b91c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50"
+        className={`sos-btn inline-flex items-center justify-center bg-[#dc2626] font-bold text-white shadow-sm transition hover:bg-[#b91c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50 ${
+          variant === 'large'
+            ? 'min-h-[56px] w-full rounded-xl px-6 py-3 text-base'
+            : 'rounded-full px-4 py-1.5 text-sm'
+        }`}
       >
-        <span>{alertSent ? 'SOS Sent' : 'SOS'}</span>
+        <span>
+          {variant === 'large'
+            ? alertSent
+              ? 'SOS sent. Tap to send again'
+              : 'Send SOS alert'
+            : alertSent
+              ? 'SOS Sent'
+              : 'SOS'}
+        </span>
       </button>
+
+      {alertSent && variant === 'large' && (
+        <p className="mt-2 text-sm font-medium text-green-700" role="status">
+          The HomeCareX safety team has been alerted. If you are in danger, call 112 now.
+        </p>
+      )}
 
       {error && (
         <p className="mt-1.5 text-xs font-medium text-red-600" role="alert">
@@ -78,8 +100,8 @@ export const SosButton: React.FC<SosButtonProps> = ({
               Trigger Emergency SOS?
             </h2>
             <p className="mt-2 text-sm text-slate-600">
-              This will immediately alert the safety team and record your booking location. Only use
-              this in a real emergency.
+              This will immediately alert the safety team and share your location if you allow it. Only
+              use this in a real emergency.
             </p>
 
             {error && (

@@ -52,6 +52,7 @@ import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
+import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
 import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
@@ -67,6 +68,7 @@ import { reportsRoutes } from "../modules/reports/reports.routes";
 import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
+import { sosRoutes } from "../modules/sos/sos.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
@@ -121,6 +123,7 @@ rootRouter.use("/partner/schedule", scheduleRoutes);
 rootRouter.use("/partner/earnings", earningsRoutes);
 rootRouter.use("/partner/transactions", partnerWalletRoutes);
 rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
+rootRouter.use("/partner/payouts", partnerPayoutsRoutes);
 rootRouter.use("/partner/incentives", incentivesRoutes);
 rootRouter.use("/partner/services", partnerServicesRoutes);
 rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
@@ -128,6 +131,7 @@ rootRouter.use("/partner/performance", partnerPerformanceRoutes);
 rootRouter.use("/partner/reviews", partnerReviewsRoutes);
 rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/settings", partnerSettingsRoutes);
+rootRouter.use("/partner/safety", sosRoutes);
 rootRouter.use("/partner/jobs", partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
