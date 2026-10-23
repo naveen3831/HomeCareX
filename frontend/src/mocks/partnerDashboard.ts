@@ -36,6 +36,10 @@ export async function mockDashboard(): Promise<PartnerDashboard> {
       status: "en_route",
       scheduledAt: inMinutes(20),
     },
+    assignedServices: [
+      { id: "s1", name: "AC Service" },
+      { id: "s2", name: "Refrigerator Repair" },
+    ],
   };
 }
 

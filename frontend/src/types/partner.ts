@@ -17,6 +17,7 @@ export interface PartnerDashboard {
   acceptanceRate: number;
   completionRate: number;
   activeJob: ActiveJob | null;
+  assignedServices?: Array<{ id: string; name: string }>;
 }
 
 /** A job offer waiting for the partner's accept/reject. */

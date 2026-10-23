@@ -30,6 +30,7 @@ const AdminSettingsPage = lazy(() => import('@/pages/admin/Settings'));
 const AdminProfilePage = lazy(() => import('@/pages/admin/Profile'));
 const AdminNotificationsPage = lazy(() => import('@/pages/admin/Notifications'));
 const AdminPartnerDetailsPage = lazy(() => import('@/pages/admin/PartnerDetails'));
+const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 interface AdminRoute {
   /** Relative to /admin. Empty string is the index route. */
@@ -81,6 +82,9 @@ const adminRoutes: AdminRoute[] = [
   { path: 'staff', element: <AdminStaffPage /> },
   { path: 'audit-logs', element: <AdminAuditLogsPage /> },
   { path: 'settings', element: <AdminSettingsPage /> },
+  { path: 'security', element: <AccountSecurityPage /> },
+  { path: 'account/security', element: <AccountSecurityPage /> },
+  { path: 'settings/security', element: <AccountSecurityPage /> },
 
   // Header-only pages
   { path: 'profile', element: <AdminProfilePage /> },

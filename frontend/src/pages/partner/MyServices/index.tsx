@@ -199,6 +199,30 @@ export default function PartnerMyServicesPage() {
           }}
           className="w-full min-w-0 space-y-3"
         >
+          {selected.length > 0 && (
+            <div className="mb-4 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-emerald-900 uppercase tracking-wide">
+                  Assigned to your profile ({selected.length})
+                </span>
+                <span className="text-2xs text-emerald-700">Active for job matching</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {data.approved
+                  .filter((s) => selected.includes(s.id))
+                  .map((s) => (
+                    <span
+                      key={s.id}
+                      className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-white px-2.5 py-1 text-xs font-medium text-emerald-800 shadow-2xs"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      {s.name}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          )}
+
           <fieldset
             aria-labelledby={headingId}
             className="m-0 w-full min-w-0 border-0 p-0"
@@ -225,12 +249,18 @@ export default function PartnerMyServicesPage() {
                       <input
                         type="checkbox"
                         checked={checked}
+                        aria-label={s.name}
                         onChange={() => toggle(s.id)}
                         className="h-4 w-4 shrink-0 cursor-pointer rounded accent-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                       />
                       <span className="min-w-0 flex-1 break-words leading-snug [overflow-wrap:anywhere]">
                         {s.name}
                       </span>
+                      {checked && (
+                        <span aria-hidden="true" className="shrink-0 rounded bg-emerald-50 px-2 py-0.5 text-2xs font-semibold text-emerald-700 border border-emerald-200">
+                          Assigned
+                        </span>
+                      )}
                     </label>
                   </li>
                 );

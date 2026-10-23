@@ -25,7 +25,7 @@ const PartnerCTA: React.FC = () => {
               </p>
 
               <Link
-                to="/register"
+                to="/register/partner"
                 className="mt-7 inline-flex rounded-lg bg-[#ff8a3d] px-6 py-3 font-semibold text-white transition hover:bg-[#e0600f] focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#4338ca]"
               >
                 Become a Partner

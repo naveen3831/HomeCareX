@@ -224,7 +224,7 @@ export const aboutData: AboutPageData = {
     },
     secondaryCta: {
       label: "Become a Partner",
-      href: `${ROUTES.CONTACT}#partner-interest`,
+      href: ROUTES.PARTNER_REGISTER,
     },
     highlights: [
       {
@@ -616,7 +616,7 @@ export const aboutData: AboutPageData = {
     },
     secondaryCta: {
       label: "Become a Partner",
-      href: `${ROUTES.CONTACT}#partner-interest`,
+      href: ROUTES.PARTNER_REGISTER,
     },
   },
 };

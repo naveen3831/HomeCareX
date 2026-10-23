@@ -10,6 +10,7 @@ interface MenuItem { key: string; label: string; to: string; description: string
 
 // Profile's own pages
 const PROFILE_ITEMS: MenuItem[] = [
+  { key: "security", label: "Account Security", to: "/partner/security", description: "Password, sessions & devices", icon: ShieldCheck },
   { key: "documents", label: "Documents", to: "/partner/profile/documents", description: "KYC and certificates", icon: FileText },
   { key: "verification", label: "Verification status", to: "/partner/profile/verification", description: "Track your approval", icon: ShieldCheck },
   { key: "preferences", label: "Preferences", to: "/partner/profile/preferences", description: "Language and job preferences", icon: SlidersHorizontal },

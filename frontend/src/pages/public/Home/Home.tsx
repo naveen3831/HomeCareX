@@ -920,7 +920,7 @@ return (
               </p>
               <div className="mt-8">
                 <Link
-                  to="/contact#partner-interest"
+                  to="/register/partner"
                   className="group inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-7 py-3.5 font-bold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#1e1b6e]"
                 >
                   Join as a professional

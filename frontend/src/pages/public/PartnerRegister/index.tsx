@@ -211,6 +211,13 @@ export const PartnerRegisterPage: React.FC = () => {
     };
   }, []);
 
+  // Auto-redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      navigate(user.home || (user.role === 'admin' ? '/admin' : `/${user.role}`), { replace: true });
+    }
+  }, [isAuthenticated, user, loading, navigate]);
+
   // If already authenticated
   if (isAuthenticated && user && !loading) {
     return (
@@ -686,8 +693,8 @@ export const PartnerRegisterPage: React.FC = () => {
       />
 
       {/* Stepper progress indicator */}
-      <nav aria-label="Registration Progress" className="mb-4">
-        <div className="flex items-center justify-between gap-1 mb-1.5">
+      <nav aria-label="Registration Progress" className="mb-6">
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {[
             { step: 1, label: 'Personal' },
             { step: 2, label: 'Identity' },
@@ -706,24 +713,34 @@ export const PartnerRegisterPage: React.FC = () => {
                 }}
                 disabled={step > currentStep}
                 aria-current={isActive ? 'step' : undefined}
-                className={`flex-1 text-center py-1 px-1 rounded-md text-[11px] font-medium transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-2 px-1 sm:px-2.5 rounded-xl text-xs font-semibold transition-all border ${
                   isActive
-                    ? 'bg-[#4338ca] text-white shadow-xs'
+                    ? 'bg-[#4338ca] border-[#4338ca] text-white shadow-sm ring-2 ring-indigo-200'
                     : isDone
-                    ? 'bg-indigo-50 text-[#4338ca] hover:bg-indigo-100 cursor-pointer'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    ? 'bg-indigo-50/80 border-indigo-200 text-[#4338ca] hover:bg-indigo-100 cursor-pointer'
+                    : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                <span className="hidden sm:inline">Step {step}: </span>
-                <span>{label}</span>
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                    isActive
+                      ? 'bg-white text-[#4338ca]'
+                      : isDone
+                      ? 'bg-[#4338ca] text-white'
+                      : 'bg-slate-200 text-slate-500'
+                  }`}
+                >
+                  {isDone ? '✓' : step}
+                </span>
+                <span className="truncate">{label}</span>
               </button>
             );
           })}
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-1 overflow-hidden">
+        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
           <div
-            className="bg-[#4338ca] h-1 transition-all duration-300"
-            style={{ width: `${((currentStep - 1) / 4) * 100}%` }}
+            className="bg-gradient-to-r from-[#4338ca] to-[#ff8a3d] h-1.5 transition-all duration-300 ease-out rounded-full"
+            style={{ width: `${(currentStep / 5) * 100}%` }}
           />
         </div>
       </nav>
@@ -753,34 +770,39 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 1: SECTION A - PERSONAL INFORMATION                 */}
         {/* ======================================================== */}
         {currentStep === 1 && (
-          <section aria-labelledby="step-1-title" className="space-y-2.5">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-              <h2 id="step-1-title" className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                Section A: Personal Information
-              </h2>
-              <span className="text-[10px] text-gray-400">Step 1 of 5</span>
+          <section aria-labelledby="step-1-title" className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h2 id="step-1-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                  Section A: Personal Information
+                </h2>
+                <p className="text-xs text-slate-500">Your profile details as they will appear to customers</p>
+              </div>
+              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+                Step 1 of 5
+              </span>
             </div>
 
             {/* Profile Photo Preview / Replace / Remove */}
-            <div className="flex items-center gap-3 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl shadow-xs">
               <div className="relative shrink-0">
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
                     alt="Profile preview"
-                    className="w-14 h-14 rounded-full object-cover border border-[#4338ca]/30 shadow-xs"
+                    className="w-14 h-14 rounded-full object-cover border-2 border-[#4338ca] shadow-xs"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center text-gray-400 border border-gray-300">
+                  <div className="w-14 h-14 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 border border-slate-300">
                     <User size={24} aria-hidden="true" />
                   </div>
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <span className="block text-xs font-semibold text-gray-800">
-                  Profile Photo <span className="text-gray-400 text-[10px] font-normal">(Optional)</span>
+                <span className="block text-xs font-semibold text-slate-900">
+                  Profile Photo <span className="text-slate-400 text-[10px] font-normal">(Optional)</span>
                 </span>
-                <p className="text-[11px] text-gray-500 mb-1.5">
+                <p className="text-[11px] text-slate-500 mb-2">
                   Clear photo showing your face (JPG/PNG, max 2MB)
                 </p>
                 <div className="flex items-center gap-2">
@@ -795,9 +817,9 @@ export const PartnerRegisterPage: React.FC = () => {
                   />
                   <label
                     htmlFor="partner-avatar-input"
-                    className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium bg-white border border-gray-300 hover:border-[#4338ca] text-gray-700 px-2 py-1 rounded shadow-xs focus-within:ring-2 focus-within:ring-[#4338ca]"
+                    className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold bg-white border border-slate-300 hover:border-[#4338ca] text-slate-700 hover:text-[#4338ca] px-3 py-1.5 rounded-lg shadow-xs transition-colors focus-within:ring-2 focus-within:ring-[#4338ca]"
                   >
-                    <Upload size={12} />
+                    <Upload size={13} />
                     {avatarPreview ? 'Replace' : 'Upload Photo'}
                   </label>
                   {avatarPreview && (
@@ -805,9 +827,9 @@ export const PartnerRegisterPage: React.FC = () => {
                       type="button"
                       onClick={removeAvatar}
                       aria-label="Remove profile photo"
-                      className="inline-flex items-center gap-1 text-[11px] font-medium text-red-600 hover:text-red-700 p-1 rounded"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1 rounded transition-colors"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={13} />
                       Remove
                     </button>
                   )}
@@ -1014,17 +1036,18 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 2: SECTION B - IDENTITY PROOF                       */}
         {/* ======================================================== */}
         {currentStep === 2 && (
-          <section aria-labelledby="step-2-title" className="space-y-2.5">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-              <h2 id="step-2-title" className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                Section B: Identity Proof
-              </h2>
-              <span className="text-[10px] text-gray-400">Step 2 of 5</span>
+          <section aria-labelledby="step-2-title" className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h2 id="step-2-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                  Section B: Identity Proof
+                </h2>
+                <p className="text-xs text-slate-500">Government identity for background verification and customer trust</p>
+              </div>
+              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+                Step 2 of 5
+              </span>
             </div>
-
-            <p className="text-[11px] text-gray-500">
-              We require government-issued ID proof to verify your partner profile and maintain customer trust.
-            </p>
 
             {/* ID Proof Type */}
             <div>
@@ -1156,12 +1179,17 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 3: SECTION C - ADDRESS PROOF                        */}
         {/* ======================================================== */}
         {currentStep === 3 && (
-          <section aria-labelledby="step-3-title" className="space-y-2.5">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-              <h2 id="step-3-title" className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                Section C: Address Proof
-              </h2>
-              <span className="text-[10px] text-gray-400">Step 3 of 5</span>
+          <section aria-labelledby="step-3-title" className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h2 id="step-3-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                  Section C: Address Proof
+                </h2>
+                <p className="text-xs text-slate-500">Your base location where nearby customers will discover your services</p>
+              </div>
+              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+                Step 3 of 5
+              </span>
             </div>
 
             {/* Street Address */}
@@ -1345,12 +1373,17 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 4: SECTION D - PROFESSIONAL DETAILS                 */}
         {/* ======================================================== */}
         {currentStep === 4 && (
-          <section aria-labelledby="step-4-title" className="space-y-2.5">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-              <h2 id="step-4-title" className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                Section D: Professional Details
-              </h2>
-              <span className="text-[10px] text-gray-400">Step 4 of 5</span>
+          <section aria-labelledby="step-4-title" className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h2 id="step-4-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                  Section D: Professional Details
+                </h2>
+                <p className="text-xs text-slate-500">Select your core services, skills, and weekly availability</p>
+              </div>
+              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+                Step 4 of 5
+              </span>
             </div>
 
             {/* Service Category */}
@@ -1548,12 +1581,17 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 5: SECTION E - BANK DETAILS & REVIEW                */}
         {/* ======================================================== */}
         {currentStep === 5 && (
-          <section aria-labelledby="step-5-title" className="space-y-2.5">
-            <div className="flex items-center justify-between pb-1 border-b border-gray-100">
-              <h2 id="step-5-title" className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-                Section E: Bank & Payout Details
-              </h2>
-              <span className="text-[10px] text-gray-400">Step 5 of 5</span>
+          <section aria-labelledby="step-5-title" className="space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div>
+                <h2 id="step-5-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                  Section E: Bank & Payout Details
+                </h2>
+                <p className="text-xs text-slate-500">Secure bank account or UPI ID for weekly earnings deposit</p>
+              </div>
+              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+                Step 5 of 5
+              </span>
             </div>
 
             {/* Direct Activation status badge */}

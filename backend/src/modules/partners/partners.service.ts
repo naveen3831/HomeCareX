@@ -2,8 +2,10 @@ import bcrypt from 'bcryptjs';
 import { Types } from 'mongoose';
 
 import BookingModel from '../../models/Booking';
+import { CategoryModel } from '../../models/Category';
 import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
+import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
 
 import { Errors } from '../../utils/errors';
@@ -92,50 +94,60 @@ export async function ensurePartnerProfile(
       ? userId
       : new Types.ObjectId(userId);
 
-  /**
-   * Create the Partner profile if it does not exist.
-   *
-   * If it already exists, leave it unchanged.
-   */
-  return PartnerModel.findOneAndUpdate(
-    {
+  let partner = await PartnerModel.findOne({ userId: normalizedUserId });
+  if (!partner) {
+    partner = await PartnerModel.create({
       userId: normalizedUserId,
-    },
-    {
-      $setOnInsert: {
-        userId: normalizedUserId,
-
-        categories: [],
-
-        skills: [],
-
-        serviceRadiusKm: 10,
-
-        ratingAvg: 0,
-
-        ratingCount: 0,
-
-        stats: {
-          offersReceived: 0,
-          offersAccepted: 0,
-          jobsAssigned: 0,
-          jobsCompleted: 0,
-        },
-
-        kyc: {
-          status: 'not_started',
-          documents: [],
-        },
-
-        trainingCompleted: false,
+      categories: [],
+      skills: [],
+      services: [],
+      serviceRadiusKm: 15,
+      ratingAvg: 0,
+      ratingCount: 0,
+      stats: {
+        offersReceived: 0,
+        offersAccepted: 0,
+        jobsAssigned: 0,
+        jobsCompleted: 0,
       },
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    },
-  );
+      kyc: {
+        status: 'not_started',
+        documents: [],
+      },
+      trainingCompleted: false,
+    });
+  }
+
+  if (partner.kyc && (partner.kyc as any).status === 'not_submitted') {
+    partner.kyc.status = 'not_started';
+  }
+
+  // Auto-assign services if categories or services are empty
+  const hasCategories = Array.isArray(partner.categories) && partner.categories.length > 0;
+  const hasServices = Array.isArray((partner as any).services) && (partner as any).services.length > 0;
+
+  if (!hasCategories || !hasServices) {
+    let catDoc = null;
+    if (hasCategories) {
+      catDoc = await CategoryModel.findById(partner.categories[0]);
+    }
+    if (!catDoc) {
+      catDoc = await CategoryModel.findOne({ active: true }).sort({ sortOrder: 1, name: 1 });
+    }
+
+    if (catDoc) {
+      if (!hasCategories) {
+        partner.categories = [catDoc._id as Types.ObjectId];
+      }
+      if (!hasServices) {
+        const matched = await ServiceModel.find({ categoryId: catDoc._id, active: true }).select('_id');
+        (partner as any).services = matched.map((s: any) => s._id as Types.ObjectId);
+      }
+      await partner.save();
+    }
+  }
+
+  return partner;
 }
 
 /**

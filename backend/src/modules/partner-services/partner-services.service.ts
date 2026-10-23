@@ -22,8 +22,18 @@ export interface ServiceAreaDto {
   updatedAt: string | null;
 }
 
+import { ensurePartnerProfile } from "../partners/partners.service";
+
 async function ownPartner(userId: string) {
-  const partner = await repo.findPartnerByUserId(userId);
+  let partner = await repo.findPartnerByUserId(userId);
+  if (!partner) {
+    try {
+      await ensurePartnerProfile(userId);
+      partner = await repo.findPartnerByUserId(userId);
+    } catch {
+      // ignore
+    }
+  }
   if (!partner) throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, "Partner profile not found");
   return partner;
 }

@@ -27,6 +27,7 @@ const Wallet = lazy(() => import('../pages/customer/Wallet'));
 const Tickets = lazy(() => import('@/pages/customer/Tickets'));
 const BookServiceShell = lazy(() => import('../pages/customer/Book'));
 const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
+const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 const BookingSuccess = lazy(() => import('../pages/customer/BookingSuccess'));
 const BookingFailed = lazy(() => import('../pages/customer/BookingFailed'));
@@ -58,6 +59,9 @@ export default function CustomerRoutes() {
           <Route path="/payments" element={<Payments />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/profile/edit" element={<EditProfile />} />
+          <Route path="/security" element={<AccountSecurityPage />} />
+          <Route path="/profile/security" element={<AccountSecurityPage />} />
+          <Route path="/account/security" element={<AccountSecurityPage />} />
 
           <Route path="/referrals" element={<Referrals />} />
           <Route path="/reviews" element={<Reviews />} />

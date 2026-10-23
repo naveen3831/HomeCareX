@@ -26,6 +26,17 @@ const UserSchema = new Schema(
     passwordResetTokenHash: { type: String, select: false },
     /** Expiration date for password reset token (30m). */
     passwordResetExpiresAt: { type: Date },
+    /** Active login sessions across devices/browsers. */
+    sessions: [
+      {
+        sessionId: { type: String, required: true },
+        device: { type: String, required: true },
+        ipAddress: { type: String, default: '127.0.0.1' },
+        lastActiveAt: { type: Date, default: Date.now },
+        userAgent: { type: String },
+        tokenVersion: { type: Number, default: 0 },
+      },
+    ],
   },
   { timestamps: true },
 );

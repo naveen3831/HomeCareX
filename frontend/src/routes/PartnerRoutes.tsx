@@ -118,6 +118,7 @@ export default function PartnerRoutes() {
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
         <Route path="security" element={<AccountSecurityPage />} />
+        <Route path="account/security" element={<AccountSecurityPage />} />
 
         {/* =====================================================
             Availability

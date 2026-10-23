@@ -69,14 +69,13 @@ const RecaptchaNotice: React.FC<RecaptchaCheckboxProps> = ({ onTokenChange, rese
   }, [onTokenChange, resetKey]);
 
   return (
-    <div className={`rounded-lg border p-4 text-sm ${state === 'verified' ? 'border-green-300 bg-green-50' : state === 'unavailable' || state === 'unconfigured' ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50'}`} aria-live="polite">
-      <div className="flex items-start gap-2.5">
-      <span className="mt-0.5 text-slate-700" aria-hidden="true">
+    <div className={`recaptcha-notice recaptcha-notice--${state}`} aria-live="polite">
+      <span className="recaptcha-notice__icon" aria-hidden="true">
         {state === 'loading' ? <LoaderCircle size={16} className="animate-spin" /> : state === 'unavailable' || state === 'unconfigured' ? <AlertCircle size={16} /> : <ShieldCheck size={17} />}
       </span>
-      <span className="flex flex-col gap-0.5 text-slate-800">
+      <span className="recaptcha-notice__copy">
         <strong>{state === 'unconfigured' ? 'reCAPTCHA setup required' : state === 'unavailable' ? 'CAPTCHA is unavailable' : state === 'verified' ? 'Security check complete' : 'Complete the security check'}</strong>
-        <small className="text-xs text-slate-600">
+        <small>
           {state === 'unconfigured'
             ? 'Add the reCAPTCHA v2 checkbox site key to frontend/.env and restart the frontend.'
             : state === 'unavailable'
@@ -84,9 +83,8 @@ const RecaptchaNotice: React.FC<RecaptchaCheckboxProps> = ({ onTokenChange, rese
               : state === 'verified' ? 'You can submit the form now.' : 'Select the checkbox to confirm you are human.'}
         </small>
       </span>
-      </div>
-      <div ref={hostRef} className={isRecaptchaConfigured ? "mt-3 min-h-[78px] overflow-x-auto" : "hidden"} />
-      <span className="mt-2 flex gap-1.5 text-xs text-slate-500 [&_a]:underline">
+      <div ref={hostRef} className="recaptcha-notice__widget" />
+      <span className="recaptcha-notice__links">
         <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Privacy</a>
         <span aria-hidden="true">·</span>
         <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer">Terms</a>

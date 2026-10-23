@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useContext } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   CalendarClock,
@@ -28,6 +28,9 @@ import {
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
 import { isCancelled, isFinished, LIFECYCLE, STATUS_LABEL, type JobStatus } from './jobStatus';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getPartnerServices } from '../MyServices/myServices.api';
 import '@/styles/partnerJobs.css';
 import './jobDetails.css';
 
@@ -96,6 +99,13 @@ export default function JobDetailsPage() {
   const location = useLocation();
   const online = useOnline();
 
+  const authCtx = useContext(AuthContext);
+  const storeUser = useAuthStore((s) => s.user) as any;
+  const user = authCtx?.user ?? storeUser;
+  const [partnerAssignedServices, setPartnerAssignedServices] = useState<
+    Array<{ id: string; name: string; slug: string }>
+  >([]);
+
   // /partner/jobs/:id  -> that job's details.
   // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
   const [viewMode, setViewMode] = useState<'list' | 'details'>(id ? 'details' : 'list');
@@ -121,18 +131,32 @@ export default function JobDetailsPage() {
     setState('loading');
     setListError(null);
     try {
+      let currentAssigned: Array<{ id: string; name: string; slug: string }> = [];
+      try {
+        const pServices = await getPartnerServices();
+        if (pServices?.approved && Array.isArray(pServices.selectedIds)) {
+          const selectedSet = new Set(pServices.selectedIds);
+          currentAssigned = pServices.approved.filter((s) => selectedSet.has(s.id));
+          setPartnerAssignedServices(currentAssigned);
+        }
+      } catch {
+        // Fallback or unauthenticated test mode
+      }
+
       let loadedJob: JobDetails | null = null;
       let catalog: JobDetails[];
       if (id) {
         const [fetchedJob, fetchedCatalog] = await Promise.all([
           fetchJob(id),
-          fetchAssignedServices().catch(() => [] as JobDetails[]),
+          fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned }).catch(
+            () => [] as JobDetails[],
+          ),
         ]);
         loadedJob = fetchedJob;
         catalog = fetchedCatalog;
       } else {
-        // The list screen needs only what is assigned to this partner. It must never load a demo job.
-        catalog = await fetchAssignedServices();
+        // The list screen needs only what is assigned to this partner.
+        catalog = await fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned });
       }
       setJob(loadedJob);
       setAssignedServices(catalog);
@@ -149,7 +173,7 @@ export default function JobDetailsPage() {
         setState('error');
       }
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     if (id) {
@@ -175,8 +199,11 @@ export default function JobDetailsPage() {
     if (acceptingId || !online) return;
     setAcceptingId(serviceId);
     try {
-      const accepted = await acceptAssignedService(serviceId);
-      const updatedCatalog = await fetchAssignedServices();
+      const accepted = await acceptAssignedService(serviceId, user?.id);
+      const updatedCatalog = await fetchAssignedServices({
+        userId: user?.id,
+        assignedServices: partnerAssignedServices,
+      });
       setAssignedServices(updatedCatalog);
       setJob(accepted);
       setStartHint(null);
@@ -194,7 +221,7 @@ export default function JobDetailsPage() {
     if (!online) return;
     setListError(null);
     try {
-      const remaining = await declineAssignedService(serviceId);
+      const remaining = await declineAssignedService(serviceId, user?.id);
       setAssignedServices(remaining);
     } catch (err) {
       setListError(getErrorMessage(err, 'Could not decline this service. Try again.'));
@@ -246,8 +273,12 @@ export default function JobDetailsPage() {
 
   const handleResetDemo = () => {
     if (!IS_MOCK_JOBS) return;
-    const fresh = resetMockPartnerJob(job?.id || id || 'BK-20418');
-    const freshCatalog = resetAllAssignedServices();
+    const fresh = resetMockPartnerJob(
+      job?.id || id || 'BK-20418',
+      user?.id,
+      partnerAssignedServices,
+    );
+    const freshCatalog = resetAllAssignedServices(user?.id, partnerAssignedServices);
     setAssignedServices(freshCatalog);
     setJob(fresh);
     setStartHint(null);

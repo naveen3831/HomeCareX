@@ -188,9 +188,16 @@ const toAddOns = (
   });
 };
 
-/** Finds the signed-in user's partner profile or throws 404. Never creates one. */
 async function getPartnerProfile(userId: string) {
-  const partner = await repo.findPartnerByUserId(userId);
+  let partner = await repo.findPartnerByUserId(userId);
+  if (!partner) {
+    try {
+      await ensurePartnerProfile(userId);
+      partner = await repo.findPartnerByUserId(userId);
+    } catch {
+      // ignore
+    }
+  }
   if (!partner) {
     throw Errors.notFound(
       ERROR_CODES.PARTNER_NOT_FOUND,
