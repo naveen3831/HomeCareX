@@ -81,7 +81,7 @@ async function findPartnerUser(
  * This fixes the TypeScript errors where
  * user._id / partner._id were being passed here.
  */
-async function ensurePartnerProfile(
+export async function ensurePartnerProfile(
   userId: string | Types.ObjectId,
 ) {
   /**

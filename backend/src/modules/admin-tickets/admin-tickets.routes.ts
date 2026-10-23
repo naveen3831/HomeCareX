@@ -15,15 +15,11 @@ import {
   updatePrioritySchema,
   updateStatusSchema,
 } from './admin-tickets.validation';
-import { ticketsController } from '../tickets/tickets.controller';
-import { attachmentIdSchema } from '../tickets/tickets.validation';
 
 /** Mounted at /api/v1/admin/tickets. Admin role + the `tickets:manage` permission. */
 export const adminTicketsRoutes = Router();
 
 adminTicketsRoutes.use(authenticate, requireAdmin, requirePermission(TICKETS_MANAGE));
-adminTicketsRoutes.get('/:id/attachments/:attachmentId', validate(attachmentIdSchema, 'params'), asyncHandler(ticketsController.evidence));
-
 // GET /admin/tickets?status=&priority=&category=&assignee=&requester=&requesterRole=&booking=&sla=&from=&to=&page=&limit=
 // One queue for customer AND partner tickets. status/priority/category accept comma lists (status=open,in_progress).
 adminTicketsRoutes.get(

@@ -144,6 +144,7 @@ async function main() {
       customerId: customer._id,
       partnerId,
       categoryId: s.categoryId,
+      serviceId: s.id,
       serviceName: s.name,
       customerName: customer.name,
       status,

@@ -13,6 +13,39 @@ export const NOTIFICATION_TYPES = [
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+export const NOTIFICATION_GROUPS = [
+  'booking',
+  'payment',
+  'partner',
+  'offers',
+  'support',
+  'system',
+] as const;
+
+export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
+
+const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
+  ...NOTIFICATION_TYPES,
+  'payment.succeeded',
+  'payment.failed',
+  'offer.new',
+]);
+
+export function groupOf(type: string): NotificationGroup {
+  if (type.startsWith('booking.')) return 'booking';
+  if (
+    type.startsWith('payment.') ||
+    type === 'payout.processed' ||
+    type === 'refund.updated'
+  ) {
+    return 'payment';
+  }
+  if (type.startsWith('partner.')) return 'partner';
+  if (type.startsWith('offer.')) return 'offers';
+  if (type.startsWith('ticket.')) return 'support';
+  return 'system';
+}
+
 /** Socket.IO event the clients listen for. */
 export const NOTIFICATION_SOCKET_EVENT = 'notification:new';
 

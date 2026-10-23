@@ -18,6 +18,10 @@ const BOOKING_STATUS_OPTIONS: Array<{
   label: string;
 }> = [
   {
+    value: "confirmed",
+    label: "Confirmed",
+  },
+  {
     value: "created",
     label: "Pending",
   },

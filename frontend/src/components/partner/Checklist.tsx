@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { persistChecklistItem, getErrorMessage } from '@/pages/partner/JobDetails/jobDetails.api';
 import type { JobChecklistItem } from '@/pages/partner/JobDetails/jobDetails.types';
+import './checklist.css';
 
 export interface ChecklistProps {
   jobId: string;
@@ -76,8 +77,8 @@ export const Checklist: React.FC<ChecklistProps> = ({
 
   if (localItems.length === 0) {
     return (
-      <div className={`checklist-empty rounded border border-dashed border-line p-4 text-center ${className}`}>
-        <p className="text-sm text-muted">No checklist items for this service.</p>
+      <div className={`checklist-empty ${className}`}>
+        <p>No checklist items for this service.</p>
       </div>
     );
   }
@@ -92,7 +93,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
         </span>
       </div>
 
-      <ul className="checklist-items space-y-2.5" aria-label="Service task checklist">
+      <ul className="checklist-items" aria-label="Service task checklist">
         {localItems.map((item) => {
           const isPending = pendingIds.has(item.id);
           const hasError = Boolean(errorMap[item.id]);
@@ -101,35 +102,35 @@ export const Checklist: React.FC<ChecklistProps> = ({
           return (
             <li
               key={item.id}
-              className={`checklist-row flex flex-col py-1 transition-opacity ${
+              className={`checklist-row ${item.done ? 'checklist-row-done' : ''} ${
                 isPending ? 'opacity-70' : ''
               }`}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="checklist-line">
                 <input
                   id={inputId}
                   type="checkbox"
                   checked={item.done}
                   disabled={readOnly || isPending}
                   onChange={() => void handleToggle(item)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#4338ca] accent-[#4338ca] focus:ring-[#4338ca] focus:ring-2 focus:ring-offset-1 cursor-pointer disabled:cursor-not-allowed"
+                  className="checklist-box"
                   aria-describedby={hasError ? `error-${item.id}` : undefined}
                 />
                 <label
                   htmlFor={inputId}
-                  className="text-[13.5px] select-none cursor-pointer flex-1 text-slate-700 font-normal leading-snug"
+                  className="checklist-label"
                 >
                   {item.label}
                 </label>
                 {isPending && (
-                  <span className="text-xs text-[#4338ca] animate-pulse" aria-live="polite">
+                  <span className="checklist-saving" aria-live="polite">
                     Saving…
                   </span>
                 )}
               </div>
 
               {hasError && (
-                <p id={`error-${item.id}`} className="mt-1.5 text-xs text-red-600 pl-8" role="alert">
+                <p id={`error-${item.id}`} className="checklist-error" role="alert">
                   {errorMap[item.id]}
                 </p>
               )}
