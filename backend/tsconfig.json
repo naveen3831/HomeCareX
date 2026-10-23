@@ -17,13 +17,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": [
-    "src/**/*.test.ts",
-    "src/modules/tickets-backup/**/*",
-    "src/modules/tickets/tickets.service.ts",
-    "src/modules/tickets/tickets.upload.ts",
-    "src/modules/pricing/pricing.admin.service.ts",
-    "src/scripts/seed-partner-reviews.ts"
-  ]
+  "include": ["src/**/*"]
 }

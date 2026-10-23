@@ -12,11 +12,81 @@ import { Errors } from '../../utils/errors';
 import { HttpError } from '../auth/auth.types';
 import { designationsService } from '../designations/designations.service';
 import { mailService } from '../../services/mail.service';
+import { auditService } from '../audit/audit.service';
 
 import type {
   CreatePartnerInput,
   UpdatePartnerInput,
 } from './partners.validation';
+
+interface AuditActor {
+  id: string;
+  ip: string;
+}
+
+/**
+ * ---------------------------------------------------------
+ * SAFE PARTNER AUDIT SNAPSHOT
+ * ---------------------------------------------------------
+ *
+ * Nullable fields match the User model.
+ * Never include passwords, password hashes, or tokens.
+ */
+function partnerAuditSnapshot(user: {
+  _id: unknown;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  gender?: string | null;
+  designation?: string | null;
+  status?: string | null;
+  createdAt?: Date | null;
+}) {
+  return {
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    gender: user.gender,
+    designation: user.designation,
+    status: user.status,
+    createdAt: user.createdAt,
+  };
+}
+
+/**
+ * ---------------------------------------------------------
+ * PARTNER AUDIT HELPER
+ * ---------------------------------------------------------
+ *
+ * A failed audit insert must not undo a successful
+ * partner operation. Log the failure for reconciliation.
+ */
+async function recordPartnerAudit(input: {
+  actor: AuditActor;
+  action: string;
+  entityId: string;
+  before: unknown;
+  after: unknown;
+}): Promise<void> {
+  try {
+    await auditService.recordAudit({
+      actor: input.actor.id,
+      action: input.action,
+      entity: 'Partner',
+      entityId: input.entityId,
+      before: input.before,
+      after: input.after,
+      ip: input.actor.ip,
+      result: 'Success',
+    });
+  } catch (error) {
+    console.error(
+      `[partners] Audit write failed: ${input.action}, partner ${input.entityId}, admin ${input.actor.id}`,
+      error,
+    );
+  }
+}
 
 /**
  * ---------------------------------------------------------
@@ -26,15 +96,13 @@ import type {
 async function canonicalDesignation(
   name: string,
 ): Promise<string> {
-  const found =
-    await designationsService.canonical(name);
+  const found = await designationsService.canonical(name);
 
   if (!found) {
     throw Errors.validation([
       {
         field: 'designation',
-        message:
-          'Select a designation from the list',
+        message: 'Select a designation from the list',
       },
     ]);
   }
@@ -47,14 +115,11 @@ async function canonicalDesignation(
  * FIND PARTNER USER
  * ---------------------------------------------------------
  */
-async function findPartnerUser(
-  id: string,
-) {
-  const user =
-    await UserModel.findOne({
-      _id: id,
-      role: 'partner',
-    });
+async function findPartnerUser(id: string) {
+  const user = await UserModel.findOne({
+    _id: id,
+    role: 'partner',
+  });
 
   if (!user) {
     throw new HttpError(
@@ -71,24 +136,10 @@ async function findPartnerUser(
  * ---------------------------------------------------------
  * ENSURE PARTNER PROFILE
  * ---------------------------------------------------------
- *
- * IMPORTANT:
- * Mongoose gives us an ObjectId for _id.
- *
- * This method therefore accepts either:
- *
- * - string
- * - ObjectId
- *
- * This fixes the TypeScript errors where
- * user._id / partner._id were being passed here.
  */
 export async function ensurePartnerProfile(
   userId: string | Types.ObjectId,
 ) {
-  /**
-   * Always normalize the value to a real ObjectId.
-   */
   const normalizedUserId =
     userId instanceof Types.ObjectId
       ? userId
@@ -148,6 +199,37 @@ export async function ensurePartnerProfile(
   }
 
   return partner;
+  return PartnerModel.findOneAndUpdate(
+    {
+      userId: normalizedUserId,
+    },
+    {
+      $setOnInsert: {
+        userId: normalizedUserId,
+        categories: [],
+        skills: [],
+        serviceRadiusKm: 10,
+        ratingAvg: 0,
+        ratingCount: 0,
+        stats: {
+          offersReceived: 0,
+          offersAccepted: 0,
+          jobsAssigned: 0,
+          jobsCompleted: 0,
+        },
+        kyc: {
+          status: 'not_started',
+          documents: [],
+        },
+        trainingCompleted: false,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      setDefaultsOnInsert: true,
+    },
+  );
 }
 
 /**
@@ -157,27 +239,18 @@ export async function ensurePartnerProfile(
  */
 export class PartnersService {
   /**
-   * -------------------------------------------------------
    * CREATE PARTNER
-   * -------------------------------------------------------
    */
   async create(
     input: CreatePartnerInput,
+    actor: AuditActor,
   ) {
-    /**
-     * Check duplicate email/phone.
-     */
-    const duplicate =
-      await UserModel.exists({
-        $or: [
-          {
-            email: input.email,
-          },
-          {
-            phone: input.phone,
-          },
-        ],
-      });
+    const duplicate = await UserModel.exists({
+      $or: [
+        { email: input.email },
+        { phone: input.phone },
+      ],
+    });
 
     if (duplicate) {
       throw new HttpError(
@@ -187,54 +260,40 @@ export class PartnersService {
       );
     }
 
-    /**
-     * Validate designation.
-     */
-    const designation =
-      await canonicalDesignation(
-        input.designation,
-      );
+    const designation = await canonicalDesignation(
+      input.designation,
+    );
+
+    const partner = await UserModel.create({
+      name: input.name,
+      email: input.email,
+      phone: input.phone,
+      gender: input.gender,
+      designation,
+      passwordHash: await bcrypt.hash(input.password, 12),
+      role: 'partner',
+    });
 
     /**
-     * Create partner User.
-     */
-    const partner =
-      await UserModel.create({
-        name: input.name,
-
-        email: input.email,
-
-        phone: input.phone,
-
-        gender: input.gender,
-
-        designation,
-
-        passwordHash:
-          await bcrypt.hash(
-            input.password,
-            12,
-          ),
-
-        role: 'partner',
-      });
-
-    /**
-     * Create Partner profile.
-     *
-     * If profile creation fails, remove the newly
-     * created User so we don't leave an incomplete
-     * partner account.
+     * Roll back User creation if profile creation fails.
      */
     try {
-      await ensurePartnerProfile(
-        partner._id,
-      );
+      await ensurePartnerProfile(partner._id);
     } catch (error) {
       await partner.deleteOne();
-
       throw error;
     }
+
+    /**
+     * Audit successful partner creation.
+     */
+    await recordPartnerAudit({
+      actor,
+      action: 'partner.created',
+      entityId: String(partner._id),
+      before: null,
+      after: partnerAuditSnapshot(partner),
+    });
 
     /**
      * Send partner credentials email.
@@ -266,68 +325,53 @@ export class PartnersService {
   }
 
   /**
-   * -------------------------------------------------------
    * LIST PARTNERS
-   * -------------------------------------------------------
    */
   async list() {
-    const partners =
-      await UserModel.find({
-        role: 'partner',
-      })
-        .sort({
-          createdAt: -1,
-        })
-        .limit(500);
+    const partners = await UserModel.find({
+      role: 'partner',
+    })
+      .sort({ createdAt: -1 })
+      .limit(500);
 
     /**
-     * Repair old partner Users that don't yet have
-     * a Partner profile.
+     * Repair old partner Users missing a Partner profile.
      */
     for (const partner of partners) {
-      await ensurePartnerProfile(
-        partner._id,
-      );
+      await ensurePartnerProfile(partner._id);
     }
 
     return partners.map(toDto);
   }
 
   /**
-   * -------------------------------------------------------
    * UPDATE PARTNER
-   * -------------------------------------------------------
    */
   async update(
     id: string,
     input: UpdatePartnerInput,
+    actor: AuditActor,
   ) {
-    const user =
-      await findPartnerUser(id);
+    const user = await findPartnerUser(id);
 
     /**
-     * Make sure the partner profile exists.
+     * Capture the original state before modifications.
      */
-    await ensurePartnerProfile(
-      user._id,
-    );
+    const before = partnerAuditSnapshot(user);
+
+    await ensurePartnerProfile(user._id);
 
     /**
-     * -----------------------------------------------------
      * EMAIL
-     * -----------------------------------------------------
      */
     if (
       input.email !== undefined &&
       input.email !== user.email
     ) {
-      const duplicate =
-        await UserModel.exists({
-          email: input.email,
-          _id: {
-            $ne: user._id,
-          },
-        });
+      const duplicate = await UserModel.exists({
+        email: input.email,
+        _id: { $ne: user._id },
+      });
 
       if (duplicate) {
         throw new HttpError(
@@ -337,26 +381,20 @@ export class PartnersService {
         );
       }
 
-      user.email =
-        input.email;
+      user.email = input.email;
     }
 
     /**
-     * -----------------------------------------------------
      * PHONE
-     * -----------------------------------------------------
      */
     if (
       input.phone !== undefined &&
       input.phone !== user.phone
     ) {
-      const duplicate =
-        await UserModel.exists({
-          phone: input.phone,
-          _id: {
-            $ne: user._id,
-          },
-        });
+      const duplicate = await UserModel.exists({
+        phone: input.phone,
+        _id: { $ne: user._id },
+      });
 
       if (duplicate) {
         throw new HttpError(
@@ -366,85 +404,79 @@ export class PartnersService {
         );
       }
 
-      user.phone =
-        input.phone;
+      user.phone = input.phone;
     }
 
     /**
-     * -----------------------------------------------------
      * BASIC DETAILS
-     * -----------------------------------------------------
      */
-    if (
-      input.name !== undefined
-    ) {
-      user.name =
-        input.name;
+    if (input.name !== undefined) {
+      user.name = input.name;
     }
 
-    if (
-      input.gender !== undefined
-    ) {
-      user.gender =
-        input.gender;
+    if (input.gender !== undefined) {
+      user.gender = input.gender;
     }
 
-    if (
-      input.designation !== undefined
-    ) {
-      user.designation =
-        await canonicalDesignation(
-          input.designation,
-        );
+    if (input.designation !== undefined) {
+      user.designation = await canonicalDesignation(
+        input.designation,
+      );
     }
 
     /**
-     * -----------------------------------------------------
      * ACCOUNT STATUS
-     * -----------------------------------------------------
      */
     if (
       input.status !== undefined &&
       input.status !== user.status
     ) {
-      user.status =
-        input.status;
+      user.status = input.status;
 
       /**
-       * Immediately invalidate existing sessions
-       * when the partner is blocked.
+       * Invalidate existing sessions when blocking a partner.
        */
-      if (
-        input.status === 'blocked'
-      ) {
-        user.tokenVersion =
-          (user.tokenVersion ?? 0) + 1;
+      if (input.status === 'blocked') {
+        user.tokenVersion = (user.tokenVersion ?? 0) + 1;
       }
     }
 
     await user.save();
 
+    /**
+     * Audit the successful update with before/after snapshots.
+     */
+    await recordPartnerAudit({
+      actor,
+      action: 'partner.updated',
+      entityId: String(user._id),
+      before,
+      after: partnerAuditSnapshot(user),
+    });
+
     return toDto(user);
   }
 
   /**
-   * -------------------------------------------------------
    * REMOVE PARTNER
-   * -------------------------------------------------------
    */
   async remove(
     id: string,
-  ) {
-    const user =
-      await findPartnerUser(id);
+    actor: AuditActor,
+  ): Promise<void> {
+    const user = await findPartnerUser(id);
 
-    const profile =
-      await PartnerModel.findOne(
-        {
-          userId: user._id,
-        },
-        '_id',
-      ).lean();
+    /**
+     * Capture the original state before deletion.
+     */
+    const before = partnerAuditSnapshot(user);
+
+    const profile = await PartnerModel.findOne(
+      {
+        userId: user._id,
+      },
+      '_id',
+    ).lean();
 
     /**
      * Don't delete partners with booking history.
@@ -452,8 +484,7 @@ export class PartnersService {
     if (
       profile &&
       (await BookingModel.exists({
-        partnerId:
-          profile._id,
+        partnerId: profile._id,
       }))
     ) {
       throw new HttpError(
@@ -476,18 +507,24 @@ export class PartnersService {
     ]);
 
     await user.deleteOne();
+
+    /**
+     * Audit the successful deletion.
+     */
+    await recordPartnerAudit({
+      actor,
+      action: 'partner.deleted',
+      entityId: String(user._id),
+      before,
+      after: null,
+    });
   }
 
   /**
-   * -------------------------------------------------------
    * STATS
-   * -------------------------------------------------------
    */
   async stats() {
-    const [
-      partners,
-      customers,
-    ] = await Promise.all([
+    const [partners, customers] = await Promise.all([
       UserModel.countDocuments({
         role: 'partner',
       }),
@@ -514,19 +551,12 @@ function toDto(
 ) {
   return {
     id: u.id,
-
     name: u.name,
-
     email: u.email,
-
     phone: u.phone,
-
     gender: u.gender,
-
     designation: u.designation,
-
     status: u.status,
-
     createdAt: u.createdAt,
   };
 }
@@ -536,5 +566,4 @@ function toDto(
  * EXPORT SERVICE
  * ---------------------------------------------------------
  */
-export const partnersService =
-  new PartnersService();
+export const partnersService = new PartnersService();

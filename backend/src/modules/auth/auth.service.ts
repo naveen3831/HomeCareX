@@ -18,6 +18,9 @@ import type {
   ResendOtpInput,
   ResetPasswordInput,
   VerifyOtpInput,
+  InviteStaffInput,
+  VerifyInviteInput,
+  AcceptInviteInput,
 } from './auth.validation';
 import type { UserRole } from '../../models/User';
 import mongoose, { Types } from 'mongoose';
@@ -25,27 +28,32 @@ import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { ensurePartnerProfile } from '../partners/partners.service';
+import UserModel, { type UserRole } from '../../models/User';
+import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
- 
+
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET || `${accessSecret()}_refresh`;
- 
+
 const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
 const RESET_TOKEN_TTL_MINUTES = 15;
 const RESEND_COOLDOWN_MS = 30_000;
- 
+const INVITE_TTL_HOURS = 48;
+
+const invalidInvite = () => new HttpError(400, 'This invite link is invalid or has expired.', 'INVALID_INVITE_TOKEN');
+
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
   if (!local || !domain) return '***';
   const visible = local.length <= 2 ? `${local[0]}*` : `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}`;
   return `${visible}@${domain}`;
 }
- 
+
 function generateSecureOtp(): string {
   return crypto.randomInt(100000, 1000000).toString();
 }
- 
+
 function hashSecret(val: string): string {
   return crypto.createHash('sha256').update(val).digest('hex');
 }
@@ -111,6 +119,9 @@ function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) 
     v: sessionTokenVersion !== undefined ? sessionTokenVersion : (user.tokenVersion ?? 0),
     ...(sid ? { sid } : {}),
   };
+function issueTokens(user: UserDoc) {
+  const access: AccessTokenPayload = { sub: user.id, role: user.role as UserRole };
+  const refresh: RefreshTokenPayload = { sub: user.id, v: user.tokenVersion };
   return {
     accessToken: jwt.sign(access, accessSecret(), { expiresIn: ACCESS_TOKEN_TTL }),
     refreshToken: jwt.sign(refresh, refreshSecret(), { expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d` }),
@@ -118,7 +129,7 @@ function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) 
 }
 
 const sessionExpired = (code: string) => new HttpError(401, 'Your session has expired. Please log in again.', code);
- 
+
 export const authService = {
   async login({ email, password }: LoginInput, sessionInfo?: { ip?: string; userAgent?: string }) {
     const user = await authRepository.findByEmailWithPassword(email);
@@ -307,6 +318,8 @@ export const authService = {
       }
     }
 
+    });
+
     try {
       await mailService.sendAccountCreatedEmail({
         name: user.name,
@@ -398,6 +411,7 @@ export const authService = {
   },
 
   /** Logout ends the caller session, or every session for legacy/test tokens. */
+  /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
@@ -622,6 +636,11 @@ export const authService = {
     const user = await authRepository.findById(targetUserId);
     if (!user) {
       throw new HttpError(404, 'User not found', 'USER_NOT_FOUND');
+  verifyAccessToken(token: string): AccessTokenPayload {
+    try {
+      return jwt.verify(token, accessSecret()) as AccessTokenPayload;
+    } catch {
+      throw sessionExpired('INVALID_ACCESS_TOKEN');
     }
 
     if (Array.isArray((user as any).sessions)) {
@@ -639,25 +658,25 @@ export const authService = {
       message: 'All sessions for this user have been revoked',
     };
   },
- 
+
   async me(userId: string) {
     const user = await authRepository.findById(userId);
     if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
     return toAuthUser(user);
   },
- 
+
   /** Generates and dispatches a secure 6-digit OTP for password reset. */
   async forgotPassword({ email }: ForgotPasswordInput) {
     const normalizedEmail = email.trim().toLowerCase();
     const user = await authRepository.findByEmail(normalizedEmail);
- 
+
     if (user && user.status !== 'blocked') {
       await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
- 
+
       const otp = generateSecureOtp();
       const hashedCode = hashSecret(otp);
       const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
- 
+
       await authRepository.createOtp({
         userId: user.id,
         identifier: user.email,
@@ -665,11 +684,11 @@ export const authService = {
         purpose: 'PASSWORD_RESET',
         expiresAt,
       });
- 
+
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[DEV ONLY] Password reset OTP generated for ${maskEmail(user.email)}: ${otp}`);
       }
- 
+
       try {
         await mailService.sendPasswordResetOtpEmail({
           name: user.name,
@@ -680,18 +699,18 @@ export const authService = {
         console.error('Password-reset OTP email failed for user', user.id, err);
       }
     }
- 
+
     // Critical security: Generic message to prevent account enumeration
     return {
       success: true,
       message: 'If an account exists, a verification code has been sent.',
     };
   },
- 
+
   /** Resends an OTP with rate-limiting cooldown and anti-enumeration protection. */
   async resendOtp({ email }: ResendOtpInput) {
     const normalizedEmail = email.trim().toLowerCase();
- 
+
     // Enforce 30-second cooldown per identifier
     const latestOtp = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
     if (latestOtp && (latestOtp as { createdAt?: Date }).createdAt) {
@@ -700,16 +719,16 @@ export const authService = {
         throw new HttpError(429, 'Please wait 30 seconds before requesting another code.', 'RATE_LIMITED');
       }
     }
- 
+
     const user = await authRepository.findByEmail(normalizedEmail);
- 
+
     if (user && user.status !== 'blocked') {
       await authRepository.invalidateActiveOtps(user.email, 'PASSWORD_RESET');
- 
+
       const otp = generateSecureOtp();
       const hashedCode = hashSecret(otp);
       const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
- 
+
       await authRepository.createOtp({
         userId: user.id,
         identifier: user.email,
@@ -717,11 +736,11 @@ export const authService = {
         purpose: 'PASSWORD_RESET',
         expiresAt,
       });
- 
+
       if (process.env.NODE_ENV !== 'production') {
         console.log(`[DEV ONLY] Password reset OTP generated for ${maskEmail(user.email)}: ${otp}`);
       }
- 
+
       try {
         await mailService.sendPasswordResetOtpEmail({
           name: user.name,
@@ -732,65 +751,65 @@ export const authService = {
         console.error('Password-reset OTP email failed for user', user.id, err);
       }
     }
- 
+
     return {
       success: true,
       message: 'If an account exists, a verification code has been sent.',
     };
   },
- 
+
   /** Verifies a 6-digit OTP, marks it used, and returns a single-use reset token. */
   async verifyOtp({ email, otp }: VerifyOtpInput) {
     const normalizedEmail = email.trim().toLowerCase();
     const cleanedOtp = otp.trim();
- 
+
     if (!/^\d{6}$/.test(cleanedOtp)) {
       throw new HttpError(400, 'Enter a valid 6-digit verification code.', 'INVALID_OTP_FORMAT');
     }
- 
+
     const otpDoc = await authRepository.findLatestOtp(normalizedEmail, 'PASSWORD_RESET');
- 
+
     if (!otpDoc || otpDoc.expiresAt <= new Date()) {
       throw new HttpError(400, 'This verification code has expired. Please request a new code.', 'OTP_EXPIRED');
     }
- 
+
     if (otpDoc.usedAt) {
       throw new HttpError(400, 'This verification code has already been used. Please request a new code.', 'OTP_ALREADY_USED');
     }
- 
+
     if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
       throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
     }
- 
+
     const submittedHash = hashSecret(cleanedOtp);
     if (submittedHash !== otpDoc.hashedCode) {
       otpDoc.attempts += 1;
       await otpDoc.save();
- 
+
       if (otpDoc.attempts >= MAX_OTP_ATTEMPTS) {
         throw new HttpError(400, 'Too many attempts. Please request a new code.', 'TOO_MANY_ATTEMPTS');
       }
- 
+
       throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
     }
- 
+
     // Mark OTP as single-use consumed
     otpDoc.usedAt = new Date();
     await otpDoc.save();
- 
+
     const user = await authRepository.findByEmail(normalizedEmail);
     if (!user || user.status === 'blocked') {
       throw new HttpError(400, 'The verification code is invalid. Please try again.', 'INVALID_OTP');
     }
- 
+
     // Issue single-use password reset token with short TTL
     const rawResetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenHash = hashSecret(rawResetToken);
- 
+
     user.passwordResetTokenHash = resetTokenHash;
     user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
     await user.save();
- 
+
     return {
       success: true,
       resetToken: rawResetToken,
@@ -799,20 +818,142 @@ export const authService = {
     };
   },
 
+  /**
+   * Admin: invites a teammate. Creates the account in "invited" state with no usable password,
+   * stores only the SHA-256 hash of a single-use token, and emails the accept-invite link.
+   * Inviting an address that is still "invited" re-sends a fresh link.
+   */
+  async inviteStaff({ name, email, roleId }: InviteStaffInput, invitedBy?: string) {
+    const existing = await authRepository.findByEmail(email);
+    if (existing && existing.status !== 'invited') {
+      throw new HttpError(
+        409,
+        'Someone with this email already has an account.',
+        'EMAIL_TAKEN',
+      );
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const inviteTokenHash = hashSecret(rawToken);
+    const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 3_600_000);
+
+    let user: { id: string; name: string; email: string };
+    if (existing) {
+      existing.name = name;
+      existing.inviteTokenHash = inviteTokenHash;
+      existing.inviteExpiresAt = inviteExpiresAt;
+      await existing.save();
+      user = { id: String(existing._id), name: existing.name, email: existing.email };
+    } else {
+      // Random, never-disclosed password: nobody can log in until the invite is accepted.
+      const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+      const created = await authRepository.create({
+        name,
+        email,
+        passwordHash: unusable,
+        role: 'admin',
+        status: 'invited',
+        inviteTokenHash,
+        inviteExpiresAt,
+      });
+      user = { id: String(created._id), name: created.name, email: created.email };
+    }
+
+    // The team record (role, status, who invited) lives in the `staff` collection; `users` only holds the login.
+    await StaffModel.findOneAndUpdate(
+      { userId: user.id },
+      { $set: { name, email, roleId, status: 'invited', ...(invitedBy ? { invitedBy } : {}) } },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+
+    const inviter = invitedBy ? await authRepository.findById(invitedBy) : null;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteUrl = `${frontendUrl}/accept-invite?token=${rawToken}`;
+
+    let emailSent = true;
+    try {
+      await mailService.sendStaffInviteEmail({ name, email, inviteUrl, invitedBy: inviter?.name });
+    } catch (err) {
+      emailSent = false;
+      console.error('Staff invite email failed for user', user.id, err);
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      console.info(`[DEV ONLY] Staff invite link for ${maskEmail(email)}: ${inviteUrl}`);
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      roleId,
+      roleName: 'Admin',
+      status: 'invited' as const,
+      lastLoginAt: null,
+      emailSent,
+    };
+  },
+
+  /** Public: lets the accept-invite page greet the person before they set a password. */
+  async verifyInvite({ token }: VerifyInviteInput) {
+    const user = await authRepository.findByInviteTokenHash(hashSecret(token));
+    if (!user) throw invalidInvite();
+    return { name: user.name, email: user.email };
+  },
+
+  /** Public: consumes the single-use invite token, sets the password and activates the account. */
+  async acceptInvite({ token, password }: AcceptInviteInput) {
+    const user = await authRepository.findByInviteTokenHash(hashSecret(token));
+    if (!user) throw invalidInvite();
+
+    user.passwordHash = await bcrypt.hash(password, 12);
+    user.status = 'active';
+    user.inviteTokenHash = undefined;
+    user.inviteExpiresAt = undefined;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    user.failedLogins = 0;
+    user.lockedUntil = undefined;
+    await user.save();
+    await StaffModel.updateOne({ userId: user.id }, { $set: { status: 'active' } });
+
+    return {
+      email: user.email,
+      message: 'Your account is ready. Please log in with your new password.',
+    };
+  },
+
+  /** Changes password for an active user verifying current password. */
+  async changePassword(userId: string, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+    const user = await authRepository.findByIdWithPassword(userId);
+    if (!user || user.status === 'blocked') {
+      throw new HttpError(401, 'Unauthorized', 'UNAUTHORIZED');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isMatch) {
+      throw new HttpError(400, 'Current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+
+    return { changed: true };
+  },
+
   /** Consumes the single-use reset token, resets password, and revokes all active sessions. */
   async resetPassword({ resetToken, token, newPassword }: ResetPasswordInput) {
     const tokenToVerify = (resetToken || token)?.trim();
     if (!tokenToVerify) {
       throw new HttpError(400, 'Reset token is required.', 'INVALID_RESET_TOKEN');
     }
- 
+
     const tokenHash = hashSecret(tokenToVerify);
     const user = await authRepository.findByResetTokenHash(tokenHash);
- 
+
     if (!user || user.status === 'blocked') {
       throw new HttpError(400, 'This password reset link is invalid or has expired.', 'INVALID_RESET_TOKEN');
     }
- 
+
     const passwordHash = await bcrypt.hash(newPassword, 12);
     user.passwordHash = passwordHash;
     user.passwordResetTokenHash = undefined;
@@ -821,12 +962,10 @@ export const authService = {
     user.failedLogins = 0;
     user.lockedUntil = undefined;
     await user.save();
- 
+
     return {
       success: true,
       message: 'Your password has been reset successfully. Please log in with your new password.',
     };
   },
 };
- 
- 

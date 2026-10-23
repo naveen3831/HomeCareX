@@ -20,7 +20,7 @@ const LIVE_STATUSES: ReadonlySet<string> = new Set([
   "arrived",
   "in_progress",
 ]);
-const LIVE_REFRESH_MS = 5_000;
+const LIVE_REFRESH_MS = 15_000;
 
 /** Network failures and 5xx are worth another try; 404 / 400 / 401 are answers, not glitches. */
 const retryTransientOnly = (
@@ -34,17 +34,14 @@ export function useBooking(id: string | undefined) {
     queryKey: bookingDetailKey(id ?? ""),
     queryFn: ({ signal }) => bookingApi.getBookingDetail(id as string, signal),
     enabled: Boolean(id),
-    staleTime: 4_000,
+    staleTime: 10_000,
     retry: retryTransientOnly,
-    refetchInterval: (query) => {
-      const status = String(query.state.data?.status || "").toLowerCase();
-      return query.state.data && LIVE_STATUSES.has(status)
+    refetchInterval: (query) =>
+      query.state.data && LIVE_STATUSES.has(query.state.data.status)
         ? LIVE_REFRESH_MS
-        : false;
-    },
+        : false,
   });
 }
-
 
 interface DecideArgs {
   chargeId: string;

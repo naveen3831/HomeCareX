@@ -24,8 +24,6 @@ export interface CustomerNavItem {
   icon: LucideIcon;
   /** Match the exact path only (so a parent link isn't active on its children). */
   end?: boolean;
-  /** Extra path prefixes that should also mark this item active (e.g. the booking flow under Services). */
-  alsoActiveFor?: string[];
 }
 
 export interface CustomerNavGroup {
@@ -72,16 +70,12 @@ export const SIDEBAR_GROUPS: CustomerNavGroup[] = [
 ];
 
 /** Mobile bottom navigation — five tabs: Categories / Services / Home (centred) / My Bookings / Profile.
+ *  A tab is highlighted ONLY on its own page (exact match): the pages reached from a tab (service details,
+ *  the booking flow, booking details, Addresses, Wallet, Support…) light no tab at all.
  *  Everything else (Account, Support, Referrals…) lives on the Profile tab: see PROFILE_MENU_GROUPS. */
 export const BOTTOM_NAV_ITEMS: CustomerNavItem[] = [
-  { label: "Categories", to: customerPath("/categories"), icon: LayoutGrid },
-  {
-    label: "Services",
-    to: customerPath("/services"),
-    icon: Wrench,
-    // Booking a service is still "Services" territory.
-    alsoActiveFor: [customerPath("/book")],
-  },
+  { label: "Categories", to: customerPath("/categories"), icon: LayoutGrid, end: true },
+  { label: "Services", to: customerPath("/services"), icon: Wrench, end: true },
   { label: "Home", to: customerPath(), icon: Home, end: true },
   {
     label: "My Bookings",
@@ -106,6 +100,8 @@ export const BOTTOM_NAV_ITEMS: CustomerNavItem[] = [
       customerPath("/referrals"),
     ],
   },
+  { label: "My Bookings", to: customerPath("/bookings"), icon: CalendarCheck, end: true },
+  { label: "Profile", to: customerPath("/profile"), icon: User, end: true },
 ];
 
 /* ------------------------------------------------------------------ */

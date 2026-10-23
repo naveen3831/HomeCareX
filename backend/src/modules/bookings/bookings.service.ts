@@ -1,3 +1,34 @@
+import { createHash } from "crypto";
+import { notifyAdmins } from "../notifications";
+import { alertRefundRequested } from "../notifications/admin-alerts";
+import { Types } from "mongoose";
+import { AppError } from "../../utils/AppError";
+import {
+  addressesService,
+  type ResolvedAddress,
+} from "../addresses/addresses.service";
+import { bookingsRepository } from "./bookings.repository";
+import type { ListBookingsQuery } from "./bookings.query";
+import { bookingSettings } from "./bookings.settings";
+import { withSlotLock } from "./bookings.lock";
+import {
+  buildDetailView,
+  INTERNAL_KEYS,
+  type PaymentInfo,
+  type ServiceInfo,
+} from "./bookings.detail";
+import {
+  buildInvoiceData,
+  renderInvoiceHtml,
+  withPaymentRecord,
+} from "./bookings.invoice";
+import { PaymentModel } from "../../models/Payment";
+import {
+  applyTransition,
+  canTransition,
+  type StatusHistoryEntry,
+} from "./bookings.stateMachine";
+import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
@@ -19,13 +50,19 @@ import {
   START_OTP_STATUS,
   type BookingStatus,
 } from './bookings.constants';
+import {
+  applyTransition,
+  canTransition,
+  type StatusHistoryEntry,
+} from './bookings.stateMachine';
+import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
-import { addDays, isRealDate, nowInBookingTz, slotStartMinutes } from './bookings.time';
+import { addDays, hasSlotStarted, isRealDate, nowInBookingTz, slotStartMinutes } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
 import { ServiceModel } from '../../models/Service';
-import { calculatePricing } from '../pricing/pricing.service';
-import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
-import { computeCancellation, type CancellationQuote } from './bookings.cancel';
+import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
+import { couponsService } from '../coupons/coupons.service';
+import { HttpError } from '../auth/auth.types';
 
 export interface SlotAvailability {
   slot: string;
@@ -58,11 +95,6 @@ function assertBookableDate(date: string): void {
   if (!isRealDate(date) || date < now.date || date > lastBookable) {
     throw new AppError(400, 'INVALID_DATE', `Pick a date between ${now.date} and ${lastBookable}`);
   }
-}
-
-function hasSlotStarted(date: string, slot: string): boolean {
-  const now = nowInBookingTz();
-  return date === now.date && slotStartMinutes(slot) <= now.minutes;
 }
 
 /** A mongoose document (or plain object) as a plain object. */
@@ -126,6 +158,8 @@ function toView(doc: { toObject?: () => Record<string, unknown> } | Record<strin
       : { ...(doc as Record<string, unknown>) };
   const rest = { ...obj };
   for (const key of INTERNAL_KEYS) delete rest[key];
+  for (const key of ['requestHash', 'idempotencyKey', 'slotSeat', '__v', 'otp']) delete rest[key];
+  if (!Array.isArray(rest.extraCharges)) rest.extraCharges = [];
   return rest;
 }
 
@@ -139,7 +173,8 @@ function bookingSlotStart(booking: { scheduledAt?: Date; date?: string; slot?: s
     return booking.scheduledAt;
   }
   if (booking.date && booking.slot) {
-    return slotStartDate(booking.date, booking.slot);
+    const d = slotStartDate(booking.date, booking.slot);
+    if (!Number.isNaN(d.getTime())) return d;
   }
   return new Date();
 }
@@ -147,6 +182,13 @@ function bookingSlotStart(booking: { scheduledAt?: Date; date?: string; slot?: s
 function isDuplicateKey(err: unknown, indexName: string): boolean {
   const e = err as { code?: number; message?: string };
   return e?.code === 11000 && String(e.message ?? '').includes(indexName);
+}
+
+export interface CancellationSummary extends CancellationQuote {
+  hoursUntilSlot?: number;
+  /** How the money goes back: a refund request the admin team processes, or none when nothing was paid. */
+  refundMethod: 'RAZORPAY' | null;
+  refundStatus: 'requested' | 'none';
 }
 
 export const BookingService = {
@@ -251,8 +293,26 @@ export const BookingService = {
       throw new AppError(400, 'VALIDATION_ERROR', 'Provide exactly one of addressId or newAddress');
     }
 
+    let coupon: { code: string; discount: number } | null = null;
     if (input.couponCode) {
-      throw new AppError(422, 'COUPON_INVALID', 'Coupons are not available yet. Remove the code to continue.');
+      try {
+        coupon = await couponsService.validate(
+          {
+            serviceId: input.serviceId,
+            quantity: input.quantity,
+            addOns: input.addOns,
+            date: input.date,
+            slot: input.slot,
+            couponCode: input.couponCode,
+          },
+          customerId,
+        );
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new AppError(422, toQuoteCouponCode(err.code ?? 'COUPON_INVALID'), err.message);
+        }
+        throw err;
+      }
     }
 
     const lines: PriceLine[] = [
@@ -267,11 +327,12 @@ export const BookingService = {
       ...addOnLines,
     ];
     // Same calculation as POST /pricing/quote, so the stored total is what the customer was shown.
-    const pricing = calculatePricing({ lines, slot: input.slot });
+    const pricing = calculatePricing({ lines, slot: input.slot, discount: coupon?.discount ?? 0 });
     const priceSnapshot: PriceSnapshot = {
       currency: 'INR',
       lines,
       ...pricing,
+      ...(coupon ? { couponCode: coupon.code } : {}),
       computedAt: new Date(),
     };
 
@@ -314,6 +375,7 @@ export const BookingService = {
           return bookingsRepository.create({
             customerId: new Types.ObjectId(customerId),
             serviceId: new Types.ObjectId(input.serviceId),
+             ...(row.categoryId ? { categoryId: row.categoryId } : {}),
             quantity: input.quantity,
             addOns: input.addOns.map((a) => ({
               addOnId: new Types.ObjectId(a.addOnId),
@@ -380,6 +442,74 @@ export const BookingService = {
           } as never);
         },
       );
+      // Tell the admins (bell, live). Fire-and-forget: a failed alert must never fail the booking.
+      void notifyAdmins("booking.created", {
+        bookingId: String((created as { _id?: unknown })._id ?? ""),
+        serviceId: input.serviceId,
+      }).catch(() => undefined);
+      const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
+        await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
+        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
+        if (seat === null) {
+          throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+        }
+        const createdBooking = await bookingsRepository.create({
+          customerId: new Types.ObjectId(customerId),
+          serviceId: new Types.ObjectId(input.serviceId),
+          quantity: input.quantity,
+          addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
+          addressSnapshot: {
+            ...addressSnapshot,
+            sourceAddressId: addressSnapshot.sourceAddressId ? new Types.ObjectId(addressSnapshot.sourceAddressId) : undefined,
+          },
+          // Fields read by the partner jobs/dashboard side (P02-P05).
+          serviceName: service.name,
+          address: {
+            line1: addressSnapshot.line1,
+            area: addressSnapshot.line2,
+            city: addressSnapshot.city,
+            pincode: addressSnapshot.pincode,
+            ...(addressSnapshot.location
+              ? { location: { type: 'Point', coordinates: [addressSnapshot.location.lng, addressSnapshot.location.lat] } }
+              : {}),
+          },
+          scheduledAt: slotStartDate(input.date, input.slot),
+          priceBreakdown: {
+            base: lines[0].amount,
+            addOns: pricing.addOnsTotal,
+            surge: pricing.surge,
+            discount: priceSnapshot.discount,
+            convenienceFee: priceSnapshot.convenienceFee,
+            tax: pricing.gst,
+            total: priceSnapshot.total,
+          },
+          date: input.date,
+          slot: input.slot,
+          priceSnapshot,
+          status: initialStatus,
+          paymentStatus: initialPaymentStatus,
+          statusHistory: [
+            {
+              from: null,
+              to: initialStatus,
+              at: now,
+              actorId: customerId,
+              actorRole: 'customer',
+              reason: requirePayment ? 'Booking created, awaiting payment' : 'Booking confirmed',
+            },
+          ],
+          slotSeat: seat,
+          idempotencyKey,
+          requestHash,
+          holdExpiresAt: requirePayment ? new Date(now.getTime() + BOOKING_HOLD_MS) : undefined,
+        } as never);
+
+        if (coupon) {
+          await couponsService.recordUsage(coupon.code, customerId, (createdBooking as any)._id?.toString());
+        }
+        return createdBooking;
+      });
+
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
       if (isDuplicateKey(err, 'uniq_customer_idem_key')) {
@@ -398,10 +528,25 @@ export const BookingService = {
    * that does not exist: both are 404, so ids can't be probed.
    */
   async getBooking(customerId: string, bookingId: string) {
-    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    let booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
     }
+
+    if (
+      booking.status === BOOKING_STATUS.PENDING_PAYMENT &&
+      booking.holdExpiresAt &&
+      new Date(booking.holdExpiresAt).getTime() <= Date.now()
+    ) {
+      await bookingsRepository.releaseStaleHolds(
+        booking.serviceId ? String(booking.serviceId) : undefined,
+        booking.date,
+        booking.slot,
+      );
+      const refreshed = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+      if (refreshed) booking = refreshed;
+    }
+
     const normalizedStatus = String(booking.status || '').toLowerCase();
     const isArrived =
       normalizedStatus === START_OTP_STATUS ||
@@ -482,7 +627,7 @@ export const BookingService = {
   /**
    * Fee and refund summary if the customer cancelled right now.
    */
-  async previewCancellation(customerId: string, bookingId: string) {
+  async previewCancellation(customerId: string, bookingId: string): Promise<CancellationSummary> {
     const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
@@ -507,8 +652,15 @@ export const BookingService = {
     };
   },
 
+  // Alias
+  async previewCancel(customerId: string, bookingId: string): Promise<CancellationSummary> {
+    return BookingService.previewCancellation(customerId, bookingId);
+  },
+
   /**
-   * Cancels the booking with a customer-supplied reason, atomically.
+   * Cancels the customer's booking. Order matters: the status moves first, atomically and through the
+   * state machine (so a double tap or a partner moving the job on cannot cancel twice or after in_progress),
+   * then the refund request is filed for the amount shown in the preview.
    */
   async cancelBooking(customerId: string, bookingId: string, reason: string) {
     const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
@@ -547,19 +699,37 @@ export const BookingService = {
       throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
     }
 
+    let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && paidRecord) {
-      await bookingsRepository.createRefundRequest({
-        payment: paidRecord,
-        bookingId,
-        customerId,
-        amount: quote.refundAmount,
-        reason,
-        now,
-      } as any);
+      try {
+        const refund = await bookingsRepository.createRefundRequest({
+          payment,
+        await bookingsRepository.createRefundRequest({
+          payment: paidRecord,
+          bookingId,
+          customerId,
+          amount: quote.refundAmount,
+          reason,
+          now,
+        });
+        refundStatus = "requested";
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
+        } as any);
+        refundStatus = 'requested';
+      } catch {
+        throw new AppError(
+          500,
+          'REFUND_REQUEST_FAILED',
+          'Your booking is cancelled, but we could not file the refund request. Please contact support.',
+        );
+      }
     }
 
     const updatedBooking = await BookingService.getBooking(customerId, bookingId);
-    const refundStatus = quote.refundAmount > 0 && paidRecord ? ('requested' as const) : ('none' as const);
     const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
 
     return {
@@ -574,7 +744,10 @@ export const BookingService = {
   },
 
   /**
-   * Reschedules the booking to a new date and slot.
+   * Moves the customer's booking to another date and slot. The new slot is re-checked while holding the
+   * same lock createBooking uses, so two customers can't take its last seat, then the booking is updated
+   * and a history entry is written. 404 for someone else's booking, 409 when the status doesn't allow it
+   * or the slot is gone.
    */
   async rescheduleBooking(
     customerId: string,
@@ -587,11 +760,20 @@ export const BookingService = {
     }
 
     if (!RESCHEDULABLE_STATUSES.includes(booking.status as BookingStatus)) {
-      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'This booking cannot be rescheduled in its current status');
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking can't be rescheduled while it is ${booking.status}`);
+    }
+
+    const serviceId = String((booking as any).serviceId?._id ?? (booking as any).serviceId);
+    if (!serviceId || !booking.date || !booking.slot) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has no slot that can be changed');
+    }
+
+    if (hasSlotStarted(booking.date, booking.slot)) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has already started');
     }
 
     if (booking.date === input.date && booking.slot === input.slot) {
-      throw new AppError(400, 'SAME_SLOT', 'Pick a different date or slot to reschedule');
+      throw new AppError(400, 'SAME_SLOT', 'Pick a different date or time slot');
     }
 
     assertBookableDate(input.date);
@@ -599,47 +781,56 @@ export const BookingService = {
       throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
     }
 
-    const serviceId = String((booking as any).serviceId?._id ?? (booking as any).serviceId);
     const capacity = await bookingSettings.getSlotCapacity(serviceId);
     const now = new Date();
+    const fromDate = booking.date;
+    const fromSlot = booking.slot;
+    const fromStatus = booking.status as BookingStatus;
 
-    return withSlotLock(`booking:${serviceId}:${input.date}:${input.slot}`, async () => {
-      await bookingsRepository.releaseStaleHolds(serviceId, input.date, input.slot, now);
-      const seat = await bookingsRepository.findFreeSeat(serviceId, input.date, input.slot, capacity);
-      if (seat === null) {
+    try {
+      return await withSlotLock(`booking:${serviceId}:${input.date}:${input.slot}`, async () => {
+        await bookingsRepository.releaseStaleHolds(serviceId, input.date, input.slot, now);
+        const seat = await bookingsRepository.findFreeSeat(serviceId, input.date, input.slot, capacity, now);
+        if (seat === null) {
+          throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+        }
+
+        const historyEntry: StatusHistoryEntry = {
+          from: fromStatus,
+          to: fromStatus,
+          at: now,
+          actorId: customerId,
+          actorRole: 'customer',
+          reason: `Rescheduled from ${fromDate} (${fromSlot}) to ${input.date} (${input.slot})`,
+        };
+
+        const updated = await bookingsRepository.reschedule({
+          bookingId,
+          customerId,
+          fromStatus,
+          fromDate,
+          fromSlot,
+          to: {
+            date: input.date,
+            slot: input.slot,
+            seat,
+            scheduledAt: slotStartDate(input.date, input.slot),
+          },
+          entry: historyEntry,
+        } as any);
+
+        if (!updated) {
+          throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
+        }
+
+        return BookingService.getBooking(customerId, bookingId);
+      });
+    } catch (err) {
+      if (isDuplicateKey(err, 'uniq_active_slot_seat')) {
         throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
       }
-
-      const historyEntry: StatusHistoryEntry = {
-        from: booking.status as BookingStatus,
-        to: booking.status as BookingStatus,
-        at: now,
-        actorId: customerId,
-        actorRole: 'customer',
-        reason: `Rescheduled from ${booking.date} (${booking.slot}) to ${input.date} (${input.slot})`,
-      };
-
-      const updated = await bookingsRepository.reschedule({
-        bookingId,
-        customerId,
-        fromStatus: booking.status as BookingStatus,
-        fromDate: booking.date,
-        fromSlot: booking.slot,
-        to: {
-          date: input.date,
-          slot: input.slot,
-          seat,
-          scheduledAt: slotStartDate(input.date, input.slot),
-        },
-        entry: historyEntry,
-      } as any);
-
-      if (!updated) {
-        throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
-      }
-
-      return BookingService.getBooking(customerId, bookingId);
-    });
+      throw err;
+    }
   },
 
   async listBookings(customerId: string, query: ListBookingsQuery) {

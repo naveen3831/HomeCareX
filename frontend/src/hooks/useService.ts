@@ -9,6 +9,7 @@ import {
   fetchServiceDetail,
   fetchServiceReviews,
   fetchServices,
+  retryBackoff,
   retryTransient,
 } from "@/services/catalogApi";
 import type { NormalizedApiError } from "@/services/bookingApi";
@@ -21,7 +22,11 @@ import type {
 
 export const REVIEWS_PAGE_SIZE = 10;
 
-/** GET /services/:slug. A 404 error means the slug is unknown or inactive. */
+/**
+ * GET /services/:slug. A 404 error means the slug is unknown, inactive or malformed
+ * (a malformed slug is rejected before any request is sent). 404s are never retried;
+ * network blips and 5xx are retried twice with backoff (1s, 2s).
+ */
 export function useService(slug: string | undefined) {
   return useQuery<ServiceDetail, NormalizedApiError>({
     queryKey: catalogKeys.service(slug ?? ""),
@@ -29,6 +34,7 @@ export function useService(slug: string | undefined) {
     enabled: Boolean(slug),
     staleTime: 60_000,
     retry: (failureCount, error) => retryTransient(failureCount, error),
+    retryDelay: retryBackoff,
   });
 }
 
@@ -61,6 +67,7 @@ export function useServiceReviews(
     enabled: Boolean(serviceId) && enabled,
     staleTime: 60_000,
     retry: (failureCount, error) => retryTransient(failureCount, error),
+    retryDelay: retryBackoff,
   });
 
   return {
@@ -94,6 +101,7 @@ export function useRelatedServices(
     enabled: Boolean(categorySlug),
     staleTime: 5 * 60_000,
     retry: (failureCount, error) => retryTransient(failureCount, error),
+    retryDelay: retryBackoff,
     select: (page) =>
       page.items.filter((item) => item.id !== excludeId).slice(0, 3),
   });

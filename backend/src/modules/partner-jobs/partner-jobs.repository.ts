@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import type { Types } from "mongoose";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
 import ServiceModel from "../../models/Service";
@@ -43,17 +43,6 @@ export interface JobBookingDoc {
   paymentDetails?: { paidAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
-  extraCharges?: Array<{
-    _id: Types.ObjectId;
-    title: string;
-    reason?: string;
-    amount: number;
-    quantity: number;
-    status: "pending" | "approved" | "rejected";
-    requestedAt?: Date;
-    decidedAt?: Date;
-  }>;
-  otpCodes?: { start?: string; end?: string };
   offers?: Array<{
     partnerId: Types.ObjectId;
     offeredAt: Date;
@@ -75,67 +64,25 @@ export interface JobCustomerDoc {
 
 export const partnerJobsRepository = {
   findPartnerByUserId(userId: string) {
-    if (!Types.ObjectId.isValid(userId)) {
-      return PartnerModel.findOne({})
-        .select("_id")
-        .lean<{ _id: Types.ObjectId }>();
-    }
     return PartnerModel.findOne({ userId })
       .select("_id")
       .lean<{ _id: Types.ObjectId }>();
   },
 
-  /** Live or filtered jobs of one partner. */
+  /** Live jobs of one partner, soonest first. */
   listLiveForPartner(
     partnerId: Types.ObjectId,
-    statuses?: BookingStatus[],
+    statuses: BookingStatus[],
     limit = 50,
   ) {
-    const filter: Record<string, unknown> = { partnerId };
-    if (statuses && statuses.length > 0) {
-      filter.status = { $in: statuses };
-    }
-    const isPast =
-      statuses &&
-      (statuses.includes("completed") ||
-        statuses.includes("cancelled_by_partner") ||
-        statuses.includes("rated"));
-    return BookingModel.find(filter)
-      .sort(
-        isPast || !statuses
-          ? { scheduledAt: -1, createdAt: -1 }
-          : { scheduledAt: 1, createdAt: -1 },
-      )
+    return BookingModel.find({ partnerId, status: { $in: statuses } })
+      .sort({ scheduledAt: 1 })
       .limit(limit)
       .lean<JobBookingDoc[]>();
   },
 
-  async findBooking(bookingId: string) {
-    if (!bookingId) return null;
-    if (Types.ObjectId.isValid(bookingId)) {
-      const byId = await BookingModel.findById(bookingId)
-        .select("+otpCodes.start +otpCodes.end")
-        .lean<JobBookingDoc>();
-      if (byId) return byId;
-    }
-
-    const rawCode = bookingId.trim().toUpperCase().replace(/^BK-/, "");
-    if (rawCode.length >= 4) {
-      const candidate = await BookingModel.findOne({
-        $expr: {
-          $regexMatch: {
-            input: { $toString: "$_id" },
-            regex: `${rawCode}$`,
-            options: "i",
-          },
-        },
-      })
-        .select("+otpCodes.start +otpCodes.end")
-        .lean<JobBookingDoc>();
-      if (candidate) return candidate;
-    }
-
-    return null;
+  findBooking(bookingId: string) {
+    return BookingModel.findById(bookingId).lean<JobBookingDoc>();
   },
 
   findCustomer(customerId: Types.ObjectId) {
@@ -146,13 +93,6 @@ export const partnerJobsRepository = {
 
   findService(serviceId: Types.ObjectId) {
     return ServiceModel.findById(serviceId)
-      .select("durationMinutes inclusions addOns")
-      .lean<JobServiceDoc>();
-  },
-
-  findServiceByName(name: string) {
-    if (!name) return Promise.resolve(null);
-    return ServiceModel.findOne({ name: { $regex: new RegExp(`^${name.trim()}$`, "i") } })
       .select("durationMinutes inclusions addOns")
       .lean<JobServiceDoc>();
   },
@@ -258,73 +198,6 @@ export const partnerJobsRepository = {
     const result = await BookingModel.updateOne(
       { _id: bookingId, partnerId, status: from },
       { $set: { status: to }, $push: { statusHistory: entry } },
-    );
-    return result.modifiedCount === 1;
-  },
-
-  async addExtraCharge(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    charge: {
-      _id: Types.ObjectId;
-      title: string;
-      reason?: string;
-      amount: number;
-      quantity: number;
-      status: "pending";
-      requestedAt: Date;
-    },
-  ): Promise<boolean> {
-    const filter = Types.ObjectId.isValid(bookingId)
-      ? { _id: new Types.ObjectId(bookingId), partnerId }
-      : { _id: bookingId, partnerId };
-    const result = await BookingModel.updateOne(
-      filter,
-      { $push: { extraCharges: charge } },
-    );
-    return result.modifiedCount === 1;
-  },
-
-  async updateChecklist(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    checklist: Array<{ id: string; label: string; done: boolean }>,
-  ): Promise<boolean> {
-    const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId },
-      { $set: { checklist } },
-    );
-    return result.modifiedCount === 1;
-  },
-
-  async verifyStartJob(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    entry: StatusHistoryEntry,
-    now: Date = new Date(),
-  ): Promise<boolean> {
-    const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId, status: "arrived" },
-      {
-        $set: { status: "in_progress", startedAt: now },
-        $push: { statusHistory: entry },
-      },
-    );
-    return result.modifiedCount === 1;
-  },
-
-  async completePartnerJob(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    entry: StatusHistoryEntry,
-    now: Date = new Date(),
-  ): Promise<boolean> {
-    const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId, status: "in_progress" },
-      {
-        $set: { status: "completed", completedAt: now },
-        $push: { statusHistory: entry },
-      },
     );
     return result.modifiedCount === 1;
   },

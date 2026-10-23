@@ -1,13 +1,15 @@
 import { SLOT_CAPACITY } from './bookings.constants';
 
 /**
- * Booking-related Settings. There is no Settings collection in the backend yet (the admin
- * Settings page is UI-only), so capacity is read from the SLOT_CAPACITY env var with a constant
- * fallback. When Settings ships, change only the body of getSlotCapacity() — callers already
- * await it and pass the serviceId for per-service overrides.
+ * Booking-related Settings. Slot capacity comes from the admin Settings page (`slots.capacityPerSlot`), so changing
+ * it there changes the slots customers see (GET /services/:id/slots) and how many bookings a slot accepts.
+ * getSetting() caches for 30s, and the admin save clears the cache, so the change shows up at once.
  */
 export const bookingSettings = {
   async getSlotCapacity(_serviceId: string): Promise<number> {
+    const fromSettings = Number(await getSetting('slots.capacityPerSlot'));
+    if (Number.isInteger(fromSettings) && fromSettings > 0) return fromSettings;
+    // Setting missing or corrupt: fall back to the env var, then the constant.
     const fromEnv = Number.parseInt(process.env.SLOT_CAPACITY ?? '', 10);
     return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : SLOT_CAPACITY;
   },
@@ -26,5 +28,8 @@ export const bookingSettings = {
       windowHours: 2,
       feeAmount: 50,
     };
+  },
+};
+    return { windowHours: 4, feeAmount: 99 };
   },
 };

@@ -106,20 +106,36 @@ function toPartner(
   if (!isPopulatedPartner(raw))
     return { partnerId: String(raw), partner: null };
 
-  const user = raw.userId ?? undefined;
+  const rawObj = raw as Record<string, unknown>;
+  const user = (typeof rawObj.userId === "object" && rawObj.userId !== null
+    ? rawObj.userId
+    : undefined) as { name?: string; phone?: string } | undefined;
+
   // Only set keys that have a value, so the view never carries `key: undefined`
   // (it breaks deep-equality in tests and adds noise to the payload).
   const partner: PartnerView = {};
-  if (user?.name !== undefined) partner.name = user.name;
-  if (typeof raw.city === "string" && raw.city.trim()) partner.city = raw.city;
-  if (typeof raw.ratingAvg === "number") partner.rating = raw.ratingAvg;
-  if (typeof raw.ratingCount === "number")
-    partner.ratingCount = raw.ratingCount;
-  if (raw.kyc?.status === "approved") partner.verified = true;
-  if (PARTNER_CONTACT_STATUSES.includes(status) && user?.phone)
-    partner.phone = user.phone;
+  const name = user?.name ?? (typeof rawObj.name === "string" ? rawObj.name : undefined);
+  if (name !== undefined) partner.name = name;
+  if (typeof rawObj.city === "string" && rawObj.city.trim()) partner.city = rawObj.city;
+  const rating =
+    typeof rawObj.ratingAvg === "number"
+      ? rawObj.ratingAvg
+      : typeof rawObj.rating === "number"
+      ? rawObj.rating
+      : undefined;
+  if (rating !== undefined) partner.rating = rating;
+  if (typeof rawObj.ratingCount === "number")
+    partner.ratingCount = rawObj.ratingCount;
+  if (
+    (rawObj.kyc as { status?: string } | undefined)?.status === "approved" ||
+    rawObj.verified === true
+  )
+    partner.verified = true;
+  const phone = user?.phone ?? (typeof rawObj.phone === "string" ? rawObj.phone : undefined);
+  if (PARTNER_CONTACT_STATUSES.includes(status) && phone)
+    partner.phone = phone;
   return {
-    partnerId: raw._id === undefined ? undefined : String(raw._id),
+    partnerId: rawObj._id === undefined ? undefined : String(rawObj._id),
     partner,
   };
 }
@@ -262,10 +278,7 @@ export function buildDetailView(
       .reduce((sum, c) => sum + c.amount, 0),
   );
 
-  view.startOtp =
-    (status === START_OTP_STATUS || String(status || "").toLowerCase() === START_OTP_STATUS) && startOtp
-      ? startOtp
-      : null;
+  view.startOtp = status === START_OTP_STATUS && startOtp ? startOtp : null;
 
   withFallbacks(view, extras.service);
   view.service = extras.service ?? null;

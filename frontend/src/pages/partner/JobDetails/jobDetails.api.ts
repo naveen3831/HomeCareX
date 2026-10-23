@@ -1282,6 +1282,9 @@ export async function fetchAssignedServices(
           : mapped;
       saveAssignedCatalogToStorage(filtered, effectiveUserId);
       return filtered;
+      const mapped: JobDetails[] = (res.data.data as any[]).map((item) => mapJobListItemToJobDetails(item));
+      saveAssignedCatalogToStorage(mapped);
+      return mapped;
     }
   } catch (err) {
     console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', err);

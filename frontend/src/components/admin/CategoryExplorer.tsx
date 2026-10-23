@@ -196,7 +196,7 @@ export const CategoryExplorer: React.FC<Props> = ({
     const group = siblings(parentId);
     const from = group.findIndex((c) => c.id === id);
     if (from < 0 || toIndex < 0 || toIndex >= group.length || from === toIndex) return;
-    onReorder(arrayMove(group, from, toIndex).map((c, i) => ({ id: c.id, parentId, sortOrder: i })));
+    onReorder(arrayMove(group, from, toIndex).map((c: AdminCategory, i: number) => ({ id: c.id, parentId, sortOrder: i })));
   }
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const onDragEnd = (e: DragEndEvent) => {

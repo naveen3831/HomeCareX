@@ -4,10 +4,15 @@ import type { Request, Response } from 'express';
 import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
 import { getAuthUser } from '../../middleware/auth.middleware';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+let razorpayInstance: Razorpay | null = null;
+function getRazorpay(): Razorpay {
+  if (!razorpayInstance) {
+    const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret';
+    razorpayInstance = new Razorpay({ key_id, key_secret });
+  }
+  return razorpayInstance;
+}
 
 /**
  * Helper to safely extract user ID from auth middleware or token payload
@@ -46,7 +51,7 @@ export async function createTopupOrder(req: Request, res: Response): Promise<Res
     // Razorpay accepts amounts in paise (1 INR = 100 paise)
     const amountInPaise = Math.round(amountInRupees * 100);
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: amountInPaise,
       currency: 'INR',
       receipt: `top_${Date.now().toString().slice(-8)}`,
@@ -129,7 +134,7 @@ export async function verifyTopupPayment(req: Request, res: Response): Promise<R
 
     // Verify amount directly against the Razorpay Order record for tamper-proofing
     try {
-      const rzpOrder = await razorpay.orders.fetch(razorpay_order_id);
+      const rzpOrder = await getRazorpay().orders.fetch(razorpay_order_id);
       if (rzpOrder && typeof rzpOrder.amount === 'number') {
         amountInRupees = Math.round(rzpOrder.amount / 100);
       }

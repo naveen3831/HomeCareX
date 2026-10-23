@@ -1,6 +1,8 @@
 // export class AuditRepository {}
 
+import mongoose from "mongoose";
 import AuditLogModel from "../../models/AuditLog";
+import UserModel from "../../models/User";
 import {
   AuditLogQuery,
   CreateAuditLogInput,
@@ -58,8 +60,26 @@ export class AuditRepository {
       AuditLogModel.countDocuments(filter),
     ]);
 
+    // The audit row stores the actor's user id. Look up their names in one query
+    // so the admin UI can show "Asha Rao" instead of "6abb7fd4...". Ids that are
+    // not users (e.g. "system") or were deleted simply have no name.
+    const actorIds = [...new Set(items.map((item) => String(item.actor)))].filter(
+      (id) => mongoose.isValidObjectId(id)
+    );
+
+    const users = actorIds.length
+      ? await UserModel.find({ _id: { $in: actorIds } })
+          .select("name")
+          .lean()
+      : [];
+
+    const nameById = new Map(users.map((user) => [String(user._id), user.name]));
+
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        actorName: nameById.get(String(item.actor)) ?? null,
+      })),
       total,
       page,
       limit,

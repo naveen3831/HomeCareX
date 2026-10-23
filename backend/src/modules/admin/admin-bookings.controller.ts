@@ -1,12 +1,9 @@
 import type { Request, Response } from 'express';
-import { Types } from 'mongoose';
 
 import { BookingModel } from '../../models/Booking';
 import { PartnerModel } from '../../models/Partner';
 import { PaymentModel } from '../../models/Payment';
 import { UserModel } from '../../models/User';
-import { ServiceModel } from '../../models/Service';
-import { CategoryModel } from '../../models/Category';
 
 import { getAuthUser } from '../../middleware/auth.middleware';
 import { HttpError } from '../auth/auth.types';
@@ -19,6 +16,7 @@ import {
 import { applyTransition } from '../bookings/bookings.stateMachine';
 
 import { getRazorpay } from '../../integrations/razorpay';
+import { auditService } from '../audit/audit.service';
 
 type AdminPaymentStatus =
   | 'Pending'
@@ -55,10 +53,6 @@ interface AdminBookingSource {
   customerName?: string;
 
   categoryId?: {
-    toString(): string;
-  };
-
-  serviceId?: {
     toString(): string;
   };
 
@@ -180,6 +174,38 @@ export class AdminBookingsController {
     }
 
     return user;
+  }
+
+  /**
+   * Record a booking mutation in the admin audit log.
+   * Audit failures must not turn a successful booking mutation
+   * into a failed API request.
+   */
+  private async recordBookingAudit(
+    action: string,
+    bookingId: string,
+    actorId: string,
+    ip: string,
+    before: Record<string, unknown>,
+    after: Record<string, unknown>,
+  ): Promise<void> {
+    try {
+      await auditService.recordAudit({
+        actor: actorId,
+        action,
+        entity: 'Booking',
+        entityId: bookingId,
+        ip,
+        result: 'Success',
+        before,
+        after,
+      });
+    } catch (error) {
+      console.error(
+        '[Audit] Failed to record booking action:',
+        error,
+      );
+    }
   }
 
   /**
@@ -588,7 +614,6 @@ export class AdminBookingsController {
 
       service: {
         id:
-          booking.serviceId?.toString() ??
           booking.categoryId?.toString() ??
           '',
 
@@ -880,104 +905,6 @@ export class AdminBookingsController {
   }
 
   /**
-   * Resolves a booking's categoryId if it was not explicitly saved.
-   * Looks up ServiceModel by serviceId or serviceName, CategoryModel by name/slug,
-   * or falls back to the first active category. Automatically persists the resolved categoryId.
-   */
-  private async resolveBookingCategory(
-    booking: {
-      _id?: unknown;
-      categoryId?: unknown;
-      serviceId?: unknown;
-      serviceName?: string;
-    },
-  ): Promise<Types.ObjectId | null> {
-    const rawCategoryId = (booking.categoryId as { _id?: unknown })?._id ?? booking.categoryId;
-    if (rawCategoryId) {
-      return rawCategoryId instanceof Types.ObjectId
-        ? rawCategoryId
-        : new Types.ObjectId(String(rawCategoryId));
-    }
-
-    let resolvedCategoryId: Types.ObjectId | null = null;
-    let matchedServiceId: Types.ObjectId | null = null;
-
-    if (booking.serviceId) {
-      const rawServiceId = (booking.serviceId as { _id?: unknown })?._id ?? booking.serviceId;
-      const service = await ServiceModel.findById(rawServiceId)
-        .select('categoryId')
-        .lean()
-        .exec();
-      if (service?.categoryId) {
-        resolvedCategoryId = service.categoryId as unknown as Types.ObjectId;
-      }
-    }
-
-    if (!resolvedCategoryId && booking.serviceName) {
-      const cleanName = booking.serviceName.trim();
-      const escaped = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const service = await ServiceModel.findOne({
-        $or: [
-          { name: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-          { slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-') },
-        ],
-      })
-        .select('_id categoryId')
-        .lean()
-        .exec();
-
-      if (service?.categoryId) {
-        resolvedCategoryId = service.categoryId as unknown as Types.ObjectId;
-        matchedServiceId = service._id as unknown as Types.ObjectId;
-      }
-    }
-
-    if (!resolvedCategoryId && booking.serviceName) {
-      const cleanName = booking.serviceName.trim();
-      const escaped = cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const cat = await CategoryModel.findOne({
-        $or: [
-          { name: { $regex: new RegExp(`^${escaped}$`, 'i') } },
-          { slug: cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-') },
-        ],
-      })
-        .select('_id')
-        .lean()
-        .exec();
-
-      if (cat?._id) {
-        resolvedCategoryId = cat._id as unknown as Types.ObjectId;
-      }
-    }
-
-    if (!resolvedCategoryId) {
-      const firstCat = await CategoryModel.findOne({ active: true })
-        .select('_id')
-        .lean()
-        .exec();
-      if (firstCat?._id) {
-        resolvedCategoryId = firstCat._id as unknown as Types.ObjectId;
-      }
-    }
-
-    if (resolvedCategoryId && booking._id) {
-      const updateDoc: Record<string, unknown> = {
-        categoryId: resolvedCategoryId,
-      };
-      if (matchedServiceId && !booking.serviceId) {
-        updateDoc.serviceId = matchedServiceId;
-      }
-      await BookingModel.updateOne(
-        { _id: booking._id },
-        { $set: updateDoc },
-      ).exec();
-      booking.categoryId = resolvedCategoryId;
-    }
-
-    return resolvedCategoryId;
-  }
-
-  /**
    * ---------------------------------------------------------
    * GET ELIGIBLE PARTNERS
    * GET /api/v1/admin/bookings/:bookingId/eligible-partners
@@ -1008,13 +935,10 @@ export class AdminBookingsController {
       );
     }
 
-    const categoryId =
-      await this.resolveBookingCategory(booking);
-
-    if (!categoryId) {
+    if (!booking.categoryId) {
       throw new HttpError(
         400,
-        'Booking category is missing and could not be determined from the service',
+        'Booking category is missing',
         'BOOKING_CATEGORY_MISSING',
       );
     }
@@ -1034,7 +958,7 @@ export class AdminBookingsController {
     const data = [];
 
     const bookingCategoryId =
-      categoryId.toString();
+      booking.categoryId.toString();
 
     const slotTimes =
       this.getSlotTimes(
@@ -1268,13 +1192,10 @@ export class AdminBookingsController {
       );
     }
 
-    const categoryId =
-      await this.resolveBookingCategory(booking);
-
-    if (!categoryId) {
+    if (!booking.categoryId) {
       throw new HttpError(
         400,
-        'Booking category is missing and could not be determined from the service',
+        'Booking category is missing',
         'BOOKING_CATEGORY_MISSING',
       );
     }
@@ -1315,9 +1236,9 @@ export class AdminBookingsController {
 
     const hasCategory =
       partner.categories.some(
-        (partnerCatId) =>
-          partnerCatId.toString() ===
-          categoryId.toString(),
+        (categoryId) =>
+          categoryId.toString() ===
+          booking.categoryId?.toString(),
       );
 
     if (!hasCategory) {
@@ -1433,6 +1354,11 @@ export class AdminBookingsController {
     const previousStatus =
       booking.status;
 
+    const auditBefore: Record<string, unknown> = {
+      partnerId: previousPartnerId,
+      status: previousStatus,
+    };
+
     booking.partnerId =
       partner._id;
 
@@ -1472,6 +1398,19 @@ export class AdminBookingsController {
     }
 
     await booking.save();
+
+    await this.recordBookingAudit(
+      'booking.partner_assigned',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        partnerId: partner._id.toString(),
+        status: booking.status,
+        reason: reason.trim(),
+      },
+    );
 
     const payment =
       await this.getPaymentForBooking(
@@ -1579,6 +1518,10 @@ export class AdminBookingsController {
     const previousStatus =
       booking.status;
 
+    const auditBefore: Record<string, unknown> = {
+      status: previousStatus,
+    };
+
     const trimmedReason =
       reason.trim();
 
@@ -1614,6 +1557,18 @@ export class AdminBookingsController {
         },
       },
     ).exec();
+
+    await this.recordBookingAudit(
+      'booking.status_overridden',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        status,
+        reason: trimmedReason,
+      },
+    );
 
     res.status(200).json({
       success: true,
@@ -1741,6 +1696,16 @@ export class AdminBookingsController {
 
       return;
     }
+
+    const auditBefore: Record<string, unknown> = {
+      status: booking.status,
+      partnerId: booking.partnerId
+        ? booking.partnerId.toString()
+        : null,
+      cancellationReason: (
+        booking as unknown as Record<string, unknown>
+      ).cancellationReason,
+    };
 
     const payment =
       await this.getPaymentForBooking(
@@ -1958,6 +1923,20 @@ export class AdminBookingsController {
         },
       },
     ).exec();
+
+    await this.recordBookingAudit(
+      'booking.cancelled_by_admin',
+      bookingId,
+      String(user.id),
+      req.ip || 'unknown',
+      auditBefore,
+      {
+        status: 'cancelled_by_admin',
+        cancellationReason: trimmedReason,
+        refundStatus: refundResult.status,
+        refundAmount: refundResult.amount,
+      },
+    );
 
     const updatedBooking =
       await BookingModel.findById(

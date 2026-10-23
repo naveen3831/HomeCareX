@@ -143,7 +143,7 @@ const LegalParagraph: React.FC<{ paragraph: string }> = ({ paragraph }) => {
   }
 
   if (paragraph.startsWith("• ") || paragraph.startsWith("- ")) {
-    const content = paragraph.replace(/^[•\-]\s*/, "");
+    const content = paragraph.replace(/^[•-]\s*/, "");
     return (
       <div className="flex items-start gap-3 my-2.5">
         <span

@@ -14,29 +14,7 @@ export const BOOKING_PAYMENT_STATUS = {
   FAILED: 'FAILED',
   REFUNDED: 'REFUNDED',
 } as const;
-export type BookingPaymentStatus =
-  (typeof BOOKING_PAYMENT_STATUS)[keyof typeof BOOKING_PAYMENT_STATUS];
-
-export const EXTRA_CHARGE_STATUSES = [
-  "pending",
-  "approved",
-  "rejected",
-] as const;
-export type ExtraChargeStatus = (typeof EXTRA_CHARGE_STATUSES)[number];
-
-/** Extra work the partner asks the customer to approve on site (Upendra's P05 contract). */
-export interface ExtraCharge {
-  _id: Types.ObjectId;
-  title: string;
-  reason?: string;
-  /** INR, > 0. */
-  amount: number;
-  quantity?: number;
-  status: ExtraChargeStatus;
-  requestedAt: Date;
-  requestedBy?: Types.ObjectId;
-  decidedAt?: Date;
-}
+export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUS)[keyof typeof BOOKING_PAYMENT_STATUS];
 
 export interface StatusHistoryItem {
   from: BookingStatus | null;
@@ -88,9 +66,6 @@ export interface IBooking extends Document {
   };
   priceBreakdown: { base: number; addOns: number; surge?: number; discount: number; convenienceFee: number; tax: number; total: number };
   partnerEarning: number;
-  /** Partner's job checklist. Empty until the partner first ticks an item (then copied from the service inclusions). */
-  checklist?: Array<{ id: string; label: string; done: boolean }>;
-  extraCharges?: ExtraCharge[];
   status: BookingStatus;
   statusHistory: StatusHistoryItem[];
   paymentStatus: BookingPaymentStatus;
@@ -99,6 +74,12 @@ export interface IBooking extends Document {
   cancellationReason?: string;
   offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired' }>;
   otpCodes?: { start?: string; end?: string };
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    amount: number;
+    status: 'pending' | 'approved' | 'rejected';
+  }>;
   slotSeat?: number;
   idempotencyKey?: string;
   requestHash?: string;
@@ -132,20 +113,6 @@ const OfferSchema = new Schema(
     response: { type: String, enum: ['pending', 'accepted', 'rejected', 'expired'], default: 'pending' },
   },
   { _id: false },
-);
-
-const ExtraChargeSchema = new Schema(
-  {
-    title: { type: String, required: true, trim: true, maxlength: 120 },
-    reason: { type: String, trim: true, maxlength: 500 },
-    amount: { type: Number, required: true, min: 1 },
-    quantity: { type: Number, min: 1, default: 1 },
-    status: { type: String, enum: EXTRA_CHARGE_STATUSES, default: "pending" },
-    requestedAt: { type: Date, default: Date.now },
-    requestedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    decidedAt: { type: Date },
-  },
-  { _id: true },
 );
 
 const StatusHistorySchema = new Schema(
@@ -195,26 +162,7 @@ const BookingSchema = new Schema<IBooking>(
     priceBreakdown: { type: PriceBreakdownSchema, default: () => ({}) },
     /** Partner's share after commission. Used for earnings totals. */
     partnerEarning: { type: Number, default: 0, min: 0 },
-    checklist: {
-      type: [
-        new Schema(
-          {
-            id: { type: String, required: true },
-            label: { type: String, required: true, trim: true },
-            done: { type: Boolean, default: false },
-          },
-          { _id: false },
-        ),
-      ],
-      default: undefined,
-    },
-    extraCharges: { type: [ExtraChargeSchema], default: [] },
-    status: {
-      type: String,
-      enum: BOOKING_STATUSES,
-      default: "created",
-      index: true,
-    },
+    status: { type: String, enum: BOOKING_STATUSES, default: 'created', index: true },
     statusHistory: { type: [StatusHistorySchema], default: [] },
     paymentStatus: {
       type: String,
@@ -235,6 +183,14 @@ const BookingSchema = new Schema<IBooking>(
     otpCodes: {
       start: { type: String, select: false },
       end: { type: String, select: false },
+    },
+    extraCharges: {
+      type: [{
+        title: { type: String, required: true, trim: true },
+        amount: { type: Number, required: true, min: 0 },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      }],
+      default: [],
     },
     /** Seat number within (serviceId, date, slot); unset when the booking stops holding the slot. */
     slotSeat: { type: Number },

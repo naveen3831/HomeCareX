@@ -33,7 +33,6 @@ const INITIAL_FILTERS: BookingFilters = {
 };
 
 const STATUS_OPTIONS: BookingStatus[] = [
-  "confirmed",
   "created",
   "searching_for_partner",
   "assigned",
@@ -351,6 +350,7 @@ export default function Bookings() {
 
   useEffect(() => {
     void loadBookings(filters);
+     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filters.search,
     filters.status,

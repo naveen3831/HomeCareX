@@ -11,6 +11,7 @@ interface Props {
   bookingCode: string;
   /** The invoice only exists once the booking is paid. */
   enabled: boolean;
+  isCancelled?: boolean;
   className?: string;
 }
 
@@ -101,6 +102,7 @@ export default function InvoiceCard({
   bookingId,
   bookingCode,
   enabled,
+  isCancelled,
   className,
 }: Props) {
   const invoice = useInvoice(bookingId);
@@ -142,7 +144,9 @@ export default function InvoiceCard({
       <p className="mt-0.5 text-sm font-bold text-ink">{invoiceNo}</p>
       {!enabled && (
         <p className="mt-1 text-xs text-muted">
-          Available once the payment is complete.
+          {isCancelled
+            ? "Invoice is not available as this booking was not completed."
+            : "Available once the payment is complete."}
         </p>
       )}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">

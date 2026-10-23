@@ -187,24 +187,28 @@ export const PartnerRegisterPage: React.FC = () => {
         if (active && Array.isArray(data) && data.length > 0) {
           const mapped = data.map((c) => ({ id: c.id, name: c.name, slug: c.slug }));
           setCategories(mapped);
-          if (!form.category) {
-            setForm((prev) => ({
-              ...prev,
-              category: mapped[0].slug,
-              skills: CATEGORY_SKILLS_MAP[mapped[0].slug]?.slice(0, 2) || [],
-            }));
-          }
+          setForm((prev) =>
+            prev.category
+              ? prev
+              : {
+                  ...prev,
+                  category: mapped[0].slug,
+                  skills: CATEGORY_SKILLS_MAP[mapped[0].slug]?.slice(0, 2) || [],
+                },
+          );
         }
       })
       .catch(() => {
         // Fallback to default categories
-        if (!form.category) {
-          setForm((prev) => ({
-            ...prev,
-            category: DEFAULT_CATEGORIES[0].slug,
-            skills: CATEGORY_SKILLS_MAP[DEFAULT_CATEGORIES[0].slug]?.slice(0, 2) || [],
-          }));
-        }
+        setForm((prev) =>
+          prev.category
+            ? prev
+            : {
+                ...prev,
+                category: DEFAULT_CATEGORIES[0].slug,
+                skills: CATEGORY_SKILLS_MAP[DEFAULT_CATEGORIES[0].slug]?.slice(0, 2) || [],
+              },
+        );
       });
     return () => {
       active = false;
@@ -249,7 +253,7 @@ export const PartnerRegisterPage: React.FC = () => {
     return cleaned;
   }
 
-  function handleChange(field: string, value: any) {
+  function handleChange(field: string, value: unknown) {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (fieldErrors[field]) {
       setFieldErrors((prev) => {

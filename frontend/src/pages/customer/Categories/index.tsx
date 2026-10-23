@@ -61,7 +61,7 @@ export default function Categories() {
     <div className="mx-auto w-full min-w-0 max-w-[1200px] space-y-5 md:space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <header>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">Categories</h1>
+          <h1 className="sr-only">Categories</h1>
           <p className="mt-1 text-sm text-muted">
             <span className="md:hidden">What do you need done today?</span>
             <span className="hidden md:inline">Pick what you need done. Trusted, verified professionals at your door.</span>

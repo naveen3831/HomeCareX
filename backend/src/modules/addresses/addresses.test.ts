@@ -280,9 +280,8 @@ describe('validation', () => {
     assert.equal(updateAddressBodySchema.safeParse({ label: 'Office' }).success, false);
   });
 
-  test('unknown fields (like customerId) are dropped, never stored', () => {
-    const parsed = createAddressBodySchema.parse({ ...valid, customerId: 'x', _id: 'y' });
-    assert.equal('customerId' in parsed, false);
-    assert.equal('_id' in parsed, false);
+  test('unknown fields (like customerId) are rejected with a validation error, never stored', () => {
+    assert.equal(createAddressBodySchema.safeParse({ ...valid, customerId: 'x', _id: 'y' }).success, false);
+    assert.equal(updateAddressBodySchema.safeParse({ customerId: 'x' }).success, false);
   });
 });

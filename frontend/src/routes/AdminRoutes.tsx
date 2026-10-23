@@ -78,6 +78,50 @@ const adminRoutes: AdminRoute[] = [
   { path: 'reports', element: <AdminReportsPage /> },
 
   // System
+  {
+    path: 'roles',
+    element: <AdminRolesPage />,
+    permission: 'roles:view',
+  },
+  {
+    path: 'staff',
+    element: <AdminStaffPage />,
+    permission: 'staff:view',
+  },
+  // Full pages (sidebar stays visible): create / invite / edit.
+  {
+    path: 'roles/new',
+    element: <AdminRoleFormPage />,
+    permission: 'roles:create',
+  },
+  {
+    path: 'staff/new',
+    element: <AdminInviteStaffPage />,
+    permission: 'staff:create',
+  },
+  {
+    path: 'roles/:id',
+    element: <AdminRoleFormPage />,
+    permission: 'roles:view',
+  },
+  // Old URLs keep working.
+  {
+    path: 'roles-permissions',
+    element: <Navigate to="/admin/roles" replace />,
+  },
+  {
+    path: 'roles/staff/new',
+    element: <Navigate to="/admin/staff/new" replace />,
+  },
+  {
+    path: 'audit-logs',
+    element: <AdminAuditLogsPage />,
+  },
+  {
+    path: 'settings',
+    element: <AdminSettingsPage />,
+    permission: 'settings:manage',
+  },
   { path: 'roles-permissions', element: <AdminRolesPermissionsPage /> },
   { path: 'staff', element: <AdminStaffPage /> },
   { path: 'audit-logs', element: <AdminAuditLogsPage /> },

@@ -53,6 +53,7 @@ export const registerSchema = z.object({
   accountNumber: z.string().optional(),
   ifsc: z.string().optional(),
   upiId: z.string().optional(),
+  skills: z.array(z.string()).optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -88,10 +89,54 @@ export const resetPasswordSchema = z
     path: ['resetToken'],
   });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password needs an uppercase letter')
+      .regex(/[0-9]/, 'Password needs a number')
+      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((data) => data.newPassword !== data.currentPassword, {
+    message: 'New password cannot be the same as the current password',
+    path: ['newPassword'],
+  });
+
+export const inviteStaffSchema = z.object({
+  name: z.string().trim().min(2, 'Name is required'),
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
+  roleId: z.string().min(1, 'Role is required'),
+});
+
+export const verifyInviteSchema = z.object({
+  token: z.string().min(1, 'Invite token is required'),
+});
+
+export const acceptInviteSchema = z.object({
+  token: z.string().min(1, 'Invite token is required'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password needs an uppercase letter')
+    .regex(/[0-9]/, 'Password needs a number')
+    .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
+});
+
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
+export type VerifyInviteInput = z.infer<typeof verifyInviteSchema>;
+export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 /** Signed-in password change: current + new (same strength rules as register / reset). */
 export const changePasswordSchema = z
