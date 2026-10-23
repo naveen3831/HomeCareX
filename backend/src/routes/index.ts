@@ -135,6 +135,7 @@ rootRouter.use("/partner/jobs", partnerLocationRoutes);
  
 // PATCH /bookings/:id/status (partner: en route / arrived)
 rootRouter.use("/bookings", bookingStatusRoutes);
+
 rootRouter.use(bookingsRoutes);
 rootRouter.use(reviewsRoutes);
  

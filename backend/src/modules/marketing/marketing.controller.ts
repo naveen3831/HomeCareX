@@ -1,12 +1,12 @@
+
 import type {
   Request,
   Response,
 } from 'express';
 
 import { sendSuccess } from '../../utils/response';
-import {
-  marketingService,
-} from './marketing.service';
+import { getAuthUser } from '../../middleware/auth.middleware';
+import { marketingService } from './marketing.service';
 
 export class MarketingController {
   async listAdmin(
@@ -35,9 +35,17 @@ export class MarketingController {
     req: Request,
     res: Response,
   ) {
+    const user = getAuthUser(req);
+
+    const actor = {
+      id: String(user.id),
+      ip: req.ip || 'unknown',
+    };
+
     const banner =
       await marketingService.create(
         req.body,
+        actor,
       );
 
     return sendSuccess(res, banner, {
@@ -49,10 +57,18 @@ export class MarketingController {
     req: Request,
     res: Response,
   ) {
+    const user = getAuthUser(req);
+
+    const actor = {
+      id: String(user.id),
+      ip: req.ip || 'unknown',
+    };
+
     const banner =
       await marketingService.update(
         req.params.id,
         req.body,
+        actor,
       );
 
     return sendSuccess(res, banner);
@@ -62,8 +78,16 @@ export class MarketingController {
     req: Request,
     res: Response,
   ) {
+    const user = getAuthUser(req);
+
+    const actor = {
+      id: String(user.id),
+      ip: req.ip || 'unknown',
+    };
+
     await marketingService.remove(
       req.params.id,
+      actor,
     );
 
     return sendSuccess(res, {

@@ -1,4 +1,5 @@
  
+
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
@@ -17,6 +18,9 @@ import {
   updateStatusSchema,
 } from './admin-tickets.validation';
  
+import { ticketsController } from '../tickets/tickets.controller';
+import { attachmentIdSchema } from '../tickets/tickets.validation';
+
 /**
  * Mounted at /api/v1/admin/tickets.
  * Requires an authenticated admin with tickets:manage permission.
@@ -32,6 +36,7 @@ adminTicketsRoutes.get(
   asyncHandler((req, res) => adminTicketsController.list(req, res)),
 );
  
+
 // GET /admin/tickets/:id
 adminTicketsRoutes.get(
   '/:id',
@@ -39,6 +44,7 @@ adminTicketsRoutes.get(
   asyncHandler((req, res) => adminTicketsController.get(req, res)),
 );
  
+
 // GET /admin/tickets/:id/messages
 adminTicketsRoutes.get(
   '/:id/messages',
@@ -46,6 +52,7 @@ adminTicketsRoutes.get(
   asyncHandler((req, res) => adminTicketsController.messages(req, res)),
 );
  
+
 // PATCH /admin/tickets/:id/assign
 adminTicketsRoutes.patch(
   '/:id/assign',
@@ -54,6 +61,7 @@ adminTicketsRoutes.patch(
   asyncHandler((req, res) => adminTicketsController.assign(req, res)),
 );
  
+
 // POST /admin/tickets/:id/messages
 adminTicketsRoutes.post(
   '/:id/messages',
@@ -62,6 +70,7 @@ adminTicketsRoutes.post(
   asyncHandler((req, res) => adminTicketsController.postMessage(req, res)),
 );
  
+
 // PATCH /admin/tickets/:id/status
 adminTicketsRoutes.patch(
   '/:id/status',
@@ -70,6 +79,7 @@ adminTicketsRoutes.patch(
   asyncHandler((req, res) => adminTicketsController.status(req, res)),
 );
  
+
 // PATCH /admin/tickets/:id/priority
 adminTicketsRoutes.patch(
   '/:id/priority',
@@ -84,12 +94,14 @@ adminTicketsRoutes.patch(
  */
 export const adminStaffRoutes = Router();
  
+
 adminStaffRoutes.use(
   authenticate,
   requireAdmin,
   requirePermission(TICKETS_MANAGE),
 );
  
+
 // GET /admin/ticket-assignees
 adminStaffRoutes.get(
   '/',
