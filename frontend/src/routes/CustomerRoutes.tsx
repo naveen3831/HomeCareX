@@ -10,7 +10,7 @@ const Addresses = lazy(() => import('../pages/customer/Addresses'));
 const SetupAddress = lazy(() => import('../pages/customer/SetupAddress'));
 const Bookings = lazy(() => import('../pages/customer/Bookings'));
 const BookingDetails = lazy(
-  () => import('../pages/customer/BookingDetails'),
+  () => import('../pages/customer/BookingDetails/BookingDetailsPage'),
 );
 const Categories = lazy(() => import('../pages/customer/Categories'));
 const Notifications = lazy(() => import('../pages/customer/Notifications'));

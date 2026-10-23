@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
@@ -20,7 +20,6 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
-import ActiveJobPage from "../pages/partner/ActiveJob";
 import SupportTicketPage from "../pages/partner/SupportTicket/SupportTicketPage";
 import HelpPage from "../pages/partner/Help/HelpPage";
 import PartnerSupportPage from "../pages/partner/Support";
@@ -89,16 +88,9 @@ const REAL_ROUTE_PATHS = new Set([
   "profile",
   "work/requests",
   "work",
-  "work/active",
-  "work/:jobId",
-  "work/:id",
   "services",
   "service-area",
   "support",
-  "support/tickets",
-  "support/tickets/:ticketId",
-  "help",
-  "assigned",
 ]);
 
 // Mounted by AppRoutes at /partner/*.
@@ -170,9 +162,10 @@ export default function PartnerRoutes() {
 
         <Route path="jobs/requests" element={<PartnerJobsPage />} />
 
-        <Route path="assigned" element={<PartnerJobDetailsPage />} />
-
-        <Route path="work" element={<PartnerJobDetailsPage />} />
+        <Route
+          path="work"
+          element={<Navigate to="/partner/work/requests" replace />}
+        />
 
         <Route path="work/requests" element={<PartnerJobsPage />} />
 
@@ -185,9 +178,6 @@ export default function PartnerRoutes() {
 
         <Route path="performance/reviews" element={<PartnerReviewsPage />} />
         <Route path="support/:id" element={<SupportTicketPage />} />
-        <Route path="support/tickets" element={<PartnerSupportPage />} />
-        <Route path="support/tickets/:id" element={<SupportTicketPage />} />
-        <Route path="support/tickets/:ticketId" element={<SupportTicketPage />} />
         <Route path="help" element={<HelpPage />} />
         <Route path="settings" element={<SettingsHome />} />
         <Route path="settings/security/password" element={<ChangePasswordPage />} />
@@ -211,12 +201,8 @@ export default function PartnerRoutes() {
           ),
         )}
 
-        {/* Partner job: details, active job, navigation + chat + call, location sharing */}
+        {/* Partner job: details, navigation + chat + call, location sharing */}
         <Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
-        <Route path="work/:id" element={<PartnerJobDetailsPage />} />
-        <Route path="work/:jobId" element={<PartnerJobDetailsPage />} />
-        <Route path="jobs/:id/active" element={<ActiveJobPage />} />
-        <Route path="work/active" element={<ActiveJobPage />} />
         <Route path="jobs/:id/navigation" element={<PartnerNavigationPage />} />
         <Route
           path="jobs/:id/location"

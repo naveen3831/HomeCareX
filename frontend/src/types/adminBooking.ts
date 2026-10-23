@@ -1,7 +1,5 @@
 export type BookingStatus =
   | "created"
-  | "confirmed"
-  | "pending_payment"
   | "searching_for_partner"
   | "assigned"
   | "en_route"

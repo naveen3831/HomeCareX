@@ -1,704 +1,123 @@
-import { useState, type ComponentType, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
-import clsx from "clsx";
-import {
-  Activity,
-  ArrowLeft,
-  CalendarDays,
-  CalendarClock,
-  CircleAlert,
-  Clock,
-  CreditCard,
-  Headset,
-  Layers,
-  MapPin,
-  Navigation,
-  Trash2,
-  Users,
-  Wrench,
-  Zap,
-} from "lucide-react";
-import BookingThumb from "../Dashboard/sections/BookingThumb";
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  OfflineState,
-} from "@/components/customer";
-import { Skeleton } from "@/components/customer/Skeleton";
-import { FOCUS_RING } from "@/components/customer/focusRing";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useBooking, useDecideExtraCharge } from "@/hooks/useBooking";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { customerPath } from "@/routes/customerPath";
-import type { BookingDetailView } from "@/types/bookingDetail";
-import { PILL_CLASS, formatSlot } from "../Bookings/bookingModel";
-import {
-  buildPriceBreakdown,
-  buildTimeline,
-  canCancelBooking,
-  canDecideExtraCharges,
-  canRescheduleBooking,
-  formatBookedOn,
-  formatDuration,
-  formatPlainDate,
-  isCancelledStatus,
-  mapsUrl,
-  formatMoment,
-  paymentMethodLabel,
-  paymentSummary,
-  statusPill,
-  weekdayOf,
-} from "./bookingDetailModel";
-import CancelDialog from "./components/CancelDialog";
-import ExtraChargeApproval from "./components/ExtraChargeApproval";
-import InvoiceCard from "./components/InvoiceCard";
-import BookAgainButton from "./components/BookAgainButton";
-import OtpDisplay from "./components/OtpDisplay";
-import PartnerCard from "./components/PartnerCard";
-import PriceBreakdown from "./components/PriceBreakdown";
-import RateExperience from "./components/RateExperience";
-import RescheduleDialog from "./components/RescheduleDialog";
-import StatusTimeline from "./components/StatusTimeline";
 
-const LINK_BUTTON =
-  "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition hover:opacity-90";
-
-/** Phases in which live tracking makes sense. */
-const TRACKABLE = new Set(["assigned", "en_route", "arrived", "in_progress"]);
-
-function Section({
-  id,
-  title,
-  icon: Icon,
-  children,
-  className,
-}: {
-  id: string;
-  title: string;
-  icon?: ComponentType<{ className?: string }>;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      aria-labelledby={id}
-      className={clsx(
-        "min-w-0 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6",
-        className,
-      )}
-    >
-      <h2
-        id={id}
-        className="mb-5 flex items-center gap-2.5 text-[15px] font-bold text-ink"
-      >
-        {Icon && (
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand"
-          >
-            <Icon className="h-4 w-4" />
-          </span>
-        )}
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <dt className="text-muted">{label}</dt>
-      <dd className="min-w-0 break-all text-right font-medium text-ink">
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-function Tile({
-  icon: Icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-canvas p-3.5 ring-1 ring-line">
-      <Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-xs text-muted">{label}</p>
-        <p className="break-words text-sm font-semibold text-ink">{value}</p>
-        {hint && <p className="text-xs text-muted">{hint}</p>}
-      </div>
-    </div>
-  );
-}
-
-function DetailsSkeleton() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading booking details"
-      className="space-y-4"
-    >
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-12 w-12 rounded-2xl" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-2/3" />
-          <Skeleton className="h-3 w-1/3" />
-        </div>
-      </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
-          <Skeleton className="h-56 w-full rounded-2xl" />
-          <Skeleton className="h-32 w-full rounded-2xl" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-56 w-full rounded-2xl" />
-          <Skeleton className="h-48 w-full rounded-2xl" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function serviceNameOf(b: BookingDetailView): string {
-  return (
-    b.priceSnapshot?.lines?.find((l) => l.kind === "BASE")?.name ||
-    b.serviceName ||
-    "Home Service"
-  );
-}
-
-export default function BookingDetails() {
+export default function BookingSuccess() {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const online = useOnlineStatus();
-  const query = useBooking(id);
-  const decide = useDecideExtraCharge(id ?? "");
+  const [searchParams] = useSearchParams();
+  const method = searchParams.get("method");
 
-  const shell = (children: ReactNode) => (
-    <main
-      tabIndex={-1}
-      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 py-4 outline-none sm:px-6 sm:py-8"
-    >
-      {children}
-    </main>
-  );
+  const isCOD = method === "cod";
 
-  if (!id) return shell(<NotFound />);
-  if (query.isPending) return shell(<DetailsSkeleton />);
-
-  if (query.isError && !query.data) {
-    const { status, code, message } = query.error;
-    // 400 = malformed id, 404 = missing or someone else's booking. Same answer on purpose.
-    if (status === 404 || status === 400) return shell(<NotFound />);
-    if (!online || status === 0 || code === "NETWORK_ERROR") {
-      return shell(<OfflineState onRetry={() => void query.refetch()} />);
-    }
-    return shell(
-      <ErrorState
-        title="We couldn't load this booking"
-        message={message}
-        onRetry={() => void query.refetch()}
-      />,
-    );
-  }
-
-  const booking = query.data;
-  if (!booking) return shell(<LoadingState label="Loading your booking…" />);
-
-  return shell(
-    <DetailsBody
-      booking={booking}
-      online={online}
-      refetchFailed={query.isError}
-      decide={decide}
-    />,
-  );
-}
-
-type DecideMutation = ReturnType<typeof useDecideExtraCharge>;
-
-function DetailsBody({
-  booking,
-  online,
-  refetchFailed,
-  decide,
-}: {
-  booking: BookingDetailView;
-  online: boolean;
-  refetchFailed: boolean;
-  decide: DecideMutation;
-}) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
-
-  const bookingId = String(booking._id || (booking as any).id || "");
-  const normalizedStatus = String(booking.status || "").toLowerCase();
-  const pill = statusPill(booking.status);
-  const code =
-    booking.bookingNumber || (bookingId ? `BK-${bookingId.slice(-5).toUpperCase()}` : "BK-BOOKING");
-  const name = serviceNameOf(booking);
-  const timeline = buildTimeline(booking);
-  const price = buildPriceBreakdown(booking);
-  const payment = paymentSummary(booking);
-  const pay = booking.paymentDetails;
-  const address = booking.addressSnapshot;
-  const cancelled = isCancelledStatus(booking.status);
-  const finished = normalizedStatus === "completed" || normalizedStatus === "rated";
-  const active = !finished && !cancelled && normalizedStatus !== "disputed";
-  // Same guards as the server's state machine; the server still has the final say.
-  const canCancel = active && canCancelBooking(booking.status);
-  const canReschedule =
-    active &&
-    canRescheduleBooking(booking.status) &&
-    Boolean(booking.serviceId && booking.date && booking.slot);
-  const showOtp =
-    Boolean(booking.partnerId) &&
-    (normalizedStatus === "arrived" || Boolean(booking.startOtp));
-  const hasPendingExtraCharges = (booking.extraCharges ?? []).some(
-    (c) => c.status === "pending",
-  );
-  const isPaid = String(booking.paymentStatus || "").toUpperCase() === "PAID";
-  const addOnLines = (booking.priceSnapshot?.lines ?? []).filter(
-    (l) => l.kind === "ADDON",
-  );
-  const service = booking.service;
-  const duration = formatDuration(service?.durationMinutes);
-  const bookedOn = formatBookedOn(booking.createdAt);
-  const weekday = weekdayOf(booking.date);
-  // Seeded / partner-side bookings can carry a bare start time ("10:00") instead of "10:00-12:00".
-  // Never let a formatting helper take the whole page down.
-  const slotText = (() => {
-    try {
-      return booking.slot ? formatSlot(booking.slot) : "";
-    } catch {
-      return booking.slot || "";
-    }
-  })();
-  const map = mapsUrl(address);
-  const paidOn = formatMoment(pay?.paidAt);
-  const methodText = paymentMethodLabel(pay?.method);
-  const txn = pay?.transactionId || pay?.paymentId;
-  const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(bookingId)}`;
-  const slotHours = (() => {
-    const m = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
-      booking.slot || "",
-    );
-    if (!m) return "";
-    return formatDuration(+m[3] * 60 + +m[4] - (+m[1] * 60 + +m[2]))
-      .replace("Hours", "hours")
-      .replace("Hour", "hour");
-  })();
+  // Note: Replace these mock values with your actual data context
+  const bookingId = id?.slice(-5).toUpperCase() || "2047D7";
+  const totalAmount = "₹1528";
+  const dateString = "October 5, 2026";
+  const timeString = "4:00 PM – 6:00 PM";
+  const serviceName = "Deep Home Cleaning";
+  const address = "14, Road No. 5, Jubilee Hills, Jubilee Hills, Hyderabad, Telangana — 500033";
 
   return (
-    <>
-      {/* Back link and header sit above both columns. */}
-      <Link
-        to={customerPath("/bookings")}
-        className={clsx(
-          "mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline",
-          FOCUS_RING,
-        )}
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to My Bookings
-      </Link>
-
-      {/* Header spans both columns, so Booking Status and Price Breakdown below start on the same line. */}
-      <header className="mb-5 sm:mb-6">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
-            Booking Details
-          </h1>
-          <span
-            className={clsx(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
-              PILL_CLASS[pill.tone],
-            )}
-          >
-            {pill.dot ? (
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full bg-current"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex h-4 w-4 items-center justify-center rounded-full bg-current"
-              >
-                <svg
-                  viewBox="0 0 12 12"
-                  className="h-2.5 w-2.5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M2.5 6.5l2.2 2.2L9.5 3.8" />
-                </svg>
-              </span>
-            )}
-            {pill.label}
-          </span>
+    <div className="p-4 md:p-8 font-sans w-full min-h-screen">
+      <div className="bg-[#eefcf2] rounded-xl p-8 md:p-12 w-full max-w-6xl mx-auto text-center shadow-sm">
+        
+        {/* Stars */}
+        <div className="flex justify-center items-center gap-2 text-[#c3a372] mb-4">
+          <span className="text-lg">★</span>
+          <span className="text-xl">★</span>
+          <span className="text-2xl">★</span>
+          <span className="text-xl">★</span>
+          <span className="text-lg">★</span>
         </div>
-        <p className="mt-1.5 text-sm text-muted">
-          Booking ID: {code}
-          {bookedOn && <span className="mx-2">•</span>}
-          {bookedOn && <>Booked on {bookedOn}</>}
-        </p>
-      </header>
 
-      {refetchFailed && (
-        <p
-          role="status"
-          className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800"
-        >
-          {online
-            ? "We couldn't refresh this booking just now. Showing the last version we have."
-            : "You're offline. Showing the last version we have."}
-        </p>
-      )}
+        {/* Heading */}
+        <h1 className="text-4xl md:text-5xl font-serif text-[#102a20] mb-6">
+          Booking Confirmed
+        </h1>
 
-      {cancelled && booking.cancellationReason && (
-        <p className="mb-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-          Reason: {booking.cancellationReason}
+        <p className="text-gray-600 mb-2 text-lg">
+          We are pleased to inform you that your reservation request has been received and confirmed.
         </p>
-      )}
+        <p className="text-gray-900 font-bold mb-6 text-lg">
+          Your booking is confirmed. Thank You!
+        </p>
 
-      {hasPendingExtraCharges && (
-        <div
-          role="region"
-          aria-label="Pending Extra Charge Approval"
-          className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-              <CircleAlert className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="font-bold text-amber-900">
-                Action Required: Your partner requested extra charges
-              </p>
-              <p className="text-xs text-amber-800">
-                Review and approve or reject the additional on-site items requested by your service partner.
-              </p>
+        {/* Highlighted Payment Notice */}
+        <div className="flex justify-center mb-10">
+          {isCOD ? (
+            <p className="text-gray-900 font-bold text-base">
+              Payment: cash on service. Please pay {totalAmount} to the professional after the visit.
+            </p>
+          ) : (
+            <p className="text-green-700 font-bold text-base">
+              Payment successful. Your service is fully paid.
+            </p>
+          )}
+        </div>
+
+        {/* Booking Details Section */}
+        <div className="text-left max-w-5xl mx-auto mt-4">
+          <h2 className="text-2xl font-serif text-[#102a20] mb-6">Booking Details</h2>
+
+          {/* Grid reverted to 4 columns */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 border-b border-gray-200 pb-8 mb-6">
+            <div className="md:border-r md:border-dashed md:border-gray-300 pr-2">
+              <p className="text-sm text-gray-500 mb-2">Booking:</p>
+              <p className="font-extrabold text-gray-900 text-lg">{bookingId}</p>
+            </div>
+            
+            <div className="md:border-r md:border-dashed md:border-gray-300 pr-2">
+              <p className="text-sm text-gray-500 mb-1">Date & Time:</p>
+              <p className="font-extrabold text-gray-900">{dateString}</p>
+              <p className="text-xs text-gray-500 mt-1">{timeString}</p>
+            </div>
+            
+            <div className="md:border-r md:border-dashed md:border-gray-300 pr-2">
+              <p className="text-sm text-gray-500 mb-2">Total:</p>
+              <p className="font-extrabold text-gray-900 text-lg">{totalAmount}</p>
+            </div>
+            
+            <div className="pr-2">
+              <p className="text-sm text-gray-500 mb-2">Status:</p>
+              <p className="font-extrabold text-gray-900 text-lg">Confirmed</p>
             </div>
           </div>
-          <a
-            href="#extra-charges-heading"
-            className="inline-flex items-center justify-center shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
-          >
-            Review Charges
-          </a>
-        </div>
-      )}
 
-      {/* Row one: Booking Status and Price Breakdown share the same top edge. */}
-      <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Left column */}
-        <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-          <Section id="timeline-heading" title="Booking Status" icon={Activity}>
-            <StatusTimeline items={timeline} />
-          </Section>
-
-          {(booking.extraCharges?.length ?? 0) > 0 && (
-            <ExtraChargeApproval
-              charges={booking.extraCharges}
-              canDecide={canDecideExtraCharges(booking.status)}
-              onDecide={(chargeId, decision) =>
-                decide.mutateAsync({ chargeId, decision })
-              }
-            />
-          )}
-
-          <Section id="service-heading" title="Service Details" icon={Wrench}>
-            <div className="flex flex-col gap-4 sm:flex-row">
-              {service?.image && !imgFailed ? (
-                <img
-                  src={service.image}
-                  alt=""
-                  loading="lazy"
-                  onError={() => setImgFailed(true)}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line object-cover sm:w-40"
-                />
-              ) : (
-                <BookingThumb
-                  serviceName={name}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line sm:w-40"
-                />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="break-words text-lg font-bold text-ink">
-                    {name}
-                  </h3>
-                  {booking.quantity > 1 && (
-                    <span className="rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
-                      × {booking.quantity}
-                    </span>
-                  )}
-                </div>
-                {service?.description && (
-                  <p className="mt-1 text-sm text-muted">
-                    {service.description}
-                  </p>
-                )}
-                {(duration || service?.categoryName) && (
-                  <ul className="mt-3 flex flex-wrap items-center gap-y-2 text-sm text-muted [&>li+li]:ml-4 [&>li+li]:border-l [&>li+li]:border-line [&>li+li]:pl-4">
-                    {duration && (
-                      <li className="flex items-center gap-1.5">
-                        <Clock
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {duration}
-                      </li>
-                    )}
-                    {service?.categoryName && (
-                      <li className="flex items-center gap-1.5">
-                        <Layers
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {service.categoryName}
-                      </li>
-                    )}
-                  </ul>
-                )}
-                {addOnLines.length > 0 && (
-                  <p className="mt-2 break-words text-sm text-muted">
-                    <span className="font-medium text-ink">Add-ons: </span>
-                    {addOnLines
-                      .map(
-                        (l) =>
-                          `${l.name}${l.quantity > 1 ? ` × ${l.quantity}` : ""}`,
-                      )
-                      .join(", ")}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Section>
-
-          <Section id="partner-heading" title="Service Partner" icon={Users}>
-            <PartnerCard
-              partner={
-                booking.partner ||
-                (typeof booking.partnerId === "object" && booking.partnerId !== null
-                  ? (booking.partnerId as any)
-                  : null)
-              }
-              hasPartner={Boolean(booking.partnerId)}
-            />
-          </Section>
-
-          <Section id="schedule-heading" title="Schedule" icon={CalendarDays}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Tile
-                icon={CalendarDays}
-                label="Service Date"
-                value={
-                  booking.date ? formatPlainDate(booking.date) : "Not scheduled"
-                }
-                hint={weekday ? `(${weekday})` : undefined}
-              />
-              <Tile
-                icon={Clock}
-                label="Time Slot"
-                value={slotText || "To be confirmed"}
-                hint={slotHours ? `(${slotHours})` : undefined}
-              />
-            </div>
-          </Section>
-
-          <Section id="address-heading" title="Service Address" icon={MapPin}>
-            {address ? (
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <address className="min-w-0 break-words text-sm not-italic text-ink">
-                  {address.label && (
-                    <span className="mb-0.5 block font-semibold">
-                      {address.label}
-                    </span>
-                  )}
-                  {[address.line1, address.line2, address.landmark]
-                    .filter(Boolean)
-                    .join(", ")}
-                  <br />
-                  {[address.city, address.state].filter(Boolean).join(", ")}
-                  {address.pincode ? ` - ${address.pincode}` : ""}
-                  {address.contactName && (
-                    <span className="mt-1 block text-muted">
-                      {address.contactName}
-                      {address.contactPhone ? ` · ${address.contactPhone}` : ""}
-                    </span>
-                  )}
-                </address>
-                {map && (
-                  <a
-                    href={map}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={clsx(
-                      "inline-flex h-10 items-center gap-2 rounded-xl border border-brand/30 px-4 text-sm font-semibold text-brand transition hover:bg-brand-soft",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                    View on Maps
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted">No address on this booking.</p>
-            )}
-          </Section>
-
-          {/* Start OTP: bottom of the left column, as in the design */}
-          {showOtp && <OtpDisplay code={booking.startOtp} />}
-        </div>
-
-
-        {/* Right column */}
-        <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-          <Section id="price-heading" title="Price Breakdown" icon={Layers}>
-            <PriceBreakdown model={price} />
-          </Section>
-
-          <Section
-            id="payment-heading"
-            title="Payment Details"
-            icon={CreditCard}
-          >
-            <dl className="space-y-3">
-              <Row label="Payment Status">
-                <span
-                  className={clsx(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                    PILL_CLASS[payment.tone],
-                  )}
-                >
-                  {payment.label}
-                </span>
-              </Row>
-              {methodText && <Row label="Payment Method">{methodText}</Row>}
-              {txn && <Row label="Transaction ID">{txn}</Row>}
-              {paidOn && payment.label === "Paid" && (
-                <Row label="Paid On">{paidOn}</Row>
-              )}
-            </dl>
-          </Section>
-
-          <Section id="actions-heading" title="Booking Actions" icon={Zap}>
-            <div className="flex flex-col gap-2.5">
-              <InvoiceCard
-                bookingId={bookingId}
-                bookingCode={code}
-                enabled={isPaid}
-              />
-              {TRACKABLE.has(normalizedStatus) && (
-                <Link
-                  to={`${customerPath("/tracking")}?booking=${encodeURIComponent(bookingId)}`}
-                  className={clsx(
-                    LINK_BUTTON,
-                    "border border-brand/30 bg-panel text-brand",
-                    FOCUS_RING,
-                  )}
-                >
-                  <Navigation className="h-4 w-4" aria-hidden="true" />
-                  Live Tracking
-                </Link>
-              )}
-              {canReschedule && (
-                <button
-                  type="button"
-                  onClick={() => setDialog("reschedule")}
-                  className={clsx(
-                    LINK_BUTTON,
-                    "border border-brand/30 bg-panel text-brand",
-                    FOCUS_RING,
-                  )}
-                >
-                  <CalendarClock className="h-4 w-4" aria-hidden="true" />
-                  Reschedule Booking
-                </button>
-              )}
-              {canCancel && (
-                <button
-                  type="button"
-                  onClick={() => setDialog("cancel")}
-                  className={clsx(
-                    LINK_BUTTON,
-                    "border border-danger/40 bg-panel text-danger",
-                    FOCUS_RING,
-                  )}
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  Cancel Booking
-                </button>
-              )}
-              {!cancelled && <RateExperience bookingId={bookingId} status={booking.status} />}
-              <BookAgainButton booking={booking} />
-            </div>
-          </Section>
-
-          <section className="rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6">
-            <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
-              <Headset className="h-5 w-5 text-brand" aria-hidden="true" />
-              Need Help?
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Contact our support team for any assistance regarding this
-              booking.
+          {/* Details Line */}
+          <div className="mb-3 text-sm md:text-base">
+            <p className="text-gray-600">
+              <span className="font-bold text-gray-900">Details:</span>{" "}
+              <span className="text-[#c3a372] font-semibold">{serviceName}</span> | {address}
             </p>
-            <Link
-              to={supportHref}
-              className={clsx(
-                LINK_BUTTON,
-                "mt-3 w-full border border-brand/30 bg-panel text-brand",
-                FOCUS_RING,
-              )}
+          </div>
+
+          {/* Payment Status added below Booking Details */}
+          <div className="mb-10 text-sm md:text-base">
+            <p className="text-gray-600">
+              <span className="font-bold text-gray-900">Payment Status:</span>{" "}
+              <span className={`font-semibold ${isCOD ? 'text-amber-600' : 'text-green-600'}`}>
+                {isCOD ? 'Pending (Cash on Service)' : 'Paid Successfully'}
+              </span>
+            </p>
+          </div>
+
+          {/* Action Links */}
+          <div className="flex gap-6">
+            <button
+              onClick={() => navigate(customerPath(`/bookings/${id}`))}
+              className="text-gray-600 hover:text-black underline font-medium underline-offset-4 transition-colors"
             >
-              Contact Support
-            </Link>
-          </section>
+              View My Bookings
+            </button>
+            <button
+              onClick={() => navigate(customerPath('/'))}
+              className="text-gray-600 hover:text-black underline font-medium underline-offset-4 transition-colors"
+            >
+              Return to Home
+            </button>
+          </div>
         </div>
       </div>
-
-      {dialog === "cancel" && (
-        <CancelDialog bookingId={bookingId} onClose={() => setDialog(null)} />
-      )}
-      {dialog === "reschedule" && (
-        <RescheduleDialog
-          bookingId={bookingId}
-          serviceId={booking.serviceId}
-          date={booking.date}
-          slot={booking.slot}
-          onClose={() => setDialog(null)}
-        />
-      )}
-    </>
-  );
-}
-
-function NotFound() {
-  return (
-    <EmptyState
-      title="We couldn't find this booking"
-      description="It may have been removed, or the link is wrong."
-      action={
-        <Link
-          to={customerPath("/bookings")}
-          className={clsx(LINK_BUTTON, "bg-brand text-white", FOCUS_RING)}
-        >
-          Back to my bookings
-        </Link>
-      }
-    />
+    </div>
   );
 }

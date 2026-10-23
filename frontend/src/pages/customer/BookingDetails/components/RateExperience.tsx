@@ -15,9 +15,8 @@ const BUTTON = "inline-flex min-h-[44px] w-full items-center justify-center gap-
  * Not finished yet: a disabled button. Renders nothing for a cancelled booking.
  */
 export default function RateExperience({ bookingId, status }: { bookingId: string; status: string }) {
-  const normalized = String(status || "").toLowerCase();
-  const rated = normalized === "rated";
-  const finished = normalized === "completed" || rated;
+  const rated = status === "rated";
+  const finished = status === "completed" || rated;
   const mine = useMyReviews(rated);
   const review = rated ? mine.data?.find((r) => r.bookingId === bookingId) : undefined;
 

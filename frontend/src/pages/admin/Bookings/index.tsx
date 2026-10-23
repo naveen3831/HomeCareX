@@ -33,7 +33,6 @@ const INITIAL_FILTERS: BookingFilters = {
 };
 
 const STATUS_OPTIONS: BookingStatus[] = [
-  "confirmed",
   "created",
   "searching_for_partner",
   "assigned",

@@ -12,27 +12,6 @@ export interface Availability {
   workingHours: WorkingHoursDay[];
 }
 
-export const PARTNER_ONLINE_STORAGE_KEY = 'homecarex_partner_online_status';
-
-export function readStoredOnlineStatus(): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(PARTNER_ONLINE_STORAGE_KEY);
-    if (raw === 'true') return true;
-    if (raw === 'false') return false;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeStoredOnlineStatus(isOnline: boolean): void {
-  try {
-    window.localStorage.setItem(PARTNER_ONLINE_STORAGE_KEY, String(isOnline));
-  } catch {
-    // Storage may be unavailable in private browsing modes.
-  }
-}
-
 export const getAvailability = () =>
   http.get<ApiResponse<Availability>>('/partner/availability').then((r) => r.data.data);
 

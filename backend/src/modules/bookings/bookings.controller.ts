@@ -49,54 +49,6 @@ export const bookingsController = {
     res.json({ success: true, data: booking });
   },
 
-  async decideExtraCharge(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const { id, chargeId } = req.params;
-    const { decision } = req.body as { decision: 'approve' | 'reject' };
-    const booking = await BookingService.decideExtraCharge(customerId, id, chargeId, decision);
-    res.json({
-      success: true,
-      message: decision === 'approve' ? 'Extra charge approved' : 'Extra charge rejected',
-      data: booking,
-    });
-  },
-
-  async getInvoice(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const result = await BookingService.getInvoice(customerId, req.params.id);
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('X-Invoice-Number', result.invoiceNo);
-    res.send(result.html);
-  },
-
-  async previewCancellation(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const result = await BookingService.previewCancellation(customerId, req.params.id);
-    res.json({ success: true, data: result });
-  },
-
-  async cancelBooking(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const { reason } = req.body as { reason: string };
-    const result = await BookingService.cancelBooking(customerId, req.params.id, reason);
-    res.json({
-      success: true,
-      message: 'Booking cancelled successfully',
-      data: result,
-    });
-  },
-
-  async rescheduleBooking(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const { date, slot } = req.body as { date: string; slot: string };
-    const result = await BookingService.rescheduleBooking(customerId, req.params.id, { date, slot });
-    res.json({
-      success: true,
-      message: 'Booking rescheduled successfully',
-      data: result,
-    });
-  },
-
   async listBookings(req: Request, res: Response) {
     // The customer is always the token's user. Nothing in the query string can widen this.
     const customerId = requireUserId(req);
@@ -106,4 +58,4 @@ export const bookingsController = {
     const { items, meta } = await BookingService.listBookings(customerId, query);
     res.json({ success: true, count: items.length, data: items, meta });
   },
-};
+};
