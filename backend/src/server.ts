@@ -1,3 +1,16 @@
+import "dotenv/config";
+import http from "http";
+import mongoose from "mongoose";
+import app from "./app";
+import { initSockets } from "./sockets";
+import { registerEarningsListeners } from "./modules/earnings/earnings.listener";
+import { seedDefaultSettings } from "./modules/settings/settings.service";
+import { seedDefaultDesignations } from "./modules/designations/designations.service";
+import { seedDefaultCategories } from "./modules/categories/categories.service";
+import { seedDefaultServices } from "./modules/services/services.service";
+import { upsertCatalogSeed } from "./modules/catalog/catalog.seed";
+import { ServiceModel } from "./models/Service";
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -28,6 +41,9 @@ const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
 
 const server = http.createServer(app);
 initSockets(server);
+const PORT = process.env.PORT || 5000;
+let stopReferralWorker = () => {};
+let stopSlaSweep = () => {};
 
 const PORT = Number(process.env.PORT) || 5000;
 let stopReferralWorker: (() => void) | undefined;
@@ -112,6 +128,24 @@ const startServer = async () => {
   }
 };
 
+connectDB().then(() => {
+  stopReferralWorker = startReferralWorker(error => console.error('[referrals] Reward reconciliation failed; it will retry.', error instanceof Error ? error.message : 'Unknown error'));
+  registerEarningsListeners();
+  stopSlaSweep = startSlaSweep();
+  server.listen(PORT, () => {
+    console.log(`HomeCareX server running on port ${PORT}`);
+    // Seconds since the node process started, including loading all modules.
+    console.log(
+      `[timing] total startup: ${Math.round(process.uptime() * 1000)} ms`,
+    );
+  });
+});
+
+// Graceful shutdown
+const shutdown = async () => {
+  stopReferralWorker();
+  stopSlaSweep();
+  console.log("Stopping server gracefully...");
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;

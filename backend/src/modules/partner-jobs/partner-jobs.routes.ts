@@ -10,12 +10,14 @@ import {
   getPartnerJob,
   listJobRequests,
   listPartnerJobs,
+  raiseJobSos,
   rejectJobOffer,
   updateBookingStatus,
 } from "./partner-jobs.controller";
 
 import {
   jobParamsSchema,
+  sosBodySchema,
   statusBodySchema,
 } from "./partner-jobs.validation";
 
@@ -61,6 +63,16 @@ partnerJobsRoutes.post(
   requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema }),
   rejectJobOffer,
+);
+
+// POST /api/v1/partner/jobs/:id/sos   body: { coordinates?: { lat, lng } | null }
+partnerJobsRoutes.post(
+  "/:id/sos",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: jobParamsSchema, body: sosBodySchema }),
+  raiseJobSos,
 );
 
 /** Mounted at /partner/job-requests */

@@ -19,6 +19,7 @@ import type {
   JobRequestDto,
 } from "./partner-jobs.types";
 import { ensurePartnerProfile } from "../partners/partners.service";
+import { alertSos } from "../notifications/admin-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
 
@@ -277,6 +278,27 @@ export const partnerJobsService = {
   },
 
   /** PATCH /bookings/:id/status for partners. Goes through the booking state machine. */
+  /**
+   * POST /partner/jobs/:id/sos. The partner presses SOS on one of THEIR live jobs. Admins get a highlighted
+   * bell alert at once (socket). Only the owner can raise it, and only while the job is live.
+   */
+  async raiseSos(
+    userId: string,
+    bookingId: string,
+    coordinates?: { lat: number; lng: number } | null,
+  ): Promise<{ sent: true }> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    if (!LIVE_STATUSES.includes(booking.status)) {
+      throw invalid("SOS is only available while a job is active");
+    }
+    alertSos({
+      bookingId: booking._id.toString(),
+      partnerId: partner._id.toString(),
+      coordinates: coordinates ?? null,
+    });
+    return { sent: true };
+  },
+
   async updateStatus(
     userId: string,
     bookingId: string,

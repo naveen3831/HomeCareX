@@ -1,3 +1,34 @@
+import { createHash } from "crypto";
+import { notifyAdmins } from "../notifications";
+import { alertRefundRequested } from "../notifications/admin-alerts";
+import { Types } from "mongoose";
+import { AppError } from "../../utils/AppError";
+import {
+  addressesService,
+  type ResolvedAddress,
+} from "../addresses/addresses.service";
+import { bookingsRepository } from "./bookings.repository";
+import type { ListBookingsQuery } from "./bookings.query";
+import { bookingSettings } from "./bookings.settings";
+import { withSlotLock } from "./bookings.lock";
+import {
+  buildDetailView,
+  INTERNAL_KEYS,
+  type PaymentInfo,
+  type ServiceInfo,
+} from "./bookings.detail";
+import {
+  buildInvoiceData,
+  renderInvoiceHtml,
+  withPaymentRecord,
+} from "./bookings.invoice";
+import { PaymentModel } from "../../models/Payment";
+import {
+  applyTransition,
+  canTransition,
+  type StatusHistoryEntry,
+} from "./bookings.stateMachine";
+import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
@@ -319,6 +350,103 @@ export const BookingService = {
     const now = new Date();
 
     try {
+      const created = await withSlotLock(
+        `booking:${input.serviceId}:${input.date}:${input.slot}`,
+        async () => {
+          await bookingsRepository.releaseStaleHolds(
+            input.serviceId,
+            input.date,
+            input.slot,
+            now,
+          );
+          const seat = await bookingsRepository.findFreeSeat(
+            input.serviceId,
+            input.date,
+            input.slot,
+            capacity,
+          );
+          if (seat === null) {
+            throw new AppError(
+              409,
+              "SLOT_UNAVAILABLE",
+              "Selected slot is no longer available",
+            );
+          }
+          return bookingsRepository.create({
+            customerId: new Types.ObjectId(customerId),
+            serviceId: new Types.ObjectId(input.serviceId),
+             ...(row.categoryId ? { categoryId: row.categoryId } : {}),
+            quantity: input.quantity,
+            addOns: input.addOns.map((a) => ({
+              addOnId: new Types.ObjectId(a.addOnId),
+              quantity: a.quantity,
+            })),
+            addressSnapshot: {
+              ...addressSnapshot,
+              sourceAddressId: addressSnapshot.sourceAddressId
+                ? new Types.ObjectId(addressSnapshot.sourceAddressId)
+                : undefined,
+            },
+            // Fields read by the partner jobs/dashboard side (P02-P05).
+            serviceName: service.name,
+            address: {
+              line1: addressSnapshot.line1,
+              area: addressSnapshot.line2,
+              city: addressSnapshot.city,
+              pincode: addressSnapshot.pincode,
+              ...(addressSnapshot.location
+                ? {
+                    location: {
+                      type: "Point",
+                      coordinates: [
+                        addressSnapshot.location.lng,
+                        addressSnapshot.location.lat,
+                      ],
+                    },
+                  }
+                : {}),
+            },
+            scheduledAt: slotStartDate(input.date, input.slot),
+            priceBreakdown: {
+              base: lines[0].amount,
+              addOns: pricing.addOnsTotal,
+              surge: pricing.surge,
+              discount: priceSnapshot.discount,
+              convenienceFee: priceSnapshot.convenienceFee,
+              tax: pricing.gst,
+              total: priceSnapshot.total,
+            },
+            date: input.date,
+            slot: input.slot,
+            priceSnapshot,
+            status: initialStatus,
+            paymentStatus: initialPaymentStatus,
+            statusHistory: [
+              {
+                from: null,
+                to: initialStatus,
+                at: now,
+                actorId: customerId,
+                actorRole: "customer",
+                reason: requirePayment
+                  ? "Booking created, awaiting payment"
+                  : "Booking confirmed",
+              },
+            ],
+            slotSeat: seat,
+            idempotencyKey,
+            requestHash,
+            holdExpiresAt: requirePayment
+              ? new Date(now.getTime() + BOOKING_HOLD_MS)
+              : undefined,
+          } as never);
+        },
+      );
+      // Tell the admins (bell, live). Fire-and-forget: a failed alert must never fail the booking.
+      void notifyAdmins("booking.created", {
+        bookingId: String((created as { _id?: unknown })._id ?? ""),
+        serviceId: input.serviceId,
+      }).catch(() => undefined);
       const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
         await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
         const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
@@ -574,6 +702,8 @@ export const BookingService = {
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && paidRecord) {
       try {
+        const refund = await bookingsRepository.createRefundRequest({
+          payment,
         await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
@@ -581,6 +711,13 @@ export const BookingService = {
           amount: quote.refundAmount,
           reason,
           now,
+        });
+        refundStatus = "requested";
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
         } as any);
         refundStatus = 'requested';
       } catch {
