@@ -6,13 +6,15 @@ export interface NormalizedMessage {
   attachments: Array<{ url: string }>;
 }
 
-export const normalizeMessage = (m: {
+export interface RawMessage {
   id?: string | number;
   _id?: string | number;
   body?: string;
   text?: string;
   attachments?: Array<string | { url?: string }>;
-}): NormalizedMessage => ({
+}
+
+export const normalizeMessage = (m: RawMessage): NormalizedMessage => ({
   _id: String(m._id ?? m.id ?? "msg-" + Math.random().toString(16).slice(2)),
   text: m.text ?? m.body ?? "",
   attachments: (m.attachments ?? []).map((item) =>
@@ -29,7 +31,7 @@ export async function sendBookingMessage(
   form.append("text", text);
   files.forEach((file) => form.append("attachments", file));
 
-  const res = await http.post<{ data: any }>(
+  const res = await http.post<{ data: RawMessage }>(
     `/bookings/${bookingId}/messages`,
     form,
     {

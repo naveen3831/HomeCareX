@@ -50,21 +50,20 @@ export default function MyBookingsPage() {
     [state.status, state.date, state.service].filter(Boolean).length +
     (state.sort !== DEFAULT_SORT[state.tab] ? 1 : 0);
 
-  const { data, dataUpdatedAt, isError, error, refetch, isPlaceholderData } =
-    useBookings({
-      tab: state.tab,
-      status: state.status || undefined,
-      search: state.search || undefined,
-      date: state.date || undefined,
-      service: state.service || undefined,
-      sort: state.sort,
-      page: state.page,
-      limit: PAGE_SIZE,
-    });
+  const { data, isError, error, refetch, isPlaceholderData } = useBookings({
+    tab: state.tab,
+    status: state.status || undefined,
+    search: state.search || undefined,
+    date: state.date || undefined,
+    service: state.service || undefined,
+    sort: state.sort,
+    page: state.page,
+    limit: PAGE_SIZE,
+  });
 
   // One "now" per fetch so every card agrees on what has expired.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const now = useMemo(() => Date.now(), [dataUpdatedAt]);
+  const now = useMemo(() => Date.now(), [data]);
 
   // A shared link or a filter change can leave us past the last page: step back to it.
   const totalPages = data?.meta.totalPages ?? 0;
@@ -254,8 +253,8 @@ export default function MyBookingsPage() {
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-ink">
-            Bookings
+          <h1 className="sr-only">
+            My Bookings
           </h1>
           <p className="mt-1 text-sm text-muted">
             Track what&apos;s happening now, what&apos;s next and what&apos;s

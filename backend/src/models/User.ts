@@ -4,6 +4,7 @@ export const USER_ROLES = ['admin', 'customer', 'partner'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const ADMIN_ROLES: UserRole[] = ['admin'];
+export const USER_STATUSES = ['active', 'blocked', 'invited'] as const;
 
 const UserSchema = new Schema(
   {

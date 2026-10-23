@@ -25,7 +25,7 @@ import { incentivesRoutes } from '../modules/incentives/incentives.routes';
 // Catalog & Public
 import { catalogRoutes } from '../modules/catalog/catalog.routes';
 import leadsRoutes from '../modules/leads/leads.routes';
-import { pricingRoutes } from '../modules/pricing/pricing.routes';
+import { adminPricingRoutes, pricingRoutes } from '../modules/pricing/pricing.routes';
 
 // Bookings & Payments
 import { bookingsRoutes } from '../modules/bookings/bookings.routes';
@@ -82,6 +82,7 @@ rootRouter.use('/admin/partners', partnersRoutes);
 rootRouter.use('/admin/coupons', couponsRoutes);
 rootRouter.use('/admin/banners', marketingRoutes);
 rootRouter.use('/admin/incentives', incentivesRoutes);
+rootRouter.use('/admin/pricing', adminPricingRoutes);
 rootRouter.use('/admin/reports', reportsRoutes);
 rootRouter.use('/admin', payoutsRoutes);
 rootRouter.use('/admin', refundsRoutes);
@@ -137,5 +138,6 @@ rootRouter.use(bookingsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
 rootRouter.use('/bookings', chatRoutes);
 rootRouter.use(reviewsRoutes);
-
+ 
 export default rootRouter;
+ 

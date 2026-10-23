@@ -75,6 +75,13 @@ export const validationMiddleware = (schema: z.ZodTypeAny | RequestSchemas): Req
 
 type Source = 'body' | 'query' | 'params';
 
+/** For endpoints that take no query string: any stray param (`?foo=1`, `?x[$ne]=1`) is a 400 instead of being ignored. */
+export const noQuery: RequestHandler = (req, _res, next) => {
+  const keys = Object.keys(req.query ?? {});
+  if (keys.length === 0) return next();
+  return next(Errors.validation(keys.map((k) => ({ field: k, message: `Unknown query parameter: ${k}` }))));
+};
+
 /** Validates req[source] with a zod schema; replaces it with the parsed value or responds 400 VALIDATION_ERROR. */
 export const validate =
   (schema: z.ZodTypeAny, source: Source = 'body') =>

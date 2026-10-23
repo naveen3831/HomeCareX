@@ -7,6 +7,9 @@ export const NOTIFICATION_TYPES = [
   'partner.rejected',
   'payout.processed',
   'refund.updated',
+  'payment.succeeded',
+  'payment.failed',
+  'offer.new',
   'ticket.reply',
   'system.announcement',
 ] as const;

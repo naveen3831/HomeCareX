@@ -399,8 +399,9 @@ export default function StepReview() {
           }
         });
         rzpInstance.open();
-      } catch (razorpayErr: any) {
-        throw new Error(`Razorpay Initialization Error: ${razorpayErr.message}`);
+      } catch (razorpayErr: unknown) {
+        const reason = razorpayErr instanceof Error ? razorpayErr.message : String(razorpayErr);
+        throw new Error(`Razorpay Initialization Error: ${reason}`);
       }
     } catch (err) {
       stopSubmitting();

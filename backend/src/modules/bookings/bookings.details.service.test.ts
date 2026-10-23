@@ -87,7 +87,10 @@ test('approve/reject map to the stored statuses', async () => {
       seen.push(decision);
       return doc();
     },
-    findByIdForCustomer: async () => doc(),
+    findByIdForCustomer: async () => doc({
+      status: 'in_progress',
+      extraCharges: [{ _id: 'x1', title: 't', amount: 5, status: 'pending' }],
+    }),
   });
   await BookingService.decideExtraCharge('c1', 'b1', 'x1', 'approve');
   await BookingService.decideExtraCharge('c1', 'b1', 'x1', 'reject');

@@ -21,7 +21,9 @@ export const rateLimit = ({ windowMs, max, keyGenerator }: RateLimitOptions) => 
     entry.count += 1;
     if (entry.count > max) {
       const retryAfterSeconds = Math.ceil((entry.resetAt - now) / 1000);
-      res.setHeader('Retry-After', String(Math.max(1, retryAfterSeconds)));
+      if (typeof res.setHeader === 'function') {
+        res.setHeader('Retry-After', String(Math.max(1, retryAfterSeconds)));
+      }
       return next(new HttpError(429, 'Too many requests. Please wait a minute and try again.', 'RATE_LIMITED'));
     }
     next();

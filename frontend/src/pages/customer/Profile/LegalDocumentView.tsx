@@ -23,8 +23,8 @@ function linkify(text: string): ReactNode[] {
 }
 
 function Paragraph({ text }: { text: string }) {
-  const bullet = /^[•\-]\s+/.test(text);
-  const body = bullet ? text.replace(/^[•\-]\s+/, "") : text;
+  const bullet = /^[•-]\s+/.test(text);
+  const body = bullet ? text.replace(/^[•-]\s+/, "") : text;
   const m = body.match(/^((?:[A-Z0-9][\w\s&/()'"-]{1,55})):\s+([\s\S]*)$/);
   const content = m ? (
     <>
@@ -135,4 +135,3 @@ export default function LegalDocumentView({ doc, other }: Props) {
     </div>
   );
 }
-

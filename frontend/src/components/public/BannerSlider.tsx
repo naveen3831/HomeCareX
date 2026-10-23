@@ -5,6 +5,7 @@ import React, {
   useState,
 } from "react";
 import { useBanners } from "@/hooks/useBanners";
+import { safeAlt, safeText } from "@/lib/querySanitize";
 /* =====================================================================
  * TYPES & DATA
  * ===================================================================== */
@@ -85,6 +86,21 @@ const defaultBanners: Banner[] = [
 const AUTOPLAY_MS = 3000;
 const SWIPE_THRESHOLD_PX = 50;
 
+/**
+ * Banner links come from the API. Only an in-site path ("/services") or an
+ * http(s) URL is allowed; "javascript:", "data:" and "//evil.com" fall back to /services.
+ */
+const safeLink = (value: unknown): string => {
+  if (typeof value !== "string") return "/services";
+
+  const link = value.trim();
+
+  if (/^\/(?!\/)/.test(link)) return link;
+  if (/^https?:\/\//i.test(link)) return link;
+
+  return "/services";
+};
+
 /* =====================================================================
  * ICONS
  * ===================================================================== */
@@ -146,13 +162,13 @@ const controlButton =
 const BannerSlider: React.FC<BannerSliderProps> = ({
   banners: suppliedBanners,
 }) => {
- const { data: apiBanners, isError, isLoading } = useBanners();
+  const { data: apiBanners, isError, isLoading } = useBanners();
 
-const banners =
-  suppliedBanners ??
-  (isError || (!isLoading && !apiBanners?.length)
-    ? defaultBanners
-    : apiBanners ?? []);
+  const banners =
+    suppliedBanners ??
+    (isError || (!isLoading && !apiBanners?.length)
+      ? defaultBanners
+      : apiBanners ?? []);
 
   const count = banners.length;
 
@@ -443,22 +459,29 @@ const banners =
                 >
                   {/* Optimized banner image */}
 
-                 <img
-  src={banner.image}
-  alt={isActive ? banner.alt : ""}
-  width={1600}
-  height={900}
-  loading={isActive ? "eager" : "lazy"}
-  fetchPriority={isActive ? "high" : "low"}
-  decoding="async"
-  onError={(event) => {
-    console.error("Banner image failed to load:", banner.image);
-    event.currentTarget.style.display = "none";
-  }}
-  className={`absolute inset-0 h-full w-full object-cover ${imageMotion} ${
-    isActive ? "scale-100" : "scale-105"
-  }`}
-/>
+                  <img
+                    src={banner.image}
+                    alt={
+                      isActive
+                        ? safeAlt(
+                            banner.alt,
+                            safeText(banner.title) || "HomeCareX offer"
+                          )
+                        : ""
+                    }
+                    width={1600}
+                    height={900}
+                    loading={isActive ? "eager" : "lazy"}
+                    fetchPriority={isActive ? "high" : "low"}
+                    decoding="async"
+                    onError={(event) => {
+                      console.error("Banner image failed to load:", banner.image);
+                      event.currentTarget.style.display = "none";
+                    }}
+                    className={`absolute inset-0 h-full w-full object-cover ${imageMotion} ${
+                      isActive ? "scale-100" : "scale-105"
+                    }`}
+                  />
 
                   {/* Readability overlays */}
 
@@ -466,7 +489,7 @@ const banners =
 
                   <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1e1b4b]/55 to-transparent" />
 
-                  {/* Banner content */}
+                  {/* Banner content (React escapes all of this as text, never as HTML) */}
 
                   <div className="relative flex h-full items-center px-6 pb-28 pt-12 sm:px-12 lg:px-16">
                     <div
@@ -489,7 +512,7 @@ const banners =
                       </p>
 
                       <a
-                        href={banner.link}
+                        href={safeLink(banner.link)}
                         tabIndex={isActive ? 0 : -1}
                         className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-3.5 font-semibold text-white shadow-lg shadow-black/20 transition hover:bg-[#e0600f] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#312e81]"
                       >
@@ -614,7 +637,7 @@ const banners =
             aria-live={autoplayActive ? "off" : "polite"}
           >
             {`Banner ${currentIndex + 1} of ${count}: ${
-              banners[currentIndex]?.title ?? ""
+              safeText(banners[currentIndex]?.title)
             }`}
           </p>
         </div>

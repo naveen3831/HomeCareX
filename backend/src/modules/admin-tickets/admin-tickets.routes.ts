@@ -1,3 +1,4 @@
+ 
 
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
@@ -16,6 +17,7 @@ import {
   updatePrioritySchema,
   updateStatusSchema,
 } from './admin-tickets.validation';
+ 
 import { ticketsController } from '../tickets/tickets.controller';
 import { attachmentIdSchema } from '../tickets/tickets.validation';
 
@@ -24,10 +26,8 @@ import { attachmentIdSchema } from '../tickets/tickets.validation';
  * Requires an authenticated admin with tickets:manage permission.
  */
 export const adminTicketsRoutes = Router();
-
+ 
 adminTicketsRoutes.use(authenticate, requireAdmin, requirePermission(TICKETS_MANAGE));
-adminTicketsRoutes.get('/:id/attachments/:attachmentId', validate(attachmentIdSchema, 'params'), asyncHandler(ticketsController.evidence));
-
 // GET /admin/tickets?status=&priority=&category=&assignee=&requester=&requesterRole=&booking=&sla=&from=&to=&page=&limit=
 // One queue for customer AND partner tickets. status/priority/category accept comma lists (status=open,in_progress).
 adminTicketsRoutes.get(
@@ -35,6 +35,7 @@ adminTicketsRoutes.get(
   validate(listTicketsQuerySchema, 'query'),
   asyncHandler((req, res) => adminTicketsController.list(req, res)),
 );
+ 
 
 // GET /admin/tickets/:id
 adminTicketsRoutes.get(
@@ -42,12 +43,19 @@ adminTicketsRoutes.get(
   validate(ticketIdParamSchema, 'params'),
   asyncHandler((req, res) => adminTicketsController.get(req, res)),
 );
+ 
 
 // GET /admin/tickets/:id/messages
 adminTicketsRoutes.get(
   '/:id/messages',
   validate(ticketIdParamSchema, 'params'),
   asyncHandler((req, res) => adminTicketsController.messages(req, res)),
+);
+
+adminTicketsRoutes.get(
+  '/:id/attachments/:attachmentId',
+  validate(attachmentIdSchema, 'params'),
+  asyncHandler(ticketsController.evidence),
 );
 
 // PATCH /admin/tickets/:id/assign
@@ -57,6 +65,7 @@ adminTicketsRoutes.patch(
   validate(assignTicketSchema, 'body'),
   asyncHandler((req, res) => adminTicketsController.assign(req, res)),
 );
+ 
 
 // POST /admin/tickets/:id/messages
 adminTicketsRoutes.post(
@@ -65,6 +74,7 @@ adminTicketsRoutes.post(
   validate(postMessageSchema, 'body'),
   asyncHandler((req, res) => adminTicketsController.postMessage(req, res)),
 );
+ 
 
 // PATCH /admin/tickets/:id/status
 adminTicketsRoutes.patch(
@@ -73,6 +83,7 @@ adminTicketsRoutes.patch(
   validate(updateStatusSchema, 'body'),
   asyncHandler((req, res) => adminTicketsController.status(req, res)),
 );
+ 
 
 // PATCH /admin/tickets/:id/priority
 adminTicketsRoutes.patch(
@@ -81,18 +92,20 @@ adminTicketsRoutes.patch(
   validate(updatePrioritySchema, 'body'),
   asyncHandler((req, res) => adminTicketsController.priority(req, res)),
 );
-
+ 
 /**
  * Mounted at /api/v1/admin/ticket-assignees.
  * Returns admins who can be assigned to support tickets.
  */
 export const adminStaffRoutes = Router();
+ 
 
 adminStaffRoutes.use(
   authenticate,
   requireAdmin,
   requirePermission(TICKETS_MANAGE),
 );
+ 
 
 // GET /admin/ticket-assignees
 adminStaffRoutes.get(
@@ -100,5 +113,7 @@ adminStaffRoutes.get(
   validate(listAgentsQuerySchema, 'query'),
   asyncHandler((req, res) => adminTicketsController.agents(req, res)),
 );
-
+ 
 export default adminTicketsRoutes;
+ 
+ 

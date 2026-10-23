@@ -99,9 +99,9 @@ describe("ServiceFilters", () => {
     render(<TestWrapper onCategoryChange={onCategoryChange} />);
 
     await user.click(screen.getByRole("button", { name: FILTERS_BUTTON }));
-    await user.selectOptions(screen.getByLabelText("Category"), "Cleaning");
+    await user.selectOptions(screen.getByLabelText("Category"), "home-cleaning");
 
-    expect(onCategoryChange).toHaveBeenLastCalledWith("Cleaning");
+    expect(onCategoryChange).toHaveBeenLastCalledWith("home-cleaning");
   });
 
   it("allows the user to change the sort option", async () => {

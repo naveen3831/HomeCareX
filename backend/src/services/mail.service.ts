@@ -37,6 +37,15 @@ function logo(): { src?: string; attachments: Mail.Attachment[] } {
   return { attachments: [] }; // falls back to a text wordmark
 }
 
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]!);
+
 export const mailService = {
   async sendAccountCreatedEmail(data: Omit<AccountCreatedEmailData, 'loginUrl' | 'profileUrl' | 'logoSrc' | 'supportEmail'>) {
     const frontendUrl = process.env.FRONTEND_URL

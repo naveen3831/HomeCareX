@@ -80,7 +80,7 @@ export default function BookServiceShell() {
       <BackToService slug={serviceSlug} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className={"text-2xl font-bold tracking-tight text-ink md:text-[28px]"}>Book a Service</h1>
+          <h1 className="sr-only">Book a Service</h1>
           <p className="mt-1 text-sm text-muted">Complete the steps below to confirm your booking.</p>
         </div>
         {currentService && (
