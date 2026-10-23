@@ -31,6 +31,7 @@ import {
   useServiceReviews,
 } from "@/hooks/useService";
 import Seo from "../../../components/common/Seo";
+import { breadcrumbLd, faqLd, serviceLd } from "../../../lib/jsonld";
 import type { SlotAvailability } from "@/types/catalog";
 
 type TabId = "overview" | "included" | "faqs" | "reviews";
@@ -252,24 +253,6 @@ const formatReviewDate = (iso: string) => {
     timeZone: "Asia/Kolkata",
   });
 };
-
-const siteUrl = () =>
-  (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, "");
-
-const absoluteUrl = (path: string) =>
-  path.startsWith("http")
-    ? path
-    : `${siteUrl()}${path.startsWith("/") ? "" : "/"}${path}`;
-
-/** Structured data. "<" is escaped so content can never close the script tag. */
-const JsonLd: React.FC<{ data: unknown }> = ({ data }) => (
-  <script
-    type="application/ld+json"
-    dangerouslySetInnerHTML={{
-      __html: JSON.stringify(data).replace(/</g, "\\u003c"),
-    }}
-  />
-);
 
 /* Small shared star row so the markup is not repeated everywhere */
 const Stars: React.FC<{
@@ -943,70 +926,34 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
         ? `No slots in the next ${slot.windowDays} days`
         : "Availability shown at booking";
 
-  const siteBase = siteUrl();
+  /* SEO: real data only (name, price, category and rating come from
+     GET /services/:slug). Image: the API photo if there is one, otherwise
+     the picture this page shows, otherwise the category fallback in <Seo>. */
+  const seoImage = service.media?.[0]?.url || cover;
 
   return (
     <main className="relative min-h-screen overflow-x-clip bg-[#f6f7fd]">
       <Seo
         title={`${service.name} | HomeCareX Home Services`}
-        description={service.description}
+        description={
+          service.description ||
+          `Book ${service.name} from verified professionals with HomeCareX.`
+        }
         path={`/services/${service.slug}`}
-        {...(cover ? { image: cover } : {})}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Service",
-          name: service.name,
-          description: service.description,
-          serviceType: service.category.name,
-          ...(cover ? { image: absoluteUrl(cover) } : {}),
-          url: `${siteBase}/services/${service.slug}`,
-          provider: {
-            "@type": "Organization",
-            name: "HomeCareX",
-            url: siteBase,
-          },
-          offers: {
-            "@type": "Offer",
-            price: service.basePrice,
-            priceCurrency: "INR",
-          },
-          ...(hasRatings
-            ? {
-                aggregateRating: {
-                  "@type": "AggregateRating",
-                  ratingValue: service.rating,
-                  reviewCount: service.ratingCount,
-                },
-              }
-            : {}),
-        }}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Home", item: `${siteBase}/` },
-            { "@type": "ListItem", position: 2, name: "Services", item: `${siteBase}/services` },
-            { "@type": "ListItem", position: 3, name: service.name, item: `${siteBase}/services/${service.slug}` },
-          ],
-        }}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: allFaqs.map((faq) => ({
-            "@type": "Question",
-            name: faq.question,
-            acceptedAnswer: { "@type": "Answer", text: faq.answer },
-          })),
-        }}
+        category={service.category.slug}
+        {...(seoImage ? { image: seoImage } : {})}
+        jsonLd={[
+          serviceLd(service, {
+            fallbackImage: seoImage,
+            includeRating: hasRatings,
+          }),
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Services", path: "/services" },
+            { name: service.name, path: `/services/${service.slug}` },
+          ]),
+          faqLd(allFaqs),
+        ]}
       />
 
       {/* Soft background glow behind the hero */}

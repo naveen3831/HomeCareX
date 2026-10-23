@@ -1,5 +1,7 @@
 import { Router } from "express";
 
+import multer from "multer";
+
 import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { requireRole } from "../../middleware/role.middleware";
@@ -7,17 +9,32 @@ import { validationMiddleware } from "../../middleware/validation.middleware";
 
 import {
   acceptJobOffer,
+  completePartnerJob,
+  createExtraCharge,
   getPartnerJob,
+  listExtraCharges,
   listJobRequests,
   listPartnerJobs,
   rejectJobOffer,
   updateBookingStatus,
+  updateChecklistItem,
+  verifyStartJob,
 } from "./partner-jobs.controller";
 
 import {
+  checklistItemBodySchema,
+  checklistItemParamsSchema,
+  completeJobBodySchema,
+  extraChargeBodySchema,
   jobParamsSchema,
   statusBodySchema,
+  verifyStartBodySchema,
 } from "./partner-jobs.validation";
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
 
 /** Mounted at /partner/jobs */
 export const partnerJobsRoutes = Router();
@@ -26,6 +43,15 @@ export const partnerJobsRoutes = Router();
 // Partner's live jobs
 partnerJobsRoutes.get(
   "/",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
+  listPartnerJobs,
+);
+
+// GET /api/v1/partner/jobs/assigned
+partnerJobsRoutes.get(
+  "/assigned",
   authenticate,
   requireRole("partner"),
   requirePermission("partner:jobs:read"),
@@ -61,6 +87,61 @@ partnerJobsRoutes.post(
   requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema }),
   rejectJobOffer,
+);
+
+// POST /api/v1/partner/jobs/:id/verify-start
+partnerJobsRoutes.post(
+  "/:id/verify-start",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  upload.single("photo"),
+  validationMiddleware({ params: jobParamsSchema, body: verifyStartBodySchema }),
+  verifyStartJob,
+);
+
+// POST /api/v1/partner/jobs/:id/complete
+partnerJobsRoutes.post(
+  "/:id/complete",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  upload.single("photo"),
+  validationMiddleware({ params: jobParamsSchema, body: completeJobBodySchema }),
+  completePartnerJob,
+);
+
+// GET /api/v1/partner/jobs/:id/extra-charges
+partnerJobsRoutes.get(
+  "/:id/extra-charges",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
+  validationMiddleware({ params: jobParamsSchema }),
+  listExtraCharges,
+);
+
+// POST /api/v1/partner/jobs/:id/extra-charges
+partnerJobsRoutes.post(
+  "/:id/extra-charges",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: jobParamsSchema, body: extraChargeBodySchema }),
+  createExtraCharge,
+);
+
+// PATCH /api/v1/partner/jobs/:id/checklist/:itemId
+partnerJobsRoutes.patch(
+  "/:id/checklist/:itemId",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({
+    params: checklistItemParamsSchema,
+    body: checklistItemBodySchema,
+  }),
+  updateChecklistItem,
 );
 
 /** Mounted at /partner/job-requests */

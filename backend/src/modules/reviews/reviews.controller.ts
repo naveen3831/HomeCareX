@@ -16,7 +16,10 @@ export class ReviewsController {
 
   listCustomerReviews = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      res.json({ success: true, data: await this.reviewsService.listCustomerReviews(res.locals.auth.sub) });
+      res.json({
+        success: true,
+        data: await this.reviewsService.listCustomerReviews(res.locals.auth.sub),
+      });
     } catch (error) {
       next(error);
     }
@@ -25,7 +28,10 @@ export class ReviewsController {
   /** Public. data = { summary, reviews }, meta = { page, limit, total, totalPages }. */
   listServiceReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { summary, reviews, meta } = await this.reviewsService.listServiceReviews(req.params, req.query);
+      const { summary, reviews, meta } = await this.reviewsService.listServiceReviews(
+        req.params,
+        req.query,
+      );
       sendSuccess(res, { summary, reviews }, { meta: { ...meta } });
     } catch (error) {
       next(error);
@@ -34,7 +40,10 @@ export class ReviewsController {
 
   listAdminReviews = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      res.json({ success: true, data: await this.reviewsService.listAdminReviews(req.query) });
+      res.json({
+        success: true,
+        data: await this.reviewsService.listAdminReviews(req.query),
+      });
     } catch (error) {
       next(error);
     }
@@ -42,7 +51,23 @@ export class ReviewsController {
 
   updateReviewStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      res.json({ success: true, data: await this.reviewsService.updateReviewStatus(req.params.id, req.body?.status) });
+      const auth = res.locals.auth as { sub?: string } | undefined;
+      const actorId = auth?.sub;
+
+      if (!actorId) {
+        throw new Error('Authenticated admin identity is missing from request context');
+      }
+
+      const review = await this.reviewsService.updateReviewStatus(
+        req.params.id,
+        req.body?.status,
+        {
+          id: String(actorId),
+          ip: req.ip || 'unknown',
+        },
+      );
+
+      res.json({ success: true, data: review });
     } catch (error) {
       next(error);
     }

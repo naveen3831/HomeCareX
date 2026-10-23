@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { CouponModel } from '../../models/Coupon';
 import { ServiceModel } from '../../models/Service';
 import { HttpError } from '../auth/auth.types';
+import { auditService } from '../audit/audit.service';
 import {
   couponCreateSchema,
   couponUpdateSchema,
@@ -12,6 +13,11 @@ import type {
   CouponValidateInput,
   CouponValidateResult,
 } from './coupons.types';
+
+interface AuditActor {
+  id: string;
+  ip: string;
+}
 
 interface CouponDocumentLike {
   _id: Types.ObjectId;
@@ -43,7 +49,9 @@ const toDto = (coupon: CouponDocumentLike): CouponDto => ({
   totalLimit: coupon.totalLimit ?? null,
   perUserLimit: coupon.perUserLimit ?? null,
   usedCount: coupon.usedCount ?? 0,
-  categoryIds: (coupon.categoryIds ?? []).map((id) => id.toString()),
+  categoryIds: (coupon.categoryIds ?? []).map((id) =>
+    id.toString(),
+  ),
   active: coupon.active,
   createdAt: coupon.createdAt.toISOString(),
   updatedAt: coupon.updatedAt.toISOString(),
@@ -54,7 +62,10 @@ export class CouponsService {
     search?: string,
     active?: boolean,
   ): Promise<CouponDto[]> {
-    const coupons = await couponsRepository.list(search, active);
+    const coupons = await couponsRepository.list(
+      search,
+      active,
+    );
 
     return coupons.map((coupon) =>
       toDto(coupon as unknown as CouponDocumentLike),
@@ -63,19 +74,32 @@ export class CouponsService {
 
   async getById(id: string): Promise<CouponDto> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(404, 'Coupon not found', 'NOT_FOUND');
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
     }
 
     const coupon = await couponsRepository.findById(id);
 
     if (!coupon) {
-      throw new HttpError(404, 'Coupon not found', 'NOT_FOUND');
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
     }
 
-    return toDto(coupon as unknown as CouponDocumentLike);
+    return toDto(
+      coupon as unknown as CouponDocumentLike,
+    );
   }
 
-  async create(input: unknown): Promise<CouponDto> {
+  async create(
+    input: unknown,
+    actor: AuditActor,
+  ): Promise<CouponDto> {
     const parsed = couponCreateSchema.safeParse(input);
 
     if (!parsed.success) {
@@ -95,7 +119,9 @@ export class CouponsService {
 
     const data = parsed.data;
 
-    const existing = await couponsRepository.findByCode(data.code);
+    const existing = await couponsRepository.findByCode(
+      data.code,
+    );
 
     if (existing) {
       throw new HttpError(
@@ -110,15 +136,43 @@ export class CouponsService {
       code: data.code.toUpperCase(),
     });
 
-    return toDto(coupon as unknown as CouponDocumentLike);
+    const after = toDto(
+      coupon as unknown as CouponDocumentLike,
+    );
+
+    // Audit failure must not undo a successful coupon creation.
+    try {
+      await auditService.recordAudit({
+        actor: actor.id,
+        action: 'coupon.created',
+        entity: 'Coupon',
+        entityId: after.id,
+        before: null,
+        after,
+        ip: actor.ip,
+        result: 'Success',
+      });
+    } catch (error) {
+      console.error(
+        '[Audit] Failed to record coupon creation:',
+        error,
+      );
+    }
+
+    return after;
   }
 
   async update(
     id: string,
     input: unknown,
+    actor: AuditActor,
   ): Promise<CouponDto> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(404, 'Coupon not found', 'NOT_FOUND');
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
     }
 
     const parsed = couponUpdateSchema.safeParse(input);
@@ -140,12 +194,31 @@ export class CouponsService {
 
     const data = parsed.data;
 
+    // Capture the existing state before modifying the coupon.
+    const existingCoupon = await couponsRepository.findById(
+      id,
+    );
+
+    if (!existingCoupon) {
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
+    }
+
+    const before = toDto(
+      existingCoupon as unknown as CouponDocumentLike,
+    );
+
     if (data.code) {
-      const existing = await couponsRepository.findByCode(data.code);
+      const duplicate = await couponsRepository.findByCode(
+        data.code,
+      );
 
       if (
-        existing &&
-        existing._id.toString() !== id
+        duplicate &&
+        duplicate._id.toString() !== id
       ) {
         throw new HttpError(
           409,
@@ -170,13 +243,60 @@ export class CouponsService {
       );
     }
 
-    return toDto(coupon as unknown as CouponDocumentLike);
+    const after = toDto(
+      coupon as unknown as CouponDocumentLike,
+    );
+
+    // Store before/after snapshots for the audit history.
+    try {
+      await auditService.recordAudit({
+        actor: actor.id,
+        action: 'coupon.updated',
+        entity: 'Coupon',
+        entityId: after.id,
+        before,
+        after,
+        ip: actor.ip,
+        result: 'Success',
+      });
+    } catch (error) {
+      console.error(
+        '[Audit] Failed to record coupon update:',
+        error,
+      );
+    }
+
+    return after;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(
+    id: string,
+    actor: AuditActor,
+  ): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(404, 'Coupon not found', 'NOT_FOUND');
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
     }
+
+    // Save the coupon snapshot before deletion.
+    const existingCoupon = await couponsRepository.findById(
+      id,
+    );
+
+    if (!existingCoupon) {
+      throw new HttpError(
+        404,
+        'Coupon not found',
+        'NOT_FOUND',
+      );
+    }
+
+    const before = toDto(
+      existingCoupon as unknown as CouponDocumentLike,
+    );
 
     const coupon = await couponsRepository.remove(id);
 
@@ -187,15 +307,32 @@ export class CouponsService {
         'NOT_FOUND',
       );
     }
+
+    // A deleted coupon has no after snapshot.
+    try {
+      await auditService.recordAudit({
+        actor: actor.id,
+        action: 'coupon.deleted',
+        entity: 'Coupon',
+        entityId: before.id,
+        before,
+        after: null,
+        ip: actor.ip,
+        result: 'Success',
+      });
+    } catch (error) {
+      console.error(
+        '[Audit] Failed to record coupon deletion:',
+        error,
+      );
+    }
   }
 
   async validate(
     input: CouponValidateInput,
     userId?: string,
   ): Promise<CouponValidateResult> {
-    const code = input.couponCode
-      .trim()
-      .toUpperCase();
+    const code = input.couponCode.trim().toUpperCase();
 
     if (!code) {
       throw new HttpError(
@@ -254,11 +391,10 @@ export class CouponsService {
     }
 
     if (userId) {
-      const userUsage =
-        await couponsRepository.countUsage(
-          coupon._id.toString(),
-          userId,
-        );
+      const userUsage = await couponsRepository.countUsage(
+        coupon._id.toString(),
+        userId,
+      );
 
       if (
         coupon.perUserLimit !== null &&
@@ -313,8 +449,7 @@ export class CouponsService {
       input.quantity || 1,
     );
 
-    let orderValue =
-      service.basePrice * quantity;
+    let orderValue = service.basePrice * quantity;
 
     for (const addOnInput of input.addOns ?? []) {
       const addOn = (service.addOns ?? []).find(
@@ -326,10 +461,7 @@ export class CouponsService {
       if (addOn) {
         orderValue +=
           addOn.price *
-          Math.max(
-            1,
-            addOnInput.quantity || 1,
-          );
+          Math.max(1, addOnInput.quantity || 1);
       }
     }
 
@@ -367,10 +499,7 @@ export class CouponsService {
       );
     }
 
-    discount = Math.min(
-      discount,
-      orderValue,
-    );
+    discount = Math.min(discount, orderValue);
 
     return {
       code,
@@ -502,5 +631,4 @@ export class CouponsService {
   }
 }
 
-export const couponsService =
-  new CouponsService();
+export const couponsService = new CouponsService();

@@ -1,6 +1,7 @@
 import { isValidObjectId } from 'mongoose';
 
 import { StaffModel, type StaffStatusValue } from '../../models/Staff';
+export type StaffStatus = StaffStatusValue;
 import { UserModel } from '../../models/User';
 import { auditService } from '../audit/audit.service';
 import { authService } from '../auth/auth.service';
@@ -46,7 +47,7 @@ function toStaff(s: StaffDoc, lastLoginAt?: Date | null) {
  * record the first time the team is read. They become Super Admins unless an old invite named a role.
  */
 async function syncAdminsToStaff() {
-  const admins = await UserModel.find({ role: 'admin' }).select('name email status staffRoleId').lean();
+  const admins = await UserModel.find({ role: 'admin' }).select('name email status').lean();
   if (!admins.length) return;
   const have = new Set((await StaffModel.find({ userId: { $in: admins.map((a) => a._id) } }).select('userId').lean()).map((s) => String(s.userId)));
   const missing = admins.filter((a) => !have.has(String(a._id)));
@@ -57,8 +58,8 @@ async function syncAdminsToStaff() {
         userId: a._id,
         name: a.name,
         email: a.email,
-        roleId: a.staffRoleId || SUPER_ADMIN_ROLE_ID,
-        status: a.status === 'blocked' ? 'deactivated' : a.status === 'invited' ? 'invited' : 'active',
+        roleId: SUPER_ADMIN_ROLE_ID,
+        status: a.status === 'blocked' ? 'deactivated' : 'active',
       })),
       { ordered: false },
     );

@@ -164,9 +164,10 @@ export const getTotal = (b: BookingListItem): number => {
   return 0;
 };
 
-/** "₹449" / "₹1,499" / "₹379.50": whole rupees stay clean, paise are kept when present. */
-export const rupees = (amount: number): string =>
-  `₹${amount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+export const rupees = (amount?: number | null): string => {
+  const n = typeof amount === "number" && !Number.isNaN(amount) ? amount : Number(amount) || 0;
+  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+};
 
 export const partnerFirstName = (p?: PartnerLite): string | undefined => p?.name?.trim().split(/\s+/)[0];
 

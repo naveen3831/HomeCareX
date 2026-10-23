@@ -1,3 +1,4 @@
+
 import type { Request, Response } from 'express';
 import { couponsService } from './coupons.service';
 import { sendSuccess } from '../../utils/response';
@@ -34,8 +35,22 @@ export class CouponsController {
   }
 
   async create(req: Request, res: Response) {
+    const user = req.user;
+
+    if (!user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
     const coupon = await couponsService.create(
       req.body,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
     );
 
     return sendSuccess(res, coupon, {
@@ -44,16 +59,46 @@ export class CouponsController {
   }
 
   async update(req: Request, res: Response) {
+    const user = req.user;
+
+    if (!user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
     const coupon = await couponsService.update(
       req.params.id,
       req.body,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
     );
 
     return sendSuccess(res, coupon);
   }
 
   async remove(req: Request, res: Response) {
-    await couponsService.remove(req.params.id);
+    const user = req.user;
+
+    if (!user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
+    await couponsService.remove(
+      req.params.id,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
+    );
 
     return sendSuccess(res, {
       ok: true,

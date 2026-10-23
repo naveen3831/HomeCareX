@@ -302,6 +302,18 @@ const MOCK_PARTNER_JOBS: PartnerJob[] = [
     status: "cancelled",
     instructions: "Customer cancelled the booking.",
   },
+  {
+    id: "BK-10214",
+    bookingId: "BK-10214",
+    service: "At-Home Spa for Women",
+    customer: "Sandhya P.",
+    location: "Jubilee Hills, Hyderabad",
+    distance: 2.5,
+    scheduledAt: "2026-10-18T16:30:00+05:30",
+    amount: 1299,
+    status: "completed",
+    instructions: "Please bring fresh massage oils and clean towels.",
+  },
 ];
 
 /** Maps the UI tab ("requests") to the job status ("requested"). */
@@ -329,7 +341,7 @@ async function getJobs(
   const trimmedSearch = search.trim();
 
   if (!USE_MOCKS) {
-    const res = await http.get<ApiResponse<JobsResponse>>("/partner/jobs", {
+    const res = await http.get<ApiResponse<any>>("/partner/jobs", {
       params: {
         tab,
         page,
@@ -338,7 +350,56 @@ async function getJobs(
       },
     });
 
-    return res.data.data;
+    const data = res.data.data;
+    if (Array.isArray(data)) {
+      const normalizedJobs: PartnerJob[] = data.map((item: any) => ({
+        id: item.id,
+        bookingId: "#" + item.id.slice(-6).toUpperCase(),
+        service: item.service?.name || item.service || "Service",
+        customer: item.customerName || item.customer?.name || "Customer",
+        location: item.address || "Hyderabad",
+        distance: 3.2,
+        scheduledAt: item.scheduledAt || new Date().toISOString(),
+        amount: item.partnerEarning || item.total || 0,
+        status:
+          item.status === "en_route" ||
+          item.status === "arrived" ||
+          item.status === "in_progress"
+            ? "active"
+            : item.status === "completed" || item.status === "rated"
+              ? "completed"
+              : item.status === "cancelled_by_partner" ||
+                  item.status === "cancelled_by_customer" ||
+                  item.status === "cancelled_by_admin" ||
+                  item.status?.startsWith?.("cancelled") ||
+                  item.status === "disputed" ||
+                  item.status === "no_show"
+                ? "cancelled"
+                : item.status === "assigned" || item.status === "confirmed"
+                  ? "upcoming"
+                  : "requested",
+        instructions: item.instructions,
+      }));
+
+      const filtered = normalizedJobs.filter((job) => {
+        if (!matchesJobTab(job, tab)) return false;
+        if (!trimmedSearch) return true;
+        const norm = trimmedSearch.toLowerCase();
+        return [job.bookingId, job.service, job.customer, job.location].some(
+          (v) => v.toLowerCase().includes(norm),
+        );
+      });
+
+      const startIndex = (page - 1) * limit;
+      return {
+        jobs: filtered.slice(startIndex, startIndex + limit),
+        total: filtered.length,
+        page,
+        limit,
+      };
+    }
+
+    return data;
   }
 
   await delay(400);

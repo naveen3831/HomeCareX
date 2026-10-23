@@ -56,6 +56,7 @@ import { partnerPerformanceRoutes } from '../modules/partner-performance/partner
 import { partnerReviewsRoutes } from '../modules/partner-reviews/partner-reviews.routes';
 import { partnerTicketsRoutes } from '../modules/partner-tickets/partner-tickets.routes';
 import { partnerServiceAreaRoutes, partnerServicesRoutes } from '../modules/partner-services/partner-services.routes';
+import { partnerSettingsRoutes } from '../modules/partner-settings/partner-settings.routes';
 import { partnerJobsRoutes, partnerJobRequestsRoutes, bookingStatusRoutes } from '../modules/partner-jobs/partner-jobs.routes';
 import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
 import { partnerLocationRoutes } from '../modules/partner-location/partner-location.routes';
@@ -87,7 +88,7 @@ rootRouter.use('/admin', refundsRoutes);
 rootRouter.use('/admin', auditRoutes);
 rootRouter.use('/admin', adminRoutes);
 
-// Public & Catalog
+// Catalog & Public
 rootRouter.use(catalogRoutes);
 rootRouter.use('/banners', publicMarketingRoutes);
 rootRouter.use('/serviceability', serviceabilityRoutes);
@@ -124,6 +125,7 @@ rootRouter.use('/partner/service-area', partnerServiceAreaRoutes);
 rootRouter.use('/partner/performance', partnerPerformanceRoutes);
 rootRouter.use('/partner/reviews', partnerReviewsRoutes);
 rootRouter.use('/partner/support/tickets', partnerTicketsRoutes);
+rootRouter.use('/partner/settings', partnerSettingsRoutes);
 rootRouter.use('/partner/jobs', partnerJobsRoutes);
 rootRouter.use('/partner/job-requests', partnerJobRequestsRoutes);
 rootRouter.use('/partner/jobs', maskedCallRoutes);

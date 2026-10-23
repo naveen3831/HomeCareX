@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -14,6 +14,7 @@ import {
 
 import { useJobs } from "@/hooks/useJobs";
 import { partnerApi } from "@/services/partnerApi";
+import MockConfirmedBookingButton from "@/components/partner/MockConfirmedBookingButton";
 import type { JobTab, PartnerJob } from "@/types/partner";
 
 import "./index.css";
@@ -186,8 +187,36 @@ function JobActions({
   /* Hook must run before any early return. */
   const seconds = useCountdown(job.expiresAt);
 
+  if (job.status === "active") {
+    return (
+      <div className="partner-job-actions">
+        <Link
+          to={`/partner/jobs/${job.id}/active`}
+          className="partner-job-action inline-flex items-center gap-1 rounded bg-[#0f766e] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#0b5b55]"
+        >
+          Active Job
+        </Link>
+        <Link
+          to={`/partner/jobs/${job.id}`}
+          className="partner-job-action inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          Details
+        </Link>
+      </div>
+    );
+  }
+
   if (job.status !== "requested") {
-    return <span className="partner-job-no-action">—</span>;
+    return (
+      <div className="partner-job-actions">
+        <Link
+          to={`/partner/jobs/${job.id}`}
+          className="partner-job-action inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          View Details
+        </Link>
+      </div>
+    );
   }
 
   const expired = seconds <= 0;
@@ -231,8 +260,10 @@ function JobCard({
     <article className="partner-job-card">
       <div className="partner-job-card-header">
         <div>
-          <p className="partner-job-service">{job.service}</p>
-          <p className="partner-job-booking">Booking ID: {job.bookingId}</p>
+          <Link to={`/partner/jobs/${job.id}`} className="hover:underline">
+            <p className="partner-job-service">{job.service}</p>
+            <p className="partner-job-booking">Booking ID: {job.bookingId}</p>
+          </Link>
         </div>
 
         <JobStatusBadge status={job.status} />
@@ -431,6 +462,12 @@ export const PartnerJobsPage = () => {
           </button>
         </header>
 
+        {import.meta.env.DEV && (
+          <div className="mb-4">
+            <MockConfirmedBookingButton />
+          </div>
+        )}
+
         {/* Tabs */}
         <nav className="partner-jobs-tabs" aria-label="Job status">
           {TABS.map((tab) => (
@@ -567,14 +604,22 @@ export const PartnerJobsPage = () => {
                     {jobs.map((job) => (
                       <tr key={job.id}>
                         <td>
-                          <span className="partner-job-id">
+                          <Link
+                            to={`/partner/jobs/${job.id}`}
+                            className="partner-job-id font-semibold text-[#4338ca] hover:underline"
+                          >
                             {job.bookingId}
-                          </span>
+                          </Link>
                         </td>
 
                         <td>
                           <div className="partner-job-service-cell">
-                            <strong>{job.service}</strong>
+                            <Link
+                              to={`/partner/jobs/${job.id}`}
+                              className="font-semibold text-slate-900 hover:underline"
+                            >
+                              {job.service}
+                            </Link>
                             {job.instructions && (
                               <small>{job.instructions}</small>
                             )}

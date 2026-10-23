@@ -188,6 +188,13 @@ export const authService = {
     }
   },
 
+  async revokeUserSessions(userId: string) {
+    const user = await authRepository.findById(userId);
+    if (!user) return;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+  },
+
   verifyAccessToken(token: string): AccessTokenPayload {
     try {
       return jwt.verify(token, accessSecret()) as AccessTokenPayload;
@@ -475,11 +482,6 @@ export const authService = {
     await user.save();
 
     return { changed: true };
-  },
-
-  /** Revokes all sessions for a user by bumping tokenVersion. */
-  async revokeUserSessions(userId: string) {
-    await UserModel.updateOne({ _id: userId }, { $inc: { tokenVersion: 1 } });
   },
 
   /** Consumes the single-use reset token, resets password, and revokes all active sessions. */

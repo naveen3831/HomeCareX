@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import PartnerLayout from "../layouts/PartnerLayout";
 import PartnerDashboard from "../pages/partner/Dashboard";
 import ProfileMenu from "../components/partner/ProfileMenu";
@@ -20,11 +20,19 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
+import ActiveJobPage from "../pages/partner/ActiveJob";
 import SupportTicketPage from "../pages/partner/SupportTicket/SupportTicketPage";
 import HelpPage from "../pages/partner/Help/HelpPage";
 import PartnerSupportPage from "../pages/partner/Support";
+import PartnerSettingsPage from "../pages/partner/Settings";
+import ChangePasswordPage from "../pages/partner/Settings/ChangePasswordPage";
+import ActiveSessionsPage from "../pages/partner/Settings/ActiveSessionsPage";
+import TermsPage from "../pages/partner/Settings/TermsPage";
+import PrivacyPolicyPage from "../pages/partner/Settings/PrivacyPolicyPage";
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
+import SettingsHome from "../pages/partner/Settings/SettingsHome";
+import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -81,9 +89,16 @@ const REAL_ROUTE_PATHS = new Set([
   "profile",
   "work/requests",
   "work",
+  "work/active",
+  "work/:jobId",
+  "work/:id",
   "services",
   "service-area",
   "support",
+  "support/tickets",
+  "support/tickets/:ticketId",
+  "help",
+  "assigned",
 ]);
 
 // Mounted by AppRoutes at /partner/*.
@@ -155,10 +170,9 @@ export default function PartnerRoutes() {
 
         <Route path="jobs/requests" element={<PartnerJobsPage />} />
 
-        <Route
-          path="work"
-          element={<Navigate to="/partner/work/requests" replace />}
-        />
+        <Route path="assigned" element={<PartnerJobDetailsPage />} />
+
+        <Route path="work" element={<PartnerJobDetailsPage />} />
 
         <Route path="work/requests" element={<PartnerJobsPage />} />
 
@@ -171,8 +185,18 @@ export default function PartnerRoutes() {
 
         <Route path="performance/reviews" element={<PartnerReviewsPage />} />
         <Route path="support/:id" element={<SupportTicketPage />} />
+        <Route path="support/tickets" element={<PartnerSupportPage />} />
+        <Route path="support/tickets/:id" element={<SupportTicketPage />} />
+        <Route path="support/tickets/:ticketId" element={<SupportTicketPage />} />
         <Route path="help" element={<HelpPage />} />
+        <Route path="settings" element={<SettingsHome />} />
+        <Route path="settings/security/password" element={<ChangePasswordPage />} />
+        <Route path="settings/security/sessions" element={<ActiveSessionsPage />} />
+        <Route path="settings/other/terms" element={<TermsPage />} />
+        <Route path="settings/other/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="settings/:section" element={<PartnerSettingsPage />} />
         <Route path="support" element={<PartnerSupportPage />} />
+        <Route path="settings/security/history" element={<LoginHistoryPage />} />
 
         {/* =====================================================
             Remaining Placeholder Pages
@@ -187,8 +211,12 @@ export default function PartnerRoutes() {
           ),
         )}
 
-        {/* Partner job: details, navigation + chat + call, location sharing */}
+        {/* Partner job: details, active job, navigation + chat + call, location sharing */}
         <Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
+        <Route path="work/:id" element={<PartnerJobDetailsPage />} />
+        <Route path="work/:jobId" element={<PartnerJobDetailsPage />} />
+        <Route path="jobs/:id/active" element={<ActiveJobPage />} />
+        <Route path="work/active" element={<ActiveJobPage />} />
         <Route path="jobs/:id/navigation" element={<PartnerNavigationPage />} />
         <Route
           path="jobs/:id/location"

@@ -149,27 +149,28 @@ function HelpCenter() {
     </section>
   );
 }
+
 function TicketList() {
   const online = useOnlineStatus();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TicketStatus | "">("");
   const tickets = useTickets({ page, status: status || undefined });
 
-  const rawData = tickets.data as any;
-  const items: CustomerTicket[] = Array.isArray(rawData)
-    ? rawData
-    : Array.isArray(rawData?.items)
-    ? rawData.items
+  const raw = tickets.data as unknown;
+  const items: CustomerTicket[] = Array.isArray(raw)
+    ? (raw as CustomerTicket[])
+    : Array.isArray((raw as { items?: CustomerTicket[] })?.items)
+    ? ((raw as { items: CustomerTicket[] }).items)
     : [];
-  const meta = rawData?.meta ?? {
-    page,
-    limit: 10,
-    total: items.length,
+
+  const meta = (raw as { meta?: { pages?: number; page?: number; total?: number } })?.meta ?? {
     pages: 1,
+    page: 1,
+    total: items.length,
   };
 
   return (
-    <section aria-label="My support tickets">
+    <section aria-label="Ticket list">
       <div className="hcx-support-section-head">
         <div>
           <h2>My tickets</h2>
@@ -235,7 +236,7 @@ function TicketList() {
           <button
             type="button"
             disabled={
-              page >= meta.pages || tickets.isFetching || !online
+              page >= (meta.pages ?? 1) || tickets.isFetching || !online
             }
             onClick={() => setPage((p) => p + 1)}
           >
@@ -246,6 +247,7 @@ function TicketList() {
     </section>
   );
 }
+
 export default function Support() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const [params] = useSearchParams();

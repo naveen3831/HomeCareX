@@ -24,9 +24,24 @@ export const NOTIFICATION_GROUPS = [
 
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
+export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
+  ...NOTIFICATION_TYPES,
+  'payment.succeeded',
+  'payment.failed',
+  'offer.new',
+]);
+
 export function groupOf(type: string): NotificationGroup {
   if (type.startsWith('booking.')) return 'booking';
-  if (type.startsWith('payment.') || type.startsWith('payout.') || type.startsWith('refund.')) return 'payment';
+  if (
+    type.startsWith('payment.') ||
+    type.startsWith('payout.') ||
+    type.startsWith('refund.') ||
+    type === 'payout.processed' ||
+    type === 'refund.updated'
+  ) {
+    return 'payment';
+  }
   if (type.startsWith('partner.')) return 'partner';
   if (type.startsWith('offer.')) return 'offers';
   if (type.startsWith('ticket.')) return 'support';

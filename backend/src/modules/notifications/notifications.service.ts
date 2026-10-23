@@ -1,9 +1,11 @@
 import { Types } from 'mongoose';
 import { NotificationModel } from '../../models/Notification';
 import { emitToUser } from '../../sockets';
+import { Errors } from '../../utils/errors';
 import {
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
+  NOTIFICATION_TYPES,
   groupOf,
   type NotificationGroup,
   type NotificationType,
@@ -51,6 +53,136 @@ export async function notify(userId: string, type: NotificationType, payload: Re
 export class NotificationsService {
   notify = notify;
 
+  async listForCustomer(
+    userId: string,
+    options: {
+      group?: NotificationGroup;
+      unreadOnly?: boolean;
+      limit?: number;
+    } = {},
+  ) {
+    const limit = options.limit ?? 50;
+    const objectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+    const baseFilter = { userId };
+    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, unknown> = {
+      booking: /^booking\./,
+      payment: { $in: ['payout.processed', 'refund.updated'] },
+      partner: /^partner\./,
+      offers: /^offer\./,
+      support: /^ticket\./,
+    };
+    const knownTypes = [
+      ...NOTIFICATION_TYPES.filter((type) => groupOf(type) !== 'system'),
+      'payment.succeeded',
+      'payment.failed',
+      'offer.new',
+    ];
+    const filters: Record<string, unknown>[] = [baseFilter];
+
+    if (options.group && options.group !== 'system') {
+      const typeFilter = groupTypes[options.group];
+      filters.push(
+        options.group === 'payment'
+          ? {
+              $or: [
+                { type: /^payment\./ },
+                { type: { $in: ['payout.processed', 'refund.updated'] } },
+              ],
+            }
+          : { type: typeFilter },
+      );
+    } else if (options.group === 'system') {
+      filters.push({ type: { $nin: knownTypes } });
+    }
+    if (options.unreadOnly) filters.push({ readAt: null });
+
+    const [rows, grouped] = await Promise.all([
+      NotificationModel.find(filters.length === 1 ? baseFilter : { $and: filters })
+        .sort({ createdAt: -1 })
+        .limit(limit),
+      objectId
+        ? NotificationModel.aggregate<{
+            _id: string;
+            total: number;
+            unread: number;
+          }>([
+            { $match: { userId: objectId } },
+            {
+              $group: {
+                _id: '$type',
+                total: { $sum: 1 },
+                unread: {
+                  $sum: { $cond: [{ $eq: ['$readAt', null] }, 1, 0] },
+                },
+              },
+            },
+          ])
+        : Promise.resolve([]),
+    ]);
+
+    const groups = Object.fromEntries(
+      NOTIFICATION_GROUPS.map((group) => [group, { total: 0, unread: 0 }]),
+    ) as Record<NotificationGroup, { total: number; unread: number }>;
+    for (const row of grouped) {
+      const group = groupOf(row._id);
+      groups[group].total += row.total;
+      groups[group].unread += row.unread;
+    }
+
+    const items = rows.map((row) => ({
+      ...toDto(row),
+      readAt: row.readAt ? row.readAt.toISOString() : null,
+      group: groupOf(row.type),
+    }));
+
+    return {
+      items,
+      unread: Object.values(groups).reduce((total, group) => total + group.unread, 0),
+      groups,
+    };
+  }
+
+  async markReadForCustomer(userId: string, id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw Errors.validation([{ field: 'id', message: 'Invalid notification id' }]);
+    }
+    const notification = await NotificationModel.findOne({
+      _id: id,
+      userId,
+    });
+    if (!notification) throw Errors.notFound('NOT_FOUND', 'Notification not found');
+    if (!notification.readAt) {
+      notification.readAt = new Date();
+      await notification.save();
+    }
+    return {
+      ...toDto(notification),
+      readAt: notification.readAt ? notification.readAt.toISOString() : null,
+      group: groupOf(notification.type),
+    };
+  }
+
+  async markAllReadForCustomer(userId: string) {
+    const result = await NotificationModel.updateMany(
+      { userId, readAt: null },
+      { $set: { readAt: new Date() } },
+    );
+    return result.modifiedCount;
+  }
+
+  async deleteForCustomer(userId: string, id: string) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw Errors.validation([{ field: 'id', message: 'Invalid notification id' }]);
+    }
+    const result = await NotificationModel.deleteOne({ _id: id, userId });
+    if (!result.deletedCount) throw Errors.notFound('NOT_FOUND', 'Notification not found');
+  }
+
+  async deleteAllForCustomer(userId: string) {
+    const result = await NotificationModel.deleteMany({ userId });
+    return result.deletedCount;
+  }
+
   async listForUser(userId: string, limit = 30) {
     const rows = await NotificationModel.find({ userId }).sort({ createdAt: -1 }).limit(limit);
     return rows.map((r) => toDto(r as never));
@@ -66,96 +198,6 @@ export class NotificationsService {
 
   async markAllRead(userId: string) {
     await NotificationModel.updateMany({ userId, readAt: null }, { $set: { readAt: new Date() } });
-  }
-
-  /* ---------------- Customer-specific API ---------------- */
-
-  async listForCustomer(
-    userId: string,
-    opts: { group?: NotificationGroup; unreadOnly?: boolean; limit?: number } = {},
-  ) {
-    const limit = opts.limit ?? 50;
-    const filter: Record<string, unknown> = { userId };
-    if (opts.unreadOnly) {
-      filter.readAt = null;
-    }
-
-    const rows = await NotificationModel.find(filter).sort({ createdAt: -1 }).limit(limit * 4);
-    let items = rows.map((r) => toDto(r as never));
-
-    if (opts.group) {
-      items = items.filter((x) => x.group === opts.group);
-    }
-    items = items.slice(0, limit);
-
-    // Group counts
-    const aggResult = await NotificationModel.aggregate([
-      { $match: { userId: new Types.ObjectId(userId) } },
-    ]);
-
-    const groups: Record<NotificationGroup, { total: number; unread: number }> = {
-      booking: { total: 0, unread: 0 },
-      offers: { total: 0, unread: 0 },
-      partner: { total: 0, unread: 0 },
-      payment: { total: 0, unread: 0 },
-      support: { total: 0, unread: 0 },
-      system: { total: 0, unread: 0 },
-    };
-
-    let totalUnread = 0;
-    if (Array.isArray(aggResult)) {
-      for (const row of aggResult as { _id: string; total: number; unread: number }[]) {
-        const grp = groupOf(row._id);
-        groups[grp].total += row.total;
-        groups[grp].unread += row.unread;
-        totalUnread += row.unread;
-      }
-    }
-
-    return {
-      items,
-      unread: totalUnread,
-      groups,
-    };
-  }
-
-  async markReadForCustomer(userId: string, id: string) {
-    if (!/^[a-f0-9]{24}$/i.test(id)) {
-      throw new HttpError(400, 'Invalid notification id', 'VALIDATION_ERROR');
-    }
-    const doc = await NotificationModel.findOne({ _id: id, userId });
-    if (!doc) {
-      throw new HttpError(404, 'Notification not found', 'NOT_FOUND');
-    }
-    if (doc.readAt === null) {
-      doc.readAt = new Date();
-      await doc.save();
-    }
-    return toDto(doc as never);
-  }
-
-  async markAllReadForCustomer(userId: string) {
-    const res = await NotificationModel.updateMany(
-      { userId, readAt: null },
-      { $set: { readAt: new Date() } },
-    );
-    return res.modifiedCount ?? 0;
-  }
-
-  async deleteForCustomer(userId: string, id: string) {
-    if (!/^[a-f0-9]{24}$/i.test(id)) {
-      throw new HttpError(400, 'Invalid notification id', 'VALIDATION_ERROR');
-    }
-    const res = await NotificationModel.deleteOne({ _id: id, userId });
-    if (!res || res.deletedCount === 0) {
-      throw new HttpError(404, 'Notification not found', 'NOT_FOUND');
-    }
-    return true;
-  }
-
-  async deleteAllForCustomer(userId: string) {
-    const res = await NotificationModel.deleteMany({ userId });
-    return res.deletedCount ?? 0;
   }
 }
 

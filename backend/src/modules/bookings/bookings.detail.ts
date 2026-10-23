@@ -278,7 +278,10 @@ export function buildDetailView(
       .reduce((sum, c) => sum + c.amount, 0),
   );
 
-  view.startOtp = status === START_OTP_STATUS && startOtp ? startOtp : null;
+  view.startOtp =
+    (status === START_OTP_STATUS || String(status || "").toLowerCase() === START_OTP_STATUS) && startOtp
+      ? startOtp
+      : null;
 
   withFallbacks(view, extras.service);
   view.service = extras.service ?? null;
