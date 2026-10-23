@@ -19,6 +19,8 @@ const TicketMessageSchema = new Schema(
     body: { type: String, required: true, trim: true, maxlength: 4000 },
     attachments: { type: [AttachmentSchema], default: [] },
     readAt: { type: Date, default: null },
+    /** Agent-only note. Never returned to, or emitted to, the customer or partner who raised the ticket. */
+    isInternal: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

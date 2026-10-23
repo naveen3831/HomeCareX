@@ -51,7 +51,12 @@ adminTicketsRoutes.get(
   validate(ticketIdParamSchema, 'params'),
   asyncHandler((req, res) => adminTicketsController.messages(req, res)),
 );
- 
+
+adminTicketsRoutes.get(
+  '/:id/attachments/:attachmentId',
+  validate(attachmentIdSchema, 'params'),
+  asyncHandler(ticketsController.evidence),
+);
 
 // PATCH /admin/tickets/:id/assign
 adminTicketsRoutes.patch(

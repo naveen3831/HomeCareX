@@ -4,8 +4,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
+import ServicesPage from "../pages/public/Services";
 
-// The page fetches the catalogue through React Query; resolve with an empty page so no network is hit.
 vi.mock("@/services/catalogApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/catalogApi")>();
   return {
@@ -16,9 +17,6 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
     }),
   };
 });
-
-import { HelmetProvider } from "react-helmet-async";
-import ServicesPage from "../pages/public/Services";
 
 /* =========================================================
    Constants
@@ -54,25 +52,19 @@ const TestWrapper: React.FC<TestWrapperProps> = ({
     () =>
       new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-      })
+      }),
   );
   return (
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <ServicesPage />
-        <LocationDisplay />
-      </MemoryRouter>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <ServicesPage />
+          <LocationDisplay />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
-}) => (
-  <HelmetProvider>
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <ServicesPage />
-      <LocationDisplay />
-    </MemoryRouter>
-  </HelmetProvider>
-);
 
 /* =========================================================
    Helpers
@@ -119,7 +111,7 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
-      ).toBe("home-cleaning");
+        ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");

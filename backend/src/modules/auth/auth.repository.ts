@@ -11,6 +11,11 @@ export const authRepository = {
       passwordResetTokenHash: tokenHash,
       passwordResetExpiresAt: { $gt: new Date() },
     }).select('+passwordHash +passwordResetTokenHash'),
+  findByInviteTokenHash: (tokenHash: string) =>
+    UserModel.findOne({
+      inviteTokenHash: tokenHash,
+      inviteExpiresAt: { $gt: new Date() },
+    }).select('+inviteTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
   create: (data: {
@@ -19,19 +24,12 @@ export const authRepository = {
     phone?: string;
     passwordHash: string;
     role: string;
-    gender?: 'male' | 'female' | 'other';
     referralCode?: string;
+    gender?: 'male' | 'female' | 'other';
     status?: 'active' | 'blocked' | 'invited';
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;
-  }) =>
-    UserModel.create(data),
-  findByInviteTokenHash: (tokenHash: string) =>
-    UserModel.findOne({
-      inviteTokenHash: tokenHash,
-      inviteExpiresAt: { $gt: new Date() },
-      status: 'invited',
-    }).select('+passwordHash +inviteTokenHash'),
+  }) => UserModel.create(data),
 
   // OTP repository methods
   createOtp: (data: {

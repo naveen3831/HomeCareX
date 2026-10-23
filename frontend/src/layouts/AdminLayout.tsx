@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/admin/Sidebar';
@@ -56,7 +55,6 @@ export const AdminLayout: React.FC = () => {
         </main>
       </div>
     </div>
-  </div>
   );
 };
 

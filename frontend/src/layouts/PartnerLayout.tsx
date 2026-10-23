@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
   useState,
   useEffect,
@@ -20,8 +19,8 @@ import {
   CalendarDays,
   CalendarOff,
   Clock,
-  Wrench,
   MapPin,
+  Wrench,
   Wallet,
   Gift,
   Banknote,
@@ -40,44 +39,24 @@ import {
   PanelLeftOpen,
   Shield,
   Globe,
-  MapPin,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
-import {
-  getAvailability,
-  setOnline as setOnlineApi,
-} from "@/pages/partner/Availability/availability.api";
 import OnlineIndicator from "@/components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
 
-// -----------------------------------------------------------------------------
-// Online status storage (local to this file so it compiles on its own)
-// -----------------------------------------------------------------------------
-
-const PARTNER_ONLINE_STORAGE_KEY = "partner-online-status";
-
-function readStoredOnlineStatus(): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(PARTNER_ONLINE_STORAGE_KEY);
-    return raw === null ? null : raw === "true";
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredOnlineStatus(value: boolean): void {
-  try {
-    window.localStorage.setItem(PARTNER_ONLINE_STORAGE_KEY, String(value));
-  } catch {
-    /* storage unavailable: ignore */
-  }
-}
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+  readStoredOnlineStatus,
+  writeStoredOnlineStatus,
+  PARTNER_ONLINE_STORAGE_KEY,
+} from '@/pages/partner/Availability/availability.api';
 
 // -----------------------------------------------------------------------------
 // Navigation
@@ -90,10 +69,6 @@ type NavChild = {
   icon: LucideIcon;
 };
 
-export const NAV = [
-  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
-  { key: "jobs", label: "My Jobs", to: "/partner/jobs", icon: ClipboardList },
-  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
 type NavItem = NavChild & {
   end?: boolean;
   children?: NavChild[];
@@ -122,9 +97,7 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-
   { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
-
   {
     key: "availability",
     label: "Availability",
@@ -209,7 +182,6 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
@@ -482,23 +454,23 @@ function PartnerSidebar({
     );
   };
 
-  const toggleItem = (key: string) =>
+  const toggleItem = (key: string) => {
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
   };
 
-  const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
-    .filter(Boolean)
-    .join(" ");
-
   const handleSignOut = async () => {
     try {
       await logout();
     } finally {
-      navigate("/login", { replace: true });
+      navigate("/login");
     }
   };
+
+  const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <aside className={cls} aria-label="Partner navigation">
@@ -548,7 +520,6 @@ function PartnerSidebar({
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group) => {
           const items = NAV.filter((n) => group.keys.includes(n.key));
-
           const isOpen = collapsed || openGroup === group.groupName;
 
           return (
@@ -633,43 +604,6 @@ function PartnerSidebar({
                               />
                             </button>
                           )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </nav>
-
-        <div className="sidebar-footer">
-          <button
-            type="button"
-            className="sidebar-footer__user sidebar-footer__user-btn"
-            title={collapsed ? displayName : undefined}
-            onClick={() => navigate("/partner/profile")}
-          >
-            <span className="avatar">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
-
-            {!collapsed && <span className="profile-name">{displayName}</span>}
-          </button>
-
-          <button
-            type="button"
-            className="sidebar-signout-btn"
-            title="Sign out"
-            onClick={handleSignOut}
-          >
-            <LogOut size={18} />
-
-            {!collapsed && <span>Sign out</span>}
-          </button>
-        </div>
-      </aside>
-    </>
                         </div>
 
                         {/* Sub-links open under the parent */}
@@ -721,7 +655,6 @@ function PartnerSidebar({
           onClick={() => navigate("/partner/profile")}
         >
           <span className="avatar">{displayName.charAt(0).toUpperCase()}</span>
-
           {!collapsed && <span className="profile-name">{displayName}</span>}
         </button>
 
@@ -732,7 +665,6 @@ function PartnerSidebar({
           onClick={handleSignOut}
         >
           <LogOut size={18} />
-
           {!collapsed && <span>Sign out</span>}
         </button>
       </div>
@@ -745,44 +677,29 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
-  // The backend is the source of truth for the partner's online status (no local/mock copy).
-  const [online, setOnlineState] = useState<boolean>(false);
-  const onlineRef = useRef(false);
   const [online, setOnlineState] = useState<boolean>(
     () => readStoredOnlineStatus() ?? false,
   );
 
-  const applyOnline = useCallback((next: boolean) => {
-    onlineRef.current = next;
+  const setOnline = useCallback((next: boolean) => {
     setOnlineState(next);
+    writeStoredOnlineStatus(next);
+    void setOnlineApi(next).catch(() => {});
   }, []);
 
-  // Optimistic toggle: flip at once, then settle on what the server says; put it back if the request fails.
-  const setOnline = useCallback(
-    (next: boolean) => {
-      const previous = onlineRef.current;
-      applyOnline(next);
-      setOnlineApi(next)
-        .then((avail) => applyOnline(avail.isOnline))
-        .catch(() => applyOnline(previous));
-    },
-    [applyOnline],
-  );
-
   useEffect(() => {
-    let active = true;
-    getAvailability()
-      .then((avail) => {
-        if (active) applyOnline(avail.isOnline);
+    let mounted = true;
+    void getAvailability()
+      .then((res) => {
+        if (mounted && typeof res?.isOnline === 'boolean') {
+          setOnlineState(res.isOnline);
+          writeStoredOnlineStatus(res.isOnline);
+        }
       })
       .catch(() => {});
     return () => {
-      active = false;
+      mounted = false;
     };
-  }, [applyOnline]);
-    writeStoredOnlineStatus(next);
-    // TODO: re-connect your backend call here (the old setOnlineApi) once you
-    // know which service file exports it.
   }, []);
 
   useEffect(() => {
@@ -797,9 +714,6 @@ export default function PartnerLayout() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-
-  // TODO: re-connect your old getAvailability() fetch and setMockPartnerOnline()
-  // sync here once you know their file paths.
 
   const [collapsedPref, setCollapsedPref] = useState(false);
   const [navVisible, setNavVisible] = useState(true);
@@ -839,7 +753,7 @@ export default function PartnerLayout() {
   const current = FLAT_NAV.filter((item) =>
     item.to === "/partner"
       ? cleanPath === "/partner"
-      : cleanPath === n.to || cleanPath.startsWith(n.to + "/"),
+      : cleanPath === item.to || cleanPath.startsWith(item.to + "/"),
   ).sort((a, b) => b.to.length - a.to.length)[0];
 
   const title =
@@ -881,9 +795,6 @@ export default function PartnerLayout() {
       navigate("/partner");
       return;
     }
-
-    const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
-    if (typeof hasHistory === "number" && hasHistory > 0) {
     // React Router stores the history index; > 0 means there is a page to go back to
     const idx = (window.history.state as { idx?: number } | null)?.idx;
 

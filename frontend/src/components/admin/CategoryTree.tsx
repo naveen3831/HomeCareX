@@ -135,7 +135,7 @@ export const CategoryTree: React.FC<Props> = (props) => {
     const from = group.findIndex((c) => c.id === id);
     if (from < 0 || toIndex < 0 || toIndex >= group.length || from === toIndex) return;
     const next = arrayMove(group, from, toIndex);
-    onReorder(next.map((c, i) => ({ id: c.id, parentId, sortOrder: i })));
+    onReorder(next.map((c: AdminCategory, i: number) => ({ id: c.id, parentId, sortOrder: i })));
   }
 
   const onDragEnd = (e: DragEndEvent) => {

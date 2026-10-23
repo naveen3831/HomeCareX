@@ -17,8 +17,8 @@ const UserSchema = new Schema(
     /** Partners only: the specialist type (Plumber, Electrician...). */
     designation: { type: String, trim: true },
     gender: { type: String, enum: ['male', 'female', 'other'] },
-    status: { type: String, enum: USER_STATUSES, default: 'active' },
-    staffRoleId: { type: String },
+    status: { type: String, enum: ['active', 'blocked', 'invited'], default: 'active' },
+    staffRoleId: { type: Schema.Types.ObjectId, ref: 'StaffRole' },
     failedLogins: { type: Number, default: 0 },
     lockedUntil: { type: Date },
     /** Bumped on logout / password change to invalidate every refresh token. */
@@ -28,6 +28,7 @@ const UserSchema = new Schema(
     passwordResetTokenHash: { type: String, select: false },
     /** Expiration date for password reset token (30m). */
     passwordResetExpiresAt: { type: Date },
+    /** Staff invite fields */
     inviteTokenHash: { type: String, select: false },
     inviteExpiresAt: { type: Date },
   },

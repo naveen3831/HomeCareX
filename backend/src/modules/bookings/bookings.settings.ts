@@ -22,11 +22,6 @@ export const bookingSettings = {
   },
 
   async getCancellationPolicy(): Promise<{ windowHours: number; feeAmount: number }> {
-    const windowHours = Number(process.env.BOOKING_CANCELLATION_WINDOW_HOURS ?? 24);
-    const feeAmount = Number(process.env.BOOKING_CANCELLATION_FEE ?? 99);
-    return {
-      windowHours: Number.isFinite(windowHours) && windowHours >= 0 ? windowHours : 24,
-      feeAmount: Number.isFinite(feeAmount) && feeAmount >= 0 ? feeAmount : 99,
-    };
+    return { windowHours: 4, feeAmount: 99 };
   },
 };
