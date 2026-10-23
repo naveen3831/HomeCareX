@@ -21,4 +21,10 @@ module.exports = {
       },
     ],
   },
+   overrides: [
+    {
+      files: ["src/test/**/*.{ts,tsx}"],
+      rules: { "@typescript-eslint/no-explicit-any": "off" },
+    },
+  ],
 };

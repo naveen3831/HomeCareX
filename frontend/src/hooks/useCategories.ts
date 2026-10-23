@@ -1,6 +1,5 @@
-
 import { useQuery } from "@tanstack/react-query";
-import { fetchCategories } from "@/services/catalogApi";
+import { fetchCategories, retryBackoff } from "@/services/catalogApi";
 
 export function useCategories() {
   return useQuery({
@@ -29,5 +28,8 @@ export function useCategories() {
 
       return error instanceof TypeError;
     },
+
+    // Wait 1s, then 2s (max 5s) between retries.
+    retryDelay: retryBackoff,
   });
 }

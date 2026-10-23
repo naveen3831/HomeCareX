@@ -6,6 +6,25 @@ import { EmptyState, ErrorState, LoadingState } from "@/components/customer";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { BookingView } from "@/types/booking";
 
+interface TrackedPartner {
+  name?: string;
+  phone?: string;
+}
+
+interface TrackedHistoryEntry {
+  to?: string;
+  status?: string;
+  at?: string;
+}
+
+type TrackedBooking = BookingView & {
+  id?: string;
+  serviceName?: string;
+  bookingNumber?: string;
+  history?: TrackedHistoryEntry[];
+  partner?: TrackedPartner;
+};
+
 // Timeline steps corresponding to booking lifecycle
 const TIMELINE_STEPS = [
   { key: "CONFIRMED", label: "Confirmed" },
@@ -33,7 +52,7 @@ export default function TrackingPage() {
 
   // Pick the latest confirmed / active booking from MongoDB
   const activeBooking = useMemo(() => {
-    return bookings.find((b: any) => {
+    return bookings.find((b) => {
       const status = (b.status || "").toUpperCase();
       return (
         status === "CONFIRMED" ||
@@ -95,11 +114,11 @@ export default function TrackingPage() {
     );
   }
 
-  const b = activeBooking as any;
+  const b = activeBooking as TrackedBooking;
 
   // Extract service name from price snapshot or direct field
   const serviceName =
-    b.priceSnapshot?.lines?.find((l: any) => l.kind === "BASE")?.name ||
+    b.priceSnapshot?.lines?.find((l) => l.kind === "BASE")?.name ||
     b.serviceName ||
     "Home Care Service";
 
@@ -141,20 +160,20 @@ export default function TrackingPage() {
   };
 
   const getStepTime = (stepKey: string): string => {
-    const history = b.statusHistory ?? b.history;
+    const history: unknown = b.statusHistory ?? b.history;
     if (!Array.isArray(history)) {
       if (stepKey === "CONFIRMED") return formatTime(b.createdAt);
       return "";
     }
-    const entry = history.find(
-      (h: any) => (h.to || "").toUpperCase() === stepKey || (h.status || "").toUpperCase() === stepKey
+    const entry = (history as TrackedHistoryEntry[]).find(
+      (h) => (h.to || "").toUpperCase() === stepKey || (h.status || "").toUpperCase() === stepKey
     );
     if (entry && entry.at) return formatTime(entry.at);
     if (stepKey === "CONFIRMED") return formatTime(b.createdAt);
     return "";
   };
 
-  const partner = b.partnerId || b.partner;
+  const partner = (b.partnerId || b.partner) as TrackedPartner | undefined;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -218,7 +237,7 @@ export default function TrackingPage() {
           </h2>
           <div className="mt-1 flex flex-wrap gap-4 text-xs text-gray-500">
             <span>📅 {b.date} ({b.slot})</span>
-            <span>📍 {b.addressSnapshot?.city || b.addressSnapshot?.addressLine1 || "Customer Address"}</span>
+            <span>📍 {b.addressSnapshot?.city || b.addressSnapshot?.line1 || "Customer Address"}</span>
             <span>💰 ₹{b.priceSnapshot?.total ?? 0}</span>
           </div>
         </div>

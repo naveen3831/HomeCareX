@@ -162,10 +162,12 @@ type MapState =
 function useJobPoint(job: LiveJob): MapState {
   const fromList =
     toPoint(job.location?.coordinates) ?? toPoint(job.coordinates);
+  // The effect only needs to know whether the list already has a point.
+  const hasListPoint = fromList !== null;
   const [looked, setLooked] = useState<MapState>({ kind: "loading" });
 
   useEffect(() => {
-    if (fromList) return;
+    if (hasListPoint) return;
     if (!GEOCODE_FALLBACK) {
       setLooked({ kind: "none" });
       return;
@@ -184,7 +186,7 @@ function useJobPoint(job: LiveJob): MapState {
     return () => {
       cancelled = true;
     };
-  }, [fromList?.lat, fromList?.lng, job.address]);
+  }, [hasListPoint, job.address]);
 
   return fromList ? { kind: "ready", point: fromList, approx: false } : looked;
 }
@@ -258,51 +260,50 @@ function JobMap({
     };
   }, []);
 
+  // Plain numbers keep the effect's dependency list exact.
+  const cLat = customer?.lat;
+  const cLng = customer?.lng;
+  const pLat = partner?.lat;
+  const pLng = partner?.lng;
+
   useEffect(() => {
     const map = mapRef.current;
     const layer = layerRef.current;
     if (!map || !layer) return;
     layer.clearLayers();
-    if (customer && partner) {
-      L.polyline(
-        [
-          [partner.lat, partner.lng],
-          [customer.lat, customer.lng],
-        ],
-        { color: "#0f766e", weight: 5, opacity: 0.9, lineCap: "round" },
-      ).addTo(layer);
-    }
-    if (customer) {
-      L.marker([customer.lat, customer.lng], {
-        icon: pinIcon,
-        keyboard: false,
+
+    const c: [number, number] | null =
+      cLat !== undefined && cLng !== undefined ? [cLat, cLng] : null;
+    const p: [number, number] | null =
+      pLat !== undefined && pLng !== undefined ? [pLat, pLng] : null;
+
+    if (c && p) {
+      L.polyline([p, c], {
+        color: "#0f766e",
+        weight: 5,
+        opacity: 0.9,
+        lineCap: "round",
       }).addTo(layer);
     }
-    if (partner) {
-      L.marker([partner.lat, partner.lng], {
-        icon: meIcon,
-        keyboard: false,
-      }).addTo(layer);
+    if (c) {
+      L.marker(c, { icon: pinIcon, keyboard: false }).addTo(layer);
+    }
+    if (p) {
+      L.marker(p, { icon: meIcon, keyboard: false }).addTo(layer);
     }
 
-    const key = `${customer ? `c${customer.lat},${customer.lng}` : "-"}|${partner ? "p" : "-"}`;
+    const key = `${c ? `c${c[0]},${c[1]}` : "-"}|${p ? "p" : "-"}`;
     if (key !== viewKey.current) {
       viewKey.current = key;
-      if (customer && partner) {
-        map.fitBounds(
-          L.latLngBounds(
-            [partner.lat, partner.lng],
-            [customer.lat, customer.lng],
-          ),
-          { padding: [36, 36], maxZoom: 16 },
-        );
-      } else if (customer) {
-        map.setView([customer.lat, customer.lng], 16);
-      } else if (partner) {
-        map.setView([partner.lat, partner.lng], 15);
+      if (c && p) {
+        map.fitBounds(L.latLngBounds(p, c), { padding: [36, 36], maxZoom: 16 });
+      } else if (c) {
+        map.setView(c, 16);
+      } else if (p) {
+        map.setView(p, 15);
       }
     }
-  }, [customer?.lat, customer?.lng, partner?.lat, partner?.lng]);
+  }, [cLat, cLng, pLat, pLng]);
 
   return (
     <div

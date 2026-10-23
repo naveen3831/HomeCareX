@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useServices } from "@/hooks/useServices";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import OfflineState from "@/components/common/OfflineState";
+import {
+  QUERY_LIMITS,
+  parseServicesQuery,
+  sanitizeSearchText,
+  toServicesSearchParams,
+  uiSortToApi,
+} from "@/lib/querySanitize";
 import type {
   ServiceListParams,
   ServiceSort,
@@ -41,44 +50,40 @@ export const ServicesPage: React.FC = () => {
     useSearchParams();
 
   // ==========================================================
-  // READ VALUES FROM URL
+  // READ VALUES FROM URL (sanitised)
+  // A hand-edited URL (long q, sort=<injection>, page=-1, bad pincode)
+  // can never reach the API or the UI as-is.
   // ==========================================================
 
-  const search =
-    searchParams.get("q") ?? "";
+  const {
+    q: search,
+    category,
+    sort,
+    page: currentPage,
+    pincode,
+    dirty: urlWasTampered,
+  } = parseServicesQuery(searchParams);
 
-  const category =
-    searchParams.get("category") ?? "";
+  // Rewrite the address bar once so the URL matches what the page actually uses.
+  useEffect(() => {
+    if (!urlWasTampered) return;
 
-  const sort =
-    (searchParams.get("sort") as SortOption) ||
-    "popular";
+    setSearchParams(
+      toServicesSearchParams(
+        { q: search, category, sort, page: currentPage, pincode },
+        searchParams
+      ),
+      { replace: true }
+    );
 
-  const pincode =
-    searchParams.get("pincode") ?? "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlWasTampered, searchParams]);
 
-  const currentPageValue =
-    Number(searchParams.get("page")) || 1;
-
-  const currentPage =
-    currentPageValue < 1
-      ? 1
-      : currentPageValue;
-
-  // Fetch services from the API
-  const apiSort: ServiceSort =
-    sort === "price-low"
-      ? "price-asc"
-      : sort === "price-high"
-        ? "price-desc"
-        : (
-            ["popular", "rating", "newest", "relevance"] as string[]
-          ).includes(sort)
-          ? (sort as ServiceSort)
-          : "popular";
+  // Dropdown value -> API value (price-low -> price-asc, etc.)
+  const apiSort: ServiceSort = uiSortToApi(sort);
 
   const serviceParams: ServiceListParams = {
-    q: search.trim() || undefined,
+    q: search || undefined,
     category: category || undefined,
     sort: apiSort,
     page: currentPage,
@@ -86,6 +91,15 @@ export const ServicesPage: React.FC = () => {
   };
 
   const servicesQuery = useServices(serviceParams);
+
+  // Offline with nothing to show yet: React Query pauses the request, so show a clear
+  // offline state instead of an endless skeleton. It refetches by itself on reconnect.
+  const online = useOnlineStatus();
+
+  const showOffline =
+    !online &&
+    (servicesQuery.isPending || servicesQuery.isError) &&
+    !servicesQuery.data;
 
   const loading = servicesQuery.isPending;
   const error = servicesQuery.isError;
@@ -107,10 +121,13 @@ export const ServicesPage: React.FC = () => {
 
   // ==========================================================
   // SEARCH DEBOUNCE - 300ms
+  // The URL only ever receives the sanitised text.
   // ==========================================================
 
   useEffect(() => {
-    if (searchInput === search) {
+    const cleaned = sanitizeSearchText(searchInput);
+
+    if (cleaned === search) {
       return undefined;
     }
 
@@ -119,8 +136,8 @@ export const ServicesPage: React.FC = () => {
         const params =
           new URLSearchParams(previous);
 
-        if (searchInput) {
-          params.set("q", searchInput);
+        if (cleaned) {
+          params.set("q", cleaned);
         } else {
           params.delete("q");
         }
@@ -168,7 +185,8 @@ export const ServicesPage: React.FC = () => {
   const handleSearchChange = (
     value: string
   ) => {
-    setSearchInput(value);
+    // Length cap while typing; the URL/API only ever get the sanitised text.
+    setSearchInput(value.slice(0, QUERY_LIMITS.q));
   };
 
   // ==========================================================
@@ -343,11 +361,11 @@ export const ServicesPage: React.FC = () => {
 
           <p className="text-sm font-semibold text-[#6b6b8a]">
 
-          {servicesQuery.data?.meta.total ?? 0}{" "}
-{(servicesQuery.data?.meta.total ?? 0) === 1
-  ? "service"
-  : "services"}{" "}
-found
+            {servicesQuery.data?.meta.total ?? 0}{" "}
+            {(servicesQuery.data?.meta.total ?? 0) === 1
+              ? "service"
+              : "services"}{" "}
+            found
           </p>
 
           {category && (
@@ -359,10 +377,18 @@ found
         </div>
 
         {/* ====================================================
-            SERVICE GRID / LOADING / ERROR / EMPTY
+            SERVICE GRID / OFFLINE / LOADING / ERROR / EMPTY
         ==================================================== */}
 
-        {loading ? (
+        {showOffline ? (
+
+          /* ==================================================
+             OFFLINE STATE
+          ================================================== */
+
+          <OfflineState onRetry={handleRetry} />
+
+        ) : loading ? (
 
           /* ==================================================
              LOADING STATE
@@ -481,74 +507,75 @@ found
 
           </div>
 
-       ) : apiServices.length > 0 ? (
+        ) : apiServices.length > 0 ? (
+
           /* ==================================================
              SERVICE CARDS
           ================================================== */
 
-<div
-  className="
-    grid
-    gap-6
-    sm:grid-cols-2
-    lg:grid-cols-3
-  "
->
+          <div
+            className="
+              grid
+              gap-6
+              sm:grid-cols-2
+              lg:grid-cols-3
+            "
+          >
 
-{apiServices.map((service) => {
-  const name = service.name.toLowerCase();
+            {apiServices.map((service) => {
+              const name = service.name.toLowerCase();
 
-  let image = "/images/home-cleaning.jpg";
+              let image = "/images/home-cleaning.jpg";
 
-  if (name.includes("deep") && name.includes("clean")) {
-    image = "/images/deep-cleaning.jpg";
-  } else if (name.includes("clean")) {
-    image = "/images/home-cleaning.jpg";
-  } else if (
-    name.includes("ac service") ||
-    name.includes("gas refill") ||
-    name.includes("appliance") ||
-    name.includes("geyser") ||
-    name.includes("refrigerator") ||
-    name.includes("washing machine") ||
-    name.includes("microwave")
-  ) {
-    image = "/images/appliance-repair.jpg";
-  } else if (
-    name.includes("electrician") ||
-    name.includes("electrical")
-  ) {
-    image = "/images/electrical.jpg";
-  } else if (name.includes("plumbing")) {
-    image = "/images/plumbing.jpg";
-  } else if (name.includes("painting")) {
-    image = "/images/painting.jpg";
-  } else if (name.includes("pest")) {
-    image = "/images/pest-control-clean.webp";
-  } else if (name.includes("massage")) {
-    image = "/images/full-body-massage.webp";
-  } else if (name.includes("makeup")) {
-    image = "/images/bridal-makeup.webp";
-  } else if (name.includes("bathroom")) {
-    image = "/images/bathroom-cleaning.webp";
-  }
+              if (name.includes("deep") && name.includes("clean")) {
+                image = "/images/deep-cleaning.jpg";
+              } else if (name.includes("clean")) {
+                image = "/images/home-cleaning.jpg";
+              } else if (
+                name.includes("ac service") ||
+                name.includes("gas refill") ||
+                name.includes("appliance") ||
+                name.includes("geyser") ||
+                name.includes("refrigerator") ||
+                name.includes("washing machine") ||
+                name.includes("microwave")
+              ) {
+                image = "/images/appliance-repair.jpg";
+              } else if (
+                name.includes("electrician") ||
+                name.includes("electrical")
+              ) {
+                image = "/images/electrical.jpg";
+              } else if (name.includes("plumbing")) {
+                image = "/images/plumbing.jpg";
+              } else if (name.includes("painting")) {
+                image = "/images/painting.jpg";
+              } else if (name.includes("pest")) {
+                image = "/images/pest-control-clean.webp";
+              } else if (name.includes("massage")) {
+                image = "/images/full-body-massage.webp";
+              } else if (name.includes("makeup")) {
+                image = "/images/bridal-makeup.webp";
+              } else if (name.includes("bathroom")) {
+                image = "/images/bathroom-cleaning.webp";
+              }
 
-  return (
-    <ServiceCard
-      key={service.id}
-      id={service.slug}
-      image={image}
-      fallbackImage={image}
-      category={service.category.name}
-      name={service.name}
-      rating={service.rating}
-      price={service.basePrice}
-      duration={`${service.durationMinutes} min`}
-    />
-  );
-})}
+              return (
+                <ServiceCard
+                  key={service.id}
+                  id={service.slug}
+                  image={image}
+                  fallbackImage={image}
+                  category={service.category.name}
+                  name={service.name}
+                  rating={service.rating}
+                  price={service.basePrice}
+                  duration={`${service.durationMinutes} min`}
+                />
+              );
+            })}
 
-</div>
+          </div>
 
         ) : (
 
@@ -644,9 +671,10 @@ found
             PAGINATION
         ==================================================== */}
 
-       {!loading &&
-  !error &&
-  apiServices.length > 0 && (
+        {!showOffline &&
+          !loading &&
+          !error &&
+          apiServices.length > 0 && (
 
             <Pagination
               currentPage={
