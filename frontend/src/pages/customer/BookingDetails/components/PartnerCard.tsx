@@ -8,15 +8,18 @@ import { formatRating } from "../../Bookings/bookingModel";
 export default function PartnerCard({
   partner,
   hasPartner,
+  isCancelled,
 }: {
   partner: BookingDetailPartner | null;
   hasPartner: boolean;
+  isCancelled?: boolean;
 }) {
   if (!hasPartner) {
     return (
       <p className="text-sm text-muted">
-        We're finding the best partner for you. You'll see their details here as
-        soon as someone accepts.
+        {isCancelled
+          ? "No partner was assigned for this booking."
+          : "We're finding the best partner for you. You'll see their details here as soon as someone accepts."}
       </p>
     );
   }

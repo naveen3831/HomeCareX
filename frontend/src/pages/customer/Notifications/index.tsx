@@ -144,7 +144,7 @@ export default function Notifications() {
       {/* One row at every width: title on the left, Mark all as read + bin on the right (never wraps below the title). */}
       <header className="flex flex-nowrap items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl font-semibold sm:text-2xl tracking-tight text-ink">Notifications</h1>
+          <h1 className="sr-only">Notifications</h1>
           <p aria-live="polite" className="mt-1 text-sm text-muted">
             {data ? (totalUnread > 0 ? `${totalUnread} unread` : "You're all caught up") : "Booking updates, payments, offers and support replies."}
           </p>

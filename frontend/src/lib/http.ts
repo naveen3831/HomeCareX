@@ -30,15 +30,19 @@ export const http = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// Set the Authorization header using axios' typed AxiosHeaders API
+function setBearer(
+  headers: InternalAxiosRequestConfig["headers"],
+  token: string,
+) {
+  headers.set("Authorization", `Bearer ${token}`);
+}
+
 // Inject current in-memory access token
 http.interceptors.request.use((config) => {
   const token = tokenStore.get();
   if (token) {
-    if (typeof (config.headers as any).set === "function") {
-      (config.headers as any).set("Authorization", `Bearer ${token}`);
-    } else {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    setBearer(config.headers, token);
   }
   return config;
 });
@@ -100,8 +104,7 @@ http.interceptors.response.use(
 
     // DEV ONLY: say exactly why a 401 happened (no tokens are printed).
     if (import.meta.env.DEV && error.response?.status === 401) {
-      const h = original?.headers as any;
-      const sentAuth = Boolean(h?.Authorization || h?.get?.("Authorization"));
+      const sentAuth = Boolean(original?.headers?.get("Authorization"));
       console.warn(
         "[auth-debug] 401 " +
           JSON.stringify({
@@ -130,11 +133,7 @@ http.interceptors.response.use(
 
       if (session?.accessToken) {
         if (original.headers) {
-          if (typeof (original.headers as any).set === "function") {
-            (original.headers as any).set("Authorization", `Bearer ${session.accessToken}`);
-          } else {
-            original.headers.Authorization = `Bearer ${session.accessToken}`;
-          }
+          setBearer(original.headers, session.accessToken);
         }
         return http(original);
       }

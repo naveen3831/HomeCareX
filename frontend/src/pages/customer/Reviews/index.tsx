@@ -145,7 +145,8 @@ export default function Reviews() {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-ink">Reviews</h1>
+        {/* The top bar shows the page name; keep a real heading for screen readers. */}
+        <h1 className="sr-only">Reviews</h1>
         <p className="mt-1 text-sm text-muted">Rate your completed services. Every review is checked by our team before it is published.</p>
       </header>
 

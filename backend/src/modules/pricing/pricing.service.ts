@@ -98,7 +98,7 @@ export function toQuoteCouponCode(code: string): string {
 
 export const pricingService = {
   /** POST /pricing/quote. Prices come from the database; the client only sends ids and quantities. */
-  async quote(input: QuoteInput, userId: string): Promise<PriceQuote> {
+  async quote(input: QuoteInput, userId: string = ''): Promise<PriceQuote> {
     const row = await ServiceModel.findOne({ _id: input.serviceId, active: { $ne: false } }, 'name basePrice addOns categoryId').lean();
     if (!row) throw new AppError(404, 'SERVICE_NOT_FOUND', 'That service was not found');
 
@@ -148,7 +148,6 @@ export const pricingService = {
         coupon = await couponsService.validate(
           { serviceId: input.serviceId, quantity: input.quantity, addOns: input.addOns, date: input.date, slot: input.slot, couponCode: input.couponCode },
           userId,
-          { orderValue },
         );
       } catch (err) {
         // A bad coupon never fails the quote: the price is returned without it, plus the reason.

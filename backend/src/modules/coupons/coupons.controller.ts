@@ -1,3 +1,4 @@
+
 import type { Request, Response } from 'express';
 import { couponsService } from './coupons.service';
 import { sendSuccess } from '../../utils/response';
@@ -34,33 +35,6 @@ export class CouponsController {
   }
 
   async create(req: Request, res: Response) {
-    const coupon = await couponsService.create(
-      req.body,
-    );
-
-    return sendSuccess(res, coupon, {
-      status: 201,
-    });
-  }
-
-  async update(req: Request, res: Response) {
-    const coupon = await couponsService.update(
-      req.params.id,
-      req.body,
-    );
-
-    return sendSuccess(res, coupon);
-  }
-
-  async remove(req: Request, res: Response) {
-    await couponsService.remove(req.params.id);
-
-    return sendSuccess(res, {
-      ok: true,
-    });
-  }
-
-  async validate(req: Request, res: Response) {
     const user = req.user;
 
     if (!user?.id) {
@@ -71,9 +45,72 @@ export class CouponsController {
       });
     }
 
+    const coupon = await couponsService.create(
+      req.body,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
+    );
+
+    return sendSuccess(res, coupon, {
+      status: 201,
+    });
+  }
+
+  async update(req: Request, res: Response) {
+    const user = req.user;
+
+    if (!user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
+    const coupon = await couponsService.update(
+      req.params.id,
+      req.body,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
+    );
+
+    return sendSuccess(res, coupon);
+  }
+
+  async remove(req: Request, res: Response) {
+    const user = req.user;
+
+    if (!user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+        code: 'UNAUTHORIZED',
+      });
+    }
+
+    await couponsService.remove(
+      req.params.id,
+      {
+        id: user.id,
+        ip: req.ip ?? 'unknown',
+      },
+    );
+
+    return sendSuccess(res, {
+      ok: true,
+    });
+  }
+
+  async validate(req: Request, res: Response) {
+    const userId = req.user?.id || '';
+
     const result = await couponsService.validate(
       req.body,
-      user.id,
+      userId,
     );
 
     return sendSuccess(res, result);
@@ -83,20 +120,12 @@ export class CouponsController {
     req: Request,
     res: Response,
   ) {
-    const user = req.user;
-
-    if (!user?.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required',
-        code: 'UNAUTHORIZED',
-      });
-    }
+    const userId = req.user?.id || '';
 
     const coupons =
       await couponsService.listAvailable(
         req.body,
-        user.id,
+        userId,
       );
 
     return sendSuccess(res, coupons);

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth.middleware';
+import { authenticate, optionalAuth } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { couponsController } from './coupons.controller';
@@ -50,14 +50,14 @@ couponsRoutes.delete(
 );
 
 /**
- * Customer coupon validation
+ * Customer coupon validation & availability
  *
  * Mounted at:
- * /api/v1/coupons/validate
+ * /api/v1/coupons
  */
 export const couponCustomerRoutes = Router();
 
-couponCustomerRoutes.use(authenticate);
+couponCustomerRoutes.use(optionalAuth);
 
 couponCustomerRoutes.post(
   '/validate',

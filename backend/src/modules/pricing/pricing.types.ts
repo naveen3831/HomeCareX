@@ -18,7 +18,6 @@ export interface QuoteInput {
   addOns: QuoteAddOnInput[];
   date: string;
   slot: string;
-  /** Optional: picks a city-specific PricingRule. */
   city?: string;
   couponCode?: string;
 }
@@ -38,13 +37,11 @@ export interface PricingBreakdown {
 
 /** Response of POST /pricing/quote. Matches frontend/src/types/pricing.ts (PriceQuote). */
 export interface PriceQuote extends PricingBreakdown {
-  /** Server-issued id; the quote is valid until expiresAt. */
-  quoteId: string;
-  expiresAt: string;
+  quoteId?: string;
+  expiresAt?: string;
   currency: 'INR';
-  mode: 'FIXED' | 'HOURLY';
-  /** Fee charged if the customer cancels late. Informational here. */
-  cancellationFee: number;
+  mode?: string;
+  cancellationFee?: number;
   lines: QuoteLine[];
   coupon: { code: string; discount: number } | null;
   couponError?: { code: string; minOrder?: number };

@@ -9,10 +9,8 @@ interface ImportMetaEnv {
 }
 
 declare module 'jspdf' {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   export class jsPDF {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(options?: any);
+    constructor(options?: Record<string, unknown>);
     addFileToVFS(filename: string, filecontent: string): void;
     addFont(filename: string, fontname: string, fontstyle: string): void;
     setFont(fontName: string, fontStyle?: string): void;
@@ -20,8 +18,7 @@ declare module 'jspdf' {
     setTextColor(r: number, g?: number, b?: number): void;
     setDrawColor(r: number, g?: number, b?: number): void;
     setFillColor(r: number, g?: number, b?: number): void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    text(text: string | string[], x: number, y: number, options?: any): void;
+    text(text: string | string[], x: number, y: number, options?: Record<string, unknown>): void;
     line(x1: number, y1: number, x2: number, y2: number): void;
     rect(x: number, y: number, w: number, h: number, style?: string): void;
     roundedRect(x: number, y: number, w: number, h: number, rx: number, ry: number, style?: string): void;
@@ -29,17 +26,8 @@ declare module 'jspdf' {
     addPage(): void;
     getTextWidth(text: string): number;
     splitTextToSize(text: string, maxW: number): string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addImage(imageData: any, format: string, x: number, y: number, width: number, height: number): void;
+    addImage(imageData: string | HTMLImageElement | HTMLCanvasElement, format: string, x: number, y: number, width: number, height: number): void;
     save(filename: string): void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    output(type?: string): any;
+    output(type?: string): string | ArrayBuffer | Blob;
   }
 }
-/// <reference types="vite/client" />
-interface ImportMetaEnv {
-  readonly VITE_USE_MOCKS?: string;
-  readonly VITE_API_BASE_URL?: string;
-}
-interface ImportMeta { readonly env: ImportMetaEnv }
- 

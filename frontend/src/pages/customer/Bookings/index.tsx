@@ -253,8 +253,8 @@ export default function MyBookingsPage() {
     <div className="mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-bold leading-tight tracking-tight text-ink">
-            Bookings
+          <h1 className="sr-only">
+            My Bookings
           </h1>
           <p className="mt-1 text-sm text-muted">
             Track what&apos;s happening now, what&apos;s next and what&apos;s

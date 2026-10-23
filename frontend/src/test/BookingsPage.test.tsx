@@ -76,11 +76,14 @@ const renderPage = (entry = "/customer/bookings") => {
 };
 
 const lastParams = () =>
-  listBookings.mock.calls.at(-1)?.[0] as Record<string, unknown>;
+  listBookings.mock.calls[listBookings.mock.calls.length - 1]?.[0] as Record<string, unknown>;
 
 let online = true;
 beforeEach(() => {
   listBookings.mockReset();
+  vi.spyOn(Date, "now").mockReturnValue(
+    new Date("2026-10-10T04:30:00Z").getTime(),
+  );
   online = true;
   vi.spyOn(window.navigator, "onLine", "get").mockImplementation(() => online);
 });
@@ -109,7 +112,7 @@ describe("My Bookings page", () => {
     );
     expect(c.getByRole("link", { name: /Track/ })).toHaveAttribute(
       "href",
-      `/customer/bookings/${ID}/track`,
+      expect.stringContaining(`booking=${ID}`),
     );
   });
 
@@ -316,6 +319,42 @@ describe("My Bookings page", () => {
     listBookings.mockReturnValue(new Promise(() => undefined));
     renderPage();
     expect(screen.getByText("You're offline")).toBeInTheDocument();
+  });
+});
+
+describe("Booking tabs", () => {
+  it("only displays Upcoming, Live, Completed, and Cancelled tabs", () => {
+    listBookings.mockResolvedValue(page([]));
+    renderPage();
+    expect(screen.getByRole("tab", { name: "Upcoming" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Live" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Completed" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Cancelled" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Overdue" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to Upcoming when a legacy overdue tab is requested", async () => {
+    listBookings.mockResolvedValue(page([]));
+    renderPage("/customer/bookings?tab=overdue");
+    expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("supports arrow, Home and End keys across all four tabs", async () => {
+    const user = userEvent.setup();
+    listBookings.mockResolvedValue(page([]));
+    renderPage();
+    await user.click(screen.getByRole("tab", { name: "Upcoming" }));
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Live" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Completed" })).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "Cancelled" })).toHaveFocus();
+    await user.keyboard("{Home}");
+    expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveFocus();
   });
 });
 

@@ -1,15 +1,35 @@
 import { useQuery } from "@tanstack/react-query";
-import { catalogKeys, fetchCategories, retryTransient } from "@/services/catalogApi";
-import type { NormalizedApiError } from "@/services/bookingApi";
-import type { CatalogCategory } from "@/types/catalog";
+import { fetchCategories, retryBackoff } from "@/services/catalogApi";
 
-/** Active categories in admin order, with service counts. Short cache + refetch on focus so admin reordering shows up quickly. */
 export function useCategories() {
-  return useQuery<CatalogCategory[], NormalizedApiError>({
-    queryKey: catalogKeys.categories,
+  return useQuery({
+    queryKey: ["catalog", "categories"],
     queryFn: ({ signal }) => fetchCategories(signal),
     staleTime: 30_000,
     refetchOnWindowFocus: true,
-    retry: retryTransient,
+
+    retry: (failureCount, error) => {
+      if (failureCount >= 2) {
+        return false;
+      }
+
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "status" in error
+      ) {
+        const status = error.status;
+
+        return (
+          status === null ||
+          (typeof status === "number" && status >= 500)
+        );
+      }
+
+      return error instanceof TypeError;
+    },
+
+    // Wait 1s, then 2s (max 5s) between retries.
+    retryDelay: retryBackoff,
   });
 }

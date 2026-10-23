@@ -223,10 +223,10 @@ describe("Customer notifications page", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("Service completed");
-    await user.click(screen.getByRole("button", { name: /mark all as read/i }));
+    await user.click(screen.getByRole("button", { name: /mark all read/i }));
     await waitFor(() => expect(markAllNotificationsRead).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("You're all caught up")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /mark all as read/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /mark all read/i })).toBeDisabled();
   });
 
   it("links to the booking, the ticket and the review form", async () => {

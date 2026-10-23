@@ -1,29 +1,29 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useServices } from "@/hooks/useServices";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import OfflineState from "@/components/common/OfflineState";
+import {
+  QUERY_LIMITS,
+  parseServicesQuery,
+  sanitizeSearchText,
+  toServicesSearchParams,
+  uiSortToApi,
+} from "@/lib/querySanitize";
+import type {
+  ServiceListParams,
+  ServiceSort,
+} from "@/types/catalog";
 
 import ServiceCard from "../../../components/public/ServiceCard";
-
 import ServiceCardSkeleton from "../../../components/public/ServiceCardSkeleton";
-
 import ServiceFilters, {
   SortOption,
 } from "../../../components/public/ServiceFilters";
-
 import Pagination from "../../../components/public/Pagination";
-
-import { toServiceCard, useCategories, useServices } from "@/features/public";
-import { useHiddenPageScrollbar } from "@/hooks/useHiddenPageScrollbar";
-import type { ServicesParams } from "@/features/public";
-
-// ============================================================
-// SORT: page option values -> API sort values
-// ============================================================
-
-const SORT_TO_API: Record<SortOption, NonNullable<ServicesParams["sort"]>> = {
-  popular: "popular",
-  "price-low": "price-asc",
-  "price-high": "price-desc",
-};
+import Seo from "../../../components/common/Seo";
+import { breadcrumbLd } from "../../../lib/jsonld";
+import { slugToTitle } from "../../../lib/seo";
 
 // ============================================================
 // ITEMS PER PAGE
@@ -42,9 +42,6 @@ const SEARCH_DEBOUNCE_MS = 300;
 // ============================================================
 
 export const ServicesPage: React.FC = () => {
-  // Hide the right-side page scrollbar (the page still scrolls normally)
-  useHiddenPageScrollbar();
-
   // ==========================================================
   // URL SEARCH PARAMS
   // ==========================================================
@@ -53,29 +50,63 @@ export const ServicesPage: React.FC = () => {
     useSearchParams();
 
   // ==========================================================
-  // READ VALUES FROM URL
+  // READ VALUES FROM URL (sanitised)
+  // A hand-edited URL (long q, sort=<injection>, page=-1, bad pincode)
+  // can never reach the API or the UI as-is.
   // ==========================================================
 
-  const search =
-    searchParams.get("q") ?? "";
+  const {
+    q: search,
+    category,
+    sort,
+    page: currentPage,
+    pincode,
+    dirty: urlWasTampered,
+  } = parseServicesQuery(searchParams);
 
-  const category =
-    searchParams.get("category") ?? "";
+  // Rewrite the address bar once so the URL matches what the page actually uses.
+  useEffect(() => {
+    if (!urlWasTampered) return;
 
-  const sort =
-    (searchParams.get("sort") as SortOption) ||
-    "popular";
+    setSearchParams(
+      toServicesSearchParams(
+        { q: search, category, sort, page: currentPage, pincode },
+        searchParams
+      ),
+      { replace: true }
+    );
 
-  const pincode =
-    searchParams.get("pincode") ?? "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlWasTampered, searchParams]);
 
-  const currentPageValue =
-    Number(searchParams.get("page")) || 1;
+  // Dropdown value -> API value (price-low -> price-asc, etc.)
+  const apiSort: ServiceSort = uiSortToApi(sort);
 
-  const currentPage =
-    currentPageValue < 1
-      ? 1
-      : currentPageValue;
+  const serviceParams: ServiceListParams = {
+    q: search || undefined,
+    category: category || undefined,
+    sort: apiSort,
+    page: currentPage,
+    limit: ITEMS_PER_PAGE,
+  };
+
+  const servicesQuery = useServices(serviceParams);
+
+  // Offline with nothing to show yet: React Query pauses the request, so show a clear
+  // offline state instead of an endless skeleton. It refetches by itself on reconnect.
+  const online = useOnlineStatus();
+
+  const showOffline =
+    !online &&
+    (servicesQuery.isPending || servicesQuery.isError) &&
+    !servicesQuery.data;
+
+  const loading = servicesQuery.isPending;
+  const error = servicesQuery.isError;
+
+  const apiServices = servicesQuery.data?.items ?? [];
+  const totalPages = servicesQuery.data?.meta.totalPages ?? 0;
+  const safeCurrentPage = servicesQuery.data?.meta.page ?? currentPage;
 
   // ==========================================================
   // SEARCH INPUT
@@ -83,61 +114,26 @@ export const ServicesPage: React.FC = () => {
 
   const [searchInput, setSearchInput] =
     useState(search);
-
-  // ==========================================================
-  // DATA - services come from the API (or mocks when VITE_USE_MOCKS=true)
-  // ==========================================================
-
-  const {
-    data,
-    isLoading: loading,
-    isError: error,
-    refetch,
-  } = useServices({
-    q: search.trim() || undefined,
-    category: category || undefined,
-    sort: SORT_TO_API[sort] ?? "popular",
-    page: currentPage,
-    limit: ITEMS_PER_PAGE,
-  });
-
-  const { data: categoryList } = useCategories();
-
-  const categoryOptions = useMemo(
-    () => categoryList?.map((c) => ({ value: c.slug, label: c.name })),
-    [categoryList]
-  );
-
-  const categoryLabel =
-    categoryList?.find((c) => c.slug === category)?.name ?? category;
-
-  const paginatedServices = useMemo(
-    () => (data?.items ?? []).map(toServiceCard),
-    [data]
-  );
-
-  const totalCount = data?.meta.total ?? 0;
-  const totalPages = data?.meta.totalPages ?? 1;
-  const safeCurrentPage = Math.min(currentPage, Math.max(totalPages, 1));
-
-  // ==========================================================
-  // KEEP SEARCH BOX IN SYNC WITH URL
-  // ==========================================================
-
-  useEffect(() => {
-    document.title = "Services | HomeCareX";
-  }, []);
+  const [pincodeInput, setPincodeInput] =
+    useState(pincode);
 
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
 
+  useEffect(() => {
+    setPincodeInput(pincode);
+  }, [pincode]);
+
   // ==========================================================
   // SEARCH DEBOUNCE - 300ms
+  // The URL only ever receives the sanitised text.
   // ==========================================================
 
   useEffect(() => {
-    if (searchInput === search) {
+    const cleaned = sanitizeSearchText(searchInput);
+
+    if (cleaned === search) {
       return undefined;
     }
 
@@ -146,8 +142,8 @@ export const ServicesPage: React.FC = () => {
         const params =
           new URLSearchParams(previous);
 
-        if (searchInput) {
-          params.set("q", searchInput);
+        if (cleaned) {
+          params.set("q", cleaned);
         } else {
           params.delete("q");
         }
@@ -195,7 +191,8 @@ export const ServicesPage: React.FC = () => {
   const handleSearchChange = (
     value: string
   ) => {
-    setSearchInput(value);
+    // Length cap while typing; the URL/API only ever get the sanitised text.
+    setSearchInput(value.slice(0, QUERY_LIMITS.q));
   };
 
   // ==========================================================
@@ -231,10 +228,13 @@ export const ServicesPage: React.FC = () => {
   const handlePincodeChange = (
     value: string
   ) => {
-    updateParams({
-      pincode: value,
-      page: "1",
-    });
+    setPincodeInput(value);
+    if (value === "" || value.length === 6) {
+      updateParams({
+        pincode: value,
+        page: "1",
+      });
+    }
   };
 
   // ==========================================================
@@ -243,6 +243,7 @@ export const ServicesPage: React.FC = () => {
 
   const handleClear = () => {
     setSearchInput("");
+    setPincodeInput("");
     setSearchParams({});
   };
 
@@ -251,7 +252,7 @@ export const ServicesPage: React.FC = () => {
   // ==========================================================
 
   const handleRetry = () => {
-    void refetch();
+    void servicesQuery.refetch();
   };
 
   // ==========================================================
@@ -272,11 +273,42 @@ export const ServicesPage: React.FC = () => {
   };
 
   // ==========================================================
+  // SEO (canonical keeps ?category= only, see lib/seo.ts)
+  // ==========================================================
+
+  const categoryName = category ? slugToTitle(category) : "";
+
+  // ==========================================================
   // UI
   // ==========================================================
 
   return (
     <main className="min-h-screen bg-[#f8f9ff] px-4 py-10 sm:px-6 lg:px-8">
+      <Seo
+        title={
+          categoryName
+            ? `${categoryName} Services | HomeCareX`
+            : "All Home Services | HomeCareX"
+        }
+        description={
+          categoryName
+            ? `Book trusted ${categoryName.toLowerCase()} professionals near you. Compare prices, durations and book online with HomeCareX.`
+            : "Browse and book home cleaning, plumbing, electrical, painting, appliance repair and maintenance services with HomeCareX."
+        }
+        category={category || undefined}
+        jsonLd={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Services", path: "/services" },
+          ...(categoryName
+            ? [
+                {
+                  name: categoryName,
+                  path: `/services?category=${encodeURIComponent(category)}`,
+                },
+              ]
+            : []),
+        ])}
+      />
 
       <div className="mx-auto max-w-7xl">
 
@@ -309,9 +341,8 @@ export const ServicesPage: React.FC = () => {
         <ServiceFilters
           q={searchInput}
           category={category}
-          categories={categoryOptions}
           sort={sort}
-          pincode={pincode}
+          pincode={pincodeInput}
 
           onQueryChange={
             handleSearchChange
@@ -340,29 +371,34 @@ export const ServicesPage: React.FC = () => {
 
           <p className="text-sm font-semibold text-[#6b6b8a]">
 
-            {totalCount}{" "}
-
-            {totalCount === 1
+            {servicesQuery.data?.meta.total ?? 0}{" "}
+            {(servicesQuery.data?.meta.total ?? 0) === 1
               ? "service"
-              : "services"}
-
-            {" "}found
-
+              : "services"}{" "}
+            found
           </p>
 
           {category && (
             <p className="text-sm font-semibold text-[#4338ca]">
-              Category: {categoryLabel}
+              Category: {category}
             </p>
           )}
 
         </div>
 
         {/* ====================================================
-            SERVICE GRID / LOADING / ERROR / EMPTY
+            SERVICE GRID / OFFLINE / LOADING / ERROR / EMPTY
         ==================================================== */}
 
-        {loading ? (
+        {showOffline ? (
+
+          /* ==================================================
+             OFFLINE STATE
+          ================================================== */
+
+          <OfflineState onRetry={handleRetry} />
+
+        ) : loading ? (
 
           /* ==================================================
              LOADING STATE
@@ -375,7 +411,6 @@ export const ServicesPage: React.FC = () => {
               sm:grid-cols-2
               lg:grid-cols-3
             "
-            role="status"
             aria-busy="true"
             aria-label="Loading services"
           >
@@ -482,7 +517,7 @@ export const ServicesPage: React.FC = () => {
 
           </div>
 
-        ) : paginatedServices.length > 0 ? (
+        ) : apiServices.length > 0 ? (
 
           /* ==================================================
              SERVICE CARDS
@@ -497,22 +532,58 @@ export const ServicesPage: React.FC = () => {
             "
           >
 
-            {paginatedServices.map(
-              (service) => (
+            {apiServices.map((service) => {
+              const name = service.name.toLowerCase();
 
+              let image = "/images/home-cleaning.jpg";
+
+              if (name.includes("deep") && name.includes("clean")) {
+                image = "/images/deep-cleaning.jpg";
+              } else if (name.includes("clean")) {
+                image = "/images/home-cleaning.jpg";
+              } else if (
+                name.includes("ac service") ||
+                name.includes("gas refill") ||
+                name.includes("appliance") ||
+                name.includes("geyser") ||
+                name.includes("refrigerator") ||
+                name.includes("washing machine") ||
+                name.includes("microwave")
+              ) {
+                image = "/images/appliance-repair.jpg";
+              } else if (
+                name.includes("electrician") ||
+                name.includes("electrical")
+              ) {
+                image = "/images/electrical.jpg";
+              } else if (name.includes("plumbing")) {
+                image = "/images/plumbing.jpg";
+              } else if (name.includes("painting")) {
+                image = "/images/painting.jpg";
+              } else if (name.includes("pest")) {
+                image = "/images/pest-control-clean.webp";
+              } else if (name.includes("massage")) {
+                image = "/images/full-body-massage.webp";
+              } else if (name.includes("makeup")) {
+                image = "/images/bridal-makeup.webp";
+              } else if (name.includes("bathroom")) {
+                image = "/images/bathroom-cleaning.webp";
+              }
+
+              return (
                 <ServiceCard
                   key={service.id}
                   id={service.slug}
-                  image={service.image}
-                  category={service.category}
+                  image={image}
+                  fallbackImage={image}
+                  category={service.category.name}
                   name={service.name}
                   rating={service.rating}
-                  price={service.price}
-                  duration={service.duration}
+                  price={service.basePrice}
+                  duration={`${service.durationMinutes} min`}
                 />
-
-              )
-            )}
+              );
+            })}
 
           </div>
 
@@ -610,9 +681,10 @@ export const ServicesPage: React.FC = () => {
             PAGINATION
         ==================================================== */}
 
-        {!loading &&
+        {!showOffline &&
+          !loading &&
           !error &&
-          paginatedServices.length > 0 && (
+          apiServices.length > 0 && (
 
             <Pagination
               currentPage={

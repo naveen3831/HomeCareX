@@ -1,10 +1,5 @@
-import { Schema, model, type Document, Types } from "mongoose";
-import {
-  ACTOR_ROLES,
-  BOOKING_STATUSES,
-  type ActorRole,
-  type BookingStatus,
-} from "../modules/bookings/bookings.constants";
+import { Schema, model, type Document, Types } from 'mongoose';
+import { ACTOR_ROLES, BOOKING_STATUSES, type ActorRole, type BookingStatus } from '../modules/bookings/bookings.constants';
 
 /**
  * One Booking document serves every surface:
@@ -14,33 +9,12 @@ import {
  */
 
 export const BOOKING_PAYMENT_STATUS = {
-  PENDING: "PENDING",
-  PAID: "PAID",
-  FAILED: "FAILED",
-  REFUNDED: "REFUNDED",
+  PENDING: 'PENDING',
+  PAID: 'PAID',
+  FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED',
 } as const;
-export type BookingPaymentStatus =
-  (typeof BOOKING_PAYMENT_STATUS)[keyof typeof BOOKING_PAYMENT_STATUS];
-
-export const EXTRA_CHARGE_STATUSES = [
-  "pending",
-  "approved",
-  "rejected",
-] as const;
-export type ExtraChargeStatus = (typeof EXTRA_CHARGE_STATUSES)[number];
-
-/** Extra work the partner asks the customer to approve on site (Upendra's P05 contract). */
-export interface ExtraCharge {
-  _id: Types.ObjectId;
-  title: string;
-  reason?: string;
-  /** INR, > 0. */
-  amount: number;
-  status: ExtraChargeStatus;
-  requestedAt: Date;
-  requestedBy?: Types.ObjectId;
-  decidedAt?: Date;
-}
+export type BookingPaymentStatus = (typeof BOOKING_PAYMENT_STATUS)[keyof typeof BOOKING_PAYMENT_STATUS];
 
 export interface StatusHistoryItem {
   from: BookingStatus | null;
@@ -55,8 +29,6 @@ export interface IBooking extends Document {
   customerId: Types.ObjectId;
   /** Partner._id (not the User id). Null until a partner accepts. */
   partnerId?: Types.ObjectId | null;
-  /** Latest partner position while the job is active. One point only: no location history is kept. */
-  partnerLocation?: { lat: number; lng: number; accuracy?: number; updatedAt: Date };
   categoryId?: Types.ObjectId;
   serviceId?: Types.ObjectId;
   serviceName: string;
@@ -77,7 +49,7 @@ export interface IBooking extends Document {
     area?: string;
     city: string;
     pincode?: string;
-    location?: { type: "Point"; coordinates: number[] };
+    location?: { type: 'Point'; coordinates: number[] };
   };
   /** Customer slot: "YYYY-MM-DD" + "HH:mm-HH:mm" in Asia/Kolkata. scheduledAt is the slot start as a Date. */
   date?: string;
@@ -85,50 +57,29 @@ export interface IBooking extends Document {
   scheduledAt: Date;
   priceSnapshot?: {
     currency: string;
-    lines: Array<{
-      kind: "BASE" | "ADDON";
-      refId: Types.ObjectId;
-      name: string;
-      unitPrice: number;
-      quantity: number;
-      amount: number;
-    }>;
+    lines: Array<{ kind: 'BASE' | 'ADDON'; refId: Types.ObjectId; name: string; unitPrice: number; quantity: number; amount: number }>;
     subtotal: number;
     discount: number;
     convenienceFee: number;
     total: number;
     computedAt: Date;
   };
-  priceBreakdown: {
-    base: number;
-    addOns: number;
-    surge?: number;
-    discount: number;
-    convenienceFee: number;
-    tax: number;
-    total: number;
-  };
+  priceBreakdown: { base: number; addOns: number; surge?: number; discount: number; convenienceFee: number; tax: number; total: number };
   partnerEarning: number;
   status: BookingStatus;
   statusHistory: StatusHistoryItem[];
   paymentStatus: BookingPaymentStatus;
   /** Razorpay order/payment refs for the customer checkout; signature is never sent to clients. */
-  paymentDetails?: {
-    orderId?: string;
-    paymentId?: string;
-    signature?: string;
-    status?: string;
-    paidAt?: Date;
-  };
+  paymentDetails?: { orderId?: string; paymentId?: string; signature?: string; status?: string; paidAt?: Date };
   cancellationReason?: string;
-  extraCharges: ExtraCharge[];
-  offers: Array<{
-    partnerId: Types.ObjectId;
-    offeredAt: Date;
-    expiresAt: Date;
-    response: "pending" | "accepted" | "rejected" | "expired";
-  }>;
+  offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired' }>;
   otpCodes?: { start?: string; end?: string };
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    amount: number;
+    status: 'pending' | 'approved' | 'rejected';
+  }>;
   slotSeat?: number;
   idempotencyKey?: string;
   requestHash?: string;
@@ -156,29 +107,12 @@ const PriceBreakdownSchema = new Schema(
 /** A job offer sent to one partner while the booking is searching_for_partner. */
 const OfferSchema = new Schema(
   {
-    partnerId: { type: Schema.Types.ObjectId, ref: "Partner", required: true },
+    partnerId: { type: Schema.Types.ObjectId, ref: 'Partner', required: true },
     offeredAt: { type: Date, default: Date.now },
     expiresAt: { type: Date, required: true },
-    response: {
-      type: String,
-      enum: ["pending", "accepted", "rejected", "expired"],
-      default: "pending",
-    },
+    response: { type: String, enum: ['pending', 'accepted', 'rejected', 'expired'], default: 'pending' },
   },
   { _id: false },
-);
-
-const ExtraChargeSchema = new Schema(
-  {
-    title: { type: String, required: true, trim: true, maxlength: 120 },
-    reason: { type: String, trim: true, maxlength: 500 },
-    amount: { type: Number, required: true, min: 1 },
-    status: { type: String, enum: EXTRA_CHARGE_STATUSES, default: "pending" },
-    requestedAt: { type: Date, default: Date.now },
-    requestedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    decidedAt: { type: Date },
-  },
-  { _id: true },
 );
 
 const StatusHistorySchema = new Schema(
@@ -195,29 +129,9 @@ const StatusHistorySchema = new Schema(
 
 const BookingSchema = new Schema<IBooking>(
   {
-    customerId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
-    },
-    partnerId: {
-      type: Schema.Types.ObjectId,
-      ref: "Partner",
-      default: null,
-      index: true,
-    },
-    partnerLocation: {
-      type: {
-        lat: { type: Number, required: true, min: -90, max: 90 },
-        lng: { type: Number, required: true, min: -180, max: 180 },
-        accuracy: { type: Number, min: 0 },
-        updatedAt: { type: Date, required: true },
-        _id: false,
-      },
-      default: undefined,
-    },
-    categoryId: { type: Schema.Types.ObjectId, ref: "Category" },
+    customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    partnerId: { type: Schema.Types.ObjectId, ref: 'Partner', default: null, index: true },
+    categoryId: { type: Schema.Types.ObjectId, ref: 'Category' },
     serviceId: { type: Schema.Types.ObjectId },
     /** Snapshots so lists/dashboards don't need joins and stay correct if the catalog changes. */
     serviceName: { type: String, required: true },
@@ -237,7 +151,7 @@ const BookingSchema = new Schema<IBooking>(
       city: { type: String, required: true },
       pincode: { type: String },
       location: {
-        type: { type: String, enum: ["Point"] },
+        type: { type: String, enum: ['Point'] },
         coordinates: { type: [Number], default: undefined }, // [lng, lat]
       },
     },
@@ -248,12 +162,7 @@ const BookingSchema = new Schema<IBooking>(
     priceBreakdown: { type: PriceBreakdownSchema, default: () => ({}) },
     /** Partner's share after commission. Used for earnings totals. */
     partnerEarning: { type: Number, default: 0, min: 0 },
-    status: {
-      type: String,
-      enum: BOOKING_STATUSES,
-      default: "created",
-      index: true,
-    },
+    status: { type: String, enum: BOOKING_STATUSES, default: 'created', index: true },
     statusHistory: { type: [StatusHistorySchema], default: [] },
     paymentStatus: {
       type: String,
@@ -269,12 +178,19 @@ const BookingSchema = new Schema<IBooking>(
       paidAt: { type: Date },
     },
     cancellationReason: { type: String, trim: true },
-    extraCharges: { type: [ExtraChargeSchema], default: [] },
     offers: { type: [OfferSchema], default: [] },
     /** Start/end verification codes; never returned to clients by default. */
     otpCodes: {
       start: { type: String, select: false },
       end: { type: String, select: false },
+    },
+    extraCharges: {
+      type: [{
+        title: { type: String, required: true, trim: true },
+        amount: { type: Number, required: true, min: 0 },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      }],
+      default: [],
     },
     /** Seat number within (serviceId, date, slot); unset when the booking stops holding the slot. */
     slotSeat: { type: Number },
@@ -291,25 +207,17 @@ const BookingSchema = new Schema<IBooking>(
 // so partner-side bookings without a slot seat / idempotency key never collide on nulls.
 BookingSchema.index(
   { customerId: 1, idempotencyKey: 1 },
-  {
-    unique: true,
-    name: "uniq_customer_idem_key",
-    partialFilterExpression: { idempotencyKey: { $exists: true } },
-  },
+  { unique: true, name: 'uniq_customer_idem_key', partialFilterExpression: { idempotencyKey: { $exists: true } } },
 );
 BookingSchema.index(
   { serviceId: 1, date: 1, slot: 1, slotSeat: 1 },
-  {
-    unique: true,
-    name: "uniq_active_slot_seat",
-    partialFilterExpression: { slotSeat: { $exists: true } },
-  },
+  { unique: true, name: 'uniq_active_slot_seat', partialFilterExpression: { slotSeat: { $exists: true } } },
 );
 /** Customer list screen: scoped by customer, filtered by status, newest first. */
 BookingSchema.index({ customerId: 1, status: 1, createdAt: -1 });
 BookingSchema.index({ partnerId: 1, scheduledAt: 1 });
-BookingSchema.index({ "offers.partnerId": 1, status: 1 });
+BookingSchema.index({ 'offers.partnerId': 1, status: 1 });
 
 export type Booking = IBooking;
-export const BookingModel = model<IBooking>("Booking", BookingSchema);
+export const BookingModel = model<IBooking>('Booking', BookingSchema);
 export default BookingModel;

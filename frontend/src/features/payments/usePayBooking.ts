@@ -69,6 +69,7 @@ export function usePayBooking() {
     () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["customer-bookings"] }),
+        queryClient.invalidateQueries({ queryKey: ["customer"] }), // dashboard: active / upcoming bookings
         queryClient.invalidateQueries({ queryKey: ["booking"] }),
         queryClient.invalidateQueries({ queryKey: PAYMENTS_QUERY_KEY }),
       ]),

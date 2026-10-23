@@ -125,18 +125,19 @@ function parseDate(value: string, field: string): Date {
 
 function mapRepositoryError(error: unknown): never {
   if (error instanceof PayoutRepositoryError) {
+    const err = error as PayoutRepositoryError;
     const status =
-      error.code === 'INVALID_ADMIN_ID' ||
-      error.code === 'INVALID_PERIOD'
+      err.code === 'INVALID_ADMIN_ID' ||
+      err.code === 'INVALID_PERIOD'
         ? 400
-        : error.code === 'NO_ELIGIBLE_EARNINGS'
+        : err.code === 'NO_ELIGIBLE_EARNINGS'
           ? 422
-          : error.code === 'PAYOUT_BATCH_ALREADY_EXISTS' ||
-              error.code === 'PAYOUT_EARNINGS_RESERVATION_CONFLICT'
+          : err.code === 'PAYOUT_BATCH_ALREADY_EXISTS' ||
+              err.code === 'PAYOUT_EARNINGS_RESERVATION_CONFLICT'
             ? 409
             : 500;
 
-    throw new AppError(status, error.code, error.message);
+    throw new AppError(status, err.code, err.message);
   }
 
   const code = getErrorCode(error);

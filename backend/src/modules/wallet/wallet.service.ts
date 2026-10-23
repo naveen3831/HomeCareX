@@ -1,11 +1,16 @@
-import crypto from "crypto";
-import Razorpay from "razorpay";
-import { WalletModel, WalletLedgerModel } from "../../models/Wallet";
+import crypto from 'crypto';
+import Razorpay from 'razorpay';
+import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "",
-});
+let razorpayInstance: Razorpay | null = null;
+function getRazorpay(): Razorpay {
+  if (!razorpayInstance) {
+    const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret';
+    razorpayInstance = new Razorpay({ key_id, key_secret });
+  }
+  return razorpayInstance;
+}
 
 export class WalletService {
   /**
@@ -57,20 +62,18 @@ export class WalletService {
 
   async createTopupOrder(userId: string, amountInRupees: number) {
     if (!amountInRupees || amountInRupees < 10 || amountInRupees > 50000) {
-      throw new Error(
-        "Invalid amount. Minimum recharge is ₹10 and maximum is ₹50,000.",
-      );
+      throw new Error('Invalid amount. Minimum recharge is ₹10 and maximum is ₹50,000.');
     }
 
     const amountInPaise = Math.round(amountInRupees * 100);
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: amountInPaise,
-      currency: "INR",
+      currency: 'INR',
       receipt: `top_${Date.now().toString().slice(-8)}`,
       notes: {
         userId,
-        type: "WALLET_TOPUP",
+        type: 'WALLET_TOPUP',
       },
     });
 
@@ -82,7 +85,7 @@ export class WalletService {
     };
   }
 
-  async verifyTopupPayment(params: {
+ async verifyTopupPayment(params: {
     userId: string;
     orderId: string;
     paymentId: string;
@@ -93,18 +96,16 @@ export class WalletService {
 
     // 1. Verify HMAC SHA256 Signature
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
       .update(`${orderId}|${paymentId}`)
-      .digest("hex");
+      .digest('hex');
 
     if (expectedSignature !== signature) {
-      throw new Error("Invalid payment signature");
+      throw new Error('Invalid payment signature');
     }
 
     // 2. Prevent duplicate credit on webhook or frontend retry
-    const existingEntry = await WalletLedgerModel.findOne({
-      referenceId: paymentId,
-    });
+    const existingEntry = await WalletLedgerModel.findOne({ referenceId: paymentId });
     if (existingEntry) {
       return { balance: existingEntry.balanceAfter };
     }
@@ -113,8 +114,8 @@ export class WalletService {
     // Fetch directly from Razorpay for tamper-proof amount verification
     let amountInRupees = Math.round(Number(amount) / 100);
     try {
-      const rzpOrder = await razorpay.orders.fetch(orderId);
-      if (rzpOrder && typeof rzpOrder.amount === "number") {
+      const rzpOrder = await getRazorpay().orders.fetch(orderId);
+      if (rzpOrder && typeof rzpOrder.amount === 'number') {
         amountInRupees = Math.round(rzpOrder.amount / 100);
       }
     } catch {
@@ -126,17 +127,17 @@ export class WalletService {
     const updatedWallet = await WalletModel.findOneAndUpdate(
       { userId },
       { $inc: { balance: amountInRupees } },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
     // 5. Create credit ledger entry in RUPEES
     const ledger = await WalletLedgerModel.create({
       walletId: updatedWallet._id,
       userId,
-      type: "credit",
+      type: 'credit',
       amount: amountInRupees,
       balanceAfter: updatedWallet.balance,
-      description: "Wallet top-up via Razorpay",
+      description: 'Wallet top-up via Razorpay',
       referenceId: paymentId,
     });
 

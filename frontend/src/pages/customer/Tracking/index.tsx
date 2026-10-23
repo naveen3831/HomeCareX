@@ -146,12 +146,15 @@ export default function TrackingPage() {
 
     updateAvailableHeight();
     window.addEventListener("resize", updateAvailableHeight);
-    const observer = new ResizeObserver(updateAvailableHeight);
-    if (el.parentElement) observer.observe(el.parentElement);
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(updateAvailableHeight)
+        : null;
+    if (observer && el.parentElement) observer.observe(el.parentElement);
 
     return () => {
       window.removeEventListener("resize", updateAvailableHeight);
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [booking.data, tracking.status, tracking.location, chatOpen]);
 

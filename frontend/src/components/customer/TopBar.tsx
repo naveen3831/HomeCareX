@@ -17,8 +17,7 @@ interface TopBarProps {
 const HAMBURGER =
   "group relative h-10 w-10 shrink-0 rounded-[14px]   from-white to-brand-soft  transition-[box-shadow,transform] duration-200  active:scale-95";
 /** Centred bars; the short middle one grows to full width on hover. */
-const BAR =
-  "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
+const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
 
 /**
  * Top bar.
@@ -50,23 +49,12 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
           >
             <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-            <span
-              aria-hidden="true"
-              className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")}
-            />
+            <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
             <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
           </button>
         )}
 
-        <Link
-          to={customerPath()}
-          className={clsx(
-            "rounded-lg text-lg font-bold tracking-tight",
-            sidebarOpen ? "md:hidden" : "ml-2",
-            "hidden md:inline-flex",
-            FOCUS_RING,
-          )}
-        >
+        <Link to={customerPath()} className={clsx("rounded-lg text-lg font-bold tracking-tight", sidebarOpen ? "md:hidden" : "ml-2", "hidden md:inline-flex", FOCUS_RING)}>
           <span className="text-accent">Home</span>
           <span className="text-brand">CareX</span>
         </Link>

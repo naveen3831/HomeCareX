@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { bookingKeys } from "@/hooks/useBookings";
 import { useAvailableCoupons, useBookingDraftStore, useQuote, useValidateCoupon } from "@/features/booking";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -140,6 +142,7 @@ function prettyDate(iso: string): string {
 export default function StepReview() {
   const draft = useBookingDraftStore();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const online = useOnlineStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Processing your payment…");
@@ -264,6 +267,9 @@ export default function StepReview() {
     const idempotencyKey = draft.getIdempotencyKey(JSON.stringify(payload));
     try {
       const { booking } = await bookingApi.createBooking(payload, idempotencyKey);
+      // The booking now exists: refresh the dashboard (active / upcoming) and the bookings list so they show it when the customer goes back.
+      void queryClient.invalidateQueries({ queryKey: ["customer"] });
+      void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
       const resolvedBookingId: string = booking._id;
       // A failed or cancelled attempt is over: the next attempt must not reuse its Idempotency-Key,
       // or POST /bookings would replay this dead booking and payment would be refused.
@@ -393,8 +399,9 @@ export default function StepReview() {
           }
         });
         rzpInstance.open();
-      } catch (razorpayErr: any) {
-        throw new Error(`Razorpay Initialization Error: ${razorpayErr.message}`);
+      } catch (razorpayErr: unknown) {
+        const reason = razorpayErr instanceof Error ? razorpayErr.message : String(razorpayErr);
+        throw new Error(`Razorpay Initialization Error: ${reason}`);
       }
     } catch (err) {
       stopSubmitting();
@@ -450,8 +457,18 @@ export default function StepReview() {
   const quoteReady = Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
   const payDisabled = !quoteReady || !online;
   const compactCoupons = (Array.isArray(availableCoupons) ? availableCoupons : []) as unknown as CompactCoupon[];
-  const visibleCoupons = showAllCoupons ? compactCoupons : compactCoupons.slice(0, 4);
-  const hiddenCouponCount = Math.max(compactCoupons.length - 4, 0);
+  const sortedCoupons = useMemo(() => {
+    return [...compactCoupons].sort((a, b) => {
+      const aEligible = (a as any).eligible !== false;
+      const bEligible = (b as any).eligible !== false;
+      if (aEligible && !bEligible) return -1;
+      if (!aEligible && bEligible) return 1;
+      return 0;
+    });
+  }, [compactCoupons]);
+  const INITIAL_COUPON_LIMIT = 6;
+  const visibleCoupons = showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT ? sortedCoupons : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
+  const hiddenCouponCount = Math.max(sortedCoupons.length - INITIAL_COUPON_LIMIT, 0);
   const address = draft.addressSnapshot;
   const dateLabel = draft.date ? prettyDate(draft.date) : "";
   const payLabel = isSubmitting ? "Processing…" : method === "cod" ? "Place order" : "Confirm & Pay";
@@ -715,28 +732,44 @@ export default function StepReview() {
                   {visibleCoupons.map((coupon, index) => {
                     const code = coupon.code ?? `COUPON-${index + 1}`;
                     const selected = Boolean(coupon.code) && draft.couponCode === coupon.code;
+                    const eligible = (coupon as any).eligible !== false;
+                    const reason = (coupon as any).reason;
                     return (
                       <li key={`${code}-${index}`}>
                         <button
                           type="button"
-                          disabled={!coupon.code || couponBusy}
-                          onClick={() => coupon.code && void handleApplyCoupon(coupon.code)}
+                          disabled={!coupon.code || couponBusy || !eligible}
+                          onClick={() => coupon.code && eligible && void handleApplyCoupon(coupon.code)}
                           aria-pressed={selected}
                           className={clsx(
                             "relative flex h-full w-full items-stretch overflow-hidden rounded-2xl border border-dashed text-left transition-all disabled:opacity-50 motion-safe:hover:-translate-y-px",
-                            selected ? "border-brand bg-brand-soft" : "border-line bg-panel hover:border-brand/60",
+                            selected ? "border-brand bg-brand-soft" : eligible ? "border-line bg-panel hover:border-brand/60" : "border-line/60 bg-canvas/60",
                             FOCUS_RING,
                           )}
                         >
-                          <span className={clsx("flex w-11 shrink-0 items-center justify-center", selected ? "bg-brand text-white" : "bg-accent-soft text-accent")}>
+                          <span className={clsx("flex w-11 shrink-0 items-center justify-center", selected ? "bg-brand text-white" : eligible ? "bg-accent-soft text-accent" : "bg-line/40 text-muted")}>
                             {selected ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : <Tag className="h-4 w-4" aria-hidden="true" />}
                           </span>
                           <span className="min-w-0 flex-1 px-3.5 py-3">
                             <span className="flex items-center justify-between gap-2">
-                              <strong className="truncate text-sm font-bold tracking-wide text-ink">{code}</strong>
-                              <span className={clsx("shrink-0 text-xs font-bold", selected ? "text-brand" : "text-brand/80")}>{selected ? "Applied" : "Apply"}</span>
+                              <span className="flex items-center gap-1.5 min-w-0">
+                                <strong className="truncate text-sm font-bold tracking-wide text-ink">{code}</strong>
+                                {coupon.title && (
+                                  <span className="shrink-0 rounded bg-brand/10 px-1.5 py-0.5 text-[11px] font-semibold text-brand">
+                                    {coupon.title}
+                                  </span>
+                                )}
+                              </span>
+                              <span className={clsx("shrink-0 text-xs font-bold", selected ? "text-brand" : eligible ? "text-brand/80" : "text-muted")}>
+                                {selected ? "Applied" : eligible ? "Apply" : "Ineligible"}
+                              </span>
                             </span>
-                            <span className="mt-0.5 block text-xs leading-4 text-muted">{compactCouponDescription(coupon)}</span>
+                            <span className="mt-0.5 block text-xs leading-4 text-muted">{coupon.description || compactCouponDescription(coupon)}</span>
+                            {!eligible && reason && (
+                              <span className="mt-1 block text-[11px] font-medium text-danger">
+                                {couponErrorText(reason.code, reason.minOrder)}
+                              </span>
+                            )}
                           </span>
                         </button>
                       </li>

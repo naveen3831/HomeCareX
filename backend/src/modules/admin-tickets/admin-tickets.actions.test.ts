@@ -16,6 +16,7 @@ import { refundsService } from '../refunds/refunds.service';
 import refundsRoutes from '../refunds/refunds.routes';
 import { PAYMENTS_REFUND } from '../admin-payments/admin-payments.constants';
 import { adminTicketsRepository, type TicketLean, type TicketMessageLean, type UserLean } from './admin-tickets.repository';
+import { ticketsRepository } from '../tickets/tickets.repository';
 import { adminTicketsRoutes } from './admin-tickets.routes';
 import { adminTicketsService } from './admin-tickets.service';
 import { postMessageSchema, updatePrioritySchema, updateStatusSchema } from './admin-tickets.validation';
@@ -60,6 +61,7 @@ let raceOnWrite = false;
 let tickCounter = 0;
 
 const original = { ...adminTicketsRepository };
+const originalTicketGet = ticketsRepository.get;
 const originalAudit = auditService.recordAudit.bind(auditService);
 const find = (id: string) => tickets.find((t) => String(t._id) === id) ?? null;
 
@@ -109,6 +111,7 @@ function reset() {
 }
 const restore = () => {
   Object.assign(adminTicketsRepository, original);
+  ticketsRepository.get = originalTicketGet;
   (auditService as unknown as Record<string, unknown>).recordAudit = originalAudit;
 };
 const actor = { id: String(ADMIN), ip: '10.0.0.1' };
@@ -300,6 +303,7 @@ describe('HTTP + live delivery', () => {
 
   before(async () => {
     reset();
+    ticketsRepository.get = async () => null;
     const app = express();
     app.use(express.json());
     app.use('/api/v1/admin/tickets', adminTicketsRoutes);

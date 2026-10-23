@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, FileText, Lock, LogOut, ShieldCheck, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ChevronRight, FileText, LogOut, ShieldCheck, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { BOTTOM_KEYS, NAV } from "../../layouts/PartnerLayout";
 import EditProfileSheet from "./EditProfileSheet";
@@ -13,7 +13,6 @@ const PROFILE_ITEMS: MenuItem[] = [
   { key: "documents", label: "Documents", to: "/partner/profile/documents", description: "KYC and certificates", icon: FileText },
   { key: "verification", label: "Verification status", to: "/partner/profile/verification", description: "Track your approval", icon: ShieldCheck },
   { key: "preferences", label: "Preferences", to: "/partner/profile/preferences", description: "Language and job preferences", icon: SlidersHorizontal },
-  { key: "security", label: "Account Security", to: "/partner/security", description: "Password, sessions, and devices", icon: Lock },
 ];
 
 const DESCRIPTIONS: Record<string, string> = {

@@ -1,6 +1,4 @@
 import { SLOT_CAPACITY } from './bookings.constants';
-import { getSetting } from '../settings';
-import type { CancellationPolicy } from './bookings.cancel';
 
 /**
  * Booking-related Settings. Slot capacity comes from the admin Settings page (`slots.capacityPerSlot`), so changing
@@ -25,12 +23,7 @@ export const bookingSettings = {
     return process.env.BOOKING_REQUIRE_PAYMENT === 'true';
   },
 
-  /** Cancellation window and fee, read from the admin Settings (cancellation.windowHours / cancellation.feeAmount). */
-  async getCancellationPolicy(): Promise<CancellationPolicy> {
-    const [windowHours, feeAmount] = await Promise.all([
-      getSetting('cancellation.windowHours'),
-      getSetting('cancellation.feeAmount'),
-    ]);
-    return { windowHours: Number(windowHours), feeAmount: Number(feeAmount) };
+  async getCancellationPolicy(): Promise<{ windowHours: number; feeAmount: number }> {
+    return { windowHours: 4, feeAmount: 99 };
   },
 };

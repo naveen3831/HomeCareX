@@ -140,10 +140,21 @@ body {
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* old Edge/IE */
+}
 
-::-webkit-scrollbar-thumb {
-  background: #c7d2fe;
-  border-radius: 8px;
+.sidebar-nav::-webkit-scrollbar {
+  display: none;                /* Chrome, Edge, Safari */
+}
+.sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 12px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -1063,8 +1074,7 @@ body {
   .bk-tick { animation: bkTick .28s cubic-bezier(.2, .8, .2, 1) both; }
   .bk-check-on { animation: sdPop .4s cubic-bezier(.3, 1.4, .5, 1) both; }
 }
-
-/* ========================================
+/* ======================================== 
    CONFIRM DIALOGS (delete account, log out)
    ======================================== */
 .delete-backdrop, .logout-backdrop { animation: dialogFade .2s ease-out both; }
@@ -1089,4 +1099,16 @@ html, body, .hcx-fs__body, .hcx-panel__body {
 html::-webkit-scrollbar, body::-webkit-scrollbar,
 .hcx-fs__body::-webkit-scrollbar, .hcx-panel__body::-webkit-scrollbar {
   display: none; width: 0; height: 0;
+}
+/* Customer area: people who ask for reduced motion get no looping or entrance animation (spinners keep turning so loading still shows). */
+@media (prefers-reduced-motion: reduce) {
+  .customer-shell *:not(.animate-spin),
+  .customer-shell *:not(.animate-spin)::before,
+  .customer-shell *:not(.animate-spin)::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

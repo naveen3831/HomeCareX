@@ -350,6 +350,7 @@ export default function Bookings() {
 
   useEffect(() => {
     void loadBookings(filters);
+     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filters.search,
     filters.status,

@@ -1,13 +1,15 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import HeroSearch from "../../../components/public/HeroSearch";
-import TrustStrip from "../../../components/public/TrustStrip";
-import Testimonials from "../../../components/public/Testimonials";
-import StatsStrip from "../../../components/public/StatsStrip";
-import BannerSlider from "../../../components/public/BannerSlider";
 import CategoryCard from "../../../components/public/CategoryCard";
-import BannerSkeleton from "../../../components/public/skeletons/BannerSkeleton";
-import { categoryIcon, categoryImage, useBanners, useCategories } from "@/features/public";
+import Seo from "../../../components/common/Seo";
+import OptimizedImage from "../../../components/common/OptimizedImage";
+import { organizationLd, websiteLd } from "../../../lib/jsonld";
+// Below-the-fold sections load in separate chunks so they do not block the first paint.
+const TrustStrip = lazy(() => import("../../../components/public/TrustStrip"));
+const Testimonials = lazy(() => import("../../../components/public/Testimonials"));
+const StatsStrip = lazy(() => import("../../../components/public/StatsStrip"));
+const BannerSlider = lazy(() => import("../../../components/public/BannerSlider"));
 /* =========================================================
    DESIGN TOKENS
    Brand: Indigo #4338ca (trust)  +  Orange #ff8a3d (energy)
@@ -16,8 +18,6 @@ import { categoryIcon, categoryImage, useBanners, useCategories } from "@/featur
 ========================================================= */
 
 const styles = `
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;700&display=swap');
-
 .hcx {
   --indigo: #4338ca;
   --indigo-deep: #1e1b6e;
@@ -26,24 +26,21 @@ const styles = `
   --orange-tint: #fff3ea;
   --ink: #1b1b3a;
   --muted: #5b5b7a;
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: 'Manrope', system-ui, sans-serif;
   color: var(--ink);
 }
 .hcx h1, .hcx h2, .hcx h3, .hcx .display {
-  font-family: 'Bricolage Grotesque', 'DM Sans', system-ui, sans-serif;
+  font-family: 'Poppins', 'Manrope', system-ui, sans-serif;
   letter-spacing: -0.02em;
 }
 
 /* --- Hero: one orchestrated load sequence --- */
 @keyframes hcx-fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-/* No "round" here, so the full-width hero has square edges */
-@keyframes hcx-image { from { opacity: 0; clip-path: inset(0 0 100% 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }
 @keyframes hcx-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
 @keyframes hcx-drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-24px) scale(1.08); } }
 @keyframes hcx-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
-.hcx-in   { opacity: 0; animation: hcx-fade .8s cubic-bezier(.2,.7,.2,1) forwards; }
-.hcx-img  { animation: hcx-image 1.2s cubic-bezier(.65,0,.2,1) .25s both; }
+.hcx-in   { opacity: 0; animation: hcx-fade .5s cubic-bezier(.2,.7,.2,1) forwards; }
 .hcx-float { animation: hcx-float 6s ease-in-out infinite; }
 .hcx-drift { animation: hcx-drift 14s ease-in-out infinite; }
 
@@ -66,6 +63,7 @@ const styles = `
 .hcx-grad { background: linear-gradient(90deg, #4338ca 0%, #ff8a3d 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
 
 /* --- Extra motion layer --- */
+.hcx-progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 60; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, #4338ca, #ff8a3d); }
 @keyframes hcx-marquee { to { transform: translateX(-50%); } }
 .hcx-marquee { animation: hcx-marquee 40s linear infinite; }
 .hcx-marquee-wrap:hover .hcx-marquee { animation-play-state: paused; }
@@ -73,15 +71,14 @@ const styles = `
 .hcx .hcx-tilt:hover { transform: perspective(900px) translateY(-8px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 .hcx-tilt::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s; background: radial-gradient(360px circle at var(--gx, 50%) var(--gy, 50%), rgba(255,255,255,.28), transparent 60%); }
 .hcx-tilt:hover::after { opacity: 1; }
-.hcx-reveal { filter: blur(8px); transform: translateY(32px) scale(.98); transition-property: opacity, transform, filter; }
-.hcx-reveal.is-in { filter: blur(0); transform: none; }
+.hcx-reveal { transform: translateY(32px) scale(.98); }
+.hcx-reveal.is-in { transform: none; }
 @media (prefers-reduced-motion: reduce) {
-  .hcx-reveal { filter: none !important; }
   .hcx .hcx-tilt { transform: none !important; }
 }
 
 @keyframes hcx-zoom { from { transform: scale(1.18); } to { transform: scale(1); } }
-.hcx-zoom { animation: hcx-zoom 2.4s cubic-bezier(.2,.7,.2,1) 1s both; }
+.hcx-zoom { animation: hcx-zoom 1.6s cubic-bezier(.2,.7,.2,1) both; }
 
 /* --- Hero search bar: give the fields room, wrap on small widths --- */
 .hcx-search form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; width: 100%; }
@@ -90,55 +87,108 @@ const styles = `
 .hcx-search input, .hcx-search select { min-width: 0; width: 100%; }
 .hcx-search label { display: block; margin-bottom: 6px; font-size: .8rem; font-weight: 700; color: #1e1b6e; }
 
+/* --- Below-the-fold sections are not rendered until they get close to the viewport --- */
+.hcx-cv { content-visibility: auto; contain-intrinsic-size: auto 800px; }
+
 /* --- Focus + motion safety --- */
 .hcx a:focus-visible, .hcx button:focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; border-radius: 10px; }
 @media (prefers-reduced-motion: reduce) {
   .hcx *, .hcx *::before, .hcx *::after { animation: none !important; transition: none !important; }
-  .hcx-in, .hcx-img, .hcx-reveal { opacity: 1 !important; transform: none !important; clip-path: none !important; }
+  .hcx-in, .hcx-reveal { opacity: 1 !important; transform: none !important; clip-path: none !important; }
   .hcx-line { transform: none !important; }
 }
 `;
 
 /* =========================================================
    DATA
-   Categories and banners come from the API through the hooks in
-   features/public (mock data when VITE_USE_MOCKS=true).
 ========================================================= */
 
-interface CategoryItem {
-  /** Category slug, used in /services?category=<slug> */
+
+const services = [
+  {
+    id: "home-cleaning",
+    title: "Home Cleaning",
+    icon: "✨",
+    description: "Professional cleaning to keep your home fresh, hygienic and comfortable.",
+    image: "/images/home-cleaning.webp",
+    fallbackImage: "/images/home-cleaning.jpg",
+  },
+  {
+    id: "plumbing",
+    title: "Plumbing Services",
+    icon: "🔧",
+    description: "Reliable help with leaks, repairs, installations and maintenance.",
+    image: "/images/plumbing-1200.webp",
+    fallbackImage: "/images/plumbing.jpg",
+  },
+  {
+    id: "electrical",
+    title: "Electrical Services",
+    icon: "⚡",
+    description: "Safe, professional electrical work for every room in your home.",
+    image: "/images/electrical.webp",
+    fallbackImage: "/images/electrical.jpg",
+  },
+  {
+    id: "painting",
+    title: "Painting Services",
+    icon: "🎨",
+    description: "Clean, careful painting that gives your home a fresh new look.",
+    image: "/images/painting.webp",
+    fallbackImage: "/images/painting.jpg",
+  },
+  {
+    id: "appliance-repair",
+    title: "Appliance Repair",
+    icon: "🛠️",
+    description: "Quick, dependable repairs for your household appliances.",
+    image: "/images/appliance-repair.webp",
+    fallbackImage: "/images/appliance-repair.jpg",
+  },
+  {
+    id: "home-maintenance",
+    title: "Home Maintenance",
+    icon: "🏠",
+    description: "Regular upkeep that keeps your home safe and comfortable.",
+    image: "/images/home-maintenance.webp",
+    fallbackImage: "/images/home-maintenance.jpg",
+  },
+];
+
+
+/* ---------------------------------------------------------
+   SERVICE CATALOG
+   The "N services" count on each category card is calculated from
+   this list, so it updates by itself whenever services are added or
+   removed. The list below is sample data. To use your real data,
+   change loadServiceCatalog() to fetch it from your backend.
+--------------------------------------------------------- */
+interface ServiceItem {
   id: string;
-  title: string;
-  icon: string;
-  description: string;
-  image: string;
-  /** Number of active services in the category. */
-  count: number;
+  categoryId: string;
+  name: string;
 }
 
-/** How many categories the "Popular categories" row shows (admin order). */
-const POPULAR_COUNT = 4;
+const defaultCatalog: ServiceItem[] = ([
+  ["home-cleaning", "Deep cleaning"], ["home-cleaning", "Kitchen cleaning"], ["home-cleaning", "Bathroom cleaning"],
+  ["home-cleaning", "Sofa cleaning"], ["home-cleaning", "Carpet cleaning"], ["home-cleaning", "Window cleaning"],
+  ["plumbing", "Leak repair"], ["plumbing", "Tap and mixer fitting"], ["plumbing", "Drain unblocking"],
+  ["plumbing", "Water tank cleaning"], ["plumbing", "Pipe installation"],
+  ["electrical", "Fan installation"], ["electrical", "Switch and socket repair"], ["electrical", "Light fitting"],
+  ["electrical", "Wiring check"], ["electrical", "Inverter setup"],
+  ["painting", "Interior painting"], ["painting", "Exterior painting"], ["painting", "Wall touch-ups"],
+  ["appliance-repair", "AC repair"], ["appliance-repair", "Refrigerator repair"], ["appliance-repair", "Washing machine repair"],
+  ["appliance-repair", "Microwave repair"], ["appliance-repair", "Water purifier service"], ["appliance-repair", "Geyser repair"],
+  ["home-maintenance", "Furniture assembly"], ["home-maintenance", "Door and lock repair"], ["home-maintenance", "Carpentry work"],
+] as [string, string][]).map(([categoryId, name], i) => ({ id: `svc-${i}`, categoryId, name }));
 
-const CategoriesSkeleton: React.FC<{ count: number; className: string }> = ({ count, className }) => (
-  <div className={className} role="status" aria-busy="true" aria-label="Loading categories">
-    {Array.from({ length: count }).map((_, i) => (
-      <div key={i} className="h-72 animate-pulse rounded-3xl bg-[#e0e3ff]" />
-    ))}
-  </div>
-);
+/** Replace the body with a real request, for example:
+ *  const res = await fetch("/api/services"); return res.json();  */
+async function loadServiceCatalog(): Promise<ServiceItem[]> {
+  return defaultCatalog;
+}
 
-const CategoriesError: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
-  <div role="alert" className="rounded-3xl border border-red-100 bg-white px-6 py-12 text-center shadow-sm">
-    <p className="font-bold text-[#1e1b6e]">We could not load the categories.</p>
-    <button
-      type="button"
-      onClick={onRetry}
-      className="mt-4 rounded-xl bg-[#4338ca] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#3730a3]"
-    >
-      Try again
-    </button>
-  </div>
-);
+const popularIds = ["home-cleaning", "plumbing", "electrical", "appliance-repair"];
 
 const steps = [
   { title: "Choose a service", text: "Pick the home service you need from our list." },
@@ -210,11 +260,49 @@ const Reveal: React.FC<{ children: React.ReactNode; delay?: number; className?: 
   );
 };
 
+/** Thin bar at the top of the page that fills as you scroll. */
+const ScrollProgress: React.FC = () => {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let maxScroll = 0;
+    let frame = 0;
+
+    const paint = () => {
+      frame = 0;
+      if (ref.current) {
+        const progress = maxScroll > 0 ? Math.min(window.scrollY / maxScroll, 1) : 0;
+        ref.current.style.transform = `scaleX(${progress})`;
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+
+    // The page height is measured only when it changes (ResizeObserver),
+    // not on every scroll event, so scrolling causes no forced reflow.
+    const ro = new ResizeObserver(() => {
+      maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      schedule();
+    });
+    ro.observe(document.body);
+
+    window.addEventListener("scroll", schedule, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("scroll", schedule);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return <div ref={ref} className="hcx-progress" aria-hidden />;
+};
+
 /** Spread onto any card: 3D tilt that follows the cursor, plus a light glare. */
 const tilt = {
   onMouseMove: (e: React.MouseEvent<HTMLElement>) => {
     const el = e.currentTarget;
-    el.classList.add("hcx-tilt");
+    // el.classList.add("hcx-tilt");
     const r = el.getBoundingClientRect();
     const x = (e.clientX - r.left) / r.width;
     const y = (e.clientY - r.top) / r.height;
@@ -230,10 +318,10 @@ const tilt = {
 };
 
 /** Endless scrolling strip of service names (pauses on hover). */
-const Marquee: React.FC<{ items: CategoryItem[] }> = ({ items }) => items.length === 0 ? null : (
+const Marquee: React.FC = () => (
   <div className="hcx-marquee-wrap overflow-hidden border-y border-[#4338ca]/10 bg-white py-5" aria-hidden>
     <div className="hcx-marquee flex w-max gap-12 pr-12">
-      {[...items, ...items, ...items, ...items].map((s, i) => (
+      {[...services, ...services, ...services, ...services].map((s, i) => (
         <span key={i} className="display flex items-center gap-3 whitespace-nowrap text-xl font-bold text-[#1e1b6e]">
           <span className="text-2xl">{s.icon}</span>
           {s.title}
@@ -269,23 +357,27 @@ const FitToHeight: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const PAD = 32; // breathing room (top + bottom)
 
   useEffect(() => {
-    const fit = () => {
-      const outer = outerRef.current;
-      const inner = innerRef.current;
-      if (!outer || !inner) return;
-      const available = outer.clientHeight - PAD;
-      const needed = inner.offsetHeight; // unaffected by transform
-      setScale(needed > available && available > 0 ? available / needed : 1);
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    if (outerRef.current) ro.observe(outerRef.current);
-    if (innerRef.current) ro.observe(innerRef.current);
-    window.addEventListener("resize", fit);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", fit);
-    };
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return undefined;
+
+    // Heights come from ResizeObserver entries (layout size, unaffected by the
+    // scale transform), so no offsetHeight / clientHeight read is needed.
+    const size = { available: 0, needed: 0 };
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        if (entry.target === outer) size.available = h;
+        else size.needed = h;
+      }
+      const available = size.available - PAD;
+      setScale(size.needed > available && available > 0 ? available / size.needed : 1);
+    });
+
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => ro.disconnect();
   }, []);
 
   return (
@@ -301,39 +393,77 @@ const FitToHeight: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
+/** Popular category cards. Owns the catalog state so loading it re-renders only these cards. */
+const PopularCategories: React.FC = () => {
+  const [catalog, setCatalog] = useState<ServiceItem[]>(defaultCatalog);
+
+  useEffect(() => {
+    let active = true;
+    loadServiceCatalog()
+      .then((items) => {
+        if (active) setCatalog(items);
+      })
+      .catch(() => {
+        /* keep the default list if loading fails */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const popularCategories = useMemo(
+    () =>
+      popularIds
+        .map((id) => services.find((s) => s.id === id))
+        .filter((s): s is (typeof services)[number] => Boolean(s))
+        .map((s) => ({ ...s, count: catalog.filter((item) => item.categoryId === s.id).length })),
+    [catalog]
+  );
+
+  return (
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {popularCategories.map((c, i) => (
+        <Reveal key={c.id} delay={i * 110}>
+          <CategoryCard
+            id={c.id}
+            name={c.title}
+            description={c.description}
+            image={c.image}
+            serviceCount={c.count}
+            link={`/services/${c.id}`}
+            icon={c.icon}
+          />
+        </Reveal>
+      ))}
+    </div>
+  );
+};
+
 const Home: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [processRef, processSeen] = useInView<HTMLDivElement>(0.3);
   const faqButtons = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Set page title for accessibility
+  // The HTML shell in index.html shows the hero photo before JavaScript runs.
+  // Remove it only after React's own hero image is ready, so the page never flashes.
   useEffect(() => {
-    document.title = "HomeCareX | Reliable Home Services";
+    const removeShell = () => {
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => document.getElementById("hcx-shell")?.remove())
+      );
+    };
+    const img = document.querySelector<HTMLImageElement>("img.hcx-hero-img");
+    if (!img || (img.complete && img.naturalWidth > 0)) {
+      removeShell();
+      return undefined;
+    }
+    img.addEventListener("load", removeShell, { once: true });
+    img.addEventListener("error", removeShell, { once: true });
+    return () => {
+      img.removeEventListener("load", removeShell);
+      img.removeEventListener("error", removeShell);
+    };
   }, []);
-
-  // Categories (with live service counts) and home banners from the API
-  const {
-    data: categories,
-    isLoading: categoriesLoading,
-    isError: categoriesError,
-    refetch: refetchCategories,
-  } = useCategories();
-  const { data: banners, isLoading: bannersLoading } = useBanners("home");
-
-  const categoryItems = useMemo<CategoryItem[]>(
-    () =>
-      (categories ?? []).map((c) => ({
-        id: c.slug,
-        title: c.name,
-        icon: categoryIcon(c.slug, c.icon),
-        description: c.description,
-        image: categoryImage(c.slug),
-        count: c.serviceCount,
-      })),
-    [categories]
-  );
-
-  const popularCategories = useMemo(() => categoryItems.slice(0, POPULAR_COUNT), [categoryItems]);
 
   /* FAQ keyboard support: arrow keys move between questions, Home / End jump to first / last */
   const handleFaqKeys = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -349,23 +479,48 @@ const Home: React.FC = () => {
     }
   };
 
-  return (
-    <div className="hcx overflow-x-hidden bg-white">
-      <style>{styles}</style>
+  
+return (
+  <div className="hcx overflow-x-hidden bg-white">
+       <Seo
+      title="HomeCareX | Trusted Home Services"
+      description="Book trusted home cleaning, plumbing, electrical, painting, appliance repair and maintenance services with HomeCareX."
+      jsonLd={[organizationLd(), websiteLd()]}
+    />
+
+    <style>{styles}</style>
+    <ScrollProgress />
+
 
       {/* ================= HERO (full-width image, text on top) ================= */}
       {/* The hero is exactly one screen tall (minus the real header height, which Header.tsx publishes as --hcx-nav). */}
       <section className="relative isolate overflow-hidden bg-[#eef0ff]">
         <div
-          className="hcx-img relative h-[calc(100vh-var(--hcx-nav,130px))] overflow-hidden"
+          className="relative h-[calc(100vh-var(--hcx-nav,130px))] overflow-hidden"
           style={{ height: "calc(100svh - var(--hcx-nav, 130px))" }}
         >
           {/* Photo: sharp, no blur */}
-          <img
-            src="/images/background.png"
-            alt="HomeCareX professionals cleaning, repairing and maintaining a bright living room"
-            className="hcx-zoom absolute inset-0 h-full w-full object-cover object-right"
-          />
+         
+
+
+<picture>
+  <source
+    type="image/webp"
+    srcSet="/images/background-800.webp 800w, /images/background-1280.webp 1280w, /images/background.webp 1672w"
+    sizes="100vw"
+  />
+  <OptimizedImage
+    src="/images/background.webp"
+    alt="HomeCareX professionals cleaning, repairing and maintaining a bright living room"
+    width={1920}
+    height={1080}
+    priority
+    className="hcx-hero-img absolute inset-0 h-full w-full object-cover object-right"
+  />
+</picture>
+
+
+
 
           {/* Soft light fade only behind the text so it stays readable; the right side of the photo is untouched */}
           <div className="absolute inset-y-0 left-0 w-full bg-white/75 md:w-[62%] md:bg-transparent md:bg-gradient-to-r md:from-white/90 md:via-white/65 md:to-transparent" />
@@ -373,8 +528,7 @@ const Home: React.FC = () => {
           <div className="relative mx-auto h-full max-w-[1600px] px-6 sm:px-10 lg:px-16">
             <FitToHeight>
               <p
-                className="hcx-in inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-base font-medium text-[#4338ca] shadow-sm ring-1 ring-[#4338ca]/10"
-                style={{ animationDelay: "0.05s" }}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-base font-medium text-[#4338ca] shadow-sm ring-1 ring-[#4338ca]/10"
               >
                 <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
                 Your home, our care
@@ -388,8 +542,7 @@ const Home: React.FC = () => {
               </h1>
 
               <p
-                className="hcx-in mt-5 max-w-2xl text-lg leading-8 text-[#5b5b7a] sm:text-xl"
-                style={{ animationDelay: "0.65s" }}
+                className="mt-5 max-w-2xl text-lg leading-8 text-[#5b5b7a] sm:text-xl"
               >
                 Book trusted professionals for cleaning, plumbing, electrical work and maintenance, all in one place.
               </p>
@@ -401,8 +554,7 @@ const Home: React.FC = () => {
                   "hidden md:flex" matches the header, which also switches at md.
               */}
               <div
-                className="hcx-in hcx-search mt-8 hidden items-center rounded-3xl bg-white p-5 shadow-[0_20px_50px_-20px_rgba(67,56,202,0.45)] ring-1 ring-[#4338ca]/10 sm:p-6 md:flex"
-                style={{ animationDelay: "0.8s" }}
+                className="hcx-search mt-8 hidden w-full max-w-lg items-center rounded-3xl bg-white p-5 shadow-[0_20px_50px_-20px_rgba(67,56,202,0.45)] ring-1 ring-[#4338ca]/10 md:flex"
               >
                 <div className="w-full">
                   <HeroSearch />
@@ -410,7 +562,7 @@ const Home: React.FC = () => {
               </div>
 
               {/* Mobile only: a simple button in place of the hidden search bar */}
-              <div className="hcx-in mt-8 md:hidden" style={{ animationDelay: "0.8s" }}>
+              <div className="mt-8 md:hidden">
                 <Link
                   to="/services"
                   className="inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-7 py-3.5 font-bold text-[#1b1b3a] shadow-[0_10px_30px_-10px_rgba(255,138,61,0.9)] transition duration-300 hover:bg-[#ff7a22]"
@@ -430,18 +582,16 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      <Marquee items={categoryItems} />
-      {bannersLoading ? (
-        <BannerSkeleton />
-      ) : (
-        <BannerSlider banners={banners && banners.length > 0 ? banners : undefined} />
-      )}
+      <Marquee />
+      <Suspense fallback={<div style={{ minHeight: 420 }} aria-hidden />}>
+        <BannerSlider />
+      </Suspense>
 
       {/* ================= POPULAR CATEGORIES (animated cards) ================= */}
       <section
         id="categories"
         aria-labelledby="categories-heading"
-        className="relative overflow-hidden bg-gradient-to-b from-white via-[#f5f6ff] to-white py-20 sm:py-28"
+        className="hcx-cv relative overflow-hidden bg-gradient-to-b from-white via-[#f5f6ff] to-white py-20 sm:py-28"
       >
         {/* Background: faded dot grid + two slowly drifting colour glows */}
         <div
@@ -496,58 +646,43 @@ const Home: React.FC = () => {
             </Reveal>
           </div>
 
-          {categoriesLoading ? (
-            <CategoriesSkeleton count={POPULAR_COUNT} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" />
-          ) : categoriesError ? (
-            <CategoriesError onRetry={() => void refetchCategories()} />
-          ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {popularCategories.map((c, i) => (
-              <Reveal key={c.id} delay={i * 110}>
-                <CategoryCard
-                  id={c.id}
-                  name={c.title}
-                  description={c.description}
-                  image={c.image}
-                  serviceCount={c.count}
-                  link={`/services?category=${encodeURIComponent(c.id)}`}
-                  icon={c.icon}
-                />
-              </Reveal>
-            ))}
-          </div>
-          )}
+          <PopularCategories />
         </div>
       </section>
 
       {/* ================= SERVICES ================= */}
-      <section id="services" className="scroll-mt-16 bg-[#eef0ff] py-20 sm:py-28">
+      <section id="services" className="hcx-cv scroll-mt-16 bg-[#eef0ff] py-20 sm:py-28">
         <div className="mx-auto max-w-7xl px-6">
           <SectionHead
             title="Everything your home needs"
             text="Professional home services delivered with convenience, reliability and care."
           />
 
-          {categoriesLoading ? (
-            <CategoriesSkeleton count={6} className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3" />
-          ) : categoriesError ? (
-            <CategoriesError onRetry={() => void refetchCategories()} />
-          ) : (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {categoryItems.map((s, i) => (
+            {services.map((s, i) => (
               <Reveal key={s.id} delay={(i % 3) * 90}>
                 <Link
-                  to={`/services?category=${encodeURIComponent(s.id)}`}
+                  to={`/services/${s.id}`}
                   {...tilt}
-                  className="group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#4338ca]/10 transition duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_-25px_rgba(67,56,202,0.45)] hover:ring-[#4338ca]/30"
+                  className="hcx-tilt group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#4338ca]/10 transition duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_-25px_rgba(67,56,202,0.45)] hover:ring-[#4338ca]/30"
                 >
                   <div className="relative h-56 overflow-hidden">
-                    <img
-                      src={s.image}
-                      alt={s.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
-                    />
+                    
+
+
+<picture>
+  <source srcSet={s.image} type="image/webp" />
+  <OptimizedImage
+    src={s.fallbackImage}
+    alt={s.title}
+    width={600}
+    height={400}
+    className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+  />
+</picture>
+
+
+
                     <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b6e]/60 via-transparent to-transparent" />
                     <span className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-lg transition duration-500 group-hover:-rotate-6 group-hover:bg-[#ff8a3d]">
                       {s.icon}
@@ -566,25 +701,16 @@ const Home: React.FC = () => {
               </Reveal>
             ))}
           </div>
-          )}
-
-          <Reveal className="mt-12 text-center">
-            <Link
-              to="/services"
-              className="group inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-8 py-3.5 font-bold text-white shadow-lg shadow-[#4338ca]/25 transition duration-300 hover:-translate-y-0.5 hover:bg-[#3730a3]"
-            >
-              View all services
-              <span className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden>→</span>
-            </Link>
-          </Reveal>
         </div>
       </section>
 
       {/* ================= WHY CHOOSE US (single section) ================= */}
-      <TrustStrip />
+      <Suspense fallback={<div style={{ minHeight: 480 }} aria-hidden />}>
+        <TrustStrip />
+      </Suspense>
 
       {/* ================= PROCESS ================= */}
-      <section className="bg-[#eef0ff] py-20 sm:py-28">
+      <section className="hcx-cv bg-[#eef0ff] py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <SectionHead title="How HomeCareX works" text="Three steps from request to a job well done." />
 
@@ -612,9 +738,16 @@ const Home: React.FC = () => {
       </section>
 
       {/* ================= FAQ (two columns: intro + help card, accordion) ================= */}
-      <section id="faq" aria-labelledby="faq-heading" className="relative overflow-hidden bg-white py-20 sm:py-28">
+      <section id="faq" aria-labelledby="faq-heading" className="hcx-cv relative overflow-hidden bg-white py-20 sm:py-28">
         {/* Search engines can show these questions as rich results */}
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
+        {faqs.length > 0 && (
+  <script
+    type="application/ld+json"
+    dangerouslySetInnerHTML={{
+      __html: JSON.stringify(faqSchema),
+    }}
+  />
+)}
 
         {/* Soft background glow */}
         <div
@@ -742,11 +875,13 @@ const Home: React.FC = () => {
         </div>
       </section>
 
-      <Testimonials />
-      <StatsStrip />
+      <Suspense fallback={<div style={{ minHeight: 600 }} aria-hidden />}>
+        <Testimonials />
+        <StatsStrip />
+      </Suspense>
 
       {/* ================= FINAL CALL TO ACTION (customer + professional) ================= */}
-      <section className="bg-white px-6 py-20 sm:py-28">
+      <section className="hcx-cv bg-white px-6 py-20 sm:py-28">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2">
           <Reveal>
             <div className="flex h-full flex-col rounded-3xl bg-[#eef0ff] p-8 ring-1 ring-[#4338ca]/10 sm:p-10">

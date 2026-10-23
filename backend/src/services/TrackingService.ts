@@ -1,14 +1,14 @@
 import { Types } from 'mongoose';
 import BookingModel from '../models/Booking';
 import { partnerLocationRepository } from '../modules/partner-location/partner-location.repository';
-import { getIO } from '../sockets';
+import { getIOIfReady, rooms } from '../sockets';
 
 /** Socket events for the customer tracking screen (R06). */
 export const TRACKING_LOCATION_EVENT = 'tracking:location';
 export const TRACKING_STATUS_EVENT = 'tracking:status';
 
 /** Room a customer joins (via `tracking:join`) to follow one booking. Only the booking's owner is let in. */
-export const trackingRoom = (bookingId: string) => `tracking:${bookingId}`;
+export const trackingRoom = (bookingId: string) => rooms.tracking ? rooms.tracking(bookingId) : `tracking:${bookingId}`;
 
 export interface TrackingLocation {
   sharing: boolean;
@@ -37,7 +37,14 @@ export interface TrackingSnapshot {
   location: TrackingLocation;
 }
 
-const NO_LOCATION: TrackingLocation = { sharing: false, lat: null, lng: null, accuracy: null, heading: null, updatedAt: null };
+const NO_LOCATION: TrackingLocation = {
+  sharing: false,
+  lat: null,
+  lng: null,
+  accuracy: null,
+  heading: null,
+  updatedAt: null,
+};
 
 export const toTrackingLocation = (doc: {
   sharing?: boolean;
@@ -61,7 +68,7 @@ export const toTrackingLocation = (doc: {
 /** Emits are best effort: with sockets not initialised (tests, scripts) the data is already stored. */
 const safeEmit = (bookingId: string, event: string, payload: unknown) => {
   try {
-    getIO().to(trackingRoom(bookingId)).emit(event, payload);
+    getIOIfReady()?.to(trackingRoom(bookingId)).emit(event, payload);
   } catch {
     /* sockets not initialised */
   }
@@ -95,3 +102,6 @@ export const trackingService = {
     safeEmit(bookingId, TRACKING_STATUS_EVENT, { bookingId, status, at: at.toISOString() } satisfies TrackingStatusEvent);
   },
 };
+
+export class TrackingService {}
+export default trackingService;
