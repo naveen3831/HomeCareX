@@ -476,7 +476,6 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
-  };
 
   const handleSignOut = async () => {
     try {
@@ -493,40 +492,40 @@ function PartnerSidebar({
   return (
     <aside className={cls} aria-label="Partner navigation">
       <div className="sidebar-brand">
-          <div
-            className="sidebar-brand__top"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: collapsed ? "center" : "space-between",
-              flexDirection: collapsed ? "column" : "row",
-              gap: collapsed ? 8 : 0,
-            }}
-          >
-            <div className="sidebar-brand__logo">
-              <span className="sidebar-brand__icon">
-                <HomeCarexMark size={22} />
-              </span>
+        <div
+          className="sidebar-brand__top"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: collapsed ? "center" : "space-between",
+            flexDirection: collapsed ? "column" : "row",
+            gap: collapsed ? 8 : 0,
+          }}
+        >
+          <div className="sidebar-brand__logo">
+            <span className="sidebar-brand__icon">
+              <HomeCarexMark size={22} />
+            </span>
 
-              {!collapsed && (
-                <span className="sidebar-brand__name">HomeCareX</span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-            >
-              {collapsed ? (
-                <PanelLeftOpen size={20} />
-              ) : (
-                <PanelLeftClose size={20} />
-              )}
-            </button>
+            {!collapsed && (
+              <span className="sidebar-brand__name">HomeCareX</span>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={20} />
+            ) : (
+              <PanelLeftClose size={20} />
+            )}
+          </button>
+        </div>
 
         {!collapsed && (
           <p className="sidebar-brand__guide">
@@ -763,7 +762,7 @@ export default function PartnerLayout() {
   const current = FLAT_NAV.filter((item) =>
     item.to === "/partner"
       ? cleanPath === "/partner"
-      : cleanPath === n.to || cleanPath.startsWith(n.to + "/"),
+      : cleanPath === item.to || cleanPath.startsWith(item.to + "/"),
   ).sort((a, b) => b.to.length - a.to.length)[0];
 
   const title =

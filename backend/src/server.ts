@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -43,8 +42,15 @@ const startServer = async () => {
     await mongoose.connect(process.env.DATABASE_URL as string);
     console.log('Connected to MongoDB');
 
-    server.listen(PORT, () => {
-      console.log(`HomeCareX server running on port ${PORT}`);
+    // Start listening exactly once.
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+
+      server.listen(PORT, () => {
+        server.removeListener('error', reject);
+        console.log(`HomeCareX server running on port ${PORT}`);
+        resolve();
+      });
     });
 
     stopReferralWorker = startReferralWorker((error) =>
@@ -56,16 +62,6 @@ const startServer = async () => {
 
     registerEarningsListeners();
 
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-
-      server.listen(PORT, () => {
-        server.removeListener('error', reject);
-        console.log(`HomeCareX server running on port ${PORT}`);
-        resolve();
-      });
-    });
-
     // Seed default data after the server starts.
     void seedDefaults().catch((error) => {
       console.error('[startup] Default seeding failed:', error);
@@ -74,11 +70,11 @@ const startServer = async () => {
     console.error('[startup] Failed to start HomeCareX:', error);
     process.exitCode = 1;
 
+    stopReferralWorker?.();
+
     if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close().catch(() => {});
     }
-
-    process.exitCode = 1;
   }
 };
 
