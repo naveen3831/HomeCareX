@@ -408,32 +408,39 @@ export default function TrackingPage() {
         )}
       >
         {/* ---------- header ---------- */}
-        <header className="tk-header flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link to={detailsHref} className={clsx(BACK_LINK, FOCUS_RING)}>
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+        <header className="tk-header !grid w-full min-w-0 grid-cols-1 items-start gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-4 md:gap-y-1">
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <Link
+                to={detailsHref}
+                className={clsx(BACK_LINK, "shrink-0 whitespace-nowrap", FOCUS_RING)}
+              >
+                <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 Back to booking
               </Link>
               <span aria-hidden="true" className="text-xs text-slate-300">
                 |
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                <Radio className="h-3 w-3" aria-hidden="true" />
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
+                <Radio className="h-3 w-3 shrink-0" aria-hidden="true" />
                 Live Tracking
               </span>
             </div>
 
-            <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <h1 className="break-words text-lg font-bold leading-snug tracking-tight text-ink sm:text-xl">
+            <div className="mt-1 min-w-0">
+              <h1 className="min-w-0 break-words text-lg font-bold leading-snug tracking-tight text-ink sm:text-xl">
                 {serviceName || "Track your service"}
               </h1>
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-                <span>Booking ID {bookingCode}</span>
+              <p className="mt-1 flex min-w-0 flex-col items-start gap-y-0.5 text-xs leading-relaxed text-muted sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+                <span className="min-w-0 [overflow-wrap:anywhere]">
+                  Booking ID {bookingCode}
+                </span>
                 {bookedOn && (
                   <>
-                    <span aria-hidden="true">•</span>
-                    <span>Booked on {bookedOn}</span>
+                    <span aria-hidden="true" className="hidden sm:inline">•</span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      Booked on {bookedOn}
+                    </span>
                   </>
                 )}
               </p>
@@ -441,10 +448,10 @@ export default function TrackingPage() {
           </div>
 
           {!cancelled && (
-            <div className="flex items-center gap-2.5 sm:flex-col sm:items-end sm:gap-0.5">
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 md:flex-col md:items-end md:gap-0.5">
               <span
                 className={clsx(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold sm:text-[13px]",
+                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold sm:text-[13px]",
                   BADGE_STYLE[status] ?? "bg-slate-100 text-slate-700",
                 )}
               >
