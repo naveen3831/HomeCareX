@@ -133,6 +133,8 @@ rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
+// PATCH /bookings/:id/status (partner: en route / arrived)
+rootRouter.use("/bookings", bookingStatusRoutes);
 rootRouter.use(bookingsRoutes);
 rootRouter.use(reviewsRoutes);
 
