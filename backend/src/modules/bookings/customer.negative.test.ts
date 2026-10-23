@@ -15,7 +15,8 @@ import type { RazorpayPaymentEntity } from "../payments/payments.types";
 type Repo = typeof bookingsRepository;
 const original = {
   findByIdForCustomer: bookingsRepository.findByIdForCustomer,
-  findByCustomerAndIdempotencyKey: bookingsRepository.findByCustomerAndIdempotencyKey,
+  findByCustomerAndIdempotencyKey:
+    bookingsRepository.findByCustomerAndIdempotencyKey,
   findFreeSeat: bookingsRepository.findFreeSeat,
   markCancelled: bookingsRepository.markCancelled,
   reschedule: bookingsRepository.reschedule,

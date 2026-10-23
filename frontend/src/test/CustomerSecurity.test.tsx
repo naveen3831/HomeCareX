@@ -51,16 +51,23 @@ describe("Customer Day 17: Negative & Security Tests", () => {
 
       render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={["/customer/bookings/booking_other_cust"]}>
+          <MemoryRouter
+            initialEntries={["/customer/bookings/booking_other_cust"]}
+          >
             <Routes>
-              <Route path="/customer/bookings/:id" element={<BookingDetails />} />
+              <Route
+                path="/customer/bookings/:id"
+                element={<BookingDetails />}
+              />
             </Routes>
           </MemoryRouter>
         </QueryClientProvider>,
       );
 
       // Should render the NotFound empty state
-      expect(await screen.findByText("We couldn't find this booking")).toBeInTheDocument();
+      expect(
+        await screen.findByText("We couldn't find this booking"),
+      ).toBeInTheDocument();
       expect(
         screen.getByText("It may have been removed, or the link is wrong."),
       ).toBeInTheDocument();
@@ -80,18 +87,30 @@ describe("Customer Day 17: Negative & Security Tests", () => {
 
       render(
         <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={["/customer/bookings/booking_other_cust/track"]}>
+          <MemoryRouter
+            initialEntries={["/customer/bookings/booking_other_cust/track"]}
+          >
             <Routes>
-              <Route path="/customer/bookings/:id/track" element={<TrackingPage />} />
-              <Route path="/customer/bookings" element={<div>My Bookings List</div>} />
+              <Route
+                path="/customer/bookings/:id/track"
+                element={<TrackingPage />}
+              />
+              <Route
+                path="/customer/bookings"
+                element={<div>My Bookings List</div>}
+              />
             </Routes>
           </MemoryRouter>
         </QueryClientProvider>,
       );
 
-      expect(await screen.findByText("We couldn't find this booking")).toBeInTheDocument();
       expect(
-        screen.getByText("It may have been removed, or it belongs to another account."),
+        await screen.findByText("We couldn't find this booking"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "It may have been removed, or it belongs to another account.",
+        ),
       ).toBeInTheDocument();
       expect(screen.queryByText(/live location/i)).not.toBeInTheDocument();
     });
@@ -128,7 +147,10 @@ describe("Customer Day 17: Negative & Security Tests", () => {
           <AuthProvider>
             <MemoryRouter initialEntries={["/customer/bookings"]}>
               <Routes>
-                <Route path="/login" element={<div>Login Page Redirected</div>} />
+                <Route
+                  path="/login"
+                  element={<div>Login Page Redirected</div>}
+                />
                 <Route
                   element={
                     <ProtectedRoute allowedRoles={["customer"]}>
@@ -136,7 +158,10 @@ describe("Customer Day 17: Negative & Security Tests", () => {
                     </ProtectedRoute>
                   }
                 >
-                  <Route path="/customer/bookings" element={<DummyCustomerProtected />} />
+                  <Route
+                    path="/customer/bookings"
+                    element={<DummyCustomerProtected />}
+                  />
                 </Route>
               </Routes>
             </MemoryRouter>
