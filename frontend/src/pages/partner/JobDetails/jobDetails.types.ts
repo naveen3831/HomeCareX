@@ -1,16 +1,5 @@
 import type { JobAction, JobStatus } from './jobStatus';
 
-/** Where the start OTP stands. Only sent while the partner has arrived and the job is not started yet. */
-export interface StartVerification {
-  maxAttempts: number;
-  attemptsRemaining: number;
-  /** ISO time after which the code stops working; null when the arrival time is unknown. */
-  expiresAt: string | null;
-  expired: boolean;
-  /** true after too many wrong codes. Only support/admin can unlock it. */
-  locked: boolean;
-}
-
 /** Raw response of GET /partner/jobs/:id and PATCH /bookings/:id/status (the `data` field). */
 export interface ApiJob {
   id: string;
@@ -32,8 +21,6 @@ export interface ApiJob {
   payment: { status: string; paidAt: string | null };
   actions: JobAction[];
   otpRequired: boolean;
-  startVerification?: StartVerification | null;
-  extraCharges?: ExtraChargeItem[];
   statusHistory: Array<{
     from: JobStatus | null;
     to: JobStatus;
@@ -63,26 +50,6 @@ export interface JobStatusEntry {
   actor: string;
 }
 
-export type ExtraChargeStatus = 'pending' | 'approved' | 'rejected';
-
-export interface ExtraChargeItem {
-  id: string;
-  title: string;
-  description?: string;
-  quantity: number;
-  amount: number;
-  reason?: string;
-  status: ExtraChargeStatus;
-  requestedAt?: string;
-  decidedAt?: string;
-}
-
-export interface CompletionInput {
-  otp?: string;
-  photo?: File;
-  notes?: string;
-}
-
 /** What the page renders. Built from ApiJob by mapJob() or local mock store. */
 export interface JobDetails {
   id: string;
@@ -101,13 +68,11 @@ export interface JobDetails {
   };
   price: { basePrice?: number; total: number; partnerEarning: number };
   addOns: JobAddOn[];
-  extraCharges?: ExtraChargeItem[];
   instructions: string | null;
   checklist: JobChecklistItem[];
   payment: { status: string; amount: number; method?: string };
   actions: JobAction[];
   otpRequired: boolean;
-  startVerification?: StartVerification | null;
   otpVerified?: boolean;
   sosTriggeredAt?: string | null;
   history: JobStatusEntry[];

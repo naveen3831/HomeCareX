@@ -589,45 +589,5 @@ export const authController = {
 
   }),
 
-
-  /**
-
-   * GET /api/v1/partner/settings/sessions
-
-   */
-
-  getSessions: wrap(async (_req, res) => {
-
-    res.json({
-
-      success: true,
-
-      data: [],
-
-    });
-
-  }),
-
-
-  /**
-
-   * POST /api/v1/partner/settings/logout-all
-
-   */
-
-  logoutAll: wrap(async (_req, res) => {
-
-    clearRefreshCookies(res);
-
-    res.json({
-
-      success: true,
-
-      message: 'All sessions logged out successfully',
-
-    });
-
-  }),
-
 };
  

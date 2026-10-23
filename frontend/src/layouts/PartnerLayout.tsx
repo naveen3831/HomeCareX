@@ -19,7 +19,6 @@ import {
   CalendarDays,
   CalendarOff,
   Clock,
-  MapPin,
   Wrench,
   Wallet,
   Gift,
@@ -478,21 +477,22 @@ function PartnerSidebar({
     );
   };
 
-  const handleSignOut = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate("/login");
-    }
-  };
-
   const cls = ["admin-sidebar", collapsed ? "is-collapsed" : ""]
     .filter(Boolean)
     .join(" ");
 
+  const handleSignOut = async () => {
+    try {
+      await logout();
+    } finally {
+      navigate("/login", { replace: true });
+    }
+  };
+
   return (
-    <aside className={cls} aria-label="Partner navigation">
-      <div className="sidebar-brand">
+    <>
+      <aside className={cls} aria-label="Partner navigation">
+        <div className="sidebar-brand">
           <div
             className="sidebar-brand__top"
             style={{
@@ -527,6 +527,7 @@ function PartnerSidebar({
               )}
             </button>
           </div>
+        </div>
 
         {!collapsed && (
           <p className="sidebar-brand__guide">
@@ -805,6 +806,7 @@ export default function PartnerLayout() {
       navigate("/partner");
       return;
     }
+
     // React Router stores the history index; > 0 means there is a page to go back to
     const idx = (window.history.state as { idx?: number } | null)?.idx;
 
