@@ -1,5 +1,7 @@
+
 import { Types } from 'mongoose';
 import { HttpError } from '../auth/auth.types';
+import { auditService } from '../audit/audit.service';
 import { marketingValidation } from './marketing.validation';
 import { marketingRepository } from './marketing.repository';
 import type { BannerDto } from './marketing.types';
@@ -22,6 +24,11 @@ interface BannerDocumentLike {
   updatedAt: Date;
 }
 
+export interface MarketingAuditActor {
+  id: string;
+  ip: string;
+}
+
 const toDto = (
   banner: BannerDocumentLike,
 ): BannerDto => ({
@@ -30,28 +37,58 @@ const toDto = (
   image: banner.image,
   link: banner.link ?? '',
   placement: banner.placement,
-  startAt: banner.startAt.toISOString(),
-  endAt: banner.endAt.toISOString(),
+  startAt: new Date(banner.startAt).toISOString(),
+  endAt: new Date(banner.endAt).toISOString(),
   order: banner.order ?? 0,
   active: banner.active,
-  createdAt: banner.createdAt.toISOString(),
-  updatedAt: banner.updatedAt.toISOString(),
+  createdAt: new Date(banner.createdAt).toISOString(),
+  updatedAt: new Date(banner.updatedAt).toISOString(),
 });
+
+/**
+ * Records an audit event without undoing a successful
+ * banner operation if the audit store is unavailable.
+ */
+const recordMarketingAudit = async (input: {
+  actor: MarketingAuditActor;
+  action: string;
+  entityId: string;
+  before?: BannerDto;
+  after?: BannerDto;
+}): Promise<void> => {
+  try {
+    await auditService.recordAudit({
+      actor: input.actor.id,
+      action: input.action,
+      entity: 'Banner',
+      entityId: input.entityId,
+      ip: input.actor.ip || 'unknown',
+      result: 'Success',
+      ...(input.before
+        ? { before: input.before }
+        : {}),
+      ...(input.after
+        ? { after: input.after }
+        : {}),
+    });
+  } catch (error) {
+    console.error(
+      `[Audit] Failed to record ${input.action}:`,
+      error,
+    );
+  }
+};
 
 export class MarketingService {
   async listAdmin(): Promise<BannerDto[]> {
     const banners = await marketingRepository.listAdmin();
 
     return banners.map((banner) =>
-      toDto(
-        banner as unknown as BannerDocumentLike,
-      ),
+      toDto(banner as unknown as BannerDocumentLike),
     );
   }
 
-  async getById(
-    id: string,
-  ): Promise<BannerDto> {
+  async getById(id: string): Promise<BannerDto> {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpError(
         404,
@@ -60,8 +97,7 @@ export class MarketingService {
       );
     }
 
-    const banner =
-      await marketingRepository.findById(id);
+    const banner = await marketingRepository.findById(id);
 
     if (!banner) {
       throw new HttpError(
@@ -71,18 +107,15 @@ export class MarketingService {
       );
     }
 
-    return toDto(
-      banner as unknown as BannerDocumentLike,
-    );
+    return toDto(banner as unknown as BannerDocumentLike);
   }
 
   async create(
     input: unknown,
+    actor: MarketingAuditActor,
   ): Promise<BannerDto> {
     const result =
-      marketingValidation.bannerCreateSchema.safeParse(
-        input,
-      );
+      marketingValidation.bannerCreateSchema.safeParse(input);
 
     if (!result.success) {
       const error = new HttpError(
@@ -91,29 +124,36 @@ export class MarketingService {
         'VALIDATION_ERROR',
       );
 
-      error.details = result.error.issues.map(
-        (issue) => ({
-          field: issue.path.join('.'),
-          message: issue.message,
-        }),
-      );
+      error.details = result.error.issues.map((issue) => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+      }));
 
       throw error;
     }
 
-    const banner =
-      await marketingRepository.create(
-        result.data,
-      );
+    const banner = await marketingRepository.create(
+      result.data,
+    );
 
-    return toDto(
+    const after = toDto(
       banner as unknown as BannerDocumentLike,
     );
+
+    await recordMarketingAudit({
+      actor,
+      action: 'banner.created',
+      entityId: after.id,
+      after,
+    });
+
+    return after;
   }
 
   async update(
     id: string,
     input: unknown,
+    actor: MarketingAuditActor,
   ): Promise<BannerDto> {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpError(
@@ -123,8 +163,7 @@ export class MarketingService {
       );
     }
 
-    const existing =
-      await marketingRepository.findById(id);
+    const existing = await marketingRepository.findById(id);
 
     if (!existing) {
       throw new HttpError(
@@ -135,9 +174,7 @@ export class MarketingService {
     }
 
     const result =
-      marketingValidation.bannerUpdateSchema.safeParse(
-        input,
-      );
+      marketingValidation.bannerUpdateSchema.safeParse(input);
 
     if (!result.success) {
       const error = new HttpError(
@@ -146,25 +183,22 @@ export class MarketingService {
         'VALIDATION_ERROR',
       );
 
-      error.details = result.error.issues.map(
-        (issue) => ({
-          field: issue.path.join('.'),
-          message: issue.message,
-        }),
-      );
+      error.details = result.error.issues.map((issue) => ({
+        field: issue.path.join('.'),
+        message: issue.message,
+      }));
 
       throw error;
     }
 
     const data = result.data;
+    const existingBanner =
+      existing as unknown as BannerDocumentLike;
 
-    const startAt =
-      data.startAt ?? existing.startAt;
+    const startAt = data.startAt ?? existingBanner.startAt;
+    const endAt = data.endAt ?? existingBanner.endAt;
 
-    const endAt =
-      data.endAt ?? existing.endAt;
-
-    if (endAt <= startAt) {
+    if (new Date(endAt) <= new Date(startAt)) {
       const error = new HttpError(
         422,
         'End date must be after start date',
@@ -174,19 +208,17 @@ export class MarketingService {
       error.details = [
         {
           field: 'endAt',
-          message:
-            'End date must be after start date',
+          message: 'End date must be after start date',
         },
       ];
 
       throw error;
     }
 
-    const banner =
-      await marketingRepository.update(
-        id,
-        data,
-      );
+    const banner = await marketingRepository.update(
+      id,
+      data,
+    );
 
     if (!banner) {
       throw new HttpError(
@@ -196,13 +228,25 @@ export class MarketingService {
       );
     }
 
-    return toDto(
+    const before = toDto(existingBanner);
+    const after = toDto(
       banner as unknown as BannerDocumentLike,
     );
+
+    await recordMarketingAudit({
+      actor,
+      action: 'banner.updated',
+      entityId: after.id,
+      before,
+      after,
+    });
+
+    return after;
   }
 
   async remove(
     id: string,
+    actor: MarketingAuditActor,
   ): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpError(
@@ -212,8 +256,7 @@ export class MarketingService {
       );
     }
 
-    const banner =
-      await marketingRepository.remove(id);
+    const banner = await marketingRepository.remove(id);
 
     if (!banner) {
       throw new HttpError(
@@ -222,23 +265,30 @@ export class MarketingService {
         'NOT_FOUND',
       );
     }
+
+    const before = toDto(
+      banner as unknown as BannerDocumentLike,
+    );
+
+    await recordMarketingAudit({
+      actor,
+      action: 'banner.deleted',
+      entityId: before.id,
+      before,
+    });
   }
 
   async listPublic(
     placement?: string,
   ): Promise<BannerDto[]> {
-    const banners =
-      await marketingRepository.listPublic(
-        placement,
-      );
+    const banners = await marketingRepository.listPublic(
+      placement,
+    );
 
     return banners.map((banner) =>
-      toDto(
-        banner as unknown as BannerDocumentLike,
-      ),
+      toDto(banner as unknown as BannerDocumentLike),
     );
   }
 }
 
-export const marketingService =
-  new MarketingService();
+export const marketingService = new MarketingService();

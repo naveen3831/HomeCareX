@@ -1,7 +1,15 @@
-
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useServices } from "@/hooks/useServices";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import OfflineState from "@/components/common/OfflineState";
+import {
+  QUERY_LIMITS,
+  parseServicesQuery,
+  sanitizeSearchText,
+  toServicesSearchParams,
+  uiSortToApi,
+} from "@/lib/querySanitize";
 import type {
   ServiceListParams,
   ServiceSort,
@@ -13,132 +21,9 @@ import ServiceFilters, {
   SortOption,
 } from "../../../components/public/ServiceFilters";
 import Pagination from "../../../components/public/Pagination";
-
-
-
-
-// ============================================================
-// MOCK SERVICE DATA
-// ============================================================
-
-// const services: Service[] = [
-//   {
-//     id: "SERVICE001",
-    
-// image: "/images/home-cleaning.webp",
-// fallbackImage: "/images/home-cleaning.jpg",
-
-//     category: "Cleaning",
-//     name: "Home Cleaning",
-//     rating: 4.8,
-//     price: 499,
-//     duration: "2-3 hrs",
-//   },
-
-//   {
-//     id: "SERVICE002",
-   
-// image: "/images/plumbing.webp",
-// fallbackImage: "/images/plumbing.jpg",
-
-//     category: "Plumbing",
-//     name: "Plumbing",
-//     rating: 4.8,
-//     price: 399,
-//     duration: "1-2 hrs",
-//   },
-
-//   {
-//     id: "SERVICE003",
-   
-// image: "/images/electrical.webp",
-// fallbackImage: "/images/electrical.jpg",
-
-//     category: "Electrical",
-//     name: "Electrical Services",
-//     rating: 4.7,
-//     price: 349,
-//     duration: "1-2 hrs",
-//   },
-
-//   {
-//     id: "SERVICE004",
-   
-// image: "/images/appliance-repair.webp",
-// fallbackImage: "/images/appliance-repair.jpg",
-
-//     category: "Appliance",
-//     name: "Appliance Repair",
-//     rating: 4.8,
-//     price: 499,
-//     duration: "2-3 hrs",
-//   },
-
-//   {
-//     id: "SERVICE005",
-    
-// image: "/images/painting.webp",
-// fallbackImage: "/images/painting.jpg",
-
-//     category: "Painting",
-//     name: "Home Painting",
-//     rating: 4.7,
-//     price: 999,
-//     duration: "1-2 days",
-//   },
-
-//   {
-//     id: "SERVICE006",
-   
-// image: "/images/home-maintenance.webp",
-// fallbackImage: "/images/home-maintenance.jpg",
-
-//     category: "Maintenance",
-//     name: "Home Maintenance",
-//     rating: 4.8,
-//     price: 599,
-//     duration: "2-3 hrs",
-//   },
-
-//   {
-//     id: "SERVICE007",
-    
-// image: "/images/deep-cleaning.webp",
-// fallbackImage: "/images/deep-cleaning.jpg",
-
-//     category: "Cleaning",
-//     name: "Deep Cleaning",
-//     rating: 4.9,
-//     price: 799,
-//     duration: "3-4 hrs",
-//   },
-
-//   {
-//     id: "SERVICE008",
-   
-// image: "/images/bathroom-cleaning.webp",
-// fallbackImage: "/images/bathroom-cleaning.jpg",
-
-//     category: "Cleaning",
-//     name: "Bathroom Cleaning",
-//     rating: 4.8,
-//     price: 399,
-//     duration: "1-2 hrs",
-//   },
-
-//   {
-//     id: "SERVICE009",
-   
-// image: "/images/kitchen-cleaning.webp",
-// fallbackImage: "/images/kitchen-cleaning.jpg",
-
-//     category: "Cleaning",
-//     name: "Kitchen Cleaning",
-//     rating: 4.8,
-//     price: 449,
-//     duration: "1-2 hrs",
-//   },
-// ];
+import Seo from "../../../components/common/Seo";
+import { breadcrumbLd } from "../../../lib/jsonld";
+import { slugToTitle } from "../../../lib/seo";
 
 // ============================================================
 // ITEMS PER PAGE
@@ -165,48 +50,40 @@ export const ServicesPage: React.FC = () => {
     useSearchParams();
 
   // ==========================================================
-  // READ VALUES FROM URL
+  // READ VALUES FROM URL (sanitised)
+  // A hand-edited URL (long q, sort=<injection>, page=-1, bad pincode)
+  // can never reach the API or the UI as-is.
   // ==========================================================
 
-  const search =
-    searchParams.get("q") ?? "";
+  const {
+    q: search,
+    category,
+    sort,
+    page: currentPage,
+    pincode,
+    dirty: urlWasTampered,
+  } = parseServicesQuery(searchParams);
 
-  const category =
-    searchParams.get("category") ?? "";
+  // Rewrite the address bar once so the URL matches what the page actually uses.
+  useEffect(() => {
+    if (!urlWasTampered) return;
 
-  const sort =
-    (searchParams.get("sort") as SortOption) ||
-    "popular";
+    setSearchParams(
+      toServicesSearchParams(
+        { q: search, category, sort, page: currentPage, pincode },
+        searchParams
+      ),
+      { replace: true }
+    );
 
-  const pincode =
-    searchParams.get("pincode") ?? "";
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlWasTampered, searchParams]);
 
-  const currentPageValue =
-    Number(searchParams.get("page")) || 1;
-
-  const currentPage =
-    currentPageValue < 1
-      ? 1
-      : currentPageValue;
-
-
-
-
-      
-  // Fetch services from the API
-  const apiSort: ServiceSort =
-    sort === "price-low"
-      ? "price-asc"
-      : sort === "price-high"
-        ? "price-desc"
-        : (
-            ["popular", "rating", "newest", "relevance"] as string[]
-          ).includes(sort)
-          ? (sort as ServiceSort)
-          : "popular";
+  // Dropdown value -> API value (price-low -> price-asc, etc.)
+  const apiSort: ServiceSort = uiSortToApi(sort);
 
   const serviceParams: ServiceListParams = {
-    q: search.trim() || undefined,
+    q: search || undefined,
     category: category || undefined,
     sort: apiSort,
     page: currentPage,
@@ -214,6 +91,15 @@ export const ServicesPage: React.FC = () => {
   };
 
   const servicesQuery = useServices(serviceParams);
+
+  // Offline with nothing to show yet: React Query pauses the request, so show a clear
+  // offline state instead of an endless skeleton. It refetches by itself on reconnect.
+  const online = useOnlineStatus();
+
+  const showOffline =
+    !online &&
+    (servicesQuery.isPending || servicesQuery.isError) &&
+    !servicesQuery.data;
 
   const loading = servicesQuery.isPending;
   const error = servicesQuery.isError;
@@ -229,18 +115,19 @@ export const ServicesPage: React.FC = () => {
   const [searchInput, setSearchInput] =
     useState(search);
 
-  
-
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
 
   // ==========================================================
   // SEARCH DEBOUNCE - 300ms
+  // The URL only ever receives the sanitised text.
   // ==========================================================
 
   useEffect(() => {
-    if (searchInput === search) {
+    const cleaned = sanitizeSearchText(searchInput);
+
+    if (cleaned === search) {
       return undefined;
     }
 
@@ -249,8 +136,8 @@ export const ServicesPage: React.FC = () => {
         const params =
           new URLSearchParams(previous);
 
-        if (searchInput) {
-          params.set("q", searchInput);
+        if (cleaned) {
+          params.set("q", cleaned);
         } else {
           params.delete("q");
         }
@@ -267,46 +154,6 @@ export const ServicesPage: React.FC = () => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
-
-  // ==========================================================
-  // DAY 6 - SERVICE LOADING
-  // ==========================================================
-  //
-  // Currently services are mock data.
-  // This simulates an API loading state.
-  //
-  // Later, when backend API is connected,
-  // this will be replaced by the actual API loading state.
-  // ==========================================================
-
-  // useEffect(() => {
-  //   const loadServices = async () => {
-  //     try {
-  //       setLoading(true);
-  //       setError(false);
-
-  //       // Temporary mock loading.
-  //       // Later replace this with API request.
-
-  //       await new Promise((resolve) =>
-  //         setTimeout(resolve, 800)
-  //       );
-  //       //  throw new Error("Test error");
-
-  //       setLoading(false);
-  //     } catch (err) {
-  //       console.error(
-  //         "Failed to load services:",
-  //         err
-  //       );
-
-  //       setError(true);
-  //       setLoading(false);
-  //     }
-  //   };
-
-  //   loadServices();
-  // }, []);
 
   // ==========================================================
   // UPDATE URL PARAMETERS
@@ -338,7 +185,8 @@ export const ServicesPage: React.FC = () => {
   const handleSearchChange = (
     value: string
   ) => {
-    setSearchInput(value);
+    // Length cap while typing; the URL/API only ever get the sanitised text.
+    setSearchInput(value.slice(0, QUERY_LIMITS.q));
   };
 
   // ==========================================================
@@ -390,96 +238,12 @@ export const ServicesPage: React.FC = () => {
   };
 
   // ==========================================================
-  // DAY 6 - RETRY
+  // RETRY
   // ==========================================================
-
-  // 
 
   const handleRetry = () => {
     void servicesQuery.refetch();
   };
-
-
-  // // ==========================================================
-  // // FILTER + SORT SERVICES
-  // // ==========================================================
-
-  // const filteredServices = useMemo(() => {
-  //   const searchText =
-  //     search.toLowerCase().trim();
-
-  //   return [...services]
-  //     .filter((service) => {
-  //       const matchesSearch =
-  //         service.name
-  //           .toLowerCase()
-  //           .includes(searchText) ||
-  //         service.category
-  //           .toLowerCase()
-  //           .includes(searchText);
-
-  //       const matchesCategory =
-  //         !category ||
-  //         service.category === category;
-
-  //       return (
-  //         matchesSearch &&
-  //         matchesCategory
-  //       );
-  //     })
-
-  //     .sort((a, b) => {
-  //       // Popular
-  //       if (sort === "popular") {
-  //         return b.rating - a.rating;
-  //       }
-
-  //       // Price Low → High
-  //       if (sort === "price-low") {
-  //         return a.price - b.price;
-  //       }
-
-  //       // Price High → Low
-  //       if (sort === "price-high") {
-  //         return b.price - a.price;
-  //       }
-
-  //       return 0;
-  //     });
-  // }, [search, category, sort]);
-
-  // // ==========================================================
-  // // PAGINATION
-  // // ==========================================================
-
-  // const totalPages = Math.ceil(
-  //   filteredServices.length /
-  //     ITEMS_PER_PAGE
-  // );
-
-  // // ==========================================================
-  // // MAKE SURE CURRENT PAGE IS VALID
-  // // ==========================================================
-
-  // const safeCurrentPage =
-  //   Math.min(
-  //     currentPage,
-  //     Math.max(totalPages, 1)
-  //   );
-
-  // // ==========================================================
-  // // PAGINATION INDEX
-  // // ==========================================================
-
-  // const startIndex =
-  //   (safeCurrentPage - 1) *
-  //   ITEMS_PER_PAGE;
-
-  // const paginatedServices =
-  //   filteredServices.slice(
-  //     startIndex,
-  //     startIndex + ITEMS_PER_PAGE
-  //   );
 
   // ==========================================================
   // PAGE CHANGE
@@ -499,11 +263,42 @@ export const ServicesPage: React.FC = () => {
   };
 
   // ==========================================================
+  // SEO (canonical keeps ?category= only, see lib/seo.ts)
+  // ==========================================================
+
+  const categoryName = category ? slugToTitle(category) : "";
+
+  // ==========================================================
   // UI
   // ==========================================================
 
   return (
     <main className="min-h-screen bg-[#f8f9ff] px-4 py-10 sm:px-6 lg:px-8">
+      <Seo
+        title={
+          categoryName
+            ? `${categoryName} Services | HomeCareX`
+            : "All Home Services | HomeCareX"
+        }
+        description={
+          categoryName
+            ? `Book trusted ${categoryName.toLowerCase()} professionals near you. Compare prices, durations and book online with HomeCareX.`
+            : "Browse and book home cleaning, plumbing, electrical, painting, appliance repair and maintenance services with HomeCareX."
+        }
+        category={category || undefined}
+        jsonLd={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Services", path: "/services" },
+          ...(categoryName
+            ? [
+                {
+                  name: categoryName,
+                  path: `/services?category=${encodeURIComponent(category)}`,
+                },
+              ]
+            : []),
+        ])}
+      />
 
       <div className="mx-auto max-w-7xl">
 
@@ -566,11 +361,11 @@ export const ServicesPage: React.FC = () => {
 
           <p className="text-sm font-semibold text-[#6b6b8a]">
 
-          {servicesQuery.data?.meta.total ?? 0}{" "}
-{(servicesQuery.data?.meta.total ?? 0) === 1
-  ? "service"
-  : "services"}{" "}
-found
+            {servicesQuery.data?.meta.total ?? 0}{" "}
+            {(servicesQuery.data?.meta.total ?? 0) === 1
+              ? "service"
+              : "services"}{" "}
+            found
           </p>
 
           {category && (
@@ -582,10 +377,18 @@ found
         </div>
 
         {/* ====================================================
-            SERVICE GRID / LOADING / ERROR / EMPTY
+            SERVICE GRID / OFFLINE / LOADING / ERROR / EMPTY
         ==================================================== */}
 
-        {loading ? (
+        {showOffline ? (
+
+          /* ==================================================
+             OFFLINE STATE
+          ================================================== */
+
+          <OfflineState onRetry={handleRetry} />
+
+        ) : loading ? (
 
           /* ==================================================
              LOADING STATE
@@ -704,76 +507,75 @@ found
 
           </div>
 
-       ) : apiServices.length > 0 ? (
+        ) : apiServices.length > 0 ? (
+
           /* ==================================================
              SERVICE CARDS
           ================================================== */
 
-         
-<div
-  className="
-    grid
-    gap-6
-    sm:grid-cols-2
-    lg:grid-cols-3
-  "
->
- 
-{apiServices.map((service) => {
-  const name = service.name.toLowerCase();
+          <div
+            className="
+              grid
+              gap-6
+              sm:grid-cols-2
+              lg:grid-cols-3
+            "
+          >
 
-  let image = "/images/home-cleaning.jpg";
+            {apiServices.map((service) => {
+              const name = service.name.toLowerCase();
 
-  if (name.includes("deep") && name.includes("clean")) {
-    image = "/images/deep-cleaning.jpg";
-  } else if (name.includes("clean")) {
-    image = "/images/home-cleaning.jpg";
-  } else if (
-    name.includes("ac service") ||
-    name.includes("gas refill") ||
-    name.includes("appliance") ||
-    name.includes("geyser") ||
-    name.includes("refrigerator") ||
-    name.includes("washing machine") ||
-    name.includes("microwave")
-  ) {
-    image = "/images/appliance-repair.jpg";
-  } else if (
-    name.includes("electrician") ||
-    name.includes("electrical")
-  ) {
-    image = "/images/electrical.jpg";
-  } else if (name.includes("plumbing")) {
-    image = "/images/plumbing.jpg";
-  } else if (name.includes("painting")) {
-    image = "/images/painting.jpg";
-  } else if (name.includes("pest")) {
-    image = "/images/pest-control-clean.webp";
-  } else if (name.includes("massage")) {
-    image = "/images/full-body-massage.webp";
-  } else if (name.includes("makeup")) {
-    image = "/images/bridal-makeup.webp";
-  } else if (name.includes("bathroom")) {
-    image = "/images/bathroom-cleaning.webp";
-  }
+              let image = "/images/home-cleaning.jpg";
 
-  return (
-    <ServiceCard
-      key={service.id}
-      id={service.slug}
-      image={image}
-      fallbackImage={image}
-      category={service.category.name}
-      name={service.name}
-      rating={service.rating}
-      price={service.basePrice}
-      duration={`${service.durationMinutes} min`}
-    />
-  );
-})}
+              if (name.includes("deep") && name.includes("clean")) {
+                image = "/images/deep-cleaning.jpg";
+              } else if (name.includes("clean")) {
+                image = "/images/home-cleaning.jpg";
+              } else if (
+                name.includes("ac service") ||
+                name.includes("gas refill") ||
+                name.includes("appliance") ||
+                name.includes("geyser") ||
+                name.includes("refrigerator") ||
+                name.includes("washing machine") ||
+                name.includes("microwave")
+              ) {
+                image = "/images/appliance-repair.jpg";
+              } else if (
+                name.includes("electrician") ||
+                name.includes("electrical")
+              ) {
+                image = "/images/electrical.jpg";
+              } else if (name.includes("plumbing")) {
+                image = "/images/plumbing.jpg";
+              } else if (name.includes("painting")) {
+                image = "/images/painting.jpg";
+              } else if (name.includes("pest")) {
+                image = "/images/pest-control-clean.webp";
+              } else if (name.includes("massage")) {
+                image = "/images/full-body-massage.webp";
+              } else if (name.includes("makeup")) {
+                image = "/images/bridal-makeup.webp";
+              } else if (name.includes("bathroom")) {
+                image = "/images/bathroom-cleaning.webp";
+              }
 
-</div>
+              return (
+                <ServiceCard
+                  key={service.id}
+                  id={service.slug}
+                  image={image}
+                  fallbackImage={image}
+                  category={service.category.name}
+                  name={service.name}
+                  rating={service.rating}
+                  price={service.basePrice}
+                  duration={`${service.durationMinutes} min`}
+                />
+              );
+            })}
 
+          </div>
 
         ) : (
 
@@ -869,9 +671,10 @@ found
             PAGINATION
         ==================================================== */}
 
-       {!loading &&
-  !error &&
-  apiServices.length > 0 && (
+        {!showOffline &&
+          !loading &&
+          !error &&
+          apiServices.length > 0 && (
 
             <Pagination
               currentPage={

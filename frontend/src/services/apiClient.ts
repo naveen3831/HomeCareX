@@ -1,10 +1,10 @@
 import http, { type ApiResponse } from "@/lib/http";
-import type { SlotAvailability } from "@/types/booking";
+import type { BookingView, SlotAvailability } from "@/types/booking";
 
 // Helper to format API errors cleanly
 export function normalizeApiError(error: unknown) {
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const res = (error as any).response;
+    const res = (error as { response?: { data?: { message?: string } } }).response;
     return new Error(res?.data?.message || 'An unexpected error occurred');
   }
   return error instanceof Error ? error : new Error('An unexpected error occurred');
@@ -24,9 +24,9 @@ export const bookingApi = {
   },
 
   // Create a new booking
-  async createBooking(payload: any): Promise<any> {
+  async createBooking(payload: object): Promise<BookingView> {
     try {
-      const { data } = await http.post<ApiResponse<any>>('/bookings', payload);
+      const { data } = await http.post<ApiResponse<{ booking: BookingView }>>('/bookings', payload);
       return data.data.booking;
     } catch (err) {
       throw normalizeApiError(err);
@@ -34,9 +34,9 @@ export const bookingApi = {
   },
 
   // Get a single booking by ID
-  async getBooking(bookingId: string): Promise<any> {
+  async getBooking(bookingId: string): Promise<BookingView> {
     try {
-      const { data } = await http.get<ApiResponse<any>>(`/bookings/${bookingId}`);
+      const { data } = await http.get<ApiResponse<{ booking: BookingView }>>(`/bookings/${bookingId}`);
       return data.data.booking;
     } catch (err) {
       throw normalizeApiError(err);

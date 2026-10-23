@@ -103,6 +103,9 @@ export class ReviewsController {
       res.json({
         success: true,
         data: reviews,
+      res.json({
+        success: true,
+        data: await this.reviewsService.listCustomerReviews(res.locals.auth.sub),
       });
     } catch (error) {
       next(error);
@@ -131,6 +134,11 @@ export class ReviewsController {
         { summary, reviews },
         { meta: { ...meta } },
       );
+      const { summary, reviews, meta } = await this.reviewsService.listServiceReviews(
+        req.params,
+        req.query,
+      );
+      sendSuccess(res, { summary, reviews }, { meta: { ...meta } });
     } catch (error) {
       next(error);
     }
@@ -150,6 +158,9 @@ export class ReviewsController {
       res.json({
         success: true,
         data: reviews,
+      res.json({
+        success: true,
+        data: await this.reviewsService.listAdminReviews(req.query),
       });
     } catch (error) {
       next(error);
@@ -197,6 +208,23 @@ export class ReviewsController {
         success: true,
         data: review,
       });
+      const auth = res.locals.auth as { sub?: string } | undefined;
+      const actorId = auth?.sub;
+
+      if (!actorId) {
+        throw new Error('Authenticated admin identity is missing from request context');
+      }
+
+      const review = await this.reviewsService.updateReviewStatus(
+        req.params.id,
+        req.body?.status,
+        {
+          id: String(actorId),
+          ip: req.ip || 'unknown',
+        },
+      );
+
+      res.json({ success: true, data: review });
     } catch (error) {
       next(error);
     }

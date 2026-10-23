@@ -1,4 +1,10 @@
 import http, { type ApiResponse } from "@/lib/http";
+import {
+  sanitizeLimit,
+  sanitizePage,
+  sanitizePathSegment,
+  sanitizeServicesParams,
+} from "@/lib/querySanitize";
 import type {
   CatalogCategory,
   PageMeta,
@@ -22,14 +28,23 @@ export const catalogKeys = {
   serviceReviews: (serviceId: string, limit: number) => ["catalog", "service-reviews", serviceId, limit] as const,
 };
 
-/** Retry network blips and 5xx; never 4xx (a bad query can't be fixed by retrying). */
-/** Retry network failures and server errors, but never client errors. */
+/** Retry network failures and server errors, but never client errors (a bad query can't be fixed by retrying). */
 export const retryTransient = (
   failureCount: number,
   error: NormalizedApiError,
 ): boolean =>
   failureCount < 2 &&
   (error.status === 0 || error.status >= 500);
+
+/** Wait 1s, then 2s (max 5s) between retries so a flaky network is not hammered. */
+export const retryBackoff = (attempt: number): number => Math.min(1000 * 2 ** attempt, 5000);
+
+/** A malformed slug or id can never match a service, so we fail as a 404 without sending a request. */
+const NOT_FOUND: NormalizedApiError = {
+  status: 404,
+  code: "NOT_FOUND",
+  message: "We could not find what you were looking for.",
+};
 
 /** GET /categories: active, admin-ordered, each with its service count. */
 export async function fetchCategories(signal?: AbortSignal): Promise<CatalogCategory[]> {
@@ -41,106 +56,11 @@ export async function fetchCategories(signal?: AbortSignal): Promise<CatalogCate
   }
 }
 
-
 /**
- * Removes invalid or empty query parameters before sending them to the API.
+ * GET /services with sanitized filter, sort and page params.
+ * sanitizeServicesParams (lib/querySanitize.ts) allow-lists sort, caps lengths, forces page >= 1
+ * and caps limit, so page=-1, limit=1000 or sort=<injection> never reach the backend.
  */
-
-function sanitizeServiceParams(
-  params: ServiceListParams,
-): Record<string, string | number> {
-  const sanitized: Record<string, string | number> = {};
-
-  if (typeof params.q === "string" && params.q.trim()) {
-    sanitized.q = params.q.trim();
-  }
-
-  if (typeof params.category === "string" && params.category.trim()) {
-    sanitized.category = params.category.trim();
-  }
-
-  if (
-    typeof params.rating === "number" &&
-    Number.isFinite(params.rating) &&
-    params.rating >= 1 &&
-    params.rating <= 5
-  ) {
-    sanitized.rating = params.rating;
-  }
-
-  if (
-    typeof params.minPrice === "number" &&
-    Number.isFinite(params.minPrice) &&
-    params.minPrice >= 0
-  ) {
-    sanitized.minPrice = params.minPrice;
-  }
-
-  if (
-    typeof params.maxPrice === "number" &&
-    Number.isFinite(params.maxPrice) &&
-    params.maxPrice >= 0
-  ) {
-    sanitized.maxPrice = params.maxPrice;
-  }
-
-  if (
-    typeof params.minPrice === "number" &&
-    typeof params.maxPrice === "number" &&
-    params.minPrice > params.maxPrice
-  ) {
-    delete sanitized.minPrice;
-    delete sanitized.maxPrice;
-  }
-
-  if (
-    typeof params.duration === "number" &&
-    Number.isInteger(params.duration) &&
-    params.duration > 0
-  ) {
-    sanitized.duration = params.duration;
-  }
-
-  if (
-    params.availability === "today" ||
-    params.availability === "tomorrow"
-  ) {
-    sanitized.availability = params.availability;
-  }
-
-  const allowedSorts = [
-    "popular",
-    "rating",
-    "price-asc",
-    "price-desc",
-    "newest",
-    "relevance",
-  ];
-
-  if (
-    typeof params.sort === "string" &&
-    allowedSorts.includes(params.sort)
-  ) {
-    sanitized.sort = params.sort;
-  }
-
-  sanitized.page =
-    Number.isInteger(params.page) && params.page >= 1
-      ? params.page
-      : 1;
-
-  sanitized.limit =
-    Number.isInteger(params.limit) && params.limit >= 1
-      ? Math.min(params.limit, 100)
-      : 10;
-
-  return sanitized;
-}
-
-
-/** GET /services with every filter, sort and page param. */
-
-/** GET /services with sanitized filter, sort and page params. */
 export async function fetchServices(
   params: ServiceListParams,
   signal?: AbortSignal,
@@ -149,7 +69,7 @@ export async function fetchServices(
     const { data } = await http.get<ApiListResponse<ServicePage["items"]>>(
       "/services",
       {
-        params: sanitizeServiceParams(params),
+        params: sanitizeServicesParams(params),
         signal,
       },
     );
@@ -163,9 +83,11 @@ export async function fetchServices(
   }
 }
 
-
 /** GET /services/:slug: everything the details page shows. Unknown or inactive slug is a 404. */
-export async function fetchServiceDetail(slug: string, signal?: AbortSignal): Promise<ServiceDetail> {
+export async function fetchServiceDetail(rawSlug: string, signal?: AbortSignal): Promise<ServiceDetail> {
+  const slug = sanitizePathSegment(rawSlug);
+  if (!slug) throw NOT_FOUND;
+
   try {
     const { data } = await http.get<ApiResponse<ServiceDetail>>(`/services/${encodeURIComponent(slug)}`, { signal });
     return data.data;
@@ -176,11 +98,16 @@ export async function fetchServiceDetail(slug: string, signal?: AbortSignal): Pr
 
 /** GET /services/:id/reviews: one page of visible reviews plus the star distribution of the whole set. */
 export async function fetchServiceReviews(
-  serviceId: string,
-  page: number,
-  limit: number,
+  rawServiceId: string,
+  rawPage: number,
+  rawLimit: number,
   signal?: AbortSignal,
 ): Promise<ServiceReviewsPage> {
+  const serviceId = sanitizePathSegment(rawServiceId);
+  if (!serviceId) throw NOT_FOUND;
+  const page = sanitizePage(rawPage);
+  const limit = sanitizeLimit(rawLimit);
+
   try {
     const { data } = await http.get<ApiListResponse<{ summary: ReviewSummary; reviews: ServiceReview[] }>>(
       `/services/${encodeURIComponent(serviceId)}/reviews`,

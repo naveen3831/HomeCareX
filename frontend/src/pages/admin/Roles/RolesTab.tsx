@@ -24,7 +24,7 @@ export const RolesTab: React.FC<RolesTabProps> = ({ notify }) => {
 
   const [toDelete, setToDelete] = useState<Role | null>(null);
   const [query, setQuery] = useState('');
-  const allRoles = rolesQuery.data ?? [];
+ const allRoles = useMemo(() => rolesQuery.data ?? [], [rolesQuery.data]);
   const roles = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? allRoles.filter((r) => `${r.name} ${r.description ?? ''}`.toLowerCase().includes(q)) : allRoles;

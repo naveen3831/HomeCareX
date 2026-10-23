@@ -31,6 +31,8 @@ import {
   useServiceReviews,
 } from "@/hooks/useService";
 import Seo from "../../../components/common/Seo";
+import { breadcrumbLd, faqLd, serviceLd } from "../../../lib/jsonld";
+import { safeAlt, sanitizePathSegment } from "@/lib/querySanitize";
 import type { SlotAvailability } from "@/types/catalog";
 
 type TabId = "overview" | "included" | "faqs" | "reviews";
@@ -253,24 +255,6 @@ const formatReviewDate = (iso: string) => {
   });
 };
 
-const siteUrl = () =>
-  (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/+$/, "");
-
-const absoluteUrl = (path: string) =>
-  path.startsWith("http")
-    ? path
-    : `${siteUrl()}${path.startsWith("/") ? "" : "/"}${path}`;
-
-/** Structured data. "<" is escaped so content can never close the script tag. */
-const JsonLd: React.FC<{ data: unknown }> = ({ data }) => (
-  <script
-    type="application/ld+json"
-    dangerouslySetInnerHTML={{
-      __html: JSON.stringify(data).replace(/</g, "\\u003c"),
-    }}
-  />
-);
-
 /* Small shared star row so the markup is not repeated everywhere */
 const Stars: React.FC<{
   value: number;
@@ -300,9 +284,14 @@ const pageWrap =
 /* ======================================================================
    Route component: reads the slug and remounts the page when it changes,
    so gallery, tab and FAQ state always start fresh for a new service.
+
+   The slug comes from the address bar, so it is checked first: a slug with
+   spaces, "..", markup or 100+ characters can never match a service, so we
+   show the not-found page without sending any request.
    ====================================================================== */
 const ServiceDetails: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: rawSlug } = useParams<{ slug: string }>();
+  const slug = sanitizePathSegment(rawSlug);
   if (!slug) return <NotFound />;
   return <ServiceDetailsPage key={slug} slug={slug} />;
 };
@@ -346,13 +335,20 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
   const lightboxCloseRef = useRef<HTMLButtonElement | null>(null);
 
   /* Images are picked from the service name (see IMAGE RULES above),
-     so the details page shows pictures that match the service. */
+     so the details page shows pictures that match the service.
+     Alt text is built from the service name, so it goes through safeAlt
+     (no markup, no control characters, capped length). */
   const allImages = service ? getServiceImages(service.name) : [];
 
   const photos = allImages
     .map((url, index) => ({
       url,
-      alt: service ? `${service.name} – photo ${index + 1}` : "",
+      alt: service
+        ? safeAlt(
+            `${service.name} – photo ${index + 1}`,
+            `Service photo ${index + 1}`,
+          )
+        : "",
     }))
     .filter((item) => !failed.includes(item.url));
 
@@ -846,7 +842,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
           </ul>
         </div>
 
-        {/* Review list */}
+        {/* Review list (author and comment are API strings: rendered as plain text only) */}
         <ul className="mt-5 space-y-4">
           {reviews.map((review) => (
             <li key={review.id}>
@@ -943,70 +939,34 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
         ? `No slots in the next ${slot.windowDays} days`
         : "Availability shown at booking";
 
-  const siteBase = siteUrl();
+  /* SEO: real data only (name, price, category and rating come from
+     GET /services/:slug). Image: the API photo if there is one, otherwise
+     the picture this page shows, otherwise the category fallback in <Seo>. */
+  const seoImage = service.media?.[0]?.url || cover;
 
   return (
     <main className="relative min-h-screen overflow-x-clip bg-[#f6f7fd]">
       <Seo
         title={`${service.name} | HomeCareX Home Services`}
-        description={service.description}
+        description={
+          service.description ||
+          `Book ${service.name} from verified professionals with HomeCareX.`
+        }
         path={`/services/${service.slug}`}
-        {...(cover ? { image: cover } : {})}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "Service",
-          name: service.name,
-          description: service.description,
-          serviceType: service.category.name,
-          ...(cover ? { image: absoluteUrl(cover) } : {}),
-          url: `${siteBase}/services/${service.slug}`,
-          provider: {
-            "@type": "Organization",
-            name: "HomeCareX",
-            url: siteBase,
-          },
-          offers: {
-            "@type": "Offer",
-            price: service.basePrice,
-            priceCurrency: "INR",
-          },
-          ...(hasRatings
-            ? {
-                aggregateRating: {
-                  "@type": "AggregateRating",
-                  ratingValue: service.rating,
-                  reviewCount: service.ratingCount,
-                },
-              }
-            : {}),
-        }}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "BreadcrumbList",
-          itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Home", item: `${siteBase}/` },
-            { "@type": "ListItem", position: 2, name: "Services", item: `${siteBase}/services` },
-            { "@type": "ListItem", position: 3, name: service.name, item: `${siteBase}/services/${service.slug}` },
-          ],
-        }}
-      />
-
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: allFaqs.map((faq) => ({
-            "@type": "Question",
-            name: faq.question,
-            acceptedAnswer: { "@type": "Answer", text: faq.answer },
-          })),
-        }}
+        category={service.category.slug}
+        {...(seoImage ? { image: seoImage } : {})}
+        jsonLd={[
+          serviceLd(service, {
+            fallbackImage: seoImage,
+            includeRating: hasRatings,
+          }),
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Services", path: "/services" },
+            { name: service.name, path: `/services/${service.slug}` },
+          ]),
+          faqLd(allFaqs),
+        ]}
       />
 
       {/* Soft background glow behind the hero */}
@@ -1072,10 +1032,10 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
               {total > 0 && (
                 <img
                   src={photos[selectedIndex].url}
-                  alt={
-                    photos[selectedIndex].alt ||
-                    `${service.name} – photo ${selectedIndex + 1} of ${total}`
-                  }
+                  alt={safeAlt(
+                    photos[selectedIndex].alt,
+                    `${service.name} – photo ${selectedIndex + 1} of ${total}`,
+                  )}
                   width={1280}
                   height={800}
                   loading="eager"
@@ -1170,7 +1130,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
                   >
                     <img
                       src={photo.url}
-                      alt={photo.alt || `${service.name} thumbnail ${index + 1}`}
+                      alt={safeAlt(photo.alt, `${service.name} thumbnail ${index + 1}`)}
                       width={96}
                       height={64}
                       loading="lazy"
@@ -1385,7 +1345,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
               {related.map((item) => (
                 <Link
                   key={item.id}
-                  to={`/services/${item.slug}`}
+                  to={`/services/${encodeURIComponent(item.slug)}`}
                   className={`group overflow-hidden rounded-[1.75rem] border border-[#e9ebf7] bg-white shadow-sm transition motion-safe:hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(17,16,79,0.14)] ${focusRing}`}
                 >
                   <div className="h-2 bg-gradient-to-r from-[#4338ca] to-[#6366f1]" />
@@ -1487,7 +1447,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
 
             <img
               src={lightboxPhoto.url}
-              alt={lightboxPhoto.alt || `${service.name} photo ${lightboxIndex + 1}`}
+              alt={safeAlt(lightboxPhoto.alt, `${service.name} photo ${lightboxIndex + 1}`)}
               onClick={(e) => e.stopPropagation()}
               className="max-h-full max-w-full rounded-3xl object-contain shadow-2xl"
             />

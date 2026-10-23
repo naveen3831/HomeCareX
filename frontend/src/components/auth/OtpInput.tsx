@@ -36,17 +36,16 @@ export const OtpInput: React.FC<OtpInputProps> = ({
 
   // Sync when parent clears value (e.g. on resend code) or updates value externally
   useEffect(() => {
-    if (!value) {
-      setDigits(Array(OTP_LENGTH).fill(''));
-    } else if (value !== digits.join('')) {
-      const updated = Array(OTP_LENGTH).fill('');
-      for (let i = 0; i < Math.min(value.length, OTP_LENGTH); i++) {
-        updated[i] = value[i] || '';
-      }
-      setDigits(updated);
+  setDigits((current) => {
+    if (!value) return Array(OTP_LENGTH).fill('');
+    if (value === current.join('')) return current;
+    const updated = Array(OTP_LENGTH).fill('');
+    for (let i = 0; i < Math.min(value.length, OTP_LENGTH); i++) {
+      updated[i] = value[i] || '';
     }
-  }, [value]);
-
+    return updated;
+  });
+}, [value]);
   useEffect(() => {
     if (autoFocus && inputRefs.current[0] && !disabled) {
       inputRefs.current[0].focus();

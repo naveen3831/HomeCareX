@@ -49,6 +49,37 @@ import {
   statusHeadline,
   statusLabel,
 } from "./trackingModel";
+import type { BookingView } from "@/types/booking";
+
+interface TrackedPartner {
+  name?: string;
+  phone?: string;
+}
+
+interface TrackedHistoryEntry {
+  to?: string;
+  status?: string;
+  at?: string;
+}
+
+type TrackedBooking = BookingView & {
+  id?: string;
+  serviceName?: string;
+  bookingNumber?: string;
+  history?: TrackedHistoryEntry[];
+  partner?: TrackedPartner;
+};
+
+// Timeline steps corresponding to booking lifecycle
+const TIMELINE_STEPS = [
+  { key: "CONFIRMED", label: "Confirmed" },
+  { key: "SEARCHING_FOR_PARTNER", label: "Searching for Partner" },
+  { key: "ASSIGNED", label: "Partner Assigned" },
+  { key: "EN_ROUTE", label: "En Route" },
+  { key: "ARRIVED", label: "Arrived" },
+  { key: "IN_PROGRESS", label: "In Progress" },
+  { key: "COMPLETED", label: "Completed" },
+];
 
 const CHAT_ID = "tracking-chat";
 const CARD =
@@ -117,6 +148,34 @@ export default function TrackingPage() {
       (input ?? chat)?.focus({
         preventScroll: window.innerWidth >= 1024,
       });
+  // Fetch real customer bookings from MongoDB; poll every 15s for live status updates
+  const {
+    data: bookings = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<BookingView[], NormalizedApiError>({
+    queryKey: ["customer-bookings"],
+    queryFn: () => bookingApi.getBookings(),
+    refetchInterval: 15000,
+  });
+
+  // Pick the latest confirmed / active booking from MongoDB
+  const activeBooking = useMemo(() => {
+    return bookings.find((b) => {
+      const status = (b.status || "").toUpperCase();
+      return (
+        status === "CONFIRMED" ||
+        status === "CREATED" ||
+        status === "SEARCHING_FOR_PARTNER" ||
+        status === "ASSIGNED" ||
+        status === "EN_ROUTE" ||
+        status === "ARRIVED" ||
+        status === "IN_PROGRESS" ||
+        status === "STARTED" ||
+        status === "PENDING"
+      );
     });
     return () => window.cancelAnimationFrame(raf);
   }, [chatOpen, chatFocusKey]);
@@ -244,6 +303,43 @@ export default function TrackingPage() {
     Boolean(data.partnerId) ||
     Boolean(data.partner) ||
     tracking.partnerAssigned;
+  const b = activeBooking as TrackedBooking;
+
+  // Extract service name from price snapshot or direct field
+  const serviceName =
+    b.priceSnapshot?.lines?.find((l) => l.kind === "BASE")?.name ||
+    b.serviceName ||
+    "Home Care Service";
+
+  // Booking reference (e.g., BK-10231)
+  const bookingCode =
+    b.bookingNumber || `BK-${String(b._id || b.id || "").slice(-5).toUpperCase()}`;
+
+  const currentStatus = (b.status || "").toUpperCase();
+  const getStatusIndex = (status: string): number => {
+    switch (status) {
+      case "CONFIRMED":
+      case "CREATED":
+      case "PENDING":
+        return 0;
+      case "SEARCHING_FOR_PARTNER":
+        return 1;
+      case "ASSIGNED":
+        return 2;
+      case "EN_ROUTE":
+        return 3;
+      case "ARRIVED":
+        return 4;
+      case "IN_PROGRESS":
+      case "STARTED":
+        return 5;
+      case "COMPLETED":
+        return 6;
+      default:
+        return 0;
+    }
+  };
+  const activeStepIdx = getStatusIndex(currentStatus);
 
   const destination = resolveDestinationPoint(data, tracking);
   const partnerPoint = resolvePartnerPoint(tracking.location, data, tracking);
@@ -384,6 +480,21 @@ export default function TrackingPage() {
       Try again
     </button>
   );
+  const getStepTime = (stepKey: string): string => {
+    const history: unknown = b.statusHistory ?? b.history;
+    if (!Array.isArray(history)) {
+      if (stepKey === "CONFIRMED") return formatTime(b.createdAt);
+      return "";
+    }
+    const entry = (history as TrackedHistoryEntry[]).find(
+      (h) => (h.to || "").toUpperCase() === stepKey || (h.status || "").toUpperCase() === stepKey
+    );
+    if (entry && entry.at) return formatTime(entry.at);
+    if (stepKey === "CONFIRMED") return formatTime(b.createdAt);
+    return "";
+  };
+
+  const partner = (b.partnerId || b.partner) as TrackedPartner | undefined;
 
   return (
     <div
@@ -582,6 +693,16 @@ export default function TrackingPage() {
                 {retryButton}
               </div>
             </section>
+      {/* 2. Real Service Details & Timeline Card */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="border-b border-gray-100 pb-4">
+          <h2 className="text-base font-semibold text-gray-900">
+            {serviceName} · {bookingCode}
+          </h2>
+          <div className="mt-1 flex flex-wrap gap-4 text-xs text-gray-500">
+            <span>📅 {b.date} ({b.slot})</span>
+            <span>📍 {b.addressSnapshot?.city || b.addressSnapshot?.line1 || "Customer Address"}</span>
+            <span>💰 ₹{b.priceSnapshot?.total ?? 0}</span>
           </div>
         )}
 

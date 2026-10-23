@@ -262,7 +262,7 @@ function NavigationContent({ id }: { id: string }) {
     setBusyAction(status);
     setActionError(null);
     try {
-      await updateBookingStatus(id, status as any);
+     await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
       if (status === "en_route") sharing.start(); // leaving for the job: the customer can now follow live
       setReloadKey((k) => k + 1);
     } catch (err) {
