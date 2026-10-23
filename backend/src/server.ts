@@ -18,6 +18,7 @@ import { startReferralWorker } from './modules/referrals/referrals.worker';
 const server = http.createServer(app);
 initSockets(server);
 
+const PORT = process.env.PORT || 5000;
 const PORT = Number(process.env.PORT) || 5000;
 
 let stopReferralWorker: (() => void) | undefined;
@@ -53,9 +54,15 @@ const startServer = async () => {
         error instanceof Error ? error.message : 'Unknown error',
       ),
     );
-
     registerEarningsListeners();
 
+    server.listen(PORT, () => {
+      console.log(`HomeCareX server running on port ${PORT}`);
+    });
+
+    void seedDefaults();
+  } catch (error) {
+    console.error('[startup] Failed to start HomeCareX:', error);
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
 
@@ -75,13 +82,20 @@ const startServer = async () => {
     process.exitCode = 1;
 
     if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close().catch(() => {});
+      try {
+        await mongoose.connection.close();
+      } catch (closeError) {
+        console.error('[startup] Failed to close MongoDB connection:', closeError);
+      }
     }
 
     process.exitCode = 1;
   }
 };
 
+void startServer();
+
+const shutdown = async () => {
 const shutdown = async (): Promise<void> => {
   console.log('Stopping server gracefully...');
   stopReferralWorker?.();

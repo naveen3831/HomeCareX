@@ -27,6 +27,13 @@ export const BOOKING_STATUSES = [
 export type BookingStatus =
   (typeof BOOKING_STATUSES)[number];
 
+export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
+  'en_route',
+  'arrived',
+  'in_progress',
+];
+export const START_OTP_STATUS: BookingStatus = 'arrived';
+
 /** Named access to the statuses used by the customer booking flow. */
 export const BOOKING_STATUS = {
   PENDING_PAYMENT: 'pending_payment',

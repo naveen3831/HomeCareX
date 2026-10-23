@@ -4,6 +4,7 @@ export const USER_ROLES = ['admin', 'customer', 'partner'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const ADMIN_ROLES: UserRole[] = ['admin'];
+export const USER_STATUSES = ['active', 'blocked', 'invited'] as const;
 
 const UserSchema = new Schema(
   {
@@ -16,7 +17,8 @@ const UserSchema = new Schema(
     /** Partners only: the specialist type (Plumber, Electrician...). */
     designation: { type: String, trim: true },
     gender: { type: String, enum: ['male', 'female', 'other'] },
-    status: { type: String, enum: ['active', 'blocked'], default: 'active' },
+    status: { type: String, enum: USER_STATUSES, default: 'active' },
+    staffRoleId: { type: String },
     failedLogins: { type: Number, default: 0 },
     lockedUntil: { type: Date },
     /** Bumped on logout / password change to invalidate every refresh token. */
@@ -26,6 +28,8 @@ const UserSchema = new Schema(
     passwordResetTokenHash: { type: String, select: false },
     /** Expiration date for password reset token (30m). */
     passwordResetExpiresAt: { type: Date },
+    inviteTokenHash: { type: String, select: false },
+    inviteExpiresAt: { type: Date },
   },
   { timestamps: true },
 );

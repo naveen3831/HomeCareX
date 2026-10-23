@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback, useRef, createContext, useContext } from "react";
 import {
   useState,
   useEffect,
@@ -20,6 +21,7 @@ import {
   CalendarOff,
   Clock,
   Wrench,
+  MapPin,
   Wallet,
   Gift,
   Banknote,
@@ -45,6 +47,10 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+} from "@/pages/partner/Availability/availability.api";
 import OnlineIndicator from "@/components/partner/OnlineIndicator";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
@@ -84,6 +90,10 @@ type NavChild = {
   icon: LucideIcon;
 };
 
+export const NAV = [
+  { key: "home", label: "Home", to: "/partner", icon: Home, end: true },
+  { key: "jobs", label: "My Jobs", to: "/partner/jobs", icon: ClipboardList },
+  { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
 type NavItem = NavChild & {
   end?: boolean;
   children?: NavChild[];
@@ -623,6 +633,43 @@ function PartnerSidebar({
                               />
                             </button>
                           )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <button
+            type="button"
+            className="sidebar-footer__user sidebar-footer__user-btn"
+            title={collapsed ? displayName : undefined}
+            onClick={() => navigate("/partner/profile")}
+          >
+            <span className="avatar">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+
+            {!collapsed && <span className="profile-name">{displayName}</span>}
+          </button>
+
+          <button
+            type="button"
+            className="sidebar-signout-btn"
+            title="Sign out"
+            onClick={handleSignOut}
+          >
+            <LogOut size={18} />
+
+            {!collapsed && <span>Sign out</span>}
+          </button>
+        </div>
+      </aside>
+    </>
                         </div>
 
                         {/* Sub-links open under the parent */}
@@ -698,12 +745,41 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
+  // The backend is the source of truth for the partner's online status (no local/mock copy).
+  const [online, setOnlineState] = useState<boolean>(false);
+  const onlineRef = useRef(false);
   const [online, setOnlineState] = useState<boolean>(
     () => readStoredOnlineStatus() ?? false,
   );
 
-  const setOnline = useCallback((next: boolean) => {
+  const applyOnline = useCallback((next: boolean) => {
+    onlineRef.current = next;
     setOnlineState(next);
+  }, []);
+
+  // Optimistic toggle: flip at once, then settle on what the server says; put it back if the request fails.
+  const setOnline = useCallback(
+    (next: boolean) => {
+      const previous = onlineRef.current;
+      applyOnline(next);
+      setOnlineApi(next)
+        .then((avail) => applyOnline(avail.isOnline))
+        .catch(() => applyOnline(previous));
+    },
+    [applyOnline],
+  );
+
+  useEffect(() => {
+    let active = true;
+    getAvailability()
+      .then((avail) => {
+        if (active) applyOnline(avail.isOnline);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [applyOnline]);
     writeStoredOnlineStatus(next);
     // TODO: re-connect your backend call here (the old setOnlineApi) once you
     // know which service file exports it.
@@ -806,6 +882,8 @@ export default function PartnerLayout() {
       return;
     }
 
+    const hasHistory = (window.history.state as { idx?: number } | null)?.idx;
+    if (typeof hasHistory === "number" && hasHistory > 0) {
     // React Router stores the history index; > 0 means there is a page to go back to
     const idx = (window.history.state as { idx?: number } | null)?.idx;
 

@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { roleMiddleware } from '../../middleware/role.middleware';
-import { validationMiddleware } from '../../middleware/validation.middleware';
+import { noQuery, validationMiddleware } from '../../middleware/validation.middleware';
 import { customerProfileController } from './customer-profile.controller';
 import { updatePreferencesBodySchema, updateProfileBodySchema } from './customer-profile.validation';
 import { AVATAR_MAX_BYTES } from './customer-profile.constants';
@@ -11,7 +11,7 @@ import { AVATAR_MAX_BYTES } from './customer-profile.constants';
 export const customerProfileRoutes = Router();
 customerProfileRoutes.use(authMiddleware, roleMiddleware('customer'));
 
-customerProfileRoutes.get('/', asyncHandler(async (req, res) => customerProfileController.get(req, res)));
+customerProfileRoutes.get('/', noQuery, asyncHandler(async (req, res) => customerProfileController.get(req, res)));
 customerProfileRoutes.patch(
   '/',
   validationMiddleware({ body: updateProfileBodySchema }),
@@ -33,7 +33,7 @@ customerProfileRoutes.delete('/avatar', asyncHandler(async (req, res) => custome
 /** GET/PATCH /customer/preferences (notification matrix + language). */
 export const customerPreferencesRoutes = Router();
 customerPreferencesRoutes.use(authMiddleware, roleMiddleware('customer'));
-customerPreferencesRoutes.get('/', asyncHandler(async (req, res) => customerProfileController.getPreferences(req, res)));
+customerPreferencesRoutes.get('/', noQuery, asyncHandler(async (req, res) => customerProfileController.getPreferences(req, res)));
 customerPreferencesRoutes.patch(
   '/',
   validationMiddleware({ body: updatePreferencesBodySchema }),

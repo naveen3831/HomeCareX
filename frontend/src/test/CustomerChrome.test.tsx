@@ -24,20 +24,28 @@ const wrap = (ui: React.ReactNode, at: string) =>
     </QueryClientProvider>,
   );
 
-describe("TopBar on phones", () => {
-  it("shows a borderless 'Home' back link on inner pages, and hides the address from phones", () => {
+describe("TopBar on inner pages", () => {
+  it("shows '← Page name' at every width, with no address picker or brand", () => {
     wrap(<TopBar sidebarOpen onToggleSidebar={() => undefined} />, "/customer/bookings");
-    const back = screen.getByRole("link", { name: /back to home/i });
-    expect(back).toHaveAttribute("href", "/customer");
-    expect(back.className).toMatch(/md:hidden/); // phones only
-    expect(back.className).not.toMatch(/\bborder\b/); // no border
-    // The address picker is still there for md+, but never shown on phones.
-    expect(screen.getByTestId("location-picker").parentElement?.className).toMatch(/\bhidden\b.*md:block/);
+    expect(screen.getByRole("button", { name: /back from my bookings/i })).toBeInTheDocument();
+    expect(screen.getByText("My Bookings")).toBeInTheDocument();
+    expect(screen.queryByTestId("location-picker")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /homecarex/i })).not.toBeInTheDocument();
   });
 
-  it("has no back link on Home itself (the brand shows instead)", () => {
+  it("keeps the bell on md+ only, and the sidebar button when the sidebar is collapsed", () => {
+    wrap(<TopBar sidebarOpen={false} onToggleSidebar={() => undefined} />, "/customer/wallet");
+    expect(screen.getByTestId("bell").parentElement?.className).toMatch(/\bhidden\b.*md:block/);
+    expect(screen.getByRole("button", { name: /open sidebar/i })).toBeInTheDocument();
+  });
+});
+
+describe("TopBar on Home", () => {
+  it("has no back arrow (address picker + bell show instead)", () => {
     wrap(<TopBar sidebarOpen onToggleSidebar={() => undefined} />, "/customer");
-    expect(screen.queryByRole("link", { name: /back to home/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back from/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("location-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("bell")).toBeInTheDocument();
   });
 });
 

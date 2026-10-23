@@ -1,1 +1,1 @@
-export class TicketsRepository {}
+export * from '../tickets/tickets.repository';

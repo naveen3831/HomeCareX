@@ -74,6 +74,12 @@ export interface IBooking extends Document {
   cancellationReason?: string;
   offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired' }>;
   otpCodes?: { start?: string; end?: string };
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    amount: number;
+    status: 'pending' | 'approved' | 'rejected';
+  }>;
   slotSeat?: number;
   idempotencyKey?: string;
   requestHash?: string;
@@ -177,6 +183,14 @@ const BookingSchema = new Schema<IBooking>(
     otpCodes: {
       start: { type: String, select: false },
       end: { type: String, select: false },
+    },
+    extraCharges: {
+      type: [{
+        title: { type: String, required: true, trim: true },
+        amount: { type: Number, required: true, min: 0 },
+        status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+      }],
+      default: [],
     },
     /** Seat number within (serviceId, date, slot); unset when the booking stops holding the slot. */
     slotSeat: { type: Number },

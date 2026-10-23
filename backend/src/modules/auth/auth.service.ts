@@ -13,6 +13,7 @@ import {
 import { HttpError, type AccessTokenPayload, type AuthUserDto, type RefreshTokenPayload } from './auth.types';
 import type {
   ForgotPasswordInput,
+  ChangePasswordInput,
   LoginInput,
   RegisterInput,
   ResendOtpInput,
@@ -20,6 +21,7 @@ import type {
   VerifyOtpInput,
 } from './auth.validation';
 import type { UserRole } from '../../models/User';
+import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
  
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
@@ -29,6 +31,20 @@ const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
 const RESET_TOKEN_TTL_MINUTES = 15;
 const RESEND_COOLDOWN_MS = 30_000;
+const INVITE_TTL_HOURS = 72;
+
+interface InviteStaffInput {
+  name: string;
+  email: string;
+  roleId: string;
+}
+interface VerifyInviteInput {
+  token: string;
+}
+interface AcceptInviteInput {
+  token: string;
+  password: string;
+}
  
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -70,6 +86,8 @@ function issueTokens(user: UserDoc) {
 }
  
 const sessionExpired = (code: string) => new HttpError(401, 'Your session has expired. Please log in again.', code);
+const invalidInvite = () =>
+  new HttpError(400, 'This invitation is invalid or has expired.', 'INVALID_INVITE');
  
 export const authService = {
   async login({ email, password }: LoginInput) {
@@ -113,6 +131,7 @@ export const authService = {
       passwordHash,
       role: input.role,
       referralCode: input.referralCode,
+      gender: input.gender,
     });
  
     try {
@@ -347,40 +366,6 @@ export const authService = {
     };
   },
 
-  /** Resends a fresh OTP after the cooldown window, returning the same generic message as forgotPassword. */
-
-  async resendOtp({ email }: ResendOtpInput) {
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const latestOtp = await authRepository.findLatestOtp(
-      normalizedEmail,
-      "PASSWORD_RESET",
-    );
-
-    if (
-      latestOtp &&
-      Date.now() - new Date(latestOtp.createdAt).getTime() < RESEND_COOLDOWN_MS
-    ) {
-      throw new HttpError(
-        429,
-        "Please wait 30 seconds before requesting another code.",
-        "RATE_LIMITED",
-      );
-    }
-
-    const user = await authRepository.findByEmail(normalizedEmail);
-
-    if (user && user.status !== "blocked") {
-      await issuePasswordResetOtp(user);
-    }
-
-    return {
-      success: true,
-
-      message: "If an account exists, a verification code has been sent.",
-    };
-  },
-
   /**
    * Admin: invites a teammate. Creates the account in "invited" state with no usable password,
    * stores only the SHA-256 hash of a single-use token, and emails the accept-invite link.
@@ -512,6 +497,27 @@ export const authService = {
       success: true,
       message: 'Your password has been reset successfully. Please log in with your new password.',
     };
+  },
+
+  async revokeUserSessions(userId: string) {
+    const user = await authRepository.findById(userId);
+    if (!user) return;
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+  },
+
+  async changePassword(userId: string, input: Pick<ChangePasswordInput, 'currentPassword' | 'newPassword'>) {
+    const user = await authRepository.findByIdWithPassword(userId);
+    if (!user || user.status !== 'active') {
+      throw new HttpError(401, 'Authentication required.', 'UNAUTHENTICATED');
+    }
+    if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+      throw new HttpError(400, 'Current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
+    }
+    user.passwordHash = await bcrypt.hash(input.newPassword, 12);
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+    return { changed: true };
   },
 };
  

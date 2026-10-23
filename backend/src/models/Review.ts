@@ -4,9 +4,9 @@ const ReviewSchema = new Schema(
   {
     customerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     customerName: { type: String, required: true, trim: true, maxlength: 100 },
-    customerEmail: { type: String, required: true, trim: true, lowercase: true, maxlength: 254 },
+    customerEmail: { type: String, trim: true, lowercase: true, maxlength: 254 },
     rating: { type: Number, required: true, min: 1, max: 5 },
-    message: { type: String, required: true, trim: true, minlength: 20, maxlength: 2000 },
+    message: { type: String, trim: true, maxlength: 2000, default: '' },
     status: { type: String, required: true, enum: ['pending', 'approved', 'rejected'], default: 'pending', index: true },
     /**
      * Service details page (n04). Both links are optional so the existing site-wide testimonials
@@ -15,6 +15,9 @@ const ReviewSchema = new Schema(
      */
     serviceId: { type: Schema.Types.ObjectId, ref: 'Service' },
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
+    partnerId: { type: Schema.Types.ObjectId, ref: 'Partner', index: true },
+    tags: { type: [{ type: String, trim: true }], default: [] },
+    visible: { type: Boolean, default: true },
     /** Set by the server only: true when the review comes from a completed booking of this service. */
     verified: { type: Boolean, default: false },
   },
@@ -26,6 +29,12 @@ ReviewSchema.index({ createdAt: -1 });
 ReviewSchema.index({ serviceId: 1, status: 1, createdAt: -1 });
 /** One review per booking. Partial, so reviews without a booking are never constrained. */
 ReviewSchema.index({ bookingId: 1 }, { unique: true, partialFilterExpression: { bookingId: { $type: 'objectId' } } });
+ReviewSchema.pre('validate', function () {
+  if (this.bookingId) {
+    this.status = 'approved';
+    this.visible = true;
+  }
+});
 
 export type Review = InferSchemaType<typeof ReviewSchema> & { _id: Types.ObjectId };
 export const ReviewModel = model('Review', ReviewSchema);

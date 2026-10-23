@@ -37,6 +37,15 @@ function logo(): { src?: string; attachments: Mail.Attachment[] } {
   return { attachments: [] }; // falls back to a text wordmark
 }
 
+const escapeHtml = (value: string) =>
+  value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]!);
+
 export const mailService = {
   async sendAccountCreatedEmail(data: Omit<AccountCreatedEmailData, 'loginUrl' | 'profileUrl' | 'logoSrc' | 'supportEmail'>) {
     const frontendUrl = process.env.FRONTEND_URL
@@ -113,6 +122,19 @@ export const mailService = {
       text,
       html,
       attachments,
+    });
+  },
+
+  async sendStaffInviteEmail(data: { name: string; email: string; inviteUrl: string; invitedBy?: string }) {
+    const inviter = data.invitedBy ? ` invited by ${escapeHtml(data.invitedBy)}` : '';
+    const safeUrl = escapeHtml(data.inviteUrl);
+    const safeName = escapeHtml(data.name);
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to: data.email,
+      subject: 'You are invited to HomeCareX',
+      text: `Hello ${data.name}, you have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}. Accept your invitation: ${data.inviteUrl}`,
+      html: `<p>Hello ${safeName},</p><p>You have been invited to join HomeCareX${inviter}.</p><p><a href="${safeUrl}">Accept invitation</a></p>`,
     });
   },
 };
