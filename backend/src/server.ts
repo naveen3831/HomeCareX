@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
+
 import app from './app';
 import { initSockets } from './sockets';
 import { registerEarningsListeners } from './modules/earnings/earnings.listener';
@@ -11,93 +12,166 @@ import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
-// CHECK THIS PATH: startReferralWorker is used below but its import was lost.
-// Search the backend for "export const startReferralWorker" (or "function") and fix the path.
 import { startReferralWorker } from './modules/referrals/referrals.worker';
 
 const server = http.createServer(app);
+
+// Initialize Socket.IO once for this HTTP server.
 initSockets(server);
 
 const PORT = Number(process.env.PORT) || 5000;
 
 let stopReferralWorker: (() => void) | undefined;
+let isShuttingDown = false;
 
-/** Non-critical default data. A failure here is logged but must not stop the server. */
-const seedDefaults = async () => {
+/**
+ * Non-critical default data.
+ * A failure here is logged but does not stop the server.
+ */
+const seedDefaults = async (): Promise<void> => {
   try {
     const added = await seedDefaultSettings();
-    if (added) console.log(`Seeded ${added} default setting(s)`);
+
+    if (added) {
+      console.log(`Seeded ${added} default setting(s)`);
+    }
+
     await seedDefaultDesignations();
 
-    const freshCatalog = (await ServiceModel.estimatedDocumentCount()) === 0;
+    const freshCatalog =
+      (await ServiceModel.estimatedDocumentCount()) === 0;
+
     await seedDefaultCategories();
     await seedDefaultServices();
-    if (freshCatalog) await upsertCatalogSeed();
+
+    if (freshCatalog) {
+      await upsertCatalogSeed();
+    }
   } catch (error) {
     console.error('[seed] Default seeding failed:', error);
   }
 };
 
-const startServer = async () => {
+/**
+ * Connects to MongoDB and starts the HTTP server exactly once.
+ */
+const startServer = async (): Promise<void> => {
   try {
-    await mongoose.connect(process.env.DATABASE_URL as string);
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      throw new Error('DATABASE_URL is not configured');
+    }
+
+    await mongoose.connect(databaseUrl);
     console.log('Connected to MongoDB');
 
-    server.listen(PORT, () => {
-      console.log(`HomeCareX server running on port ${PORT}`);
-    });
+    // Register application listeners after MongoDB is ready.
+    console.log('[earnings] Registering earnings listeners...');
+    registerEarningsListeners();
+    console.log('[earnings] Earnings listener registration completed.');
 
-    stopReferralWorker = startReferralWorker((error) =>
+    // Start the referral reconciliation worker.
+    stopReferralWorker = startReferralWorker((error) => {
       console.error(
         '[referrals] Reward reconciliation failed; it will retry.',
         error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
+      );
+    });
 
-    registerEarningsListeners();
-
+    // Start the HTTP server exactly once.
     await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
+      const onError = (error: Error) => {
+        server.removeListener('listening', onListening);
+        reject(error);
+      };
 
-      server.listen(PORT, () => {
-        server.removeListener('error', reject);
-        console.log(`HomeCareX server running on port ${PORT}`);
+      const onListening = () => {
+        server.removeListener('error', onError);
         resolve();
-      });
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
+
+      server.listen(PORT);
     });
 
-    // Seed default data after the server starts.
-    void seedDefaults().catch((error) => {
-      console.error('[startup] Default seeding failed:', error);
-    });
+    console.log(`HomeCareX server running on port ${PORT}`);
+
+    // Seed default data without blocking the running server.
+    void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);
-    process.exitCode = 1;
+
+    stopReferralWorker?.();
+    stopReferralWorker = undefined;
+
+    if (server.listening) {
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
+    }
 
     if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close().catch(() => {});
+      await mongoose.connection.close().catch((closeError) => {
+        console.error(
+          '[startup] Failed to close MongoDB connection:',
+          closeError,
+        );
+      });
     }
 
     process.exitCode = 1;
   }
 };
 
+/**
+ * Gracefully shuts down the worker, HTTP server, and database.
+ */
 const shutdown = async (): Promise<void> => {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+
   console.log('Stopping server gracefully...');
+
   stopReferralWorker?.();
-  server.close(async () => {
-    try {
-      await mongoose.connection.close();
-      console.log('Database connection closed.');
-      process.exit(0);
-    } catch (error) {
-      console.error('Error during shutdown:', error);
-      process.exit(1);
+  stopReferralWorker = undefined;
+
+  try {
+    if (server.listening) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
     }
-  });
+
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+    }
+
+    console.log('Database connection closed.');
+    process.exitCode = 0;
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exitCode = 1;
+  }
 };
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+process.once('SIGTERM', () => {
+  void shutdown();
+});
+
+process.once('SIGINT', () => {
+  void shutdown();
+});
 
 void startServer();

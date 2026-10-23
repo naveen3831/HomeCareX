@@ -1,4 +1,3 @@
-
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
@@ -18,7 +17,8 @@ import { registerTicketSocket } from './ticket.socket';
  * - user:<id>
  * - role:<role>
  * - booking:<id> after successful booking:join authorization
- * - ticket:admin:<id> after successful ticket:join authorization
+ * - tracking:<id> after successful tracking:join authorization
+ * - ticket rooms through ticket.socket.ts
  */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -32,6 +32,7 @@ export type JoinAck =
   | { ok: false; code: ErrorCode; message: string };
 
 type AckFn = (res: JoinAck) => void;
+
 type TrackingSnapshot = {
   bookingId: string;
   status: string;
@@ -45,6 +46,7 @@ type TrackingSnapshot = {
     updatedAt: string | null;
   };
 };
+
 type TrackingJoinAck =
   | { ok: true; snapshot: TrackingSnapshot }
   | { ok: false; code: ErrorCode; message: string };
@@ -69,22 +71,71 @@ export const getIO = (): Server => {
   return io;
 };
 
+/**
+ * Returns the Socket.IO server if initialized.
+ */
 export const getIOIfReady = (): Server | null => io;
 
-export const emitToUser = (userId: string, event: string, payload: unknown) => getIO().to(rooms.user(userId)).emit(event, payload);
-export const emitToBooking = (bookingId: string, event: string, payload: unknown) =>
-  getIO().to(rooms.booking(bookingId)).emit(event, payload);
+/**
+ * Emits an event to a specific user's room.
+ */
+export const emitToUser = (
+  userId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(rooms.user(userId)).emit(event, payload);
 
-  return (
-    !!partner &&
-    !!(
+/**
+ * Emits an event to a specific booking's room.
+ */
+export const emitToBooking = (
+  bookingId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
+
+/**
+ * Checks whether the authenticated user can join a booking room.
+ *
+ * Customers can join their own bookings.
+ * Partners can join bookings assigned to them.
+ * Admins can join booking rooms.
+ */
+const canJoinBooking = async (
+  auth: AccessTokenPayload,
+  bookingId: string,
+): Promise<boolean> => {
+  if (auth.role === 'admin') {
+    return true;
+  }
+
+  if (auth.role === 'customer') {
+    return Boolean(
       await BookingModel.exists({
         _id: bookingId,
+        customerId: auth.sub,
+      }),
+    );
+  }
+
+  if (auth.role === 'partner') {
+    const partner = await PartnerModel.findOne({
+      userId: auth.sub,
+    })
+      .select('_id')
+      .lean();
+
+    return (
+      !!partner &&
+      !!(await BookingModel.exists({
+        _id: bookingId,
         partnerId: partner._id,
-      })
-    )
-  );
-}
+      }))
+    );
+  }
+
+  return false;
+};
 
 /**
  * Extracts an access token from the Socket.IO handshake.
@@ -155,7 +206,7 @@ export const initSockets = (server: HttpServer): Server => {
   io.on('connection', (socket) => {
     const auth = socket.data.auth as AccessTokenPayload;
 
-    // Automatically join the user's room and their role room.
+    // Automatically join the user's room and role room.
     void socket.join([
       rooms.user(auth.sub),
       rooms.role(auth.role),
@@ -224,57 +275,112 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
-    socket.on('tracking:join', async (payload: unknown, ack?: (result: TrackingJoinAck) => void) => {
-      const reply = typeof ack === 'function' ? ack : () => undefined;
-      const parsed = bookingPayload.safeParse(payload);
-      if (!parsed.success) {
-        return reply({ ok: false, code: ERROR_CODES.VALIDATION_ERROR, message: 'bookingId is required' });
-      }
-      if (auth.role !== 'customer') {
-        return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN, message: 'You cannot track this booking' });
-      }
-      try {
-        const ownsBooking = await BookingModel.exists({
-          _id: parsed.data.bookingId,
-          customerId: auth.sub,
-        });
-        if (!ownsBooking) {
-          return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN, message: 'You cannot track this booking' });
+    // --------------------------------------------------
+    // CUSTOMER TRACKING SOCKET EVENTS
+    // --------------------------------------------------
+
+    socket.on(
+      'tracking:join',
+      async (
+        payload: unknown,
+        ack?: (result: TrackingJoinAck) => void,
+      ) => {
+        const reply =
+          typeof ack === 'function' ? ack : () => undefined;
+
+        const parsed = bookingPayload.safeParse(payload);
+
+        if (!parsed.success) {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'bookingId is required',
+          });
         }
-        const booking = await BookingModel.findById(parsed.data.bookingId)
-          .select('status partnerId')
-          .lean<{ status: string; partnerId?: unknown }>();
-        if (!booking) {
-          return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN, message: 'You cannot track this booking' });
+
+        // Only customers may subscribe to booking tracking.
+        if (auth.role !== 'customer') {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.RESOURCE_FORBIDDEN,
+            message: 'You cannot track this booking',
+          });
         }
-        const location = await PartnerLocationModel.findOne({
-          bookingId: parsed.data.bookingId,
-        }).lean();
-        await socket.join(rooms.tracking(parsed.data.bookingId));
-        reply({
-          ok: true,
-          snapshot: {
+
+        try {
+          const ownsBooking = await BookingModel.exists({
+            _id: parsed.data.bookingId,
+            customerId: auth.sub,
+          });
+
+          if (!ownsBooking) {
+            return reply({
+              ok: false,
+              code: ERROR_CODES.RESOURCE_FORBIDDEN,
+              message: 'You cannot track this booking',
+            });
+          }
+
+          const booking = await BookingModel.findById(
+            parsed.data.bookingId,
+          )
+            .select('status partnerId')
+            .lean<{
+              status: string;
+              partnerId?: unknown;
+            }>();
+
+          if (!booking) {
+            return reply({
+              ok: false,
+              code: ERROR_CODES.RESOURCE_FORBIDDEN,
+              message: 'You cannot track this booking',
+            });
+          }
+
+          const location = await PartnerLocationModel.findOne({
             bookingId: parsed.data.bookingId,
-            status: booking.status,
-            partnerAssigned: Boolean(booking.partnerId),
-            location: {
-              sharing: location?.sharing ?? false,
-              lat: location?.lat ?? null,
-              lng: location?.lng ?? null,
-              accuracy: location?.accuracy ?? null,
-              heading: location?.heading ?? null,
-              updatedAt: location?.updatedAt?.toISOString() ?? null,
+          }).lean();
+
+          await socket.join(
+            rooms.tracking(parsed.data.bookingId),
+          );
+
+          return reply({
+            ok: true,
+            snapshot: {
+              bookingId: parsed.data.bookingId,
+              status: booking.status,
+              partnerAssigned: Boolean(booking.partnerId),
+              location: {
+                sharing: location?.sharing ?? false,
+                lat: location?.lat ?? null,
+                lng: location?.lng ?? null,
+                accuracy: location?.accuracy ?? null,
+                heading: location?.heading ?? null,
+                updatedAt:
+                  location?.updatedAt?.toISOString() ?? null,
+              },
             },
-          },
-        });
-      } catch {
-        reply({ ok: false, code: ERROR_CODES.INTERNAL_ERROR, message: 'Could not join tracking' });
-      }
-    });
+          });
+        } catch {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.INTERNAL_ERROR,
+            message: 'Could not join tracking',
+          });
+        }
+      },
+    );
 
     socket.on('tracking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
-      if (parsed.success) void socket.leave(rooms.tracking(parsed.data.bookingId));
+
+      if (parsed.success) {
+        void socket.leave(
+          rooms.tracking(parsed.data.bookingId),
+        );
+      }
     });
   });
 

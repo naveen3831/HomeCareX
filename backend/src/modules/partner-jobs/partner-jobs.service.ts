@@ -20,6 +20,7 @@ import type {
   JobRequestDto,
 } from "./partner-jobs.types";
 import { ensurePartnerProfile } from "../partners/partners.service";
+import { emitJobCompleted } from "../events/eventBus";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
 
@@ -36,7 +37,7 @@ export const maskPhone = (phone?: string): string | null => {
   const digits = (phone ?? "").replace(/\D/g, "");
   if (digits.length < 4) return null;
   return `${"*".repeat(6)}${digits.slice(-4)}`;
-};
+}
 
 /** Buttons the partner may press right now. Order follows the lifecycle. */
 export const actionsFor = (status: BookingStatus): JobActionDto[] => {
@@ -436,7 +437,6 @@ export const partnerJobsService = {
       );
     }
 
-    // Validate with the shared state machine on a throw-away copy; 409 from the machine becomes 422 here.
     const probe = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
@@ -580,6 +580,18 @@ export const partnerJobsService = {
     const fresh = await repo.findBooking(bookingId);
     if (!fresh)
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+
+    // Emit only after the database confirms the booking was completed.
+    // Use the persisted booking values and the Partner._id, not the user id.
+    const gross = Number(fresh.priceBreakdown?.total ?? 0);
+
+    emitJobCompleted({
+      bookingId: fresh._id.toString(),
+      partnerId: partner._id.toString(),
+      gross,
+      completedAt: entry.at,
+    });
+
     return buildDetail(fresh);
   },
 
@@ -664,7 +676,6 @@ export const partnerJobsService = {
     };
   },
 
-
   /** PATCH /partner/jobs/:id/checklist/:itemId */
   async updateChecklistItem(
     userId: string,
@@ -693,4 +704,3 @@ export const partnerJobsService = {
     return { checklist };
   },
 };
-  
