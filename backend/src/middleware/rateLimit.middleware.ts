@@ -11,7 +11,7 @@ export interface RateLimitOptions {
 export const rateLimit = ({ windowMs, max, keyGenerator }: RateLimitOptions) => {
   const hits = new Map<string, { count: number; resetAt: number }>();
   return (req: Request, res: Response, next: NextFunction) => {
-    const key = keyGenerator ? keyGenerator(req) : `${req.ip}:${req.baseUrl}${req.path}`;
+    const key = keyGenerator?.(req) ?? `${req.ip}:${req.baseUrl}${req.path}`;
     const now = Date.now();
     const entry = hits.get(key);
     if (!entry || entry.resetAt <= now) {

@@ -13,6 +13,7 @@ const CouponSchema = new Schema(
       trim: true,
       minlength: 3,
       maxlength: 30,
+      index: true,
     },
 
     type: {
@@ -84,6 +85,7 @@ const CouponSchema = new Schema(
   },
 );
 
+CouponSchema.index({ code: 1 }, { unique: true });
 CouponSchema.index({ active: 1, startAt: 1, endAt: 1 });
 
 export const CouponModel = model('Coupon', CouponSchema);

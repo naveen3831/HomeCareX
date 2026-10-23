@@ -36,9 +36,3 @@ declare module 'jspdf' {
     output(type?: string): any;
   }
 }
-
-declare module 'axe-core' {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const axe: any;
-  export default axe;
-}
