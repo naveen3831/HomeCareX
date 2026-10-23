@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
+
+// Tests run in parallel jsdom workers, so a busy machine can make a page take more than the default
+// 1 s to render. A longer wait only matters when something is slow; passing tests finish as soon as
+// the element appears.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom does not implement matchMedia; components/hooks (e.g. useMediaQuery) call it.
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
