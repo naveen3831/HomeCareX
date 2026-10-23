@@ -10,7 +10,8 @@ export interface AdminNotification {
 
 export const NOTIFICATION_SOCKET_EVENT = 'notification:new';
 /** Types that must stand out in the bell (matches the backend HIGH_PRIORITY_TYPES). */
-export const isSos = (n: Pick<AdminNotification, 'type'>) => n.type === 'sos.alert';
+export const SOS_TYPES: readonly string[] = ['sos.alert', 'partner:sos'];
+export const isSos = (n: Pick<AdminNotification, 'type'>) => SOS_TYPES.includes(n.type);
 
 /** GET /notifications : the signed-in admin's own notifications, newest first, plus the unread count. */
 export async function fetchRecent(limit = 10): Promise<{ items: AdminNotification[]; unread: number }> {

@@ -24,6 +24,8 @@ export interface Ticket {
   /** Admin User._id handling it. */
   assignedTo?: Types.ObjectId | null;
   lastMessageAt: Date;
+  /** Set once admins have been told this ticket breached its SLA, so the sweep never alerts twice. */
+  slaBreachNotifiedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +41,7 @@ const TicketSchema = new Schema<Ticket>(
     priority: { type: String, enum: TICKET_PRIORITIES, default: 'normal' },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     lastMessageAt: { type: Date, default: Date.now },
+    slaBreachNotifiedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

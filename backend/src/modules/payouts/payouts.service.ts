@@ -9,6 +9,7 @@ import {
   PayoutRepositoryError,
 } from './payouts.repository';
 import { payoutsDemoRepository } from './payouts.demo.repository';
+import { alertPayoutFailed } from '../notifications/admin-alerts';
 
 export interface GeneratePayoutBatchInput {
   periodStart: string;
@@ -498,16 +499,32 @@ export class PayoutsService {
     const nextStatus = status;
 
     if (this.demoMode) {
-      try {
-        return await payoutsDemoRepository.updateStatus(
-          payoutId,
-          nextStatus,
-        );
-      } catch (error) {
-        mapRepositoryError(error);
-      }
+  try {
+    const demoUpdated = await payoutsDemoRepository.updateStatus(
+      payoutId,
+      nextStatus,
+    );
+
+    if (nextStatus === 'failed') {
+      const demoPartner = getPartner(
+        (demoUpdated as unknown as PayoutRecord).partnerId,
+      );
+      alertPayoutFailed({
+        payoutId,
+        amount: (demoUpdated as unknown as PayoutRecord).amount,
+        partnerId: demoPartner?._id ? String(demoPartner._id) : undefined,
+        partnerName: demoPartner?.name,
+        batchId: idToString(
+          (demoUpdated as unknown as PayoutRecord).batchId,
+        ),
+      });
     }
 
+    return demoUpdated;
+  } catch (error) {
+    mapRepositoryError(error);
+  }
+}
     const beforeResult = await PayoutModel.findById(payoutId).lean();
     const before = beforeResult as unknown as PayoutRecord | null;
 
@@ -637,6 +654,17 @@ export class PayoutsService {
       ip,
       result: 'Success',
     });
+
+    if (nextStatus === 'failed') {
+      const partner = getPartner(updated.partnerId);
+      alertPayoutFailed({
+        payoutId,
+        amount: updated.amount,
+        partnerId: partner?._id ? String(partner._id) : undefined,
+        partnerName: partner?.name,
+        batchId,
+      });
+    }
 
     return updated;
   }

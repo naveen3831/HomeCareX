@@ -20,7 +20,7 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
-
+import PartnerActiveJobPage from "../pages/partner/ActiveJob";
 import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
 
@@ -223,7 +223,8 @@ export default function PartnerRoutes() {
           path="jobs/:id/location"
           element={<PartnerLocationSharingPage />}
         />
-
+<Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
+<Route path="jobs/:id/active" element={<PartnerActiveJobPage />} />
         {/* =====================================================
             Catch-all Route
         ===================================================== */}

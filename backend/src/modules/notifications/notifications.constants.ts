@@ -14,6 +14,11 @@ export const NOTIFICATION_TYPES = [
   'system.announcement',
   /** A partner or customer pressed SOS. Admins see it highlighted in the bell and it can never be muted. */
   'sos.alert',
+  /** Admin-only alerts (live in the admin bell). Raised by the helpers in admin-alerts.ts. */
+  'kyc.submitted',
+  'refund.requested',
+  'payout.failed',
+  'sla.breach',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

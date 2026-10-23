@@ -10,6 +10,7 @@ import { seedDefaultCategories } from "./modules/categories/categories.service";
 import { seedDefaultServices } from "./modules/services/services.service";
 import { upsertCatalogSeed } from "./modules/catalog/catalog.seed";
 import { ServiceModel } from "./models/Service";
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
 import { ReferralCodeModel, ReferralModel } from './modules/referrals/referrals.model';
 import { WalletLedgerModel, WalletModel } from './models/Wallet';
@@ -28,6 +29,7 @@ const server = http.createServer(app);
 initSockets(server);
 const PORT = process.env.PORT || 5000;
 let stopReferralWorker = () => {};
+let stopSlaSweep = () => {};
 
 const connectDB = async () => {
   try {
@@ -58,6 +60,7 @@ const connectDB = async () => {
 connectDB().then(() => {
   stopReferralWorker = startReferralWorker(error => console.error('[referrals] Reward reconciliation failed; it will retry.', error instanceof Error ? error.message : 'Unknown error'));
   registerEarningsListeners();
+  stopSlaSweep = startSlaSweep();
   server.listen(PORT, () => {
     console.log(`HomeCareX server running on port ${PORT}`);
     // Seconds since the node process started, including loading all modules.
@@ -70,6 +73,7 @@ connectDB().then(() => {
 // Graceful shutdown
 const shutdown = async () => {
   stopReferralWorker();
+  stopSlaSweep();
   console.log("Stopping server gracefully...");
   server.close(async () => {
     await mongoose.connection.close();

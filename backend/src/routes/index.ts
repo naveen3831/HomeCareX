@@ -20,6 +20,7 @@ import { bookingsRoutes } from "../modules/bookings/bookings.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import { categoriesRoutes } from "../modules/categories/categories.routes";
 import { chatRoutes } from "../modules/chat/chat.routes";
+import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
 import {
   couponCustomerRoutes,
   couponsRoutes,
@@ -108,7 +109,7 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
-
+rootRouter.use("/partner/kyc", partnerKycRoutes);
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
 rootRouter.use("/customer/profile", customerProfileRoutes);
 rootRouter.use("/customer/preferences", customerPreferencesRoutes);

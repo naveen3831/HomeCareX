@@ -17,5 +17,16 @@ export const statusBodySchema = z
 
 export type StatusBody = z.infer<typeof statusBodySchema>;
 
+export const sosBodySchema = z
+  .object({
+    coordinates: z
+      .object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+export type SosBody = z.infer<typeof sosBodySchema>;
+
 export const isPartnerTarget = (value: string): value is PartnerJobTarget =>
   PARTNER_JOB_TARGETS.includes(value as PartnerJobTarget);

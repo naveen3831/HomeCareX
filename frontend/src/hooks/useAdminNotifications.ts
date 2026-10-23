@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getSocket } from '@/services/bookingSocket';
 import {
   fetchRecent,
@@ -14,6 +14,9 @@ export function useAdminNotifications(limit = 10) {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Latest list for the socket / click handlers, so they can tell "already have it" and "already read".
+  const itemsRef = useRef<AdminNotification[]>([]);
+  itemsRef.current = items;
 
   const refresh = useCallback(async () => {
     try {
@@ -33,8 +36,11 @@ export function useAdminNotifications(limit = 10) {
     const socket = getSocket();
     // A pushed row is added at once; a refetch (also on reconnect) keeps the count exact.
     const onNew = (n: AdminNotification) => {
-      setItems((cur) => (cur.some((x) => x.id === n.id) ? cur : [n, ...cur].slice(0, limit)));
-      setUnread((u) => u + 1);
+      // A redelivered row (reconnect) must not be counted twice.
+      if (!itemsRef.current.some((x) => x.id === n.id)) {
+        setItems((cur) => (cur.some((x) => x.id === n.id) ? cur : [n, ...cur].slice(0, limit)));
+        if (!n.readAt) setUnread((u) => u + 1);
+      }
       void refresh();
     };
     socket.on(NOTIFICATION_SOCKET_EVENT, onNew);
@@ -56,6 +62,9 @@ export function useAdminNotifications(limit = 10) {
   }, [refresh, limit]);
 
   const read = useCallback(async (id: string) => {
+    // Opening one that is already read changes nothing (no second decrement, no request).
+    const target = itemsRef.current.find((n) => n.id === id);
+    if (target?.readAt) return;
     setItems((cur) => cur.map((n) => (n.id === id && !n.readAt ? { ...n, readAt: new Date().toISOString() } : n)));
     setUnread((u) => Math.max(0, u - 1));
     try { await markRead(id); } catch { void refresh(); }

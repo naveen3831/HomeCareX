@@ -1,19 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Bell, BellRing, CalendarPlus, CheckCheck, ChevronRight, CircleDollarSign, LifeBuoy, RefreshCw, XCircle, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, Bell, BellRing, CheckCheck, ChevronRight, RefreshCw } from 'lucide-react';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { isSos, type AdminNotification } from '@/services/adminNotificationApi';
-
-const META: Record<string, { title: string; Icon: LucideIcon; tone: string }> = {
-  'sos.alert': { title: 'SOS alert', Icon: AlertTriangle, tone: 'bg-red-100 text-red-600' },
-  'booking.created': { title: 'New booking', Icon: CalendarPlus, tone: 'bg-indigo-100 text-indigo-600' },
-  'booking.cancelled': { title: 'Booking cancelled', Icon: XCircle, tone: 'bg-amber-100 text-amber-600' },
-  'ticket.reply': { title: 'New ticket reply', Icon: LifeBuoy, tone: 'bg-sky-100 text-sky-600' },
-  'refund.updated': { title: 'Refund updated', Icon: CircleDollarSign, tone: 'bg-emerald-100 text-emerald-600' },
-  'payment.failed': { title: 'Payment failed', Icon: CircleDollarSign, tone: 'bg-red-100 text-red-600' },
-};
-const metaOf = (type: string) =>
-  META[type] ?? { title: type.replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase()), Icon: Bell, tone: 'bg-gray-100 text-gray-600' };
+import { notificationMeta, notificationTarget } from '@/lib/adminNotificationMeta';
 
 function ago(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -39,9 +29,7 @@ export const AdminNotificationsPage: React.FC = () => {
 
   const open = (n: AdminNotification) => {
     void read(n.id);
-    const p = n.payload ?? {};
-    if (typeof p.ticketId === 'string') navigate('/admin/support');
-    else if (typeof p.bookingId === 'string' && !p.bookingId.startsWith('demo')) navigate('/admin/bookings');
+    navigate(notificationTarget(n));
   };
 
   const sosCount = items.filter(isSos).length;
@@ -75,17 +63,22 @@ export const AdminNotificationsPage: React.FC = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        {stats.map(({ label, value, Icon, tone }) => (
-          <div key={label} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:gap-4 sm:p-4">
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${tone}`}><Icon size={18} aria-hidden="true" /></span>
-            <div className="min-w-0">
-              <p className="text-xl font-bold leading-none text-slate-900 sm:text-2xl">{value}</p>
-              <p className="mt-1 truncate text-xs font-medium text-slate-500 sm:text-sm">{label}</p>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-4">
+  {stats.map(({ label, value, Icon, tone }) => (
+    <div
+      key={label}
+      className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2 py-3 text-center shadow-sm sm:flex-row sm:gap-4 sm:p-4 sm:text-left"
+    >
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 ${tone}`}>
+        <Icon size={18} aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-2xl font-bold leading-none text-slate-900">{value}</p>
+        <p className="mt-1 truncate text-[11px] font-medium text-slate-500 sm:text-sm">{label}</p>
       </div>
+    </div>
+  ))}
+</div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div role="tablist" aria-label="Filter notifications" className="flex gap-1 border-b border-slate-100 bg-slate-50/70 p-2">
@@ -126,7 +119,7 @@ export const AdminNotificationsPage: React.FC = () => {
         ) : (
           <ul className="divide-y divide-slate-100">
             {shown.map((n) => {
-              const { title, Icon, tone } = metaOf(n.type);
+              const { title, Icon, tone } = notificationMeta(n.type);
               const sos = isSos(n);
               const message = typeof n.payload?.message === 'string' ? n.payload.message : null;
               return (
@@ -135,10 +128,10 @@ export const AdminNotificationsPage: React.FC = () => {
                     type="button"
                     onClick={() => open(n)}
                     className={`group relative flex w-full items-start gap-3 px-4 py-4 text-left transition hover:bg-slate-50 sm:items-center sm:gap-4 sm:px-6 ${
-                      sos && !n.readAt ? 'bg-red-50/70 hover:bg-red-50' : !n.readAt ? 'bg-indigo-50/40' : ''
+                      sos && !n.readAt ? 'bg-red-50/70 hover:bg-red-50' : ''
                     }`}
                   >
-                    {!n.readAt && <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${sos ? 'bg-red-500' : 'bg-indigo-500'}`} />}
+                    {sos && !n.readAt && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-red-500" />}
                     <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${tone}`}>
                       <Icon size={19} aria-hidden="true" />
                     </span>

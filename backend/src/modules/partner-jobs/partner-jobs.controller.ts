@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
-import type { StatusBody } from "./partner-jobs.validation";
+import type { SosBody, StatusBody } from "./partner-jobs.validation";
 
 export const listPartnerJobs = asyncHandler(
   async (_req: Request, res: Response) => {
@@ -22,6 +22,15 @@ export const listJobRequests = asyncHandler(
   async (_req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
     sendSuccess(res, await partnerJobsService.listRequests(sub));
+  },
+);
+
+export const raiseJobSos = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const body = req.body as SosBody;
+    const result = await partnerJobsService.raiseSos(sub, req.params.id, body.coordinates);
+    sendSuccess(res, result, { message: "SOS sent to the admin team" });
   },
 );
 

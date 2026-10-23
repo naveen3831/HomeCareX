@@ -363,7 +363,9 @@
 .hcx-search-empty { padding: 10px 12px; font-size: 13px; color: var(--hcx-muted); }
 .hcx-bell { position: relative; }
 .hcx-bell__dot { position: absolute; top: 7px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--hcx-brand); border: 2px solid #fff; }
-.hcx-notif-panel { width: 300px; max-width: calc(100vw - 32px); padding: 4px 0; }
+.hcx-notif-panel { width: 300px; max-width: calc(100vw - 32px); padding: 4px 0; max-height: min(60vh, 420px);
+overflow-y: auto;
+overscroll-behavior: contain;}
 .hcx-notif-panel ul { list-style: none; margin: 0; padding: 0; }
 .hcx-notif-panel li button { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; padding: 10px 14px; border: 0; background: none; font-size: 13px; }
 .hcx-notif-panel li button:hover { background: var(--hcx-canvas); }
@@ -649,3 +651,8 @@
 @media (max-width: 768px) {
   html, body { overflow-x: clip !important; }
 }
+/* hide scrollbar but keep scrolling */
+.hcx-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.hcx-no-scrollbar::-webkit-scrollbar { display: none; }
+.hcx-notif-panel { scrollbar-width: none; -ms-overflow-style: none; }
+.hcx-notif-panel::-webkit-scrollbar { display: none; }

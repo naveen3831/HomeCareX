@@ -4,16 +4,7 @@ import { AlertTriangle, Bell } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAdminNotifications } from '@/hooks/useAdminNotifications';
 import { isSos, type AdminNotification } from '@/services/adminNotificationApi';
-
-const TITLES: Record<string, string> = {
-  'sos.alert': 'SOS alert',
-  'booking.created': 'New booking',
-  'booking.cancelled': 'Booking cancelled',
-  'ticket.reply': 'New ticket reply',
-  'refund.updated': 'Refund updated',
-  'payment.failed': 'Payment failed',
-};
-const title = (n: AdminNotification) => TITLES[n.type] ?? n.type.replace(/[._]/g, ' ');
+import { notificationMeta, notificationTarget } from '@/lib/adminNotificationMeta';
 
 function ago(iso: string): string {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
@@ -23,22 +14,23 @@ function ago(iso: string): string {
   return `${Math.round(m / 1440)} d ago`;
 }
 
-function target(n: AdminNotification): string {
-  const p = n.payload ?? {};
-  if (typeof p.bookingId === 'string' && p.bookingId && !p.bookingId.startsWith('demo')) return '/admin/bookings';
-  if (typeof p.ticketId === 'string') return '/admin/support';
-  return '/admin/notifications';
-}
+/** Unread SOS first, otherwise newest first (the server already sends newest first; sort is stable). */
+const withSosFirst = (items: AdminNotification[]) =>
+  [...items].sort((a, b) => Number(isSos(b) && !b.readAt) - Number(isSos(a) && !a.readAt));
 
-/** Admin bell: unread badge, recent list, mark read / all, live via socket. SOS rows are red and listed first. */
+/**
+ * Admin bell: unread badge, recent list, mark one / all read, live via the `notification:new` socket event.
+ * Clicking a row marks it read and opens its page (see notificationTarget). Unread SOS turns the badge red,
+ * lists first, and is announced to screen readers straight away.
+ */
 export const NotificationBell: React.FC = () => {
   const navigate = useNavigate();
   const { items, unread, error, refresh, read, readAll } = useAdminNotifications();
   const [open, setOpen] = useState(false);
   const ref = useClickOutside<HTMLDivElement>(open, () => setOpen(false));
-  const hasUnreadSos = items.some((n) => isSos(n) && !n.readAt);
-  // Unread SOS first, otherwise newest first.
-  const ordered = [...items].sort((a, b) => Number(isSos(b) && !b.readAt) - Number(isSos(a) && !a.readAt));
+  const unreadSos = items.filter((n) => isSos(n) && !n.readAt);
+  const hasUnreadSos = unreadSos.length > 0;
+  const ordered = withSosFirst(items);
 
   return (
     <div className="popover" ref={ref}>
@@ -46,12 +38,21 @@ export const NotificationBell: React.FC = () => {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="icon-btn hcx-bell"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}${hasUnreadSos ? ', SOS alert' : ''}`}
         aria-expanded={open}
       >
         <Bell size={20} />
-        {unread > 0 && <span className={`hcx-bell__count${hasUnreadSos ? ' hcx-bell__count--sos' : ''}`}>{unread > 9 ? '9+' : unread}</span>}
+        {unread > 0 && (
+          <span className={`hcx-bell__count${hasUnreadSos ? ' hcx-bell__count--sos' : ''}`} data-testid="bell-count">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
       </button>
+
+      {/* Announced the moment an SOS arrives, even with the panel closed. */}
+      <p role="alert" className="sr-only">
+        {hasUnreadSos ? `SOS alert: ${String(unreadSos[0].payload?.message ?? 'a partner needs help')}` : ''}
+      </p>
 
       {open && (
         <div className="popover__panel hcx-notif-panel hcx-notif-panel--wide">
@@ -74,11 +75,11 @@ export const NotificationBell: React.FC = () => {
                     onClick={() => {
                       void read(n.id);
                       setOpen(false);
-                      navigate(target(n));
+                      navigate(notificationTarget(n));
                     }}
                   >
                     <span>
-                      {isSos(n) && <AlertTriangle size={14} aria-hidden="true" />} {title(n)}
+                      {isSos(n) && <AlertTriangle size={14} aria-hidden="true" />} {notificationMeta(n.type).title}
                     </span>
                     {typeof n.payload?.message === 'string' && <em>{n.payload.message}</em>}
                     <small>{ago(n.createdAt)}</small>

@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { notifyAdmins } from "../notifications";
+import { alertRefundRequested } from "../notifications/admin-alerts";
 import { Types } from "mongoose";
 import { AppError } from "../../utils/AppError";
 import {
@@ -470,6 +471,7 @@ export const BookingService = {
           return bookingsRepository.create({
             customerId: new Types.ObjectId(customerId),
             serviceId: new Types.ObjectId(input.serviceId),
+             ...(row.categoryId ? { categoryId: row.categoryId } : {}),
             quantity: input.quantity,
             addOns: input.addOns.map((a) => ({
               addOnId: new Types.ObjectId(a.addOnId),
@@ -775,7 +777,7 @@ export const BookingService = {
     let refundStatus: CancellationSummary["refundStatus"] = "none";
     if (payment && quote.refundAmount > 0) {
       try {
-        await bookingsRepository.createRefundRequest({
+        const refund = await bookingsRepository.createRefundRequest({
           payment,
           bookingId,
           customerId,
@@ -784,6 +786,11 @@ export const BookingService = {
           now,
         });
         refundStatus = "requested";
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
       } catch {
         throw new AppError(
           500,
