@@ -137,7 +137,7 @@ function ReceiptDocument({ data }: { data: ReceiptData }) {
         <div className="flex flex-col items-start shrink-0">
           <div className="h-[clamp(38px,5.2vh,56px)] w-auto max-w-[200px] sm:max-w-[280px] flex items-center">
             <img
-              src={typeof logoImg === "string" ? logoImg : (logoImg as any)?.src || logoImg}
+              src={typeof logoImg === "string" ? logoImg : (logoImg as { src?: string })?.src || logoImg}
               alt="HomeCareX"
               loading="eager"
               decoding="sync"

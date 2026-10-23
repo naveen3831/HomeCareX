@@ -1,13 +1,20 @@
 import axios from "axios";
 import * as tokenStoreModule from "./tokenStore";
 
+type TokenSource = {
+  getAccessToken?: () => string | null;
+  getToken?: () => string | null;
+  get?: () => string | null;
+};
+
 /**
  * Resolves the authentication token from tokenStore or localStorage
  */
 function getAuthToken(): string | null {
   // 1. Try reading from project tokenStore module if available
   try {
-    const store = (tokenStoreModule as Record<string, any>).tokenStore || tokenStoreModule;
+    const mod = tokenStoreModule as unknown as { tokenStore?: TokenSource } & TokenSource;
+    const store: TokenSource = mod.tokenStore || mod;
     if (typeof store.getAccessToken === "function") return store.getAccessToken();
     if (typeof store.getToken === "function") return store.getToken();
     if (typeof store.get === "function") return store.get();

@@ -14,7 +14,6 @@ export function useMockAsync<T>(value: T, delayMs = 500): { data: T; loading: bo
     setLoading(true);
     const timer = setTimeout(() => setLoading(false), delayMs);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only when the delay changes, not on every mock-data identity change
   }, [delayMs]);
 
   return { data: value, loading };

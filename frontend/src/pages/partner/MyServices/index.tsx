@@ -38,7 +38,10 @@ export default function PartnerMyServicesPage() {
     useLoad<PartnerServices>(getPartnerServices);
   const online = useOnlineStatus();
   const [selectedOverride, setSelectedOverride] = useState<string[] | null>(null);
-  const selected = selectedOverride ?? data?.selectedIds ?? [];
+const selected = useMemo(
+  () => selectedOverride ?? data?.selectedIds ?? [],
+  [selectedOverride, data?.selectedIds],
+);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
