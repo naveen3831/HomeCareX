@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { SettingModel } from '../../models/Settings';
 import { Errors } from '../../utils/errors';
 import { auditService } from '../audit/audit.service';
@@ -121,7 +122,13 @@ export const settingsService = {
         changes.map(([key, value]) => ({
           updateOne: {
             filter: { key },
-            update: { $set: { value, description: SETTING_DEFAULTS[key].description, updatedBy: actor.id } },
+            update: {
+              $set: {
+                value,
+                description: SETTING_DEFAULTS[key].description,
+                updatedBy: new Types.ObjectId(actor.id),
+              },
+            },
             upsert: true,
           },
         })),

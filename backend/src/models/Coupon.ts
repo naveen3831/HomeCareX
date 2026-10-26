@@ -1,6 +1,6 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
-export const COUPON_TYPES = ['PERCENT', 'FLAT'] as const;
+export const COUPON_TYPES = ["PERCENT", "FLAT"] as const;
 export type CouponType = (typeof COUPON_TYPES)[number];
 
 const CouponSchema = new Schema(
@@ -13,7 +13,6 @@ const CouponSchema = new Schema(
       trim: true,
       minlength: 3,
       maxlength: 30,
-      index: true,
     },
 
     type: {
@@ -70,7 +69,7 @@ const CouponSchema = new Schema(
 
     categoryIds: {
       type: [Schema.Types.ObjectId],
-      ref: 'Category',
+      ref: "Category",
       default: [],
     },
 
@@ -85,9 +84,8 @@ const CouponSchema = new Schema(
   },
 );
 
-CouponSchema.index({ code: 1 }, { unique: true });
 CouponSchema.index({ active: 1, startAt: 1, endAt: 1 });
 
-export const CouponModel = model('Coupon', CouponSchema);
+export const CouponModel = model("Coupon", CouponSchema);
 
 export default CouponModel;

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import NotFound from '@/pages/public/NotFound';
 import { UnauthorizedPage } from '@/pages/public/Unauthorized/index';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
@@ -11,9 +12,11 @@ import * as AuthContextModule from '@/context/AuthContext';
 describe('Frontend 404 Page Not Found', () => {
   it('renders 404 status, heading, message, Go Home, and Browse Services links', () => {
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <NotFound />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     expect(document.title).toBe('404 - Page Not Found | HomeCareX');
@@ -42,9 +45,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     expect(document.title).toBe('403 - Access Denied | HomeCareX');
@@ -77,9 +82,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
@@ -105,9 +112,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
@@ -133,9 +142,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });

@@ -18,7 +18,7 @@ import type {
   JobListItemDto,
   JobRequestDto,
 } from "./partner-jobs.types";
-import { ensurePartnerProfile } from "../partners/partners.service";
+
 import { alertSos } from "../notifications/admin-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;

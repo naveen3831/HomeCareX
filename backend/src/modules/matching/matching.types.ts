@@ -1,1 +1,1 @@
-export interface MatchingTypes {}
+export type MatchingTypes = Record<string, unknown>;

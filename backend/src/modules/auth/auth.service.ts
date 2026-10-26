@@ -22,7 +22,7 @@ import type {
   VerifyInviteInput,
   AcceptInviteInput,
 } from './auth.validation';
-import UserModel, { type UserRole } from '../../models/User';
+import { type UserRole } from '../../models/User';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 

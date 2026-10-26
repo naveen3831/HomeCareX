@@ -1,1 +1,1 @@
-export interface PayoutsTypes {}
+export type PayoutsTypes = Record<string, unknown>;

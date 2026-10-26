@@ -1,11 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-<<<<<<< HEAD
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-=======
-import { ArrowLeft } from 'lucide-react';
->>>>>>> origin/develop
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';
@@ -31,16 +27,13 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
   // Leave the admin sidebar visible on desktop (260px, or 68px when collapsed). On mobile the sidebar is off-canvas.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const collapsed = useUIStore((s) => s.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const left = isDesktop ? (collapsed ? 68 : 260) : 0;
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/develop
   if (!open) return null;
 
   return createPortal(
     <div className="hcx-fs" style={{ left }} ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-<<<<<<< HEAD
       <div className="hcx-fs__nav">
         {isDesktop && (
           <button type="button" className="hcx-fs__navbtn" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
@@ -51,8 +44,6 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
         <div className="hcx-fs__bellwrap"><NotificationBell /></div>
       </div>
 
-=======
->>>>>>> origin/develop
       <header className="hcx-fs__head">
         <button type="button" className="hcx-fs__back" onClick={onClose} title="Back (Esc)">
           <ArrowLeft size={18} aria-hidden /> <span>Back</span>

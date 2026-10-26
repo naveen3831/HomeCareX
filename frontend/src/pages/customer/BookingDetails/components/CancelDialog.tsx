@@ -81,7 +81,7 @@ function refundText(q: CancellationSummary): string {
     return "No refund is due based on the current cancellation calculation.";
   }
 
-  return `${rupees(q.refundAmount)} is the estimated refund to your original payment method, subject to payment-provider processing.`;
+  return `${rupees(q.refundAmount)} is the eligible refund amount. Upon approval by our admin team, it will be credited directly to your HomeCareX Wallet.`;
 }
 
 export default function CancelDialog({ bookingId, onClose }: Props) {
@@ -151,9 +151,9 @@ export default function CancelDialog({ bookingId, onClose }: Props) {
               {isValidAmount(cancellation.fee) && cancellation.fee > 0
                 ? `A ${rupees(cancellation.fee)} cancellation fee was applied. `
                 : "No cancellation fee was reported. "}
-              {cancellation.refundStatus === "requested" &&
+              {(cancellation.refundStatus === "requested" || cancellation.refundStatus === "PENDING_APPROVAL") &&
               isValidAmount(cancellation.refundAmount)
-                ? `Your ${rupees(cancellation.refundAmount)} refund request has been filed.`
+                ? `Your ${rupees(cancellation.refundAmount)} refund request has been filed and submitted for admin approval. Upon approval, it will be credited directly to your HomeCareX Wallet.`
                 : ""}
             </span>
           </p>
@@ -439,7 +439,7 @@ export default function CancelDialog({ bookingId, onClose }: Props) {
               />
             )}
             {isValidAmount(q.fee) && q.fee > 0
-              ? `Cancel · ${rupees(q.fee)} fee`
+              ? `Cancel and pay ${rupees(q.fee)} fee`
               : "Cancel booking"}
           </button>
         </div>

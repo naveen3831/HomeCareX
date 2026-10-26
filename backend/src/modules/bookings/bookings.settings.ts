@@ -1,4 +1,5 @@
 import { SLOT_CAPACITY } from './bookings.constants';
+import { getSetting } from '../settings';
 
 /**
  * Booking-related Settings. Slot capacity comes from the admin Settings page (`slots.capacityPerSlot`), so changing

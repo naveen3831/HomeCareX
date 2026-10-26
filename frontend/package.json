@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "test": "vitest",
     "e2e": "playwright test",
     "e2e:report": "playwright show-report"
@@ -52,6 +52,7 @@
     "autoprefixer": "^10.6.1",
     "axe-core": "^4.14.0",
     "compression": "^1.8.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^30.1.2",
     "postcss": "^8.5.28",
     "sharp": "^0.35.4",
