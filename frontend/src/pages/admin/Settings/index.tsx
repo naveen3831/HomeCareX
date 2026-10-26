@@ -13,6 +13,8 @@ import { SettingField } from './SettingField';
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+
+
 export const AdminSettingsPage: React.FC = () => {
   // Web keeps the original tab-strip design; phones use the filter dropdown below.
   const isMobile = useMediaQuery('(max-width: 767px)');

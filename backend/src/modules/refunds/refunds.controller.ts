@@ -28,50 +28,72 @@ export class RefundsController {
 
   async list(req: Request, res: Response) {
     const result = await refundsService.listRefunds({
-      status:
-        typeof req.query.status === 'string'
-          ? req.query.status as
-              | 'requested'
-              | 'approved'
-              | 'processed'
-              | 'rejected'
-          : undefined,
-
-      paymentId:
-        typeof req.query.paymentId === 'string'
-          ? req.query.paymentId
-          : undefined,
-
-      bookingId:
-        typeof req.query.bookingId === 'string'
-          ? req.query.bookingId
-          : undefined,
-
-      customerId:
-        typeof req.query.customerId === 'string'
-          ? req.query.customerId
-          : undefined,
-
-      search:
-        typeof req.query.search === 'string'
-          ? req.query.search
-          : undefined,
-
-      page:
-        typeof req.query.page === 'string'
-          ? Number(req.query.page)
-          : undefined,
-
-      limit:
-        typeof req.query.limit === 'string'
-          ? Number(req.query.limit)
-          : undefined,
+      status: typeof req.query.status === 'string' ? req.query.status : undefined,
+      paymentId: typeof req.query.paymentId === 'string' ? req.query.paymentId : undefined,
+      bookingId: typeof req.query.bookingId === 'string' ? req.query.bookingId : undefined,
+      customerId: typeof req.query.customerId === 'string' ? req.query.customerId : undefined,
+      search: typeof req.query.search === 'string' ? req.query.search : undefined,
+      page: typeof req.query.page === 'string' ? Number(req.query.page) : undefined,
+      limit: typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined,
     });
 
     res.status(200).json({
       success: true,
       data: result.items,
-      meta: result.pagination,
+      meta: {
+        ...result.pagination,
+        summaryCounts: result.summaryCounts,
+      },
+      summaryCounts: result.summaryCounts,
+    });
+  }
+
+  async getById(req: Request, res: Response) {
+    const refund = await refundsService.getRefundById(req.params.id);
+
+    res.status(200).json({
+      success: true,
+      data: refund,
+    });
+  }
+
+  async approve(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+
+    const refund = await refundsService.approveRefund({
+      refundId: req.params.id,
+      adminId: admin.id,
+      ip: getIp(req),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Refund approved and credited to customer wallet successfully',
+      data: refund,
+    });
+  }
+
+  async reject(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+
+    const rejectionReason =
+      typeof req.body.reason === 'string' && req.body.reason.trim()
+        ? req.body.reason.trim()
+        : typeof req.body.rejectionReason === 'string' && req.body.rejectionReason.trim()
+          ? req.body.rejectionReason.trim()
+          : '';
+
+    const refund = await refundsService.rejectRefund({
+      refundId: req.params.id,
+      rejectionReason,
+      adminId: admin.id,
+      ip: getIp(req),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Refund rejected successfully',
+      data: refund,
     });
   }
 
@@ -84,7 +106,9 @@ export class RefundsController {
       rejectionReason:
         typeof req.body.rejectionReason === 'string'
           ? req.body.rejectionReason
-          : undefined,
+          : typeof req.body.reason === 'string'
+            ? req.body.reason
+            : undefined,
       adminId: admin.id,
       ip: getIp(req),
     });

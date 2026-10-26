@@ -87,7 +87,7 @@ export class NotificationsService {
     const limit = options.limit ?? 50;
     const objectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
     const baseFilter = { userId };
-    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, unknown> = {
+    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, RegExp | { $in: string[] }> = {
       booking: /^booking\./,
       payment: { $in: ['payout.processed', 'refund.updated'] },
       partner: /^partner\./,

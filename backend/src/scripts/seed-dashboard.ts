@@ -70,7 +70,7 @@ async function upsertUser(
 async function upsertPartner(userId: Types.ObjectId, categories: Types.ObjectId[]) {
   await PartnerModel.updateOne(
     { userId },
-    { $set: { status: 'active', categories, ratingAvg: 4.7, ratingCount: 120 } },
+    { $set: { status: 'active', categories, ratingAvg: 4.7, ratingCount: 120, 'kyc.status': 'approved', trainingCompleted: true } },
     { upsert: true },
   );
   const doc = await PartnerModel.findOne({ userId }).select('_id').lean();

@@ -5,11 +5,18 @@ export const REFUND_REQUEST_STATUSES = [
   'approved',
   'processed',
   'rejected',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'CREDITED',
+  'REJECTED',
+  'NOT_REQUIRED',
+  'PROCESSING',
+  'CREDIT_FAILED',
 ] as const;
 
 export type RefundRequestStatus = (typeof REFUND_REQUEST_STATUSES)[number];
 
-export const REFUND_METHODS = ['RAZORPAY', 'WALLET'] as const;
+export const REFUND_METHODS = ['WALLET', 'RAZORPAY'] as const;
 
 export type RefundMethod = (typeof REFUND_METHODS)[number];
 
@@ -26,6 +33,7 @@ export interface IRefund extends Document {
   status: RefundRequestStatus;
 
   razorpayRefundId?: string;
+  walletTransactionId?: string;
 
   requestedBy?: Types.ObjectId;
   approvedBy?: Types.ObjectId;
@@ -88,19 +96,25 @@ const RefundSchema = new Schema<IRefund>(
     method: {
       type: String,
       enum: REFUND_METHODS,
-      default: 'RAZORPAY',
+      default: 'WALLET',
       required: true,
     },
 
     status: {
       type: String,
       enum: REFUND_REQUEST_STATUSES,
-      default: 'requested',
+      default: 'PENDING_APPROVAL',
       required: true,
       index: true,
     },
 
     razorpayRefundId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    walletTransactionId: {
       type: String,
       index: true,
       sparse: true,
@@ -149,7 +163,8 @@ RefundSchema.index({ status: 1, createdAt: -1 });
 RefundSchema.index({ customerId: 1, createdAt: -1 });
 RefundSchema.index({ bookingId: 1, createdAt: -1 });
 
+
 export const RefundModel: Model<IRefund> =
   (models.Refund as Model<IRefund>) ||
   model<IRefund>('Refund', RefundSchema);
-  
+export default RefundModel;

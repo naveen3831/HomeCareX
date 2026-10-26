@@ -117,6 +117,11 @@ const toCustomerReviewDto = (
   createdAt: new Date(r.createdAt).toISOString(),
 });
 
+interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
 export class ReviewsService {
   /**
    * Fail-safe audit helper. A logging failure must not make a successful review

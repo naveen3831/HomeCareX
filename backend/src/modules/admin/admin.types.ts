@@ -1,1 +1,1 @@
-export interface AdminTypes {}
+export type AdminTypes = Record<string, unknown>;

@@ -111,7 +111,7 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
-        ).toBe("home-cleaning");
+      ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");

@@ -7,6 +7,7 @@ import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
 import { emitJobCompleted } from "../events/eventBus";
 import { getIOIfReady, rooms } from "../../sockets";
+import { ensurePartnerProfile } from "../partners/partners.service";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -20,7 +21,7 @@ import type {
   JobListItemDto,
   JobRequestDto,
 } from "./partner-jobs.types";
-import { ensurePartnerProfile } from "../partners/partners.service";
+
 import { alertSos } from "../notifications/admin-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
@@ -32,7 +33,6 @@ export const maskName = (name?: string): string => {
   if (parts.length === 1) return parts[0];
   return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 };
-
 /** "+919876543210" -> "******3210" */
 export const maskPhone = (phone?: string): string | null => {
   const digits = (phone ?? "").replace(/\D/g, "");

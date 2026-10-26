@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 
 import { authenticate } from '../../middleware/auth.middleware';
@@ -14,7 +13,7 @@ export const refundsRoutes = Router();
 refundsRoutes.use(authenticate, requireAdmin);
 
 // GET /admin/refunds
-// Keep the existing admin access rules for viewing refunds.
+// View refund list with filters and summary counts.
 refundsRoutes.get(
   '/refunds',
   asyncHandler((req, res) =>
@@ -22,8 +21,17 @@ refundsRoutes.get(
   ),
 );
 
+// GET /admin/refunds/:id
+// Get single refund request details with full populated data.
+refundsRoutes.get(
+  '/refunds/:id',
+  asyncHandler((req, res) =>
+    refundsController.getById(req, res),
+  ),
+);
+
 // POST /admin/refunds
-// Creating a refund or wallet credit requires payments:refund.
+// Creating a manual refund requires payments:refund.
 refundsRoutes.post(
   '/refunds',
   requirePermission(PAYMENTS_REFUND),
@@ -32,8 +40,28 @@ refundsRoutes.post(
   ),
 );
 
+// POST /admin/refunds/:id/approve
+// Approving a refund and triggering wallet credit requires payments:refund.
+refundsRoutes.post(
+  '/refunds/:id/approve',
+  requirePermission(PAYMENTS_REFUND),
+  asyncHandler((req, res) =>
+    refundsController.approve(req, res),
+  ),
+);
+
+// POST /admin/refunds/:id/reject
+// Rejecting a refund requires payments:refund.
+refundsRoutes.post(
+  '/refunds/:id/reject',
+  requirePermission(PAYMENTS_REFUND),
+  asyncHandler((req, res) =>
+    refundsController.reject(req, res),
+  ),
+);
+
 // PATCH /admin/refunds/:id
-// Approving or rejecting a refund requires payments:refund.
+// Backward compatibility for approve/reject actions.
 refundsRoutes.patch(
   '/refunds/:id',
   requirePermission(PAYMENTS_REFUND),
