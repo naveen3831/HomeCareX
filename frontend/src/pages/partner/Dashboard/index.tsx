@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -12,6 +12,7 @@ import {
   Star,
   ThumbsUp,
   Wallet,
+  Wrench,
 } from "lucide-react";
 import KpiCard from "@/components/partner/KpiCard";
 import ActiveJobCard from "@/components/partner/ActiveJobCard";
@@ -23,6 +24,7 @@ import { usePartnerStatus } from "@/layouts/PartnerLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { partnerApi } from "@/services/partnerApi";
+import { getPartnerServices } from "../MyServices/myServices.api";
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -44,6 +46,7 @@ const ago = (iso: string) => {
 
 const QUICK_ACTIONS = [
   { label: "Job requests", to: "/partner/work/requests", icon: Briefcase },
+  { label: "My services", to: "/partner/services", icon: Wrench },
   { label: "Availability", to: "/partner/availability", icon: CalendarClock },
   { label: "Earnings", to: "/partner/earnings", icon: Wallet },
   { label: "Get support", to: "/partner/support", icon: Headset },
@@ -119,7 +122,26 @@ export default function PartnerDashboard() {
     retry: 1,
   });
 
+  const servicesQuery = useQuery({
+    queryKey: ["partner", "my-services"],
+    queryFn: () => getPartnerServices(),
+    retry: 1,
+  });
+
   const data = dashboard.data;
+
+  const assignedServicesList = useMemo(() => {
+    if (data?.assignedServices && data.assignedServices.length > 0) {
+      return data.assignedServices;
+    }
+    if (servicesQuery.data) {
+      const selected = new Set(servicesQuery.data.selectedIds);
+      return servicesQuery.data.approved
+        .filter((s) => selected.has(s.id))
+        .map((s) => ({ id: s.id, name: s.name }));
+    }
+    return [];
+  }, [data?.assignedServices, servicesQuery.data]);
 
   const openRequests = (requests.data ?? []).filter(
     (r) => !handled.includes(r.id),
@@ -164,7 +186,7 @@ export default function PartnerDashboard() {
       <div className="space-y-6">
         <ActiveJobCard job={data.activeJob} />
 
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           {QUICK_ACTIONS.map(({ label, to, icon: Icon }) => (
             <Link
               key={to}
@@ -237,6 +259,50 @@ export default function PartnerDashboard() {
                     />
                   ))}
                 </ul>
+              )}
+            </Card>
+
+            <Card
+              title="Assigned Services"
+              action={
+                <Link to="/partner/services" className="text-sm font-medium text-brand hover:underline">
+                  Manage services
+                </Link>
+              }
+            >
+              {servicesQuery.isPending && !data?.assignedServices ? (
+                <Skeleton className="h-20" />
+              ) : assignedServicesList.length > 0 ? (
+                <div>
+                  <div className="mb-3 flex items-center justify-between text-xs text-muted">
+                    <span>Services currently assigned to your partner account:</span>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200">
+                      {assignedServicesList.length} Active
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {assignedServicesList.map((svc) => (
+                      <div
+                        key={svc.id}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-canvas px-3 py-1.5 text-xs font-medium text-ink shadow-2xs transition hover:border-brand"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" aria-hidden="true" />
+                        <span>{svc.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-sm text-muted">No services assigned yet.</p>
+                  <Link
+                    to="/partner/services"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-[#ff8a3d] px-4 py-2 text-xs font-semibold text-white shadow-xs transition hover:bg-[#e0600f]"
+                  >
+                    <Wrench className="h-3.5 w-3.5" />
+                    Select & Configure Services
+                  </Link>
+                </div>
               )}
             </Card>
           </div>

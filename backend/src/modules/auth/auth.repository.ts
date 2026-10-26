@@ -19,6 +19,8 @@ export const authRepository = {
     }).select('+inviteTokenHash'),
   existsByEmailOrPhone: (email: string, phone?: string) =>
     UserModel.exists(phone ? { $or: [{ email }, { phone }] } : { email }),
+  create: (data: { name: string; email: string; phone?: string; passwordHash: string; role: string; referralCode?: string; gender?: string; avatar?: string; designation?: string }) =>
+    UserModel.create(data),
   create: (data: {
     name: string;
     email: string;

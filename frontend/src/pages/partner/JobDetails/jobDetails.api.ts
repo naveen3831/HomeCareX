@@ -4,9 +4,66 @@ import { MAX_PHOTO_BYTES, validatePhoto } from '@/lib/photoValidation';
 import { mapJob, mapJobListItemToJobDetails, getDefaultChecklistForService } from './jobDetails.mapper';
 import type { ApiJob, CompletionInput, ExtraChargeItem, JobDetails, StartVerification } from './jobDetails.types';
 import type { JobAction, JobStatus } from './jobStatus';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getPartnerServices } from '../MyServices/myServices.api';
 
 export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_mock_job_v1';
 export const MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
+
+export function getAssignedCatalogStorageKey(userId?: string): string {
+  const effectiveId = userId || (useAuthStore.getState().user as any)?.id;
+  return effectiveId
+    ? `homecarex_partner_assigned_services_v3_${effectiveId}`
+    : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
+}
+
+export function matchServiceToPartner(
+  jobServiceName: string,
+  partnerServices?: Array<{ id?: string; name?: string; slug?: string }>,
+): boolean {
+  if (!partnerServices || partnerServices.length === 0) {
+    return true;
+  }
+
+  const jobNorm = (jobServiceName || '').toLowerCase().trim();
+  if (!jobNorm) return false;
+
+  const KEYWORD_GROUPS: string[][] = [
+    ['spa', 'salon', 'massage', 'facial', 'therapy', 'beauty', 'waxing', 'manicure', 'pedicure'],
+    ['pest', 'termite', 'cockroach', 'gel treatment', 'bed bug', 'insect', 'rodent'],
+    ['ac', 'air condition', 'cooling', 'compressor', 'split ac', 'window ac'],
+    ['chimney', 'hob', 'kitchen', 'exhaust fan'],
+    ['bathroom', 'steam sanitization', 'toilet', 'tile', 'descaling'],
+    ['sofa', 'upholstery', 'carpet', 'shampoo', 'cushion', 'fabric'],
+    ['tank', 'water tank', 'sintex', 'over head tank', 'sump'],
+    ['washing machine', 'washer', 'dryer', 'laundry'],
+    ['refrigerator', 'fridge', 'freezer'],
+    ['deep home cleaning', 'deep clean', 'home clean', 'house clean', 'floor polish', 'marble', 'buffing', 'regular home cleaning', 'cleaning'],
+    ['plumbing', 'pipe', 'tap', 'leak', 'drain', 'water motor'],
+    ['electrical', 'switch', 'wiring', 'circuit', 'fan', 'fuse', 'socket'],
+    ['paint', 'whitewash', 'waterproofing', 'wall putty'],
+  ];
+
+  for (const svc of partnerServices) {
+    const sName = (svc.name || '').toLowerCase().trim();
+    const sSlug = (svc.slug || '').toLowerCase().replace(/[-_]/g, ' ').trim();
+
+    if (!sName && !sSlug) continue;
+
+    if (jobNorm.includes(sName) || sName.includes(jobNorm)) return true;
+    if (sSlug && (jobNorm.includes(sSlug) || sSlug.includes(jobNorm))) return true;
+
+    for (const group of KEYWORD_GROUPS) {
+      const jobMatchesGroup = group.some((kw) => jobNorm.includes(kw));
+      const svcMatchesGroup = group.some((kw) => sName.includes(kw) || sSlug.includes(kw));
+      if (jobMatchesGroup && svcMatchesGroup) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
 /** Demo start code. The real code is 4 digits too (see POST /partner/jobs/:id/verify-start). */
 export const DEMO_START_OTP = '1234';
 
@@ -200,10 +257,12 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
  * Catalog of assigned services for the partner.
  * Contains realistic services including At-Home Spa, Appliance Repair, and Cleaning.
  */
-export function createInitialAssignedServicesCatalog(): JobDetails[] {
+export function createInitialAssignedServicesCatalog(
+  partnerServices?: Array<{ id?: string; name?: string; slug?: string }>,
+): JobDetails[] {
   const started1h24m36sAgo = new Date(Date.now() - (1 * 3600 + 24 * 60 + 36) * 1000).toISOString();
 
-  return [
+  const candidatePool: JobDetails[] = [
     {
       id: 'BK-20418',
       bookingCode: '#BK-20418',
@@ -825,6 +884,63 @@ export function createInitialAssignedServicesCatalog(): JobDetails[] {
       ],
     },
   ];
+
+  if (!partnerServices || partnerServices.length === 0) {
+    return candidatePool;
+  }
+
+  // Filter pool strictly by the partner's assigned services
+  const filtered = candidatePool.filter((job) =>
+    matchServiceToPartner(job.service.name, partnerServices),
+  );
+
+  // For a newly registered/logged-in partner, completed services must start empty.
+  // Transform any matched mock completed job into an active assigned service
+  // so the partner doesn't see a fake past completed service that doesn't belong to them!
+  const sanitized: JobDetails[] = filtered.map((job): JobDetails => {
+    if (job.status === 'completed') {
+      return {
+        ...job,
+        status: 'assigned',
+        schedule: {
+          ...job.schedule,
+          scheduledAt: new Date(Date.now() + 3600 * 1000).toISOString(),
+          dateLabel: 'Today',
+          slot: '11:00 – 13:00',
+          startedAt: null,
+          startedTimeLabel: undefined,
+          completedAt: null,
+        },
+        actions: [{ status: 'en_route', label: 'On the way' }],
+        otpVerified: false,
+        history: [
+          {
+            status: 'assigned',
+            at: new Date().toISOString(),
+            actor: 'System',
+          },
+        ],
+      };
+    }
+    return job;
+  });
+
+  // Ensure every service assigned to the partner has at least one job in their catalog
+  for (const svc of partnerServices) {
+    const hasJob = sanitized.some((j) => matchServiceToPartner(j.service.name, [svc]));
+    if (!hasJob && svc.name) {
+      const generated = createInitialPartnerRouteMockJob(
+        `BK-${(svc.id || '99999').slice(-5)}`,
+        svc.name,
+      );
+      sanitized.push({
+        ...generated,
+        status: 'assigned',
+      });
+    }
+  }
+
+  return sanitized;
 }
 
 /**
@@ -918,46 +1034,70 @@ export function createInitialPartnerRouteMockJob(
   };
 }
 
-function loadAssignedCatalogFromStorage(): JobDetails[] {
+export function loadAssignedCatalogFromStorage(
+  userId?: string,
+  partnerServices?: Array<{ id?: string; name?: string; slug?: string }>,
+): JobDetails[] {
   try {
-    const raw = window.localStorage.getItem(MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY);
+    const key = getAssignedCatalogStorageKey(userId);
+    const raw = window.localStorage.getItem(key);
     if (!raw) {
-      const initial = createInitialAssignedServicesCatalog();
+      const initial = createInitialAssignedServicesCatalog(partnerServices);
       if (initial.length > 0) {
-        saveAssignedCatalogToStorage(initial);
+        saveAssignedCatalogToStorage(initial, userId);
       }
       return initial;
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      const initial = createInitialAssignedServicesCatalog();
+      const initial = createInitialAssignedServicesCatalog(partnerServices);
       if (initial.length > 0) {
-        saveAssignedCatalogToStorage(initial);
+        saveAssignedCatalogToStorage(initial, userId);
       }
       return initial;
     }
+
+    if (partnerServices && partnerServices.length > 0) {
+      const filtered = parsed.filter((item) =>
+        matchServiceToPartner(item.service?.name, partnerServices),
+      );
+      if (filtered.length === 0) {
+        const initial = createInitialAssignedServicesCatalog(partnerServices);
+        saveAssignedCatalogToStorage(initial, userId);
+        return initial;
+      }
+      if (filtered.length !== parsed.length) {
+        saveAssignedCatalogToStorage(filtered, userId);
+      }
+      return filtered;
+    }
+
     return parsed;
   } catch {
-    return createInitialAssignedServicesCatalog();
+    return createInitialAssignedServicesCatalog(partnerServices);
   }
 }
 
-function saveAssignedCatalogToStorage(list: JobDetails[]): JobDetails[] {
+export function saveAssignedCatalogToStorage(list: JobDetails[], userId?: string): JobDetails[] {
   try {
-    window.localStorage.setItem(MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY, JSON.stringify(list));
+    const key = getAssignedCatalogStorageKey(userId);
+    window.localStorage.setItem(key, JSON.stringify(list));
+    if (key !== MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY) {
+      window.localStorage.setItem(MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY, JSON.stringify(list));
+    }
   } catch {
     /* ignore storage quota errors */
   }
   return list;
 }
 
-function syncJobIntoCatalog(job: JobDetails): void {
-  const catalog = loadAssignedCatalogFromStorage();
+function syncJobIntoCatalog(job: JobDetails, userId?: string): void {
+  const catalog = loadAssignedCatalogFromStorage(userId);
   const idx = catalog.findIndex((item) => item.id.toLowerCase() === job.id.toLowerCase());
   if (idx >= 0) {
     const next = [...catalog];
     next[idx] = job;
-    saveAssignedCatalogToStorage(next);
+    saveAssignedCatalogToStorage(next, userId);
   }
 }
 
@@ -1099,21 +1239,50 @@ function loadMockJobFromStorage(requestedId?: string): JobDetails {
   return withStartVerification(loadRawMockJob(requestedId));
 }
 
-function saveMockJobToStorage(job: JobDetails): JobDetails {
+function saveMockJobToStorage(job: JobDetails, userId?: string): JobDetails {
   try {
     window.localStorage.setItem(MOCK_PARTNER_ROUTE_STORAGE_KEY, JSON.stringify(job));
-    syncJobIntoCatalog(job);
+    syncJobIntoCatalog(job, userId);
   } catch {
     /* ignore storage quota errors */
   }
   return job;
 }
 
-/** The partner's assigned services. Real mode: only bookings admin (or an accepted offer) assigned to this partner. */
-export async function fetchAssignedServices(): Promise<JobDetails[]> {
+export interface FetchAssignedServicesOptions {
+  userId?: string;
+  assignedServices?: Array<{ id?: string; name?: string; slug?: string }>;
+}
+
+/** The partner's assigned services. Real mode: only bookings assigned to this partner. */
+export async function fetchAssignedServices(
+  options?: FetchAssignedServicesOptions,
+): Promise<JobDetails[]> {
+  const effectiveUserId = options?.userId || (useAuthStore.getState().user as any)?.id;
+  let partnerServices = options?.assignedServices;
+
+  if (!partnerServices || partnerServices.length === 0) {
+    try {
+      const res = await getPartnerServices();
+      if (res?.approved && Array.isArray(res.selectedIds)) {
+        const selectedSet = new Set(res.selectedIds);
+        partnerServices = res.approved.filter((s) => selectedSet.has(s.id));
+      }
+    } catch {
+      // Ignore API error
+    }
+  }
+
   try {
     const res = await api.get<{ data: any[] }>('/partner/jobs?tab=all');
     if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
+      const mapped = res.data.data.map(mapJobListItemToJobDetails);
+      const filtered =
+        partnerServices && partnerServices.length > 0
+          ? mapped.filter((j) => matchServiceToPartner(j.service?.name, partnerServices))
+          : mapped;
+      saveAssignedCatalogToStorage(filtered, effectiveUserId);
+      return filtered;
       const mapped: JobDetails[] = (res.data.data as any[]).map((item) => mapJobListItemToJobDetails(item));
       saveAssignedCatalogToStorage(mapped);
       return mapped;
@@ -1121,14 +1290,14 @@ export async function fetchAssignedServices(): Promise<JobDetails[]> {
   } catch (err) {
     console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', err);
   }
-  return loadAssignedCatalogFromStorage();
+  return loadAssignedCatalogFromStorage(effectiveUserId, partnerServices);
 }
 
-export async function acceptAssignedService(bookingId: string): Promise<JobDetails> {
+export async function acceptAssignedService(bookingId: string, userId?: string): Promise<JobDetails> {
   // Real mode: admin already assigned this job to the partner, so "accept" only opens it. The server
   // moves it forward when the partner taps "On the way".
   if (!IS_MOCK_JOBS) return fetchJob(bookingId);
-  const catalog = loadAssignedCatalogFromStorage();
+  const catalog = loadAssignedCatalogFromStorage(userId);
   const target =
     catalog.find((item) => item.id === bookingId) ??
     createInitialPartnerRouteMockJob(bookingId);
@@ -1149,15 +1318,15 @@ export async function acceptAssignedService(bookingId: string): Promise<JobDetai
     ],
   };
 
-  return saveMockJobToStorage(acceptedJob);
+  return saveMockJobToStorage(acceptedJob, userId);
 }
 
-export async function declineAssignedService(bookingId: string): Promise<JobDetails[]> {
+export async function declineAssignedService(bookingId: string, userId?: string): Promise<JobDetails[]> {
   if (!IS_MOCK_JOBS) {
     await api.post(`/partner/jobs/${bookingId}/decline`, {});
-    return fetchAssignedServices();
+    return fetchAssignedServices({ userId });
   }
-  const catalog = loadAssignedCatalogFromStorage();
+  const catalog = loadAssignedCatalogFromStorage(userId);
   const next = catalog.map((item) =>
     item.id === bookingId
       ? {
@@ -1174,12 +1343,15 @@ export async function declineAssignedService(bookingId: string): Promise<JobDeta
         }
       : item,
   );
-  return saveAssignedCatalogToStorage(next);
+  return saveAssignedCatalogToStorage(next, userId);
 }
 
-export function resetAllAssignedServices(): JobDetails[] {
-  const freshCatalog = createInitialAssignedServicesCatalog();
-  saveAssignedCatalogToStorage(freshCatalog);
+export function resetAllAssignedServices(
+  userId?: string,
+  partnerServices?: Array<{ id?: string; name?: string; slug?: string }>,
+): JobDetails[] {
+  const freshCatalog = createInitialAssignedServicesCatalog(partnerServices);
+  saveAssignedCatalogToStorage(freshCatalog, userId);
   const defaultJob = createInitialPartnerRouteMockJob('BK-20418');
   try {
     window.localStorage.setItem(MOCK_PARTNER_ROUTE_STORAGE_KEY, JSON.stringify(defaultJob));
@@ -1189,15 +1361,19 @@ export function resetAllAssignedServices(): JobDetails[] {
   return freshCatalog;
 }
 
-export function resetMockPartnerJob(requestedId?: string): JobDetails {
-  const freshCatalog = createInitialAssignedServicesCatalog();
+export function resetMockPartnerJob(
+  requestedId?: string,
+  userId?: string,
+  partnerServices?: Array<{ id?: string; name?: string; slug?: string }>,
+): JobDetails {
+  const freshCatalog = createInitialAssignedServicesCatalog(partnerServices);
   const cleanId = requestedId && requestedId.trim() ? requestedId.trim() : 'BK-20418';
   const fresh = createInitialPartnerRouteMockJob(cleanId);
   const updatedCatalog = freshCatalog.map((item) =>
     item.id === fresh.id ? fresh : item,
   );
-  saveAssignedCatalogToStorage(updatedCatalog);
-  return saveMockJobToStorage(fresh);
+  saveAssignedCatalogToStorage(updatedCatalog, userId);
+  return saveMockJobToStorage(fresh, userId);
 }
 
 export async function fetchJob(id: string): Promise<JobDetails> {

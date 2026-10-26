@@ -34,6 +34,24 @@ partnerJobsRoutes.get(
   listPartnerJobs,
 );
 
+// GET /api/v1/partner/jobs/assigned
+partnerJobsRoutes.get(
+  "/assigned",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
+  listPartnerJobs,
+);
+
+// GET /api/v1/partner/jobs/requests
+partnerJobsRoutes.get(
+  "/requests",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
+  listJobRequests,
+);
+
 // GET /api/v1/partner/jobs/:id
 // Partner can access their own jobs only
 partnerJobsRoutes.get(
