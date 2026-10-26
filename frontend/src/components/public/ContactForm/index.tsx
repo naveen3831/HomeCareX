@@ -101,7 +101,7 @@ const ContactForm: React.FC = () => {
         city: values.city,
         message: values.message,
         source: 'contact',
-        recaptchaToken: captchaToken,
+        recaptchaToken: captchaToken || undefined,
       });
 
       setFeedback({

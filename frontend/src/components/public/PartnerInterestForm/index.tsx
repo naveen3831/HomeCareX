@@ -97,7 +97,7 @@ const PartnerInterestForm: React.FC = () => {
         city: values.city,
         skills: values.skills,
         source: 'partner',
-        recaptchaToken: captchaToken,
+        recaptchaToken: captchaToken || undefined,
       });
  
       setFeedback({
