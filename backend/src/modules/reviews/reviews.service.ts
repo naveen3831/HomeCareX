@@ -113,6 +113,16 @@ const toCustomerReviewDto = (
   createdAt: new Date(r.createdAt).toISOString(),
 });
 
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
+export class ReviewsService {
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 interface ReviewAuditActor {
   id: string;
   ip?: string;
@@ -775,6 +785,7 @@ export class ReviewsService {
 
     return review;
   }
+}
 
   async updateReviewStatus(
     id: string,

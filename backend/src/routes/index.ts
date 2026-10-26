@@ -140,6 +140,7 @@ rootRouter.use('/partner/jobs', partnerLocationRoutes);
 rootRouter.use('/partner/notifications', notificationsRoutes);
 
 // Bookings & Chat & Reviews
+rootRouter.use(bookingsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
 rootRouter.use('/bookings', chatRoutes);
 rootRouter.use(bookingsRoutes);
