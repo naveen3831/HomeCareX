@@ -494,6 +494,7 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
+  };
 
   const handleSignOut = async () => {
     try {

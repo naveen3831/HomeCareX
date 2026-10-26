@@ -35,6 +35,3 @@ export const bookingSettings = {
     };
   },
 };
-    return { windowHours: 4, feeAmount: 99 };
-  },
-};

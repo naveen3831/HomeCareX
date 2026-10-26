@@ -17,7 +17,6 @@ const PayoutSchema = new Schema(
     /** Added for the partner payouts page; all optional so older documents stay valid. */
     method: { type: String, enum: PAYOUT_METHODS },
     transactionId: { type: String, trim: true },
-    batchId: { type: Schema.Types.ObjectId, ref: 'PayoutBatch', index: true },
     expectedDate: { type: Date },
     failureReason: { type: String, trim: true },
   },

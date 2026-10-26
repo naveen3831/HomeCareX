@@ -22,6 +22,5 @@ authRoutes.get('/sessions', authMiddleware, authController.getSessions);
 authRoutes.delete('/sessions/:id', authMiddleware, authController.revokeSession);
 authRoutes.post('/logout-all', authMiddleware, authController.logoutAll);
 authRoutes.post('/revoke-user-sessions/:userId', authMiddleware, requireAdmin, authController.revokeUserSessions);
-authRoutes.post('/change-password', authRateLimit, authMiddleware, authController.changePassword);
 
 export default authRoutes;

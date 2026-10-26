@@ -53,7 +53,6 @@ export const registerSchema = z.object({
   accountNumber: z.string().optional(),
   ifsc: z.string().optional(),
   upiId: z.string().optional(),
-  skills: z.array(z.string()).optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -100,9 +99,9 @@ export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
     newPassword: strongPassword,
-    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password').optional(),
   })
-  .refine((d) => d.newPassword === d.confirmPassword, {
+  .refine((d) => d.confirmPassword === undefined || d.newPassword === d.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
@@ -111,26 +110,7 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 
-export type ChangePasswordInput = { currentPassword: string; newPassword: string; confirmPassword?: string };
-export const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password needs an uppercase letter')
-      .regex(/[0-9]/, 'Password needs a number')
-      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
-    confirmPassword: z.string().min(1, 'Please confirm your new password'),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
-  .refine((data) => data.newPassword !== data.currentPassword, {
-    message: 'New password cannot be the same as the current password',
-    path: ['newPassword'],
-  });
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const inviteStaffSchema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
@@ -156,33 +136,9 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
 export type VerifyInviteInput = z.infer<typeof verifyInviteSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
-
-/** Signed-in password change: current + new (same strength rules as register / reset). */
-export const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Enter your current password'),
-    newPassword: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password needs an uppercase letter')
-      .regex(/[0-9]/, 'Password needs a number')
-      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
-    confirmPassword: z.string().optional(),
-  })
-  .refine((d) => d.confirmPassword === undefined || d.confirmPassword === d.newPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
-  .refine((d) => d.currentPassword !== d.newPassword, {
-    message: 'New password must be different from your current password',
-    path: ['newPassword'],
-  });
-
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 /** Parses a body or throws a 400 with per-field details. */
 export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {

@@ -87,18 +87,6 @@ export const emitToUser = (userId: string, event: string, payload: unknown) =>
 export const emitToBooking = (bookingId: string, event: string, payload: unknown) =>
   getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
-/**
- * Decides whether an authenticated user may join a booking room.
- * - admin: any booking
- * - customer: only their own booking
- * - partner: only a booking assigned to them
- */
-export const emitToBooking = (
-  bookingId: string,
-  event: string,
-  payload: unknown,
-) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
-
 /** Customers: their own bookings. Partners: bookings assigned to them. Admins: any booking. */
 async function canJoinBooking(
   auth: AccessTokenPayload,
@@ -109,9 +97,6 @@ async function canJoinBooking(
   }
 
   if (auth.role === 'customer') {
-  if (auth.role === 'admin')
-    return !!(await BookingModel.exists({ _id: bookingId }));
-  if (auth.role === 'customer')
     return !!(await BookingModel.exists({
       _id: bookingId,
       customerId: auth.sub,
@@ -133,13 +118,6 @@ async function canJoinBooking(
   }
 
   return false;
-  const partner = await PartnerModel.findOne({ userId: auth.sub })
-    .select('_id')
-    .lean();
-  return (
-    !!partner &&
-    !!(await BookingModel.exists({ _id: bookingId, partnerId: partner._id }))
-  );
 }
 
 const tokenFrom = (socket: Socket): string | undefined => {
