@@ -29,6 +29,12 @@ export const bookingSettings = {
   },
 
   async getCancellationPolicy(): Promise<{ windowHours: number; feeAmount: number }> {
+    return {
+      windowHours: 2,
+      feeAmount: 50,
+    };
+  },
+};
     return { windowHours: 4, feeAmount: 99 };
   },
 };

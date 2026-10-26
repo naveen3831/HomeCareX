@@ -17,7 +17,6 @@ import './settings.css';
 
 // Which section shows comes from the URL: /partner/settings/:section (the sidebar links to each one).
 const SECTIONS = {
-  account: { blurb: 'Your profile details.' },
   notifications: { blurb: 'Choose how and when we contact you.' },
   privacy: { blurb: 'Control your location and how customers can reach you.' },
   security: { blurb: 'Keep your account safe.' },
@@ -88,8 +87,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 }
 
 export default function PartnerSettingsPage() {
-  const { user, logout } = useAuth();
-  const account = (user ?? {}) as { name?: string; email?: string; phone?: string };
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const { section } = useParams<{ section: string }>();
 
@@ -198,31 +196,6 @@ export default function PartnerSettingsPage() {
   const busy = (id: string) => pending.has(id);
 
   const body = (() => {
-    if (section === 'account') {
-      return (
-        <>
-          <div className="ps-list">
-            <div className="ps-field">
-              <span className="ps-field-label">Name</span>
-              <span className="ps-field-value">{account.name || '-'}</span>
-            </div>
-            <div className="ps-field">
-              <span className="ps-field-label">Email</span>
-              <span className="ps-field-value">{account.email || '-'}</span>
-            </div>
-            <div className="ps-field">
-              <span className="ps-field-label">Phone</span>
-              <span className="ps-field-value">{account.phone || '-'}</span>
-            </div>
-          </div>
-          <div className="ps-list ps-gap">
-            <LinkRow to="/partner/profile" label="Edit profile" hint="Name, phone and email are changed from your profile." />
-            <LinkRow to={PASSWORD_PATH} label="Change password" />
-          </div>
-        </>
-      );
-    }
-
     if (status === 'loading') {
       return (
         <div aria-busy="true" aria-hidden="true">

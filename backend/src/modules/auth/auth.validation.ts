@@ -32,6 +32,23 @@ export const registerSchema = z.object({
   referralCode: z.string().trim().optional(),
   role: z.enum(['customer', 'partner']).default('customer'),
   gender: z.enum(['male', 'female', 'other']).optional(),
+  dob: z.string().optional(),
+  avatar: z.string().optional(),
+  idProofType: z.string().optional(),
+  idProofNumber: z.string().optional(),
+  idProofDocument: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
+  addressProofDocument: z.string().optional(),
+  category: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  experienceYears: z.number().optional(),
+  serviceRadiusKm: z.number().optional(),
+  workingDays: z.array(z.string()).optional(),
+  workingHoursStart: z.string().optional(),
+  workingHoursEnd: z.string().optional(),
   accountHolder: z.string().optional(),
   accountNumber: z.string().optional(),
   ifsc: z.string().optional(),
@@ -72,6 +89,29 @@ export const resetPasswordSchema = z
     path: ['resetToken'],
   });
 
+const strongPassword = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password needs an uppercase letter')
+  .regex(/[0-9]/, 'Password needs a number')
+  .regex(/[^A-Za-z0-9]/, 'Password needs a special character');
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: strongPassword,
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    message: 'New password must be different from the current password',
+    path: ['newPassword'],
+  });
+
+export type ChangePasswordInput = { currentPassword: string; newPassword: string; confirmPassword?: string };
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
@@ -120,6 +160,29 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
 export type VerifyInviteInput = z.infer<typeof verifyInviteSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
+
+/** Signed-in password change: current + new (same strength rules as register / reset). */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: z
+      .string()
+      .min(8, 'Password must be at least 8 characters')
+      .regex(/[A-Z]/, 'Password needs an uppercase letter')
+      .regex(/[0-9]/, 'Password needs a number')
+      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
+    confirmPassword: z.string().optional(),
+  })
+  .refine((d) => d.confirmPassword === undefined || d.confirmPassword === d.newPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((d) => d.currentPassword !== d.newPassword, {
+    message: 'New password must be different from your current password',
+    path: ['newPassword'],
+  });
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 /** Parses a body or throws a 400 with per-field details. */
 export function parseBody<T extends z.ZodTypeAny>(schema: T, body: unknown): z.infer<T> {

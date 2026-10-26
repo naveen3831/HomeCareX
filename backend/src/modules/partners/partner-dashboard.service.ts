@@ -4,6 +4,8 @@ import { dayBounds } from '../../utils/dates';
 import { Errors } from '../../utils/errors';
 import type { ActiveJobDto, PartnerDashboardDto } from './partner-dashboard.types';
 import { partnerDashboardRepository as repo } from './partner-dashboard.repository';
+import { ensurePartnerProfile } from './partners.service';
+import ServiceModel from '../../models/Service';
 
 const percent = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
 const money = (n: number): number => Math.round(n * 100) / 100;
@@ -14,7 +16,15 @@ export const partnerDashboardService = {
    * @param requestedPartnerId optional client-supplied id; rejected unless it is the caller's own
    */
   async getDashboard(userId: string, requestedPartnerId?: string, now: Date = new Date()): Promise<PartnerDashboardDto> {
-    const partner = await repo.findPartnerByUserId(userId);
+    let partner = await repo.findPartnerByUserId(userId);
+    if (!partner) {
+      try {
+        await ensurePartnerProfile(userId);
+        partner = await repo.findPartnerByUserId(userId);
+      } catch {
+        // ignore
+      }
+    }
     if (!partner) throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, 'No partner profile found for this account');
 
     const partnerId = partner._id as Types.ObjectId;
@@ -39,6 +49,17 @@ export const partnerDashboardService = {
         }
       : null;
 
+    let assignedServices: Array<{ id: string; name: string }> = [];
+    const partnerServices = (partner as any).services;
+    if (Array.isArray(partnerServices) && partnerServices.length > 0) {
+      try {
+        const docs = await ServiceModel.find({ _id: { $in: partnerServices }, active: true }).select('name').lean();
+        assignedServices = docs.map((d) => ({ id: d._id.toString(), name: d.name }));
+      } catch {
+        // ignore
+      }
+    }
+
     return {
       newJobs,
       todayJobs,
@@ -48,6 +69,7 @@ export const partnerDashboardService = {
       acceptanceRate: percent(partner.stats?.offersAccepted ?? 0, partner.stats?.offersReceived ?? 0),
       completionRate: percent(partner.stats?.jobsCompleted ?? 0, partner.stats?.jobsAssigned ?? 0),
       activeJob,
+      assignedServices,
     };
   },
 };

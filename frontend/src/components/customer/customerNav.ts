@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   MapPin,
   Navigation,
+  ShieldCheck,
   Star,
   Ticket,
   User,
@@ -52,6 +53,7 @@ export const SIDEBAR_GROUPS: CustomerNavGroup[] = [
     items: [
       { label: "Addresses", to: customerPath("/addresses"), icon: MapPin },
       { label: "Profile", to: customerPath("/profile"), icon: User },
+      { label: "Account Security", to: customerPath("/security"), icon: ShieldCheck },
       { label: "Payments", to: customerPath("/payments"), icon: CreditCard },
       { label: "Wallet", to: customerPath("/wallet"), icon: Wallet },
       { label: "Reviews", to: customerPath("/reviews"), icon: Star },
@@ -75,6 +77,29 @@ export const BOTTOM_NAV_ITEMS: CustomerNavItem[] = [
   { label: "Categories", to: customerPath("/categories"), icon: LayoutGrid, end: true },
   { label: "Services", to: customerPath("/services"), icon: Wrench, end: true },
   { label: "Home", to: customerPath(), icon: Home, end: true },
+  {
+    label: "My Bookings",
+    to: customerPath("/bookings"),
+    icon: CalendarCheck,
+    // Live tracking is reached from a booking, so it stays under this tab.
+    alsoActiveFor: [customerPath("/tracking")],
+  },
+  {
+    label: "Profile",
+    to: customerPath("/profile"),
+    icon: User,
+    // Pages reached from the Profile menu keep the Profile tab lit. Notifications is NOT one of them
+    // (it belongs to the bell in the top bar), so it lights no tab.
+    alsoActiveFor: [
+      customerPath("/addresses"),
+      customerPath("/security"),
+      customerPath("/payments"),
+      customerPath("/wallet"),
+      customerPath("/reviews"),
+      customerPath("/support"),
+      customerPath("/referrals"),
+    ],
+  },
   { label: "My Bookings", to: customerPath("/bookings"), icon: CalendarCheck, end: true },
   { label: "Profile", to: customerPath("/profile"), icon: User, end: true },
 ];
@@ -103,6 +128,7 @@ export const PROFILE_ITEM_META: Record<string, { description: string; tint: Prof
   "My Bookings": { description: "Upcoming, completed & cancelled", tint: "indigo" },
   "Active Booking": { description: "Track your partner live", tint: "orange" },
   Addresses: { description: "Where we should come", tint: "sky" },
+  "Account Security": { description: "Password, sessions & devices", tint: "violet" },
   Payments: { description: "Payment methods & receipts", tint: "emerald" },
   Wallet: { description: "Balance & cashback", tint: "amber" },
   Reviews: { description: "Your ratings & feedback", tint: "rose" },

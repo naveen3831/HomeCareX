@@ -87,6 +87,18 @@ const seedDefaults = async (): Promise<void> => {
  */
 const startServer = async (): Promise<void> => {
   try {
+    await mongoose.connect(process.env.DATABASE_URL as string);
+    console.log('Connected to MongoDB');
+
+    // Start listening exactly once.
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+
+      server.listen(PORT, () => {
+        server.removeListener('error', reject);
+        console.log(`HomeCareX server running on port ${PORT}`);
+        resolve();
+      });
     await timed('mongo connect', async () => {
       if (!process.env.DATABASE_URL) {
         throw new Error('DATABASE_URL is missing from your environment.');
@@ -108,6 +120,19 @@ const startServer = async (): Promise<void> => {
     });
 
     // Start the HTTP server exactly once.
+    // Seed default data after the server starts.
+    void seedDefaults().catch((error) => {
+      console.error('[startup] Default seeding failed:', error);
+    });
+  } catch (error) {
+    console.error('[startup] Failed to start HomeCareX:', error);
+    process.exitCode = 1;
+
+    stopReferralWorker?.();
+
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close().catch(() => {});
+    }
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(PORT, () => {

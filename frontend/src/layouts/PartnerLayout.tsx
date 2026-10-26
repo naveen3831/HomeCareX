@@ -38,6 +38,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Shield,
+  ShieldAlert,
   Globe,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -178,7 +179,9 @@ export const NAV: NavItem[] = [
     ],
   },
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
+  { key: "security", label: "Account Security", to: "/partner/security", icon: Shield },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
+  { key: "safety", label: "Safety", to: "/partner/safety", icon: ShieldAlert },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
   {
     key: "system",
@@ -216,6 +219,10 @@ export const NAV: NavItem[] = [
         to: "/partner/settings/other",
         icon: Globe,
       },
+      { key: "settings-notifications", label: "Notifications", to: "/partner/settings/notifications", icon: Bell },
+      { key: "settings-privacy", label: "Privacy", to: "/partner/settings/privacy", icon: MapPin },
+      { key: "settings-security", label: "Security", to: "/partner/settings/security", icon: Shield },
+      { key: "settings-other", label: "Other", to: "/partner/settings/other", icon: Globe },
     ],
   },
 ];
@@ -245,11 +252,14 @@ const PAGE_TITLES: Record<string, string> = {
   "/partner/earnings": "Earnings",
   "/partner/jobs": "My Jobs",
   "/partner/jobs/requests": "Job Requests",
+  "/partner/security": "Account Security",
 };
 
 const EXTRA_TITLES: Record<string, string> = {
+  "/partner/security": "Account Security",
   "/partner/incentives": "Partner Incentives",
   "/partner/settings": "Settings",
+  "/partner/settings/security": "Account Security",
   "/partner/settings/security/password": "Change Password",
   "/partner/settings/security/sessions": "Active Sessions",
   "/partner/settings/security/history": "Login History",
@@ -401,7 +411,7 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
   },
   {
     groupName: "Account",
-    keys: ["profile", "support", "help", "system"],
+    keys: ["profile", "support", "safety", "help", "system"],
   },
 ];
 
@@ -460,7 +470,6 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
-  };
 
   const handleSignOut = async () => {
     try {

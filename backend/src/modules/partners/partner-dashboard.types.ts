@@ -61,4 +61,6 @@ export interface PartnerDashboardDto {
   acceptanceRate: number;
   completionRate: number;
   activeJob: ActiveJobDto | null;
+  assignedServices?: Array<{ id: string; name: string }>;
+  categories?: string[];
 }

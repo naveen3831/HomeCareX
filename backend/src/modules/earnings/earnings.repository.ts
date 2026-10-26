@@ -4,6 +4,7 @@ import PartnerModel from '../../models/Partner';
 import SettingModel from '../../models/Settings';
 import BookingModel from '../../models/Booking';
 import { formatOffset } from '../../utils/dates';
+import { partnerWalletLedger } from '../partner-wallet/partner-wallet.ledger';
 import type { EarningStatus } from './earnings.constants';
 
 export interface NewEarning {
@@ -120,14 +121,38 @@ export const earningsRepository = {
     return setting && Number.isFinite(percent) ? percent / 100 : null;
   },
 
-  /** Plain insert. The unique index on bookingId rejects a duplicate with Mongo error 11000. */
+  /**
+   * Insert the earning, then its wallet ledger line (pending, +net). The unique index on bookingId rejects a
+   * duplicate with Mongo error 11000; on a duplicate we still make sure the ledger line exists, which repairs
+   * an earlier run that saved the earning but failed before crediting the wallet. The ledger write is idempotent.
+   */
   create: async (data: NewEarning) => {
-    const doc = await EarningModel.create({
-      ...data,
-      partnerId: new Types.ObjectId(data.partnerId),
-      bookingId: new Types.ObjectId(data.bookingId),
-      status: 'pending' as EarningStatus,
-    });
+    const credit = (earning: { _id: Types.ObjectId; net: number }) =>
+      partnerWalletLedger.creditEarning({
+        partnerId: data.partnerId,
+        earningId: String(earning._id),
+        bookingId: data.bookingId,
+        net: earning.net,
+      });
+
+    let doc;
+    try {
+      doc = await EarningModel.create({
+        ...data,
+        partnerId: new Types.ObjectId(data.partnerId),
+        bookingId: new Types.ObjectId(data.bookingId),
+        status: 'pending' as EarningStatus,
+      });
+    } catch (err) {
+      if ((err as { code?: number })?.code === 11000) {
+        const existing = await EarningModel.findOne({ bookingId: new Types.ObjectId(data.bookingId) })
+          .select('_id net')
+          .lean();
+        if (existing) await credit(existing);
+      }
+      throw err;
+    }
+    await credit(doc);
     return doc.toObject();
   },
 
