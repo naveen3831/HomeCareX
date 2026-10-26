@@ -21,8 +21,11 @@ export const bookingsRoutes = Router();
 
 // GET /services/:id/slots?date=YYYY-MM-DD
 bookingsRoutes.get(
-  '/services/:id/slots',
-  validationMiddleware({ params: getSlotsParamsSchema, query: getSlotsQuerySchema }),
+  ['/services/:id/slots', '/services/:serviceId/slots'],
+  validationMiddleware({
+    params: getSlotsParamsSchema,
+    query: getSlotsQuerySchema,
+  }),
   asyncHandler(async (req, res) => bookingsController.getSlots(req, res))
 );
 
@@ -71,7 +74,7 @@ bookingsRoutes.get(
 
 // GET /bookings/:id/cancel-preview — Fee and refund quote for cancellation
 bookingsRoutes.get(
-  '/bookings/:id/cancel-preview',
+  ['/bookings/:id/cancel-preview', '/bookings/:id/preview-cancellation', '/bookings/:id/cancel-quote'],
   authMiddleware,
   roleMiddleware('customer'),
   validationMiddleware({ params: getBookingParamsSchema }),
@@ -83,7 +86,10 @@ bookingsRoutes.post(
   '/bookings/:id/cancel',
   authMiddleware,
   roleMiddleware('customer'),
-  validationMiddleware({ params: getBookingParamsSchema, body: cancelBookingBodySchema }),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: cancelBookingBodySchema,
+  }),
   asyncHandler(async (req, res) => bookingsController.cancelBooking(req, res))
 );
 
@@ -92,7 +98,10 @@ bookingsRoutes.post(
   '/bookings/:id/reschedule',
   authMiddleware,
   roleMiddleware('customer'),
-  validationMiddleware({ params: getBookingParamsSchema, body: rescheduleBookingBodySchema }),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: rescheduleBookingBodySchema,
+  }),
   asyncHandler(async (req, res) => bookingsController.rescheduleBooking(req, res))
 );
 
@@ -101,9 +110,11 @@ bookingsRoutes.post(
   '/bookings/:id/extra-charges/:chargeId/decision',
   authMiddleware,
   roleMiddleware('customer'),
-  validationMiddleware({ params: extraChargeDecisionParamsSchema, body: extraChargeDecisionBodySchema }),
+  validationMiddleware({
+    params: extraChargeDecisionParamsSchema,
+    body: extraChargeDecisionBodySchema,
+  }),
   asyncHandler(async (req, res) => bookingsController.decideExtraCharge(req, res))
 );
-
 
 export default bookingsRoutes;

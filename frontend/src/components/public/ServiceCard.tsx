@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { safeAlt } from "@/lib/querySanitize";
 
 interface ServiceCardProps {
   id: string;
@@ -41,7 +42,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
 
           <img
             src={fallbackImage || image}
-            alt={name}
+            alt={safeAlt(name, "Service photo")}
             width={600}
             height={450}
             loading={priority ? "eager" : "lazy"}
@@ -97,9 +98,9 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
           </div>
         </div>
 
-        {/* View Details */}
+        {/* View Details (id is encoded so it can never break out of the path) */}
         <Link
-          to={`/services/${id}`}
+          to={`/services/${encodeURIComponent(id)}`}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#4338ca] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#3730a3]"
         >
           View Details

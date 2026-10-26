@@ -1,5 +1,4 @@
-import { CheckCircle2, MapPin, Navigation, XCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { CheckCircle2, MapPin, XCircle } from "lucide-react";
 
 import type { JobRequest } from "@/types/partner";
 
@@ -40,16 +39,7 @@ export default function JobOutcomeCard({ status, request, onDismiss }: Props) {
             {accepted ? "Accepted" : "Rejected"}
           </p>
 
-          {accepted ? (
-            <Link
-              to={`/partner/jobs/${request.id}`}
-              className="mt-1 block text-sm font-semibold text-ink hover:text-brand hover:underline"
-            >
-              {request.service}
-            </Link>
-          ) : (
-            <p className="mt-1 text-sm font-medium text-ink">{request.service}</p>
-          )}
+          <p className="mt-1 text-sm font-medium text-ink">{request.service}</p>
 
           {accepted ? (
             <>
@@ -67,22 +57,6 @@ export default function JobOutcomeCard({ status, request, onDismiss }: Props) {
               <p className="mt-1 text-sm font-semibold text-ink">
                 ₹{request.price.toLocaleString("en-IN")}
               </p>
-              {/* Opens navigation, live location, chat and the masked call for this booking. */}
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Link
-                  to={`/partner/jobs/${request.id}`}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded border border-line bg-white px-3 text-sm font-semibold text-ink hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  Job details
-                </Link>
-                <Link
-                  to={`/partner/jobs/${request.id}/navigation`}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded border border-line bg-white px-3 text-sm font-semibold text-brand hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  <Navigation size={15} aria-hidden="true" />
-                  Navigate to customer
-                </Link>
-              </div>
             </>
           ) : (
             <p className="mt-1 text-xs text-muted">

@@ -1114,7 +1114,7 @@ export async function fetchAssignedServices(): Promise<JobDetails[]> {
   try {
     const res = await api.get<{ data: any[] }>('/partner/jobs?tab=all');
     if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
-      const mapped = res.data.data.map(mapJobListItemToJobDetails);
+      const mapped: JobDetails[] = (res.data.data as any[]).map((item) => mapJobListItemToJobDetails(item));
       saveAssignedCatalogToStorage(mapped);
       return mapped;
     }

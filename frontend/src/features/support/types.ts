@@ -71,16 +71,23 @@ export interface TicketFilters {
   status?: TicketStatus;
   search?: string;
 }
-export const label = (value: string) =>
-  value === 'partner'
+export const label = (value?: string) => {
+  if (!value) return '';
+  return value === 'partner'
     ? 'Partner issues'
-    : value.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
-export const ticketRef = (id: string) => `TCK-${id.slice(-6).toUpperCase()}`;
-export const when = (value: string) =>
-  new Intl.DateTimeFormat('en-IN', {
+    : String(value).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
+};
+export const ticketRef = (id?: string) =>
+  id ? `TCK-${String(id).slice(-6).toUpperCase()}` : 'TCK-UNKNOWN';
+export const when = (value?: string) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(value));
+  }).format(d);
+};
 export const problem = (error: unknown) =>
   (error as { message?: string } | null)?.message ||
   'Could not complete the request. Please try again.';

@@ -11,6 +11,17 @@ import { FOCUS_RING } from "@/components/customer/focusRing";
 import { api } from "@/lib/api";
 import { loadRazorpayScript } from "@/features/payments/razorpayLoader";
 
+interface RazorpayCheckout {
+  open: () => void;
+  on: (event: string, handler: (response: RazorpayFailurePayload) => void | Promise<void>) => void;
+}
+
+type RazorpayConstructor = new (options: Record<string, unknown>) => RazorpayCheckout;
+
+interface WalletCache {
+  balance: number;
+}
+
 interface RazorpaySuccessPayload {
   razorpay_payment_id: string;
   razorpay_order_id: string;
@@ -99,7 +110,7 @@ export function AddMoneyModal({
 
     try {
       const isLoaded = await loadRazorpayScript();
-      const RazorpayConstructor = (window as unknown as { Razorpay: any })
+      const RazorpayConstructor = (window as unknown as { Razorpay?: RazorpayConstructor })
         .Razorpay;
 
       if (!isLoaded || !RazorpayConstructor) {
@@ -142,13 +153,13 @@ export function AddMoneyModal({
             const newBalance = verifyRes?.data?.balance;
 
             if (typeof newBalance === "number") {
-              queryClient.setQueriesData(
+              queryClient.setQueriesData<WalletCache>(
                 { queryKey: ["wallet"] },
-                (old: any) => (old ? { ...old, balance: newBalance } : old),
+                (old) => (old ? { ...old, balance: newBalance } : old),
               );
-              queryClient.setQueriesData(
+              queryClient.setQueriesData<WalletCache>(
                 { queryKey: ["customer", "wallet"] },
-                (old: any) => (old ? { ...old, balance: newBalance } : old),
+                (old) => (old ? { ...old, balance: newBalance } : old),
               );
             }
 

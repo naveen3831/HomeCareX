@@ -51,28 +51,13 @@ import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
 
-// -----------------------------------------------------------------------------
-// Online status storage (local to this file so it compiles on its own)
-// -----------------------------------------------------------------------------
-
-const PARTNER_ONLINE_STORAGE_KEY = "partner-online-status";
-
-function readStoredOnlineStatus(): boolean | null {
-  try {
-    const raw = window.localStorage.getItem(PARTNER_ONLINE_STORAGE_KEY);
-    return raw === null ? null : raw === "true";
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredOnlineStatus(value: boolean): void {
-  try {
-    window.localStorage.setItem(PARTNER_ONLINE_STORAGE_KEY, String(value));
-  } catch {
-    /* storage unavailable: ignore */
-  }
-}
+import {
+  getAvailability,
+  setOnline as setOnlineApi,
+  readStoredOnlineStatus,
+  writeStoredOnlineStatus,
+  PARTNER_ONLINE_STORAGE_KEY,
+} from '@/pages/partner/Availability/availability.api';
 
 // -----------------------------------------------------------------------------
 // Navigation
@@ -113,9 +98,7 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-
   { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
-
   {
     key: "availability",
     label: "Availability",
@@ -200,7 +183,6 @@ export const NAV: NavItem[] = [
       },
     ],
   },
-
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
   { key: "safety", label: "Safety", to: "/partner/safety", icon: ShieldAlert },
@@ -473,7 +455,7 @@ function PartnerSidebar({
     );
   };
 
-  const toggleItem = (key: string) =>
+  const toggleItem = (key: string) => {
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
@@ -538,7 +520,6 @@ function PartnerSidebar({
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group) => {
           const items = NAV.filter((n) => group.keys.includes(n.key));
-
           const isOpen = collapsed || openGroup === group.groupName;
 
           return (
@@ -674,7 +655,6 @@ function PartnerSidebar({
           onClick={() => navigate("/partner/profile")}
         >
           <span className="avatar">{displayName.charAt(0).toUpperCase()}</span>
-
           {!collapsed && <span className="profile-name">{displayName}</span>}
         </button>
 
@@ -685,7 +665,6 @@ function PartnerSidebar({
           onClick={handleSignOut}
         >
           <LogOut size={18} />
-
           {!collapsed && <span>Sign out</span>}
         </button>
       </div>
@@ -705,8 +684,22 @@ export default function PartnerLayout() {
   const setOnline = useCallback((next: boolean) => {
     setOnlineState(next);
     writeStoredOnlineStatus(next);
-    // TODO: re-connect your backend call here (the old setOnlineApi) once you
-    // know which service file exports it.
+    void setOnlineApi(next).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    void getAvailability()
+      .then((res) => {
+        if (mounted && typeof res?.isOnline === 'boolean') {
+          setOnlineState(res.isOnline);
+          writeStoredOnlineStatus(res.isOnline);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -721,9 +714,6 @@ export default function PartnerLayout() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-
-  // TODO: re-connect your old getAvailability() fetch and setMockPartnerOnline()
-  // sync here once you know their file paths.
 
   const [collapsedPref, setCollapsedPref] = useState(false);
   const [navVisible, setNavVisible] = useState(true);

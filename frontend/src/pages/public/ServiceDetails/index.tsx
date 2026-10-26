@@ -32,6 +32,7 @@ import {
 } from "@/hooks/useService";
 import Seo from "../../../components/common/Seo";
 import { breadcrumbLd, faqLd, serviceLd } from "../../../lib/jsonld";
+import { safeAlt, sanitizePathSegment } from "@/lib/querySanitize";
 import type { SlotAvailability } from "@/types/catalog";
 
 type TabId = "overview" | "included" | "faqs" | "reviews";
@@ -283,9 +284,14 @@ const pageWrap =
 /* ======================================================================
    Route component: reads the slug and remounts the page when it changes,
    so gallery, tab and FAQ state always start fresh for a new service.
+
+   The slug comes from the address bar, so it is checked first: a slug with
+   spaces, "..", markup or 100+ characters can never match a service, so we
+   show the not-found page without sending any request.
    ====================================================================== */
 const ServiceDetails: React.FC = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { slug: rawSlug } = useParams<{ slug: string }>();
+  const slug = sanitizePathSegment(rawSlug);
   if (!slug) return <NotFound />;
   return <ServiceDetailsPage key={slug} slug={slug} />;
 };
@@ -329,13 +335,20 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
   const lightboxCloseRef = useRef<HTMLButtonElement | null>(null);
 
   /* Images are picked from the service name (see IMAGE RULES above),
-     so the details page shows pictures that match the service. */
+     so the details page shows pictures that match the service.
+     Alt text is built from the service name, so it goes through safeAlt
+     (no markup, no control characters, capped length). */
   const allImages = service ? getServiceImages(service.name) : [];
 
   const photos = allImages
     .map((url, index) => ({
       url,
-      alt: service ? `${service.name} – photo ${index + 1}` : "",
+      alt: service
+        ? safeAlt(
+            `${service.name} – photo ${index + 1}`,
+            `Service photo ${index + 1}`,
+          )
+        : "",
     }))
     .filter((item) => !failed.includes(item.url));
 
@@ -829,7 +842,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
           </ul>
         </div>
 
-        {/* Review list */}
+        {/* Review list (author and comment are API strings: rendered as plain text only) */}
         <ul className="mt-5 space-y-4">
           {reviews.map((review) => (
             <li key={review.id}>
@@ -1019,10 +1032,10 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
               {total > 0 && (
                 <img
                   src={photos[selectedIndex].url}
-                  alt={
-                    photos[selectedIndex].alt ||
-                    `${service.name} – photo ${selectedIndex + 1} of ${total}`
-                  }
+                  alt={safeAlt(
+                    photos[selectedIndex].alt,
+                    `${service.name} – photo ${selectedIndex + 1} of ${total}`,
+                  )}
                   width={1280}
                   height={800}
                   loading="eager"
@@ -1117,7 +1130,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
                   >
                     <img
                       src={photo.url}
-                      alt={photo.alt || `${service.name} thumbnail ${index + 1}`}
+                      alt={safeAlt(photo.alt, `${service.name} thumbnail ${index + 1}`)}
                       width={96}
                       height={64}
                       loading="lazy"
@@ -1332,7 +1345,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
               {related.map((item) => (
                 <Link
                   key={item.id}
-                  to={`/services/${item.slug}`}
+                  to={`/services/${encodeURIComponent(item.slug)}`}
                   className={`group overflow-hidden rounded-[1.75rem] border border-[#e9ebf7] bg-white shadow-sm transition motion-safe:hover:-translate-y-1 hover:shadow-[0_20px_50px_rgba(17,16,79,0.14)] ${focusRing}`}
                 >
                   <div className="h-2 bg-gradient-to-r from-[#4338ca] to-[#6366f1]" />
@@ -1434,7 +1447,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
 
             <img
               src={lightboxPhoto.url}
-              alt={lightboxPhoto.alt || `${service.name} photo ${lightboxIndex + 1}`}
+              alt={safeAlt(lightboxPhoto.alt, `${service.name} photo ${lightboxIndex + 1}`)}
               onClick={(e) => e.stopPropagation()}
               className="max-h-full max-w-full rounded-3xl object-contain shadow-2xl"
             />

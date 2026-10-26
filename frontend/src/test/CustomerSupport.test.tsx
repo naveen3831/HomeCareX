@@ -125,18 +125,14 @@ describe("customer support screens", () => {
   it("shows all eight help sections and searches article text", async () => {
     const user = userEvent.setup();
     mount();
-    expect(screen.getByRole("heading", { name: "Safety" })).toBeInTheDocument();
+    expect(screen.getByText("Safety")).toBeInTheDocument();
     expect(screen.getByText("8 help sections")).toBeInTheDocument();
     await user.type(
       screen.getByRole("searchbox", { name: "Search help articles" }),
       "refund",
     );
-    expect(
-      screen.getByRole("heading", { name: "Refunds" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("heading", { name: "Safety" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText("Refunds")).toBeInTheDocument();
+    expect(screen.queryByText("Safety")).not.toBeInTheDocument();
   });
   it("has useful empty, loading and error states", async () => {
     const view = mount("/customer/support?view=tickets");

@@ -162,10 +162,12 @@ type MapState =
 function useJobPoint(job: LiveJob): MapState {
   const fromList =
     toPoint(job.location?.coordinates) ?? toPoint(job.coordinates);
+  // The effect only needs to know whether the list already has a point.
+  const hasListPoint = fromList !== null;
   const [looked, setLooked] = useState<MapState>({ kind: "loading" });
 
   useEffect(() => {
-    if (fromList) return;
+    if (hasListPoint) return;
     if (!GEOCODE_FALLBACK) {
       setLooked({ kind: "none" });
       return;
@@ -184,7 +186,7 @@ function useJobPoint(job: LiveJob): MapState {
     return () => {
       cancelled = true;
     };
-  }, [fromList?.lat, fromList?.lng, job.address]);
+  }, [hasListPoint, job.address]);
 
   return fromList ? { kind: "ready", point: fromList, approx: false } : looked;
 }
@@ -258,51 +260,50 @@ function JobMap({
     };
   }, []);
 
+  // Plain numbers keep the effect's dependency list exact.
+  const cLat = customer?.lat;
+  const cLng = customer?.lng;
+  const pLat = partner?.lat;
+  const pLng = partner?.lng;
+
   useEffect(() => {
     const map = mapRef.current;
     const layer = layerRef.current;
     if (!map || !layer) return;
     layer.clearLayers();
-    if (customer && partner) {
-      L.polyline(
-        [
-          [partner.lat, partner.lng],
-          [customer.lat, customer.lng],
-        ],
-        { color: "#0f766e", weight: 5, opacity: 0.9, lineCap: "round" },
-      ).addTo(layer);
-    }
-    if (customer) {
-      L.marker([customer.lat, customer.lng], {
-        icon: pinIcon,
-        keyboard: false,
+
+    const c: [number, number] | null =
+      cLat !== undefined && cLng !== undefined ? [cLat, cLng] : null;
+    const p: [number, number] | null =
+      pLat !== undefined && pLng !== undefined ? [pLat, pLng] : null;
+
+    if (c && p) {
+      L.polyline([p, c], {
+        color: "#0f766e",
+        weight: 5,
+        opacity: 0.9,
+        lineCap: "round",
       }).addTo(layer);
     }
-    if (partner) {
-      L.marker([partner.lat, partner.lng], {
-        icon: meIcon,
-        keyboard: false,
-      }).addTo(layer);
+    if (c) {
+      L.marker(c, { icon: pinIcon, keyboard: false }).addTo(layer);
+    }
+    if (p) {
+      L.marker(p, { icon: meIcon, keyboard: false }).addTo(layer);
     }
 
-    const key = `${customer ? `c${customer.lat},${customer.lng}` : "-"}|${partner ? "p" : "-"}`;
+    const key = `${c ? `c${c[0]},${c[1]}` : "-"}|${p ? "p" : "-"}`;
     if (key !== viewKey.current) {
       viewKey.current = key;
-      if (customer && partner) {
-        map.fitBounds(
-          L.latLngBounds(
-            [partner.lat, partner.lng],
-            [customer.lat, customer.lng],
-          ),
-          { padding: [36, 36], maxZoom: 16 },
-        );
-      } else if (customer) {
-        map.setView([customer.lat, customer.lng], 16);
-      } else if (partner) {
-        map.setView([partner.lat, partner.lng], 15);
+      if (c && p) {
+        map.fitBounds(L.latLngBounds(p, c), { padding: [36, 36], maxZoom: 16 });
+      } else if (c) {
+        map.setView(c, 16);
+      } else if (p) {
+        map.setView(p, 15);
       }
     }
-  }, [customer?.lat, customer?.lng, partner?.lat, partner?.lng]);
+  }, [cLat, cLng, pLat, pLng]);
 
   return (
     <div
@@ -551,40 +552,24 @@ export function JobCard({
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#4f46e5]">
               Assigned booking
             </p>
-            <div className="flex items-center gap-2">
-              <Link
-                to={`/partner/jobs/${j.id}`}
-                className="text-xs font-semibold text-[#4f46e5] hover:underline"
-              >
-                View details &rarr;
-              </Link>
-              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#e7f4ef] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0f766e]" />
-                {STATUS_LABEL[j.status]}
-              </span>
-            </div>
+            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[#e7f4ef] px-3 py-1.5 text-xs font-semibold text-[#0f766e]">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0f766e]" />
+              {STATUS_LABEL[j.status]}
+            </span>
           </div>
 
           <h3
             className={`mt-2 text-xl font-extrabold leading-tight tracking-tight text-slate-900 sm:mt-3 sm:text-[28px] xl:text-[26px] ${wrapText}`}
           >
-            <Link
-              to={`/partner/jobs/${j.id}`}
-              className="hover:text-[#4f46e5] hover:underline transition-colors"
-            >
-              {j.service.name}
-            </Link>
+            {j.service.name}
           </h3>
           <p
             className={`mt-1 text-xs leading-relaxed text-slate-500 sm:mt-2 sm:text-sm ${wrapText}`}
           >
             Job{" "}
-            <Link
-              to={`/partner/jobs/${j.id}`}
-              className="font-semibold text-slate-700 hover:text-[#4f46e5] hover:underline transition-colors"
-            >
+            <span className="font-semibold text-slate-700">
               #{j.id.slice(-8).toUpperCase()}
-            </Link>
+            </span>
             <span className="mx-2 text-slate-300" aria-hidden="true">
               •
             </span>
@@ -783,19 +768,7 @@ export function JobCard({
                 Start navigation
               </button>
             )}
-            <div className="contents sm:mt-3 sm:grid sm:min-w-0 sm:grid-cols-3 sm:gap-2.5">
-              <Link
-                to={`/partner/jobs/${j.id}`}
-                aria-label="View job details"
-                className={outlineBtn}
-              >
-                <span className="sm:hidden" aria-hidden="true">
-                  Details
-                </span>
-                <span className="hidden sm:inline" aria-hidden="true">
-                  Job details
-                </span>
-              </Link>
+            <div className="contents sm:mt-3 sm:grid sm:min-w-0 sm:grid-cols-2 sm:gap-3">
               <Link
                 to={`/partner/jobs/${j.id}/navigation?panel=call`}
                 aria-label="Call customer"
@@ -825,10 +798,8 @@ export function JobCard({
 /** The signed-in partner's real jobs (GET /partner/jobs). */
 export default function LiveJobsList({
   heading = "Your assigned jobs",
-  hideWhenEmpty = false,
 }: {
   heading?: string;
-  hideWhenEmpty?: boolean;
 }) {
   const [jobs, setJobs] = useState<LiveJob[]>([]);
   const [state, setState] = useState<State>("loading");
@@ -849,12 +820,8 @@ export default function LiveJobsList({
       if (!background) setState("loading");
       try {
         const res = await api.get<{ data: LiveJob[] }>("/partner/jobs");
+        if (cancelled) return;
         const next = res.data.data;
-        try {
-          window.sessionStorage.setItem("homecarex_last_live_jobs", JSON.stringify(next));
-        } catch {
-          /* ignore storage error */
-        }
 
         // Tell screen-reader users when a new job shows up.
         const known = knownIds.current;
@@ -914,10 +881,6 @@ export default function LiveJobsList({
     : jobs.length === 2
       ? "grid-cols-1 xl:grid-cols-2"
       : "grid-cols-1 xl:grid-cols-2 min-[1900px]:grid-cols-3";
-
-  if (hideWhenEmpty && (state === "loading" || (state === "ready" && jobs.length === 0) || state === "error")) {
-    return null;
-  }
 
   return (
     <section

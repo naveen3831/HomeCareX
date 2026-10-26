@@ -367,7 +367,8 @@ describe("Profile pages", () => {
     okProfile();
     wrapAt("/customer/profile/edit");
     expect(await screen.findByLabelText(/full name/i)).toHaveValue("Asha");
-    expect(screen.getAllByRole("link", { name: /back to profile/i }).length).toBeGreaterThan(0);
+    // The back arrow and page name live in the customer top bar; the page itself keeps a real heading.
+    expect(screen.getByRole("heading", { level: 1, name: /edit profile/i })).toBeInTheDocument();
   });
 
   it("Notification page loads preferences, and the password page shows its form", async () => {

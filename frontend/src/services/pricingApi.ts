@@ -13,11 +13,9 @@ import { pricingMock } from "./pricing.mock";
 export const PRICING_IS_MOCK = import.meta.env.VITE_MOCK_PRICING === "true";
 
 /**
- * POST /pricing/quote is live, but the coupons backend is not. While this is false (and pricing is real),
- * no coupons are offered, because POST /bookings rejects any coupon code. Set to true when
- * /coupons/available and /coupons/validate ship.
+ * The coupons backend is live with /coupons/available, /coupons/validate, and POST /bookings coupon support.
  */
-const COUPONS_BACKEND_READY = false;
+const COUPONS_BACKEND_READY = true;
 
 /** lib/http rejects with a plain { message, status, code, details }; other clients reject with AxiosError. */
 function toNormalized(err: unknown): NormalizedApiError {

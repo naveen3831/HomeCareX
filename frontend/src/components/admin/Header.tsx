@@ -1,9 +1,16 @@
+<<<<<<< HEAD
+import React from 'react';
+import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useUIStore } from '@/store/useUIStore';
+import { NotificationBell } from '@/components/admin/NotificationBell';
+=======
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
+>>>>>>> origin/develop
 
 export interface HeaderNotification {
   id: string;
@@ -17,19 +24,20 @@ interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
+<<<<<<< HEAD
+/** Sticky admin header: menu/collapse and notifications. */
+export const Header: React.FC<HeaderProps> = () => {
+=======
 /** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
 export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // /admin/customers/:id -> breadcrumbs are hidden on mobile only (CSS handles the breakpoint)
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
+>>>>>>> origin/develop
   const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
-
-  const [bellOpen, setBellOpen] = useState(false);
-
-  const bellRef = useClickOutside<HTMLDivElement>(bellOpen, () => setBellOpen(false));
 
   return (
     <header className="admin-topbar">
@@ -50,45 +58,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
       </div>
 
       <div className="topbar-right">
-        <div className="popover" ref={bellRef}>
-          <button
-            type="button"
-            onClick={() => setBellOpen((v) => !v)}
-            className="icon-btn hcx-bell"
-            aria-label={`Notifications${notifications.length ? `, ${notifications.length} unread` : ''}`}
-            aria-expanded={bellOpen}
-          >
-            <Bell size={20} />
-            {notifications.length > 0 && <span className="hcx-bell__dot" />}
-          </button>
-          {bellOpen && (
-            <div className="popover__panel hcx-notif-panel">
-              {notifications.length === 0 ? (
-                <p className="hcx-notif-panel__empty">You&apos;re all caught up.</p>
-              ) : (
-                <ul>
-                  {notifications.slice(0, 5).map((n) => (
-                    <li key={n.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBellOpen(false);
-                          if (n.href) navigate(n.href);
-                        }}
-                      >
-                        <span>{n.title}</span>
-                        <small>{n.time}</small>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Link to="/admin/notifications" className="hcx-notif-panel__all" onClick={() => setBellOpen(false)}>
-                View all notifications
-              </Link>
-            </div>
-          )}
-        </div>
+        <NotificationBell />
       </div>
     </header>
   );

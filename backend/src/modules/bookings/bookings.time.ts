@@ -37,3 +37,10 @@ export function slotStartMinutes(slot: string): number {
   const [h, m] = slot.slice(0, 5).split(':').map(Number);
   return h * 60 + m;
 }
+
+/** True if the slot has already started or the date is in the past in the booking timezone. */
+export function hasSlotStarted(date: string, slot: string, now: Date = new Date()): boolean {
+  const current = nowInBookingTz(now);
+  if (date < current.date) return true;
+  return date === current.date && slotStartMinutes(slot) <= current.minutes;
+}

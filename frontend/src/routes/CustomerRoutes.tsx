@@ -21,10 +21,13 @@ const Reviews = lazy(() => import('../pages/customer/Reviews'));
 const Services = lazy(() => import('../pages/customer/Services'));
 const ServiceDetails = lazy(() => import('../pages/customer/ServiceDetails'));
 const Support = lazy(() => import('../pages/customer/Support'));
+const Tickets = lazy(() => import('@/pages/customer/Tickets'));
 const Tracking = lazy(() => import('../pages/customer/Tracking'));
+const TrackingRedirect = lazy(
+  () => import('../pages/customer/Tracking/TrackingRedirect'),
+);
 const Wallet = lazy(() => import('../pages/customer/Wallet'));
 
-const Tickets = lazy(() => import('@/pages/customer/Tickets'));
 const BookServiceShell = lazy(() => import('../pages/customer/Book'));
 const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
 
@@ -51,6 +54,7 @@ export default function CustomerRoutes() {
           <Route path="/bookings" element={<Bookings />} />
 
           <Route path="/bookings/:id" element={<BookingDetails />} />
+          <Route path="/bookings/:id/track" element={<Tracking />} />
 
           <Route path="/book/:serviceSlug" element={<BookServiceShell />} />
           <Route path="/categories" element={<Categories />} />
@@ -65,7 +69,8 @@ export default function CustomerRoutes() {
           <Route path="/services/:slug" element={<ServiceDetails />} />
           <Route path="/support" element={<Support />} />
           <Route path="/support/tickets" element={<Tickets />} />
-          <Route path="/tracking" element={<Tracking />} />
+          <Route path="/support/tickets/:ticketId" element={<Tickets />} />
+          <Route path="/tracking" element={<TrackingRedirect />} />
           <Route path="/wallet" element={<Wallet />} />
 
           <Route path="/booking/success/:id" element={<BookingSuccess />} />

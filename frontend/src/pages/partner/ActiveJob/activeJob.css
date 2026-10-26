@@ -1,138 +1,130 @@
-/* Active Job: live timer, checklist, finish summary. Tokens live in styles/partnerJobs.css */
+/* Active Job Screen — Clean Professional Typography & HomeCareX Brand Palette */
+
+.aj-ref-page {
+  --aj-indigo: #4338ca;
+  --aj-indigo-deep: #1e1b6e;
+  --aj-indigo-hover: #3730a3;
+  --aj-indigo-tint: #eef2ff;
+  --aj-orange: #ff8a3d;
+  --aj-orange-deep: #c2410c;
+  --aj-orange-tint: #fff7ed;
+  --aj-ink: #0f172a;
+  --aj-body: #334155;
+  --aj-muted: #64748b;
+  --aj-border: #e2e8f0;
+  --aj-card-bg: #ffffff;
+  --aj-canvas: #f8fafc;
+
+  width: 100%;
+  min-height: 100%;
+  padding: 16px 14px 40px;
+  box-sizing: border-box;
+  background: var(--aj-canvas);
+  color: var(--aj-ink);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.aj-ref-page *,
+.aj-ref-page *::before,
+.aj-ref-page *::after {
+  box-sizing: border-box;
+}
 
 .aj-ref-container {
   width: 100%;
-  max-width: 480px;
+  max-width: 540px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
 
 .aj-ref-header,
 .aj-ref-cta-wrap,
-.aj-error-box,
-.aj-wide,
-.aj-card-extra-charges,
-.aj-error-line {
+.aj-error-box {
   grid-column: 1 / -1;
 }
 
-/* Wraps any single full-width block so it never lands in one narrow grid column. */
-.aj-wide {
-  width: 100%;
-  min-width: 0;
-  max-width: 560px;
-  margin: 0 auto;
-}
-
-/* ---------- Header ---------- */
+/* Header */
 .aj-ref-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px 2px 4px;
+  padding: 2px 2px 6px;
 }
 
 .aj-ref-eyebrow {
   margin: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--pj-indigo);
-}
-
-.aj-live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--pj-orange);
-  box-shadow: 0 0 0 0 rgba(255, 138, 61, 0.6);
-  animation: aj-pulse 1.8s ease-out infinite;
-}
-
-@keyframes aj-pulse {
-  70% { box-shadow: 0 0 0 8px rgba(255, 138, 61, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 138, 61, 0); }
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--aj-indigo);
 }
 
 .aj-ref-title {
-  margin: 4px 0 0;
-  font-size: clamp(21px, 3.4vw, 28px);
+  margin: 2px 0 0;
+  font-size: 20px;
   font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -0.015em;
-  color: var(--pj-ink);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--aj-ink);
 }
 
-.aj-ref-sub {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--pj-muted);
-}
-
-/* ---------- Timer hero ---------- */
+/* Hero Timer Card — HomeCareX Deep Indigo (#1e1b6e -> #4338ca) with Orange (#ff8a3d) progress bar */
 .aj-ref-timer-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 16px;
-  padding: 14px 16px 14px;
-  color: #fff;
-  background:
-    radial-gradient(circle at 92% 8%, rgba(255, 138, 61, 0.34) 0, rgba(255, 138, 61, 0) 38%),
-    repeating-radial-gradient(circle at 92% 8%, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 26px),
-    linear-gradient(150deg, var(--pj-indigo-deep) 0%, #2f2aa3 62%, var(--pj-indigo) 100%);
-  box-shadow: var(--pj-shadow-lift);
+  background: linear-gradient(135deg, var(--aj-indigo-deep) 0%, var(--aj-indigo) 100%);
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 14px rgba(67, 56, 202, 0.16);
 }
 
 .aj-ref-timer-eyebrow {
-  margin: 0 0 6px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: #d9dcff;
+  width: fit-content;
+  margin: 0 0 8px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border-left: 2.5px solid var(--aj-orange);
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
 }
 
-.aj-ref-timer-eyebrow::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--pj-orange);
-  animation: aj-pulse 1.8s ease-out infinite;
+.aj-ref-timer-value {
+  margin: 0;
 }
 
 .aj-ref-timer-value .job-timer-display {
-  display: block;
-  font-size: clamp(40px, 9vw, 56px);
+  font-size: 32px;
   font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  color: #fff;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
-  font-family: inherit;
 }
 
 .aj-ref-progress-track {
-  position: relative;
   width: 100%;
-  height: 8px;
+  height: 5px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.16);
-  margin: 18px 0 12px;
+  background: rgba(255, 255, 255, 0.18);
+  margin: 12px 0 10px;
   overflow: hidden;
 }
 
 .aj-ref-progress-fill {
   height: 100%;
   border-radius: 9999px;
-  background: linear-gradient(90deg, #ff7a24 0%, #ffb27a 100%);
-  transition: width 0.6s ease;
+  background: linear-gradient(90deg, var(--aj-orange) 0%, #ffa66b 100%);
+  transition: width 0.4s ease;
 }
 
 .aj-ref-timer-meta {
@@ -140,144 +132,109 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
-  color: #d9dcff;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #e0e7ff;
 }
 
-.aj-ref-timer-meta span:last-child {
-  padding: 3px 10px;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.12);
-  font-weight: 500;
-  color: #fff;
-}
-
-/* ---------- Cards ---------- */
+/* Cards */
 .aj-ref-card {
-  background: var(--pj-surface);
-  border: 1px solid var(--pj-line);
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: var(--pj-shadow);
+  background: var(--aj-card-bg);
+  border: 1px solid var(--aj-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.aj-ref-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
 }
 
 .aj-ref-card-label {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--pj-muted);
-}
-
-/* Customer card */
-.aj-customer {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 14px;
-}
-
-.aj-avatar {
-  flex: none;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-size: 17px;
+  align-self: flex-start;
+  width: fit-content;
+  margin: 0 0 10px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border-left: 2.5px solid var(--aj-orange);
+  background: var(--aj-indigo-tint);
+  font-size: 11px;
   font-weight: 600;
-  color: var(--pj-indigo);
-  background: var(--pj-tint);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--aj-indigo);
 }
 
-.aj-customer-body {
-  min-width: 0;
-  flex: 1;
+.aj-ref-row-between {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .aj-ref-customer-name {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--pj-ink);
+  color: var(--aj-ink);
 }
 
 .aj-ref-customer-phone {
-  display: block;
-  margin-top: 2px;
   font-size: 13.5px;
-  color: var(--pj-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.aj-masked-note {
-  flex: none;
-  padding: 4px 10px;
-  border-radius: 9999px;
-  background: var(--pj-tint);
-  color: var(--pj-indigo);
-  font-size: 12px;
   font-weight: 500;
+  color: var(--aj-muted);
+  white-space: nowrap;
 }
 
-/* Checklist header with ring */
+/* Checklist Header */
 .aj-ref-checklist-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .aj-ref-checklist-header .aj-ref-card-label {
-  margin: 0;
-  font-size: 16px;
-  color: var(--pj-ink);
+  margin-bottom: 0;
 }
 
 .aj-ref-checklist-count {
-  padding: 4px 12px;
+  padding: 3px 9px;
   border-radius: 9999px;
-  background: var(--pj-orange-tint);
-  color: var(--pj-orange-deep);
-  font-size: 12.5px;
+  background: var(--aj-orange-tint);
+  color: var(--aj-orange-deep);
+  border: 1px solid #fed7aa;
+  font-size: 12px;
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
 }
 
-.aj-check-meter {
-  height: 6px;
-  margin-bottom: 14px;
-  border-radius: 9999px;
-  background: var(--pj-tint);
-  overflow: hidden;
-}
-
-.aj-check-meter > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--pj-indigo);
-  transition: width 0.4s ease;
-}
-
-/* ---------- Buttons ---------- */
+/* Dashed + Add item button */
 .aj-ref-add-item-btn {
   width: 100%;
-  min-height: 48px;
-  padding: 12px 16px;
-  border: 1.5px dashed #a9a5ec;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--pj-indigo);
-  font: inherit;
-  font-size: 14px;
+  padding: 10px 14px;
+  border: 1px dashed var(--aj-indigo);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--aj-indigo);
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
 }
 
 .aj-ref-add-item-btn:hover:not(:disabled) {
-  background: var(--pj-tint);
-  border-color: var(--pj-indigo);
+  background: var(--aj-indigo-tint);
+}
+
+.aj-ref-add-item-btn:focus-visible {
+  outline: 2px solid var(--aj-orange);
+  outline-offset: 2px;
 }
 
 .aj-ref-add-item-btn:disabled {
@@ -285,7 +242,9 @@
   cursor: not-allowed;
 }
 
+/* Bottom Primary Button: Complete job */
 .aj-ref-cta-wrap {
+  margin-top: 2px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -293,71 +252,62 @@
 
 .aj-ref-complete-btn {
   width: 100%;
-  min-height: 54px;
-  padding: 14px 20px;
-  border: 0;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #5148d6, var(--pj-indigo));
-  color: #fff;
-  font: inherit;
-  font-size: 15.5px;
+  min-height: 44px;
+  padding: 11px 18px;
+  border: none;
+  border-radius: 10px;
+  background: var(--aj-indigo);
+  color: #ffffff;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 12px 24px -12px rgba(67, 56, 202, 0.7);
-  transition: transform 0.12s ease, background-color 0.15s ease;
+  transition: background-color 0.15s ease;
+  text-align: center;
 }
 
 .aj-ref-complete-btn:hover:not(:disabled) {
-  background: var(--pj-indigo-hover);
+  background: var(--aj-indigo-hover);
 }
 
-.aj-ref-complete-btn:active:not(:disabled) {
-  transform: translateY(1px);
+.aj-ref-complete-btn:focus-visible {
+  outline: 2px solid var(--aj-orange);
+  outline-offset: 2px;
 }
 
 .aj-ref-complete-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.6;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
+/* Demo footer links */
 .aj-ref-demo-footer {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
+  padding-top: 4px;
 }
 
 .aj-ref-demo-link,
 .aj-ref-demo-link-btn {
-  font: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--pj-indigo);
+  color: var(--aj-indigo);
   background: none;
-  border: 0;
-  padding: 4px 0;
+  border: none;
+  padding: 0;
   cursor: pointer;
   text-decoration: none;
 }
 
 .aj-ref-demo-link:hover,
 .aj-ref-demo-link-btn:hover {
+  color: var(--aj-orange-deep);
   text-decoration: underline;
 }
 
-.aj-error-line {
-  margin: 0;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: var(--pj-red-tint);
-  color: var(--pj-red);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-/* ---------- Badges ---------- */
+/* Badges, Skeletons & Error states */
 .aj-badge {
   display: inline-flex;
   align-items: center;
@@ -366,328 +316,216 @@
   border-radius: 9999px;
   font-size: 12.5px;
   font-weight: 600;
-  white-space: nowrap;
-  background: var(--pj-tint);
-  color: var(--pj-indigo);
-}
-
-.aj-badge-completed,
-.aj-badge-rated {
-  background: var(--pj-green-tint);
-  color: var(--pj-green);
-}
-
-.aj-badge-cancelled_by_customer,
-.aj-badge-cancelled_by_partner,
-.aj-badge-cancelled_by_admin,
-.aj-badge-no_show,
-.aj-badge-disputed {
-  background: var(--pj-red-tint);
-  color: var(--pj-red);
+  background: var(--aj-indigo-tint);
+  color: var(--aj-indigo);
+  border: 1px solid #dcd7fe;
 }
 
 .aj-offline {
-  grid-column: 1 / -1;
-  max-width: 640px;
-  margin: 0 auto 14px;
+  background: var(--aj-orange-tint);
+  color: #9a4a00;
   padding: 10px 16px;
-  border-radius: 12px;
-  background: var(--pj-orange-tint);
-  color: #8a3d05;
   font-size: 13px;
   font-weight: 600;
+  border: 1px solid #ffd8be;
+  border-radius: 10px;
+  margin-bottom: 12px;
   text-align: center;
 }
 
-/* ---------- Finished / not in progress ---------- */
-.aj-done {
-  position: relative;
-  padding: 0 0 14px;
-  border: 1px solid var(--pj-line);
-  border-radius: 16px;
-  background: var(--pj-surface);
-  box-shadow: var(--pj-shadow);
-  text-align: center;
-  overflow: hidden;
-}
-
-.aj-done-top {
-  padding: 18px 16px 14px;
-  background:
-    radial-gradient(circle at 50% 0, rgba(14, 138, 95, 0.14), transparent 70%),
-    var(--pj-surface);
-}
-
-.aj-done-top-muted {
-  background:
-    radial-gradient(circle at 50% 0, rgba(67, 56, 202, 0.1), transparent 70%),
-    var(--pj-surface);
-}
-
-.aj-done-badge {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 10px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--pj-green);
-  background: var(--pj-green-tint);
-  box-shadow: 0 0 0 8px rgba(14, 138, 95, 0.08);
-}
-
-.aj-done-badge-muted {
-  color: var(--pj-indigo);
-  background: var(--pj-tint);
-  box-shadow: 0 0 0 8px rgba(67, 56, 202, 0.07);
-}
-
-.aj-done-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--pj-ink);
-}
-
-.aj-done-text {
-  margin: 4px auto 0;
-  max-width: 44ch;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--pj-body);
-}
-
-/* Perforated edge between the message and the summary, like a tear-off slip. */
-.aj-done-tear {
-  position: relative;
-  height: 0;
-  margin: 0 18px;
-  border-top: 2px dashed var(--pj-line);
-}
-
-.aj-done-tear::before,
-.aj-done-tear::after {
-  content: "";
-  position: absolute;
-  top: -11px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--pj-canvas);
-  border: 1px solid var(--pj-line);
-}
-
-.aj-done-tear::before { left: -29px; }
-.aj-done-tear::after { right: -29px; }
-
-.aj-done-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0;
-  padding: 14px 16px 4px;
-}
-
-.aj-done-stat dt {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--pj-muted);
-}
-
-.aj-done-stat dd {
-  margin: 4px 0 0;
-  font-size: 17px;
-  font-weight: 600;
-  color: var(--pj-ink);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.aj-done-stat-pay dd {
-  color: var(--pj-green);
-}
-
-.aj-done-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 22px;
-  padding: 0 24px;
-}
-
-.aj-btn-primary,
-.aj-btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  padding: 11px 20px;
-  border-radius: 14px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.aj-btn-primary {
-  border: 0;
-  background: var(--pj-indigo);
-  color: #fff;
-}
-
-.aj-btn-primary:hover { background: var(--pj-indigo-hover); }
-
-.aj-btn-ghost {
-  border: 1.5px solid var(--pj-line);
-  background: #fff;
-  color: var(--pj-body);
-}
-
-.aj-btn-ghost:hover { background: var(--pj-canvas); border-color: #cfcde4; }
-
-/* ---------- Confirm dialog ---------- */
-.aj-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(23, 21, 46, 0.55);
-  backdrop-filter: blur(3px);
-}
-
-.aj-dialog {
-  width: 100%;
-  max-width: 400px;
-  padding: 26px 24px 22px;
-  border-radius: 24px;
-  background: #fff;
-  text-align: center;
-  box-shadow: 0 30px 60px -20px rgba(23, 21, 46, 0.5);
-}
-
-.aj-dialog-icon {
-  width: 54px;
-  height: 54px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--pj-indigo);
-  background: var(--pj-tint);
-}
-
-.aj-dialog h2 { margin: 0; font-size: 19px; font-weight: 600; color: var(--pj-ink); }
-.aj-dialog p { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--pj-body); }
-
-.aj-dialog-note {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--pj-orange-tint);
-  color: #8a3d05 !important;
-  font-size: 13px !important;
-  font-weight: 500;
-}
-
-.aj-dialog-actions { display: flex; gap: 10px; margin-top: 20px; }
-.aj-dialog-actions button { flex: 1; }
-
-/* ---------- Skeleton & error ---------- */
 .aj-skel {
-  background: linear-gradient(90deg, #eceafb 25%, #f7f6ff 50%, #eceafb 75%);
+  background: linear-gradient(90deg, #eeecfb 25%, #f8f7ff 50%, #eeecfb 75%);
   background-size: 200% 100%;
   animation: aj-shimmer 1.5s infinite;
-  border-radius: 20px;
+  border-radius: 12px;
   height: 24px;
+  margin-bottom: 12px;
 }
 
 @keyframes aj-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .aj-error-box {
-  max-width: 520px;
-  margin: 40px auto 0;
-  padding: 36px 24px;
-  border-radius: 24px;
-  border: 1px solid var(--pj-line);
-  background: #fff;
-  box-shadow: var(--pj-shadow);
+  padding: 32px 24px;
+  border-radius: 14px;
+  border: 1px solid #fde8e8;
+  background: #ffffff;
+  color: #dc2626;
   text-align: center;
 }
 
-/* ---------- Responsive ---------- */
-@media (max-width: 639px) {
-  .aj-ref-cta-wrap {
-    position: sticky;
-    bottom: 12px;
-    z-index: 5;
-    padding: 10px;
-    border-radius: 20px;
-    border: 1px solid var(--pj-line);
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -6px 24px -12px rgba(23, 21, 46, 0.25);
+/* ==========================================================================
+   Responsive Card Arrangements Across Screen Resolutions
+   ========================================================================== */
+
+/* Small Mobile (< 480px) */
+@media (max-width: 479px) {
+  .aj-ref-page {
+    padding: 12px 8px 32px;
   }
 
-  .aj-done-actions > * { flex: 1 1 100%; }
-  .aj-done-stats { grid-template-columns: 1fr 1fr; }
-  .aj-done-stat:first-child { grid-column: 1 / -1; }
-  .aj-masked-note { display: none; }
+  .aj-ref-title {
+    font-size: 22px;
+  }
+
+  .aj-ref-timer-hero {
+    padding: 16px 16px;
+  }
+
+  .aj-ref-timer-value .job-timer-display {
+    font-size: 32px;
+  }
+
+  .aj-ref-card {
+    padding: 13px 14px;
+  }
+
+  .aj-ref-row-between {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
+/* Tablet (640px – 1023px): 2-Column Balanced Card Grid */
 @media (min-width: 640px) {
+  .aj-ref-page {
+    padding: 24px 20px 48px;
+  }
+
   .aj-ref-container {
-    max-width: 780px;
+    max-width: 860px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 14px;
     align-items: stretch;
   }
 
-  .aj-ref-timer-hero { grid-column: 1 / 2; }
-  .aj-card-customer { grid-column: 2 / 3; display: flex; flex-direction: column; justify-content: center; }
-  .aj-card-checklist { grid-column: 1 / -1; }
-  .aj-ref-add-item-btn { grid-column: 1 / -1; }
-  .aj-card-extra-charges { grid-column: 1 / -1; width: 100%; min-width: 0; }
+  /* Row 1: Timer Hero (left) + Customer Card (right) */
+  .aj-ref-timer-hero {
+    grid-column: 1 / 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .aj-card-customer {
+    grid-column: 2 / 3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* Row 2: Checklist spans full width with 2-col checklist items */
+  .aj-card-checklist {
+    grid-column: 1 / -1;
+  }
+
+  .aj-card-checklist .checklist-items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 18px;
+  }
+
+  .aj-card-checklist .checklist-items > * + * {
+    margin-top: 0;
+  }
+
+  /* Row 3: Add Item button spans full width */
+  .aj-ref-add-item-btn {
+    grid-column: 1 / -1;
+  }
 }
 
+/* Laptop / Desktop (1024px – 1399px): 12-Column Split Execution Console */
 @media (min-width: 1024px) {
+  .aj-ref-page {
+    padding: 24px 28px 56px;
+  }
+
   .aj-ref-container {
-    max-width: 980px;
+    max-width: 1240px;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 14px;
+    gap: 18px;
     align-items: start;
   }
 
-  .aj-ref-card { padding: 14px 16px; }
-  .aj-ref-timer-hero { grid-column: 1 / 6; grid-row: 2 / 3; padding: 18px 18px 16px; }
-  .aj-card-customer { grid-column: 1 / 6; grid-row: 3 / 4; }
-  .aj-card-checklist { grid-column: 6 / 13; grid-row: 2 / 4; align-self: stretch; }
-  .aj-ref-add-item-btn { grid-column: 6 / 13; }
-  .aj-card-extra-charges { grid-column: 1 / -1; width: 100%; min-width: 0; }
+  .aj-ref-card {
+    padding: 20px 22px;
+  }
 
+  /* Left Column (5 cols): Live Timer Hero + Customer Card stacked */
+  .aj-ref-timer-hero {
+    grid-column: 1 / 6;
+    grid-row: 2 / 3;
+    padding: 24px 26px;
+  }
+
+  .aj-card-customer {
+    grid-column: 1 / 6;
+    grid-row: 3 / 4;
+  }
+
+  /* Right Column (7 cols): Checklist Card + Add Item button */
+  .aj-card-checklist {
+    grid-column: 6 / 13;
+    grid-row: 2 / 4;
+    height: 100%;
+  }
+
+  .aj-card-checklist .checklist-items {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .aj-ref-add-item-btn {
+    grid-column: 6 / 13;
+    grid-row: 4 / 5;
+  }
+
+  /* Bottom Desktop Action Bar */
   .aj-ref-cta-wrap {
     grid-column: 1 / -1;
+    grid-row: 5 / 6;
+    margin-top: 6px;
+    padding: 16px 20px;
+    background: #ffffff;
+    border: 1px solid var(--aj-border);
+    border-radius: 14px;
     flex-direction: row-reverse;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 14px;
-    border: 1px solid var(--pj-line);
-    border-radius: 14px;
-    background: #fff;
-    box-shadow: var(--pj-shadow);
+    gap: 20px;
+    box-shadow: 0 2px 10px rgba(30, 27, 46, 0.03);
   }
 
-  .aj-ref-complete-btn { width: auto; min-width: 220px; }
-  .aj-ref-demo-footer { justify-content: flex-start; }
+  .aj-ref-complete-btn {
+    width: auto;
+    min-width: 240px;
+    padding: 13px 28px;
+  }
+
+  .aj-ref-demo-footer {
+    padding-top: 0;
+    justify-content: flex-start;
+  }
 }
+
+/* Wide Desktop (>= 1400px): 2-Column Checklist Grid Inside Right Panel */
+@media (min-width: 1400px) {
+  .aj-ref-container {
+    max-width: 1400px;
+    gap: 22px;
+  }
+
+  .aj-card-checklist .checklist-items {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 20px;
+  }
+}
+

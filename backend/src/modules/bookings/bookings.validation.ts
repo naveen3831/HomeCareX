@@ -74,4 +74,4 @@ export const cancelBookingBodySchema = z.object({
 export const rescheduleBookingBodySchema = z.object({
   date: dateString,
   slot: slotString,
-});
+});

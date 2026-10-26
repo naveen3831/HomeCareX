@@ -321,4 +321,23 @@ describe("BookingDetails page", () => {
     await screen.findByRole("heading", { name: /booking actions/i });
     expect(screen.queryByText(/rate your experience/i)).not.toBeInTheDocument();
   });
+  it("treats an expired hold on pending_payment as Payment expired and cancelled", async () => {
+    getBookingDetail.mockResolvedValue(
+      detail({
+        status: "pending_payment",
+        holdExpiresAt: new Date(Date.now() - 60_000).toISOString(),
+        paymentStatus: "FAILED",
+        partnerId: undefined,
+      }),
+    );
+    renderPage();
+    expect((await screen.findAllByText("Payment expired")).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("Awaiting payment")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /cancel booking/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/rate your experience/i)).not.toBeInTheDocument();
+    expect(screen.getByText("No partner was assigned for this booking.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Invoice is not available as this booking was not completed."),
+    ).toBeInTheDocument();
+  });
 });

@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { CouponModel } from '../../models/Coupon';
 import { CouponUsageModel } from '../../models/CouponUsage';
 
@@ -51,9 +52,11 @@ export class CouponsRepository {
   }
 
   async countUsage(couponId: string, userId?: string) {
+    if (couponId && !Types.ObjectId.isValid(couponId)) return 0;
     const filter: Record<string, unknown> = { couponId };
 
     if (userId) {
+      if (!Types.ObjectId.isValid(userId)) return 0;
       filter.userId = userId;
     }
 

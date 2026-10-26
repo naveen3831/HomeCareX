@@ -4,13 +4,9 @@ import { BOTTOM_NAV_ITEMS, type CustomerNavItem } from "./customerNav";
 import { FOCUS_RING } from "./focusRing";
 
 const norm = (path: string) => (path.length > 1 ? path.replace(/\/+$/, "") : path).toLowerCase();
-const isUnder = (pathname: string, prefix: string) => pathname === norm(prefix) || pathname.startsWith(`${norm(prefix)}/`);
 
-function isItemActive(pathname: string, { to, end, alsoActiveFor }: CustomerNavItem) {
-  const path = norm(pathname);
-  const own = end ? path === norm(to) : isUnder(path, to);
-  return own || !!alsoActiveFor?.some((p) => isUnder(path, p));
-}
+/** A tab is active only on its own page — never on the pages reached from it. */
+const isItemActive = (pathname: string, { to }: CustomerNavItem) => norm(pathname) === norm(to);
 
 /**
  * Mobile bottom navigation (below md): Categories / Services / Home / My Bookings / Profile.
@@ -22,7 +18,8 @@ function isItemActive(pathname: string, { to, end, alsoActiveFor }: CustomerNavI
  *    Every other tab, Home included, is a quiet icon + label tab. Raised and plain tabs take
  *    the same height, so the bar doesn't jump when you switch.
  *  - Plain tabs: icon + label (tinted on hover). The active tab also has a bold brand label and
- *    aria-current="page" (never colour alone). Services also stays active in the booking flow.
+ *    aria-current="page" (never colour alone). Only the five tab pages themselves light a tab: service
+ *    details, the booking flow, booking details, Addresses, Wallet, Support… leave every tab plain.
  *
  * Behaviour
  *  - Safe area: bottom gap is max(0.75rem, env(safe-area-inset-bottom)).
