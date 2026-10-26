@@ -18,14 +18,9 @@ notificationsRoutes.get(
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-<<<<<<< HEAD
     const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? ''), 10) || 30, 1), 100);
     const unreadOnly = req.query.unread === 'true';
     const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit, unreadOnly), notificationsService.unreadCount(id)]);
-=======
-    const { limit } = req.query as unknown as z.infer<typeof listQuerySchema>;
-    const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit), notificationsService.unreadCount(id)]);
->>>>>>> origin/develop
     sendSuccess(res, items, { meta: { unread } });
   }),
 );

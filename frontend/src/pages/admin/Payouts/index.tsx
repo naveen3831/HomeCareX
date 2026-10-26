@@ -226,14 +226,6 @@ const statusClass = (status: BatchStatus | PayoutStatus): string => {
   return `payout-status-badge ${classes[status] ?? classes.Pending}`;
 };
 
-const getInitials = (name: string): string =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "P";
-
 export const AdminPayoutsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();

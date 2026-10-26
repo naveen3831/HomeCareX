@@ -43,6 +43,17 @@ export interface JobBookingDoc {
   paymentDetails?: { paidAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
+  otpCodes?: { start?: string; end?: string };
+  extraCharges?: Array<{
+    _id: Types.ObjectId;
+    title: string;
+    amount: number;
+    quantity?: number;
+    reason?: string;
+    status: 'pending' | 'approved' | 'rejected';
+    requestedAt?: Date;
+    decidedAt?: Date;
+  }>;
   offers?: Array<{
     partnerId: Types.ObjectId;
     offeredAt: Date;
@@ -198,6 +209,56 @@ export const partnerJobsRepository = {
     const result = await BookingModel.updateOne(
       { _id: bookingId, partnerId, status: from },
       { $set: { status: to }, $push: { statusHistory: entry } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async verifyStartJob(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    entry: StatusHistoryEntry,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId, status: 'arrived' },
+      { $set: { status: 'in_progress', startedAt: now }, $push: { statusHistory: entry } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async completePartnerJob(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    entry: StatusHistoryEntry,
+    _now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId, status: 'in_progress' },
+      { $set: { status: 'completed' }, $push: { statusHistory: entry } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async addExtraCharge(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    charge: unknown,
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId },
+      { $push: { extraCharges: charge } },
+    );
+    return result.modifiedCount === 1;
+  },
+
+  async updateChecklist(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    checklist: unknown,
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId },
+      { $set: { checklist } },
     );
     return result.modifiedCount === 1;
   },

@@ -14,9 +14,6 @@ import { authService } from './auth.service';
  
 import {
   changePasswordSchema,
-
-  changePasswordSchema,
-
   forgotPasswordSchema,
   loginSchema,
   parseBody,
@@ -46,9 +43,6 @@ const cookieOptions = (): CookieOptions => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'strict',
- 
-  sameSite: 'strict',
- 
   path: REFRESH_COOKIE_PATH,
  
   maxAge:
@@ -438,8 +432,9 @@ export const authController = {
    * POST /api/v1/auth/change-password
    */
   changePassword: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || (req as any).user?.id;
     const input = parseBody(changePasswordSchema, req.body);
-    res.json({ success: true, data: await authService.changePassword(res.locals.auth.sub, input) });
+    res.json({ success: true, data: await authService.changePassword(userId, input), message: 'Password updated' });
   }),
 
   /**
@@ -566,17 +561,9 @@ export const authController = {
     res.json(result);
   }),
 
-  /** POST /api/v1/auth/change-password */
-  changePassword: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
-    const { currentPassword, newPassword } = parseBody(changePasswordSchema, req.body);
-    const data = await authService.changePassword(userId, { currentPassword, newPassword });
-    res.json({ success: true, data, message: 'Password updated' });
-  }),
-
   /** GET /api/v1/auth/sessions */
   getSessions: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
+    const userId = res.locals.auth?.sub || (req as any).user?.id;
     const currentSid = res.locals.auth?.sid;
     const ip =
       (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
@@ -589,7 +576,7 @@ export const authController = {
 
   /** DELETE /api/v1/auth/sessions/:id */
   revokeSession: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
+    const userId = res.locals.auth?.sub || (req as any).user?.id;
     const sessionId = req.params.id;
     const currentSid = res.locals.auth?.sid;
     const result = await authService.revokeSession(userId, sessionId, currentSid);
@@ -601,7 +588,7 @@ export const authController = {
 
   /** POST /api/v1/auth/logout-all */
   logoutAll: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
+    const userId = res.locals.auth?.sub || (req as any).user?.id;
     const result = await authService.logoutAll(userId);
     clearRefreshCookies(res);
     res.json({

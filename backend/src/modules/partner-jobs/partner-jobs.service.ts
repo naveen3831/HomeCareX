@@ -1,4 +1,4 @@
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
@@ -590,6 +590,5 @@ export const partnerJobsService = {
     await repo.updateChecklist(bookingId, partner._id, checklist);
     return { checklist };
   },
-};
 };
   

@@ -1,3 +1,5 @@
+import { apiBaseUrl } from '@/lib/apiBase';
+
 // Partner wallet API: GET /partner/wallet
 // The balance (available / pending) is computed on the server from the ledger.
 // Nothing here ever calculates or trusts a balance on the client.
@@ -20,8 +22,7 @@ export interface WalletSummary {
 }
 
 // Same base URL and token as transactions.api.ts. The backend mounts every route under /api/v1.
-const API_BASE: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5000/api/v1';
+const API_BASE = apiBaseUrl;
 
 const getToken = (): string | null => localStorage.getItem('token');
 

@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import { RequirePermission } from '@/components/admin/PermissionGate';
@@ -27,9 +27,9 @@ const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
 const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
 const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
-const AdminRolesPermissionsPage = lazy(
-  () => import('@/pages/admin/RolesPermissions')
-);
+const AdminRolesPage = lazy(() => import('@/pages/admin/Roles'));
+const AdminRoleFormPage = lazy(() => import('@/pages/admin/Roles/RoleFormPage'));
+const AdminInviteStaffPage = lazy(() => import('@/pages/admin/Roles/InviteStaffPage'));
 const AdminStaffPage = lazy(() => import('@/pages/admin/Staff'));
 const AdminAuditLogsPage = lazy(() => import('@/pages/admin/AuditLogs'));
 const AdminSettingsPage = lazy(() => import('@/pages/admin/Settings'));
@@ -40,8 +40,6 @@ const AdminNotificationsPage = lazy(
 const AdminPartnerDetailsPage = lazy(
   () => import('@/pages/admin/PartnerDetails')
 );
-const AdminNotificationsPage = lazy(() => import('@/pages/admin/Notifications'));
-const AdminPartnerDetailsPage = lazy(() => import('@/pages/admin/PartnerDetails'));
 const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 interface AdminRoute {
@@ -147,10 +145,6 @@ const adminRoutes: AdminRoute[] = [
     element: <AdminSettingsPage />,
     permission: 'settings:manage',
   },
-  { path: 'roles-permissions', element: <AdminRolesPermissionsPage /> },
-  { path: 'staff', element: <AdminStaffPage /> },
-  { path: 'audit-logs', element: <AdminAuditLogsPage /> },
-  { path: 'settings', element: <AdminSettingsPage /> },
   { path: 'security', element: <AccountSecurityPage /> },
   { path: 'account/security', element: <AccountSecurityPage /> },
   { path: 'settings/security', element: <AccountSecurityPage /> },
