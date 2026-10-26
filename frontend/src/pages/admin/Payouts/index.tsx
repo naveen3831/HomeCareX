@@ -226,6 +226,7 @@ const statusClass = (status: BatchStatus | PayoutStatus): string => {
   return `payout-status-badge ${classes[status] ?? classes.Pending}`;
 };
 
+
 export const AdminPayoutsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();

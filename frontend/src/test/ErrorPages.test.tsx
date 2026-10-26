@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import NotFound from '@/pages/public/NotFound';
 import UnauthorizedPage from '@/pages/public/Unauthorized';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
@@ -10,9 +11,11 @@ import ErrorBoundary from '@/components/common/ErrorBoundary';
 describe('Frontend 404 Page Not Found', () => {
   it('renders the 404 heading, message, Go home, Contact us and popular links', () => {
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <NotFound />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     expect(screen.getByRole('img', { name: /Error 404/i })).toBeDefined();
@@ -31,14 +34,112 @@ describe('Frontend 404 Page Not Found', () => {
 describe('Frontend 403 Unauthorized Page', () => {
   it('renders the 403 status, heading, Go home and Contact support links', () => {
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     expect(screen.getByText(/Error 403/i)).toBeDefined();
     expect(screen.getByRole('heading', { level: 1, name: /You don't have access to this page/i })).toBeDefined();
     expect(screen.getByRole('alert')).toBeDefined();
+    expect(document.title).toBe('403 - Access Denied | HomeCareX');
+    expect(screen.getByRole('heading', { level: 1, name: /Access Denied/i })).toBeDefined();
+    expect(screen.getByText(/403 Status/i)).toBeDefined();
+
+    const homeLink = screen.getByRole('link', { name: /Go Home/i });
+    expect(homeLink.getAttribute('href')).toBe('/');
+
+    const loginLink = screen.getByRole('link', { name: /Log in/i });
+    expect(loginLink.getAttribute('href')).toBe('/login');
+  });
+
+  it('navigates to /customer dashboard when customer is signed in', () => {
+    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+      user: {
+        id: 'cust-1',
+        name: 'Alice Customer',
+        email: 'alice@example.com',
+        role: 'customer',
+        permissions: [],
+        home: '/customer',
+      },
+      status: 'authenticated',
+      isAuthenticated: true,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      updateProfile: vi.fn(),
+    });
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter>
+        <UnauthorizedPage />
+      </MemoryRouter>
+      </HelmetProvider>
+    );
+
+    const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
+    expect(dashboardLink.getAttribute('href')).toBe('/customer');
+  });
+
+  it('navigates to /partner dashboard when partner is signed in', () => {
+    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+      user: {
+        id: 'part-1',
+        name: 'Bob Partner',
+        email: 'bob@example.com',
+        role: 'partner',
+        permissions: [],
+        home: '/partner',
+      },
+      status: 'authenticated',
+      isAuthenticated: true,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      updateProfile: vi.fn(),
+    });
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter>
+        <UnauthorizedPage />
+      </MemoryRouter>
+      </HelmetProvider>
+    );
+
+    const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
+    expect(dashboardLink.getAttribute('href')).toBe('/partner');
+  });
+
+  it('navigates to /admin dashboard when admin is signed in', () => {
+    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
+      user: {
+        id: 'admin-1',
+        name: 'Super Admin',
+        email: 'admin@example.com',
+        role: 'admin',
+        permissions: ['*'],
+        home: '/admin',
+      },
+      status: 'authenticated',
+      isAuthenticated: true,
+      login: vi.fn(),
+      register: vi.fn(),
+      logout: vi.fn(),
+      updateProfile: vi.fn(),
+    });
+
+    render(
+      <HelmetProvider>
+        <MemoryRouter>
+        <UnauthorizedPage />
+      </MemoryRouter>
+      </HelmetProvider>
+    );
 
     expect(screen.getByRole('link', { name: /Go home/i }).getAttribute('href')).toBe('/');
     expect(screen.getByRole('link', { name: /Contact support/i }).getAttribute('href')).toBe('/contact');

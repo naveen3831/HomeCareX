@@ -1,6 +1,6 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { FileText, Loader2, Printer } from "lucide-react";
+import { Download, Loader2, Printer } from "lucide-react";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { useInvoice } from "@/hooks/useBooking";
 import logoUrl from "@/assets/image.png";
@@ -92,7 +92,7 @@ function printHtml(html: string): void {
 }
 
 const BUTTON =
-  "inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-[40px] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50";
 
 /**
  * The invoice for a paid booking: fetched from GET /bookings/:id/invoice (the server decides who may see it),
@@ -120,12 +120,17 @@ export default function InvoiceCard({
     }
     setAction(next);
     try {
-      const html = await withLogo(await invoice.mutateAsync());
-      if (next === "download") saveHtml(html, `${invoiceNo}.html`);
-      else printHtml(html);
-    } catch (err) {
+      const rawHtml = await invoice.mutateAsync();
+      const html = await withLogo(rawHtml);
+      const filename = `invoice-${bookingCode.toLowerCase()}.html`;
+      if (next === "download") {
+        saveHtml(html, filename);
+      } else {
+        printHtml(html);
+      }
+    } catch (err: unknown) {
       const message =
-        typeof err === "object" && err !== null && "message" in err
+        err && typeof err === "object" && "message" in err
           ? String((err as { message: unknown }).message)
           : "";
       setError(message || "We couldn't get the invoice. Please try again.");
@@ -136,12 +141,19 @@ export default function InvoiceCard({
 
   return (
     <div
-      className={clsx("rounded-xl border border-line bg-panel p-3", className)}
+      className={clsx(
+        "rounded-xl border border-line/80 bg-canvas/70 p-3.5",
+        className,
+      )}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-        Invoice
-      </p>
-      <p className="mt-0.5 text-sm font-bold text-ink">{invoiceNo}</p>
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-bold tracking-wider text-muted uppercase">
+          Invoice
+        </span>
+        <span className="font-mono text-xs font-semibold text-ink">
+          {invoiceNo}
+        </span>
+      </div>
       {!enabled && (
         <p className="mt-1 text-xs text-muted">
           {isCancelled
@@ -155,12 +167,16 @@ export default function InvoiceCard({
           onClick={() => void run("download")}
           disabled={busy || !enabled}
           aria-busy={busy && action === "download"}
-          className={clsx(BUTTON, "bg-brand text-white", FOCUS_RING)}
+          className={clsx(
+            BUTTON,
+            "bg-brand text-white shadow-sm hover:bg-brand/90",
+            FOCUS_RING,
+          )}
         >
           {busy && action === "download" ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <FileText className="h-4 w-4" aria-hidden="true" />
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
           )}
           {busy && action === "download"
             ? "Preparing invoice…"
@@ -173,20 +189,20 @@ export default function InvoiceCard({
           aria-busy={busy && action === "print"}
           className={clsx(
             BUTTON,
-            "border border-brand/30 bg-panel text-brand",
+            "border border-line bg-panel text-ink hover:border-brand/40 hover:bg-panel/80",
             FOCUS_RING,
           )}
         >
           {busy && action === "print" ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
           ) : (
-            <Printer className="h-4 w-4" aria-hidden="true" />
+            <Printer className="h-3.5 w-3.5 text-muted" aria-hidden="true" />
           )}
           Print / Save PDF
         </button>
       </div>
       {error && (
-        <p role="alert" className="mt-2 text-sm text-danger">
+        <p role="alert" className="mt-2 text-xs text-danger">
           {error}
         </p>
       )}

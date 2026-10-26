@@ -23,12 +23,12 @@ export default function PriceBreakdown({
   }
 
   return (
-    <dl className="space-y-3.5 text-sm">
+    <dl className="space-y-3 text-xs sm:text-sm">
       {/* Standard Line Items */}
       {visibleRows.map((row) => (
         <div key={row.key} className="flex items-center justify-between gap-3">
           <dt className="min-w-0 break-words text-muted">{row.label}</dt>
-          <dd className="shrink-0 tabular-nums text-ink">
+          <dd className="shrink-0 tabular-nums font-medium text-ink">
             {rupees(row.amount)}
           </dd>
         </div>
@@ -37,7 +37,7 @@ export default function PriceBreakdown({
       {/* GST is always listed so the customer can see what tax was charged. */}
       <div className="flex items-center justify-between gap-3">
         <dt className="min-w-0 break-words text-muted">GST</dt>
-        <dd className="shrink-0 tabular-nums text-ink">
+        <dd className="shrink-0 tabular-nums font-medium text-ink">
           {model.gst > 0 ? rupees(model.gst) : "Included"}
         </dd>
       </div>
@@ -46,9 +46,9 @@ export default function PriceBreakdown({
       <div className="flex items-center justify-between gap-3">
         <dt className="min-w-0 text-muted">Coupon</dt>
         {model.discount > 0 ? (
-          <dd className="flex shrink-0 items-center gap-2 tabular-nums font-medium text-emerald-600">
+          <dd className="flex shrink-0 items-center gap-1.5 tabular-nums font-semibold text-emerald-600">
             {model.couponCode && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase text-emerald-700">
                 <Tag className="h-3 w-3" aria-hidden="true" />
                 {model.couponCode}
               </span>
@@ -62,24 +62,26 @@ export default function PriceBreakdown({
 
       {model.extraApproved > 0 && (
         <>
-          <div className="flex items-center justify-between gap-3 border-t border-line pt-3">
+          <div className="flex items-center justify-between gap-3 border-t border-line/80 pt-2.5">
             <dt className="text-muted">Booking total</dt>
-            <dd className="tabular-nums text-ink">{rupees(model.total)}</dd>
+            <dd className="tabular-nums font-medium text-ink">
+              {rupees(model.total)}
+            </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted">Approved extra charges</dt>
-            <dd className="tabular-nums text-ink">
+            <dd className="tabular-nums font-medium text-ink">
               {rupees(model.extraApproved)}
             </dd>
           </div>
         </>
       )}
 
-      <div className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-brand-soft px-4 py-3 text-lg font-bold text-ink">
+      <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-brand-soft/80 px-4 py-3 text-base font-bold text-ink">
         <dt>
           {model.extraApproved > 0 ? "Total with extras" : "Total Amount"}
         </dt>
-        <dd className="tabular-nums">{rupees(model.grandTotal)}</dd>
+        <dd className="tabular-nums text-brand">{rupees(model.grandTotal)}</dd>
       </div>
     </dl>
   );
@@ -88,9 +90,9 @@ export default function PriceBreakdown({
 function Total({ model }: { model: PriceBreakdownModel }) {
   return (
     <dl>
-      <div className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-brand-soft px-4 py-3 text-lg font-bold text-ink">
+      <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-brand-soft/80 px-4 py-3 text-base font-bold text-ink">
         <dt>Total Amount</dt>
-        <dd className="tabular-nums">{rupees(model.grandTotal)}</dd>
+        <dd className="tabular-nums text-brand">{rupees(model.grandTotal)}</dd>
       </div>
     </dl>
   );

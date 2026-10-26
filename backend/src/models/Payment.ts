@@ -2,12 +2,25 @@ import { Schema, model, models, type Document, type Model, Types } from 'mongoos
 
 export const PAYMENT_STATUSES = ['PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
-export const REFUND_STATUSES = ['none', 'requested', 'approved', 'processed', 'rejected'] as const;
+export const REFUND_STATUSES = [
+  'none',
+  'requested',
+  'approved',
+  'processed',
+  'rejected',
+  'PENDING_APPROVAL',
+  'APPROVED',
+  'CREDITED',
+  'REJECTED',
+  'NOT_REQUIRED',
+  'PROCESSING',
+  'CREDIT_FAILED',
+] as const;
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
 
 /**
  * One Razorpay order per payment attempt for a booking (customer checkout, R05).
- * Admin dashboards read the refund queue from refund.status 'requested' / 'approved'.
+ * Admin dashboards read the refund queue from refund.status 'requested' / 'approved' / 'PENDING_APPROVAL'.
  */
 export interface IPayment extends Document {
   bookingId: Types.ObjectId;
@@ -52,7 +65,7 @@ const PaymentSchema = new Schema<IPayment>(
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (_doc, ret: Record<string, any>) => {
+      transform: (_doc, ret: Record<string, unknown>) => {
         delete ret.__v;
         return ret;
       },

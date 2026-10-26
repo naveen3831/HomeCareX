@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, Gift, RotateCcw, XCircle } from "lucide-react";
+  import { ArrowDownLeft, ArrowUpRight, Gift, RotateCcw, XCircle } from "lucide-react";
 import { formatMoney } from "@/features/payments";
 
 interface LedgerItem {

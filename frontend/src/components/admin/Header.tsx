@@ -2,8 +2,8 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
-import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
+import { NotificationBell } from '@/components/admin/NotificationBell';
 
 export interface HeaderNotification {
   id: string;
@@ -13,14 +13,12 @@ export interface HeaderNotification {
 }
 
 interface HeaderProps {
-  /** Unread notifications. Wire to the notifications API when it exists. */
   notifications?: HeaderNotification[];
 }
 
 /** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
-export const Header: React.FC<HeaderProps> = () => {
+export const Header: React.FC<HeaderProps> = ({ notifications: _notifications = [] }) => {
   const { pathname } = useLocation();
-  // /admin/customers/:id -> breadcrumbs are hidden on mobile only (CSS handles the breakpoint)
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
   const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

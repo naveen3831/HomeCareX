@@ -318,9 +318,9 @@ export const ServicesPage: React.FC = () => {
 
         <div className="mb-8 text-center">
 
-         <p className="text-[#4F46E5]">
-  HOMECAREX SERVICES
-</p>
+          <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
+            HomeCareX Services
+          </p>
 
           <h1 className="mt-3 text-3xl font-extrabold text-[#11104f] sm:text-4xl">
             Find the right service for your home
@@ -413,7 +413,7 @@ export const ServicesPage: React.FC = () => {
             "
             role="status"
             aria-busy="true"
-            aria-label="Loading services"
+            role="status" aria-label="Loading services"
           >
 
             {Array.from({
@@ -533,16 +533,15 @@ export const ServicesPage: React.FC = () => {
             "
           >
 
-            {/* CHANGED 1 of 3: added `index` so the first cards can load first */}
-            {apiServices.map((service, index) => {
+            {apiServices.map((service) => {
               const name = service.name.toLowerCase();
 
-              let image = "/images/home-cleaning.webp";
+              let image = "/images/home-cleaning.jpg";
 
               if (name.includes("deep") && name.includes("clean")) {
-                image = "/images/deep-cleaning.webp";
+                image = "/images/deep-cleaning.jpg";
               } else if (name.includes("clean")) {
-                image = "/images/home-cleaning.webp";
+                image = "/images/home-cleaning.jpg";
               } else if (
                 name.includes("ac service") ||
                 name.includes("gas refill") ||
@@ -552,17 +551,16 @@ export const ServicesPage: React.FC = () => {
                 name.includes("washing machine") ||
                 name.includes("microwave")
               ) {
-                image = "/images/appliance-repair.webp";
+                image = "/images/appliance-repair.jpg";
               } else if (
                 name.includes("electrician") ||
                 name.includes("electrical")
               ) {
-                image = "/images/electrical.webp";
+                image = "/images/electrical.jpg";
               } else if (name.includes("plumbing")) {
-                // CHANGED 2 of 3: small 125 KB webp instead of the huge plumbing.jpg
-                image = "/images/plumbing-1200.webp";
+                image = "/images/plumbing.jpg";
               } else if (name.includes("painting")) {
-                image = "/images/painting.webp";
+                image = "/images/painting.jpg";
               } else if (name.includes("pest")) {
                 image = "/images/pest-control-clean.webp";
               } else if (name.includes("massage")) {
@@ -584,8 +582,6 @@ export const ServicesPage: React.FC = () => {
                   rating={service.rating}
                   price={service.basePrice}
                   duration={`${service.durationMinutes} min`}
-                  // CHANGED 3 of 3: first 2 cards load immediately (not lazy)
-                  priority={index === 0}
                 />
               );
             })}
@@ -715,7 +711,7 @@ export const ServicesPage: React.FC = () => {
 
             <div className="text-center">
 
-              <p className="text-sm font-bold uppercase tracking-wider text-[#4f46e5]">
+              <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
                 Why Choose HomeCareX
               </p>
 

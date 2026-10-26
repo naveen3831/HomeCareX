@@ -99,7 +99,7 @@ export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
     newPassword: strongPassword,
-    confirmPassword: z.string().min(1, 'Please confirm your new password').optional(),
+    confirmPassword: z.string().optional(),
   })
   .refine((d) => d.confirmPassword === undefined || d.newPassword === d.confirmPassword, {
     message: 'Passwords do not match',
@@ -109,8 +109,6 @@ export const changePasswordSchema = z
     message: 'New password must be different from the current password',
     path: ['newPassword'],
   });
-
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 export const inviteStaffSchema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
@@ -136,6 +134,7 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type InviteStaffInput = z.infer<typeof inviteStaffSchema>;
 export type VerifyInviteInput = z.infer<typeof verifyInviteSchema>;
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;

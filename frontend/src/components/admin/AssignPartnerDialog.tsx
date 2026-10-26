@@ -20,13 +20,18 @@ interface AssignPartnerDialogProps {
   onAssigned?: (booking: AdminBooking) => void;
 }
 
-const FRONTEND_TEST_PARTNER_ID =
-  "6abcd9a2113bfeaa34911617";
+const FRONTEND_TEST_PARTNER_IDS = [
+  "6abcd9a2113bfeaa34911617",
+  "6acc7f5fc95d912674fb2aff",
+];
 
 function isFrontendTestPartner(
   partner: BookingPartnerCandidate,
 ): boolean {
-  return partner.id === FRONTEND_TEST_PARTNER_ID;
+  return (
+    FRONTEND_TEST_PARTNER_IDS.includes(partner.id) ||
+    partner.name === "Test Partner"
+  );
 }
 
 function isEligiblePartner(

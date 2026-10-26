@@ -122,13 +122,7 @@ export const settingsService = {
         changes.map(([key, value]) => ({
           updateOne: {
             filter: { key },
-            update: {
-              $set: {
-                value,
-                description: SETTING_DEFAULTS[key].description,
-                updatedBy: Types.ObjectId.isValid(actor.id) ? new Types.ObjectId(actor.id) : undefined,
-              },
-            },
+            update: { $set: { value, description: SETTING_DEFAULTS[key].description, updatedBy: Types.ObjectId.isValid(actor.id) ? new Types.ObjectId(actor.id) : undefined } },
             upsert: true,
           },
         })),

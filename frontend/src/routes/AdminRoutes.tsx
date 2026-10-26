@@ -27,6 +27,7 @@ const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
 const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
 const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
+
 const AdminRolesPage = lazy(() => import('@/pages/admin/Roles'));
 const AdminRoleFormPage = lazy(() => import('@/pages/admin/Roles/RoleFormPage'));
 const AdminInviteStaffPage = lazy(() => import('@/pages/admin/Roles/InviteStaffPage'));
@@ -138,6 +139,10 @@ const adminRoutes: AdminRoute[] = [
   },
   {
     path: 'audit-logs',
+    element: <AdminAuditLogsPage />,
+  },
+  {
+    path: 'audit-logs/:id',
     element: <AdminAuditLogsPage />,
   },
   {

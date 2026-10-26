@@ -240,9 +240,6 @@ export interface Pill {
   dot?: boolean;
 }
 
-/** Shown on a booking whose slot has passed without the service being confirmed as done. */
-export const OVERDUE_NOTE = "Service completion has not been confirmed.";
-
 export function pillFor(b: BookingListItem, now: number): Pill {
   const s = statusOf(b);
   if (phaseOf(b, now) === "overdue") return { label: "Overdue", tone: "amber" };

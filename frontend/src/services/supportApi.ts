@@ -20,11 +20,26 @@ function cleanParams(obj: object): Record<string, string | number> {
 export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
-    const response = await http.get<any>("/support/tickets", {
+    const response = await http.get<{
+      data?: TicketPage | CustomerTicket[];
+      items?: CustomerTicket[];
+      meta?: TicketPage["meta"];
+    } | CustomerTicket[]>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
     const body = response.data;
+    if (Array.isArray(body)) {
+      return {
+        items: body,
+        meta: {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.length,
+          pages: 1,
+        },
+      };
+    }
     if (Array.isArray(body?.data)) {
       return {
         items: body.data,
@@ -36,19 +51,24 @@ export const supportApi = {
         },
       };
     }
-    if (body?.data?.items && Array.isArray(body.data.items)) {
-      return body.data;
-    }
-    if (body?.items && Array.isArray(body.items)) {
-      return body;
-    }
-    if (Array.isArray(body)) {
+    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
       return {
-        items: body,
-        meta: {
+        items: body.data.items,
+        meta: body.data.meta ?? {
           page: Number(filters.page) || 1,
           limit: 10,
-          total: body.length,
+          total: body.data.items.length,
+          pages: 1,
+        },
+      };
+    }
+    if (body?.items && Array.isArray(body.items)) {
+      return {
+        items: body.items,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.items.length,
           pages: 1,
         },
       };

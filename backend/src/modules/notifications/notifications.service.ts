@@ -2,9 +2,9 @@ import mongoose, { Types } from 'mongoose';
 import { NotificationModel } from '../../models/Notification';
 import { UserModel } from '../../models/User';
 import { getSetting } from '../settings';
+import { HttpError } from '../auth/auth.types';
 import { emitToUser } from '../../sockets';
 import { Errors } from '../../utils/errors';
-import { HttpError } from '../auth/auth.types';
 import {
   ADMIN_ALERT_SETTING,
   NOTIFICATION_GROUPS,
@@ -60,7 +60,7 @@ export async function notify(userId: string, type: NotificationType, payload: Re
 export async function notifyAdmins(type: NotificationType, payload: Record<string, unknown> = {}): Promise<number> {
   if (mongoose.connection.readyState !== 1) return 0; // no database (scripts, unit tests): nothing to notify
   const settingKey = ADMIN_ALERT_SETTING[type];
-  if (settingKey && (await getSetting(settingKey)) === false) return 0;
+  if (settingKey && ((await getSetting(settingKey)) as boolean) === false) return 0;
   const admins = await UserModel.find({ role: 'admin', status: 'active' }).select('_id').lean();
   await Promise.all(admins.map((a) => notify(String(a._id), type, payload)));
   return admins.length;
@@ -68,6 +68,13 @@ export async function notifyAdmins(type: NotificationType, payload: Record<strin
 
 export class NotificationsService {
   notify = notify;
+
+  async listForUser(userId: string, limit = 30, unreadOnly = false) {
+    const rows = await NotificationModel.find({ userId, ...(unreadOnly ? { readAt: null } : {}) })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+    return rows.map(toDto);
+  }
 
   async listForCustomer(
     userId: string,
@@ -80,7 +87,7 @@ export class NotificationsService {
     const limit = options.limit ?? 50;
     const objectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
     const baseFilter = { userId };
-    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, unknown> = {
+    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, RegExp | { $in: string[] }> = {
       booking: /^booking\./,
       payment: { $in: ['payout.processed', 'refund.updated'] },
       partner: /^partner\./,
@@ -199,12 +206,6 @@ export class NotificationsService {
     return result.deletedCount;
   }
 
-  async listForUser(userId: string, limit = 30, unreadOnly = false) {
-    const rows = await NotificationModel.find({ userId, ...(unreadOnly ? { readAt: null } : {}) })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit);
-    return rows.map((r) => toDto(r as never));
-  }
 
   unreadCount(userId: string) {
     return NotificationModel.countDocuments({ userId, readAt: null });

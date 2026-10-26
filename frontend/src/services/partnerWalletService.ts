@@ -1,6 +1,7 @@
-import { apiBaseUrl } from '@/lib/apiBase';
-
 // Partner wallet API client.
+// NOTE: adjust API_BASE / getToken() to match how the rest of the project
+// talks to the backend (e.g. swap fetch for your existing axios instance).
+
 export type TransactionType =
   | 'booking_earning'
   | 'incentive'
@@ -51,7 +52,8 @@ export interface TransactionQuery {
   limit: number;
 }
 
-const API_BASE = apiBaseUrl;
+const API_BASE: string =
+  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5000/api';
 
 function getToken(): string | null {
   return localStorage.getItem('token');
