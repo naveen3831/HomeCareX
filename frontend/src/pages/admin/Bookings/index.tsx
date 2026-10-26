@@ -55,6 +55,31 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
   "Refunded",
 ];
 
+<<<<<<< HEAD
+=======
+/*
+ * Frontend fallback partner.
+ *
+ * This is only for frontend testing while the backend
+ * eligibility/availability setup is being completed.
+ */
+const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
+  {
+    id: "6acc7f5fc95d912674fb2aff",
+    name: "Test Partner",
+    email: "partner@homecarex.com",
+    phone: "9000000005",
+    categories: ["Home Services", "Electrical & Plumbing"],
+    cities: ["Hyderabad"],
+    areas: ["Gachibowli", "Hitech City", "Madhapur"],
+    kycStatus: "Approved",
+    accountStatus: "Active",
+    available: true,
+    conflictBookingIds: [],
+  },
+];
+
+>>>>>>> origin/develop
 function filtersAreEqual(
   first: BookingFilters,
   second: BookingFilters,

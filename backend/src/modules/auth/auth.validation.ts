@@ -32,11 +32,27 @@ export const registerSchema = z.object({
   referralCode: z.string().trim().optional(),
   role: z.enum(['customer', 'partner']).default('customer'),
   gender: z.enum(['male', 'female', 'other']).optional(),
+  dob: z.string().optional(),
+  avatar: z.string().optional(),
+  idProofType: z.string().optional(),
+  idProofNumber: z.string().optional(),
+  idProofDocument: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  pincode: z.string().optional(),
+  addressProofDocument: z.string().optional(),
+  category: z.string().optional(),
+  skills: z.array(z.string()).optional(),
+  experienceYears: z.number().optional(),
+  serviceRadiusKm: z.number().optional(),
+  workingDays: z.array(z.string()).optional(),
+  workingHoursStart: z.string().optional(),
+  workingHoursEnd: z.string().optional(),
   accountHolder: z.string().optional(),
   accountNumber: z.string().optional(),
   ifsc: z.string().optional(),
   upiId: z.string().optional(),
-  skills: z.array(z.string()).optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -72,23 +88,25 @@ export const resetPasswordSchema = z
     path: ['resetToken'],
   });
 
+const strongPassword = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password needs an uppercase letter')
+  .regex(/[0-9]/, 'Password needs a number')
+  .regex(/[^A-Za-z0-9]/, 'Password needs a special character');
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),
-    newPassword: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Password needs an uppercase letter')
-      .regex(/[0-9]/, 'Password needs a number')
-      .regex(/[^A-Za-z0-9]/, 'Password needs a special character'),
-    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+    newPassword: strongPassword,
+    confirmPassword: z.string().optional(),
   })
-  .refine((data) => data.newPassword === data.confirmPassword, {
+  .refine((d) => d.confirmPassword === undefined || d.newPassword === d.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
-  .refine((data) => data.newPassword !== data.currentPassword, {
-    message: 'New password cannot be the same as the current password',
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    message: 'New password must be different from the current password',
     path: ['newPassword'],
   });
 

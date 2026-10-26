@@ -91,9 +91,10 @@ async function main() {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  if (process.env.CI === "true") {
+  const sitemapPath = path.join(OUT_DIR, "sitemap.xml");
+  if (process.env.SITEMAP_STRICT === "true" || (process.env.CI === "true" && !existsSync(sitemapPath))) {
     console.error(`[sitemap] FAILED: ${message}`);
     process.exit(1);
   }
-  console.warn(`[sitemap] Could not refresh sitemap.xml (${message}). Keeping the existing file. Start the backend, or set CI=true to make this an error.`);
+  console.warn(`[sitemap] Could not refresh sitemap.xml (${message}). Keeping the existing file.`);
 });

@@ -53,7 +53,7 @@ const NotFound: React.FC = () => {
 
       <main className="w-full max-w-2xl text-center">
         {/* Big 404 with a floating house as the zero */}
-        <div className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]" aria-label="Error 404">
+        <div role="img" aria-label="Error 404" className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]">
           <span className="nf-digit" style={{ animationDelay: "0.1s" }} aria-hidden>
             4
           </span>

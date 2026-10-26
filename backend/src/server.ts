@@ -10,6 +10,7 @@ import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
 import {
   ReferralCodeModel,
@@ -35,8 +36,11 @@ let stopReferralWorker: (() => void) | undefined;
 let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
-/** Non-critical default data. A failure here is logged but must not stop the server. */
-const seedDefaults = async () => {
+/**
+ * Non-critical default data.
+ * A failure here is logged but does not stop the server.
+ */
+const seedDefaults = async (): Promise<void> => {
   try {
     const added = await timed('seed settings', seedDefaultSettings);
     if (added) {
@@ -44,6 +48,23 @@ const seedDefaults = async () => {
     }
 
     await timed('seed designations', seedDefaultDesignations);
+
+    const freshCatalog = await timed('count services', async () => {
+      return (await ServiceModel.estimatedDocumentCount()) === 0;
+    });
+/** Non-critical default data. A failure here is logged but must not stop the server. */
+const seedDefaults = async () => {
+  try {
+    const added = await timed('seed settings', seedDefaultSettings);
+    if (added) {
+      console.log(`Seeded ${added} default setting(s)`);
+    }
+    if (added) console.log(`Seeded ${added} default setting(s)`);
+
+    await timed('seed designations', seedDefaultDesignations);
+    const freshCatalog = await timed('count services', async () =>
+      (await ServiceModel.estimatedDocumentCount()) === 0,
+    );
 
     const freshCatalog = await timed('count services', async () => {
       return (await ServiceModel.estimatedDocumentCount()) === 0;
@@ -63,6 +84,7 @@ const seedDefaults = async () => {
 };
 
 const startServer = async () => {
+const startServer = async (): Promise<void> => {
   try {
     await timed('mongo connect', async () => {
       if (!process.env.DATABASE_URL) {
@@ -70,7 +92,6 @@ const startServer = async () => {
       }
       await mongoose.connect(process.env.DATABASE_URL);
     });
-
     console.log('Connected to MongoDB');
 
     // Create required indexes before the server accepts requests that
@@ -91,6 +112,19 @@ const startServer = async () => {
         server.removeListener('error', reject);
         resolve();
       });
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error): void => {
+        server.removeListener('listening', onListening);
+        reject(error);
+      };
+      const onListening = (): void => {
+        server.removeListener('error', onError);
+        resolve();
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
+      server.listen(PORT);
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
@@ -106,6 +140,26 @@ const startServer = async () => {
       ),
     );
 
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error(
+        '[referral-worker] Background referral processing failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      ),
+    );
+
+    registerEarningsListeners();
+    stopSlaSweep = startSlaSweep();
+
+    // Seed default data after the server starts; failures are logged only.
+      `[timing] process uptime at listen: ${Math.round(
+        process.uptime() * 1000,
+      )} ms`,
+    );
+
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error('[referral-worker] Background referral processing failed:', error),
+    );
+    stopSlaSweep = startSlaSweep();
     registerEarningsListeners();
     stopSlaSweep = startSlaSweep();
 
@@ -128,6 +182,16 @@ const startServer = async () => {
 };
 
 // Graceful shutdown
+    if (mongoose.connection.readyState !== 0) {
+      try {
+        await mongoose.connection.close();
+      } catch (closeError) {
+        console.error('[startup] Failed to close MongoDB connection:', closeError);
+      }
+    }
+  }
+};
+
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -146,6 +210,25 @@ const shutdown = async (): Promise<void> => {
       process.exit(1);
     }
   });
+  try {
+    if (server.listening) {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+      });
+    }
+    await mongoose.connection.close();
+    console.log('Database connection closed.');
+    process.exitCode = 0;
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exitCode = 1;
+  }
 };
 
 process.on('SIGTERM', () => void shutdown());

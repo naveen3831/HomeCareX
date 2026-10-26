@@ -454,7 +454,7 @@ export class CouponsService {
     for (const addOnInput of input.addOns ?? []) {
       const addOn = (service.addOns ?? []).find(
         (item) =>
-          String((item as any)._id ?? (item as any).id) ===
+          String((item as { _id?: unknown; id?: unknown })._id ?? (item as { _id?: unknown; id?: unknown }).id) ===
           addOnInput.addOnId,
       );
 

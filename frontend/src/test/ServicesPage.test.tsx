@@ -5,7 +5,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
-import ServicesPage from "../pages/public/Services";
 
 vi.mock("@/services/catalogApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/catalogApi")>();
@@ -111,7 +110,7 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
-        ).toBe("home-cleaning");
+      ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");

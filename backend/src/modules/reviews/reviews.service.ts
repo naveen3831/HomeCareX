@@ -37,10 +37,6 @@ import {
 } from './reviews.validation';
 
 /** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
-interface ReviewAuditActor {
-  id: string;
-  ip: string;
-}
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
@@ -116,6 +112,21 @@ const toCustomerReviewDto = (
   verified: r.verified === true,
   createdAt: new Date(r.createdAt).toISOString(),
 });
+
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
+export class ReviewsService {
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
 
 export class ReviewsService {
   /**
@@ -765,6 +776,7 @@ export class ReviewsService {
 
     return review;
   }
+}
 
   async updateReviewStatus(
     id: string,

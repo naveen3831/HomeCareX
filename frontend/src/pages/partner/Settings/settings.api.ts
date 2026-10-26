@@ -34,14 +34,31 @@ export const settingsApi = {
     http.patch<ApiResponse<PartnerSettings>>('/partner/settings', { language }).then((r) => r.data.data),
 };
 
+/**
+ * The shared client may hand back a raw axios error or its own normalised error
+ * ({ status, code, message }), so the status is read from either shape.
+ */
 export function settingsErrorMessage(err: unknown): string {
-  if (axios.isAxiosError(err)) {
-    const status = err.response?.status;
-    if (status === 401) return 'Your session has expired. Please sign in again.';
-    if (status === 403) return 'You do not have access to these settings.';
-    const message = (err.response?.data as { message?: string } | undefined)?.message;
-    if (message) return message;
-    if (!err.response) return 'Could not reach the server. Check your connection and try again.';
+  const e = (typeof err === 'object' && err !== null ? err : {}) as {
+    response?: { status?: number; data?: { message?: unknown } };
+    status?: number;
+    statusCode?: number;
+    message?: unknown;
+  };
+
+  const status = e.response?.status ?? e.status ?? e.statusCode;
+  if (status === 401) return 'Your session has expired. Please sign in again.';
+  if (status === 403) return 'You do not have access to these settings.';
+
+  const serverMessage = e.response?.data?.message;
+  if (typeof serverMessage === 'string' && serverMessage.trim()) return serverMessage;
+
+  if (typeof status === 'number' && status >= 400) {
+    return typeof e.message === 'string' && e.message.trim() ? e.message : 'Something went wrong. Please try again.';
+  }
+
+  if (axios.isAxiosError(err) && !err.response) {
+    return 'Could not reach the server. Check your connection and try again.';
   }
   return 'Something went wrong. Please try again.';
 }

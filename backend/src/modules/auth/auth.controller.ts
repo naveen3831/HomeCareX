@@ -13,63 +13,45 @@ import type {
 import { authService } from './auth.service';
  
 import {
+<<<<<<< HEAD
 
   acceptInviteSchema,
   forgotPasswordSchema,
   inviteStaffSchema,
   verifyInviteSchema,
 
+=======
+  changePasswordSchema,
+  forgotPasswordSchema,
+>>>>>>> origin/develop
   loginSchema,
-
   parseBody,
-
   registerSchema,
-
   resendOtpSchema,
-
   resetPasswordSchema,
-
   verifyOtpSchema,
-
 } from './auth.validation';
- 
+
 import {
-
   REFRESH_COOKIE,
-
   REFRESH_COOKIE_PATH,
-
   REFRESH_TOKEN_TTL_DAYS,
-
 } from './auth.constants';
- 
- 
+
 /**
-
 * Options used when creating the refresh-token cookie.
-
 *
-
 * The refresh cookie is intentionally scoped to:
-
 *
-
 * /api/v1/auth
-
 *
-
 * instead of "/" so it is only sent to authentication endpoints.
-
 */
 
 const cookieOptions = (): CookieOptions => ({
-
   httpOnly: true,
- 
   secure: process.env.NODE_ENV === 'production',
- 
   sameSite: 'strict',
- 
   path: REFRESH_COOKIE_PATH,
  
   maxAge:
@@ -197,19 +179,18 @@ export const authController = {
    */
 
   login: wrap(async (req, res) => {
-
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "127.0.0.1";
+    const userAgent = req.headers["user-agent"];
     const {
-
       user,
-
       accessToken,
-
       refreshToken,
-
     } = await authService.login(
-
       parseBody(loginSchema, req.body),
-
+      { ip, userAgent },
     );
  
     /**
@@ -456,6 +437,7 @@ export const authController = {
   }),
  
  
+
   /**
 
    * GET /api/v1/auth/me
@@ -573,59 +555,59 @@ export const authController = {
       await authService.resetPassword(
 
         parseBody(
-
           resetPasswordSchema,
-
           req.body,
-
         ),
-
       );
- 
     res.json(result);
-
   }),
 
-
-  /**
-
-   * GET /api/v1/partner/settings/sessions
-
-   */
-
-  getSessions: wrap(async (_req, res) => {
-
-    res.json({
-
-      success: true,
-
-      data: [],
-
-    });
-
+  /** POST /api/v1/auth/change-password */
+  changePassword: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const { currentPassword, newPassword } = parseBody(changePasswordSchema, req.body);
+    const data = await authService.changePassword(userId, { currentPassword, newPassword });
+    res.json({ success: true, data, message: 'Password updated' });
   }),
 
+  /** GET /api/v1/auth/sessions */
+  getSessions: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const currentSid = res.locals.auth?.sid;
+    const ip =
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      req.ip ||
+      "127.0.0.1";
+    const userAgent = req.headers["user-agent"];
+    const sessions = await authService.getSessions(userId, { ip, userAgent, currentSid });
+    res.json({ success: true, data: sessions });
+  }),
 
-  /**
+  /** DELETE /api/v1/auth/sessions/:id */
+  revokeSession: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const sessionId = req.params.id;
+    const currentSid = res.locals.auth?.sid;
+    const result = await authService.revokeSession(userId, sessionId, currentSid);
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+    res.json({ success: true, message: result.message, data: { isCurrent: result.isCurrent } });
+  }),
 
-   * POST /api/v1/partner/settings/logout-all
-
-   */
-
-  logoutAll: wrap(async (_req, res) => {
-
+  /** POST /api/v1/auth/logout-all */
+  logoutAll: wrap(async (req, res) => {
+    const userId = res.locals.auth?.sub || req.user?.id;
+    const result = await authService.logoutAll(userId);
     clearRefreshCookies(res);
-
     res.json({
-
       success: true,
-
-      message: 'All sessions logged out successfully',
-
+      data: { revokedSessionsCount: result.revokedSessionsCount },
+      message: result.message,
     });
-
   }),
 
+<<<<<<< HEAD
 
   /** POST /api/v1/admin/staff (admin; role existence is checked by the route). */
   inviteStaff: wrap(async (req, res) => {
@@ -649,6 +631,17 @@ export const authController = {
   revokeUserSessions: wrap(async (req, res) => {
     await authService.revokeUserSessions(String(req.params.id));
     res.json({ success: true, data: { ok: true } });
+=======
+  /** POST /api/v1/auth/revoke-user-sessions/:userId */
+  revokeUserSessions: wrap(async (req, res) => {
+    const { userId } = req.params;
+    const result = await authService.revokeUserSessions(userId);
+    res.json({
+      success: true,
+      data: { revokedSessionsCount: result.revokedSessionsCount },
+      message: result.message,
+    });
+>>>>>>> origin/develop
   }),
 };
  

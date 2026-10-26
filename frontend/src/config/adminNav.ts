@@ -11,6 +11,7 @@ import {
   HardHat,
   Headset,
   Inbox,
+  Lock,
   UserCog,
   UserPlus,
   LayoutDashboard,
@@ -87,6 +88,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: 'Roles', path: '/admin/roles', icon: ShieldCheck },
       { label: 'Staff', path: '/admin/staff', icon: UserCog },
       { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock },
+      { label: 'Account Security', path: '/admin/security', icon: Lock },
       { label: 'Settings', path: '/admin/settings', icon: Settings },
     ],
   },
@@ -96,6 +98,7 @@ export const adminNavGroups: AdminNavGroup[] = [
     hidden: true,
     items: [
       { label: 'My Profile', path: '/admin/profile', icon: UserCircle },
+      { label: 'Account Security', path: '/admin/security', icon: Lock },
       { label: 'Notifications', path: '/admin/notifications', icon: Bell },
     ],
   },

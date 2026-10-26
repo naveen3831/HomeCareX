@@ -21,9 +21,15 @@ const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand 
 
 /**
  * Top bar.
- *  - mobile: delivery-location picker (Zomato-style) … bell. No hamburger: the bottom nav and the
- *            Profile tab carry all navigation.
- *  - md+   : ☰ (collapses the sidebar) | brand | location picker … bell
+ *  - Home        : ☰ (md+, sidebar collapsed) | brand | location picker … bell
+ *  - Inner pages : ☰ (md+, sidebar collapsed) | ← Page name … bell (md+ only). The back arrow goes
+ *                  back through in-app history, or to the page's parent when it was opened directly.
+ *  - Home : phones — delivery-location picker … bell.  md+ — ☰ | brand | location picker … bell.
+ *  - every other page, at every width: ← back arrow + the page name (see pageTitles.ts), with ☰ in front of
+ *    it on md+ while the sidebar is collapsed, and the bell at the right on md+. No picker, no brand.
+ *    The arrow returns to the previous in-app page, or to the page's parent when the page was opened
+ *    directly (deep link / refresh) so it never leaves the app.
+ * CustomerLayout pins the bar to the top of the screen on every page, so it never scrolls away.
  * The account avatar/menu lives at the bottom of the sidebar (SidebarAccount) and on the Profile page.
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {

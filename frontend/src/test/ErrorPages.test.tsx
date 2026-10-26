@@ -3,50 +3,47 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import NotFound from '@/pages/public/NotFound';
-import { UnauthorizedPage } from '@/pages/public/Unauthorized/index';
+import UnauthorizedPage from '@/pages/public/Unauthorized';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
-import * as AuthContextModule from '@/context/AuthContext';
 
 describe('Frontend 404 Page Not Found', () => {
-  it('renders 404 status, heading, message, Go Home, and Browse Services links', () => {
+  it('renders the 404 heading, message, Go home, Contact us and popular links', () => {
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <NotFound />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
-    expect(document.title).toBe('404 - Page Not Found | HomeCareX');
-    expect(screen.getByRole('heading', { level: 1, name: /Page Not Found/i })).toBeDefined();
-    expect(screen.getByText(/404 Error/i)).toBeDefined();
-    expect(screen.getByText(/The page you are looking for doesn't exist or has been moved/i)).toBeDefined();
+    expect(screen.getByRole('img', { name: /Error 404/i })).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: /We can't find that page/i })).toBeDefined();
+    expect(screen.getByText(/The page you are looking for may have moved or doesn't exist/i)).toBeDefined();
 
-    const homeLink = screen.getByRole('link', { name: /Go Home/i });
-    expect(homeLink.getAttribute('href')).toBe('/');
+    expect(screen.getByRole('link', { name: /Go home/i }).getAttribute('href')).toBe('/');
+    expect(screen.getByRole('link', { name: /Contact us/i }).getAttribute('href')).toBe('/contact');
 
-    const servicesLink = screen.getByRole('link', { name: /Browse Services/i });
-    expect(servicesLink.getAttribute('href')).toBe('/services');
+    const popular = screen.getByRole('navigation', { name: /Helpful links/i });
+    expect(popular.querySelector('a[href="/services"]')).not.toBeNull();
+    expect(popular.querySelector('a[href="/about"]')).not.toBeNull();
   });
 });
 
 describe('Frontend 403 Unauthorized Page', () => {
-  it('renders 403 status, Access Denied heading, and Log in when unauthenticated', () => {
-    vi.spyOn(AuthContextModule, 'useAuth').mockReturnValue({
-      user: null,
-      status: 'unauthenticated',
-      isAuthenticated: false,
-      login: vi.fn(),
-      register: vi.fn(),
-      logout: vi.fn(),
-      updateProfile: vi.fn(),
-    });
-
+  it('renders the 403 status, heading, Go home and Contact support links', () => {
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
+    expect(screen.getByText(/Error 403/i)).toBeDefined();
+    expect(screen.getByRole('heading', { level: 1, name: /You don't have access to this page/i })).toBeDefined();
+    expect(screen.getByRole('alert')).toBeDefined();
     expect(document.title).toBe('403 - Access Denied | HomeCareX');
     expect(screen.getByRole('heading', { level: 1, name: /Access Denied/i })).toBeDefined();
     expect(screen.getByText(/403 Status/i)).toBeDefined();
@@ -77,9 +74,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
@@ -105,9 +104,11 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
     const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
@@ -133,13 +134,15 @@ describe('Frontend 403 Unauthorized Page', () => {
     });
 
     render(
-      <MemoryRouter>
+      <HelmetProvider>
+        <MemoryRouter>
         <UnauthorizedPage />
       </MemoryRouter>
+      </HelmetProvider>
     );
 
-    const dashboardLink = screen.getByRole('link', { name: /Go Dashboard/i });
-    expect(dashboardLink.getAttribute('href')).toBe('/admin');
+    expect(screen.getByRole('link', { name: /Go home/i }).getAttribute('href')).toBe('/');
+    expect(screen.getByRole('link', { name: /Contact support/i }).getAttribute('href')).toBe('/contact');
   });
 });
 

@@ -24,58 +24,31 @@ function destinationFor(user: AuthUser, returnUrl: string | null): string {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[6-9]\d{9}$/;
 
-const REMEMBERED_CREDS_KEY = 'homecarex_remembered_credentials';
+const REMEMBERED_ID_KEY = 'homecarex_remembered_identifier';
 
-interface SavedCredentials {
-  identifier: string;
-  password: string;
-}
-
-function getSavedCredentials(): SavedCredentials | null {
+function getSavedIdentifier(): string {
   try {
-    const raw = localStorage.getItem(REMEMBERED_CREDS_KEY);
-    if (!raw) {
-      // Legacy fallback: check for previous identifier-only key
-      const legacyId = localStorage.getItem('homecarex_remembered_identifier');
-      return legacyId ? { identifier: legacyId, password: '' } : null;
-    }
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.identifier === 'string') {
-      let decodedPassword = '';
-      if (parsed.password) {
-        try {
-          decodedPassword = atob(parsed.password);
-        } catch {
-          decodedPassword = parsed.password;
-        }
-      }
-      return {
-        identifier: parsed.identifier,
-        password: decodedPassword,
-      };
-    }
+    // Proactively purge any legacy insecure password storage
+    localStorage.removeItem('homecarex_remembered_credentials');
+    return localStorage.getItem(REMEMBERED_ID_KEY) || '';
   } catch {
-    // Ignore storage parse errors
+    return '';
   }
-  return null;
 }
 
-function saveCredentials(identifier: string, password: string) {
+function saveIdentifier(identifier: string) {
   try {
-    const encoded = btoa(password);
-    localStorage.setItem(
-      REMEMBERED_CREDS_KEY,
-      JSON.stringify({ identifier, password: encoded })
-    );
+    localStorage.setItem(REMEMBERED_ID_KEY, identifier);
+    localStorage.removeItem('homecarex_remembered_credentials');
   } catch {
     // Ignore storage write errors in restricted contexts
   }
 }
 
-function clearCredentials() {
+function clearIdentifier() {
   try {
-    localStorage.removeItem(REMEMBERED_CREDS_KEY);
-    localStorage.removeItem('homecarex_remembered_identifier');
+    localStorage.removeItem(REMEMBERED_ID_KEY);
+    localStorage.removeItem('homecarex_remembered_credentials');
   } catch {
     // Ignore storage errors
   }
@@ -88,18 +61,24 @@ export const LoginPage: React.FC = () => {
   const [params] = useSearchParams();
   const returnUrl = safeReturnUrl(params.get('returnUrl'));
 
-  // Initialize directly from stored credentials so fields are instantly autofilled
-  const [initialCreds] = useState<SavedCredentials | null>(() => getSavedCredentials());
-  const [identifier, setIdentifier] = useState(initialCreds?.identifier ?? '');
-  const [password, setPassword] = useState(initialCreds?.password ?? '');
-  const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
-  const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
+  // Remember-me restores identifier (email/phone) only. Passwords are never stored in browser storage.
+  const [initialId] = useState<string>(() => getSavedIdentifier());
+  const [identifier, setIdentifier] = useState(initialId);
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(Boolean(initialId));
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
-  const [successMessage] = useState(
-    params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess
-      ? 'Password reset successful. Please log in with your new password.'
-      : ''
-  );
+  const [successMessage] = useState(() => {
+    const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
+    if (stateMsg) return stateMsg;
+    if (params.get('registered') === 'partner') {
+      return 'Registration successful! You can now log in with your credentials.';
+    }
+    if (params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess) {
+      return 'Password reset successful. Please log in with your new password.';
+    }
+    return '';
+  });
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -111,17 +90,27 @@ export const LoginPage: React.FC = () => {
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
     if (!isAuthenticated) {
-      const saved = getSavedCredentials();
-      if (saved) {
-        setIdentifier(saved.identifier);
-        setPassword(saved.password);
+      const stateEmail = (location.state as { registeredEmail?: string } | null)?.registeredEmail;
+      if (stateEmail) {
+        setIdentifier(stateEmail);
+        return;
+      }
+      const savedId = getSavedIdentifier();
+      if (savedId) {
+        setIdentifier(savedId);
         setRememberMe(true);
-        setTermsAccepted(true);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.state]);
 
-  // Already signed in state
+  // Auto-redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      navigate(destinationFor(user, returnUrl), { replace: true });
+    }
+  }, [isAuthenticated, user, loading, returnUrl, navigate]);
+
+  // Already signed in fallback state
   if (isAuthenticated && user && !loading) {
     return (
       <div className="w-full text-center">
@@ -196,9 +185,9 @@ export const LoginPage: React.FC = () => {
       const trimmed = identifier.trim();
       const signedIn = await login({ email: trimmed, password });
       if (rememberMe) {
-        saveCredentials(trimmed, password);
+        saveIdentifier(trimmed);
       } else {
-        clearCredentials();
+        clearIdentifier();
       }
       navigate(destinationFor(signedIn, returnUrl), { replace: true });
     } catch (err) {

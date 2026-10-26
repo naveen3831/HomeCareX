@@ -28,6 +28,9 @@ notificationsRoutes.get(
     const unreadOnly = unread === 'true';
     const [items, unreadCount] = await Promise.all([
       notificationsService.listForUser(id, limit, unreadOnly),
+    const { limit, unread } = listQuerySchema.parse(req.query);
+    const [items, unreadCount] = await Promise.all([
+      notificationsService.listForUser(id, limit, unread === 'true'),
       notificationsService.unreadCount(id),
     ]);
     sendSuccess(res, items, { meta: { unread: unreadCount } });

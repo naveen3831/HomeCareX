@@ -16,6 +16,8 @@ import { registerTicketSocket } from './ticket.socket';
  * - user:<id>
  * - role:<role>
  * - booking:<id> after successful booking:join authorization
+ * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
+ * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
  * - tracking:<id> after successful tracking:join authorization
  * - ticket:admin:<id> after successful ticket:join authorization
  */
@@ -63,11 +65,25 @@ export const emitToBooking = (
   payload: unknown,
 ) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
+/**
+ * Decides whether an authenticated user may join a booking room.
+ * - admin: any existing booking
+ * - customer: only their own booking
+ * - partner: only a booking assigned to them
+ */
+export const emitToBooking = (bookingId: string, event: string, payload: unknown) =>
+  getIO().to(rooms.booking(bookingId)).emit(event, payload);
+
 /** Customers: their own bookings. Partners: bookings assigned to them. Admins: any booking. */
 async function canJoinBooking(
   auth: AccessTokenPayload,
   bookingId: string,
 ): Promise<boolean> {
+  if (auth.role === 'admin') {
+    return !!(await BookingModel.exists({ _id: bookingId }));
+  }
+
+  if (auth.role === 'customer') {
   if (auth.role === 'admin')
     return !!(await BookingModel.exists({ _id: bookingId }));
   if (auth.role === 'customer')
@@ -75,13 +91,22 @@ async function canJoinBooking(
       _id: bookingId,
       customerId: auth.sub,
     }));
-  const partner = await PartnerModel.findOne({ userId: auth.sub })
-    .select('_id')
-    .lean();
-  return (
-    !!partner &&
-    !!(await BookingModel.exists({ _id: bookingId, partnerId: partner._id }))
-  );
+
+  if (auth.role === 'partner') {
+    const partner = await PartnerModel.findOne({ userId: auth.sub })
+      .select('_id')
+      .lean();
+
+    return (
+      !!partner &&
+      !!(await BookingModel.exists({
+        _id: bookingId,
+        partnerId: partner._id,
+      }))
+    );
+  }
+
+  return false;
 }
 
 /**
@@ -145,6 +170,8 @@ export const initSockets = (server: HttpServer): Server => {
     const auth = socket.data.auth as AccessTokenPayload;
 
     // Automatically join the user's room and their role room.
+    void socket.join([rooms.user(auth.sub), rooms.role(auth.role)]);
+    // Automatically join the user's room and role room.
     void socket.join([
       rooms.user(auth.sub),
       rooms.role(auth.role),
@@ -156,7 +183,9 @@ export const initSockets = (server: HttpServer): Server => {
 
     socket.on('booking:join', async (payload: unknown, ack?: AckFn) => {
       const reply: AckFn = typeof ack === 'function' ? ack : () => undefined;
+
       const parsed = bookingPayload.safeParse(payload);
+
       if (!parsed.success) {
         return reply({
           ok: false,
@@ -164,8 +193,10 @@ export const initSockets = (server: HttpServer): Server => {
           message: 'bookingId is required',
         });
       }
+
       try {
         const allowed = await canJoinBooking(auth, parsed.data.bookingId);
+
         if (!allowed) {
           return reply({
             ok: false,
@@ -173,7 +204,9 @@ export const initSockets = (server: HttpServer): Server => {
             message: 'You cannot join this booking',
           });
         }
+
         await socket.join(rooms.booking(parsed.data.bookingId));
+
         return reply({ ok: true });
       } catch {
         return reply({
@@ -183,11 +216,66 @@ export const initSockets = (server: HttpServer): Server => {
         });
       }
     });
+    socket.on(
+      'booking:join',
+      async (payload: unknown, ack?: AckFn) => {
+        const reply: AckFn =
+          typeof ack === 'function' ? ack : () => undefined;
+
+        const parsed = bookingPayload.safeParse(payload);
+
+        if (!parsed.success) {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'bookingId is required',
+          });
+        }
+
+        try {
+          const allowed = await canJoinBooking(
+            auth,
+            parsed.data.bookingId,
+          );
+
+          if (!allowed) {
+            return reply({
+              ok: false,
+              code: ERROR_CODES.RESOURCE_FORBIDDEN,
+              message: 'You cannot join this booking',
+            });
+          }
+
+          await socket.join(
+            rooms.booking(parsed.data.bookingId),
+          );
+
+          return reply({ ok: true });
+        } catch {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.INTERNAL_ERROR,
+            message: 'Could not join booking',
+          });
+        }
+      },
+    );
 
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
+
       if (parsed.success) {
         void socket.leave(rooms.booking(parsed.data.bookingId));
+      }
+    });
+
+    // --------------------------------------------------
+    // TRACKING + TICKET SOCKET EVENTS
+    // --------------------------------------------------
+
+        void socket.leave(
+          rooms.booking(parsed.data.bookingId),
+        );
       }
     });
 
