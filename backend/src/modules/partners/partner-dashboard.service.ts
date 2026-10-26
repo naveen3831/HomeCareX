@@ -69,7 +69,7 @@ export const partnerDashboardService = {
       acceptanceRate: percent(partner.stats?.offersAccepted ?? 0, partner.stats?.offersReceived ?? 0),
       completionRate: percent(partner.stats?.jobsCompleted ?? 0, partner.stats?.jobsAssigned ?? 0),
       activeJob,
-      ...(assignedServices.length > 0 ? { assignedServices } : {}),
+      assignedServices,
     };
   },
 };

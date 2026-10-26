@@ -21,7 +21,14 @@ import {
   customerProfileRoutes,
 } from '../modules/customer-profile/customer-profile.routes';
 import { designationsRoutes } from '../modules/designations/designations.routes';
-import { earningsRoutes } from '../modules/earnings/earnings.routes';
+import { reportsRoutes } from '../modules/reports/reports.routes';
+import { servicesRoutes } from '../modules/services/services.routes';
+import { settingsRoutes } from '../modules/settings/settings.routes';
+import { partnersRoutes } from '../modules/partners/partners.routes';
+import { payoutsRoutes } from '../modules/payouts/payouts.routes';
+import refundsRoutes from '../modules/refunds/refunds.routes';
+import { couponsRoutes, couponCustomerRoutes } from '../modules/coupons/coupons.routes';
+import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
 import { incentivesRoutes } from '../modules/incentives/incentives.routes';
 import leadsRoutes from '../modules/leads/leads.routes';
 import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
@@ -92,8 +99,46 @@ rootRouter.use('/banners', publicMarketingRoutes);
 rootRouter.use('/serviceability', serviceabilityRoutes);
 rootRouter.use('/pricing', pricingRoutes);
 rootRouter.use(leadsRoutes);
-rootRouter.use('/partner/kyc', partnerKycRoutes);
 
+rootRouter.use("/partner/kyc", partnerKycRoutes);
+rootRouter.use("/customer/dashboard", customerDashboardRoutes);
+rootRouter.use("/customer/profile", customerProfileRoutes);
+rootRouter.use("/customer/preferences", customerPreferencesRoutes);
+rootRouter.use("/addresses", addressesRoutes);
+rootRouter.use("/payments", paymentRoutes);
+rootRouter.use("/wallet", walletRoutes);
+rootRouter.use("/tickets", ticketsRoutes);
+rootRouter.use("/referrals", referralsRoutes);
+rootRouter.use("/coupons", couponCustomerRoutes);
+
+rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
+rootRouter.use("/partner/availability", availabilityRoutes);
+rootRouter.use("/partner/blackout-dates", blackoutRoutes);
+rootRouter.use("/partner/schedule", scheduleRoutes);
+rootRouter.use("/partner/earnings", earningsRoutes);
+rootRouter.use("/partner/transactions", partnerWalletRoutes);
+rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
+rootRouter.use("/partner/payouts", partnerPayoutsRoutes);
+rootRouter.use("/partner/incentives", incentivesRoutes);
+rootRouter.use("/partner/services", partnerServicesRoutes);
+rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
+rootRouter.use("/partner/performance", partnerPerformanceRoutes);
+rootRouter.use("/partner/reviews", partnerReviewsRoutes);
+rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
+rootRouter.use("/partner/settings", partnerSettingsRoutes);
+rootRouter.use("/partner/safety", sosRoutes);
+rootRouter.use("/partner/jobs", partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
+rootRouter.use("/partner/jobs", maskedCallRoutes);
+rootRouter.use("/partner/jobs", partnerLocationRoutes);
+
+// PATCH /bookings/:id/status (partner: en route / arrived)
+rootRouter.use("/bookings", bookingStatusRoutes);
+// Notifications
+rootRouter.use('/notifications', notificationsRoutes);
+rootRouter.use('/customer/notifications', customerNotificationsRoutes);
+
+// Customer
 rootRouter.use('/customer/dashboard', customerDashboardRoutes);
 rootRouter.use('/customer/profile', customerProfileRoutes);
 rootRouter.use('/customer/preferences', customerPreferencesRoutes);
@@ -107,6 +152,7 @@ rootRouter.use('/referrals', referralsRoutes);
 rootRouter.use('/coupons', couponCustomerRoutes);
 rootRouter.use('/notifications', notificationsRoutes);
 
+// Partner
 rootRouter.use('/partner/dashboard', partnerDashboardRoutes);
 rootRouter.use('/partner/availability', availabilityRoutes);
 rootRouter.use('/partner/blackout-dates', blackoutRoutes);
@@ -129,9 +175,16 @@ rootRouter.use('/partner/jobs', maskedCallRoutes);
 rootRouter.use('/partner/jobs', partnerLocationRoutes);
 rootRouter.use('/partner/notifications', notificationsRoutes);
 
+// Bookings & Chat & Reviews
 rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
+rootRouter.use("/bookings", chatRoutes);
+rootRouter.use(reviewsRoutes);
+
+export default rootRouter;
 rootRouter.use('/bookings', bookingStatusRoutes);
 rootRouter.use('/bookings', chatRoutes);
+rootRouter.use(bookingsRoutes);
 rootRouter.use(reviewsRoutes);
 
 export default rootRouter;

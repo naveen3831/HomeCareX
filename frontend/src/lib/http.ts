@@ -1,6 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { SESSION_EXPIRED_EVENT, tokenStore } from "./tokenStore";
-import { apiBaseUrl } from "./apiBase";
 import type { AuthUser } from "@/types/auth";
 
 export interface ApiResponse<T> {
@@ -25,7 +24,7 @@ export interface SessionPayload {
 const API_TIMEOUT_MS = 15000;
 
 export const http = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: "/api/v1",
   withCredentials: true,
   timeout: API_TIMEOUT_MS,
   headers: { "Content-Type": "application/json" },
@@ -56,7 +55,7 @@ let refreshingPromise: Promise<SessionPayload | null> | null = null;
 export function refreshAccessToken(): Promise<SessionPayload | null> {
   if (!refreshingPromise) {
     refreshingPromise = axios
-      .post<ApiResponse<SessionPayload>>(`${apiBaseUrl}/auth/refresh`, null, {
+      .post<ApiResponse<SessionPayload>>("/api/v1/auth/refresh", null, {
         withCredentials: true,
         timeout: API_TIMEOUT_MS,
       })

@@ -13,14 +13,14 @@ const styles = `
   letter-spacing: -0.02em;
 }
 
-@keyframes nf-digit { 0% { transform: translateY(0.6em) scale(.8); filter: blur(8px); } 100% { transform: none; filter: blur(0); } }
-@keyframes nf-fade { from { transform: translateY(14px); } to { transform: none; } }
+@keyframes nf-digit { 0% { opacity: 0; transform: translateY(0.6em) scale(.8); filter: blur(8px); } 100% { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes nf-fade { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes nf-drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(30px,-24px) scale(1.08); } }
 @keyframes nf-bob { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
 @keyframes nf-shadow { 0%,100% { transform: scaleX(1); opacity: .25; } 50% { transform: scaleX(.7); opacity: .12; } }
 
-.nf-digit { display: inline-block; animation: nf-digit .9s cubic-bezier(.2,.8,.2,1) both; }
-.nf-in { animation: nf-fade .8s cubic-bezier(.2,.7,.2,1) both; }
+.nf-digit { display: inline-block; opacity: 0; animation: nf-digit .9s cubic-bezier(.2,.8,.2,1) forwards; }
+.nf-in { opacity: 0; animation: nf-fade .8s cubic-bezier(.2,.7,.2,1) forwards; }
 .nf-drift { animation: nf-drift 14s ease-in-out infinite; }
 .nf-bob { animation: nf-bob 4s ease-in-out infinite; }
 .nf-shadow { animation: nf-shadow 4s ease-in-out infinite; }
@@ -53,7 +53,7 @@ const NotFound: React.FC = () => {
 
       <main className="w-full max-w-2xl text-center">
         {/* Big 404 with a floating house as the zero */}
-        <div className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]" role="img" aria-label="Error 404">
+        <div role="img" aria-label="Error 404" className="display flex items-center justify-center text-[6.5rem] font-extrabold leading-none text-[#4338ca] sm:text-[9rem]">
           <span className="nf-digit" style={{ animationDelay: "0.1s" }} aria-hidden>
             4
           </span>

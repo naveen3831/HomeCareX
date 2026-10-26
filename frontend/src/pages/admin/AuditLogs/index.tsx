@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
-import DataTable, { type Column } from '@/components/tables/DataTable';
-import FullScreenPanel from '@/components/admin/FullScreenPanel';
-import { diffRecords } from '@/components/admin/AuditDiffDrawer';
-import { useDragScroll } from '@/hooks/useDragScroll';
-import http from '@/lib/http';
+import React, { useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import DataTable, {
+  Column,
+} from "../../../components/tables/DataTable";
 import './index.css';
-
+import http from "@/lib/http";
+import { useDragScroll } from "@/hooks/useDragScroll";
+import FullScreenPanel from "@/components/admin/FullScreenPanel";
+import { diffRecords } from "@/components/admin/AuditDiffDrawer";
 interface AuditLog {
   id: string;
   timestamp: string;
@@ -25,15 +25,15 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-  actor?: string | null;
+  actor: string;
   actorName?: string | null;
-  action?: string | null;
-  entity?: string | null;
-  entityId?: string | null;
+  action: string;
+  entity: string;
+  entityId: string;
   before?: unknown;
   after?: unknown;
-  ip?: string | null;
-  result?: string | null;
+  ip: string;
+  result: "Success" | "Failed";
   timestamp?: string;
   createdAt?: string;
 }
@@ -46,52 +46,6 @@ interface AuditLogsResponse {
   };
 }
 
-const formatJson = (value: unknown): string => {
-  if (value === undefined || value === null) return '{}';
-  if (typeof value === 'string') {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2);
-    } catch {
-      return value;
-    }
-  }
-
-  try {
-    return JSON.stringify(value, null, 2) ?? '{}';
-  } catch {
-    return String(value);
-  }
-};
-
-const formatTimestamp = (timestamp?: string, createdAt?: string): string => {
-  const rawTimestamp = timestamp || createdAt;
-  if (!rawTimestamp) return '—';
-
-  const parsedTimestamp = new Date(rawTimestamp);
-  return Number.isNaN(parsedTimestamp.getTime()) ? '—' : parsedTimestamp.toLocaleString();
-};
-
-const normalizeResult = (result?: string | null): AuditLog['result'] =>
-  result?.toLowerCase() === 'success' ? 'Success' : 'Failed';
-
-const normalizeLog = (log: AuditLogApi, index: number): AuditLog => ({
-  id: String(log.id || log._id || index),
-  timestamp: formatTimestamp(log.timestamp, log.createdAt),
-  actor: log.actor || '—',
-  actorName: log.actorName || log.actor || '—',
-  action: log.action || '—',
-  entity: log.entity || '—',
-  entityId: log.entityId || '—',
-  ip: log.ip || '—',
-  result: normalizeResult(log.result),
-  before: formatJson(log.before),
-  after: formatJson(log.after),
-});
-
-const getErrorStatus = (error: unknown): number | undefined => {
-  if (typeof error !== 'object' || error === null || !('status' in error)) return undefined;
-  return typeof error.status === 'number' ? error.status : undefined;
-};
 
 const parseJson = (raw: string): Record<string, unknown> | null => {
   try {
@@ -176,75 +130,127 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
-  const navigate = useNavigate();
-  const { id: auditId } = useParams<{ id: string }>();
-  const scrollRootRef = useDragScroll<HTMLDivElement>('.datatable-wrapper');
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [totalLogs, setTotalLogs] = useState(0);
-  const [search, setSearch] = useState('');
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  // Search box sits right under the page title
+  const [search, setSearch] = useState("");
+  // Mouse drag-scroll for the table (swipe already works on phones)
+  const scrollRootRef = useDragScroll<HTMLDivElement>(".datatable-wrapper");
+  const [selectedLog, setSelectedLog] =
+    useState<AuditLog | null>(null);
+
+  const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    let cancelled = false;
-
     const fetchAuditLogs = async () => {
       try {
         setLoading(true);
         setError('');
 
-        const { data: response } = await http.get<AuditLogsResponse>(
-          '/admin/audit-logs',
-          { params: { limit: 100 } },
+        // Shared axios client: sends the admin Bearer token + cookies and uses the
+        // same /api/v1 base URL (dev proxy) as every other admin page.
+        const { data: result } = await http.get<AuditLogsResponse>(
+          "/admin/audit-logs",
+          { params: { limit: 100 } }
         );
 
-        if (!response?.success || !response.data || !Array.isArray(response.data.items)) {
-          throw new Error('Invalid audit logs response.');
+        if (!result.success) {
+          throw new Error("Failed to load audit logs");
         }
 
-        const logs = response.data.items.map(normalizeLog);
-        if (!cancelled) {
-          setAuditLogs(logs);
-          setTotalLogs(response.data.total ?? logs.length);
-        }
-      } catch (requestError) {
-        console.error('Failed to fetch audit logs:', requestError);
-        if (!cancelled) {
-          const status = getErrorStatus(requestError);
-          setError(
-            status === 401
-              ? 'Your session has expired. Please sign in again.'
-              : status === 403
-                ? 'You do not have permission to view audit logs.'
-                : 'Unable to load audit logs. Please check that the backend is running.',
-          );
-        }
+        const logs: AuditLog[] =
+          result.data.items.map((log) => ({
+            id: log.id || log._id || "",
+            timestamp: new Date(
+              log.timestamp || log.createdAt || ""
+            ).toLocaleString(),
+            actor: log.actor,
+            actorName: log.actorName || log.actor,
+            action: log.action,
+            entity: log.entity,
+            entityId: log.entityId,
+            ip: log.ip,
+            result: log.result,
+            before:
+              log.before === undefined ||
+              log.before === null
+                ? "{}"
+                : typeof log.before === "string"
+                ? log.before
+                : JSON.stringify(
+                    log.before,
+                    null,
+                    2
+                  ),
+            after:
+              log.after === undefined ||
+              log.after === null
+                ? "{}"
+                : typeof log.after === "string"
+                ? log.after
+                : JSON.stringify(
+                    log.after,
+                    null,
+                    2
+                  ),
+          }));
+
+        setAuditLogsData(logs);
+      } catch (err) {
+        console.error(
+          "Failed to fetch audit logs:",
+          err
+        );
+
+        const status = (err as { response?: { status?: number } })
+          ?.response?.status;
+
+        setError(
+          status === 401
+            ? "Your session has expired. Please sign in again."
+            : status === 403
+            ? "You do not have permission to view audit logs."
+            : "Unable to load audit logs. Please check that the backend is running."
+        );
       } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     };
 
-    void fetchAuditLogs();
-    return () => {
-      cancelled = true;
-    };
+    fetchAuditLogs();
   }, []);
 
-  const query = search.toLowerCase().trim();
-  const filteredLogs = auditLogs.filter((log) =>
-    [
-      log.id,
-      log.timestamp,
-      log.actor,
-      log.actorName,
-      log.action,
-      log.entity,
-      log.entityId,
-      log.ip,
-      log.result,
-    ].some((value) => value.toLowerCase().includes(query)),
-  );
+  const filteredLogs = auditLogsData.filter((log) => {
+    const searchValue = search.toLowerCase().trim();
+
+    if (!searchValue) {
+      return true;
+    }
+
+    return (
+      log.actorName
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.actor
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.action
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.entity
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.entityId
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.ip
+        .toLowerCase()
+        .includes(searchValue) ||
+      log.result
+        .toLowerCase()
+        .includes(searchValue)
+    );
+  });
 
   const selectedAuditLog = auditLogs.find((log) => log.id === auditId);
   if (auditId) {
@@ -338,59 +344,41 @@ const AdminAuditLogsPage: React.FC = () => {
         <span className={row.result === 'Success' ? 'success-badge' : 'failed-badge'}>{row.result}</span>
       ),
     },
-    {
-      key: 'details',
-      header: 'Details',
-      cell: (row) => (
-        <button
-          type="button"
-          className="view-btn"
-          onClick={(event) => {
-            event.stopPropagation();
-            navigate(`/admin/audit-logs/${encodeURIComponent(row.id)}`);
-          }}
-        >
-          View Audit
-        </button>
-      ),
-    },
   ];
 
   return (
     <main className="admin-auditlogs-container" ref={scrollRootRef}>
       <div className="auditlogs-header">
-        <div className="auditlogs-heading-content">
-          <h1 className="auditlogs-title">Audit Logs</h1>
-          <p className="auditlogs-description">
-            Monitor system activity, track administrative actions, and review changes for accountability and security.
-          </p>
-        </div>
+        <h1 className="auditlogs-title">
+          Audit Logs
+        </h1>
       </div>
 
       <div className="auditlogs-search">
         <Search size={18} aria-hidden="true" className="auditlogs-search__icon" />
         <input
-          type="search"
+          type="text"
+          inputMode="search"
+          autoComplete="off"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Search actor, action, entity, ID or IP…"
           aria-label="Search audit logs"
         />
-        {search && (
-          <button
-            type="button"
-            className="auditlogs-search-clear"
-            onClick={() => setSearch('')}
-            aria-label="Clear search"
-            title="Clear search"
-          >
-            ×
-          </button>
-        )}
       </div>
 
-      {loading && <div className="auditlogs-count">Loading audit logs...</div>}
-      {!loading && error && <div className="auditlogs-count" role="alert">{error}</div>}
+      {loading && (
+        <div className="auditlogs-count">
+          Loading audit logs...
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="auditlogs-count">
+          {error}
+        </div>
+      )}
+
       {!loading && !error && (
         <>
           <div className="auditlogs-table-container">

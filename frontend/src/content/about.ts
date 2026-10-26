@@ -287,7 +287,7 @@ export const aboutData: AboutPageData = {
         category: "Essential Care",
         description:
           "Professional home cleaning services for everyday spaces and essential cleaning needs.",
-       image: "/images/home-cleaning.webp",
+        image: "/images/home-cleaning.jpg",
         icon: "✨",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -298,7 +298,7 @@ export const aboutData: AboutPageData = {
         category: "Repairs & Installs",
         description:
           "Get help with common plumbing requirements and household maintenance.",
-       image: "/images/plumbing-1200.webp",
+        image: "/images/plumbing.jpg",
         icon: "🔧",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -309,7 +309,7 @@ export const aboutData: AboutPageData = {
         category: "Safety & Wiring",
         description:
           "Find support for everyday electrical installation, maintenance, and repair needs.",
-       image: "/images/electrical.webp",
+        image: "/images/electrical.jpg",
         icon: "⚡",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -320,7 +320,7 @@ export const aboutData: AboutPageData = {
         category: "Appliance Care",
         description:
           "Convenient access to services for common household appliances.",
-       image: "/images/appliance-repair.webp",
+        image: "/images/appliance-repair.jpg",
         icon: "🛠️",
         ctaText: "Explore",
         href: ROUTES.SERVICES,

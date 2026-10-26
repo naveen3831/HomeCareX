@@ -22,6 +22,8 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
    Constants
 ========================================================= */
 
+
+
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
 // Anchored so it does NOT match the "Clear filters" button
@@ -43,7 +45,6 @@ const LocationDisplay: React.FC = () => {
 interface TestWrapperProps {
   initialEntry?: string;
 }
-
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
 }) => {

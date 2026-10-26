@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { notifyAdmins } from "../notifications";
 import { alertRefundRequested } from "../notifications/admin-alerts";
 import { createHash } from 'crypto';
@@ -27,8 +28,8 @@ import {
 
   canTransition,
   type StatusHistoryEntry,
-} from './bookings.stateMachine';
-import { computeCancellation, type CancellationQuote } from './bookings.cancel';
+} from "./bookings.stateMachine";
+import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
@@ -604,15 +605,22 @@ export const BookingService = {
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && isPaid) {
       try {
-        const refund = await bookingsRepository.createRefundRequest({
+        const refund = (await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
           customerId,
           amount: quote.refundAmount,
           reason,
           now,
-        });
+        })) as any;
         refundStatus = 'requested';
+        if (refund && refund._id) {
+          alertRefundRequested({
+            refundId: String(refund._id),
+            bookingId,
+            amount: quote.refundAmount,
+          });
+        }
         alertRefundRequested({
           refundId: String(refund._id),
           bookingId,
