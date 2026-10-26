@@ -1,9 +1,9 @@
-import { Router } from 'express';
-import { asyncHandler } from '../../utils/asyncHandler';
-import { authMiddleware } from '../../middleware/auth.middleware';
-import { roleMiddleware } from '../../middleware/role.middleware';
-import { validationMiddleware } from '../../middleware/validation.middleware';
-import { bookingsController } from './bookings.controller';
+import { Router } from "express";
+import { asyncHandler } from "../../utils/asyncHandler";
+import { authMiddleware } from "../../middleware/auth.middleware";
+import { roleMiddleware } from "../../middleware/role.middleware";
+import { validationMiddleware } from "../../middleware/validation.middleware";
+import { bookingsController } from "./bookings.controller";
 import {
   createBookingBodySchema,
   getBookingParamsSchema,
@@ -14,6 +14,8 @@ import {
   checkSlotBodySchema,
   cancelBookingBodySchema,
   rescheduleBookingBodySchema,
+} from "./bookings.validation";
+import { listBookingsQuerySchema } from "./bookings.query";
 } from './bookings.validation';
 import { listBookingsQuerySchema } from './bookings.query';
 
@@ -21,46 +23,106 @@ export const bookingsRoutes = Router();
 
 // GET /services/:id/slots?date=YYYY-MM-DD
 bookingsRoutes.get(
+  "/services/:id/slots",
   ['/services/:id/slots', '/services/:serviceId/slots'],
   validationMiddleware({
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
   }),
+  asyncHandler(async (req, res) => bookingsController.getSlots(req, res)),
   asyncHandler(async (req, res) => bookingsController.getSlots(req, res))
 );
 
 // POST /bookings/check-slot — Real-time slot verification when clicking "Next Step"
 bookingsRoutes.post(
-  '/bookings/check-slot',
+  "/bookings/check-slot",
   validationMiddleware({ body: checkSlotBodySchema }),
-  asyncHandler(async (req, res) => bookingsController.checkSlot(req, res))
+  asyncHandler(async (req, res) => bookingsController.checkSlot(req, res)),
 );
 
 // POST /bookings — Pay & Confirm (returns 201 Created or 409 Conflict if slot was taken)
 bookingsRoutes.post(
-  '/bookings',
+  "/bookings",
   authMiddleware,
-  roleMiddleware('customer'),
+  roleMiddleware("customer"),
   validationMiddleware({ body: createBookingBodySchema }),
-  asyncHandler(async (req, res) => bookingsController.createBooking(req, res))
+  asyncHandler(async (req, res) => bookingsController.createBooking(req, res)),
 );
 
 // GET /bookings?status&search&date&service&page&limit&sort — the signed-in customer's bookings, one page at a time
 bookingsRoutes.get(
-  '/bookings',
+  "/bookings",
   authMiddleware,
-  roleMiddleware('customer'),
+  roleMiddleware("customer"),
   validationMiddleware({ query: listBookingsQuerySchema }),
-  asyncHandler(async (req, res) => bookingsController.listBookings(req, res))
+  asyncHandler(async (req, res) => bookingsController.listBookings(req, res)),
 );
 
 // GET /bookings/:id — Get details of a single booking
 bookingsRoutes.get(
-  '/bookings/:id',
+  "/bookings/:id",
   authMiddleware,
-  roleMiddleware('customer'),
+  roleMiddleware("customer"),
   validationMiddleware({ params: getBookingParamsSchema }),
-  asyncHandler(async (req, res) => bookingsController.getBooking(req, res))
+  asyncHandler(async (req, res) => bookingsController.getBooking(req, res)),
+);
+
+// GET /bookings/:id/invoice — HTML invoice for own, paid booking (404 for someone else's, 409 until paid)
+bookingsRoutes.get(
+  "/bookings/:id/invoice",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({ params: getBookingParamsSchema }),
+  asyncHandler(async (req, res) => bookingsController.getInvoice(req, res)),
+);
+
+// POST /bookings/:id/extra-charges/:chargeId/decision — approve or reject one pending extra charge (own booking only)
+bookingsRoutes.post(
+  "/bookings/:id/extra-charges/:chargeId/decision",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({
+    params: extraChargeDecisionParamsSchema,
+    body: extraChargeDecisionBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.decideExtraCharge(req, res),
+  ),
+);
+
+// GET /bookings/:id/cancel-preview — the exact fee and refund if the customer cancelled right now
+bookingsRoutes.get(
+  "/bookings/:id/cancel-preview",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({ params: getBookingParamsSchema }),
+  asyncHandler(async (req, res) => bookingsController.previewCancel(req, res)),
+);
+
+// POST /bookings/:id/cancel — cancel own booking: policy fee, refund request, reason (409 once in_progress)
+bookingsRoutes.post(
+  "/bookings/:id/cancel",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: cancelBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) => bookingsController.cancelBooking(req, res)),
+);
+
+// POST /bookings/:id/reschedule — move own booking to another slot (slot re-checked under a lock; 409 if taken)
+bookingsRoutes.post(
+  "/bookings/:id/reschedule",
+  authMiddleware,
+  roleMiddleware("customer"),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: rescheduleBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.rescheduleBooking(req, res),
+  ),
 );
 
 // GET /bookings/:id/invoice — Printable HTML invoice for paid bookings
