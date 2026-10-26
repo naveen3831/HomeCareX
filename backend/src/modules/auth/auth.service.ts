@@ -28,7 +28,6 @@ import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { ensurePartnerProfile } from '../partners/partners.service';
-import type { UserRole } from '../../models/User';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 

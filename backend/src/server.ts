@@ -17,7 +17,6 @@ import {
   ReferralModel,
 } from './modules/referrals/referrals.model';
 import { WalletLedgerModel, WalletModel } from './models/Wallet';
-import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 
 const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
   const start = Date.now();
@@ -30,6 +29,7 @@ const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
 
 const server = http.createServer(app);
 initSockets(server);
+
 const PORT = Number(process.env.PORT) || 5000;
 let stopReferralWorker: (() => void) | undefined;
 let stopSlaSweep: (() => void) | undefined;
@@ -92,6 +92,9 @@ const startServer = async (): Promise<void> => {
       await mongoose.connect(process.env.DATABASE_URL);
     });
     console.log('Connected to MongoDB');
+
+    // Create required indexes before the server accepts requests that
+    // could award referral rewards or modify wallet balances.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
         ReferralCodeModel.init(),
@@ -174,28 +177,6 @@ const startServer = async (): Promise<void> => {
         console.error('[startup] Failed to close MongoDB connection:', closeError);
       }
     }
-      server.once('error', reject);
-      server.listen(PORT, () => {
-        server.removeListener('error', reject);
-        resolve();
-      });
-    });
-
-    console.log(`HomeCareX server running on port ${PORT}`);
-    console.log(`[timing] process uptime at listen: ${Math.round(process.uptime() * 1000)} ms`);
-
-    stopReferralWorker = startReferralWorker((error) =>
-      console.error(
-        '[referral-worker] Background referral processing failed:',
-        error instanceof Error ? error.message : error,
-      ),
-    );
-    stopSlaSweep = startSlaSweep();
-    registerEarningsListeners();
-    void seedDefaults();
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
   }
 };
 
@@ -227,7 +208,6 @@ const shutdown = async (): Promise<void> => {
             resolve();
           }
         });
-        server.close((error) => (error ? reject(error) : resolve()));
       });
     }
     await mongoose.connection.close();
@@ -235,8 +215,6 @@ const shutdown = async (): Promise<void> => {
     process.exitCode = 0;
   } catch (error) {
     console.error('Error during shutdown:', error);
-  } catch (error) {
-    console.error('Error during graceful shutdown:', error);
     process.exitCode = 1;
   }
 };
