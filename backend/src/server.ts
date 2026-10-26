@@ -20,6 +20,7 @@ import {
   ReferralCodeModel,
   ReferralModel,
 } from './modules/referrals/referrals.model';
+import { WalletLedgerModel, WalletModel } from './models/Wallet';
 
 import {
   WalletLedgerModel,
@@ -120,17 +121,16 @@ const startServer = async (): Promise<void> => {
 
     console.log('Connected to MongoDB');
 
-    await timed(
-      'initialize critical indexes',
-      async () => {
-        await Promise.all([
-          ReferralCodeModel.init(),
-          ReferralModel.init(),
-          WalletModel.init(),
-          WalletLedgerModel.init(),
-        ]);
-      },
-    );
+    // Create required indexes before the server accepts requests that
+    // could award referral rewards or modify wallet balances.
+    await timed('initialize critical indexes', async () => {
+      await Promise.all([
+        ReferralCodeModel.init(),
+        ReferralModel.init(),
+        WalletModel.init(),
+        WalletLedgerModel.init(),
+      ]);
+    });
 
     // Start listening exactly once.
     await new Promise<void>((resolve, reject) => {
@@ -197,13 +197,14 @@ const startServer = async (): Promise<void> => {
   }
 };
 
-/**
- * Gracefully stops background workers, the HTTP server,
- * and the MongoDB connection.
- */
-const shutdown = async (): Promise<void> => {
-  if (shuttingDown) {
-    return;
+// Graceful shutdown
+    if (mongoose.connection.readyState !== 0) {
+      try {
+        await mongoose.connection.close();
+      } catch (closeError) {
+        console.error('[startup] Failed to close MongoDB connection:', closeError);
+      }
+    }
   }
 
   shuttingDown = true;
@@ -233,11 +234,7 @@ const shutdown = async (): Promise<void> => {
     console.log('Database connection closed.');
     process.exitCode = 0;
   } catch (error) {
-    console.error(
-      '[shutdown] Error during graceful shutdown:',
-      error,
-    );
-
+    console.error('Error during shutdown:', error);
     process.exitCode = 1;
   }
 };

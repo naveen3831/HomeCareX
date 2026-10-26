@@ -36,10 +36,7 @@ import {
   type ReviewStatus,
 } from './reviews.validation';
 
-interface ReviewAuditActor {
-  id: string;
-  ip?: string;
-}
+/** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
 
 /** Mask customer names before displaying them publicly. */
 export function maskAuthor(fullName: string): string {
