@@ -118,7 +118,7 @@ export const settingsService = {
 
     if (changes.length) {
       await SettingModel.bulkWrite(
-        changes.map(([key, value]) => ({
+        changes.map<any>(([key, value]) => ({
           updateOne: {
             filter: { key },
             update: { $set: { value, description: SETTING_DEFAULTS[key].description, updatedBy: actor.id } },

@@ -5,6 +5,7 @@ import BookingModel from '../../models/Booking';
 import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import { UserModel } from '../../models/User';
+import CategoryModel from '../../models/Category';
 
 import { Errors } from '../../utils/errors';
 import { HttpError } from '../auth/auth.types';
@@ -286,6 +287,55 @@ export class PartnersService {
     }
 
     return partners.map(toDto);
+  }
+
+  /**
+   * PARTNERS & KYC DIRECTORY
+   * One row per partner with KYC state and performance, read from the Partner profile (real data).
+   * Rates come from the counters kept by matching / booking services.
+   */
+  async directory() {
+    const partners = await PartnerModel.find({}).sort({ createdAt: -1 }).limit(500).lean();
+    const userIds = partners.map((p) => p.userId);
+
+    const [users, lastCities, categories] = await Promise.all([
+      UserModel.find({ _id: { $in: userIds }, role: 'partner' }).select('name email phone status designation').lean(),
+      // A partner has no address of their own: use the city of their most recent booking.
+      BookingModel.aggregate<{ _id: unknown; city?: string }>([
+        { $match: { partnerId: { $in: partners.map((p) => p._id) }, 'address.city': { $exists: true, $ne: '' } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: '$partnerId', city: { $first: '$address.city' } } },
+      ]),
+      CategoryModel.find({}).select('name').lean(),
+    ]);
+
+    const userById = new Map(users.map((u) => [String(u._id), u]));
+    const cityByPartner = new Map(lastCities.map((r) => [String(r._id), r.city ?? '']));
+    const categoryName = new Map(categories.map((c) => [String(c._id), c.name as string]));
+    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+
+    return partners.flatMap((p) => {
+      const user = userById.get(String(p.userId));
+      if (!user) return [];
+      const stats = p.stats ?? { offersReceived: 0, offersAccepted: 0, jobsAssigned: 0, jobsCompleted: 0 };
+      return [
+        {
+          id: String(user._id), // same id the other /admin/partners endpoints use (the login user id)
+          partnerId: String(p._id),
+          name: user.name,
+          email: user.email,
+          phone: user.phone ?? '',
+          kycStatus: p.kyc?.status ?? 'not_started',
+          accountStatus: user.status === 'blocked' ? 'blocked' : user.status === 'invited' ? 'invited' : 'active',
+          category: (p.categories ?? []).map((c) => categoryName.get(String(c))).filter(Boolean).join(', ') || user.designation || '',
+          city: cityByPartner.get(String(p._id)) ?? '',
+          rating: Math.round((p.ratingAvg ?? 0) * 10) / 10,
+          ratingCount: p.ratingCount ?? 0,
+          acceptance: pct(stats.offersAccepted, stats.offersReceived),
+          completion: pct(stats.jobsCompleted, stats.jobsAssigned),
+        },
+      ];
+    });
   }
 
   /**

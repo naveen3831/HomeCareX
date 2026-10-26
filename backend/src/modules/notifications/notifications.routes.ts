@@ -10,7 +10,13 @@ import { notificationsService } from './notifications.service';
 export const notificationsRoutes = Router();
 notificationsRoutes.use(authenticate);
 
-const listQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30) }).strict();
+// `.strict()` rejects unknown query keys, so every supported key (limit, unread) must be listed here.
+const listQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(30),
+    unread: z.enum(['true', 'false']).optional(),
+  })
+  .strict();
 const idParamsSchema = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid notification id') });
 
 notificationsRoutes.get(
@@ -18,15 +24,13 @@ notificationsRoutes.get(
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-<<<<<<< HEAD
-    const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? ''), 10) || 30, 1), 100);
-    const unreadOnly = req.query.unread === 'true';
-    const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit, unreadOnly), notificationsService.unreadCount(id)]);
-=======
-    const { limit } = req.query as unknown as z.infer<typeof listQuerySchema>;
-    const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit), notificationsService.unreadCount(id)]);
->>>>>>> origin/develop
-    sendSuccess(res, items, { meta: { unread } });
+    const { limit, unread } = req.query as unknown as z.infer<typeof listQuerySchema>;
+    const unreadOnly = unread === 'true';
+    const [items, unreadCount] = await Promise.all([
+      notificationsService.listForUser(id, limit, unreadOnly),
+      notificationsService.unreadCount(id),
+    ]);
+    sendSuccess(res, items, { meta: { unread: unreadCount } });
   }),
 );
 
@@ -42,7 +46,7 @@ notificationsRoutes.patch(
   '/:id/read',
   validate(idParamsSchema, 'params'),
   asyncHandler(async (req, res) => {
-    await notificationsService.markRead(getAuthUser(req).id, req.params.id);
+    await notificationsService.markRead(getAuthUser(req).id, req.params.id as string);
     sendSuccess(res, { ok: true });
   }),
 );

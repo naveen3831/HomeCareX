@@ -1,11 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-<<<<<<< HEAD
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-=======
-import { ArrowLeft } from 'lucide-react';
->>>>>>> origin/develop
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';
@@ -31,29 +27,32 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
   // Leave the admin sidebar visible on desktop (260px, or 68px when collapsed). On mobile the sidebar is off-canvas.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const collapsed = useUIStore((s) => s.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const left = isDesktop ? (collapsed ? 68 : 260) : 0;
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/develop
+  // Phones / tablets: hide the app behind the panel and let the normal PAGE scroll (see FullScreenPanel.css).
+  // One scroll container (the document) is far more reliable than a nested one on iOS Safari and in device-emulator frames.
+  useEffect(() => {
+    if (!open || isDesktop) return;
+    const y = window.scrollY;
+    document.documentElement.classList.add('hcx-fs-open');
+    window.scrollTo(0, 0);
+    return () => {
+      document.documentElement.classList.remove('hcx-fs-open');
+      window.scrollTo(0, y);
+    };
+  }, [open, isDesktop]);
+
   if (!open) return null;
 
   return createPortal(
     <div className="hcx-fs" style={{ left }} ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-<<<<<<< HEAD
-      <div className="hcx-fs__nav">
+      <header className="hcx-fs__head">
         {isDesktop && (
           <button type="button" className="hcx-fs__navbtn" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             {collapsed ? <PanelLeftOpen size={20} aria-hidden /> : <PanelLeftClose size={20} aria-hidden />}
           </button>
         )}
-        {/* Same live bell as the main header: real notifications, unread count, mark read. */}
-        <div className="hcx-fs__bellwrap"><NotificationBell /></div>
-      </div>
-
-=======
->>>>>>> origin/develop
-      <header className="hcx-fs__head">
         <button type="button" className="hcx-fs__back" onClick={onClose} title="Back (Esc)">
           <ArrowLeft size={18} aria-hidden /> <span>Back</span>
         </button>
@@ -61,6 +60,8 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({ open, onClose,
           <h2>{title}</h2>
           {subtitle && <p>{subtitle}</p>}
         </div>
+        {/* Same live bell as the main header, pinned to the right of the title bar. */}
+        <div className="hcx-fs__bellwrap"><NotificationBell /></div>
       </header>
       <div className="hcx-fs__body">
         <div className="hcx-fs__inner">{children}</div>

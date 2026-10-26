@@ -5,18 +5,13 @@ import { UserModel } from '../../models/User';
 import { auditService } from '../audit/audit.service';
 import { authService } from '../auth/auth.service';
 import { HttpError } from '../auth/auth.types';
+import { SUPER_ADMIN_ROLE_ID } from './rbac.constants';
+import { rbacPermissions } from './rbac.permissions';
+import { rbacRolesService } from './rbac.roles.service';
 
-export const SUPER_ADMIN_ROLE_ID = 'role_super_admin';
+export { SUPER_ADMIN_ROLE_ID };
 
-// TODO(rbac module): replace with the Role model. Names for the system roles the UI ships with.
-const ROLE_LABELS: Record<string, { name: string; key: string }> = {
-  role_super_admin: { name: 'Super Admin', key: 'super_admin' },
-  role_admin: { name: 'Admin', key: 'admin' },
-  role_support_agent: { name: 'Support Agent', key: 'support_agent' },
-  role_finance: { name: 'Finance', key: 'finance' },
-  role_content_editor: { name: 'Content Editor', key: 'content_editor' },
-  role_ops_supervisor: { name: 'Ops Supervisor', key: 'ops_supervisor' },
-};
+type RoleLabels = Awaited<ReturnType<typeof rbacRolesService.labels>>;
 
 interface StaffDoc {
   userId: unknown;
@@ -27,8 +22,8 @@ interface StaffDoc {
 }
 
 /** The API `id` is the login account id (userId): role change, logout-all and "(you)" all key on it. */
-function toStaff(s: StaffDoc, lastLoginAt?: Date | null) {
-  const label = ROLE_LABELS[s.roleId];
+function toStaff(s: StaffDoc, labels: RoleLabels, lastLoginAt?: Date | null) {
+  const label = labels.get(s.roleId);
   return {
     id: String(s.userId),
     name: s.name,
@@ -102,12 +97,13 @@ export const rbacStaffService = {
     const staff = await StaffModel.find().sort({ createdAt: -1 }).lean();
     const users = await UserModel.find({ _id: { $in: staff.map((s) => s.userId) } }).select('lastLoginAt').lean();
     const login = new Map(users.map((u) => [String(u._id), u.lastLoginAt ?? null]));
-    return staff.map((s) => toStaff(s as unknown as StaffDoc, login.get(String(s.userId))));
+    const labels = await rbacRolesService.labels();
+    return staff.map((s) => toStaff(s as unknown as StaffDoc, labels, login.get(String(s.userId))));
   },
 
   /** PATCH /admin/users/:id/role */
   async changeRole(userId: string, roleId: string, actor: { id: string; ip: string }) {
-    if (!roleId || typeof roleId !== 'string') throw new HttpError(422, 'Choose a role.', 'VALIDATION_ERROR');
+    await rbacRolesService.assertExists(roleId);
     const staff = await findStaff(userId);
 
     const demoting = staff.roleId === SUPER_ADMIN_ROLE_ID && roleId !== SUPER_ADMIN_ROLE_ID && staff.status === 'active';
@@ -116,8 +112,9 @@ export const rbacStaffService = {
     const before = staff.roleId;
     staff.roleId = roleId;
     await staff.save();
+    rbacPermissions.invalidate(userId); // new role applies on the next request
     await audit(actor, 'user.role_changed', userId, { roleId: before }, { roleId });
-    return toStaff(staff, await lastLoginOf(userId));
+    return toStaff(staff, await rbacRolesService.labels(), await lastLoginOf(userId));
   },
 
   /** PATCH /admin/staff/:id  { status: 'active' | 'deactivated' } */
@@ -140,7 +137,8 @@ export const rbacStaffService = {
       await UserModel.updateOne({ _id: userId }, { $set: { status: 'active' } });
     }
 
+    rbacPermissions.invalidate(userId);
     await audit(actor, status === 'deactivated' ? 'user.deactivated' : 'user.reactivated', userId, { status: before }, { status });
-    return toStaff(staff, await lastLoginOf(userId));
+    return toStaff(staff, await rbacRolesService.labels(), await lastLoginOf(userId));
   },
 };

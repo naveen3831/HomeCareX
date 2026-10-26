@@ -12,7 +12,6 @@ import {
 import { SettingField } from './SettingField';
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-import React from 'react';
 
 export const AdminSettingsPage: React.FC = () => {
   // Web keeps the original tab-strip design; phones use the filter dropdown below.
@@ -311,8 +310,6 @@ export const AdminSettingsPage: React.FC = () => {
           </section>
         </div>
       )}
-    <div className="admin-page-container p-6">
-      <h1 className="text-2xl font-bold">Admin Settings</h1>
     </div>
   );
 };

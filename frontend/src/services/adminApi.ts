@@ -29,6 +29,23 @@ export interface CreatePartnerInput {
   password: string;
 }
 
+/** One row of Partners & KYC (GET /admin/partners/directory). */
+export interface PartnerDirectoryRow {
+  id: string;
+  partnerId: string;
+  name: string;
+  email: string;
+  phone: string;
+  kycStatus: 'not_started' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'suspended';
+  accountStatus: 'active' | 'blocked' | 'invited';
+  category: string;
+  city: string;
+  rating: number;
+  ratingCount: number;
+  acceptance: number;
+  completion: number;
+}
+
 export interface AdminStats {
   partners: number;
   customers: number;
@@ -38,6 +55,9 @@ export const adminApi = {
   getStats: () => http.get<ApiResponse<AdminStats>>('/admin/partners/stats').then((r) => r.data.data),
 
   listPartners: () => http.get<ApiResponse<PartnerMember[]>>('/admin/partners').then((r) => r.data.data),
+
+  partnerDirectory: () =>
+    http.get<ApiResponse<PartnerDirectoryRow[]>>('/admin/partners/directory').then((r) => r.data.data),
 
   createPartner: (input: CreatePartnerInput) =>
     http

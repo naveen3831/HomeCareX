@@ -1,3 +1,4 @@
+import { getSetting } from '../settings';
 import { SLOT_CAPACITY } from './bookings.constants';
 
 /**

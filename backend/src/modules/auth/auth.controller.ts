@@ -14,7 +14,10 @@ import { authService } from './auth.service';
  
 import {
 
+  acceptInviteSchema,
   forgotPasswordSchema,
+  inviteStaffSchema,
+  verifyInviteSchema,
 
   loginSchema,
 
@@ -623,5 +626,29 @@ export const authController = {
 
   }),
 
+
+  /** POST /api/v1/admin/staff (admin; role existence is checked by the route). */
+  inviteStaff: wrap(async (req, res) => {
+    const invitedBy = String((res.locals.auth as { sub?: string } | undefined)?.sub ?? '') || undefined;
+    const data = await authService.inviteStaff(parseBody(inviteStaffSchema, req.body), invitedBy);
+    res.status(201).json({ success: true, data });
+  }),
+
+  /** POST /api/v1/auth/verify-invite (public) */
+  verifyInvite: wrap(async (req, res) => {
+    res.json({ success: true, data: await authService.verifyInvite(parseBody(verifyInviteSchema, req.body)) });
+  }),
+
+  /** POST /api/v1/auth/accept-invite (public) */
+  acceptInvite: wrap(async (req, res) => {
+    await authService.acceptInvite(parseBody(acceptInviteSchema, req.body));
+    res.json({ success: true, data: { ok: true } });
+  }),
+
+  /** POST /api/v1/auth/revoke-user-sessions/:id (admin) */
+  revokeUserSessions: wrap(async (req, res) => {
+    await authService.revokeUserSessions(String(req.params.id));
+    res.json({ success: true, data: { ok: true } });
+  }),
 };
  

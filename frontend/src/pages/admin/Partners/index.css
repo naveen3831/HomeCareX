@@ -483,3 +483,25 @@
   background: #1e40af;
   border-color: #1e40af;
 }
+.partners-error {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}
+.partner-status.submitted,
+.partner-status.in_review {
+  background: #fef3c7;
+  color: #92400e;
+}
+.partner-status.blocked {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.partner-status.not_started,
+.partner-status.invited {
+  background: #e2e8f0;
+  color: #334155;
+}

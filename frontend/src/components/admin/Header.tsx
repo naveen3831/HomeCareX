@@ -1,16 +1,10 @@
-<<<<<<< HEAD
 import React from 'react';
-import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { NotificationBell } from '@/components/admin/NotificationBell';
-=======
-import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useUIStore } from '@/store/useUIStore';
-import { useClickOutside } from '@/hooks/useClickOutside';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
->>>>>>> origin/develop
+import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
 export interface HeaderNotification {
   id: string;
@@ -24,17 +18,11 @@ interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
-<<<<<<< HEAD
-/** Sticky admin header: menu/collapse and notifications. */
+/** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
 export const Header: React.FC<HeaderProps> = () => {
-=======
-/** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
-export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
-  const navigate = useNavigate();
   const { pathname } = useLocation();
   // /admin/customers/:id -> breadcrumbs are hidden on mobile only (CSS handles the breakpoint)
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
->>>>>>> origin/develop
   const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
@@ -58,7 +46,11 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
       </div>
 
       <div className="topbar-right">
+        <Link to="/admin/support" className="icon-btn" aria-label="Help and support" title="Help and support">
+          <HelpCircle size={20} />
+        </Link>
         <NotificationBell />
+        <ProfileMenu />
       </div>
     </header>
   );

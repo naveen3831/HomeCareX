@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authController } from './auth.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import { requireAdmin } from '../../middleware/role.middleware';
 import { authRateLimit } from '../../middleware/rateLimit.middleware';
 
 export const authRoutes = Router();
@@ -14,6 +15,9 @@ authRoutes.post('/forgot-password', authRateLimit, authController.forgotPassword
 // authRoutes.post('/verify-otp', authRateLimit, authController.verifyOtp);
 // authRoutes.post('/resend-otp', authRateLimit, authController.resendOtp);
 authRoutes.post('/reset-password', authRateLimit, authController.resetPassword);
+authRoutes.post('/verify-invite', authRateLimit, authController.verifyInvite);
+authRoutes.post('/accept-invite', authRateLimit, authController.acceptInvite);
+authRoutes.post('/revoke-user-sessions/:id', authMiddleware, requireAdmin, authController.revokeUserSessions);
 authRoutes.get('/me', authMiddleware, authController.me);
 
 export default authRoutes;
