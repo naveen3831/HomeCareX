@@ -15,6 +15,7 @@ const CustomerRoutes = lazy(() => import('./CustomerRoutes'));
 // Lazy-load authentication pages
 const LoginPage = lazy(() => import('@/pages/public/Login'));
 const RegisterPage = lazy(() => import('@/pages/public/Register'));
+const PartnerRegisterPage = lazy(() => import('@/pages/public/PartnerRegister'));
 const ForgotPasswordPage = lazy(
   () => import('@/pages/public/ForgotPassword'),
 );
@@ -25,6 +26,7 @@ const ResetPasswordPage = lazy(
 const UnauthorizedPage = lazy(
   () => import('@/pages/public/Unauthorized'),
 );
+const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 const AppRoutes: React.FC = () => {
   return (
@@ -34,6 +36,7 @@ const AppRoutes: React.FC = () => {
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/register/partner" element={<PartnerRegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -65,6 +68,16 @@ const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={['customer']}>
               <CustomerRoutes />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Central Account Security route accessible to all authenticated roles */}
+        <Route
+          path="/account/security"
+          element={
+            <ProtectedRoute allowedRoles={['customer', 'partner', 'admin']}>
+              <AccountSecurityPage />
             </ProtectedRoute>
           }
         />

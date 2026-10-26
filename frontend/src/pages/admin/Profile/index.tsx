@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pencil, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronRight, Pencil, Save, ShieldCheck } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 // Basic editable profile form. Starts read-only; "Edit" unlocks the fields,
@@ -99,6 +100,27 @@ export const AdminProfilePage: React.FC = () => {
           </div>
         )}
       </form>
+
+      <div className="profile-card mt-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <ShieldCheck size={22} />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">Account Security</h2>
+              <p className="text-xs text-slate-500">Change password, manage active sessions & logout all devices</p>
+            </div>
+          </div>
+          <Link
+            to="/admin/security"
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-indigo-600 shadow-sm hover:bg-slate-50 transition-colors"
+          >
+            Manage Security
+            <ChevronRight size={16} />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 };

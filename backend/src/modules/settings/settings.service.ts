@@ -126,7 +126,7 @@ export const settingsService = {
               $set: {
                 value,
                 description: SETTING_DEFAULTS[key].description,
-                updatedBy: new Types.ObjectId(actor.id),
+                updatedBy: Types.ObjectId.isValid(actor.id) ? new Types.ObjectId(actor.id) : undefined,
               },
             },
             upsert: true,

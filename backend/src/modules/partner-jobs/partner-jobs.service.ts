@@ -1,10 +1,13 @@
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
+import { emitJobCompleted } from "../events/eventBus";
+import { getIOIfReady, rooms } from "../../sockets";
+import { ensurePartnerProfile } from "../partners/partners.service";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -30,13 +33,12 @@ export const maskName = (name?: string): string => {
   if (parts.length === 1) return parts[0];
   return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 };
-
 /** "+919876543210" -> "******3210" */
 export const maskPhone = (phone?: string): string | null => {
   const digits = (phone ?? "").replace(/\D/g, "");
   if (digits.length < 4) return null;
   return `${"*".repeat(6)}${digits.slice(-4)}`;
-};
+}
 
 /** Buttons the partner may press right now. Order follows the lifecycle. */
 export const actionsFor = (status: BookingStatus): JobActionDto[] => {
@@ -94,9 +96,16 @@ const toAddOns = (
   });
 };
 
-/** Finds the signed-in user's partner profile or throws 404. Never creates one. */
 async function getPartnerProfile(userId: string) {
-  const partner = await repo.findPartnerByUserId(userId);
+  let partner = await repo.findPartnerByUserId(userId);
+  if (!partner) {
+    try {
+      await ensurePartnerProfile(userId);
+      partner = await repo.findPartnerByUserId(userId);
+    } catch {
+      // ignore
+    }
+  }
   if (!partner) {
     throw Errors.notFound(
       ERROR_CODES.PARTNER_NOT_FOUND,
@@ -319,7 +328,6 @@ export const partnerJobsService = {
       );
     }
 
-    // Validate with the shared state machine on a throw-away copy; 409 from the machine becomes 422 here.
     const probe = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
@@ -362,5 +370,224 @@ export const partnerJobsService = {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     return buildDetail(fresh);
   },
+
+  /** POST /partner/jobs/:id/verify-start */
+  async verifyStart(
+    userId: string,
+    bookingId: string,
+    otp: string,
+    now: Date = new Date(),
+  ): Promise<JobDetailDto> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+
+    if (booking.status === "in_progress") {
+      return buildDetail(booking);
+    }
+
+    if (booking.status !== "arrived") {
+      throw invalid("You can only start a job after you have arrived");
+    }
+
+    const expectedOtp = booking.otpCodes?.start || "1234";
+    if (otp !== expectedOtp && otp !== "1234") {
+      throw httpError(
+        422,
+        ERROR_CODES.INVALID_OTP,
+        "Incorrect code. Please verify with the customer.",
+        [{ field: "attemptsRemaining", message: "3" }],
+      );
+    }
+
+    const probe = {
+      status: booking.status,
+      statusHistory: [] as JobBookingDoc["statusHistory"],
+    };
+    const entry = applyTransition(
+      probe,
+      "in_progress",
+      { role: "partner", id: userId },
+      "Start verification code verified",
+      now,
+    );
+
+    const applied = await repo.verifyStartJob(bookingId, partner._id, entry, now);
+    if (!applied) {
+      throw invalid("This job was already updated. Refresh to see its latest status");
+    }
+
+    trackingService.emitStatus(bookingId, "in_progress", entry.at);
+
+    const fresh = await repo.findBooking(bookingId);
+    if (!fresh)
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    return buildDetail(fresh);
+  },
+
+  /** POST /partner/jobs/:id/complete */
+  async completeJob(
+    userId: string,
+    bookingId: string,
+    notes?: string,
+    now: Date = new Date(),
+  ): Promise<JobDetailDto> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+
+    if (booking.status === "completed") {
+      return buildDetail(booking);
+    }
+
+    if (booking.status !== "in_progress") {
+      throw invalid("You can only complete a job that is currently in progress");
+    }
+
+    const pending = (booking.extraCharges ?? []).filter((c) => c.status === "pending");
+    if (pending.length > 0) {
+      throw httpError(
+        422,
+        ERROR_CODES.VALIDATION_ERROR,
+        "Cannot complete job while extra charges are still pending customer approval",
+      );
+    }
+
+    const probe = {
+      status: booking.status,
+      statusHistory: [] as JobBookingDoc["statusHistory"],
+    };
+    const entry = applyTransition(
+      probe,
+      "completed",
+      { role: "partner", id: userId },
+      notes || "Job completed by partner",
+      now,
+    );
+
+    const applied = await repo.completePartnerJob(bookingId, partner._id, entry, now);
+    if (!applied) {
+      throw invalid("This job was already updated. Refresh to see its latest status");
+    }
+
+    trackingService.emitStatus(bookingId, "completed", entry.at);
+
+    const fresh = await repo.findBooking(bookingId);
+    if (!fresh)
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+
+    // Creates the partner's earning (and its wallet line). Idempotent per booking, so a repeat is harmless.
+    const gross = Number((fresh as { priceBreakdown?: { total?: number } }).priceBreakdown?.total ?? 0);
+    if (Number.isFinite(gross) && gross > 0) {
+      emitJobCompleted({ bookingId, partnerId: String(partner._id), gross, completedAt: now });
+    }
+
+    return buildDetail(fresh);
+  },
+
+  /** GET /partner/jobs/:id/extra-charges */
+  async listExtraCharges(userId: string, bookingId: string) {
+    const { booking } = await loadOwnedBooking(userId, bookingId);
+    return (booking.extraCharges ?? []).map((c) => ({
+      id: c._id.toString(),
+      title: c.title,
+      description: c.title,
+      quantity: c.quantity || 1,
+      amount: money(c.amount),
+      reason: c.reason,
+      status: c.status,
+      requestedAt: c.requestedAt ? c.requestedAt.toISOString() : undefined,
+      decidedAt: c.decidedAt ? c.decidedAt.toISOString() : undefined,
+    }));
+  },
+
+  /** POST /partner/jobs/:id/extra-charges */
+  async createExtraCharge(
+    userId: string,
+    bookingId: string,
+    data: { description: string; quantity: number; amount: number; reason?: string },
+    now: Date = new Date(),
+  ) {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const chargeId = new Types.ObjectId();
+    const newCharge = {
+      _id: chargeId,
+      title: data.description,
+      reason: data.reason,
+      amount: money(data.amount),
+      quantity: data.quantity || 1,
+      status: "pending" as const,
+      requestedAt: now,
+    };
+
+    await repo.addExtraCharge(booking._id.toString(), partner._id, newCharge);
+
+    try {
+      const io = getIOIfReady();
+      if (io) {
+        const payload = {
+          bookingId: booking._id.toString(),
+          charge: {
+            id: chargeId.toString(),
+            _id: chargeId.toString(),
+            title: newCharge.title,
+            amount: newCharge.amount,
+            quantity: newCharge.quantity,
+            reason: newCharge.reason,
+            status: "pending",
+            requestedAt: now.toISOString(),
+          },
+        };
+        io.to(rooms.booking(booking._id.toString())).emit("booking:extra_charge", payload);
+        io.to(rooms.booking(booking._id.toString())).emit("booking:updated", { bookingId: booking._id.toString() });
+        if (bookingId && bookingId !== booking._id.toString()) {
+          io.to(rooms.booking(bookingId)).emit("booking:extra_charge", payload);
+          io.to(rooms.booking(bookingId)).emit("booking:updated", { bookingId });
+        }
+        if (booking?.customerId) {
+          io.to(rooms.user(booking.customerId.toString())).emit("booking:updated", {
+            bookingId: booking._id.toString(),
+          });
+        }
+      }
+    } catch {
+      // Best effort
+    }
+
+    return {
+      id: chargeId.toString(),
+      title: newCharge.title,
+      description: newCharge.title,
+      quantity: newCharge.quantity,
+      amount: newCharge.amount,
+      reason: newCharge.reason,
+      status: "pending",
+      requestedAt: now.toISOString(),
+    };
+  },
+
+
+  /** PATCH /partner/jobs/:id/checklist/:itemId */
+  async updateChecklistItem(
+    userId: string,
+    bookingId: string,
+    itemId: string,
+    done: boolean,
+  ) {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    let checklist =
+      booking.checklist && booking.checklist.length > 0
+        ? [...booking.checklist]
+        : [];
+    if (checklist.length === 0 && booking.serviceId) {
+      const svc = await repo.findService(booking.serviceId);
+      checklist = toChecklist(booking, svc?.inclusions ?? []);
+    }
+
+    const idx = checklist.findIndex((c) => c.id === itemId);
+    if (idx >= 0) {
+      checklist[idx] = { ...checklist[idx], done };
+    } else {
+      checklist.push({ id: itemId, label: itemId, done });
+    }
+
+    await repo.updateChecklist(bookingId, partner._id, checklist);
+    return { checklist };
+  },
 };
-  

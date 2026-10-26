@@ -1112,3 +1112,9 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
     scroll-behavior: auto !important;
   }
 }
+/* Phone top bar on inner pages (← Page name): flat, with a divider — no rounded bottom corners like the Home bar. */
+@media (max-width: 767px) {
+  .customer-topbar[data-inner="true"] {
+    border-radius: 0;
+  }
+}

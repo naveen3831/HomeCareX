@@ -2,8 +2,8 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
-import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { NotificationBell } from '@/components/admin/NotificationBell';
+import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 
 export interface HeaderNotification {
   id: string;

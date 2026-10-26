@@ -21,6 +21,16 @@
   margin-inline: auto;
 }
 
+#contact-form,
+#partner-interest,
+#office,
+.contact-conversation,
+.contact-ways,
+.contact-office,
+.partner-band {
+  scroll-margin-top: 100px;
+}
+
 .contact-eyebrow {
   display: flex;
   align-items: center;
@@ -616,7 +626,7 @@
 }
 
 .contact-conversation__direct small {
-  color: #777984;
+  color: #5b5d68;
   font-size: 13px;
 }
 
@@ -647,7 +657,7 @@
 .contact-conversation__hours small {
   display: block;
   margin-top: 3px;
-  color: #7c7e87;
+  color: #5b5d68;
 }
 
 .contact-page #contact-form {
@@ -758,7 +768,7 @@
 }
 
 .contact-page #contact-form > div[role="status"] {
-  min-height: 25rem;
+  min-height: auto;
 }
 
 .recaptcha-notice {
@@ -1030,7 +1040,7 @@
 
 .contact-faq__copy > p:not(.contact-eyebrow) {
   margin: 4px 0 0;
-  color: #747681;
+  color: #5b5d68;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -1182,7 +1192,7 @@
 
 .partner-band__note small {
   margin-top: 4px;
-  color: #777984;
+  color: #5b5d68;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1376,12 +1386,12 @@
 }
 
 .contact-page #partner-interest form > p:last-child {
-  color: #777984;
+  color: #5b5d68;
   font-size: 12px;
 }
 
 .contact-page #partner-interest > div[role="status"] {
-  min-height: 19rem;
+  min-height: auto;
 }
 
 @keyframes contact-enter {

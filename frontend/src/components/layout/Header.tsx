@@ -346,7 +346,7 @@ const Header: React.FC = () => {
           </div>
 
           <NavLink
-            to="/contact#partner-interest"
+            to="/register/partner"
             className="hcx-top-link ml-auto font-medium"
           >
             Are you a service professional?

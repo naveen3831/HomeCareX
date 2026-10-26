@@ -22,8 +22,6 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
    Constants
 ========================================================= */
 
-
-
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
 // Anchored so it does NOT match the "Clear filters" button
@@ -45,6 +43,7 @@ const LocationDisplay: React.FC = () => {
 interface TestWrapperProps {
   initialEntry?: string;
 }
+
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
 }) => {
@@ -111,7 +110,7 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
-        ).toBe("home-cleaning");
+      ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");

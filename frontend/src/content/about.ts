@@ -224,7 +224,7 @@ export const aboutData: AboutPageData = {
     },
     secondaryCta: {
       label: "Become a Partner",
-      href: `${ROUTES.CONTACT}#partner-interest`,
+      href: ROUTES.PARTNER_REGISTER,
     },
     highlights: [
       {
@@ -287,7 +287,7 @@ export const aboutData: AboutPageData = {
         category: "Essential Care",
         description:
           "Professional home cleaning services for everyday spaces and essential cleaning needs.",
-        image: "/images/home-cleaning.jpg",
+       image: "/images/home-cleaning.webp",
         icon: "✨",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -298,7 +298,7 @@ export const aboutData: AboutPageData = {
         category: "Repairs & Installs",
         description:
           "Get help with common plumbing requirements and household maintenance.",
-        image: "/images/plumbing.jpg",
+       image: "/images/plumbing-1200.webp",
         icon: "🔧",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -309,7 +309,7 @@ export const aboutData: AboutPageData = {
         category: "Safety & Wiring",
         description:
           "Find support for everyday electrical installation, maintenance, and repair needs.",
-        image: "/images/electrical.jpg",
+       image: "/images/electrical.webp",
         icon: "⚡",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -320,7 +320,7 @@ export const aboutData: AboutPageData = {
         category: "Appliance Care",
         description:
           "Convenient access to services for common household appliances.",
-        image: "/images/appliance-repair.jpg",
+       image: "/images/appliance-repair.webp",
         icon: "🛠️",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -616,7 +616,7 @@ export const aboutData: AboutPageData = {
     },
     secondaryCta: {
       label: "Become a Partner",
-      href: `${ROUTES.CONTACT}#partner-interest`,
+      href: ROUTES.PARTNER_REGISTER,
     },
   },
 };

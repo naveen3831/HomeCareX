@@ -39,6 +39,7 @@ import { partnerKycRoutes } from '../modules/partners/partner-kyc.routes';
 import { partnersRoutes } from '../modules/partners/partners.routes';
 import { partnerPerformanceRoutes } from '../modules/partner-performance/partner-performance.routes';
 import { partnerReviewsRoutes } from '../modules/partner-reviews/partner-reviews.routes';
+import { partnerPayoutsRoutes } from '../modules/partner-payouts/partner-payouts.routes';
 import { partnerTicketsRoutes } from '../modules/partner-tickets/partner-tickets.routes';
 import {
   partnerWalletRoutes,
@@ -49,6 +50,7 @@ import {
   partnerServicesRoutes,
 } from '../modules/partner-services/partner-services.routes';
 import { partnerSettingsRoutes } from '../modules/partner-settings/partner-settings.routes';
+import { sosRoutes } from '../modules/sos/sos.routes';
 import paymentRoutes from '../modules/payments/payments.routes';
 import { adminPricingRoutes, pricingRoutes } from '../modules/pricing/pricing.routes';
 import { payoutsRoutes } from '../modules/payouts/payouts.routes';
@@ -112,6 +114,7 @@ rootRouter.use('/partner/schedule', scheduleRoutes);
 rootRouter.use('/partner/earnings', earningsRoutes);
 rootRouter.use('/partner/transactions', partnerWalletRoutes);
 rootRouter.use('/partner/wallet', partnerWalletSummaryRoutes);
+rootRouter.use('/partner/payouts', partnerPayoutsRoutes);
 rootRouter.use('/partner/incentives', incentivesRoutes);
 rootRouter.use('/partner/services', partnerServicesRoutes);
 rootRouter.use('/partner/service-area', partnerServiceAreaRoutes);
@@ -119,6 +122,7 @@ rootRouter.use('/partner/performance', partnerPerformanceRoutes);
 rootRouter.use('/partner/reviews', partnerReviewsRoutes);
 rootRouter.use('/partner/support/tickets', partnerTicketsRoutes);
 rootRouter.use('/partner/settings', partnerSettingsRoutes);
+rootRouter.use('/partner/safety', sosRoutes);
 rootRouter.use('/partner/jobs', partnerJobsRoutes);
 rootRouter.use('/partner/job-requests', partnerJobRequestsRoutes);
 rootRouter.use('/partner/jobs', maskedCallRoutes);

@@ -22,7 +22,12 @@ import type {
   VerifyInviteInput,
   AcceptInviteInput,
 } from './auth.validation';
-import { type UserRole } from '../../models/User';
+import mongoose, { Types } from 'mongoose';
+import { CategoryModel } from '../../models/Category';
+import { ServiceModel } from '../../models/Service';
+import PartnerModel from '../../models/Partner';
+import { ensurePartnerProfile } from '../partners/partners.service';
+import type { UserRole } from '../../models/User';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 
@@ -52,6 +57,41 @@ function hashSecret(val: string): string {
   return crypto.createHash('sha256').update(val).digest('hex');
 }
 
+export function parseUserAgent(ua?: string): string {
+  if (!ua) return 'Unknown Device';
+  let browser = 'Web Browser';
+  if (ua.includes('Edg/')) browser = 'Microsoft Edge';
+  else if (ua.includes('Chrome/')) browser = 'Google Chrome';
+  else if (ua.includes('Firefox/')) browser = 'Mozilla Firefox';
+  else if (ua.includes('Safari/') && !ua.includes('Chrome/')) browser = 'Apple Safari';
+  else if (ua.includes('Postman')) browser = 'Postman';
+
+  let os = 'Desktop';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+
+  return `${browser} on ${os}`;
+}
+
+const revokedSessionIds = new Set<string>();
+
+export function markSessionRevoked(sid: string) {
+  if (sid) {
+    revokedSessionIds.add(sid);
+    if (revokedSessionIds.size > 10000) {
+      const first = revokedSessionIds.values().next().value;
+      if (first) revokedSessionIds.delete(first);
+    }
+  }
+}
+
+export function isSessionRevoked(sid: string): boolean {
+  return Boolean(sid && revokedSessionIds.has(sid));
+}
+
 type UserDoc = NonNullable<Awaited<ReturnType<typeof authRepository.findById>>>;
 
 export function toAuthUser(user: UserDoc): AuthUserDto {
@@ -67,9 +107,17 @@ export function toAuthUser(user: UserDoc): AuthUserDto {
   };
 }
 
-function issueTokens(user: UserDoc) {
-  const access: AccessTokenPayload = { sub: user.id, role: user.role as UserRole };
-  const refresh: RefreshTokenPayload = { sub: user.id, v: user.tokenVersion };
+function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) {
+  const access: AccessTokenPayload = {
+    sub: user.id,
+    role: user.role as UserRole,
+    ...(sid ? { sid } : {}),
+  };
+  const refresh: RefreshTokenPayload = {
+    sub: user.id,
+    v: sessionTokenVersion !== undefined ? sessionTokenVersion : (user.tokenVersion ?? 0),
+    ...(sid ? { sid } : {}),
+  };
   return {
     accessToken: jwt.sign(access, accessSecret(), { expiresIn: ACCESS_TOKEN_TTL }),
     refreshToken: jwt.sign(refresh, refreshSecret(), { expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d` }),
@@ -79,7 +127,7 @@ function issueTokens(user: UserDoc) {
 const sessionExpired = (code: string) => new HttpError(401, 'Your session has expired. Please log in again.', code);
 
 export const authService = {
-  async login({ email, password }: LoginInput) {
+  async login({ email, password }: LoginInput, sessionInfo?: { ip?: string; userAgent?: string }) {
     const user = await authRepository.findByEmailWithPassword(email);
     // Same message for an unknown email and a wrong password, so accounts can't be probed.
     const invalid = new HttpError(401, 'Invalid email or password', 'INVALID_CREDENTIALS');
@@ -104,8 +152,46 @@ export const authService = {
     user.failedLogins = 0;
     user.lockedUntil = undefined;
     user.lastLoginAt = new Date();
+
+    const sid = crypto.randomUUID();
+    let sessionTokenVersion: number | undefined;
+    if (sessionInfo) {
+      sessionTokenVersion = 0;
+      const device = parseUserAgent(sessionInfo.userAgent);
+      const ipAddress = sessionInfo.ip || '127.0.0.1';
+      if (!Array.isArray((user as any).sessions)) {
+        (user as any).sessions = [];
+      }
+      (user as any).sessions = (user as any).sessions.filter(
+        (s: any) => s.device !== device || s.ipAddress !== ipAddress,
+      );
+      (user as any).sessions.unshift({
+        sessionId: sid,
+        device,
+        ipAddress,
+        lastActiveAt: new Date(),
+        userAgent: sessionInfo.userAgent,
+        tokenVersion: 0,
+      });
+      if ((user as any).sessions.length > 10) {
+        (user as any).sessions = (user as any).sessions.slice(0, 10);
+      }
+    }
+
     await user.save();
-    return { user: toAuthUser(user), ...issueTokens(user) };
+
+    if (user.role === 'partner' && mongoose.connection?.readyState === 1) {
+      try {
+        await ensurePartnerProfile(user._id || user.id);
+      } catch (err) {
+        console.error('Failed to auto-ensure partner profile on login', err);
+      }
+    }
+
+    return {
+      user: toAuthUser(user),
+      ...issueTokens(user, sessionInfo ? sid : undefined, sessionTokenVersion),
+    };
   },
 
   async register(input: RegisterInput) {
@@ -121,7 +207,112 @@ export const authService = {
       role: input.role,
       referralCode: input.referralCode,
       gender: input.gender,
+      avatar: input.avatar,
     });
+
+    if (input.role === 'partner' && mongoose.connection?.readyState === 1) {
+      try {
+        let categoryIds: Types.ObjectId[] = [];
+        let serviceIds: Types.ObjectId[] = [];
+
+        if (input.category) {
+          const categoryDoc = await CategoryModel.findOne({
+            $or: [
+              { slug: input.category },
+              ...(Types.ObjectId.isValid(input.category) ? [{ _id: new Types.ObjectId(input.category) }] : []),
+              { name: new RegExp(`^${input.category}$`, 'i') },
+            ],
+          });
+          if (categoryDoc) {
+            categoryIds = [categoryDoc._id as Types.ObjectId];
+            const matched = await ServiceModel.find({
+              categoryId: categoryDoc._id,
+              active: true,
+            }).select('_id');
+            serviceIds = matched.map((s) => s._id as Types.ObjectId);
+          }
+        }
+
+        if (categoryIds.length === 0) {
+          const defaultCat = await CategoryModel.findOne({ active: true }).sort({ sortOrder: 1, name: 1 });
+          if (defaultCat) {
+            categoryIds = [defaultCat._id as Types.ObjectId];
+            const matched = await ServiceModel.find({
+              categoryId: defaultCat._id,
+              active: true,
+            }).select('_id');
+            serviceIds = matched.map((s) => s._id as Types.ObjectId);
+          }
+        }
+
+        const bankDetails =
+          input.accountHolder || input.accountNumber || input.ifsc || input.upiId
+            ? {
+                accountHolder: input.accountHolder,
+                accountLast4: input.accountNumber ? input.accountNumber.slice(-4) : undefined,
+                ifsc: input.ifsc ? input.ifsc.toUpperCase() : undefined,
+                upiId: input.upiId,
+              }
+            : undefined;
+
+        const kycDocs = [];
+        if (input.idProofDocument) {
+          const docType =
+            input.idProofType === 'pan'
+              ? 'pan_card'
+              : input.idProofType === 'driving_license'
+                ? 'driving_license'
+                : 'government_id';
+          kycDocs.push({
+            type: docType,
+            url: input.idProofDocument,
+            status: 'pending' as const,
+            uploadedAt: new Date(),
+          });
+        }
+        if (input.addressProofDocument) {
+          kycDocs.push({
+            type: 'address_proof' as const,
+            url: input.addressProofDocument,
+            status: 'pending' as const,
+            uploadedAt: new Date(),
+          });
+        }
+
+        await PartnerModel.findOneAndUpdate(
+          { userId: user._id || user.id },
+          {
+            $set: {
+              categories: categoryIds,
+              services: serviceIds,
+              skills: input.skills || [],
+              serviceRadiusKm: input.serviceRadiusKm || 15,
+              ...(bankDetails ? { bankDetails } : {}),
+            },
+            $setOnInsert: {
+              userId: user._id || user.id,
+              ratingAvg: 0,
+              ratingCount: 0,
+              stats: {
+                offersReceived: 0,
+                offersAccepted: 0,
+                jobsAssigned: 0,
+                jobsCompleted: 0,
+              },
+              kyc: {
+                status: kycDocs.length > 0 ? 'submitted' : 'not_started',
+                documents: kycDocs,
+                submittedAt: kycDocs.length > 0 ? new Date() : undefined,
+              },
+              trainingCompleted: false,
+            },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        );
+      } catch (err) {
+        console.error('Failed to provision partner profile during registration', err);
+      }
+    }
 
     try {
       await mailService.sendAccountCreatedEmail({
@@ -153,9 +344,49 @@ export const authService = {
 
     const currentVersion = user.tokenVersion ?? 0;
 
+    // Per-session tracking when sid is present
+    if (payload.sid) {
+      const userSessions = Array.isArray((user as any).sessions)
+        ? (user as any).sessions
+        : [];
+      const session = userSessions.find(
+        (s: any) => s.sessionId === payload.sid,
+      );
+
+      // Session revoked or not found
+      if (!session) {
+        throw sessionExpired('REVOKED_REFRESH_TOKEN');
+      }
+
+      const currentSessionVersion = session.tokenVersion ?? 0;
+
+      // Reuse detection for this session:
+      if (payload.v < currentSessionVersion) {
+        (user as any).sessions = userSessions.filter(
+          (s: any) => s.sessionId !== payload.sid,
+        );
+        markSessionRevoked(payload.sid);
+        await user.save();
+
+        throw sessionExpired('REVOKED_REFRESH_TOKEN');
+      }
+
+      if (payload.v !== currentSessionVersion) {
+        throw sessionExpired('REVOKED_REFRESH_TOKEN');
+      }
+
+      // Normal rotation for this session:
+      session.tokenVersion = currentSessionVersion + 1;
+      session.lastActiveAt = new Date();
+      await user.save();
+
+      return {
+        user: toAuthUser(user),
+        ...issueTokens(user, payload.sid, session.tokenVersion),
+      };
+    }
+
     // Reuse detection: If token version is older than current, the token was already rotated.
-    // Invalidate the session / token family by bumping tokenVersion so any subsequent
-    // tokens in this family are also invalidated.
     if (payload.v < currentVersion) {
       user.tokenVersion = currentVersion + 1;
       await user.save();
@@ -173,14 +404,25 @@ export const authService = {
     return { user: toAuthUser(user), ...issueTokens(user) };
   },
 
+  /** Logout ends the caller session, or every session for legacy/test tokens. */
   /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
       const payload = jwt.verify(refreshToken, refreshSecret()) as RefreshTokenPayload;
       const user = await authRepository.findById(payload.sub);
-      if (user && user.tokenVersion === payload.v) {
-        user.tokenVersion += 1;
+      if (user) {
+        if (payload.sid) {
+          markSessionRevoked(payload.sid);
+          if (Array.isArray((user as any).sessions)) {
+            (user as any).sessions = (user as any).sessions.filter(
+              (s: any) => s.sessionId !== payload.sid,
+            );
+          }
+        }
+        if (!payload.sid && user.tokenVersion === payload.v) {
+          user.tokenVersion += 1;
+        }
         await user.save();
       }
     } catch {
@@ -188,19 +430,222 @@ export const authService = {
     }
   },
 
-  async revokeUserSessions(userId: string) {
-    const user = await authRepository.findById(userId);
-    if (!user) return;
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    await user.save();
-  },
-
   verifyAccessToken(token: string): AccessTokenPayload {
     try {
-      return jwt.verify(token, accessSecret()) as AccessTokenPayload;
-    } catch {
+      const payload = jwt.verify(token, accessSecret()) as AccessTokenPayload;
+      if (payload.sid && isSessionRevoked(payload.sid)) {
+        throw sessionExpired('REVOKED_SESSION');
+      }
+      return payload;
+    } catch (err: any) {
+      if (err.status && err.code) throw err;
       throw sessionExpired('INVALID_ACCESS_TOKEN');
     }
+  },
+
+  /** Changes the password for an authenticated user. */
+  async changePassword(
+    userId: string,
+    {
+      currentPassword,
+      newPassword,
+    }: { currentPassword: string; newPassword: string },
+  ): Promise<{ changed: true }> {
+    const user = await authRepository.findByIdWithPassword(userId);
+
+    if (!user || user.status === 'blocked') {
+      throw sessionExpired('USER_NOT_FOUND');
+    }
+
+    const validCurrentPassword = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!validCurrentPassword) {
+      throw new HttpError(
+        400,
+        'Current password is incorrect.',
+        'INVALID_CURRENT_PASSWORD',
+      );
+    }
+
+    if (await bcrypt.compare(newPassword, user.passwordHash)) {
+      throw new HttpError(
+        400,
+        'New password must be different from the current password.',
+        'SAME_PASSWORD',
+      );
+    }
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    user.failedLogins = 0;
+    user.lockedUntil = undefined;
+    await user.save();
+
+    return { changed: true };
+  },
+
+  /** Returns active sessions for the authenticated user. */
+  async getSessions(
+    userId: string,
+    reqInfo: { userAgent?: string; ip?: string; currentSid?: string },
+  ): Promise<
+    Array<{
+      id: string;
+      device: string;
+      ipAddress: string;
+      lastActiveAt: string;
+      isCurrent: boolean;
+      location?: string;
+    }>
+  > {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === 'blocked') {
+      throw sessionExpired('USER_NOT_FOUND');
+    }
+
+    const currentDevice = parseUserAgent(reqInfo.userAgent);
+    const currentIp = reqInfo.ip || '127.0.0.1';
+    const userSessions = (user as any).sessions || [];
+
+    if (userSessions.length === 0) {
+      return [
+        {
+          id: reqInfo.currentSid || `sess_${user.id}_current`,
+          device: currentDevice,
+          ipAddress: currentIp,
+          lastActiveAt: user.lastLoginAt
+            ? user.lastLoginAt.toISOString()
+            : new Date().toISOString(),
+          isCurrent: true,
+          location: 'Current Device',
+        },
+      ];
+    }
+
+    let foundCurrent = false;
+    const mapped = userSessions.map((s: any) => {
+      const isCurrent = reqInfo.currentSid
+        ? s.sessionId === reqInfo.currentSid
+        : s.device === currentDevice && s.ipAddress === currentIp;
+
+      if (isCurrent) foundCurrent = true;
+
+      return {
+        id: s.sessionId,
+        device: s.device,
+        ipAddress: s.ipAddress,
+        lastActiveAt: s.lastActiveAt
+          ? new Date(s.lastActiveAt).toISOString()
+          : new Date().toISOString(),
+        isCurrent,
+        location: isCurrent ? 'Current Device' : 'Active Device',
+      };
+    });
+
+    if (!foundCurrent) {
+      mapped.unshift({
+        id: reqInfo.currentSid || `sess_${user.id}_current`,
+        device: currentDevice,
+        ipAddress: currentIp,
+        lastActiveAt: new Date().toISOString(),
+        isCurrent: true,
+        location: 'Current Device',
+      });
+    }
+
+    mapped.sort((a: any, b: any) => {
+      if (a.isCurrent) return -1;
+      if (b.isCurrent) return 1;
+      return (
+        new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()
+      );
+    });
+
+    return mapped;
+  },
+
+  /** Revokes an individual session. */
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    currentSid?: string,
+  ): Promise<{ success: boolean; isCurrent: boolean; message: string }> {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === 'blocked') {
+      throw sessionExpired('USER_NOT_FOUND');
+    }
+
+    const isCurrent = Boolean(
+      (currentSid && sessionId === currentSid) || sessionId === 'current',
+    );
+
+    markSessionRevoked(sessionId);
+
+    if (Array.isArray((user as any).sessions)) {
+      (user as any).sessions = (user as any).sessions.filter(
+        (s: any) => s.sessionId !== sessionId,
+      );
+    }
+
+    if (isCurrent) {
+      user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    }
+
+    await user.save();
+
+    return {
+      success: true,
+      isCurrent,
+      message: isCurrent ? 'Current session revoked' : 'Session revoked successfully',
+    };
+  },
+
+  /** Logs out of all devices by clearing sessions and bumping tokenVersion. */
+  async logoutAll(userId: string) {
+    const user = await authRepository.findById(userId);
+    if (!user || user.status === 'blocked') {
+      throw sessionExpired('USER_NOT_FOUND');
+    }
+
+    if (Array.isArray((user as any).sessions)) {
+      for (const s of (user as any).sessions) {
+        if (s.sessionId) markSessionRevoked(s.sessionId);
+      }
+    }
+    (user as any).sessions = [];
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+
+    return {
+      success: true,
+      revokedSessionsCount: 1,
+      message: 'Logged out from all devices',
+    };
+  },
+
+  /** Admin operation: revokes all sessions for a specific target user. */
+  async revokeUserSessions(targetUserId: string) {
+    const user = await authRepository.findById(targetUserId);
+    if (!user) {
+      throw new HttpError(404, 'User not found', 'USER_NOT_FOUND');
+    }
+
+    if (Array.isArray((user as any).sessions)) {
+      for (const s of (user as any).sessions) {
+        if (s.sessionId) markSessionRevoked(s.sessionId);
+      }
+    }
+    (user as any).sessions = [];
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    await user.save();
+
+    return {
+      success: true,
+      revokedSessionsCount: 1,
+      message: 'All sessions for this user have been revoked',
+    };
   },
 
   async me(userId: string) {
@@ -381,17 +826,17 @@ export const authService = {
     const inviteTokenHash = hashSecret(rawToken);
     const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 3_600_000);
 
-    let user: { id: string; name: string; email: string };
+    let userId: string;
     if (existing) {
       existing.name = name;
       existing.inviteTokenHash = inviteTokenHash;
       existing.inviteExpiresAt = inviteExpiresAt;
       await existing.save();
-      user = { id: String(existing._id), name: existing.name, email: existing.email };
+      userId = existing._id.toString();
     } else {
       // Random, never-disclosed password: nobody can log in until the invite is accepted.
       const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
-      const created = await authRepository.create({
+      const user = await authRepository.create({
         name,
         email,
         passwordHash: unusable,
@@ -400,12 +845,12 @@ export const authService = {
         inviteTokenHash,
         inviteExpiresAt,
       });
-      user = { id: String(created._id), name: created.name, email: created.email };
+      userId = user._id.toString();
     }
 
     // The team record (role, status, who invited) lives in the `staff` collection; `users` only holds the login.
     await StaffModel.findOneAndUpdate(
-      { userId: user.id },
+      { userId },
       { $set: { name, email, roleId, status: 'invited', ...(invitedBy ? { invitedBy } : {}) } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
@@ -419,16 +864,16 @@ export const authService = {
       await mailService.sendStaffInviteEmail({ name, email, inviteUrl, invitedBy: inviter?.name });
     } catch (err) {
       emailSent = false;
-      console.error('Staff invite email failed for user', user.id, err);
+      console.error('Staff invite email failed for user', userId, err);
     }
     if (process.env.NODE_ENV !== 'production') {
       console.info(`[DEV ONLY] Staff invite link for ${maskEmail(email)}: ${inviteUrl}`);
     }
 
     return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
+      id: userId,
+      name,
+      email,
       roleId,
       roleName: 'Admin',
       status: 'invited' as const,
@@ -463,25 +908,6 @@ export const authService = {
       email: user.email,
       message: 'Your account is ready. Please log in with your new password.',
     };
-  },
-
-  /** Changes password for an active user verifying current password. */
-  async changePassword(userId: string, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
-    const user = await authRepository.findByIdWithPassword(userId);
-    if (!user || user.status === 'blocked') {
-      throw new HttpError(401, 'Unauthorized', 'UNAUTHORIZED');
-    }
-
-    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isMatch) {
-      throw new HttpError(400, 'Current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
-    }
-
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    await user.save();
-
-    return { changed: true };
   },
 
   /** Consumes the single-use reset token, resets password, and revokes all active sessions. */

@@ -3,9 +3,9 @@ import { OtpModel } from '../../models/Otp';
 
 export const authRepository = {
   findByEmailWithPassword: (email: string) => UserModel.findOne({ email }).select('+passwordHash'),
+  findById: (id: string) => UserModel.findById(id),
   findByIdWithPassword: (id: string) => UserModel.findById(id).select('+passwordHash'),
   findByEmail: (email: string) => UserModel.findOne({ email }),
-  findById: (id: string) => UserModel.findById(id),
   findByResetTokenHash: (tokenHash: string) =>
     UserModel.findOne({
       passwordResetTokenHash: tokenHash,
@@ -25,7 +25,9 @@ export const authRepository = {
     passwordHash: string;
     role: string;
     referralCode?: string;
-    gender?: 'male' | 'female' | 'other';
+    gender?: 'male' | 'female' | 'other' | string;
+    avatar?: string;
+    designation?: string;
     status?: 'active' | 'blocked' | 'invited';
     inviteTokenHash?: string;
     inviteExpiresAt?: Date;

@@ -7,6 +7,7 @@ import { ADMIN_ROLES, type AuthUser } from '@/types/auth';
 import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
+import Seo from '@/components/common/Seo';
 
 /** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:). */
 function safeReturnUrl(raw: string | null): string | null {
@@ -95,22 +96,29 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
   const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
   const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
-  const [successMessage] = useState(
-    params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess
-      ? 'Password reset successful. Please log in with your new password.'
-      : ''
-  );
+  const [successMessage] = useState(() => {
+    const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
+    if (stateMsg) return stateMsg;
+    if (params.get('registered') === 'partner') {
+      return 'Registration successful! You can now log in with your credentials.';
+    }
+    if (params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess) {
+      return 'Password reset successful. Please log in with your new password.';
+    }
+    return '';
+  });
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
-  useEffect(() => {
-    document.title = 'Log in | HomeCareX';
-  }, []);
-
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
     if (!isAuthenticated) {
+      const stateEmail = (location.state as { registeredEmail?: string } | null)?.registeredEmail;
+      if (stateEmail) {
+        setIdentifier(stateEmail);
+        return;
+      }
       const saved = getSavedCredentials();
       if (saved) {
         setIdentifier(saved.identifier);
@@ -119,9 +127,16 @@ export const LoginPage: React.FC = () => {
         setTermsAccepted(true);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.state]);
 
-  // Already signed in state
+  // Auto-redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      navigate(destinationFor(user, returnUrl), { replace: true });
+    }
+  }, [isAuthenticated, user, loading, returnUrl, navigate]);
+
+  // Already signed in fallback state
   if (isAuthenticated && user && !loading) {
     return (
       <div className="w-full text-center">
@@ -229,6 +244,12 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="w-full">
+      {/* Title + meta description (also needed for the Lighthouse SEO score) */}
+      <Seo
+        title="Log in | HomeCareX"
+        description="Log in to your HomeCareX account to book home services, track your bookings and manage your profile."
+      />
+
       {/* Top Navigation: Back to Home */}
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
         <Link
@@ -410,7 +431,7 @@ export const LoginPage: React.FC = () => {
         </button>
       </form>
 
-      <p className="text-center text-xs sm:text-sm text-gray-500 mt-3.5 sm:mt-4">
+      <p className="text-center text-xs sm:text-sm text-gray-600 mt-3.5 sm:mt-4">
         Don&apos;t have an account?{' '}
         <Link to="/register" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
           Create an account

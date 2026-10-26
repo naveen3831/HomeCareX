@@ -1,3 +1,5 @@
+import { notifyAdmins } from "../notifications";
+import { alertRefundRequested } from "../notifications/admin-alerts";
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
@@ -10,6 +12,7 @@ import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } fr
 import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
 import { PaymentModel } from '../../models/Payment';
 import { RefundModel } from '../../models/Refund';
+
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
@@ -26,8 +29,6 @@ import {
   type StatusHistoryEntry,
 } from './bookings.stateMachine';
 import { computeCancellation, type CancellationQuote } from './bookings.cancel';
-import { notifyAdmins } from '../notifications';
-import { alertRefundRequested } from '../notifications/admin-alerts';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
@@ -611,12 +612,12 @@ export const BookingService = {
           reason,
           now,
         });
+        refundStatus = 'requested';
         alertRefundRequested({
           refundId: String(refund._id),
           bookingId,
           amount: quote.refundAmount,
         });
-        refundStatus = 'requested';
       } catch {
         throw new AppError(
           500,
