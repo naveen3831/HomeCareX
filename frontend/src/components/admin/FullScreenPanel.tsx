@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
-import { ArrowLeft } from 'lucide-react';
+
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';

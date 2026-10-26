@@ -1,5 +1,3 @@
-import { notifyAdmins } from "../notifications";
-import { alertRefundRequested } from "../notifications/admin-alerts";
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
@@ -26,12 +24,7 @@ import {
   type BookingStatus,
 } from './bookings.constants';
 import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
-import { computeCancellation, type CancellationQuote } from './bookings.cancel';
-import {
 
-  canTransition,
-  type StatusHistoryEntry,
-} from "./bookings.stateMachine";
 import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
@@ -248,7 +241,6 @@ export const BookingService = {
       id: String(row._id),
       name: row.name,
       basePrice: row.basePrice,
-      id: String(row._id), name: row.name, basePrice: row.basePrice,
       categoryId: (row as { categoryId?: Types.ObjectId }).categoryId,
       addOns: (row.addOns ?? []).map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
     };
@@ -355,8 +347,7 @@ export const BookingService = {
         const createdBooking = await bookingsRepository.create({
           customerId: new Types.ObjectId(customerId),
           serviceId: new Types.ObjectId(input.serviceId),
-          ...(row.categoryId ? { categoryId: row.categoryId } : {}),
-          categoryId: service.categoryId,
+          ...(service.categoryId ? { categoryId: service.categoryId } : {}),
           quantity: input.quantity,
           addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
           addressSnapshot: {
@@ -418,11 +409,6 @@ export const BookingService = {
           serviceId: input.serviceId,
         }),
       ).catch(() => undefined);
-      // Alerts are best effort and must not change the outcome of a successful booking.
-      void notifyAdmins('booking.created', {
-        bookingId: String((created as { _id?: unknown })._id ?? ''),
-        serviceId: input.serviceId,
-      }).catch(() => undefined);
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
@@ -605,35 +591,18 @@ export const BookingService = {
     }
 
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
-    if (quote.refundAmount > 0 && paidRecord) {
-      let refund: unknown;
-      try {
-        refund = await bookingsRepository.createRefundRequest({
     if (quote.refundAmount > 0 && isPaid) {
+      let refund: { _id?: unknown } | null = null;
       try {
-        const refund = (await bookingsRepository.createRefundRequest({
+        refund = (await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
           customerId,
           amount: quote.refundAmount,
           reason,
           now,
-        } as any);
+        })) as { _id?: unknown } | null;
         refundStatus = 'requested';
-        })) as any;
-        refundStatus = 'requested';
-        if (refund && refund._id) {
-          alertRefundRequested({
-            refundId: String(refund._id),
-            bookingId,
-            amount: quote.refundAmount,
-          });
-        }
-        alertRefundRequested({
-          refundId: String(refund._id),
-          bookingId,
-          amount: quote.refundAmount,
-        });
       } catch {
         throw new AppError(
           500,
@@ -642,17 +611,13 @@ export const BookingService = {
         );
       }
 
-      // Admin alert is fire-and-forget: it must never fail the cancellation or the refund request.
-      try {
-        void Promise.resolve(
-          alertRefundRequested({
-            refundId: String((refund as { _id?: unknown } | null)?._id ?? ''),
-            bookingId,
-            amount: quote.refundAmount,
-          }),
-        ).catch(() => undefined);
-      } catch {
-        /* ignore */
+      // Admin alert is fire-and-forget (alertRefundRequested never throws): it must never fail the cancellation.
+      if (refund?._id) {
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
       }
     }
 

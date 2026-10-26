@@ -67,17 +67,6 @@ const adminRoutes: AdminRoute[] = [
   { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
   { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
   { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:view' },
-  {
-    path: 'categories',
-    element: <AdminCategoriesPage />,
-    permission: 'catalog:manage',
-  },
-  {
-    path: 'services',
-    element: <AdminServicesPage />,
-    permission: 'catalog:manage',
-  },
-  { path: 'pricing', element: <AdminPricingPage /> },
 
   // Coupons
   { path: 'coupons', element: <AdminCouponsPage /> },
@@ -92,11 +81,9 @@ const adminRoutes: AdminRoute[] = [
   // Finance
   { path: 'payments', element: <AdminPaymentsPage /> },
   { path: 'refunds', element: <AdminRefundsPage /> },
-
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
   { path: 'refunds/:id', element: <AdminRefundsPage /> },
-
   { path: 'payouts', element: <AdminPayoutsPage /> },
 
   // Reporting
@@ -109,32 +96,14 @@ const adminRoutes: AdminRoute[] = [
   { path: 'staff', element: <AdminStaffPage />, permission: 'staff:view' },
   { path: 'staff/new', element: <AdminInviteStaffPage />, permission: 'staff:create' },
   { path: 'audit-logs', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'audit-logs/:id', element: <AdminAuditLogsPage />, permission: 'audit:view' },
   { path: 'settings', element: <AdminSettingsPage />, permission: 'settings:manage' },
 
   // Old URLs keep working.
   { path: 'roles-permissions', element: <Navigate to="/admin/roles" replace /> },
   { path: 'roles/staff/new', element: <Navigate to="/admin/staff/new" replace /> },
-  {
-    path: 'roles-permissions',
-    element: <Navigate to="/admin/roles" replace />,
-  },
-  {
-    path: 'roles/staff/new',
-    element: <Navigate to="/admin/staff/new" replace />,
-  },
-  {
-    path: 'audit-logs',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'audit-logs/:id',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'settings',
-    element: <AdminSettingsPage />,
-    permission: 'settings:manage',
-  },
+
+  // Account security
   { path: 'security', element: <AccountSecurityPage /> },
   { path: 'account/security', element: <AccountSecurityPage /> },
   { path: 'settings/security', element: <AccountSecurityPage /> },

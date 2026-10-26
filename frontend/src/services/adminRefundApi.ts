@@ -1,5 +1,9 @@
 import http from '@/lib/http';
 
+/* ------------------------------------------------------------------ */
+/* List + PATCH decision (used by pages/admin/Refunds)                 */
+/* ------------------------------------------------------------------ */
+
 export const REFUND_STATUSES = ['requested', 'approved', 'processed', 'rejected'] as const;
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
 
@@ -46,6 +50,13 @@ export async function decideRefund(id: string, action: 'approve' | 'reject', rej
     ...(action === 'reject' ? { rejectionReason } : {}),
   });
   return res.data.data;
+}
+
+/* ------------------------------------------------------------------ */
+/* Wallet-refund workflow: detail, approve/reject, summary counts      */
+/* (POST /admin/refunds/:id/approve and /reject)                       */
+/* ------------------------------------------------------------------ */
+
 export type AdminRefundStatus =
   | 'PENDING_APPROVAL'
   | 'CREDITED'
@@ -140,7 +151,11 @@ export interface AdminRefundFilters {
   limit?: number;
 }
 
-export async function fetchAdminRefunds(filters: AdminRefundFilters): Promise<AdminRefundListResult> {
+/**
+ * GET /admin/refunds with summary counts.
+ * Renamed from fetchAdminRefunds, which the Refunds page already uses with a different return shape.
+ */
+export async function fetchAdminRefundList(filters: AdminRefundFilters): Promise<AdminRefundListResult> {
   const params: Record<string, unknown> = {};
   if (filters.status && filters.status !== 'all') params.status = filters.status;
   if (filters.search) params.search = filters.search;

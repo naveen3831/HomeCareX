@@ -24,11 +24,8 @@ notificationsRoutes.get(
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
+    // validate() has already replaced req.query with the parsed value.
     const { limit, unread } = req.query as unknown as z.infer<typeof listQuerySchema>;
-    const unreadOnly = unread === 'true';
-    const [items, unreadCount] = await Promise.all([
-      notificationsService.listForUser(id, limit, unreadOnly),
-    const { limit, unread } = listQuerySchema.parse(req.query);
     const [items, unreadCount] = await Promise.all([
       notificationsService.listForUser(id, limit, unread === 'true'),
       notificationsService.unreadCount(id),

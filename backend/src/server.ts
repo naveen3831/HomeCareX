@@ -17,7 +17,6 @@ import {
   ReferralModel,
 } from './modules/referrals/referrals.model';
 import { WalletLedgerModel, WalletModel } from './models/Wallet';
-import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 
 const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
   const start = Date.now();
@@ -52,23 +51,6 @@ const seedDefaults = async (): Promise<void> => {
     const freshCatalog = await timed('count services', async () => {
       return (await ServiceModel.estimatedDocumentCount()) === 0;
     });
-/** Non-critical default data. A failure here is logged but must not stop the server. */
-const seedDefaults = async () => {
-  try {
-    const added = await timed('seed settings', seedDefaultSettings);
-    if (added) {
-      console.log(`Seeded ${added} default setting(s)`);
-    }
-    if (added) console.log(`Seeded ${added} default setting(s)`);
-
-    await timed('seed designations', seedDefaultDesignations);
-    const freshCatalog = await timed('count services', async () =>
-      (await ServiceModel.estimatedDocumentCount()) === 0,
-    );
-
-    const freshCatalog = await timed('count services', async () => {
-      return (await ServiceModel.estimatedDocumentCount()) === 0;
-    });
 
     await timed('seed categories', seedDefaultCategories);
     await timed('seed services', seedDefaultServices);
@@ -83,7 +65,6 @@ const seedDefaults = async () => {
   }
 };
 
-const startServer = async () => {
 const startServer = async (): Promise<void> => {
   try {
     await timed('mongo connect', async () => {
@@ -106,12 +87,6 @@ const startServer = async (): Promise<void> => {
     });
 
     // Start listening exactly once.
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
-      server.listen(PORT, () => {
-        server.removeListener('error', reject);
-        resolve();
-      });
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
         server.removeListener('listening', onListening);
@@ -139,27 +114,6 @@ const startServer = async (): Promise<void> => {
         error instanceof Error ? error.message : 'Unknown error',
       ),
     );
-
-    stopReferralWorker = startReferralWorker((error) =>
-      console.error(
-        '[referral-worker] Background referral processing failed:',
-        error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
-
-    registerEarningsListeners();
-    stopSlaSweep = startSlaSweep();
-
-    // Seed default data after the server starts; failures are logged only.
-      `[timing] process uptime at listen: ${Math.round(
-        process.uptime() * 1000,
-      )} ms`,
-    );
-
-    stopReferralWorker = startReferralWorker((error) =>
-      console.error('[referral-worker] Background referral processing failed:', error),
-    );
-    stopSlaSweep = startSlaSweep();
     registerEarningsListeners();
     stopSlaSweep = startSlaSweep();
 
@@ -176,13 +130,6 @@ const startServer = async (): Promise<void> => {
       server.close();
     }
     if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close().catch(() => {});
-    }
-  }
-};
-
-// Graceful shutdown
-    if (mongoose.connection.readyState !== 0) {
       try {
         await mongoose.connection.close();
       } catch (closeError) {
@@ -192,6 +139,7 @@ const startServer = async (): Promise<void> => {
   }
 };
 
+// Graceful shutdown
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -200,26 +148,10 @@ const shutdown = async (): Promise<void> => {
   stopReferralWorker?.();
   stopSlaSweep?.();
 
-  server.close(async () => {
-    try {
-      await mongoose.connection.close();
-      console.log('Database connection closed.');
-      process.exit(0);
-    } catch (error) {
-      console.error('Error closing database connection:', error);
-      process.exit(1);
-    }
-  });
   try {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
+        server.close((error) => (error ? reject(error) : resolve()));
       });
     }
     await mongoose.connection.close();

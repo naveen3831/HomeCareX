@@ -4,10 +4,10 @@ import { UserModel } from '../../models/User';
 import { getSetting } from '../settings';
 import { HttpError } from '../auth/auth.types';
 import { emitToUser } from '../../sockets';
-import { ADMIN_ALERT_SETTING, GROUP_PREFIXES, NOTIFICATION_GROUPS, NOTIFICATION_SOCKET_EVENT, groupOf, type NotificationGroup, type NotificationType } from './notifications.constants';
-import { Errors } from '../../utils/errors';
+
 import {
   ADMIN_ALERT_SETTING,
+  GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
   NOTIFICATION_TYPES,
@@ -88,7 +88,6 @@ export async function notifyAdmins(type: NotificationType, payload: Record<strin
   const settingKey = ADMIN_ALERT_SETTING[type];
   const enabled: unknown = settingKey ? await getSetting(settingKey) : true;
   if (enabled === false) return 0;
-  if (settingKey && ((await getSetting(settingKey)) as boolean) === false) return 0;
   const admins = await UserModel.find({ role: 'admin', status: 'active' }).select('_id').lean();
   await Promise.all(admins.map((a) => notify(String(a._id), type, payload)));
   return admins.length;
@@ -103,137 +102,6 @@ export class NotificationsService {
       .limit(limit);
     return rows.map(toDto);
   }
-
-  async listForCustomer(
-    userId: string,
-    options: {
-      group?: NotificationGroup;
-      unreadOnly?: boolean;
-      limit?: number;
-    } = {},
-  ) {
-    const limit = options.limit ?? 50;
-    const objectId = Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
-    const baseFilter = { userId };
-    const groupTypes: Record<Exclude<NotificationGroup, 'system'>, RegExp | { $in: string[] }> = {
-      booking: /^booking\./,
-      payment: { $in: ['payout.processed', 'refund.updated'] },
-      partner: /^partner\./,
-      offers: /^offer\./,
-      support: /^ticket\./,
-    };
-    const knownTypes = [
-      ...NOTIFICATION_TYPES.filter((type) => groupOf(type) !== 'system'),
-      'payment.succeeded',
-      'payment.failed',
-      'offer.new',
-    ];
-    const filters: Record<string, unknown>[] = [baseFilter];
-
-    if (options.group && options.group !== 'system') {
-      const typeFilter = groupTypes[options.group];
-      filters.push(
-        options.group === 'payment'
-          ? {
-              $or: [
-                { type: /^payment\./ },
-                { type: { $in: ['payout.processed', 'refund.updated'] } },
-              ],
-            }
-          : { type: typeFilter },
-      );
-    } else if (options.group === 'system') {
-      filters.push({ type: { $nin: knownTypes } });
-    }
-    if (options.unreadOnly) filters.push({ readAt: null });
-
-    const [rows, grouped] = await Promise.all([
-      NotificationModel.find(filters.length === 1 ? baseFilter : { $and: filters })
-        .sort({ createdAt: -1 })
-        .limit(limit),
-      objectId
-        ? NotificationModel.aggregate<{
-            _id: string;
-            total: number;
-            unread: number;
-          }>([
-            { $match: { userId: objectId } },
-            {
-              $group: {
-                _id: '$type',
-                total: { $sum: 1 },
-                unread: {
-                  $sum: { $cond: [{ $eq: ['$readAt', null] }, 1, 0] },
-                },
-              },
-            },
-          ])
-        : Promise.resolve([]),
-    ]);
-
-    const groups = Object.fromEntries(
-      NOTIFICATION_GROUPS.map((group) => [group, { total: 0, unread: 0 }]),
-    ) as Record<NotificationGroup, { total: number; unread: number }>;
-    for (const row of grouped) {
-      const group = groupOf(row._id);
-      groups[group].total += row.total;
-      groups[group].unread += row.unread;
-    }
-
-    const items = rows.map((row) => ({
-      ...toDto(row),
-      readAt: row.readAt ? row.readAt.toISOString() : null,
-      group: groupOf(row.type),
-    }));
-
-    return {
-      items,
-      unread: Object.values(groups).reduce((total, group) => total + group.unread, 0),
-      groups,
-    };
-  }
-
-  async markReadForCustomer(userId: string, id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw Errors.validation([{ field: 'id', message: 'Invalid notification id' }]);
-    }
-    const notification = await NotificationModel.findOne({
-      _id: id,
-      userId,
-    });
-    if (!notification) throw Errors.notFound('NOT_FOUND', 'Notification not found');
-    if (!notification.readAt) {
-      notification.readAt = new Date();
-      await notification.save();
-    }
-    return {
-      ...toDto(notification),
-      readAt: notification.readAt ? notification.readAt.toISOString() : null,
-      group: groupOf(notification.type),
-    };
-  }
-
-  async markAllReadForCustomer(userId: string) {
-    const result = await NotificationModel.updateMany(
-      { userId, readAt: null },
-      { $set: { readAt: new Date() } },
-    );
-    return result.modifiedCount;
-  }
-
-  async deleteForCustomer(userId: string, id: string) {
-    if (!Types.ObjectId.isValid(id)) {
-      throw Errors.validation([{ field: 'id', message: 'Invalid notification id' }]);
-    }
-    const result = await NotificationModel.deleteOne({ _id: id, userId });
-    if (!result.deletedCount) throw Errors.notFound('NOT_FOUND', 'Notification not found');
-  }
-
-  async deleteAllForCustomer(userId: string) {
-    const result = await NotificationModel.deleteMany({ userId });
-    return result.deletedCount;
-  }
-
 
   unreadCount(userId: string) {
     return NotificationModel.countDocuments({ userId, readAt: null });
