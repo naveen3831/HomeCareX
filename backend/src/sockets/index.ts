@@ -1,4 +1,3 @@
-
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
@@ -18,6 +17,7 @@ import { registerTicketSocket } from './ticket.socket';
  * - user:<id>
  * - role:<role>
  * - booking:<id> after successful booking:join authorization
+ * - tracking:<id> after successful tracking:join authorization (customer only)
  * - ticket:admin:<id> after successful ticket:join authorization
  */
 export const rooms = {
@@ -26,13 +26,8 @@ export const rooms = {
   booking: (bookingId: string) => `booking:${bookingId}`,
 };
 
-export const getIOIfReady = (): Server | null => io;
+export const trackingRoom = (bookingId: string) => `tracking:${bookingId}`;
 
-export type JoinAck = { ok: true } | { ok: false; code: ErrorCode; message: string };
-type AckFn = (res: JoinAck) => void;
-
-const bookingPayload = z.object({ bookingId: z.string().regex(/^[a-f\d]{24}$/i) });
-const trackingRoom = (bookingId: string) => `tracking:${bookingId}`;
 export type JoinAck =
   | { ok: true }
   | { ok: false; code: ErrorCode; message: string };
@@ -44,6 +39,8 @@ const bookingPayload = z.object({
 });
 
 let io: Server | null = null;
+
+export const getIOIfReady = (): Server | null => io;
 
 /**
  * Returns the initialized Socket.IO server.
@@ -59,19 +56,55 @@ export const getIO = (): Server => {
   return io;
 };
 
-export const emitToUser = (userId: string, event: string, payload: unknown) => getIO().to(rooms.user(userId)).emit(event, payload);
-export const emitToBooking = (bookingId: string, event: string, payload: unknown) =>
-  getIO().to(rooms.booking(bookingId)).emit(event, payload);
+export const emitToUser = (userId: string, event: string, payload: unknown) =>
+  getIO().to(rooms.user(userId)).emit(event, payload);
 
-  return (
-    !!partner &&
-    !!(
-      await BookingModel.exists({
-        _id: bookingId,
-        partnerId: partner._id,
-      })
-    )
-  );
+export const emitToBooking = (
+  bookingId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
+
+export const emitToTracking = (
+  bookingId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(trackingRoom(bookingId)).emit(event, payload);
+
+/**
+ * Whether this user may join the booking room.
+ * Admins: any booking. Customers: their own. Partners: bookings assigned to them.
+ */
+async function canJoinBooking(
+  auth: AccessTokenPayload,
+  bookingId: string,
+): Promise<boolean> {
+  if (auth.role === 'admin') return true;
+
+  if (auth.role === 'customer') {
+    return !!(await BookingModel.exists({
+      _id: bookingId,
+      customerId: auth.sub,
+    }));
+  }
+
+  if (auth.role === 'partner') {
+    const partner = await PartnerModel.findOne({ userId: auth.sub })
+      .select('_id')
+      .lean();
+
+    return (
+      !!partner &&
+      !!(
+        await BookingModel.exists({
+          _id: bookingId,
+          partnerId: partner._id,
+        })
+      )
+    );
+  }
+
+  return false;
 }
 
 /**
@@ -86,9 +119,7 @@ const tokenFrom = (socket: Socket): string | undefined => {
 
   const header = socket.handshake.headers.authorization;
 
-  return header?.startsWith('Bearer ')
-    ? header.slice(7)
-    : undefined;
+  return header?.startsWith('Bearer ') ? header.slice(7) : undefined;
 };
 
 /**
@@ -104,14 +135,30 @@ const reject = (code: ErrorCode) => {
   return err;
 };
 
+type TrackingAck = (res: {
+  ok: boolean;
+  code?: ErrorCode;
+  snapshot?: {
+    status: string;
+    partnerAssigned: boolean;
+    location: {
+      sharing: boolean;
+      lat: number | null;
+      lng: number | null;
+      accuracy: number | null;
+      heading: number | null;
+      updatedAt: string | null;
+    };
+  };
+}) => void;
+
 /**
  * Initializes Socket.IO, configures JWT authentication,
- * and registers booking and ticket socket events.
+ * and registers booking, tracking and ticket socket events.
  */
 export const initSockets = (server: HttpServer): Server => {
   const origins = (
-    process.env.CORS_ORIGINS ||
-    'http://localhost:3000,http://localhost:5173'
+    process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173'
   )
     .split(',')
     .map((origin) => origin.trim())
@@ -144,10 +191,7 @@ export const initSockets = (server: HttpServer): Server => {
     const auth = socket.data.auth as AccessTokenPayload;
 
     // Automatically join the user's room and their role room.
-    void socket.join([
-      rooms.user(auth.sub),
-      rooms.role(auth.role),
-    ]);
+    void socket.join([rooms.user(auth.sub), rooms.role(auth.role)]);
 
     // Register ticket:join and ticket:leave handlers.
     // Ticket authorization remains inside ticket.socket.ts.
@@ -157,95 +201,83 @@ export const initSockets = (server: HttpServer): Server => {
     // BOOKING SOCKET EVENTS
     // --------------------------------------------------
 
-    socket.on(
-      'booking:join',
-      async (payload: unknown, ack?: AckFn) => {
-        const reply: AckFn =
-          typeof ack === 'function' ? ack : () => undefined;
+    socket.on('booking:join', async (payload: unknown, ack?: AckFn) => {
+      const reply: AckFn = typeof ack === 'function' ? ack : () => undefined;
 
-        const parsed = bookingPayload.safeParse(payload);
+      const parsed = bookingPayload.safeParse(payload);
 
-        if (!parsed.success) {
+      if (!parsed.success) {
+        return reply({
+          ok: false,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'bookingId is required',
+        });
+      }
+
+      try {
+        const allowed = await canJoinBooking(auth, parsed.data.bookingId);
+
+        if (!allowed) {
           return reply({
             ok: false,
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'bookingId is required',
+            code: ERROR_CODES.RESOURCE_FORBIDDEN,
+            message: 'You cannot join this booking',
           });
         }
 
-        try {
-          const allowed = await canJoinBooking(
-            auth,
-            parsed.data.bookingId,
-          );
+        await socket.join(rooms.booking(parsed.data.bookingId));
 
-          if (!allowed) {
-            return reply({
-              ok: false,
-              code: ERROR_CODES.RESOURCE_FORBIDDEN,
-              message: 'You cannot join this booking',
-            });
-          }
-
-          await socket.join(
-            rooms.booking(parsed.data.bookingId),
-          );
-
-          return reply({ ok: true });
-        } catch {
-          return reply({
-            ok: false,
-            code: ERROR_CODES.INTERNAL_ERROR,
-            message: 'Could not join booking',
-          });
-        }
-      },
-    );
+        return reply({ ok: true });
+      } catch {
+        return reply({
+          ok: false,
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'Could not join booking',
+        });
+      }
+    });
 
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
 
       if (parsed.success) {
-        void socket.leave(
-          rooms.booking(parsed.data.bookingId),
-        );
+        void socket.leave(rooms.booking(parsed.data.bookingId));
       }
     });
 
-    socket.on('tracking:join', async (payload: unknown, ack?: (res: {
-      ok: boolean;
-      code?: ErrorCode;
-      snapshot?: {
-        status: string;
-        partnerAssigned: boolean;
-        location: {
-          sharing: boolean;
-          lat: number | null;
-          lng: number | null;
-          accuracy: number | null;
-          heading: number | null;
-          updatedAt: string | null;
-        };
-      };
-    }) => void) => {
-      const reply = typeof ack === 'function' ? ack : () => undefined;
+    // --------------------------------------------------
+    // LIVE TRACKING SOCKET EVENTS (customer only)
+    // --------------------------------------------------
+
+    socket.on('tracking:join', async (payload: unknown, ack?: TrackingAck) => {
+      const reply: TrackingAck =
+        typeof ack === 'function' ? ack : () => undefined;
+
       const parsed = bookingPayload.safeParse(payload);
       if (!parsed.success) {
         return reply({ ok: false, code: ERROR_CODES.VALIDATION_ERROR });
       }
+
       if (auth.role !== 'customer') {
         return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN });
       }
+
       try {
         const ownsBooking = await BookingModel.exists({
           _id: parsed.data.bookingId,
           customerId: auth.sub,
         });
-        if (!ownsBooking) return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN });
+        if (!ownsBooking) {
+          return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN });
+        }
+
         const booking = await BookingModel.findById(parsed.data.bookingId)
           .select('status partnerId')
           .lean<{ status: string; partnerId?: unknown }>();
-        if (!booking) return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN });
+        if (!booking) {
+          return reply({ ok: false, code: ERROR_CODES.RESOURCE_FORBIDDEN });
+        }
+
         const location = await PartnerLocationModel.findOne({
           bookingId: parsed.data.bookingId,
         }).lean<{
@@ -256,7 +288,9 @@ export const initSockets = (server: HttpServer): Server => {
           heading?: number;
           updatedAt?: Date;
         }>();
+
         await socket.join(trackingRoom(parsed.data.bookingId));
+
         return reply({
           ok: true,
           snapshot: {
@@ -280,7 +314,9 @@ export const initSockets = (server: HttpServer): Server => {
 
     socket.on('tracking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
-      if (parsed.success) void socket.leave(trackingRoom(parsed.data.bookingId));
+      if (parsed.success) {
+        void socket.leave(trackingRoom(parsed.data.bookingId));
+      }
     });
   });
 

@@ -1,5 +1,4 @@
-import multer from "multer";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { HttpError } from "../auth/auth.types";
 
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -20,10 +19,12 @@ export interface EvidenceFile {
 
 /** Verify the file signature as well as the declared MIME type. */
 export function validateEvidence(
-  file: Pick<
-    Express.Multer.File,
-    "originalname" | "mimetype" | "buffer" | "size"
-  >,
+  file: {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+    size: number;
+  },
 ): EvidenceFile {
   if (
     !file.size ||
@@ -65,51 +66,84 @@ export function validateEvidence(
   return { name, mimeType: file.mimetype, sizeBytes: file.size, data: b };
 }
 
-const receive = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: MAX_ATTACHMENT_BYTES,
-    files: MAX_ATTACHMENTS,
-    fields: 8,
-    fieldSize: 20_000,
-    parts: 12,
-  },
-  fileFilter: (_req, file, cb) => {
-    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype))
-      cb(null, true);
-    else
-      cb(
-        new HttpError(
-          400,
-          "Use JPG, PNG, GIF, WebP or PDF files only.",
-          "INVALID_ATTACHMENT",
-        ),
-      );
-  },
-}).array("attachments", MAX_ATTACHMENTS);
+interface UploadedFile {
+  originalname: string;
+  mimetype: string;
+  buffer: Buffer;
+  size: number;
+}
+
+const invalidUpload = (message = "Upload up to 3 files and check the form fields.") =>
+  new HttpError(400, message, "INVALID_ATTACHMENT");
+
+async function readMultipart(req: Request): Promise<UploadedFile[]> {
+  const contentType = req.headers["content-type"] ?? "";
+  const boundaryMatch = /^multipart\/form-data\s*;.*?boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(
+    contentType,
+  );
+  if (!boundaryMatch) throw invalidUpload("A multipart form is required.");
+  const boundary = boundaryMatch[1] ?? boundaryMatch[2];
+  if (!boundary || boundary.length > 70) throw invalidUpload();
+
+  // Maximum file data, form fields, and a bounded amount of multipart overhead.
+  const maxBodyBytes = MAX_ATTACHMENT_BYTES * MAX_ATTACHMENTS + 500_000;
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += data.length;
+    if (totalBytes > maxBodyBytes) throw invalidUpload();
+    chunks.push(data);
+  }
+
+  const body = Buffer.concat(chunks, totalBytes).toString("latin1");
+  const sections = body.split(`--${boundary}`);
+  if (sections.length < 2 || sections[0] !== "") throw invalidUpload();
+  const ending = sections.pop();
+  if (ending !== "--" && ending !== "--\r\n") throw invalidUpload();
+  const parts = sections.slice(1);
+  if (parts.length > 12) throw invalidUpload();
+
+  const files: UploadedFile[] = [];
+  let fieldCount = 0;
+  for (const section of parts) {
+    const part = section.startsWith("\r\n") ? section.slice(2) : section;
+    const headerEnd = part.indexOf("\r\n\r\n");
+    if (headerEnd < 0 || !part.endsWith("\r\n")) throw invalidUpload();
+    const headers = part.slice(0, headerEnd);
+    const payload = part.slice(headerEnd + 4, -2);
+    const disposition = /^content-disposition:\s*form-data\s*;(.*)$/im.exec(headers)?.[1];
+    const fieldName = /(?:^|;)\s*name="([^"]*)"/i.exec(disposition ?? "")?.[1];
+    if (fieldName === undefined) throw invalidUpload();
+    const filename = /(?:^|;)\s*filename="([^"]*)"/i.exec(disposition ?? "")?.[1];
+
+    if (filename !== undefined) {
+      if (fieldName !== "attachments" || files.length >= MAX_ATTACHMENTS)
+        throw invalidUpload();
+      const buffer = Buffer.from(payload, "latin1");
+      if (buffer.length > MAX_ATTACHMENT_BYTES) {
+        throw invalidUpload("Each attachment must be 5 MB or smaller.");
+      }
+      const mimetype = /^content-type:\s*([^\r\n]+)/im.exec(headers)?.[1]?.trim() ?? "";
+      if (!(ATTACHMENT_TYPES as readonly string[]).includes(mimetype)) {
+        throw invalidUpload("Use JPG, PNG, GIF, WebP or PDF files only.");
+      }
+      files.push({ originalname: filename, mimetype, buffer, size: buffer.length });
+    } else {
+      fieldCount++;
+      if (fieldCount > 8 || Buffer.byteLength(payload, "latin1") > 20_000)
+        throw invalidUpload();
+    }
+  }
+  return files;
+}
 
 /** Applied only to authenticated ticket mutations. */
 export const receiveTicketFiles: RequestHandler = (req, res, next) => {
-  receive(req, res, (error: unknown) => {
-    if (error instanceof multer.MulterError) {
-      return next(
-        new HttpError(
-          400,
-          error.code === "LIMIT_FILE_SIZE"
-            ? "Each attachment must be 5 MB or smaller."
-            : "Upload up to 3 files and check the form fields.",
-          "INVALID_ATTACHMENT",
-        ),
-      );
-    }
-    if (error) return next(error);
-    try {
-      res.locals.ticketFiles = (Array.isArray(req.files) ? req.files : []).map(
-        validateEvidence,
-      );
+  void readMultipart(req)
+    .then((files) => {
+      res.locals.ticketFiles = files.map(validateEvidence);
       next();
-    } catch (err) {
-      next(err);
-    }
-  });
+    })
+    .catch(next);
 };

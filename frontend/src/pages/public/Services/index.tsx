@@ -308,9 +308,9 @@ export const ServicesPage: React.FC = () => {
 
         <div className="mb-8 text-center">
 
-          <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
-            HomeCareX Services
-          </p>
+         <p className="text-[#4F46E5]">
+  HOMECAREX SERVICES
+</p>
 
           <h1 className="mt-3 text-3xl font-extrabold text-[#11104f] sm:text-4xl">
             Find the right service for your home
@@ -522,15 +522,16 @@ export const ServicesPage: React.FC = () => {
             "
           >
 
-            {apiServices.map((service) => {
+            {/* CHANGED 1 of 3: added `index` so the first cards can load first */}
+            {apiServices.map((service, index) => {
               const name = service.name.toLowerCase();
 
-              let image = "/images/home-cleaning.jpg";
+              let image = "/images/home-cleaning.webp";
 
               if (name.includes("deep") && name.includes("clean")) {
-                image = "/images/deep-cleaning.jpg";
+                image = "/images/deep-cleaning.webp";
               } else if (name.includes("clean")) {
-                image = "/images/home-cleaning.jpg";
+                image = "/images/home-cleaning.webp";
               } else if (
                 name.includes("ac service") ||
                 name.includes("gas refill") ||
@@ -540,16 +541,17 @@ export const ServicesPage: React.FC = () => {
                 name.includes("washing machine") ||
                 name.includes("microwave")
               ) {
-                image = "/images/appliance-repair.jpg";
+                image = "/images/appliance-repair.webp";
               } else if (
                 name.includes("electrician") ||
                 name.includes("electrical")
               ) {
-                image = "/images/electrical.jpg";
+                image = "/images/electrical.webp";
               } else if (name.includes("plumbing")) {
-                image = "/images/plumbing.jpg";
+                // CHANGED 2 of 3: small 125 KB webp instead of the huge plumbing.jpg
+                image = "/images/plumbing-1200.webp";
               } else if (name.includes("painting")) {
-                image = "/images/painting.jpg";
+                image = "/images/painting.webp";
               } else if (name.includes("pest")) {
                 image = "/images/pest-control-clean.webp";
               } else if (name.includes("massage")) {
@@ -571,6 +573,8 @@ export const ServicesPage: React.FC = () => {
                   rating={service.rating}
                   price={service.basePrice}
                   duration={`${service.durationMinutes} min`}
+                  // CHANGED 3 of 3: first 2 cards load immediately (not lazy)
+                  priority={index === 0}
                 />
               );
             })}
@@ -700,7 +704,7 @@ export const ServicesPage: React.FC = () => {
 
             <div className="text-center">
 
-              <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
+              <p className="text-sm font-bold uppercase tracking-wider text-[#4f46e5]">
                 Why Choose HomeCareX
               </p>
 

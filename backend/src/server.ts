@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -11,20 +10,19 @@ import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
-// CHECK THIS PATH: startReferralWorker is used below but its import was lost.
-// Search the backend for "export const startReferralWorker" (or "function") and fix the path.
+// CHECK THIS PATH: if the server fails with "Cannot find module", search the
+// backend for "startReferralWorker" and fix the path to the file that exports it.
 import { startReferralWorker } from './modules/referrals/referrals.worker';
 
 const server = http.createServer(app);
 initSockets(server);
 
-const PORT = process.env.PORT || 5000;
 const PORT = Number(process.env.PORT) || 5000;
 
 let stopReferralWorker: (() => void) | undefined;
 
 /** Non-critical default data. A failure here is logged but must not stop the server. */
-const seedDefaults = async () => {
+const seedDefaults = async (): Promise<void> => {
   try {
     const added = await seedDefaultSettings();
     if (added) console.log(`Seeded ${added} default setting(s)`);
@@ -39,30 +37,12 @@ const seedDefaults = async () => {
   }
 };
 
-const startServer = async () => {
+const startServer = async (): Promise<void> => {
   try {
     await mongoose.connect(process.env.DATABASE_URL as string);
     console.log('Connected to MongoDB');
 
-    server.listen(PORT, () => {
-      console.log(`HomeCareX server running on port ${PORT}`);
-    });
-
-    stopReferralWorker = startReferralWorker((error) =>
-      console.error(
-        '[referrals] Reward reconciliation failed; it will retry.',
-        error instanceof Error ? error.message : 'Unknown error',
-      ),
-    );
-    registerEarningsListeners();
-
-    server.listen(PORT, () => {
-      console.log(`HomeCareX server running on port ${PORT}`);
-    });
-
-    void seedDefaults();
-  } catch (error) {
-    console.error('[startup] Failed to start HomeCareX:', error);
+    // Resolve once the port is open; reject if it cannot be opened (e.g. port in use).
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
 
@@ -73,29 +53,35 @@ const startServer = async () => {
       });
     });
 
-    // Seed default data after the server starts.
-    void seedDefaults().catch((error) => {
-      console.error('[startup] Default seeding failed:', error);
-    });
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error(
+        '[referrals] Reward reconciliation failed; it will retry.',
+        error instanceof Error ? error.message : 'Unknown error',
+      ),
+    );
+
+    registerEarningsListeners();
+
+    // Run non-critical default seeding after the server starts.
+    void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);
-    process.exitCode = 1;
 
     if (mongoose.connection.readyState !== 0) {
       try {
         await mongoose.connection.close();
       } catch (closeError) {
-        console.error('[startup] Failed to close MongoDB connection:', closeError);
+        console.error(
+          '[startup] Failed to close MongoDB connection:',
+          closeError,
+        );
       }
     }
 
-    process.exitCode = 1;
+    process.exit(1);
   }
 };
 
-void startServer();
-
-const shutdown = async () => {
 const shutdown = async (): Promise<void> => {
   console.log('Stopping server gracefully...');
   stopReferralWorker?.();

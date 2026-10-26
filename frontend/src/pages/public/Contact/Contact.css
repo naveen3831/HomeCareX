@@ -616,7 +616,7 @@
 }
 
 .contact-conversation__direct small {
-  color: #777984;
+  color: #5b5d68;
   font-size: 13px;
 }
 
@@ -647,7 +647,7 @@
 .contact-conversation__hours small {
   display: block;
   margin-top: 3px;
-  color: #7c7e87;
+  color: #5b5d68;
 }
 
 .contact-page #contact-form {
@@ -1030,7 +1030,7 @@
 
 .contact-faq__copy > p:not(.contact-eyebrow) {
   margin: 4px 0 0;
-  color: #747681;
+  color: #5b5d68;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -1182,7 +1182,7 @@
 
 .partner-band__note small {
   margin-top: 4px;
-  color: #777984;
+  color: #5b5d68;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -1376,7 +1376,7 @@
 }
 
 .contact-page #partner-interest form > p:last-child {
-  color: #777984;
+  color: #5b5d68;
   font-size: 12px;
 }
 

@@ -7,6 +7,7 @@ import { ADMIN_ROLES, type AuthUser } from '@/types/auth';
 import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
+import Seo from '@/components/common/Seo';
 
 /** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:). */
 function safeReturnUrl(raw: string | null): string | null {
@@ -103,10 +104,6 @@ export const LoginPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
-
-  useEffect(() => {
-    document.title = 'Log in | HomeCareX';
-  }, []);
 
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
@@ -229,6 +226,12 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="w-full">
+      {/* Title + meta description (also needed for the Lighthouse SEO score) */}
+      <Seo
+        title="Log in | HomeCareX"
+        description="Log in to your HomeCareX account to book home services, track your bookings and manage your profile."
+      />
+
       {/* Top Navigation: Back to Home */}
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
         <Link
@@ -410,7 +413,7 @@ export const LoginPage: React.FC = () => {
         </button>
       </form>
 
-      <p className="text-center text-xs sm:text-sm text-gray-500 mt-3.5 sm:mt-4">
+      <p className="text-center text-xs sm:text-sm text-gray-600 mt-3.5 sm:mt-4">
         Don&apos;t have an account?{' '}
         <Link to="/register" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
           Create an account

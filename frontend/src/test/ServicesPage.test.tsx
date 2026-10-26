@@ -4,6 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
 
 // The page fetches the catalogue through React Query; resolve with an empty page so no network is hit.
 vi.mock("@/services/catalogApi", async (importOriginal) => {
@@ -17,14 +18,11 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
   };
 });
 
-import { HelmetProvider } from "react-helmet-async";
 import ServicesPage from "../pages/public/Services";
 
 /* =========================================================
    Constants
 ========================================================= */
-
-
 
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
@@ -47,6 +45,7 @@ const LocationDisplay: React.FC = () => {
 interface TestWrapperProps {
   initialEntry?: string;
 }
+
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
 }) => {
@@ -57,22 +56,16 @@ const TestWrapper: React.FC<TestWrapperProps> = ({
       })
   );
   return (
-    <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <ServicesPage />
-        <LocationDisplay />
-      </MemoryRouter>
-    </QueryClientProvider>
+    <HelmetProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <ServicesPage />
+          <LocationDisplay />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
   );
 };
-}) => (
-  <HelmetProvider>
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <ServicesPage />
-      <LocationDisplay />
-    </MemoryRouter>
-  </HelmetProvider>
-);
 
 /* =========================================================
    Helpers

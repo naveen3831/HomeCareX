@@ -17,7 +17,6 @@ import { useTickets, useTicketUpdates } from "@/hooks/useTickets";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   CATEGORIES,
-  problem,
   type TicketCategory,
   type TicketStatus,
 } from "@/features/support/types";
@@ -27,17 +26,6 @@ import TicketStatusFilter from "@/components/support/TicketStatusFilter";
 import CreateTicketForm from "@/components/support/CreateTicketForm";
 import CustomerTicketThread from "@/components/support/CustomerTicketThread";
 import "./Support.css";
-import { Link, useSearchParams } from "react-router-dom";
-import { ChevronDown, MessageSquare, Search } from "lucide-react";
-
-import "./Support.css";
-
-import { searchHelp } from "@/features/support/helpCenter";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useTickets } from "@/hooks/useTickets";
-import type { TicketStatus } from "@/features/support/types";
-import TicketStatusFilter from "@/components/support/TicketStatusFilter";
-import TicketCard from "@/components/support/TicketCard";
 
 /** Turns an unknown error into a short message for the screen. */
 function problem(error: unknown): string {
@@ -322,42 +310,6 @@ export default function Support() {
           <HelpCenter />
         )}
       </div>
-  const [params, setParams] = useSearchParams();
-  const view = params.get("view") === "help" ? "help" : "tickets";
-
-  const show = (next: "help" | "tickets") => setParams({ view: next });
-
-  return (
-    <div className="hcx-support-page">
-      <header className="hcx-support-hero">
-        <div>
-          <h1>Support</h1>
-          <p className="hcx-support-muted">Get help and contact support.</p>
-        </div>
-        <HeroIllustration />
-      </header>
-
-      <div className="hcx-support-tabs" role="tablist" aria-label="Support">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "tickets"}
-          onClick={() => show("tickets")}
-        >
-          My tickets
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "help"}
-          onClick={() => show("help")}
-        >
-          Help center
-        </button>
-        <Link to="/customer/support?view=new">New ticket</Link>
-      </div>
-
-      {view === "help" ? <HelpCenter /> : <TicketList />}
     </div>
   );
 }

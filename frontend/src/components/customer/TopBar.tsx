@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -9,7 +8,6 @@ import LocationPicker from "./LocationPicker";
 import NotificationBell from "./NotificationBell";
 import { CUSTOMER_SIDEBAR_ID } from "./Sidebar";
 import { FOCUS_RING } from "./focusRing";
-import { ArrowLeft } from "lucide-react";
 
 interface TopBarProps {
   /** Desktop: is the sidebar expanded? */

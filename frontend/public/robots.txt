@@ -10,7 +10,7 @@ Disallow: /admin
 Disallow: /admin/
 
 # Authentication routes (also kept out of sitemap.xml)
-Disallow: /login
+# /login is intentionally crawlable: the JS-07 SEO target (>= 95) applies to it.
 Disallow: /register
 Disallow: /forgot-password
 Disallow: /verify-otp

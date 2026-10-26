@@ -56,7 +56,7 @@ export const AdminLayout: React.FC = () => {
         </main>
       </div>
     </div>
-  </div>
+  
   );
 };
 

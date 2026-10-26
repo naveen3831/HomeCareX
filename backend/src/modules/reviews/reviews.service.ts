@@ -9,7 +9,6 @@ import {
   COMPLETED_STATUSES,
   type BookingStatus,
 } from '../bookings/bookings.constants';
-import { COMPLETED_STATUSES, type BookingStatus } from '../bookings/bookings.constants';
 import { auditService } from '../audit/audit.service';
 import { STAR_VALUES } from './reviews.constants';
 import {
@@ -119,6 +118,10 @@ const toCustomerReviewDto = (
 });
 
 export class ReviewsService {
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   /**
    * Fail-safe audit helper. A logging failure must not make a successful review
    * status change fail for the admin.
@@ -554,7 +557,7 @@ export class ReviewsService {
     }
 
     if (search) {
-      const expression = new RegExp(escapeRegex(search), 'i');
+      const expression = new RegExp(this.escapeRegex(search), 'i');
 
       filter.$or = [
         { customerName: expression },
@@ -706,7 +709,11 @@ export class ReviewsService {
   }
 
   /** PATCH /admin/reviews/:id/status */
-  async updateReviewStatus(id: string, status: unknown) {
+  async updateReviewStatus(
+    id: string,
+    status: unknown,
+    actor?: ReviewAuditActor,
+  ) {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpError(
         400,
@@ -722,6 +729,18 @@ export class ReviewsService {
         400,
         'Invalid review status',
         'VALIDATION_ERROR',
+      );
+    }
+
+    const existingReview = await ReviewModel.findById(id)
+      .select('_id status')
+      .lean();
+
+    if (!existingReview) {
+      throw new HttpError(
+        404,
+        'Review not found',
+        'NOT_FOUND',
       );
     }
 
@@ -743,6 +762,16 @@ export class ReviewsService {
         404,
         'Review not found',
         'NOT_FOUND',
+      );
+    }
+
+    if (actor) {
+      await this.recordReviewAudit(
+        'review.status_updated',
+        String(review._id),
+        actor,
+        { status: existingReview.status },
+        { status: review.status },
       );
     }
 
@@ -828,42 +857,7 @@ export class ReviewsService {
         String(review.serviceId),
       );
     }
-  async updateReviewStatus(
-    id: string,
-    status: unknown,
-    actor: ReviewAuditActor,
-  ) {
-    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
-    const parsedStatus = reviewStatusSchema.safeParse(status);
-    if (!parsedStatus.success) throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
-
-    // Read first so the audit entry contains the actual previous status.
-    const existingReview = await ReviewModel.findById(id).select('_id status').lean();
-    if (!existingReview) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
-
-    const previousStatus = existingReview.status;
-    const nextStatus = parsedStatus.data as ReviewStatus;
-
-    const review = await ReviewModel.findByIdAndUpdate(
-      id,
-      { $set: { status: nextStatus } },
-      { new: true, runValidators: true },
-    ).lean();
-
-    if (!review) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
-
-    // Only record after the update succeeds.
-    await this.recordReviewAudit(
-      'review.status_updated',
-      String(review._id),
-      actor,
-      { status: previousStatus },
-      { status: review.status },
-    );
-
-    return review;
   }
+
 }
 
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

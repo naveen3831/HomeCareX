@@ -514,7 +514,7 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
                       <a
                         href={safeLink(banner.link)}
                         tabIndex={isActive ? 0 : -1}
-                        className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-3.5 font-semibold text-white shadow-lg shadow-black/20 transition hover:bg-[#e0600f] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#312e81]"
+                        className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-3.5 font-semibold text-[#1b1b3a] shadow-lg shadow-black/20 transition hover:bg-[#e0600f] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#312e81]"
                       >
                         Explore services
 
