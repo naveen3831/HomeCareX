@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   MapPin,
   Navigation,
+  ShieldCheck,
   Star,
   Ticket,
   User,
@@ -52,6 +53,7 @@ export const SIDEBAR_GROUPS: CustomerNavGroup[] = [
     items: [
       { label: "Addresses", to: customerPath("/addresses"), icon: MapPin },
       { label: "Profile", to: customerPath("/profile"), icon: User },
+      { label: "Account Security", to: customerPath("/security"), icon: ShieldCheck },
       { label: "Payments", to: customerPath("/payments"), icon: CreditCard },
       { label: "Wallet", to: customerPath("/wallet"), icon: Wallet },
       { label: "Reviews", to: customerPath("/reviews"), icon: Star },
@@ -103,6 +105,7 @@ export const PROFILE_ITEM_META: Record<string, { description: string; tint: Prof
   "My Bookings": { description: "Upcoming, completed & cancelled", tint: "indigo" },
   "Active Booking": { description: "Track your partner live", tint: "orange" },
   Addresses: { description: "Where we should come", tint: "sky" },
+  "Account Security": { description: "Password, sessions & devices", tint: "violet" },
   Payments: { description: "Payment methods & receipts", tint: "emerald" },
   Wallet: { description: "Balance & cashback", tint: "amber" },
   Reviews: { description: "Your ratings & feedback", tint: "rose" },

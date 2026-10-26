@@ -77,9 +77,6 @@ const renderPage = (entry = "/customer/bookings") => {
 
 const lastParams = () =>
   listBookings.mock.calls[listBookings.mock.calls.length - 1]?.[0] as Record<string, unknown>;
- listBookings.mock.calls[
-  listBookings.mock.calls.length - 1
-]?.[0] as Record<string, unknown>;
 
 let online = true;
 beforeEach(() => {
@@ -325,55 +322,35 @@ describe("My Bookings page", () => {
   });
 });
 
-describe("Overdue booking view", () => {
-  it("shows a passed Confirmed booking as Overdue while retaining its details link", async () => {
-    vi.mocked(Date.now).mockReturnValue(
-      new Date("2026-10-21T07:00:00Z").getTime(),
-    );
-    listBookings.mockResolvedValue(page([booking({ date: "2026-10-15" })]));
+describe("Booking tabs", () => {
+  it("only displays Upcoming, Live, Completed, and Cancelled tabs", () => {
+    listBookings.mockResolvedValue(page([]));
+    renderPage();
+    expect(screen.getByRole("tab", { name: "Upcoming" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Live" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Completed" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Cancelled" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Overdue" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to Upcoming when a legacy overdue tab is requested", async () => {
+    listBookings.mockResolvedValue(page([]));
     renderPage("/customer/bookings?tab=overdue");
-    const card = await screen.findByRole("article");
-    expect(within(card).getByText("Overdue")).toBeInTheDocument();
-    expect(
-      within(card).getByText(/service completion has not been confirmed/i),
-    ).toBeInTheDocument();
-    expect(
-      within(card).getByRole("link", { name: "View Details" }),
-    ).toHaveAttribute("href", `/customer/bookings/${ID}`);
-    expect(screen.getByRole("tab", { name: "Overdue" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(lastParams()).toMatchObject({
-      tab: "overdue",
-      status: "overdue",
-      sort: "date_desc",
-    });
   });
 
-  it("retains the Overdue boundary when a shared link selects a status", async () => {
-    listBookings.mockResolvedValue(page([]));
-    renderPage("/customer/bookings?tab=overdue&status=confirmed%2Ccreated");
-    await waitFor(() =>
-      expect(lastParams()).toMatchObject({
-        tab: "overdue",
-        status: "confirmed,created",
-      }),
-    );
-    expect(screen.getByLabelText("Status")).toHaveValue("confirmed,created");
-  });
-
-  it("supports arrow, Home and End keys across all five tabs", async () => {
+  it("supports arrow, Home and End keys across all four tabs", async () => {
     const user = userEvent.setup();
     listBookings.mockResolvedValue(page([]));
     renderPage();
     await user.click(screen.getByRole("tab", { name: "Upcoming" }));
-    await user.keyboard("{ArrowRight}{ArrowRight}");
-    expect(screen.getByRole("tab", { name: "Overdue" })).toHaveFocus();
-    expect(screen.getByRole("tab", { name: "Overdue" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Live" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Completed" })).toHaveFocus();
     await user.keyboard("{End}");
     expect(screen.getByRole("tab", { name: "Cancelled" })).toHaveFocus();
     await user.keyboard("{Home}");

@@ -1,11 +1,21 @@
+import { randomInt } from 'crypto';
 import { Types } from 'mongoose';
-import { randomInt } from 'node:crypto';
 import { BookingModel, type IBooking } from '../../models/Booking';
-import PaymentModel from '../../models/Payment';
-import { RefundModel } from '../../models/Refund';
 import { UserModel } from '../../models/User';
-import { BOOKING_STATUS, SLOT_HOLDING_STATUSES } from './bookings.constants';
+import { PaymentModel, type IPayment } from '../../models/Payment';
+import { RefundModel, type IRefund } from '../../models/Refund';
+import { BOOKING_STATUS, EXTRA_CHARGE_DECISION_STATUSES, SLOT_HOLDING_STATUSES } from './bookings.constants';
 import { buildBookingFilter, SORT_SPECS, type ListBookingsQuery } from './bookings.query';
+import type { StatusHistoryEntry } from './bookings.stateMachine';
+
+const PARTNER_POPULATE = {
+  path: 'partnerId',
+  select: 'userId ratingAvg ratingCount kyc city name phone rating avatar',
+  populate: {
+    path: 'userId',
+    select: 'name phone email role',
+  },
+};
 
 export class BookingsRepository {
   /** Active (slot-holding) bookings for a service/date/slot, used to compute remaining seats. */
@@ -22,17 +32,17 @@ export class BookingsRepository {
   }
 
   /** Cancels lapsed pending_payment holds for one slot so their seats are freed. */
-  releaseStaleHolds(serviceId: string, date: string, slot: string, now: Date = new Date()): Promise<unknown> {
-    if (!Types.ObjectId.isValid(serviceId)) return Promise.resolve(null);
+  releaseStaleHolds(serviceId?: string, date?: string, slot?: string, now: Date = new Date()): Promise<unknown> {
+    const filter: Record<string, unknown> = {
+      status: BOOKING_STATUS.PENDING_PAYMENT,
+      holdExpiresAt: { $lte: now },
+    };
+    if (serviceId && Types.ObjectId.isValid(serviceId)) filter.serviceId = new Types.ObjectId(serviceId);
+    if (date) filter.date = date;
+    if (slot) filter.slot = slot;
 
     return BookingModel.updateMany(
-      {
-        serviceId: new Types.ObjectId(serviceId),
-        date,
-        slot,
-        status: BOOKING_STATUS.PENDING_PAYMENT,
-        holdExpiresAt: { $lte: now },
-      },
+      filter,
       {
         $set: { status: BOOKING_STATUS.CANCELLED_BY_CUSTOMER },
         // Free the seat so the unique (service, date, slot, seat) index lets someone else take it.
@@ -63,7 +73,7 @@ export class BookingsRepository {
     serviceId: string,
     date: string,
     slot: string,
-    capacity: number,
+    capacity: number = 5,
     now: Date = new Date()
   ): Promise<number | null> {
     if (!Types.ObjectId.isValid(serviceId)) return null;
@@ -94,7 +104,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
 
     return BookingModel.findById(id)
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .exec();
   }
 
@@ -107,8 +117,207 @@ export class BookingsRepository {
       _id: new Types.ObjectId(id),
       customerId: new Types.ObjectId(customerId),
     })
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .exec();
+  }
+
+  /**
+   * The start OTP for a booking whose partner has arrived. Created on first read (4 digits) and then
+   * stable, so the code the customer sees is the code the partner must enter. Safe under concurrent
+   * reads: only one writer wins the conditional update, the other re-reads the winner's code.
+   */
+  async getOrCreateStartOtp(id: string): Promise<string | null> {
+    if (!Types.ObjectId.isValid(id)) return null;
+    const _id = new Types.ObjectId(id);
+    type WithOtp = { otpCodes?: { start?: string } } | null;
+
+    const existing = (await BookingModel.findById(_id).select('+otpCodes.start').lean().exec()) as WithOtp;
+    if (existing?.otpCodes?.start) return existing.otpCodes.start;
+
+    const code = String(randomInt(0, 10_000)).padStart(4, '0');
+    const updated = (await BookingModel.findOneAndUpdate(
+      {
+        _id,
+        $or: [{ 'otpCodes.start': { $exists: false } }, { 'otpCodes.start': null }, { 'otpCodes.start': '' }],
+      },
+      { $set: { 'otpCodes.start': code } },
+      { new: true },
+    )
+      .select('+otpCodes.start')
+      .lean()
+      .exec()) as WithOtp;
+    if (updated?.otpCodes?.start) return updated.otpCodes.start;
+
+    const winner = (await BookingModel.findById(_id).select('+otpCodes.start').lean().exec()) as WithOtp;
+    return winner?.otpCodes?.start ?? code;
+  }
+
+  /**
+   * Records the customer's decision on ONE pending extra charge, atomically.
+   * The filter is the whole rule: own booking, partner on site, charge still pending. Returns null when
+   * any of those is false, so a double tap or a stale screen can never decide a charge twice.
+   */
+  decideExtraCharge(
+    bookingId: string,
+    customerId: string,
+    chargeId: string,
+    decision: 'approved' | 'rejected',
+    now: Date = new Date(),
+  ): Promise<IBooking | null> {
+    if (![bookingId, customerId, chargeId].every((v) => Types.ObjectId.isValid(v))) return Promise.resolve(null);
+    const charge = new Types.ObjectId(chargeId);
+
+    return BookingModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(bookingId),
+        customerId: new Types.ObjectId(customerId),
+        status: { $in: [...EXTRA_CHARGE_DECISION_STATUSES, 'ARRIVED', 'IN_PROGRESS'] },
+        extraCharges: { $elemMatch: { _id: charge, status: 'pending' } },
+      },
+      { $set: { 'extraCharges.$[c].status': decision, 'extraCharges.$[c].decidedAt': now } },
+      { new: true, arrayFilters: [{ 'c._id': charge, 'c.status': 'pending' }] },
+    ).exec();
+  }
+
+  /** Name, email and phone of the signed-in customer, printed on their invoice. */
+  async findCustomerContact(
+    customerId: string,
+  ): Promise<{ name?: string; email?: string; phone?: string } | null> {
+    if (!Types.ObjectId.isValid(customerId)) return null;
+    const user = await UserModel.findById(customerId)
+      .select('name email phone')
+      .lean()
+      .exec();
+    if (!user) return null;
+    return { name: user.name, email: user.email, phone: user.phone ?? undefined };
+  }
+
+  /** The payment that actually received money for this booking (what a cancellation refunds from). */
+  findPaidPayment(bookingId: string): Promise<IPayment | null> {
+    if (!Types.ObjectId.isValid(bookingId)) return Promise.resolve(null);
+    return PaymentModel.findOne({
+      bookingId: new Types.ObjectId(bookingId),
+      status: 'PAID',
+    })
+      .sort({ paidAt: -1, createdAt: -1 })
+      .exec();
+  }
+
+  /**
+   * Moves the booking to a cancelled status, atomically. The filter pins the status the decision was
+   * made from, so two taps (or a partner moving the job on at the same moment) can never both win:
+   * returns null when the booking is no longer in `fromStatus`. The seat is released for others.
+   */
+  markCancelled(
+    bookingId: string,
+    customerId: string,
+    fromStatus: IBooking['status'],
+    entry: StatusHistoryEntry,
+    reason?: string,
+  ): Promise<IBooking | null> {
+    if (![bookingId, customerId].every((v) => Types.ObjectId.isValid(v)))
+      return Promise.resolve(null);
+    return BookingModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(bookingId),
+        customerId: new Types.ObjectId(customerId),
+        status: fromStatus,
+      },
+      {
+        $set: { status: entry.to, ...(reason ? { cancellationReason: reason } : {}) },
+        $unset: { slotSeat: '' },
+        $push: { statusHistory: entry },
+      },
+      { new: true },
+    ).exec();
+  }
+
+  /**
+   * Files the refund for a cancelled booking: one Refund request (status "requested", picked up by the
+   * admin refund queue) and the matching marker on the Payment. Idempotent per booking, so a retry never
+   * creates a second refund for the same cancellation.
+   */
+  async createRefundRequest(input: {
+    payment?: IPayment | null;
+    bookingId: string;
+    customerId?: string;
+    amount: number;
+    reason?: string;
+    now?: Date;
+  }): Promise<IRefund | unknown> {
+    const bookingId = new Types.ObjectId(input.bookingId);
+    const existing = await RefundModel.findOne({
+      bookingId,
+      status: { $in: ['requested', 'approved', 'processed'] },
+    }).exec();
+    if (existing) return existing;
+
+    const now = input.now ?? new Date();
+    const paymentId = input.payment?._id;
+    const customerId = input.customerId ? new Types.ObjectId(input.customerId) : undefined;
+    const refund = await RefundModel.create({
+      ...(paymentId ? { paymentId } : {}),
+      bookingId,
+      ...(customerId ? { customerId, requestedBy: customerId } : {}),
+      amount: input.amount,
+      reason: `Booking cancelled: ${input.reason ?? ''}`.slice(0, 500),
+      method: 'RAZORPAY',
+      status: 'requested',
+      requestedAt: now,
+    });
+    if (paymentId) {
+      await PaymentModel.updateOne(
+        { _id: paymentId },
+        {
+          $set: {
+            'refund.status': 'requested',
+            'refund.amount': input.amount,
+            'refund.requestedAt': now,
+          },
+        },
+      ).exec();
+    }
+    return refund;
+  }
+
+  /**
+   * Moves a booking to a new date/slot/seat, atomically. The filter pins the status AND the old slot the
+   * decision was made from; returns null when either changed in the meantime.
+   */
+  reschedule(
+    bookingIdOrArgs: any,
+    customerId?: string,
+    to?: { date: string; slot: string; seat: number; scheduledAt?: Date },
+    historyEntry?: any
+  ): Promise<IBooking | null> {
+    const isObj = typeof bookingIdOrArgs === 'object' && bookingIdOrArgs !== null;
+    const bId = isObj ? bookingIdOrArgs.bookingId : bookingIdOrArgs;
+    const cId = isObj ? bookingIdOrArgs.customerId : customerId;
+    const target = isObj ? bookingIdOrArgs.to : to;
+    const entry = isObj ? bookingIdOrArgs.entry : historyEntry;
+
+    if (![bId, cId].every((v) => Types.ObjectId.isValid(v)))
+      return Promise.resolve(null);
+
+    const filter: Record<string, unknown> = {
+      _id: new Types.ObjectId(bId),
+      customerId: new Types.ObjectId(cId),
+    };
+    if (isObj && bookingIdOrArgs.fromStatus) filter.status = bookingIdOrArgs.fromStatus;
+    if (isObj && bookingIdOrArgs.fromDate) filter.date = bookingIdOrArgs.fromDate;
+    if (isObj && bookingIdOrArgs.fromSlot) filter.slot = bookingIdOrArgs.fromSlot;
+
+    const update: Record<string, unknown> = {
+      $set: {
+        date: target.date,
+        slot: target.slot,
+        slotSeat: target.seat,
+        ...(target.scheduledAt ? { scheduledAt: target.scheduledAt } : {}),
+      },
+    };
+    if (entry) update.$push = { statusHistory: entry };
+
+    return BookingModel.findOneAndUpdate(filter, update, { new: true }).exec();
   }
 
   /** Return all bookings for a customer sorted by creation time with partner details populated */
@@ -116,7 +325,7 @@ export class BookingsRepository {
     if (!Types.ObjectId.isValid(customerId)) return Promise.resolve([]);
 
     return BookingModel.find({ customerId: new Types.ObjectId(customerId) })
-      .populate('partnerId', 'name rating phone avatar')
+      .populate(PARTNER_POPULATE)
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -132,7 +341,7 @@ export class BookingsRepository {
     const filter = buildBookingFilter(customerId, query, now);
     const [items, total] = await Promise.all([
       BookingModel.find(filter)
-        .populate('partnerId', 'name rating phone avatar')
+        .populate(PARTNER_POPULATE)
         .sort(SORT_SPECS[query.sort])
         .skip((query.page - 1) * query.limit)
         .limit(query.limit)
@@ -140,104 +349,6 @@ export class BookingsRepository {
       BookingModel.countDocuments(filter).exec(),
     ]);
     return { items, total };
-  }
-
-  async getOrCreateStartOtp(bookingId: string): Promise<string | null> {
-    const otp = String(randomInt(1000, 10_000));
-    const updated = await BookingModel.findOneAndUpdate(
-      { _id: bookingId, status: 'arrived', 'otpCodes.start': { $exists: false } },
-      { $set: { 'otpCodes.start': otp } },
-      { new: true },
-    ).select('+otpCodes.start');
-    if (updated?.otpCodes?.start) return updated.otpCodes.start;
-    const existing = await BookingModel.findById(bookingId).select('+otpCodes.start');
-    return existing?.status === 'arrived' ? existing.otpCodes?.start ?? null : null;
-  }
-
-  decideExtraCharge(
-    bookingId: string,
-    customerId: string,
-    chargeId: string,
-    status: 'approved' | 'rejected',
-  ): Promise<IBooking | null> {
-    return BookingModel.findOneAndUpdate(
-      {
-        _id: bookingId,
-        customerId,
-        status: 'in_progress',
-        extraCharges: { $elemMatch: { _id: chargeId, status: 'pending' } },
-      },
-      { $set: { 'extraCharges.$.status': status } },
-      { new: true },
-    ).exec();
-  }
-
-  findCustomerContact(customerId: unknown) {
-    return UserModel.findById(customerId).select('name email phone').lean();
-  }
-
-  findPaidPayment(bookingId: string) {
-    return PaymentModel.findOne({ bookingId, status: 'PAID' })
-      .sort({ paidAt: -1, _id: -1 })
-      .lean();
-  }
-
-  markCancelled(
-    bookingId: string,
-    customerId: string,
-    fromStatus: string,
-    entry: { from: string; to: string; at: Date; actorId: string; actorRole: 'customer'; reason: string },
-    reason: string,
-  ): Promise<IBooking | null> {
-    return BookingModel.findOneAndUpdate(
-      { _id: bookingId, customerId, status: fromStatus },
-      {
-        $set: { status: 'cancelled_by_customer', cancellationReason: reason },
-        $unset: { slotSeat: '' },
-        $push: { statusHistory: entry },
-      },
-      { new: true },
-    ).exec();
-  }
-
-  createRefundRequest(input: {
-    bookingId: string;
-    customerId: string;
-    paymentId: string;
-    amount: number;
-    reason: string;
-  }) {
-    return RefundModel.create({
-      ...input,
-      requestedBy: input.customerId,
-      currency: 'INR',
-      method: 'RAZORPAY',
-      status: 'requested',
-      requestedAt: new Date(),
-    });
-  }
-
-  reschedule(input: {
-    bookingId: string;
-    customerId: string;
-    fromStatus: string;
-    to: { date: string; slot: string; seat: number };
-    entry: { from: string; to: string; at: Date; actorId: string; actorRole: 'customer'; reason: string };
-    scheduledAt: Date;
-  }): Promise<IBooking | null> {
-    return BookingModel.findOneAndUpdate(
-      { _id: input.bookingId, customerId: input.customerId, status: input.fromStatus },
-      {
-        $set: {
-          date: input.to.date,
-          slot: input.to.slot,
-          slotSeat: input.to.seat,
-          scheduledAt: input.scheduledAt,
-        },
-        $push: { statusHistory: input.entry },
-      },
-      { new: true },
-    ).exec();
   }
 }
 

@@ -21,6 +21,16 @@
   margin-inline: auto;
 }
 
+#contact-form,
+#partner-interest,
+#office,
+.contact-conversation,
+.contact-ways,
+.contact-office,
+.partner-band {
+  scroll-margin-top: 100px;
+}
+
 .contact-eyebrow {
   display: flex;
   align-items: center;
@@ -758,7 +768,7 @@
 }
 
 .contact-page #contact-form > div[role="status"] {
-  min-height: 25rem;
+  min-height: auto;
 }
 
 .recaptcha-notice {
@@ -1381,7 +1391,7 @@
 }
 
 .contact-page #partner-interest > div[role="status"] {
-  min-height: 19rem;
+  min-height: auto;
 }
 
 @keyframes contact-enter {

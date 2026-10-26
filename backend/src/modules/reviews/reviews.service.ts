@@ -37,12 +37,6 @@ import {
 } from './reviews.validation';
 
 /** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
-interface ReviewAuditActor {
-  id: string;
-  ip: string;
-}
-
-/** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
 
@@ -857,6 +851,51 @@ export class ReviewsService {
         String(review.serviceId),
       );
     }
+
+    return review;
+  }
+
+  async updateReviewStatus(
+    id: string,
+    status: unknown,
+    actor: ReviewAuditActor,
+  ) {
+    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+    const parsedStatus = reviewStatusSchema.safeParse(status);
+    if (!parsedStatus.success) throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
+
+    // Read first so the audit entry contains the actual previous status.
+    const existingReview = await ReviewModel.findById(id).select('_id status').lean();
+    if (!existingReview) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+
+    const previousStatus = existingReview.status;
+    const nextStatus = parsedStatus.data as ReviewStatus;
+
+    const review = await ReviewModel.findByIdAndUpdate(
+      id,
+      { $set: { status: nextStatus } },
+      { new: true, runValidators: true },
+    ).lean();
+
+    if (!review) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+
+    if (review.partnerId) {
+      await reviewsRepository.recomputePartnerRating(String(review.partnerId));
+    }
+    if (review.serviceId) {
+      await reviewsRepository.recomputeServiceRating(String(review.serviceId));
+    }
+
+    // Only record after the update succeeds.
+    await this.recordReviewAudit(
+      'review.status_updated',
+      String(review._id),
+      actor,
+      { status: previousStatus },
+      { status: review.status },
+    );
+
+    return review;
   }
 
 }

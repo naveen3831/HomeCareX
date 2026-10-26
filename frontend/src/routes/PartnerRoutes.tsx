@@ -20,6 +20,7 @@ import PartnerTransactionsPage from "../pages/partner/Transactions";
 import PartnerLocationSharingPage from "../pages/partner/LocationSharing";
 import PartnerNavigationPage from "../pages/partner/Navigation";
 import PartnerJobDetailsPage from "../pages/partner/JobDetails/JobDetails.index";
+import PartnerActiveJobPage from "../pages/partner/ActiveJob";
 import SupportTicketPage from "../pages/partner/SupportTicket/SupportTicketPage";
 import HelpPage from "../pages/partner/Help/HelpPage";
 import PartnerSupportPage from "../pages/partner/Support";
@@ -32,6 +33,7 @@ import "../styles/calm-overrides.css";
 import "../styles/mobile-plain.css";
 import SettingsHome from "../pages/partner/Settings/SettingsHome";
 import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
+import PartnerSafetyPage from "../pages/partner/Safety";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -110,6 +112,7 @@ export default function PartnerRoutes() {
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
         <Route path="security" element={<AccountSecurityPage />} />
+        <Route path="account/security" element={<AccountSecurityPage />} />
 
         {/* =====================================================
             Availability
@@ -179,6 +182,8 @@ export default function PartnerRoutes() {
         <Route path="performance/reviews" element={<PartnerReviewsPage />} />
         <Route path="support/:id" element={<SupportTicketPage />} />
         <Route path="help" element={<HelpPage />} />
+        <Route path="safety" element={<PartnerSafetyPage />} />
+     <Route path="support/safety" element={<PartnerSafetyPage />} />
         <Route path="settings" element={<SettingsHome />} />
         <Route path="settings/security/password" element={<ChangePasswordPage />} />
         <Route path="settings/security/sessions" element={<ActiveSessionsPage />} />
@@ -208,7 +213,8 @@ export default function PartnerRoutes() {
           path="jobs/:id/location"
           element={<PartnerLocationSharingPage />}
         />
-
+<Route path="jobs/:id" element={<PartnerJobDetailsPage />} />
+<Route path="jobs/:id/active" element={<PartnerActiveJobPage />} />
         {/* =====================================================
             Catch-all Route
         ===================================================== */}

@@ -63,7 +63,7 @@ export function computeSla(t: Pick<TicketLean, 'status' | 'priority' | 'createdA
 }
 
 /** Active tickets whose age, relative to their own priority's target, puts them in `state`. */
-function slaClause(state: SlaState, now: Date): FilterQuery<Ticket> {
+export function slaClause(state: SlaState, now: Date): FilterQuery<Ticket> {
   const ageLimit = (ms: number) => new Date(now.getTime() - ms);
   const perPriority = TICKET_PRIORITIES.map((priority): FilterQuery<Ticket> => {
     const target = targetMs(priority);

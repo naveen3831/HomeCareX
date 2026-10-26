@@ -23,6 +23,7 @@ const PartnerSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     categories: [{ type: Schema.Types.ObjectId, ref: 'Category' }],
     skills: [{ type: String, trim: true }],
+    services: [{ type: Schema.Types.ObjectId, ref: 'Service' }],
     serviceRadiusKm: { type: Number, default: 10, min: 1, max: 100 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
@@ -34,7 +35,7 @@ const PartnerSchema = new Schema(
       jobsCompleted: { type: Number, default: 0, min: 0 },
     },
     kyc: {
-      status: { type: String, enum: KYC_STATUSES, default: 'not_started', index: true },
+      status: { type: String, enum: [...KYC_STATUSES, 'not_submitted'], default: 'not_started', index: true },
       documents: { type: [KycDocumentSchema], default: [] },
       submittedAt: { type: Date },
       reviewedAt: { type: Date },

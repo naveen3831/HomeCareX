@@ -1,53 +1,52 @@
 import { Router } from 'express';
-import { authMiddleware } from '../../middleware/auth.middleware';
-import { roleMiddleware } from '../../middleware/role.middleware';
-import { validate, validationMiddleware } from '../../middleware/validation.middleware';
+import { z } from 'zod';
+import { authenticate } from '../../middleware/auth.middleware';
+import { requireRole } from '../../middleware/role.middleware';
+import { validate } from '../../middleware/validation.middleware';
 import { asyncHandler } from '../../utils/asyncHandler';
-import { ticketsController } from './tickets.controller';
+import { ticketsController as c } from './tickets.controller';
+import { receiveTicketFiles } from './tickets.upload';
 import {
-  createTicketSchema,
   attachmentIdSchema,
+  createTicketSchema,
+  listTicketsSchema,
+  objectId,
   ticketIdSchema,
   ticketMessageSchema,
-  ticketQuerySchema,
 } from './tickets.validation';
-import { receiveTicketFiles } from './tickets.upload';
 
 export const ticketsRoutes = Router();
-
-ticketsRoutes.use(authMiddleware, roleMiddleware('customer'));
+ticketsRoutes.use(authenticate, requireRole('customer'));
+ticketsRoutes.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  next();
+});
 ticketsRoutes.get(
   '/',
-  validationMiddleware({ query: ticketQuerySchema }),
-  asyncHandler(ticketsController.list),
+  validate(listTicketsSchema, 'query'),
+  asyncHandler(c.list),
 );
 ticketsRoutes.post(
   '/',
   receiveTicketFiles,
-  validationMiddleware({ body: createTicketSchema }),
-  asyncHandler(ticketsController.create),
-);
-ticketsRoutes.get(
-  '/:id/attachments/:attachmentId',
-  validate(attachmentIdSchema, 'params'),
-  asyncHandler(ticketsController.evidence),
+  validate(createTicketSchema),
+  asyncHandler(c.create),
 );
 ticketsRoutes.get(
   '/:id',
   validate(ticketIdSchema, 'params'),
-  asyncHandler(ticketsController.get),
-);
-ticketsRoutes.get(
-  '/:id/messages',
-  validate(ticketIdSchema, 'params'),
-  asyncHandler(ticketsController.get),
+  validate(z.object({ before: objectId.optional() }).strict(), 'query'),
+  asyncHandler(c.get),
 );
 ticketsRoutes.post(
   '/:id/messages',
   validate(ticketIdSchema, 'params'),
   receiveTicketFiles,
-  validationMiddleware({ body: ticketMessageSchema }),
-  asyncHandler(ticketsController.reply),
+  validate(ticketMessageSchema),
+  asyncHandler(c.reply),
 );
-
-export default ticketsRoutes;
+ticketsRoutes.get(
+  '/:id/attachments/:attachmentId',
+  validate(attachmentIdSchema, 'params'),
+  asyncHandler(c.evidence),
+);

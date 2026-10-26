@@ -7,6 +7,7 @@ import PartnerRegisterPage from '../pages/public/PartnerRegister';
 import Contact from '../pages/public/Contact/Contact';
 import LoginPage from '../pages/public/Login';
 import { AuthContext } from '../context/AuthContext';
+import { HelmetProvider } from 'react-helmet-async';
 import type { AuthContextValue, AuthUser } from '../types/auth';
 
 // Mock window.scrollTo
@@ -62,19 +63,21 @@ function renderWithAuth(
   return {
     authValue,
     ...render(
-      <QueryClientProvider client={queryClient}>
-        <AuthContext.Provider value={authValue}>
-          <MemoryRouter initialEntries={[initialRoute]}>
-            <Routes>
-              <Route path="/register/partner" element={ui} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/partner" element={<div>Partner Dashboard</div>} />
-              <Route path="/customer" element={<div>Customer Dashboard</div>} />
-            </Routes>
-          </MemoryRouter>
-        </AuthContext.Provider>
-      </QueryClientProvider>
+      <HelmetProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthContext.Provider value={authValue}>
+            <MemoryRouter initialEntries={[initialRoute]}>
+              <Routes>
+                <Route path="/register/partner" element={ui} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/partner" element={<div>Partner Dashboard</div>} />
+                <Route path="/customer" element={<div>Customer Dashboard</div>} />
+              </Routes>
+            </MemoryRouter>
+          </AuthContext.Provider>
+        </QueryClientProvider>
+      </HelmetProvider>
     ),
   };
 }

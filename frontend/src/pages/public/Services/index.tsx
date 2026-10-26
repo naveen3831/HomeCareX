@@ -114,10 +114,16 @@ export const ServicesPage: React.FC = () => {
 
   const [searchInput, setSearchInput] =
     useState(search);
+  const [pincodeInput, setPincodeInput] =
+    useState(pincode);
 
   useEffect(() => {
     setSearchInput(search);
   }, [search]);
+
+  useEffect(() => {
+    setPincodeInput(pincode);
+  }, [pincode]);
 
   // ==========================================================
   // SEARCH DEBOUNCE - 300ms
@@ -222,10 +228,13 @@ export const ServicesPage: React.FC = () => {
   const handlePincodeChange = (
     value: string
   ) => {
-    updateParams({
-      pincode: value,
-      page: "1",
-    });
+    setPincodeInput(value);
+    if (value === "" || value.length === 6) {
+      updateParams({
+        pincode: value,
+        page: "1",
+      });
+    }
   };
 
   // ==========================================================
@@ -234,6 +243,7 @@ export const ServicesPage: React.FC = () => {
 
   const handleClear = () => {
     setSearchInput("");
+    setPincodeInput("");
     setSearchParams({});
   };
 
@@ -332,7 +342,7 @@ export const ServicesPage: React.FC = () => {
           q={searchInput}
           category={category}
           sort={sort}
-          pincode={pincode}
+          pincode={pincodeInput}
 
           onQueryChange={
             handleSearchChange

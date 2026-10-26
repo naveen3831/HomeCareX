@@ -79,6 +79,7 @@ test('partner creation records actor, IP and safe after snapshot', async () => {
   designationsService.canonical = (async () => 'Electrician') as any;
   UserModel.create = (async () => user) as any;
   PartnerModel.findOneAndUpdate = (async () => ({})) as any;
+  PartnerModel.findOne = (() => ({ lean: async () => null })) as any;
   mailService.sendPartnerCredentials = (async () => undefined) as any;
 
   auditService.recordAudit = (async (input: any) => {
@@ -119,6 +120,7 @@ test('partner update records before and after snapshots', async () => {
 
   UserModel.findOne = (async () => user) as any;
   PartnerModel.findOneAndUpdate = (async () => ({})) as any;
+  PartnerModel.findOne = (() => ({ lean: async () => null })) as any;
 
   auditService.recordAudit = (async (input: any) => {
     recorded = input;
@@ -181,6 +183,7 @@ test('partner creation succeeds if audit storage fails', async () => {
   designationsService.canonical = (async () => 'Electrician') as any;
   UserModel.create = (async () => user) as any;
   PartnerModel.findOneAndUpdate = (async () => ({})) as any;
+  PartnerModel.findOne = (() => ({ lean: async () => null })) as any;
   mailService.sendPartnerCredentials = (async () => undefined) as any;
   console.error = () => undefined;
 

@@ -33,7 +33,7 @@ export function getRedisClient(): Promise<RedisClient | null> {
         disableOfflineQueue: true,
         socket: {
           connectTimeout: 2000,
-          reconnectStrategy: (retries) => {
+          reconnectStrategy: (retries: number) => {
             // Never connected: give up immediately so connect() rejects and callers fall back.
             if (!everConnected) return new Error('Redis unreachable');
             return Math.min(retries * 200, 5000);

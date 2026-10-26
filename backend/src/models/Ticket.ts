@@ -16,6 +16,7 @@ const TicketSchema = new Schema(
     priority: { type: String, enum: TICKET_PRIORITIES, default: 'normal' },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     lastMessageAt: { type: Date, default: Date.now },
+    slaBreachNotifiedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

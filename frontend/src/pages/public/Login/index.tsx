@@ -96,11 +96,17 @@ export const LoginPage: React.FC = () => {
   const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
   const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
   const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
-  const [successMessage] = useState(
-    params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess
-      ? 'Password reset successful. Please log in with your new password.'
-      : ''
-  );
+  const [successMessage] = useState(() => {
+    const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
+    if (stateMsg) return stateMsg;
+    if (params.get('registered') === 'partner') {
+      return 'Registration successful! You can now log in with your credentials.';
+    }
+    if (params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess) {
+      return 'Password reset successful. Please log in with your new password.';
+    }
+    return '';
+  });
   const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
@@ -108,6 +114,11 @@ export const LoginPage: React.FC = () => {
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
     if (!isAuthenticated) {
+      const stateEmail = (location.state as { registeredEmail?: string } | null)?.registeredEmail;
+      if (stateEmail) {
+        setIdentifier(stateEmail);
+        return;
+      }
       const saved = getSavedCredentials();
       if (saved) {
         setIdentifier(saved.identifier);
@@ -116,9 +127,16 @@ export const LoginPage: React.FC = () => {
         setTermsAccepted(true);
       }
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, location.state]);
 
-  // Already signed in state
+  // Auto-redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && !loading) {
+      navigate(destinationFor(user, returnUrl), { replace: true });
+    }
+  }, [isAuthenticated, user, loading, returnUrl, navigate]);
+
+  // Already signed in fallback state
   if (isAuthenticated && user && !loading) {
     return (
       <div className="w-full text-center">

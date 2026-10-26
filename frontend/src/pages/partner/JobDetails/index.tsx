@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useContext } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   DEMO_START_OTP,
+  IS_MOCK_JOBS,
   acceptAssignedService,
   declineAssignedService,
   fetchAssignedServices,
@@ -17,6 +18,9 @@ import {
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
 import { STATUS_LABEL, type JobStatus } from './jobStatus';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import { getPartnerServices } from '../MyServices/myServices.api';
 import './jobDetails.css';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'notfound';
@@ -79,12 +83,20 @@ export default function JobDetailsPage() {
   const navigate = useNavigate();
   const online = useOnline();
 
-  // If route has an explicit :id (/partner/jobs/:id), open details directly;
-  // If on /partner/work (no :id), first show Assigned Service Cards.
+  const authCtx = useContext(AuthContext);
+  const storeUser = useAuthStore((s) => s.user) as any;
+  const user = authCtx?.user ?? storeUser;
+  const [partnerAssignedServices, setPartnerAssignedServices] = useState<
+    Array<{ id: string; name: string; slug: string }>
+  >([]);
+
+  // /partner/jobs/:id  -> that job's details.
+  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
   const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));
   const [filterTab, setFilterTab] = useState<FilterTab>('accept');
   const [showFilters, setShowFilters] = useState<boolean>(false);
   const [assignedServices, setAssignedServices] = useState<JobDetails[]>([]);
+  const [listError, setListError] = useState<string | null>(null);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [justAcceptedBanner, setJustAcceptedBanner] = useState<boolean>(false);
 
@@ -102,17 +114,39 @@ export default function JobDetailsPage() {
   const load = useCallback(async () => {
     setState('loading');
     try {
-      const targetId = id || 'BK-20418';
-      const [loadedJob, catalog] = await Promise.all([
-        fetchJob(targetId),
-        fetchAssignedServices().catch(() => [] as JobDetails[]),
-      ]);
+      let currentAssigned: Array<{ id: string; name: string; slug: string }> = [];
+      try {
+        const pServices = await getPartnerServices();
+        if (pServices?.approved && Array.isArray(pServices.selectedIds)) {
+          const selectedSet = new Set(pServices.selectedIds);
+          currentAssigned = pServices.approved.filter((s) => selectedSet.has(s.id));
+          setPartnerAssignedServices(currentAssigned);
+        }
+      } catch {
+        // Fallback or unauthenticated test mode
+      }
+
+      let loadedJob: JobDetails | null = null;
+      let catalog: JobDetails[];
+      if (id) {
+        const [fetchedJob, fetchedCatalog] = await Promise.all([
+          fetchJob(id),
+          fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned }).catch(
+            () => [] as JobDetails[],
+          ),
+        ]);
+        loadedJob = fetchedJob;
+        catalog = fetchedCatalog;
+      } else {
+        // The list screen needs only what is assigned to this partner.
+        catalog = await fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned });
+      }
       setJob(loadedJob);
       setAssignedServices(catalog);
       // At first show 'accept' as default; if there is no data in accept, show 'all' as default
       const pendingAssignedCount = catalog.filter((s) => s.status === 'assigned').length;
       setFilterTab(pendingAssignedCount > 0 ? 'accept' : 'all');
-      setOtpVerifiedLocal(Boolean(loadedJob.otpVerified));
+      setOtpVerifiedLocal(Boolean(loadedJob?.otpVerified));
       setState('ready');
     } catch (err) {
       const code = getHttpStatus(err);
@@ -123,7 +157,7 @@ export default function JobDetailsPage() {
         setState('error');
       }
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     void load();
@@ -150,8 +184,11 @@ export default function JobDetailsPage() {
     if (acceptingId || !online) return;
     setAcceptingId(serviceId);
     try {
-      const accepted = await acceptAssignedService(serviceId);
-      const updatedCatalog = await fetchAssignedServices();
+      const accepted = await acceptAssignedService(serviceId, user?.id);
+      const updatedCatalog = await fetchAssignedServices({
+        userId: user?.id,
+        assignedServices: partnerAssignedServices,
+      });
       setAssignedServices(updatedCatalog);
       setJob(accepted);
       setOtpCode('');
@@ -167,8 +204,13 @@ export default function JobDetailsPage() {
 
   const handleDeclineServiceCard = async (serviceId: string) => {
     if (!online) return;
-    const remaining = await declineAssignedService(serviceId);
-    setAssignedServices(remaining);
+    setListError(null);
+    try {
+      const remaining = await declineAssignedService(serviceId, user?.id);
+      setAssignedServices(remaining);
+    } catch (err) {
+      setListError(getErrorMessage(err, 'Could not decline this service. Try again.'));
+    }
   };
 
   const handleToggleChecklist = async (itemId: string, currentDone: boolean) => {
@@ -260,8 +302,13 @@ export default function JobDetailsPage() {
   };
 
   const handleResetDemo = () => {
-    const fresh = resetMockPartnerJob(job?.id || id || 'BK-20418');
-    const freshCatalog = resetAllAssignedServices();
+    if (!IS_MOCK_JOBS) return;
+    const fresh = resetMockPartnerJob(
+      job?.id || id || 'BK-20418',
+      user?.id,
+      partnerAssignedServices,
+    );
+    const freshCatalog = resetAllAssignedServices(user?.id, partnerAssignedServices);
     setAssignedServices(freshCatalog);
     setJob(fresh);
     setOtpCode('');
@@ -296,7 +343,7 @@ export default function JobDetailsPage() {
     );
   }
 
-  if (state === 'error' || !job) {
+  if (state === 'error') {
     return (
       <div className="jd-ref-page">
         <div className="jd-ref-container">
@@ -356,6 +403,11 @@ export default function JobDetailsPage() {
         {!online && (
           <p className="jd-offline" role="status">
             You are offline. Reconnect to accept assigned services.
+          </p>
+        )}
+        {listError && (
+          <p className="jd-error" role="alert">
+            {listError}
           </p>
         )}
 
@@ -657,6 +709,23 @@ export default function JobDetailsPage() {
   // ============================================================================
   // STEP 2: TOTAL BOOKED DETAILS VIEW (shown after Partner accepts a service card)
   // ============================================================================
+  if (!job) {
+    return (
+      <div className="jd-ref-page">
+        <div className="jd-ref-container">
+          <div className="jd-emptycard">
+            <p className="jd-error" role="alert">
+              {message || 'Could not load this job.'}
+            </p>
+            <button type="button" className="jd-ref-primary-btn" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const time = formatTime(job.schedule.scheduledAt);
   const fullAddress = [
     job.location.address,

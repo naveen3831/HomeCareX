@@ -166,6 +166,10 @@ export class ReviewsController {
       const review = await this.reviewsService.updateReviewStatus(
         req.params.id,
         req.body?.status,
+        {
+          id: String(res.locals.auth.sub),
+          ip: req.ip || 'unknown',
+        },
       );
 
       res.json({

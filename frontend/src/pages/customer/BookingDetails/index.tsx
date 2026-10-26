@@ -3,10 +3,11 @@ import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
-  ArrowLeft,
   CalendarDays,
   CalendarClock,
+  CircleAlert,
   Clock,
+  Compass,
   CreditCard,
   Headset,
   Layers,
@@ -17,7 +18,7 @@ import {
   Wrench,
   Zap,
 } from "lucide-react";
-import BookingThumb from "@/pages/customer/Dashboard/sections/BookingThumb";
+import BookingThumb from "../Dashboard/sections/BookingThumb";
 import {
   EmptyState,
   ErrorState,
@@ -40,7 +41,7 @@ import {
   formatBookedOn,
   formatDuration,
   formatPlainDate,
-  isCancelledStatus,
+  isCancelledBooking,
   mapsUrl,
   formatMoment,
   paymentMethodLabel,
@@ -181,10 +182,11 @@ export default function BookingDetails() {
   const query = useBooking(id);
   const decide = useDecideExtraCharge(id ?? "");
 
+  // No top padding: CustomerLayout's <main> already spaces the page from the top bar.
   const shell = (children: ReactNode) => (
     <main
       tabIndex={-1}
-      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 py-4 outline-none sm:px-6 sm:py-8"
+      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 pb-4 outline-none sm:px-6 sm:pb-8"
     >
       {children}
     </main>
@@ -238,18 +240,20 @@ function DetailsBody({
   const [imgFailed, setImgFailed] = useState(false);
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
 
-  const pill = statusPill(booking.status);
+  const bookingId = String(booking._id || (booking as any).id || "");
+  const normalizedStatus = String(booking.status || "").toLowerCase();
+  const pill = statusPill(booking);
   const code =
-    booking.bookingNumber || `BK-${booking._id.slice(-5).toUpperCase()}`;
+    booking.bookingNumber || (bookingId ? `BK-${bookingId.slice(-5).toUpperCase()}` : "BK-BOOKING");
   const name = serviceNameOf(booking);
   const timeline = buildTimeline(booking);
   const price = buildPriceBreakdown(booking);
   const payment = paymentSummary(booking);
   const pay = booking.paymentDetails;
   const address = booking.addressSnapshot;
-  const cancelled = isCancelledStatus(booking.status);
-  const finished = booking.status === "completed" || booking.status === "rated";
-  const active = !finished && !cancelled && booking.status !== "disputed";
+  const cancelled = isCancelledBooking(booking);
+  const finished = normalizedStatus === "completed" || normalizedStatus === "rated";
+  const active = !finished && !cancelled && normalizedStatus !== "disputed";
   // Same guards as the server's state machine; the server still has the final say.
   const canCancel = active && canCancelBooking(booking.status);
   const canReschedule =
@@ -257,42 +261,40 @@ function DetailsBody({
     canRescheduleBooking(booking.status) &&
     Boolean(booking.serviceId && booking.date && booking.slot);
   const showOtp =
-    Boolean(booking.partnerId) && (active || Boolean(booking.startOtp));
-  const isPaid = booking.paymentStatus === "PAID";
+    Boolean(booking.partnerId) &&
+    (normalizedStatus === "arrived" || Boolean(booking.startOtp));
+  const hasPendingExtraCharges = (booking.extraCharges ?? []).some(
+    (c) => c.status === "pending",
+  );
+  const isPaid = String(booking.paymentStatus || "").toUpperCase() === "PAID";
   const addOnLines = (booking.priceSnapshot?.lines ?? []).filter(
     (l) => l.kind === "ADDON",
   );
   const service = booking.service;
-  const duration = formatDuration(service?.durationMinutes);
+  const day = weekdayOf(booking.date);
+  const dateFormatted = formatPlainDate(booking.date);
+  const slotFormatted = formatSlot(booking.slot);
   const bookedOn = formatBookedOn(booking.createdAt);
-  const weekday = weekdayOf(booking.date);
-  // Seeded / partner-side bookings can carry a bare start time ("10:00") instead of "10:00-12:00".
-  // Never let a formatting helper take the whole page down.
-  const slotText = (() => {
-    try {
-      return booking.slot ? formatSlot(booking.slot) : "";
-    } catch {
-      return booking.slot || "";
-    }
-  })();
-  const map = mapsUrl(address);
+  const duration = formatDuration(service?.durationMinutes || (booking as any).durationMinutes);
+  const maps = mapsUrl(address);
   const paidOn = formatMoment(pay?.paidAt);
   const methodText = paymentMethodLabel(pay?.method);
   const txn = pay?.transactionId || pay?.paymentId;
-  const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(booking._id)}`;
+  const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(bookingId)}`;
+  const scheduledAt = (booking as any).scheduledAt;
   const slotHours = (() => {
     const m = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
       booking.slot || "",
     );
     if (!m) return "";
-    return formatDuration(+m[3] * 60 + +m[4] - (+m[1] * 60 + +m[2]))
-      .replace("Hours", "hours")
-      .replace("Hour", "hour");
+    const [startH, startM, endH, endM] = [m[1], m[2], m[3], m[4]].map(Number);
+    const mins = endH * 60 + endM - (startH * 60 + startM);
+    return mins > 0 ? formatDuration(mins) : "";
   })();
 
   return (
     <>
-      {/* Back link and header sit above both columns. */}
+      {/* Back link and header sit above both columns.
       <Link
         to={customerPath("/bookings")}
         className={clsx(
@@ -302,14 +304,12 @@ function DetailsBody({
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to My Bookings
-      </Link>
+      </Link> */}
 
       {/* Header spans both columns, so Booking Status and Price Breakdown below start on the same line. */}
       <header className="mb-5 sm:mb-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
-            Booking Details
-          </h1>
+          <h1 className="sr-only">Booking Details</h1>
           <span
             className={clsx(
               "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
@@ -339,177 +339,102 @@ function DetailsBody({
             )}
             {pill.label}
           </span>
+      {/* Top back button */}
+      <div className="mb-4">
+        <Link
+          to={customerPath("/bookings")}
+          className={clsx(
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink",
+            FOCUS_RING,
+          )}
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          <span>Back to all bookings</span>
+        </Link>
+      </div>
+
+      {/* Header card */}
+      <div className="mb-4 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:mb-6 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <span
+              className={clsx(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                PILL_CLASS[pill.tone],
+              )}
+            >
+              {pill.dot && (
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+                />
+              )}
+              {pill.label}
+            </span>
+            <h1 className="mt-2 truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">
+              {name}
+            </h1>
+            <p className="mt-1 text-xs text-muted">
+              Booking ID: <span className="font-semibold text-ink">{code}</span>
+              {bookedOn && (
+                <>
+                  <span className="mx-2 text-line">•</span>
+                  <span>Booked on {bookedOn}</span>
+                </>
+              )}
+            </p>
+          </div>
         </div>
-        <p className="mt-1.5 text-sm text-muted">
-          Booking ID: {code}
-          {bookedOn && <span className="mx-2">•</span>}
-          {bookedOn && <>Booked on {bookedOn}</>}
-        </p>
-      </header>
+      </div>
 
       {refetchFailed && (
         <p
           role="status"
-          className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          className="mb-4 rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-700"
         >
           {online
-            ? "We couldn't refresh this booking just now. Showing the last version we have."
-            : "You're offline. Showing the last version we have."}
+            ? "We couldn't refresh the latest status. Showing saved details."
+            : "You're offline. Showing the latest details we saved."}
         </p>
       )}
 
-      {cancelled && booking.cancellationReason && (
-        <p className="mb-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-          Reason: {booking.cancellationReason}
-        </p>
+      {hasPendingExtraCharges && (
+        <div
+          role="region"
+          aria-label="Pending Extra Charge Approval"
+          className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <CircleAlert className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-bold text-amber-900">
+                Action Required: Your partner requested extra charges
+              </p>
+              <p className="text-xs text-amber-800">
+                Review and approve or reject the additional on-site items requested by your service partner.
+              </p>
+            </div>
+          </div>
+          <a
+            href="#extra-charges-heading"
+            className="inline-flex items-center justify-center shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            Review Charges
+          </a>
+        </div>
       )}
 
       {/* Row one: Booking Status and Price Breakdown share the same top edge. */}
       <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left column */}
         <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
-          <Section id="timeline-heading" title="Booking Status" icon={Activity}>
+          <Section id="status-heading" title="Booking Status" icon={Activity}>
             <StatusTimeline items={timeline} />
           </Section>
 
-          <Section id="service-heading" title="Service Details" icon={Wrench}>
-            <div className="flex flex-col gap-4 sm:flex-row">
-              {service?.image && !imgFailed ? (
-                <img
-                  src={service.image}
-                  alt=""
-                  loading="lazy"
-                  onError={() => setImgFailed(true)}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line object-cover sm:w-40"
-                />
-              ) : (
-                <BookingThumb
-                  serviceName={name}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line sm:w-40"
-                />
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="break-words text-lg font-bold text-ink">
-                    {name}
-                  </h3>
-                  {booking.quantity > 1 && (
-                    <span className="rounded-md bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
-                      × {booking.quantity}
-                    </span>
-                  )}
-                </div>
-                {service?.description && (
-                  <p className="mt-1 text-sm text-muted">
-                    {service.description}
-                  </p>
-                )}
-                {(duration || service?.categoryName) && (
-                  <ul className="mt-3 flex flex-wrap items-center gap-y-2 text-sm text-muted [&>li+li]:ml-4 [&>li+li]:border-l [&>li+li]:border-line [&>li+li]:pl-4">
-                    {duration && (
-                      <li className="flex items-center gap-1.5">
-                        <Clock
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {duration}
-                      </li>
-                    )}
-                    {service?.categoryName && (
-                      <li className="flex items-center gap-1.5">
-                        <Layers
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {service.categoryName}
-                      </li>
-                    )}
-                  </ul>
-                )}
-                {addOnLines.length > 0 && (
-                  <p className="mt-2 break-words text-sm text-muted">
-                    <span className="font-medium text-ink">Add-ons: </span>
-                    {addOnLines
-                      .map(
-                        (l) =>
-                          `${l.name}${l.quantity > 1 ? ` × ${l.quantity}` : ""}`,
-                      )
-                      .join(", ")}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Section>
-
-          <Section id="partner-heading" title="Service Partner" icon={Users}>
-            <PartnerCard
-              partner={booking.partner}
-              hasPartner={Boolean(booking.partnerId)}
-            />
-          </Section>
-
-          <Section id="schedule-heading" title="Schedule" icon={CalendarDays}>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Tile
-                icon={CalendarDays}
-                label="Service Date"
-                value={
-                  booking.date ? formatPlainDate(booking.date) : "Not scheduled"
-                }
-                hint={weekday ? `(${weekday})` : undefined}
-              />
-              <Tile
-                icon={Clock}
-                label="Time Slot"
-                value={slotText || "To be confirmed"}
-                hint={slotHours ? `(${slotHours})` : undefined}
-              />
-            </div>
-          </Section>
-
-          <Section id="address-heading" title="Service Address" icon={MapPin}>
-            {address ? (
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <address className="min-w-0 break-words text-sm not-italic text-ink">
-                  {address.label && (
-                    <span className="mb-0.5 block font-semibold">
-                      {address.label}
-                    </span>
-                  )}
-                  {[address.line1, address.line2, address.landmark]
-                    .filter(Boolean)
-                    .join(", ")}
-                  <br />
-                  {[address.city, address.state].filter(Boolean).join(", ")}
-                  {address.pincode ? ` - ${address.pincode}` : ""}
-                  {address.contactName && (
-                    <span className="mt-1 block text-muted">
-                      {address.contactName}
-                      {address.contactPhone ? ` · ${address.contactPhone}` : ""}
-                    </span>
-                  )}
-                </address>
-                {map && (
-                  <a
-                    href={map}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={clsx(
-                      "inline-flex h-10 items-center gap-2 rounded-xl border border-brand/30 px-4 text-sm font-semibold text-brand transition hover:bg-brand-soft",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                    View on Maps
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted">No address on this booking.</p>
-            )}
-          </Section>
-
-          {booking.extraCharges.length > 0 && (
+          {(booking.extraCharges?.length ?? 0) > 0 && (
             <ExtraChargeApproval
               charges={booking.extraCharges}
               canDecide={canDecideExtraCharges(booking.status)}
@@ -518,6 +443,164 @@ function DetailsBody({
               }
             />
           )}
+
+          <Section id="service-heading" title="Service Details" icon={Wrench}>
+            <div className="flex flex-col gap-4 sm:flex-row">
+              {service?.image && !imgFailed ? (
+                <img
+                  src={service.image}
+                  alt={name}
+                  onError={() => setImgFailed(true)}
+                  className="h-28 w-full shrink-0 rounded-xl object-cover ring-1 ring-line sm:h-24 sm:w-24"
+                />
+              ) : (
+                <BookingThumb
+                  serviceName={name}
+                  className="h-28 w-full shrink-0 rounded-xl sm:h-24 sm:w-24"
+                />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="truncate text-base font-bold text-ink">
+                    {name}
+                  </h3>
+                  {service?.categoryName && (
+                    <span className="rounded-md bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">
+                      {service.categoryName}
+                    </span>
+                  )}
+                </div>
+                {service?.description && (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted">
+                    {service.description}
+                  </p>
+                )}
+                <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+                  <span>
+                    Qty:{" "}
+                    <strong className="text-ink">
+                      {booking.quantity || 1}
+                    </strong>
+                  </span>
+                  {duration && (
+                    <span>
+                      Duration: <strong className="text-ink">{duration}</strong>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {addOnLines.length > 0 && (
+              <div className="mt-5 border-t border-line pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  Add-ons included
+                </p>
+                <ul className="mt-2 divide-y divide-line/60">
+                  {addOnLines.map((addon) => (
+                    <li
+                      key={String(addon.refId ?? addon.name)}
+                      className="flex items-center justify-between py-2 text-xs"
+                    >
+                      <span className="text-ink">
+                        {addon.name}
+                        {addon.quantity > 1 && (
+                          <span className="text-muted">
+                            {" "}
+                            × {addon.quantity}
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-semibold text-ink">
+                        ₹{addon.amount}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Section>
+
+          <Section id="partner-heading" title="Service Partner" icon={Users}>
+            <PartnerCard
+              partner={
+                booking.partner ||
+                (typeof booking.partnerId === "object" && booking.partnerId !== null
+                  ? (booking.partnerId as any)
+                  : null)
+              }
+              hasPartner={Boolean(booking.partnerId)}
+              isCancelled={cancelled}
+            />
+          </Section>
+
+          <Section id="address-heading" title="Service Address" icon={MapPin}>
+            {address ? (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Delivery address
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-ink">
+                    {address.line1}
+                  </p>
+                  {address.line2 && (
+                    <p className="text-xs text-muted">{address.line2}</p>
+                  )}
+                  <p className="text-xs text-muted">
+                    {[address.city, address.state, address.pincode]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                </div>
+                {maps && (
+                  <a
+                    href={maps}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={clsx(
+                      LINK_BUTTON,
+                      "self-start border border-line bg-canvas text-xs text-ink hover:bg-panel",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Navigation className="h-3.5 w-3.5 text-brand" />
+                    <span>View on Maps</span>
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted">
+                Address details unavailable for this booking.
+              </p>
+            )}
+          </Section>
+
+          <Section
+            id="slot-heading"
+            title="Scheduled Date & Time"
+            icon={CalendarDays}
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Tile
+                icon={CalendarDays}
+                label="Date"
+                value={dateFormatted}
+                hint={day}
+              />
+              <Tile
+                icon={Clock}
+                label="Time Slot"
+                value={slotFormatted}
+                hint={slotHours ? `Approx. ${slotHours}` : undefined}
+              />
+            </div>
+            {scheduledAt && (
+              <p className="mt-3 text-xs text-muted">
+                Scheduled instant: {formatMoment(scheduledAt)}
+              </p>
+            )}
+          </Section>
 
           {/* Start OTP: bottom of the left column, as in the design */}
           {showOtp && <OtpDisplay code={booking.startOtp} />}
@@ -534,43 +617,47 @@ function DetailsBody({
             title="Payment Details"
             icon={CreditCard}
           >
-            <dl className="space-y-3">
-              <Row label="Payment Status">
+            <dl className="space-y-2.5">
+              <Row label="Status">
                 <span
                   className={clsx(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                    "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold",
                     PILL_CLASS[payment.tone],
                   )}
                 >
                   {payment.label}
                 </span>
               </Row>
-              {methodText && <Row label="Payment Method">{methodText}</Row>}
-              {txn && <Row label="Transaction ID">{txn}</Row>}
-              {paidOn && payment.label === "Paid" && (
-                <Row label="Paid On">{paidOn}</Row>
+              {methodText && <Row label="Method">{methodText}</Row>}
+              {txn && (
+                <Row label="Transaction ID">
+                  <span className="font-mono text-xs">{txn}</span>
+                </Row>
               )}
+              {paidOn && <Row label="Paid on">{paidOn}</Row>}
             </dl>
           </Section>
 
           <Section id="actions-heading" title="Booking Actions" icon={Zap}>
             <div className="flex flex-col gap-2.5">
               <InvoiceCard
-                bookingId={booking._id}
+                bookingId={bookingId}
                 bookingCode={code}
                 enabled={isPaid}
+                isCancelled={cancelled}
               />
-              {TRACKABLE.has(booking.status) && (
+              {TRACKABLE.has(normalizedStatus) && (
                 <Link
-                  to={customerPath(`/bookings/${encodeURIComponent(booking._id)}/track`)}
+                  to={customerPath(`/bookings/${encodeURIComponent(bookingId)}/track`)}
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",
+                    "hover:border-brand hover:bg-brand-soft hover:text-ink",
                     FOCUS_RING,
                   )}
                 >
-                  <Navigation className="h-4 w-4" aria-hidden="true" />
-                  Live Tracking
+                  <Compass className="h-4 w-4" aria-hidden="true" />
+                  <span>Track Partner</span>
                 </Link>
               )}
               {canReschedule && (
@@ -580,6 +667,7 @@ function DetailsBody({
                   className={clsx(
                     LINK_BUTTON,
                     "border border-brand/30 bg-panel text-brand",
+                    "hover:border-brand hover:bg-brand-soft hover:text-ink",
                     FOCUS_RING,
                   )}
                 >
@@ -601,7 +689,7 @@ function DetailsBody({
                   Cancel Booking
                 </button>
               )}
-              {!cancelled && <RateExperience bookingId={booking._id} status={booking.status} />}
+              {!cancelled && <RateExperience bookingId={bookingId} status={booking.status} />}
               <BookAgainButton booking={booking} />
             </div>
           </Section>
@@ -630,11 +718,11 @@ function DetailsBody({
       </div>
 
       {dialog === "cancel" && (
-        <CancelDialog bookingId={booking._id} onClose={() => setDialog(null)} />
+        <CancelDialog bookingId={bookingId} onClose={() => setDialog(null)} />
       )}
       {dialog === "reschedule" && (
         <RescheduleDialog
-          bookingId={booking._id}
+          bookingId={bookingId}
           serviceId={booking.serviceId}
           date={booking.date}
           slot={booking.slot}

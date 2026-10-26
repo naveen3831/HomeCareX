@@ -1,12 +1,15 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
+import ServicesPage from "../pages/public/Services";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
+import ServicesPage from "../pages/public/Services";
 
-// The page fetches the catalogue through React Query; resolve with an empty page so no network is hit.
 vi.mock("@/services/catalogApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/catalogApi")>();
   return {
@@ -48,12 +51,20 @@ interface TestWrapperProps {
 
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
+}) => (
+  <HelmetProvider>
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <ServicesPage />
+      <LocationDisplay />
+    </MemoryRouter>
+  </HelmetProvider>
+);
 }) => {
   const [client] = React.useState(
     () =>
       new QueryClient({
         defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-      })
+      }),
   );
   return (
     <HelmetProvider>
@@ -96,7 +107,7 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
         }
       />
     );
@@ -112,7 +123,8 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
-      ).toBe("home-cleaning");
+      ).toBe("Cleaning");
+        ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");
@@ -129,11 +141,11 @@ describe("ServicesPage URL synchronization", () => {
 
     await openFilters(user);
 
-    await user.selectOptions(screen.getByLabelText("Category"), "home-cleaning");
+    await user.selectOptions(screen.getByLabelText("Category"), "Cleaning");
 
     await waitFor(() => {
       const params = getParams();
-      expect(params.get("category")).toBe("home-cleaning");
+      expect(params.get("category")).toBe("Cleaning");
       expectPageReset(params);
     });
   });
@@ -196,7 +208,7 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
         }
       />
     );

@@ -2,10 +2,15 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+let razorpayInstance: Razorpay | null = null;
+function getRazorpay(): Razorpay {
+  if (!razorpayInstance) {
+    const key_id = process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder';
+    const key_secret = process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret';
+    razorpayInstance = new Razorpay({ key_id, key_secret });
+  }
+  return razorpayInstance;
+}
 
 export class WalletService {
   /**
@@ -62,7 +67,7 @@ export class WalletService {
 
     const amountInPaise = Math.round(amountInRupees * 100);
 
-    const order = await razorpay.orders.create({
+    const order = await getRazorpay().orders.create({
       amount: amountInPaise,
       currency: 'INR',
       receipt: `top_${Date.now().toString().slice(-8)}`,
@@ -109,7 +114,7 @@ export class WalletService {
     // Fetch directly from Razorpay for tamper-proof amount verification
     let amountInRupees = Math.round(Number(amount) / 100);
     try {
-      const rzpOrder = await razorpay.orders.fetch(orderId);
+      const rzpOrder = await getRazorpay().orders.fetch(orderId);
       if (rzpOrder && typeof rzpOrder.amount === 'number') {
         amountInRupees = Math.round(rzpOrder.amount / 100);
       }

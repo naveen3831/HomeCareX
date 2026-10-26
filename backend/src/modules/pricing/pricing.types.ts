@@ -18,6 +18,7 @@ export interface QuoteInput {
   addOns: QuoteAddOnInput[];
   date: string;
   slot: string;
+  city?: string;
   couponCode?: string;
 }
 
@@ -36,7 +37,11 @@ export interface PricingBreakdown {
 
 /** Response of POST /pricing/quote. Matches frontend/src/types/pricing.ts (PriceQuote). */
 export interface PriceQuote extends PricingBreakdown {
+  quoteId?: string;
+  expiresAt?: string;
   currency: 'INR';
+  mode?: string;
+  cancellationFee?: number;
   lines: QuoteLine[];
   coupon: { code: string; discount: number } | null;
   couponError?: { code: string; minOrder?: number };

@@ -1,4 +1,5 @@
 import type { LedgerType } from '../Wallet/wallet.api';
+import { apiBaseUrl } from '@/lib/apiBase';
 
 export interface TransactionEntry {
   id: string | number;
@@ -15,13 +16,10 @@ export interface TransactionsPage {
   limit: number;
 }
 
-// ---- CHANGE THESE TWO TO MATCH wallet.api.ts (same base URL and token as your wallet call) ----
-// The backend mounts every route under /api/v1, so the base MUST end with /api/v1.
-const API_BASE: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:5000/api/v1';
+// The backend mounts every route under /api/v1.
+const API_BASE = apiBaseUrl;
 
 const getToken = (): string | null => localStorage.getItem('token');
-// -----------------------------------------------------------------------------------------------
 
 interface RawEntry {
   id?: string | number;

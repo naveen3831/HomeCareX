@@ -14,18 +14,12 @@ const send = (res: Response, status: number, body: ErrorEnvelope) => res.status(
 /** Standard error envelope. Never leaks stack traces outside development. */
 export const errorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof HttpError) {
-    if (err.status >= 500 && process.env.NODE_ENV === 'production') {
-      return send(res, 500, {
-        success: false,
-        message: 'Something went wrong. Please try again.',
-        code: ERROR_CODES.INTERNAL_ERROR,
-      });
-    }
+    const isProd500 = process.env.NODE_ENV === 'production' && err.status >= 500;
     return send(res, err.status, {
       success: false,
-      message: err.message,
+      message: isProd500 ? 'Something went wrong. Please try again.' : err.message,
       code: (err.code as ErrorEnvelope['code']) ?? ERROR_CODES.INTERNAL_ERROR,
-      ...(err.details ? { details: err.details } : {}),
+      ...(err.details && !isProd500 ? { details: err.details } : {}),
     });
   }
   if (err instanceof ZodError) {

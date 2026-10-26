@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -128,13 +128,29 @@ const PartnerInterestForm: React.FC = () => {
       {feedback && (
         <div
           role={feedback.type === 'success' ? 'status' : 'alert'}
-          className={`mb-5 rounded-xl border px-4 py-3 text-sm ${
+          className={`mb-6 flex items-start gap-3 rounded-xl border p-4 text-sm shadow-sm transition-all animate-fadeUp ${
             feedback.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-red-200 bg-red-50 text-red-700'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+              : 'border-red-200 bg-red-50 text-red-900'
           }`}
         >
-          {feedback.text}
+          {feedback.type === 'success' ? (
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+          ) : (
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" aria-hidden="true" />
+          )}
+          <div className="flex-1">
+            <p className="font-semibold">{feedback.type === 'success' ? 'Enquiry Received' : 'Unable to Submit'}</p>
+            <p className="mt-0.5 text-xs text-slate-600">{feedback.text}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-slate-400 hover:text-slate-600 p-0.5 transition-colors"
+            aria-label="Dismiss message"
+          >
+            <X size={16} />
+          </button>
         </div>
       )}
  

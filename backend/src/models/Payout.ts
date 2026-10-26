@@ -2,6 +2,8 @@ import { Schema, model } from 'mongoose';
 
 export const PAYOUT_STATUSES = ['pending', 'processing', 'paid', 'failed'] as const;
 
+export const PAYOUT_METHODS = ['bank_transfer', 'upi'] as const;
+
 /** Minimal shape needed by dashboards. `pending` + `processing` + `failed` = the payout backlog. */
 const PayoutSchema = new Schema(
   {
@@ -12,6 +14,11 @@ const PayoutSchema = new Schema(
     amount: { type: Number, required: true, min: 0 },
     status: { type: String, enum: PAYOUT_STATUSES, default: 'pending', index: true },
     paidAt: { type: Date },
+    /** Added for the partner payouts page; all optional so older documents stay valid. */
+    method: { type: String, enum: PAYOUT_METHODS },
+    transactionId: { type: String, trim: true },
+    expectedDate: { type: Date },
+    failureReason: { type: String, trim: true },
   },
   { timestamps: true },
 );

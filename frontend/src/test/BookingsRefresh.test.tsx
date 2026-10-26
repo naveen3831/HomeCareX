@@ -87,9 +87,9 @@ describe("booking tab refresh", () => {
     expect(result.current.data?.items).toEqual([]);
   });
 
-  it("refreshes Overdue and stops requests while offline", async () => {
+  it("refreshes Live and stops requests while offline", async () => {
     const { result, rerender } = renderHook(
-      () => useBookings(params("overdue")),
+      () => useBookings(params("live")),
       { wrapper: wrapper() },
     );
     await flush();

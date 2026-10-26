@@ -31,15 +31,28 @@ async function get<T>(path: string, signal: AbortSignal): Promise<SuccessEnvelop
     return res.data;
   } catch (err) {
     if (axios.isCancel(err) || signal.aborted) throw err;
-    const e = err as AxiosError<ErrorEnvelope>;
+
+    // The shared client may hand back a raw axios error or its own normalised error
+    // ({ status, code, message }). Read the status from whichever shape arrives, so a 403 is
+    // not reported as "could not reach the server".
+    const e = err as Partial<AxiosError<ErrorEnvelope>> & {
+      status?: number;
+      statusCode?: number;
+      code?: string;
+      message?: string;
+    };
+    const status = e.response?.status ?? e.status ?? e.statusCode ?? 0;
+    const serverMessage = e.response?.data?.message ?? (status > 0 ? e.message : undefined);
+
     throw new ReviewsApiError(
-      e.response?.data?.message ??
-        (e.response ? `Request failed (${e.response.status})` : 'Could not reach the server. Check your connection and try again.'),
-      e.response?.status ?? 0,
-      e.response?.data?.code,
+      serverMessage ??
+        (status > 0 ? `Request failed (${status})` : 'Could not reach the server. Check your connection and try again.'),
+      status,
+      e.response?.data?.code ?? (typeof e.code === 'string' ? e.code : undefined),
     );
   }
 }
+
 export async function fetchReviewSummary(signal: AbortSignal): Promise<ReviewSummary> {
   return (await get<ReviewSummary>('/partner/reviews/summary', signal)).data;
 }

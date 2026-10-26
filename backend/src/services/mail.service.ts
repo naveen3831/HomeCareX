@@ -126,15 +126,18 @@ export const mailService = {
   },
 
   async sendStaffInviteEmail(data: { name: string; email: string; inviteUrl: string; invitedBy?: string }) {
-    const inviter = data.invitedBy ? ` invited by ${escapeHtml(data.invitedBy)}` : '';
-    const safeUrl = escapeHtml(data.inviteUrl);
-    const safeName = escapeHtml(data.name);
+    const { src, attachments } = logo();
+    const subject = 'You have been invited to join HomeCareX';
+    const text = `Hello ${data.name},\n\nYou have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.\nPlease accept your invite by visiting: ${data.inviteUrl}\n\nHomeCareX Team`;
+    const html = `<p>Hello ${data.name},</p><p>You have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.</p><p><a href="${data.inviteUrl}">Accept Invite</a></p><p>HomeCareX Team</p>`;
+
     await getTransporter().sendMail({
       from: process.env.MAIL_FROM || process.env.SMTP_USER,
       to: data.email,
-      subject: 'You are invited to HomeCareX',
-      text: `Hello ${data.name}, you have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}. Accept your invitation: ${data.inviteUrl}`,
-      html: `<p>Hello ${safeName},</p><p>You have been invited to join HomeCareX${inviter}.</p><p><a href="${safeUrl}">Accept invitation</a></p>`,
+      subject,
+      text,
+      html,
+      attachments,
     });
   },
 };

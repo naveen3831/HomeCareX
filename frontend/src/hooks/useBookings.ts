@@ -63,7 +63,7 @@ export function useBookings(params: UseBookingsParams) {
     enabled: online,
     retry: retryTransient,
     refetchInterval:
-      online && (tab === "live" || tab === "upcoming" || tab === "overdue")
+      online && (tab === "live" || tab === "upcoming")
         ? REFRESH_MS
         : false,
     refetchOnReconnect: true,
