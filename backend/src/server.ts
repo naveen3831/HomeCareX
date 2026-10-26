@@ -14,6 +14,7 @@ import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
+
 import app from './app';
 import { initSockets } from './sockets';
 import { registerEarningsListeners } from './modules/earnings/earnings.listener';
@@ -40,6 +41,8 @@ const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
 };
 
 const server = http.createServer(app);
+
+// Initialize Socket.IO once for this HTTP server.
 initSockets(server);
 const PORT = process.env.PORT || 5000;
 let stopReferralWorker = () => {};
@@ -49,8 +52,11 @@ const PORT = Number(process.env.PORT) || 5000;
 let stopReferralWorker: (() => void) | undefined;
 let shuttingDown = false;
 
-/** Non-critical default data. A failure here is logged but must not stop the server. */
-const seedDefaults = async () => {
+/**
+ * Non-critical default data.
+ * A failure here is logged but does not stop the server.
+ */
+const seedDefaults = async (): Promise<void> => {
   try {
     const added = await timed('seed settings', seedDefaultSettings);
     if (added) {
@@ -76,7 +82,10 @@ const seedDefaults = async () => {
   }
 };
 
-const startServer = async () => {
+/**
+ * Connects to MongoDB and starts the HTTP server exactly once.
+ */
+const startServer = async (): Promise<void> => {
   try {
     await mongoose.connect(process.env.DATABASE_URL as string);
     console.log('Connected to MongoDB');
@@ -110,6 +119,7 @@ const startServer = async () => {
       ]);
     });
 
+    // Start the HTTP server exactly once.
     // Seed default data after the server starts.
     void seedDefaults().catch((error) => {
       console.error('[startup] Default seeding failed:', error);
@@ -128,8 +138,10 @@ const startServer = async () => {
       server.listen(PORT, () => {
         server.removeListener('error', reject);
         resolve();
-      });
-    });
+      };
+
+      server.once('error', onError);
+      server.once('listening', onListening);
 
     console.log(`HomeCareX server running on port ${PORT}`);
     console.log(
@@ -176,6 +188,7 @@ const shutdown = async (): Promise<void> => {
   shuttingDown = true;
 
   console.log('Stopping server gracefully...');
+
   stopReferralWorker?.();
 
   server.close(async () => {
@@ -187,7 +200,13 @@ const shutdown = async (): Promise<void> => {
       console.error('Error closing database connection:', error);
       process.exit(1);
     }
-  });
+
+    console.log('Database connection closed.');
+    process.exitCode = 0;
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exitCode = 1;
+  }
 };
 
 process.on('SIGTERM', () => void shutdown());

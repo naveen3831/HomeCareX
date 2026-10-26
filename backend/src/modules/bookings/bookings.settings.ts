@@ -1,4 +1,11 @@
+
 import { SLOT_CAPACITY } from './bookings.constants';
+import { getSetting } from '../settings/settings.service';
+
+export interface CancellationPolicy {
+  windowHours: number;
+  feeAmount: number;
+}
 
 /**
  * Booking-related Settings. Slot capacity comes from the admin Settings page (`slots.capacityPerSlot`), so changing
@@ -11,14 +18,12 @@ export const bookingSettings = {
     if (Number.isInteger(fromSettings) && fromSettings > 0) return fromSettings;
     // Setting missing or corrupt: fall back to the env var, then the constant.
     const fromEnv = Number.parseInt(process.env.SLOT_CAPACITY ?? '', 10);
-    return Number.isInteger(fromEnv) && fromEnv > 0 ? fromEnv : SLOT_CAPACITY;
+
+    return Number.isInteger(fromEnv) && fromEnv > 0
+      ? fromEnv
+      : SLOT_CAPACITY;
   },
 
-  /**
-   * Whether a booking must be paid before it is CONFIRMED.
-   * false (default, until the Payments module is wired to Step 4): the booking is CONFIRMED on submit.
-   * true: it is created PENDING_PAYMENT and holds its seat for BOOKING_HOLD_MS.
-   */
   async isPaymentRequired(): Promise<boolean> {
     return process.env.BOOKING_REQUIRE_PAYMENT === 'true';
   },

@@ -175,7 +175,7 @@ export const initSockets = (server: HttpServer): Server => {
   io.on('connection', (socket) => {
     const auth = socket.data.auth as AccessTokenPayload;
 
-    // Automatically join the user's room and their role room.
+    // Automatically join the user's room and role room.
     void socket.join([
       rooms.user(auth.sub),
       rooms.role(auth.role),

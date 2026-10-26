@@ -1,3 +1,7 @@
+
+export interface GeneratePayoutBatchInput {
+  periodStart: string;
+  periodEnd: string;
 import type { PayoutStatus } from './payouts.calc';
 
 export type { PayoutStatus };
@@ -38,12 +42,28 @@ export interface GenerateBatchInput {
   ip: string;
 }
 
+export interface ListPayoutBatchesInput {
 export interface ListBatchesInput {
   page?: number;
   limit?: number;
   status?: string;
 }
 
+export interface MarkPayoutPaidInput {
+  payoutId: string;
+  adminId: string;
+  ip: string;
+}
+
+export interface PayoutCsvRow {
+  payoutId: string;
+  partner: string;
+  email: string;
+  amount: number;
+  gross: number;
+  commission: number;
+  status: string;
+  paidAt: string;
 export interface MarkPaidInput {
   payoutId: string;
   adminId: string;

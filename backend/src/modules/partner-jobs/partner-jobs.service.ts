@@ -38,7 +38,7 @@ export const maskPhone = (phone?: string): string | null => {
   const digits = (phone ?? "").replace(/\D/g, "");
   if (digits.length < 4) return null;
   return `${"*".repeat(6)}${digits.slice(-4)}`;
-};
+}
 
 /** Buttons the partner may press right now. Order follows the lifecycle. */
 export const actionsFor = (status: BookingStatus): JobActionDto[] => {
@@ -328,7 +328,6 @@ export const partnerJobsService = {
       );
     }
 
-    // Validate with the shared state machine on a throw-away copy; 409 from the machine becomes 422 here.
     const probe = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
