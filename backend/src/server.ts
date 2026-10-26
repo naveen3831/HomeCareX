@@ -90,6 +90,21 @@ const startServer = async (): Promise<void> => {
     await mongoose.connect(process.env.DATABASE_URL as string);
     console.log('Connected to MongoDB');
 
+    server.listen(PORT, () => {
+      console.log(`HomeCareX server running on port ${PORT}`);
+    });
+
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error(
+        '[referrals] Reward reconciliation failed; it will retry.',
+        error instanceof Error ? error.message : 'Unknown error',
+      ),
+    );
+
+    registerEarningsListeners();
+
+    // Run non-critical default seeding after the server starts.
+    void seedDefaults();
     // Start listening exactly once.
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
@@ -165,6 +180,7 @@ const startServer = async (): Promise<void> => {
   }
 };
 
+const shutdown = async () => {
 connectDB().then(() => {
   stopReferralWorker = startReferralWorker(error => console.error('[referrals] Reward reconciliation failed; it will retry.', error instanceof Error ? error.message : 'Unknown error'));
   registerEarningsListeners();
@@ -192,6 +208,10 @@ const shutdown = async (): Promise<void> => {
   stopReferralWorker?.();
 
   server.close(async () => {
+    await mongoose.connection.close();
+    console.log('Database connection closed.');
+    process.exit(0);
+  });
     try {
       await mongoose.connection.close();
       console.log('Database connection closed.');

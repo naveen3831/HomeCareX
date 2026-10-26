@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { useParams } from "react-router-dom";
 import clsx from "clsx";
 import { OfflineState, ErrorState } from "@/components/customer";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useService } from "@/hooks/useService";
-import { customerPath } from "@/routes/customerPath";
 import { Icon3D, serviceVisual } from "@/pages/customer/Shared/visuals";
 import type { ServiceDetail } from "@/types/catalog";
 import AddOnList from "./components/AddOnList";
@@ -58,15 +56,7 @@ function Details({ service: s }: { service: ServiceDetail }) {
 
   return (
     <div className="mx-auto max-w-[1280px]">
-      <Link
-        to={customerPath("/services")}
-        className={clsx("inline-flex max-md:hidden min-h-[40px] items-center gap-2 rounded-full text-sm font-semibold text-muted transition-colors hover:text-brand", FOCUS_RING)}
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to services
-      </Link>
-
-      <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-8">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-8">
         <div className="min-w-0 xl:col-start-1 xl:row-start-1">
           <Gallery
             name={s.name}

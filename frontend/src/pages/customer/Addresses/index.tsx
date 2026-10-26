@@ -74,7 +74,7 @@ export default function Addresses() {
   const header = (
     <div>
       <h1 className="sr-only">Saved addresses</h1>
-      <p className="mt-1 text-sm text-muted">Choose where we should come. Your selected address shows on the dashboard.</p>
+      <p className="mt-1 text-sm text-muted">Choose where we should come. Your selected address is used for deliveries.</p>
     </div>
   );
 

@@ -75,6 +75,30 @@ import { settingsRoutes } from "../modules/settings/settings.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
+
+export const rootRouter = Router();
+
+rootRouter.use("/auth", authRoutes);
+
+rootRouter.use("/admin/dashboard", adminDashboardRoutes);
+rootRouter.use("/admin/settings", settingsRoutes);
+rootRouter.use("/admin/designations", designationsRoutes);
+rootRouter.use("/admin/categories", categoriesRoutes);
+rootRouter.use("/admin/services", servicesRoutes);
+rootRouter.use("/admin/customers", adminCustomersRoutes);
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/tickets", adminTicketsRoutes);
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
+rootRouter.use("/admin/partners", partnersRoutes);
+rootRouter.use("/admin/coupons", couponsRoutes);
+rootRouter.use("/admin/banners", marketingRoutes);
+rootRouter.use("/admin/incentives", incentivesRoutes);
+rootRouter.use("/admin/reports", reportsRoutes);
+rootRouter.use("/admin", payoutsRoutes);
+rootRouter.use("/admin", refundsRoutes);
+rootRouter.use("/admin", auditRoutes);
+rootRouter.use("/admin", adminRoutes);
+
 import { Router } from 'express';
 
 // Core & Auth
@@ -172,6 +196,7 @@ rootRouter.use('/banners', publicMarketingRoutes);
 rootRouter.use('/serviceability', serviceabilityRoutes);
 rootRouter.use('/pricing', pricingRoutes);
 rootRouter.use(leadsRoutes);
+
 rootRouter.use("/partner/kyc", partnerKycRoutes);
 rootRouter.use("/customer/dashboard", customerDashboardRoutes);
 rootRouter.use("/customer/profile", customerProfileRoutes);
@@ -245,6 +270,11 @@ rootRouter.use('/partner/notifications', notificationsRoutes);
 
 // Bookings & Chat & Reviews
 rootRouter.use(bookingsRoutes);
+rootRouter.use("/bookings", bookingStatusRoutes);
+rootRouter.use("/bookings", chatRoutes);
+rootRouter.use(reviewsRoutes);
+
+export default rootRouter;
 rootRouter.use('/bookings', bookingStatusRoutes);
 rootRouter.use('/bookings', chatRoutes);
 rootRouter.use(reviewsRoutes);
