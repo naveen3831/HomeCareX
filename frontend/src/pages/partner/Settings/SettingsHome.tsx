@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Bell, ChevronRight, Globe, LogOut, MapPin, Shield, User } from 'lucide-react';
+import { Bell, ChevronRight, Globe, LogOut, MapPin, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { SETTINGS_HOME } from './paths';
 import './settings.css';
@@ -19,14 +19,13 @@ function useIsMobile() {
 }
 
 const ITEMS = [
-  { id: 'account', label: 'Account', hint: 'Profile and password', icon: User },
   { id: 'notifications', label: 'Notifications', hint: 'Push, SMS and email', icon: Bell },
   { id: 'privacy', label: 'Privacy', hint: 'Location and customer contact', icon: MapPin },
   { id: 'security', label: 'Security', hint: 'Login alerts and sessions', icon: Shield },
   { id: 'other', label: 'Other', hint: 'Language, help and legal', icon: Globe },
 ] as const;
 
-/** /partner/settings: a list of sections on phones, a redirect to Account on desktop. */
+/** /partner/settings: a list of sections on phones, a redirect to Notifications on desktop. */
 export default function SettingsHome() {
   const isMobile = useIsMobile();
   const { user, logout } = useAuth();

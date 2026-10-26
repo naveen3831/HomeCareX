@@ -38,6 +38,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Shield,
+  ShieldAlert,
   Globe,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -185,6 +186,7 @@ export const NAV: NavItem[] = [
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
   { key: "security", label: "Account Security", to: "/partner/security", icon: Shield },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
+  { key: "safety", label: "Safety", to: "/partner/safety", icon: ShieldAlert },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
   {
     key: "system",
@@ -192,7 +194,6 @@ export const NAV: NavItem[] = [
     to: "/partner/settings",
     icon: Settings,
     children: [
-      { key: "settings-account", label: "Account", to: "/partner/settings/account", icon: User },
       { key: "settings-notifications", label: "Notifications", to: "/partner/settings/notifications", icon: Bell },
       { key: "settings-privacy", label: "Privacy", to: "/partner/settings/privacy", icon: MapPin },
       { key: "settings-security", label: "Security", to: "/partner/settings/security", icon: Shield },
@@ -398,7 +399,7 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
   },
   {
     groupName: "Account",
-    keys: ["profile", "support", "help", "system"],
+    keys: ["profile", "support", "safety", "help", "system"],
   },
 ];
 
@@ -462,7 +463,6 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
-  };
 
   const handleSignOut = async () => {
     try {
@@ -852,19 +852,6 @@ export default function PartnerLayout() {
                   <ArrowLeft size={20} aria-hidden="true" />
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() => setCollapsedPref((v) => !v)}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen size={20} aria-hidden="true" />
-                ) : (
-                  <PanelLeftClose size={20} aria-hidden="true" />
-                )}
-              </button>
 
               <h1 className="truncate text-base font-semibold text-[#4338ca] sm:text-lg">
                 {title}

@@ -89,6 +89,29 @@ export const resetPasswordSchema = z
     path: ['resetToken'],
   });
 
+const strongPassword = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[A-Z]/, 'Password needs an uppercase letter')
+  .regex(/[0-9]/, 'Password needs a number')
+  .regex(/[^A-Za-z0-9]/, 'Password needs a special character');
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Current password is required'),
+    newPassword: strongPassword,
+    confirmPassword: z.string().min(1, 'Please confirm your new password'),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  })
+  .refine((d) => d.newPassword !== d.currentPassword, {
+    message: 'New password must be different from the current password',
+    path: ['newPassword'],
+  });
+
+export type ChangePasswordInput = { currentPassword: string; newPassword: string; confirmPassword?: string };
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),

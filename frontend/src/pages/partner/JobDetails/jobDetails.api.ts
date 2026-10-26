@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+ import { getQuickFix, sendSos } from '@/pages/partner/Safety/safety.api';
 import { MAX_PHOTO_BYTES, validatePhoto } from '@/lib/photoValidation';
 import { mapJob, mapJobListItemToJobDetails, getDefaultChecklistForService } from './jobDetails.mapper';
 import type { ApiJob, CompletionInput, ExtraChargeItem, JobDetails, StartVerification } from './jobDetails.types';
@@ -1603,14 +1604,21 @@ export async function createExtraCharge(
 }
 
 export async function triggerSos(
-  bookingId: string,
-  _coordinates?: { lat: number; lng: number } | null,
+  bookingId: string | null,
+  coordinates?: { lat: number; lng: number } | null,
 ): Promise<{ success: boolean; message: string }> {
   if (!IS_MOCK_JOBS) {
-    // No SOS endpoint yet. Never report "sent" for a safety alert that went nowhere.
-    throw new Error('SOS is not connected to the server yet. Call emergency services (112) now.');
+    // Real alert: POST /partner/safety/sos. A failure throws, so the UI never says "sent" for an alert that went nowhere.
+    const location = coordinates ?? (await getQuickFix());
+    const result = await sendSos({ bookingId, location });
+    return {
+      success: true,
+      message: result.duplicate
+        ? 'SOS was already raised a moment ago. HomeCareX has been alerted.'
+        : 'SOS sent. HomeCareX has been alerted.',
+    };
   }
-  const current = loadMockJobFromStorage(bookingId);
+  const current = loadMockJobFromStorage(bookingId ?? '');
   saveMockJobToStorage({
     ...current,
     sosTriggeredAt: new Date().toISOString(),

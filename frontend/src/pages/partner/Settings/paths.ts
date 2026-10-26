@@ -1,4 +1,4 @@
-export const SETTINGS_HOME = '/partner/settings/account';
+export const SETTINGS_HOME = '/partner/settings/notifications';
 export const PASSWORD_PATH = '/partner/settings/security/password';
 export const SESSIONS_PATH = '/partner/settings/security/sessions';
 export const TERMS_PATH = '/partner/settings/other/terms';
