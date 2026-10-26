@@ -37,10 +37,6 @@ import {
 } from './reviews.validation';
 
 /** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
-interface ReviewAuditActor {
-  id: string;
-  ip: string;
-}
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
