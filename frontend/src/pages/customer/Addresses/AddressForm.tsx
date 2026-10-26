@@ -71,7 +71,6 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
 
   const serviceability = useServiceability(pincode);
   const unavailable = serviceability.status === "unserviceable";
-  const checking = serviceability.status === "checking";
 
   function applyPick(p: PickedLocation) {
     setLocation({ lat: p.lat, lng: p.lng });
@@ -85,7 +84,7 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (unavailable || checking) return;
+    // An address outside our service area can still be saved (like Swiggy / Zomato); it just cannot be used to book.
     const found = validate({ house, street, city, state, pincode }, !legacy);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
@@ -215,19 +214,19 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
           {!initial?.isDefault && !isFirst && (
             <label className="flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-canvas px-3.5 py-2 sm:min-h-[56px] sm:px-4 sm:py-3">
               <span>
-                <span className="block text-sm font-medium text-ink">Use this as my delivery address on the dashboard</span>
+                <span className="block text-sm font-medium text-ink">Use this as my delivery address.</span>
                 <span className="block text-xs text-muted">You can change it any time.</span>
               </span>
               <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} className="peer sr-only" />
               <span aria-hidden="true" className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
             </label>
           )}
-          {isFirst && !initial && <p className="text-xs text-muted">This will be your delivery address on the dashboard.</p>}
+          {isFirst && !initial && <p className="text-xs text-muted">This will be your delivery address.</p>}
 
           {serverError && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{serverError}</p>}
           {unavailable && (
-            <p id="addr-save-hint" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-              We can&apos;t save this address because we don&apos;t serve this pincode yet. Change the pincode or move the pin on the map.
+            <p id="addr-save-hint" role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-ink">
+              We don&apos;t serve this pincode yet. You can still save this address, but you won&apos;t be able to book a service with it until we reach your area.
             </p>
           )}
 
@@ -239,11 +238,11 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
               </button>
               <button
                 type="submit"
-                disabled={saving || unavailable || checking}
+                disabled={saving}
                 aria-describedby={unavailable ? "addr-save-hint" : undefined}
                 className={clsx("min-h-[44px] rounded-full bg-brand px-8 sm:min-h-[48px] text-sm font-bold text-white shadow-sm transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[11rem]", FOCUS_RING)}
               >
-                {saving ? "Saving…" : checking ? "Checking area…" : initial ? "Save changes" : "Save address"}
+                {saving ? "Saving…" : initial ? "Save changes" : "Save address"}
               </button>
             </div>
           </div>

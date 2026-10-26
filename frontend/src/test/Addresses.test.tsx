@@ -104,7 +104,7 @@ describe("AddressForm", () => {
     expect(screen.getByLabelText(/street \/ road/i)).toBeInTheDocument();
   });
 
-  it("blocks saving and explains why when the pincode is not serviceable", async () => {
+  it("still lets the customer save an address we don't serve, and says it can't be used to book", async () => {
     const { onSubmit } = setup();
     await userEvent.type(screen.getByLabelText(/house \/ flat no/i), "12");
     await userEvent.type(screen.getByLabelText(/street \/ road/i), "Main Rd");
@@ -112,11 +112,11 @@ describe("AddressForm", () => {
     await userEvent.type(screen.getByLabelText(/^state/i), "Maharashtra");
     await userEvent.type(screen.getByLabelText(/pincode/i), "411001");
 
-    await screen.findByText(/we can't save this address/i);
+    await screen.findByText(/you can still save this address/i);
     const save = screen.getByRole("button", { name: /save address/i });
-    expect(save).toBeDisabled();
+    expect(save).toBeEnabled();
     await userEvent.click(save);
-    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it("saves house, street, area, landmark and the chosen label when the area is served", async () => {

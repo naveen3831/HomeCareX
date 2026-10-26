@@ -3,7 +3,6 @@ import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
-  ArrowLeft,
   CalendarDays,
   CalendarClock,
   Clock,
@@ -181,10 +180,11 @@ export default function BookingDetails() {
   const query = useBooking(id);
   const decide = useDecideExtraCharge(id ?? "");
 
+  // No top padding: CustomerLayout's <main> already spaces the page from the top bar.
   const shell = (children: ReactNode) => (
     <main
       tabIndex={-1}
-      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 py-4 outline-none sm:px-6 sm:py-8"
+      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 pb-4 outline-none sm:px-6 sm:pb-8"
     >
       {children}
     </main>
@@ -292,7 +292,7 @@ function DetailsBody({
 
   return (
     <>
-      {/* Back link and header sit above both columns. */}
+      {/* Back link and header sit above both columns.
       <Link
         to={customerPath("/bookings")}
         className={clsx(
@@ -302,14 +302,12 @@ function DetailsBody({
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to My Bookings
-      </Link>
+      </Link> */}
 
       {/* Header spans both columns, so Booking Status and Price Breakdown below start on the same line. */}
       <header className="mb-5 sm:mb-6">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="text-2xl font-bold leading-tight tracking-tight text-ink sm:text-[32px]">
-            Booking Details
-          </h1>
+          <h1 className="sr-only">Booking Details</h1>
           <span
             className={clsx(
               "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
