@@ -1,11 +1,14 @@
 import React, { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import { RequirePermission } from '@/components/admin/PermissionGate';
 import PageLoader from '@/components/common/PageLoader';
 
+// Dashboard
 const AdminDashboardPage = lazy(() => import('@/pages/admin/Dashboard'));
+
+// Operations
 const AdminLeadsPage = lazy(() => import('@/pages/admin/Leads'));
 const AdminBookingsPage = lazy(() => import('@/pages/admin/Bookings'));
 const AdminCustomersPage = lazy(() => import('@/pages/admin/Customers'));
@@ -16,43 +19,56 @@ const AdminPartnersPage = lazy(() => import('@/pages/admin/Partners'));
 const AdminManagePartnersPage = lazy(
   () => import('@/pages/admin/ManagePartners')
 );
+const AdminPartnerDetailsPage = lazy(
+  () => import('@/pages/admin/PartnerDetails')
+);
 const AdminSupportPage = lazy(() => import('@/pages/admin/Support'));
+
+// Catalog
 const AdminCategoriesPage = lazy(() => import('@/pages/admin/Categories'));
 const AdminServicesPage = lazy(() => import('@/pages/admin/Services'));
 const AdminPricingPage = lazy(() => import('@/pages/admin/Pricing'));
+
+// Coupons and marketing
 const AdminCouponsPage = lazy(() => import('@/pages/admin/Coupons'));
 const AdminMarketingPage = lazy(() => import('@/pages/admin/Marketing'));
+
+// Finance
 const AdminPaymentsPage = lazy(() => import('@/pages/admin/Payments'));
 const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
 const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
+
+// Quality and reporting
 const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
+
+// Roles, staff, and audit logs
 const AdminRolesPermissionsPage = lazy(
   () => import('@/pages/admin/RolesPermissions')
 );
 const AdminStaffPage = lazy(() => import('@/pages/admin/Staff'));
 const AdminAuditLogsPage = lazy(() => import('@/pages/admin/AuditLogs'));
+
+// Settings and account pages
 const AdminSettingsPage = lazy(() => import('@/pages/admin/Settings'));
 const AdminProfilePage = lazy(() => import('@/pages/admin/Profile'));
 const AdminNotificationsPage = lazy(
   () => import('@/pages/admin/Notifications')
 );
-const AdminPartnerDetailsPage = lazy(
-  () => import('@/pages/admin/PartnerDetails')
+const AccountSecurityPage = lazy(
+  () => import('@/pages/shared/AccountSecurity')
 );
-const AdminNotificationsPage = lazy(() => import('@/pages/admin/Notifications'));
-const AdminPartnerDetailsPage = lazy(() => import('@/pages/admin/PartnerDetails'));
-const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 interface AdminRoute {
-  /** Relative to /admin. Empty string is the index route. */
+  /** Relative to /admin. An empty path is the index route. */
   path: string;
   element: React.ReactElement;
-  /** Permission key. Leave out until RBAC is wired; the route then stays open. */
+  /** Routes without a permission remain unguarded. */
   permission?: string;
 }
 
 const adminRoutes: AdminRoute[] = [
+  // Dashboard
   { path: '', element: <AdminDashboardPage /> },
 
   // Operations
@@ -61,8 +77,8 @@ const adminRoutes: AdminRoute[] = [
   { path: 'customers', element: <AdminCustomersPage /> },
   { path: 'customers/:id', element: <AdminCustomerDetailsPage /> },
   { path: 'partners', element: <AdminPartnersPage /> },
-  { path: 'manage-partners', element: <AdminManagePartnersPage /> },
   { path: 'partners/:id', element: <AdminPartnerDetailsPage /> },
+  { path: 'manage-partners', element: <AdminManagePartnersPage /> },
   { path: 'support', element: <AdminSupportPage /> },
 
   // Catalog
@@ -91,73 +107,59 @@ const adminRoutes: AdminRoute[] = [
   // Finance
   { path: 'payments', element: <AdminPaymentsPage /> },
   { path: 'refunds', element: <AdminRefundsPage /> },
-
-  // Refund details: required for the Review button.
-  // Keep this route after the base refunds route.
   { path: 'refunds/:id', element: <AdminRefundsPage /> },
-
   { path: 'payouts', element: <AdminPayoutsPage /> },
 
   // Quality and reporting
   { path: 'reviews', element: <AdminReviewsPage /> },
   { path: 'reports', element: <AdminReportsPage /> },
 
-  // System
-  {
-    path: 'roles',
-    element: <AdminRolesPage />,
-    permission: 'roles:view',
-  },
+  // Roles and permissions
+  { path: 'roles-permissions', element: <AdminRolesPermissionsPage /> },
+
+  // Staff
   {
     path: 'staff',
     element: <AdminStaffPage />,
     permission: 'staff:view',
   },
-  // Full pages (sidebar stays visible): create / invite / edit.
-  {
-    path: 'roles/new',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:create',
-  },
-  {
-    path: 'staff/new',
-    element: <AdminInviteStaffPage />,
-    permission: 'staff:create',
-  },
-  {
-    path: 'roles/:id',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:view',
-  },
-  // Old URLs keep working.
-  {
-    path: 'roles-permissions',
-    element: <Navigate to="/admin/roles" replace />,
-  },
-  {
-    path: 'roles/staff/new',
-    element: <Navigate to="/admin/staff/new" replace />,
-  },
-  {
-    path: 'audit-logs',
-    element: <AdminAuditLogsPage />,
-  },
+
+  // Audit logs
+  { path: 'audit-logs', element: <AdminAuditLogsPage /> },
+
+  // Settings
   {
     path: 'settings',
     element: <AdminSettingsPage />,
     permission: 'settings:manage',
   },
-  { path: 'roles-permissions', element: <AdminRolesPermissionsPage /> },
-  { path: 'staff', element: <AdminStaffPage /> },
-  { path: 'audit-logs', element: <AdminAuditLogsPage /> },
-  { path: 'settings', element: <AdminSettingsPage /> },
+
+  // Account security
   { path: 'security', element: <AccountSecurityPage /> },
   { path: 'account/security', element: <AccountSecurityPage /> },
   { path: 'settings/security', element: <AccountSecurityPage /> },
 
-  // Header-only pages
+  // Header pages
   { path: 'profile', element: <AdminProfilePage /> },
   { path: 'notifications', element: <AdminNotificationsPage /> },
+
+  // Legacy redirects
+  {
+    path: 'roles',
+    element: <Navigate to="/admin/roles-permissions" replace />,
+  },
+  {
+    path: 'roles/new',
+    element: <Navigate to="/admin/roles-permissions" replace />,
+  },
+  {
+    path: 'roles/staff/new',
+    element: <Navigate to="/admin/staff" replace />,
+  },
+  {
+    path: 'roles/:id',
+    element: <Navigate to="/admin/roles-permissions" replace />,
+  },
 ];
 
 const NotFound: React.FC = () => (
@@ -174,7 +176,7 @@ export const AdminRoutes: React.FC = () => (
     <Routes>
       <Route element={<AdminLayout />}>
         {adminRoutes.map(({ path, element, permission }) => {
-          const guarded = permission ? (
+          const guardedElement = permission ? (
             <RequirePermission permission={permission}>
               {element}
             </RequirePermission>
@@ -182,10 +184,22 @@ export const AdminRoutes: React.FC = () => (
             element
           );
 
-          return path === '' ? (
-            <Route key="index" index element={guarded} />
-          ) : (
-            <Route key={path} path={path} element={guarded} />
+          if (path === '') {
+            return (
+              <Route
+                key="admin-index"
+                index
+                element={guardedElement}
+              />
+            );
+          }
+
+          return (
+            <Route
+              key={path}
+              path={path}
+              element={guardedElement}
+            />
           );
         })}
 

@@ -57,7 +57,7 @@ import {
   readStoredOnlineStatus,
   writeStoredOnlineStatus,
   PARTNER_ONLINE_STORAGE_KEY,
-} from '@/pages/partner/Availability/availability.api';
+} from "@/pages/partner/Availability/availability.api";
 
 type NavChild = {
   key: string;
@@ -179,7 +179,12 @@ export const NAV: NavItem[] = [
     ],
   },
   { key: "profile", label: "Profile", to: "/partner/profile", icon: User },
-  { key: "security", label: "Account Security", to: "/partner/security", icon: Shield },
+  {
+    key: "security",
+    label: "Account Security",
+    to: "/partner/security",
+    icon: Shield,
+  },
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
   { key: "safety", label: "Safety", to: "/partner/safety", icon: ShieldAlert },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
@@ -219,10 +224,6 @@ export const NAV: NavItem[] = [
         to: "/partner/settings/other",
         icon: Globe,
       },
-      { key: "settings-notifications", label: "Notifications", to: "/partner/settings/notifications", icon: Bell },
-      { key: "settings-privacy", label: "Privacy", to: "/partner/settings/privacy", icon: MapPin },
-      { key: "settings-security", label: "Security", to: "/partner/settings/security", icon: Shield },
-      { key: "settings-other", label: "Other", to: "/partner/settings/other", icon: Globe },
     ],
   },
 ];
@@ -272,10 +273,7 @@ const EXTRA_TITLES: Record<string, string> = {
   "/partner/wallet": "Partner Wallet",
 };
 
-const HIDE_BOTTOM_NAV = [
-  "/partner/wallet",
-  "/partner/transactions",
-];
+const HIDE_BOTTOM_NAV = ["/partner/wallet", "/partner/transactions"];
 
 const BOTTOM_NAV = [
   {
@@ -397,21 +395,12 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
   { groupName: "Overview", keys: ["home"] },
   {
     groupName: "Operations",
-    keys: [
-      "jobs",
-      "work",
-      "availability",
-      "services",
-      "service-area",
-    ],
+    keys: ["jobs", "work", "availability", "services", "service-area"],
   },
-  {
-    groupName: "Finance",
-    keys: ["earnings", "performance"],
-  },
+  { groupName: "Finance", keys: ["earnings", "performance"] },
   {
     groupName: "Account",
-    keys: ["profile", "support", "safety", "help", "system"],
+    keys: ["profile", "security", "support", "safety", "help", "system"],
   },
 ];
 
@@ -467,9 +456,12 @@ function PartnerSidebar({
   };
 
   const toggleItem = (key: string) => {
-    setOpenItems((cur) =>
-      cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
+    setOpenItems((current) =>
+      current.includes(key)
+        ? current.filter((itemKey) => itemKey !== key)
+        : [...current, key],
     );
+  };
 
   const handleSignOut = async () => {
     try {
@@ -500,7 +492,6 @@ function PartnerSidebar({
             <span className="sidebar-brand__icon">
               <HomeCarexMark size={22} />
             </span>
-
             {!collapsed && (
               <span className="sidebar-brand__name">HomeCareX</span>
             )}
@@ -530,7 +521,7 @@ function PartnerSidebar({
 
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group) => {
-          const items = NAV.filter((n) => group.keys.includes(n.key));
+          const items = NAV.filter((item) => group.keys.includes(item.key));
           const isOpen = collapsed || openGroup === group.groupName;
 
           return (
@@ -542,9 +533,7 @@ function PartnerSidebar({
                   aria-expanded={isOpen}
                   onClick={() =>
                     setOpenGroup((current) =>
-                      current === group.groupName
-                        ? ""
-                        : group.groupName,
+                      current === group.groupName ? "" : group.groupName,
                     )
                   }
                 >
@@ -590,13 +579,11 @@ function PartnerSidebar({
                                 size={20}
                                 aria-hidden="true"
                               />
-
                               {!collapsed && (
                                 <span className="nav-link__label">
                                   {label}
                                 </span>
                               )}
-
                               {collapsed && (
                                 <span className="sr-only">{label}</span>
                               )}
@@ -717,14 +704,16 @@ export default function PartnerLayout() {
 
   useEffect(() => {
     let mounted = true;
+
     void getAvailability()
       .then((res) => {
-        if (mounted && typeof res?.isOnline === 'boolean') {
+        if (mounted && typeof res?.isOnline === "boolean") {
           setOnlineState(res.isOnline);
           writeStoredOnlineStatus(res.isOnline);
         }
       })
       .catch(() => {});
+
     return () => {
       mounted = false;
     };
@@ -767,13 +756,11 @@ export default function PartnerLayout() {
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
-
     return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
-  // Match the longest applicable route.
   const current = FLAT_NAV.filter((item) =>
     item.to === "/partner"
       ? cleanPath === "/partner"
@@ -801,17 +788,14 @@ export default function PartnerLayout() {
     cleanPath.startsWith("/partner/support/") ||
     cleanPath === "/partner/help";
 
-  const isTicketThread =
-    /^\/partner\/support\/[^/]+$/.test(cleanPath);
+  const isTicketThread = /^\/partner\/support\/[^/]+$/.test(cleanPath);
 
   const hideBottomNav =
     HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
 
   const showBack = cleanPath !== "/partner";
 
-  const isTabRoot = BOTTOM_NAV.some(
-    (item) => item.to === cleanPath,
-  );
+  const isTabRoot = BOTTOM_NAV.some((item) => item.to === cleanPath);
 
   const goBack = () => {
     if (isTabRoot) {

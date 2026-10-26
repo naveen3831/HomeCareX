@@ -1,11 +1,19 @@
-
-export interface GeneratePayoutBatchInput {
-  periodStart: string;
-  periodEnd: string;
-import type { PayoutStatus } from './payouts.calc';
+import type { PayoutStatus } from "./payouts.calc";
 
 export type { PayoutStatus };
 
+// Generate a payout batch
+export interface GeneratePayoutBatchInput {
+  periodStart: string | Date;
+  periodEnd: string | Date;
+  adminId: string;
+  ip: string;
+}
+
+// Backward-compatible name used by payouts.service.ts
+export type GenerateBatchInput = GeneratePayoutBatchInput;
+
+// Pagination details
 export interface Pagination {
   page: number;
   limit: number;
@@ -13,6 +21,7 @@ export interface Pagination {
   pages: number;
 }
 
+// Payout batch record
 export interface BatchRecord {
   _id: unknown;
   periodStart: Date;
@@ -23,9 +32,16 @@ export interface BatchRecord {
   status: string;
 }
 
+// Individual payout record
 export interface PayoutRecord {
   _id: unknown;
-  partnerId: { _id: unknown; name: string; email: string } | unknown;
+  partnerId:
+    | {
+        _id: unknown;
+        name: string;
+        email: string;
+      }
+    | unknown;
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
@@ -35,26 +51,26 @@ export interface PayoutRecord {
   createdAt: Date;
 }
 
-export interface GenerateBatchInput {
-  periodStart: string | Date;
-  periodEnd: string | Date;
-  adminId: string;
-  ip: string;
-}
-
-export interface ListPayoutBatchesInput {
+// List payout batches
 export interface ListBatchesInput {
   page?: number;
   limit?: number;
   status?: string;
 }
 
-export interface MarkPayoutPaidInput {
+export type ListPayoutBatchesInput = ListBatchesInput;
+
+// Mark an individual payout as paid
+export interface MarkPaidInput {
   payoutId: string;
   adminId: string;
   ip: string;
+  transactionId?: string;
 }
 
+export type MarkPayoutPaidInput = MarkPaidInput;
+
+// CSV export row
 export interface PayoutCsvRow {
   payoutId: string;
   partner: string;
@@ -64,17 +80,31 @@ export interface PayoutCsvRow {
   commission: number;
   status: string;
   paidAt: string;
-export interface MarkPaidInput {
-  payoutId: string;
-  adminId: string;
-  ip: string;
-  transactionId?: string;
 }
 
+// Repository contract
 export interface PayoutsRepository {
-  generateBatch(input: { periodStart: Date; periodEnd: Date; adminId: string }): Promise<BatchRecord>;
-  listBatches(input: { page: number; limit: number; status?: string }): Promise<{ items: BatchRecord[]; pagination: Pagination }>;
+  generateBatch(input: {
+    periodStart: Date;
+    periodEnd: Date;
+    adminId: string;
+  }): Promise<BatchRecord>;
+
+  listBatches(input: {
+    page: number;
+    limit: number;
+    status?: string;
+  }): Promise<{
+    items: BatchRecord[];
+    pagination: Pagination;
+  }>;
+
   findBatchById(batchId: string): Promise<BatchRecord | null>;
+
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
-  markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
+
+  markPaid(input: {
+    payoutId: string;
+    transactionId?: string;
+  }): Promise<PayoutRecord>;
 }
