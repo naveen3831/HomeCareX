@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
+  ArrowLeft,
   CalendarDays,
   CalendarClock,
   CircleAlert,
@@ -294,51 +295,6 @@ function DetailsBody({
 
   return (
     <>
-      {/* Back link and header sit above both columns.
-      <Link
-        to={customerPath("/bookings")}
-        className={clsx(
-          "mb-4 inline-flex max-md:hidden items-center gap-1.5 text-sm font-medium text-brand hover:underline",
-          FOCUS_RING,
-        )}
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to My Bookings
-      </Link> */}
-
-      {/* Header spans both columns, so Booking Status and Price Breakdown below start on the same line. */}
-      <header className="mb-5 sm:mb-6">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <h1 className="sr-only">Booking Details</h1>
-          <span
-            className={clsx(
-              "inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold",
-              PILL_CLASS[pill.tone],
-            )}
-          >
-            {pill.dot ? (
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full bg-current"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex h-4 w-4 items-center justify-center rounded-full bg-current"
-              >
-                <svg
-                  viewBox="0 0 12 12"
-                  className="h-2.5 w-2.5 text-white"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M2.5 6.5l2.2 2.2L9.5 3.8" />
-                </svg>
-              </span>
-            )}
-            {pill.label}
-          </span>
       {/* Top back button */}
       <div className="mb-4">
         <Link

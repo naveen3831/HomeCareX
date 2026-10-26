@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
+import { getCustomerPageMeta } from "./pageTitles";
 import LocationPicker from "./LocationPicker";
 import NotificationBell from "./NotificationBell";
 import { CUSTOMER_SIDEBAR_ID } from "./Sidebar";
@@ -21,19 +22,25 @@ const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand 
 
 /**
  * Top bar.
- *  - mobile: delivery-location picker (Zomato-style) … bell. No hamburger: the bottom nav and the
- *            Profile tab carry all navigation.
- *  - md+   : ☰ (collapses the sidebar) | brand | location picker … bell
+ *  - Home        : ☰ (md+, sidebar collapsed) | brand | location picker … bell
+ *  - Inner pages : ☰ (md+, sidebar collapsed) | ← Page name … bell (md+ only). The back arrow goes
+ *                  back through in-app history, or to the page's parent when it was opened directly.
  * The account avatar/menu lives at the bottom of the sidebar (SidebarAccount) and on the Profile page.
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
-  const { pathname } = useLocation();
-  // On the notifications page the address picker gives way to a back button that returns to the home page.
-  const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
-  const onNotifications = normalizedPath === customerPath("/notifications");
-  // On the referrals page (mobile) the address picker and bell give way to a back button that returns to Profile.
-  const onReferrals = normalizedPath === customerPath("/referrals");
+  const { pathname, key } = useLocation();
+  const navigate = useNavigate();
+
+  // null on Home, which keeps the address picker + bell instead of a back bar.
+  const meta = getCustomerPageMeta(pathname);
+
+  // React Router gives the first entry of a session the key "default": nothing to go back to.
+  const goBack = () => {
+    if (!meta) return;
+    if (key !== "default") navigate(-1);
+    else navigate(meta.parent, { replace: true });
+  };
 
   return (
     <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3  bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
@@ -54,59 +61,48 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
           </button>
         )}
 
-        <Link to={customerPath()} className={clsx("rounded-lg text-lg font-bold tracking-tight", sidebarOpen ? "md:hidden" : "ml-2", "hidden md:inline-flex", FOCUS_RING)}>
-          <span className="text-accent">Home</span>
-          <span className="text-brand">CareX</span>
-        </Link>
-
-        <span
-          aria-hidden="true"
-          className={clsx(
-            "mx-3 hidden h-8 w-px bg-line",
-            !sidebarOpen && "md:block",
-          )}
-        />
-        {onNotifications ? (
-          <Link
-            to={customerPath()}
-            aria-label="Back to home"
+        {meta ? (
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label={`Back from ${meta.title}`}
             className={clsx(
-              "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden",
+              "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
               FOCUS_RING,
             )}
           >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            <span>Back</span>
-          </Link>
+            <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{meta.title}</span>
+          </button>
         ) : (
           <>
-            {onReferrals && (
-              <Link
-                to={customerPath("/profile")}
-                aria-label="Back to profile"
-                className={clsx(
-                  "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden",
-                  FOCUS_RING,
-                )}
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                <span>Back</span>
-              </Link>
-            )}
-            {/* One picker at every width (a single instance keeps DOM ids unique). Hidden on mobile for referrals. */}
-            <div
+            <Link
+              to={customerPath()}
               className={clsx(
-                "min-w-0 flex-1 md:flex-none",
-                onReferrals && "hidden md:block",
+                "rounded-lg text-lg font-bold tracking-tight",
+                sidebarOpen ? "md:hidden" : "ml-2",
+                "hidden md:inline-flex",
+                FOCUS_RING,
               )}
             >
+              <span className="text-accent">Home</span>
+              <span className="text-brand">CareX</span>
+            </Link>
+
+            <span
+              aria-hidden="true"
+              className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
+            />
+
+            {/* One picker at every width (a single instance keeps DOM ids unique). */}
+            <div className="min-w-0 flex-1 md:flex-none">
               <LocationPicker />
             </div>
           </>
         )}
       </div>
 
-      <div className={clsx(onReferrals && "hidden md:block")}>
+      <div className={clsx(meta && "hidden md:block")}>
         <NotificationBell count={unread} />
       </div>
     </header>

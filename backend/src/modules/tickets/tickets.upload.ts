@@ -76,7 +76,12 @@ interface UploadedFile {
 const invalidUpload = (message = "Upload up to 3 files and check the form fields.") =>
   new HttpError(400, message, "INVALID_ATTACHMENT");
 
-async function readMultipart(req: Request): Promise<UploadedFile[]> {
+interface ParsedForm {
+  files: UploadedFile[];
+  fields: Record<string, string>;
+}
+
+async function readMultipart(req: Request): Promise<ParsedForm> {
   const contentType = req.headers["content-type"] ?? "";
   const boundaryMatch = /^multipart\/form-data\s*;.*?boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(
     contentType,
@@ -105,6 +110,7 @@ async function readMultipart(req: Request): Promise<UploadedFile[]> {
   if (parts.length > 12) throw invalidUpload();
 
   const files: UploadedFile[] = [];
+  const fields: Record<string, string> = {};
   let fieldCount = 0;
   for (const section of parts) {
     const part = section.startsWith("\r\n") ? section.slice(2) : section;
@@ -133,16 +139,26 @@ async function readMultipart(req: Request): Promise<UploadedFile[]> {
       fieldCount++;
       if (fieldCount > 8 || Buffer.byteLength(payload, "latin1") > 20_000)
         throw invalidUpload();
+      // The body was read as latin1 to keep file bytes intact; text fields are UTF-8.
+      fields[fieldName] = Buffer.from(payload, "latin1").toString("utf8");
     }
   }
-  return files;
+  return { files, fields };
 }
 
 /** Applied only to authenticated ticket mutations. */
 export const receiveTicketFiles: RequestHandler = (req, res, next) => {
+  // Text-only requests may be plain JSON (already parsed by express.json()); they carry no files.
+  if (req.is("application/json")) {
+    res.locals.ticketFiles = [];
+    return next();
+  }
+
   void readMultipart(req)
-    .then((files) => {
+    .then(({ files, fields }) => {
       res.locals.ticketFiles = files.map(validateEvidence);
+      // Validation runs on req.body next, so the form fields must be there.
+      req.body = fields;
       next();
     })
     .catch(next);

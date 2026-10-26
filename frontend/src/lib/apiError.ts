@@ -11,6 +11,27 @@ export interface ClassifiedApiError {
 }
 
 /**
+ * Accepts both the normalized ApiError (status/code/message at the top level) and a raw axios-style
+ * error ({ response: { status, data: { code, message, details } } }), and returns the former.
+ */
+function normalizeRaw(err: unknown): ApiError | undefined {
+  if (!err || typeof err !== 'object') return err as ApiError | undefined;
+  const e = err as Record<string, any>;
+  const res = e.response as { status?: unknown; data?: Record<string, any> } | undefined;
+  if (typeof e.status !== 'number' && res && typeof res.status === 'number') {
+    const data = res.data ?? {};
+    return {
+      ...e,
+      status: res.status,
+      code: e.code ?? data.code,
+      message: e.message ?? data.message,
+      details: e.details ?? data.details,
+    } as ApiError;
+  }
+  return err as ApiError;
+}
+
+/**
  * Classifies frontend API errors into distinct categories:
  * - 'offline': browser network adapter is disconnected (navigator.onLine === false)
  * - 'network': backend is unreachable, refused connection, or CORS failure (error.response == null)
@@ -31,7 +52,7 @@ export function classifyApiError(
     };
   }
 
-  const apiErr = err as ApiError | undefined;
+  const apiErr = normalizeRaw(err);
   if (!apiErr) {
     return {
       kind: 'unknown',
