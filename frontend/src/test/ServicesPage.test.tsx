@@ -6,6 +6,21 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ServicesPage from "../pages/public/Services";
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
+import ServicesPage from "../pages/public/Services";
+
+vi.mock("@/services/catalogApi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/services/catalogApi")>();
+  return {
+    ...actual,
+    fetchServices: async () => ({
+      items: [],
+      meta: { page: 1, pages: 1, total: 0, limit: 12 },
+    }),
+  };
+});
+
 /* =========================================================
    Constants
 ========================================================= */
@@ -43,6 +58,24 @@ const TestWrapper: React.FC<TestWrapperProps> = ({
     </MemoryRouter>
   </HelmetProvider>
 );
+}) => {
+  const [client] = React.useState(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      }),
+  );
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[initialEntry]}>
+          <ServicesPage />
+          <LocationDisplay />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
 
 /* =========================================================
    Helpers
@@ -90,6 +123,7 @@ describe("ServicesPage URL synchronization", () => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value
       ).toBe("Cleaning");
+        ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value
       ).toBe("price-low");

@@ -126,7 +126,7 @@ export function SlotPicker({ slots, value, selectedSlot, onChange, onSelectSlot,
                         ) : (
                           <>
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-                            <span className="text-emerald-600">Available</span>
+                            <span className="text-emerald-600">{slotItem.remaining !== undefined ? `${slotItem.remaining} left` : "Available"}</span>
                           </>
                         )}
                       </span>

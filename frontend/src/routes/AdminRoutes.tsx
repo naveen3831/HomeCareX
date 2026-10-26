@@ -9,9 +9,13 @@ const AdminDashboardPage = lazy(() => import('@/pages/admin/Dashboard'));
 const AdminLeadsPage = lazy(() => import('@/pages/admin/Leads'));
 const AdminBookingsPage = lazy(() => import('@/pages/admin/Bookings'));
 const AdminCustomersPage = lazy(() => import('@/pages/admin/Customers'));
-const AdminCustomerDetailsPage = lazy(() => import('@/pages/admin/CustomerDetails'));
+const AdminCustomerDetailsPage = lazy(
+  () => import('@/pages/admin/CustomerDetails')
+);
 const AdminPartnersPage = lazy(() => import('@/pages/admin/Partners'));
-const AdminManagePartnersPage = lazy(() => import('@/pages/admin/ManagePartners'));
+const AdminManagePartnersPage = lazy(
+  () => import('@/pages/admin/ManagePartners')
+);
 const AdminSupportPage = lazy(() => import('@/pages/admin/Support'));
 const AdminCategoriesPage = lazy(() => import('@/pages/admin/Categories'));
 const AdminServicesPage = lazy(() => import('@/pages/admin/Services'));
@@ -23,13 +27,22 @@ const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
 const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
 const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
-const AdminRolesPermissionsPage = lazy(() => import('@/pages/admin/RolesPermissions'));
+const AdminRolesPermissionsPage = lazy(
+  () => import('@/pages/admin/RolesPermissions')
+);
 const AdminStaffPage = lazy(() => import('@/pages/admin/Staff'));
 const AdminAuditLogsPage = lazy(() => import('@/pages/admin/AuditLogs'));
 const AdminSettingsPage = lazy(() => import('@/pages/admin/Settings'));
 const AdminProfilePage = lazy(() => import('@/pages/admin/Profile'));
+const AdminNotificationsPage = lazy(
+  () => import('@/pages/admin/Notifications')
+);
+const AdminPartnerDetailsPage = lazy(
+  () => import('@/pages/admin/PartnerDetails')
+);
 const AdminNotificationsPage = lazy(() => import('@/pages/admin/Notifications'));
 const AdminPartnerDetailsPage = lazy(() => import('@/pages/admin/PartnerDetails'));
+const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 interface AdminRoute {
   /** Relative to /admin. Empty string is the index route. */
@@ -53,8 +66,16 @@ const adminRoutes: AdminRoute[] = [
   { path: 'support', element: <AdminSupportPage /> },
 
   // Catalog
-  { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
-  { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
+  {
+    path: 'categories',
+    element: <AdminCategoriesPage />,
+    permission: 'catalog:manage',
+  },
+  {
+    path: 'services',
+    element: <AdminServicesPage />,
+    permission: 'catalog:manage',
+  },
   { path: 'pricing', element: <AdminPricingPage /> },
 
   // Coupons
@@ -70,6 +91,11 @@ const adminRoutes: AdminRoute[] = [
   // Finance
   { path: 'payments', element: <AdminPaymentsPage /> },
   { path: 'refunds', element: <AdminRefundsPage /> },
+
+  // Refund details: required for the Review button.
+  // Keep this route after the base refunds route.
+  { path: 'refunds/:id', element: <AdminRefundsPage /> },
+
   { path: 'payouts', element: <AdminPayoutsPage /> },
 
   // Quality and reporting
@@ -77,10 +103,57 @@ const adminRoutes: AdminRoute[] = [
   { path: 'reports', element: <AdminReportsPage /> },
 
   // System
+  {
+    path: 'roles',
+    element: <AdminRolesPage />,
+    permission: 'roles:view',
+  },
+  {
+    path: 'staff',
+    element: <AdminStaffPage />,
+    permission: 'staff:view',
+  },
+  // Full pages (sidebar stays visible): create / invite / edit.
+  {
+    path: 'roles/new',
+    element: <AdminRoleFormPage />,
+    permission: 'roles:create',
+  },
+  {
+    path: 'staff/new',
+    element: <AdminInviteStaffPage />,
+    permission: 'staff:create',
+  },
+  {
+    path: 'roles/:id',
+    element: <AdminRoleFormPage />,
+    permission: 'roles:view',
+  },
+  // Old URLs keep working.
+  {
+    path: 'roles-permissions',
+    element: <Navigate to="/admin/roles" replace />,
+  },
+  {
+    path: 'roles/staff/new',
+    element: <Navigate to="/admin/staff/new" replace />,
+  },
+  {
+    path: 'audit-logs',
+    element: <AdminAuditLogsPage />,
+  },
+  {
+    path: 'settings',
+    element: <AdminSettingsPage />,
+    permission: 'settings:manage',
+  },
   { path: 'roles-permissions', element: <AdminRolesPermissionsPage /> },
   { path: 'staff', element: <AdminStaffPage /> },
   { path: 'audit-logs', element: <AdminAuditLogsPage /> },
   { path: 'settings', element: <AdminSettingsPage /> },
+  { path: 'security', element: <AccountSecurityPage /> },
+  { path: 'account/security', element: <AccountSecurityPage /> },
+  { path: 'settings/security', element: <AccountSecurityPage /> },
 
   // Header-only pages
   { path: 'profile', element: <AdminProfilePage /> },

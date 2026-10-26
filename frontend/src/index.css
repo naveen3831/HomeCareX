@@ -1091,6 +1091,15 @@ body {
   .delete-ring, .logout-ring { animation: none; opacity: 0; }
 }
 
+
+html, body, .hcx-fs__body, .hcx-panel__body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar,
+.hcx-fs__body::-webkit-scrollbar, .hcx-panel__body::-webkit-scrollbar {
+  display: none; width: 0; height: 0;
+}
 /* Customer area: people who ask for reduced motion get no looping or entrance animation (spinners keep turning so loading still shows). */
 @media (prefers-reduced-motion: reduce) {
   .customer-shell *:not(.animate-spin),

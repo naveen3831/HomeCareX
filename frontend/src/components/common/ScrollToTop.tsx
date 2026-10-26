@@ -1,33 +1,32 @@
 import React, { useEffect } from "react";
-import {
-  useLocation,
-  useNavigationType,
-} from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 const ScrollToTop: React.FC = () => {
-  const { pathname } = useLocation();
-  const navigationType = useNavigationType();
+  const { pathname, search, hash } = useLocation();
 
   useEffect(() => {
-    // Browser Back / Forward
-    // Let the browser restore the previous scroll position.
-    if (navigationType === "POP") {
-      return;
+    if (hash) {
+      const id = decodeURIComponent(hash.slice(1));
+      const target = document.getElementById(id);
+      if (target) {
+        target.scrollIntoView({ behavior: "auto" });
+        return;
+      }
     }
 
-    // Normal navigation
+    // Always scroll immediately to the very top of the window
     window.scrollTo({
       top: 0,
-      behavior: "auto",
+      left: 0,
+      behavior: "instant" as ScrollBehavior,
     });
 
-    // Move keyboard focus to the main page content.
+    // Move keyboard focus to the main page content for accessibility without causing browser auto-scroll!
     const mainContent = document.getElementById("main-content");
-
     if (mainContent) {
-      mainContent.focus();
+      mainContent.focus({ preventScroll: true });
     }
-  }, [pathname, navigationType]);
+  }, [pathname, search, hash]);
 
   return null;
 };

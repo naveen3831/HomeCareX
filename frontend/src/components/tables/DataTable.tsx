@@ -16,6 +16,8 @@ interface DataTableProps<T> {
   pageSizeOptions?: number[];
   emptyTitle?: string;
   emptyMessage?: string;
+  /** Optional: makes each row clickable (mouse and Enter key). */
+  onRowClick?: (row: T) => void;
 }
 
 function DataTable<T>({
@@ -27,6 +29,7 @@ function DataTable<T>({
   pageSizeOptions = [10, 20, 50],
   emptyTitle = "No records found",
   emptyMessage = "There are no records to display.",
+  onRowClick,
 }: DataTableProps<T>) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
@@ -138,7 +141,21 @@ function DataTable<T>({
 
               <tbody>
                 {paginatedData.map((row) => (
-                  <tr key={rowKey(row)}>
+                  <tr
+                    key={rowKey(row)}
+                    className={onRowClick ? "datatable-row--clickable" : undefined}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (event) => {
+                            if (event.key === "Enter" && event.target === event.currentTarget) {
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
+                    tabIndex={onRowClick ? 0 : undefined}
+                  >
                     {columns.map((column) => (
                       <td key={column.key}>
                         {column.cell

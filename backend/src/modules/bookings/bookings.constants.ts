@@ -24,15 +24,7 @@ export const BOOKING_STATUSES = [
   'disputed',
 ] as const;
 
-export type BookingStatus =
-  (typeof BOOKING_STATUSES)[number];
-
-export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
-  'en_route',
-  'arrived',
-  'in_progress',
-];
-export const START_OTP_STATUS: BookingStatus = 'arrived';
+export type BookingStatus = (typeof BOOKING_STATUSES)[number];
 
 /** Named access to the statuses used by the customer booking flow. */
 export const BOOKING_STATUS = {
@@ -48,6 +40,19 @@ export const BOOKING_STATUS = {
   CANCELLED_BY_CUSTOMER: 'cancelled_by_customer',
   CANCELLED_BY_ADMIN: 'cancelled_by_admin',
 } as const satisfies Record<string, BookingStatus>;
+
+/** The customer can approve or reject an extra charge only while the partner is on site. */
+export const EXTRA_CHARGE_DECISION_STATUSES: BookingStatus[] = ['arrived', 'in_progress'];
+
+/**
+ * Statuses in which the customer may move the booking to another slot. Once a partner is assigned
+ * (or on the way) the time is committed, so the customer cancels and rebooks instead.
+ */
+export const RESCHEDULABLE_STATUSES: BookingStatus[] = [
+  'confirmed',
+  'created',
+  'searching_for_partner',
+];
 
 /** Statuses that hold a slot seat. */
 export const SLOT_HOLDING_STATUSES: BookingStatus[] = [
@@ -69,8 +74,7 @@ export const ACTOR_ROLES = [
   'system',
 ] as const;
 
-export type ActorRole =
-  (typeof ACTOR_ROLES)[number];
+export type ActorRole = (typeof ACTOR_ROLES)[number];
 
 /** Partner is physically on a job. */
 export const ACTIVE_JOB_STATUSES: BookingStatus[] = [
@@ -78,6 +82,16 @@ export const ACTIVE_JOB_STATUSES: BookingStatus[] = [
   'arrived',
   'in_progress',
 ];
+
+/** Customer contact details and partner phone are only shown while the job is active. */
+export const PARTNER_CONTACT_STATUSES: BookingStatus[] = [
+  'assigned',
+  'en_route',
+  'arrived',
+  'in_progress',
+];
+
+export const START_OTP_STATUS: BookingStatus = 'arrived';
 
 /** Counts toward today's jobs once assigned. */
 export const SCHEDULED_JOB_STATUSES: BookingStatus[] = [
@@ -104,8 +118,7 @@ export const BOOKING_WINDOW_DAYS = 14;
 export const BOOKING_TIMEZONE = 'Asia/Kolkata';
 
 /** Pending payment bookings older than this are stale. */
-export const BOOKING_HOLD_MS =
-  10 * 60 * 1000;
+export const BOOKING_HOLD_MS = 10 * 60 * 1000;
 
 /** Fixed daily slot grid. */
 export const SERVICE_SLOTS = [
@@ -269,15 +282,9 @@ const CATALOG: CatalogService[] = [
 ];
 
 export const BOOKINGS_SERVICE_CATALOG = {
-  getById: (
-    id: string,
-  ): CatalogService | undefined =>
-    CATALOG.find(
-      (service) => service.id === id,
-    ),
-
-  all: (): CatalogService[] =>
-    CATALOG,
+  getById: (id: string): CatalogService | undefined =>
+    CATALOG.find((service) => service.id === id),
+  all: (): CatalogService[] => CATALOG,
 };
 
 /** Client/server price difference tolerance. */

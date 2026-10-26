@@ -98,6 +98,14 @@ export const bookingsController = {
         decision === "approve"
           ? "Extra charge approved"
           : "Extra charge rejected",
+  async decideExtraCharge(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const { id, chargeId } = req.params;
+    const { decision } = req.body as { decision: 'approve' | 'reject' };
+    const booking = await BookingService.decideExtraCharge(customerId, id, chargeId, decision);
+    res.json({
+      success: true,
+      message: decision === 'approve' ? 'Extra charge approved' : 'Extra charge rejected',
       data: booking,
     });
   },
@@ -109,6 +117,22 @@ export const bookingsController = {
       req.params.id,
     );
     res.json({ success: true, data: preview });
+  async getInvoice(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const result = await BookingService.getInvoice(customerId, req.params.id);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('X-Invoice-Number', result.invoiceNo);
+    res.send(result.html);
+  },
+
+  async previewCancellation(req: Request, res: Response) {
+    const customerId = requireUserId(req);
+    const result = await BookingService.previewCancellation(customerId, req.params.id);
+    res.json({ success: true, data: result });
+  },
+
+  async previewCancel(req: Request, res: Response) {
+    return this.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {
@@ -120,6 +144,12 @@ export const bookingsController = {
       reason,
     );
     res.json({ success: true, message: "Booking cancelled", data: result });
+    const result = await BookingService.cancelBooking(customerId, req.params.id, reason);
+    res.json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: result,
+    });
   },
 
   async rescheduleBooking(req: Request, res: Response) {
@@ -131,6 +161,12 @@ export const bookingsController = {
       { date, slot },
     );
     res.json({ success: true, message: "Booking rescheduled", data: booking });
+    const result = await BookingService.rescheduleBooking(customerId, req.params.id, { date, slot });
+    res.json({
+      success: true,
+      message: 'Booking rescheduled successfully',
+      data: result,
+    });
   },
 
   async listBookings(req: Request, res: Response) {

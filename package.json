@@ -11,7 +11,7 @@
     "dev": "npm run dev:frontend",
     "dev:frontend": "npm run dev --workspace=frontend",
     "dev:backend": "npm run dev --workspace=backend",
-   "generate:sitemap": "node frontend/scripts/generate-sitemap.ts",
+    "generate:sitemap": "node frontend/scripts/generate-sitemap.ts",
     "build:frontend": "npm run generate:sitemap && npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
     "lint": "npm run lint --workspaces",
@@ -27,6 +27,11 @@
   ],
   "author": "HomeCareX Team",
   "license": "UNLICENSED",
+  "dependencies": {
+    "@mongodb-js/saslprep": "^1.6.1",
+    "@types/multer": "^2.3.0",
+    "multer": "^2.5.0"
+  },
   "devDependencies": {
     "@types/node": "^26.6.5"
   }

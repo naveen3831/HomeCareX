@@ -7,9 +7,19 @@ import { TREND_MONTHS } from './partner-performance.constants';
 import { partnerPerformanceRepository as repo } from './partner-performance.repository';
 import type { PerformanceSummaryDto, PerformanceTrendsDto } from './partner-performance.types';
 
+import { ensurePartnerProfile } from '../partners/partners.service';
+
 /** The partner is always taken from the verified JWT. A client-supplied id is only checked against it, never used. */
 async function resolvePartnerId(userId: string, requestedPartnerId?: string) {
-  const partner = await repo.findPartnerByUserId(userId);
+  let partner = await repo.findPartnerByUserId(userId);
+  if (!partner) {
+    try {
+      await ensurePartnerProfile(userId);
+      partner = await repo.findPartnerByUserId(userId);
+    } catch {
+      // ignore
+    }
+  }
   if (!partner) throw Errors.notFound(ERROR_CODES.PARTNER_NOT_FOUND, 'No partner profile found for this account');
   const partnerId = partner._id as Types.ObjectId;
   if (requestedPartnerId && requestedPartnerId !== partnerId.toString()) throw Errors.notOwner();

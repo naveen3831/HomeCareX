@@ -15,7 +15,7 @@ export interface ActiveJobDoc {
 
 export const partnerDashboardRepository = {
   findPartnerByUserId(userId: string) {
-    return PartnerModel.findOne({ userId }).select('ratingAvg stats').lean();
+    return PartnerModel.findOne({ userId }).select('ratingAvg stats services categories skills').lean();
   },
 
   /** Offers still open for this partner. */
