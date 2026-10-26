@@ -14,6 +14,8 @@ import { authService } from './auth.service';
  
 import {
 
+  changePasswordSchema,
+
   forgotPasswordSchema,
 
   loginSchema,
@@ -453,6 +455,14 @@ export const authController = {
   }),
  
  
+  /**
+   * POST /api/v1/auth/change-password
+   */
+  changePassword: wrap(async (req, res) => {
+    const input = parseBody(changePasswordSchema, req.body);
+    res.json({ success: true, data: await authService.changePassword(res.locals.auth.sub, input) });
+  }),
+
   /**
 
    * GET /api/v1/auth/me

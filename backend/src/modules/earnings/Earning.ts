@@ -14,6 +14,8 @@ const EarningSchema = new Schema(
     status: { type: String, enum: EARNING_STATUSES, default: 'pending' },
     earnedAt: { type: Date, required: true },
     settledAt: { type: Date, default: null },
+    /** The payout batch that cleared this earning. Null while pending; stops one earning being paid twice. */
+    payoutBatchId: { type: Schema.Types.ObjectId, ref: 'PayoutBatch', default: null },
   },
   { timestamps: true },
 );
