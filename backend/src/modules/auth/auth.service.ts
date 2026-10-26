@@ -29,7 +29,6 @@ import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { ensurePartnerProfile } from '../partners/partners.service';
-import UserModel, { type UserRole } from '../../models/User';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 
@@ -120,9 +119,6 @@ function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) 
     v: sessionTokenVersion !== undefined ? sessionTokenVersion : (user.tokenVersion ?? 0),
     ...(sid ? { sid } : {}),
   };
-function issueTokens(user: UserDoc) {
-  const access: AccessTokenPayload = { sub: user.id, role: user.role as UserRole };
-  const refresh: RefreshTokenPayload = { sub: user.id, v: user.tokenVersion };
   return {
     accessToken: jwt.sign(access, accessSecret(), { expiresIn: ACCESS_TOKEN_TTL }),
     refreshToken: jwt.sign(refresh, refreshSecret(), { expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d` }),
@@ -318,8 +314,6 @@ export const authService = {
         console.error('Failed to provision partner profile during registration', err);
       }
     }
-
-    });
 
     try {
       await mailService.sendAccountCreatedEmail({
@@ -637,11 +631,6 @@ export const authService = {
     const user = await authRepository.findById(targetUserId);
     if (!user) {
       throw new HttpError(404, 'User not found', 'USER_NOT_FOUND');
-  verifyAccessToken(token: string): AccessTokenPayload {
-    try {
-      return jwt.verify(token, accessSecret()) as AccessTokenPayload;
-    } catch {
-      throw sessionExpired('INVALID_ACCESS_TOKEN');
     }
 
     if (Array.isArray((user as any).sessions)) {
@@ -664,18 +653,6 @@ export const authService = {
     const user = await authRepository.findById(userId);
     if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
     return toAuthUser(user);
-  },
- 
-  /** Signed-in user changes their own password. Wrong current password is a 400 (not 401) so the client does not log the user out. */
-  async changePassword(userId: string, { currentPassword, newPassword }: ChangePasswordInput) {
-    const user = await authRepository.findByIdWithPassword(userId);
-    if (!user || user.status === 'blocked') throw sessionExpired('USER_NOT_FOUND');
-    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
-      throw new HttpError(400, 'Current password is incorrect', 'INVALID_CURRENT_PASSWORD');
-    }
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    await user.save();
-    return { changed: true };
   },
 
   /** Generates and dispatches a secure 6-digit OTP for password reset. */
@@ -934,25 +911,6 @@ export const authService = {
     };
   },
 
-  /** Changes password for an active user verifying current password. */
-  async changePassword(userId: string, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
-    const user = await authRepository.findByIdWithPassword(userId);
-    if (!user || user.status === 'blocked') {
-      throw new HttpError(401, 'Unauthorized', 'UNAUTHORIZED');
-    }
-
-    const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isMatch) {
-      throw new HttpError(400, 'Current password is incorrect.', 'INVALID_CURRENT_PASSWORD');
-    }
-
-    user.passwordHash = await bcrypt.hash(newPassword, 12);
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    await user.save();
-
-    return { changed: true };
-  },
-
   /** Consumes the single-use reset token, resets password, and revokes all active sessions. */
   async resetPassword({ resetToken, token, newPassword }: ResetPasswordInput) {
     const tokenToVerify = (resetToken || token)?.trim();
@@ -981,5 +939,4 @@ export const authService = {
       message: 'Your password has been reset successfully. Please log in with your new password.',
     };
   },
-};
 };

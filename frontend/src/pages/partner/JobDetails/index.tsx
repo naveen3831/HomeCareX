@@ -1,18 +1,3 @@
-import { useCallback, useEffect, useState, useContext } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import {
-  CalendarClock,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  ListChecks,
-  MapPin,
-  NotebookPen,
-  Receipt,
-  User,
-  Wallet,
-  Wrench,
-} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -31,11 +16,6 @@ import {
   verifyJobOtp,
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
-import { isCancelled, isFinished, LIFECYCLE, STATUS_LABEL, type JobStatus } from './jobStatus';
-import { AuthContext } from '@/context/AuthContext';
-import { useAuthStore } from '@/store/useAuthStore';
-import { getPartnerServices } from '../MyServices/myServices.api';
-import '@/styles/partnerJobs.css';
 import { STATUS_LABEL, type JobStatus } from './jobStatus';
 import './jobDetails.css';
 
@@ -99,17 +79,6 @@ export default function JobDetailsPage() {
   const navigate = useNavigate();
   const online = useOnline();
 
-  const authCtx = useContext(AuthContext);
-  const storeUser = useAuthStore((s) => s.user) as any;
-  const user = authCtx?.user ?? storeUser;
-  const [partnerAssignedServices, setPartnerAssignedServices] = useState<
-    Array<{ id: string; name: string; slug: string }>
-  >([]);
-
-  // /partner/jobs/:id  -> that job's details.
-  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
-  const [viewMode, setViewMode] = useState<'list' | 'details'>(id ? 'details' : 'list');
-  const showList = viewMode === 'list' && !id;
   // If route has an explicit :id (/partner/jobs/:id), open details directly;
   // If on /partner/work (no :id), first show Assigned Service Cards.
   const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));
@@ -133,33 +102,6 @@ export default function JobDetailsPage() {
   const load = useCallback(async () => {
     setState('loading');
     try {
-      let currentAssigned: Array<{ id: string; name: string; slug: string }> = [];
-      try {
-        const pServices = await getPartnerServices();
-        if (pServices?.approved && Array.isArray(pServices.selectedIds)) {
-          const selectedSet = new Set(pServices.selectedIds);
-          currentAssigned = pServices.approved.filter((s) => selectedSet.has(s.id));
-          setPartnerAssignedServices(currentAssigned);
-        }
-      } catch {
-        // Fallback or unauthenticated test mode
-      }
-
-      let loadedJob: JobDetails | null = null;
-      let catalog: JobDetails[];
-      if (id) {
-        const [fetchedJob, fetchedCatalog] = await Promise.all([
-          fetchJob(id),
-          fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned }).catch(
-            () => [] as JobDetails[],
-          ),
-        ]);
-        loadedJob = fetchedJob;
-        catalog = fetchedCatalog;
-      } else {
-        // The list screen needs only what is assigned to this partner.
-        catalog = await fetchAssignedServices({ userId: user?.id, assignedServices: currentAssigned });
-      }
       const targetId = id || 'BK-20418';
       const [loadedJob, catalog] = await Promise.all([
         fetchJob(targetId),
@@ -181,7 +123,7 @@ export default function JobDetailsPage() {
         setState('error');
       }
     }
-  }, [id, user?.id]);
+  }, [id]);
 
   useEffect(() => {
     void load();
@@ -208,11 +150,8 @@ export default function JobDetailsPage() {
     if (acceptingId || !online) return;
     setAcceptingId(serviceId);
     try {
-      const accepted = await acceptAssignedService(serviceId, user?.id);
-      const updatedCatalog = await fetchAssignedServices({
-        userId: user?.id,
-        assignedServices: partnerAssignedServices,
-      });
+      const accepted = await acceptAssignedService(serviceId);
+      const updatedCatalog = await fetchAssignedServices();
       setAssignedServices(updatedCatalog);
       setJob(accepted);
       setOtpCode('');
@@ -228,13 +167,6 @@ export default function JobDetailsPage() {
 
   const handleDeclineServiceCard = async (serviceId: string) => {
     if (!online) return;
-    setListError(null);
-    try {
-      const remaining = await declineAssignedService(serviceId, user?.id);
-      setAssignedServices(remaining);
-    } catch (err) {
-      setListError(getErrorMessage(err, 'Could not decline this service. Try again.'));
-    }
     const remaining = await declineAssignedService(serviceId);
     setAssignedServices(remaining);
   };
@@ -328,13 +260,6 @@ export default function JobDetailsPage() {
   };
 
   const handleResetDemo = () => {
-    if (!IS_MOCK_JOBS) return;
-    const fresh = resetMockPartnerJob(
-      job?.id || id || 'BK-20418',
-      user?.id,
-      partnerAssignedServices,
-    );
-    const freshCatalog = resetAllAssignedServices(user?.id, partnerAssignedServices);
     const fresh = resetMockPartnerJob(job?.id || id || 'BK-20418');
     const freshCatalog = resetAllAssignedServices();
     setAssignedServices(freshCatalog);

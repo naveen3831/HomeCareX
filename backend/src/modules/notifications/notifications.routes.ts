@@ -10,7 +10,10 @@ import { notificationsService } from './notifications.service';
 export const notificationsRoutes = Router();
 notificationsRoutes.use(authenticate);
 
-const listQuerySchema = z.object({ limit: z.coerce.number().int().min(1).max(100).default(30) }).strict();
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  unread: z.string().optional(),
+});
 const idParamsSchema = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid notification id') });
 
 notificationsRoutes.get(
@@ -18,14 +21,9 @@ notificationsRoutes.get(
   validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-<<<<<<< HEAD
     const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? ''), 10) || 30, 1), 100);
     const unreadOnly = req.query.unread === 'true';
     const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit, unreadOnly), notificationsService.unreadCount(id)]);
-=======
-    const { limit } = req.query as unknown as z.infer<typeof listQuerySchema>;
-    const [items, unread] = await Promise.all([notificationsService.listForUser(id, limit), notificationsService.unreadCount(id)]);
->>>>>>> origin/develop
     sendSuccess(res, items, { meta: { unread } });
   }),
 );

@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { ChevronRight, CreditCard, Gift, Headset, Mail, MapPin, Pencil, Phone, ShieldCheck, Wallet, type LucideIcon } from "lucide-react";
 import {
   ArrowUpRight,
   Bell,
@@ -35,14 +34,6 @@ interface Props {
   addressText?: string;
 }
 
-const DISC = "shadow-[0_8px_14px_-6px_var(--sh),inset_0_1px_0_rgba(255,255,255,.5),inset_0_-2px_0_rgba(0,0,0,.14)]";
-const SHORTCUTS: { label: string; to: string; icon: LucideIcon; tone: string }[] = [
-  { label: "Account Security", to: "/security", icon: ShieldCheck, tone: "from-[#8E86F5] to-[#4338CA] [--sh:rgba(67,56,202,.65)]" },
-  { label: "Payments", to: "/payments", icon: CreditCard, tone: "from-[#FFB35C] to-[#F26A0C] [--sh:rgba(242,106,12,.7)]" },
-  { label: "Wallet", to: "/wallet", icon: Wallet, tone: "from-[#4FD1A5] to-[#12805F] [--sh:rgba(18,128,95,.65)]" },
-  { label: "Refer & earn", to: "/referrals", icon: Gift, tone: "from-[#F58BB7] to-[#D13A7C] [--sh:rgba(209,58,124,.65)]" },
-  { label: "Support", to: "/support", icon: Headset, tone: "from-[#6FB6FF] to-[#1D5FD1] [--sh:rgba(29,95,209,.65)]" },
-];
 const DISC =
   "shadow-[0_8px_14px_-6px_var(--sh),inset_0_1px_0_rgba(255,255,255,.5),inset_0_-2px_0_rgba(0,0,0,.14)]";
 

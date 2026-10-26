@@ -219,10 +219,6 @@ export const NAV: NavItem[] = [
         to: "/partner/settings/other",
         icon: Globe,
       },
-      { key: "settings-notifications", label: "Notifications", to: "/partner/settings/notifications", icon: Bell },
-      { key: "settings-privacy", label: "Privacy", to: "/partner/settings/privacy", icon: MapPin },
-      { key: "settings-security", label: "Security", to: "/partner/settings/security", icon: Shield },
-      { key: "settings-other", label: "Other", to: "/partner/settings/other", icon: Globe },
     ],
   },
 ];
@@ -470,6 +466,7 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
+  };
 
   const handleSignOut = async () => {
     try {

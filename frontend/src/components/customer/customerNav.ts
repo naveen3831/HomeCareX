@@ -77,29 +77,6 @@ export const BOTTOM_NAV_ITEMS: CustomerNavItem[] = [
   { label: "Categories", to: customerPath("/categories"), icon: LayoutGrid, end: true },
   { label: "Services", to: customerPath("/services"), icon: Wrench, end: true },
   { label: "Home", to: customerPath(), icon: Home, end: true },
-  {
-    label: "My Bookings",
-    to: customerPath("/bookings"),
-    icon: CalendarCheck,
-    // Live tracking is reached from a booking, so it stays under this tab.
-    alsoActiveFor: [customerPath("/tracking")],
-  },
-  {
-    label: "Profile",
-    to: customerPath("/profile"),
-    icon: User,
-    // Pages reached from the Profile menu keep the Profile tab lit. Notifications is NOT one of them
-    // (it belongs to the bell in the top bar), so it lights no tab.
-    alsoActiveFor: [
-      customerPath("/addresses"),
-      customerPath("/security"),
-      customerPath("/payments"),
-      customerPath("/wallet"),
-      customerPath("/reviews"),
-      customerPath("/support"),
-      customerPath("/referrals"),
-    ],
-  },
   { label: "My Bookings", to: customerPath("/bookings"), icon: CalendarCheck, end: true },
   { label: "Profile", to: customerPath("/profile"), icon: User, end: true },
 ];

@@ -412,7 +412,7 @@ export const ServicesPage: React.FC = () => {
               lg:grid-cols-3
             "
             aria-busy="true"
-            aria-label="Loading services"
+            role="status" aria-label="Loading services"
           >
 
             {Array.from({
