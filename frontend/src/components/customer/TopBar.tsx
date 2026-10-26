@@ -23,6 +23,9 @@ const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand 
 
 /**
  * Top bar.
+ *  - Home        : ☰ (md+, sidebar collapsed) | brand | location picker … bell
+ *  - Inner pages : ☰ (md+, sidebar collapsed) | ← Page name … bell (md+ only). The back arrow goes
+ *                  back through in-app history, or to the page's parent when it was opened directly.
  *  - Home : phones — delivery-location picker … bell.  md+ — ☰ | brand | location picker … bell.
  *  - every other page, at every width: ← back arrow + the page name (see pageTitles.ts), with ☰ in front of
  *    it on md+ while the sidebar is collapsed, and the bell at the right on md+. No picker, no brand.
@@ -35,6 +38,11 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
   const { pathname, key } = useLocation();
   const navigate = useNavigate();
+
+  // null on Home, which keeps the address picker + bell instead of a back bar.
+  const meta = getCustomerPageMeta(pathname);
+
+  // React Router gives the first entry of a session the key "default": nothing to go back to.
   // null on Home. Everywhere else the bar becomes "← Page name".
   const meta = getCustomerPageMeta(pathname);
   const inner = meta !== null;
@@ -76,6 +84,60 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
           {hamburger}
           <button
             type="button"
+            onClick={onToggleSidebar}
+            aria-label="Open sidebar"
+            aria-expanded={false}
+            aria-controls={CUSTOMER_SIDEBAR_ID}
+            className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
+          >
+            <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
+            <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
+            <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
+          </button>
+        )}
+
+        {meta ? (
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label={`Back from ${meta.title}`}
+            className={clsx(
+              "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+              FOCUS_RING,
+            )}
+          >
+            <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{meta.title}</span>
+          </button>
+        ) : (
+          <>
+            <Link
+              to={customerPath()}
+              className={clsx(
+                "rounded-lg text-lg font-bold tracking-tight",
+                sidebarOpen ? "md:hidden" : "ml-2",
+                "hidden md:inline-flex",
+                FOCUS_RING,
+              )}
+            >
+              <span className="text-accent">Home</span>
+              <span className="text-brand">CareX</span>
+            </Link>
+
+            <span
+              aria-hidden="true"
+              className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
+            />
+
+            {/* One picker at every width (a single instance keeps DOM ids unique). */}
+            <div className="min-w-0 flex-1 md:flex-none">
+              <LocationPicker />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className={clsx(meta && "hidden md:block")}>
             onClick={goBack}
             aria-label={`Back from ${meta.title}`}
             className={clsx(
