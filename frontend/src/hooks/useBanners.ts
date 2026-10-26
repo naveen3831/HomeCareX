@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 
 import { BANNERS } from "@/constants/mock/public";
@@ -53,8 +53,12 @@ function getMockBanners(): SliderBanner[] {
 // The error type retryTransient expects (NormalizedApiError), so no cast is needed.
 type RetryError = Parameters<typeof retryTransient>[1];
 
-export function useBanners() {
-  return useQuery<SliderBanner[], RetryError>({
+/**
+ * Shared by useBanners() and prefetchHomeData(), so the Home page can start this request before
+ * the lazy BannerSlider chunk has loaded and both read the same cache entry.
+ */
+export function bannersQueryOptions() {
+  return queryOptions<SliderBanner[], RetryError>({
     // Including the data source keeps mock and real data from sharing a cache entry.
     queryKey: ["public", "banners", "home", USE_MOCKS ? "mock" : "api"],
 
@@ -70,4 +74,8 @@ export function useBanners() {
 
     retry: (failureCount, error) => retryTransient(failureCount, error),
   });
+}
+
+export function useBanners() {
+  return useQuery(bannersQueryOptions());
 }

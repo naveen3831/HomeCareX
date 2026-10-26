@@ -7,9 +7,13 @@ import SkipLink from "../components/common/SkipLink";
 import ScrollToTop from "../components/common/ScrollToTop";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { usePrefetchOnIntent } from "../hooks/usePrefetchOnIntent";
 
 const PublicLayout: React.FC = () => {
   const online = useOnlineStatus();
+
+  // Hover / focus / touch on any /services/:slug link prefetches that service.
+  usePrefetchOnIntent();
 
   return (
     <div className="min-h-screen flex flex-col">

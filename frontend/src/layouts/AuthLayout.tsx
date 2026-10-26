@@ -12,11 +12,20 @@ const AuthLayout: React.FC = () => {
       <div className="hidden lg:flex lg:w-1/2 h-full relative bg-neutral-950 text-white flex-col justify-between p-6 xl:p-8 select-none overflow-hidden max-w-full">
         {/* Background Image with softer, lighter gradient */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
-          <img
-            src="/images/home-cleaning.jpg"
-            alt="HomeCareX Professional Home Services"
-            className="w-full h-full object-cover object-center brightness-[0.98] contrast-[1.03]"
-          />
+          {/* WebP first, JPG fallback. width/height reserve the space (no layout shift);
+              loading="lazy" stops phones, where this panel is hidden, from downloading it. */}
+          <picture>
+            <source srcSet="/images/home-cleaning.webp" type="image/webp" />
+            <img
+              src="/images/home-cleaning.jpg"
+              alt="HomeCareX Professional Home Services"
+              width={600}
+              height={400}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover object-center brightness-[0.98] contrast-[1.03]"
+            />
+          </picture>
           {/* Directional gradient: gentle scrim on left behind text, fading to transparent on right */}
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />

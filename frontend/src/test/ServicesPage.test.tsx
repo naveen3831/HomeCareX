@@ -21,11 +21,11 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
   };
 });
 
+import ServicesPage from "../pages/public/Services";
+
 /* =========================================================
    Constants
 ========================================================= */
-
-
 
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
@@ -48,6 +48,7 @@ const LocationDisplay: React.FC = () => {
 interface TestWrapperProps {
   initialEntry?: string;
 }
+
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
 }) => (

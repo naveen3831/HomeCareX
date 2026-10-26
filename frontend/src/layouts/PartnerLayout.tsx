@@ -2,6 +2,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   createContext,
   useContext,
 } from "react";
@@ -51,6 +52,9 @@ import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
 
+// -----------------------------------------------------------------------------
+// Navigation
+// -----------------------------------------------------------------------------
 import {
   getAvailability,
   setOnline as setOnlineApi,
@@ -177,6 +181,7 @@ export const NAV: NavItem[] = [
   { key: "support", label: "Support", to: "/partner/support", icon: LifeBuoy },
   { key: "safety", label: "Safety", to: "/partner/safety", icon: ShieldAlert },
   { key: "help", label: "Help", to: "/partner/help", icon: HelpCircle },
+
   {
     key: "system",
     label: "Settings",
@@ -222,6 +227,12 @@ export const NAV: NavItem[] = [
 ];
 
 // Parents and children in one list (used for titles and "current page" lookup)
+const FLAT_NAV: (NavChild & { parent?: string })[] = NAV.flatMap((item) => [
+  item,
+  ...(item.children ?? []).map((child) => ({
+    ...child,
+    parent: item.key,
+  })),
 const FLAT_NAV: (NavChild & { parent?: string })[] = NAV.flatMap((n) => [
   n,
   ...(n.children ?? []).map((c) => ({ ...c, parent: n.key })),
@@ -337,6 +348,11 @@ const BOTTOM_NAV = [
 function BottomNav({ visible, path }: { visible: boolean; path: string }) {
 export const BOTTOM_KEYS = BOTTOM_NAV.map((item) => item.key);
 
+// -----------------------------------------------------------------------------
+// Mobile bottom navigation
+// -----------------------------------------------------------------------------
+
+function BottomNav({ visible, path }: { visible: boolean; path: string }) {
 function BottomNav({
   visible,
   path,
@@ -403,6 +419,10 @@ const PartnerStatusContext = createContext<{
 
 export const usePartnerStatus = () => useContext(PartnerStatusContext);
 
+// -----------------------------------------------------------------------------
+// Sidebar groups (keys are top-level NAV keys)
+// -----------------------------------------------------------------------------
+
 // ---- Sidebar groups (keys are top-level NAV keys) ----
 const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
   { groupName: "Overview", keys: ["home"] },
@@ -453,6 +473,10 @@ function PartnerSidebar({
     FLAT_NAV.find((n) => n.key === key)?.parent ?? key;
 
   const groupOf = (key?: string) =>
+    NAV_GROUPS.find((group) => group.keys.includes(topKeyOf(key) ?? ""))
+      ?.groupName ?? "Overview";
+
+  const [openGroup, setOpenGroup] = useState<string>(() => groupOf(currentKey));
     NAV_GROUPS.find((g) => g.keys.includes(topKeyOf(key) ?? ""))?.groupName ??
     "Overview";
 
@@ -494,7 +518,6 @@ function PartnerSidebar({
     setOpenItems((cur) =>
       cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key],
     );
-  };
 
   const handleSignOut = async () => {
     try {
@@ -770,6 +793,9 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
+  // The backend is the source of truth for the partner's online status.
+  const [online, setOnlineState] = useState<boolean>(false);
+  const onlineRef = useRef(false);
   const [online, setOnlineState] = useState<boolean>(
     () => readStoredOnlineStatus() ?? false,
   );
@@ -781,6 +807,19 @@ export default function PartnerLayout() {
     // know which service file exports it.
     void setOnlineApi(next).catch(() => {});
   }, []);
+
+  // Optimistic toggle: flip at once, then settle on what the server says;
+  // put it back if the request fails.
+  const setOnline = useCallback(
+    (next: boolean) => {
+      const previous = onlineRef.current;
+      applyOnline(next);
+      setOnlineApi(next)
+        .then((avail) => applyOnline(avail.isOnline))
+        .catch(() => applyOnline(previous));
+    },
+    [applyOnline],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -795,6 +834,7 @@ export default function PartnerLayout() {
     return () => {
       mounted = false;
     };
+  }, [applyOnline]);
   }, []);
 
   useEffect(() => {
@@ -835,6 +875,7 @@ export default function PartnerLayout() {
 
       setNavVisible(y <= 24 ? true : delta < 0);
 
+      setNavVisible(y <= 24 ? true : delta < 0);
       last = y;
     };
 
@@ -887,6 +928,7 @@ export default function PartnerLayout() {
 
   // Mobile back button
   const showBack = cleanPath !== "/partner";
+  const isTabRoot = BOTTOM_NAV.some((item) => item.to === cleanPath);
 
   const isTabRoot = BOTTOM_NAV.some((n) => n.to === cleanPath);
   const isTabRoot = BOTTOM_NAV.some(
@@ -898,6 +940,7 @@ export default function PartnerLayout() {
       navigate("/partner");
       return;
     }
+
     // React Router stores the history index; > 0 means there is a page to go back to
     const idx = (window.history.state as { idx?: number } | null)?.idx;
 
