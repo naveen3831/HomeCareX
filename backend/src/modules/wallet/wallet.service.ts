@@ -29,9 +29,10 @@ export class WalletService {
         { $setOnInsert: { userId, balance: 0 } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
-    } catch (err: any) {
-      if (err?.code === 11000) {
-        console.error("Wallet upsert E11000:", err.keyPattern, err.keyValue);
+    } catch (err: unknown) {
+      const mongoErr = err as { code?: number; keyPattern?: unknown; keyValue?: unknown };
+      if (mongoErr?.code === 11000) {
+        console.error("Wallet upsert E11000:", mongoErr.keyPattern, mongoErr.keyValue);
         // Another request may have created it just now; re-read before failing.
         wallet = await WalletModel.findOne({ userId });
         if (!wallet) throw err;
@@ -40,7 +41,7 @@ export class WalletService {
       }
     }
 
-    const query: Record<string, any> = { userId };
+    const query: Record<string, unknown> = { userId };
     if (type) {
       query.type = { $in: [type.toLowerCase(), type.toUpperCase()] };
     }

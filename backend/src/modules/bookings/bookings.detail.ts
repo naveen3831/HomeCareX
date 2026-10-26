@@ -47,14 +47,30 @@ export interface ServiceInfo {
 export interface PaymentInfo {
   /** Payment collection status: PAID, FAILED, REFUNDED, PENDING... */
   status?: string;
+  amount?: number;
   method?: string;
   transactionId?: string;
   paidAt?: unknown;
 }
 
+export interface RefundView {
+  refundId?: string;
+  status: 'PENDING_APPROVAL' | 'CREDITED' | 'REJECTED' | 'NOT_REQUIRED' | 'PROCESSING' | 'CREDIT_FAILED';
+  statusLabel: string;
+  amount?: number;
+  originalPaidAmount?: number;
+  destination: string;
+  requestedAt?: unknown;
+  creditedAt?: unknown;
+  rejectedAt?: unknown;
+  rejectionReason?: string;
+  walletTransactionRef?: string;
+}
+
 export interface DetailExtras {
   service?: ServiceInfo | null;
   payment?: PaymentInfo | null;
+  refund?: Record<string, unknown> | null;
 }
 
 export interface ExtraChargeView {
@@ -98,6 +114,7 @@ const PAID_STATES = new Set([
   "COMPLETED",
   "SETTLED",
 ]);
+
 function toPartner(
   raw: unknown,
   status: BookingStatus,
@@ -318,5 +335,114 @@ export function buildDetailView(
       extras.payment?.paidAt ??
       (completedSettled ? raw.completedAt : undefined),
   };
+
+  // Determine refund state for cancelled bookings
+  const isCancelled = String(status || "").startsWith("cancelled") || status === "no_show";
+  const refundDoc = extras.refund;
+  let refund: RefundView | null = null;
+
+  if (refundDoc) {
+    const rawRefundStatus = String(refundDoc.status ?? "").toUpperCase();
+    let normStatus: RefundView["status"] = "PENDING_APPROVAL";
+    let normLabel = "Pending Approval";
+
+    if (rawRefundStatus === "CREDITED" || rawRefundStatus === "PROCESSED") {
+      normStatus = "CREDITED";
+      normLabel = "Credited";
+    } else if (rawRefundStatus === "REJECTED") {
+      normStatus = "REJECTED";
+      normLabel = "Rejected";
+    } else if (rawRefundStatus === "PROCESSING") {
+      normStatus = "PROCESSING";
+      normLabel = "Processing";
+    } else if (rawRefundStatus === "CREDIT_FAILED") {
+      normStatus = "CREDIT_FAILED";
+      normLabel = "Credit Failed";
+    } else if (rawRefundStatus === "NOT_REQUIRED") {
+      normStatus = "NOT_REQUIRED";
+      normLabel = "Not Required";
+    }
+
+    const priceSnap = view.priceSnapshot as Record<string, unknown> | undefined;
+    const originalPaid = Number(
+      extras.payment?.amount ??
+      priceSnap?.total ??
+      (view.priceBreakdown as Record<string, unknown> | undefined)?.total ??
+      0,
+    );
+
+    refund = {
+      refundId: String(refundDoc._id ?? refundDoc.id ?? ""),
+      status: normStatus,
+      statusLabel: normLabel,
+      amount: Number(refundDoc.amount ?? 0),
+      originalPaidAmount: originalPaid,
+      destination: "HomeCareX Wallet",
+      requestedAt: refundDoc.requestedAt ?? refundDoc.createdAt,
+      creditedAt: refundDoc.processedAt ?? refundDoc.approvedAt,
+      rejectedAt: refundDoc.rejectedAt,
+      rejectionReason:
+        typeof refundDoc.rejectionReason === "string" ? refundDoc.rejectionReason : undefined,
+      walletTransactionRef:
+        typeof refundDoc.walletTransactionId === "string" ? refundDoc.walletTransactionId : undefined,
+    };
+  } else if (isCancelled) {
+    const isPaid =
+      view.paymentStatus === "PAID" ||
+      view.paymentStatus === "REFUNDED" ||
+      PAID_STATES.has(payState);
+
+    const bookingRefundStatus = String(raw.refundStatus ?? "").toUpperCase();
+    if (isPaid && (bookingRefundStatus === "PENDING_APPROVAL" || bookingRefundStatus === "REQUESTED")) {
+      const rfDetails = raw.refundDetails as Record<string, unknown> | undefined;
+      const priceSnap = view.priceSnapshot as Record<string, unknown> | undefined;
+      refund = {
+        refundId: rfDetails?.refundId ? String(rfDetails.refundId) : undefined,
+        status: "PENDING_APPROVAL",
+        statusLabel: "Pending Approval",
+        amount: Number(rfDetails?.amount ?? priceSnap?.total ?? 0),
+        originalPaidAmount: Number(priceSnap?.total ?? 0),
+        destination: "HomeCareX Wallet",
+        requestedAt: rfDetails?.requestedAt ?? raw.updatedAt,
+      };
+    } else if (isPaid && bookingRefundStatus === "CREDITED") {
+      const rfDetails = raw.refundDetails as Record<string, unknown> | undefined;
+      refund = {
+        refundId: rfDetails?.refundId ? String(rfDetails.refundId) : undefined,
+        status: "CREDITED",
+        statusLabel: "Credited",
+        amount: Number(rfDetails?.amount ?? 0),
+        destination: "HomeCareX Wallet",
+        creditedAt: rfDetails?.creditedAt ?? raw.updatedAt,
+        walletTransactionRef: rfDetails?.walletTransactionRef as string | undefined,
+      };
+    } else if (isPaid && bookingRefundStatus === "REJECTED") {
+      const rfDetails = raw.refundDetails as Record<string, unknown> | undefined;
+      refund = {
+        refundId: rfDetails?.refundId ? String(rfDetails.refundId) : undefined,
+        status: "REJECTED",
+        statusLabel: "Rejected",
+        destination: "HomeCareX Wallet",
+        rejectedAt: rfDetails?.rejectedAt ?? raw.updatedAt,
+        rejectionReason: rfDetails?.rejectionReason as string | undefined,
+      };
+    } else {
+      refund = {
+        status: "NOT_REQUIRED",
+        statusLabel: "Not Required",
+        amount: 0,
+        destination: "HomeCareX Wallet",
+      };
+    }
+  }
+
+  if (refund) {
+    view.refund = refund;
+    view.refundStatus = refund.status;
+    if (refund.status === "CREDITED") {
+      view.paymentStatus = "REFUNDED";
+    }
+  }
+
   return view;
 }

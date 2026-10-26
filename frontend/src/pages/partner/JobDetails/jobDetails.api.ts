@@ -1,7 +1,7 @@
 import api from '@/lib/api';
- import { getQuickFix, sendSos } from '@/pages/partner/Safety/safety.api';
+import { getQuickFix, sendSos } from '@/pages/partner/Safety/safety.api';
 import { MAX_PHOTO_BYTES, validatePhoto } from '@/lib/photoValidation';
-import { mapJob, mapJobListItemToJobDetails, getDefaultChecklistForService } from './jobDetails.mapper';
+import { mapJob, mapJobListItemToJobDetails, getDefaultChecklistForService, type JobListItemLike } from './jobDetails.mapper';
 import type { ApiJob, CompletionInput, ExtraChargeItem, JobDetails, StartVerification } from './jobDetails.types';
 import type { JobAction, JobStatus } from './jobStatus';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -10,8 +10,13 @@ import { getPartnerServices } from '../MyServices/myServices.api';
 export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_mock_job_v1';
 export const MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
 
+function getCurrentUserId(): string | undefined {
+  const id = useAuthStore.getState().user?.id;
+  return typeof id === 'string' ? id : undefined;
+}
+
 export function getAssignedCatalogStorageKey(userId?: string): string {
-  const effectiveId = userId || (useAuthStore.getState().user as any)?.id;
+  const effectiveId = userId || getCurrentUserId();
   return effectiveId
     ? `homecarex_partner_assigned_services_v3_${effectiveId}`
     : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
@@ -1116,13 +1121,15 @@ function findKnownJob(requestedId?: string): JobDetails | null {
     if (rawLive) {
       const liveList = JSON.parse(rawLive);
       if (Array.isArray(liveList)) {
-        const found = liveList.find((j: any) => String(j.id).toLowerCase() === cleanId);
+        const found = liveList.find((j: { id?: string | number }) => String(j.id).toLowerCase() === cleanId);
         if (found) {
           return mapJobListItemToJobDetails(found);
         }
       }
     }
-  } catch {}
+  } catch {
+    /* ignore parse failure */
+  }
 
   // 3. Match against known mock IDs / patterns
   if (cleanId === 'bk-10214' || cleanId === 'svc-5' || cleanId.includes('spa')) {
@@ -1258,7 +1265,7 @@ export interface FetchAssignedServicesOptions {
 export async function fetchAssignedServices(
   options?: FetchAssignedServicesOptions,
 ): Promise<JobDetails[]> {
-  const effectiveUserId = options?.userId || (useAuthStore.getState().user as any)?.id;
+  const effectiveUserId = options?.userId || getCurrentUserId();
   let partnerServices = options?.assignedServices;
 
   if (!partnerServices || partnerServices.length === 0) {
@@ -1274,7 +1281,7 @@ export async function fetchAssignedServices(
   }
 
   try {
-    const res = await api.get<{ data: any[] }>('/partner/jobs?tab=all');
+    const res = await api.get<{ data: JobListItemLike[] }>('/partner/jobs?tab=all');
     if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
       const mapped = res.data.data.map(mapJobListItemToJobDetails);
       const filtered =
@@ -1387,9 +1394,9 @@ export async function fetchJob(id: string): Promise<JobDetails> {
       saveMockJobToStorage(mapped);
       return mapped;
     }
-  } catch (err: any) {
-    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, err?.message || err);
-    if (!IS_MOCK_JOBS && (err?.response?.status === 404 || err?.response?.status === 403)) {
+  } catch (err: unknown) {
+    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
+    if (!IS_MOCK_JOBS && ((err as { response?: { status?: number } })?.response?.status === 404 || (err as { response?: { status?: number } })?.response?.status === 403)) {
       const fallback = findKnownJob(cleanId);
       if (fallback) {
         return withStartVerification(fallback);
@@ -1455,7 +1462,7 @@ export async function persistChecklistItem(
 export async function completeJob(bookingId: string, input?: CompletionInput): Promise<JobDetails> {
   if (!IS_MOCK_JOBS) {
     let payload: unknown = undefined;
-    let headers: Record<string, string> = {};
+    const headers: Record<string, string> = {};
     if (input?.photo) {
       const form = new FormData();
       if (input.otp) form.append('otp', input.otp);
@@ -1514,7 +1521,9 @@ export function getMockExtraCharges(bookingId: string): ExtraChargeItem[] {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    } catch {}
+    } catch {
+    /* ignore parse failure */
+  }
   }
   return [];
 }
@@ -1532,7 +1541,9 @@ export function saveMockExtraCharges(bookingId: string, items: ExtraChargeItem[]
   for (const k of keys) {
     try {
       localStorage.setItem(k, JSON.stringify(items));
-    } catch {}
+    } catch {
+    /* ignore parse failure */
+  }
   }
 }
 
@@ -1545,8 +1556,8 @@ export async function fetchExtraCharges(bookingId: string): Promise<ExtraChargeI
         saveMockExtraCharges(cleanId, res.data.data);
         return res.data.data;
       }
-    } catch (err: any) {
-      console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, err?.message || err);
+    } catch (err: unknown) {
+      console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
     }
   }
   return getMockExtraCharges(cleanId);
@@ -1565,8 +1576,8 @@ export async function createExtraCharge(
       if (res.data?.data) {
         createdFromServer = res.data.data;
       }
-    } catch (err: any) {
-      console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, err?.message || err);
+    } catch (err: unknown) {
+      console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, (err as { message?: string })?.message || err);
     }
   }
 
@@ -1591,11 +1602,15 @@ export async function createExtraCharge(
       ...job,
       extraCharges: next,
     });
-  } catch {}
+  } catch {
+    /* ignore parse failure */
+  }
 
   try {
     window.dispatchEvent(new Event('storage'));
-  } catch {}
+  } catch {
+    /* ignore parse failure */
+  }
 
   return newCharge;
 }

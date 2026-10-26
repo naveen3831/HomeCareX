@@ -71,6 +71,18 @@ export interface IBooking extends Document {
   paymentStatus: BookingPaymentStatus;
   /** Razorpay order/payment refs for the customer checkout; signature is never sent to clients. */
   paymentDetails?: { orderId?: string; paymentId?: string; signature?: string; status?: string; paidAt?: Date };
+  refundStatus?: string;
+  refundDetails?: {
+    refundId?: Types.ObjectId | string;
+    amount?: number;
+    status?: string;
+    destination?: string;
+    requestedAt?: Date;
+    creditedAt?: Date;
+    rejectedAt?: Date;
+    rejectionReason?: string;
+    walletTransactionRef?: string;
+  };
   cancellationReason?: string;
   offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired' }>;
   otpCodes?: { start?: string; end?: string };
@@ -177,6 +189,18 @@ const BookingSchema = new Schema<IBooking>(
       status: { type: String, trim: true },
       paidAt: { type: Date },
     },
+    refundStatus: { type: String, trim: true, index: true },
+    refundDetails: {
+      refundId: { type: Schema.Types.ObjectId, ref: 'Refund' },
+      amount: { type: Number },
+      status: { type: String, trim: true },
+      destination: { type: String, trim: true },
+      requestedAt: { type: Date },
+      creditedAt: { type: Date },
+      rejectedAt: { type: Date },
+      rejectionReason: { type: String, trim: true },
+      walletTransactionRef: { type: String, trim: true },
+    },
     cancellationReason: { type: String, trim: true },
     offers: { type: [OfferSchema], default: [] },
     /** Start/end verification codes; never returned to clients by default. */
@@ -217,6 +241,7 @@ BookingSchema.index(
 BookingSchema.index({ customerId: 1, status: 1, createdAt: -1 });
 BookingSchema.index({ partnerId: 1, scheduledAt: 1 });
 BookingSchema.index({ 'offers.partnerId': 1, status: 1 });
+
 
 export type Booking = IBooking;
 export const BookingModel = model<IBooking>('Booking', BookingSchema);

@@ -76,7 +76,9 @@ interface UploadedFile {
 const invalidUpload = (message = "Upload up to 3 files and check the form fields.") =>
   new HttpError(400, message, "INVALID_ATTACHMENT");
 
-async function readMultipart(req: Request): Promise<UploadedFile[]> {
+async function readMultipart(
+  req: Request,
+): Promise<{ files: UploadedFile[]; fields: Record<string, string> }> {
   const contentType = req.headers["content-type"] ?? "";
   const boundaryMatch = /^multipart\/form-data\s*;.*?boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(
     contentType,
@@ -105,6 +107,7 @@ async function readMultipart(req: Request): Promise<UploadedFile[]> {
   if (parts.length > 12) throw invalidUpload();
 
   const files: UploadedFile[] = [];
+  const fields: Record<string, string> = Object.create(null);
   let fieldCount = 0;
   for (const section of parts) {
     const part = section.startsWith("\r\n") ? section.slice(2) : section;
@@ -131,17 +134,29 @@ async function readMultipart(req: Request): Promise<UploadedFile[]> {
       files.push({ originalname: filename, mimetype, buffer, size: buffer.length });
     } else {
       fieldCount++;
-      if (fieldCount > 8 || Buffer.byteLength(payload, "latin1") > 20_000)
+      if (
+        fieldCount > 8 ||
+        Buffer.byteLength(payload, "latin1") > 20_000 ||
+        Object.hasOwn(fields, fieldName)
+      )
         throw invalidUpload();
+      fields[fieldName] = Buffer.from(payload, "latin1").toString("utf8");
     }
   }
-  return files;
+  return { files, fields };
 }
 
 /** Applied only to authenticated ticket mutations. */
 export const receiveTicketFiles: RequestHandler = (req, res, next) => {
+  if (!req.is("multipart/form-data")) {
+    res.locals.ticketFiles = [];
+    next();
+    return;
+  }
+
   void readMultipart(req)
-    .then((files) => {
+    .then(({ files, fields }) => {
+      req.body = fields;
       res.locals.ticketFiles = files.map(validateEvidence);
       next();
     })

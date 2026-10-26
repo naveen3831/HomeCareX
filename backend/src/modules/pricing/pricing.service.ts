@@ -143,7 +143,7 @@ export const pricingService = {
     let coupon: PriceQuote['coupon'] = null;
     let couponError: PriceQuote['couponError'];
     if (input.couponCode) {
-      const orderValue = lines.reduce((sum, l) => sum + l.amount, 0);
+
       try {
         coupon = await couponsService.validate(
           { serviceId: input.serviceId, quantity: input.quantity, addOns: input.addOns, date: input.date, slot: input.slot, couponCode: input.couponCode },

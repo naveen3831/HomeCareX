@@ -141,6 +141,10 @@ const adminRoutes: AdminRoute[] = [
     element: <AdminAuditLogsPage />,
   },
   {
+    path: 'audit-logs/:id',
+    element: <AdminAuditLogsPage />,
+  },
+  {
     path: 'settings',
     element: <AdminSettingsPage />,
     permission: 'settings:manage',

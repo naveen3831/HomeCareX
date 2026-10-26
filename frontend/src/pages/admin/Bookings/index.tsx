@@ -63,9 +63,18 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
  */
 const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
   {
-    id: "6abcd9a2113bfeaa34911617",
+    id: "6acc7f5fc95d912674fb2aff",
     name: "Test Partner",
-  } as BookingPartnerCandidate,
+    email: "partner@homecarex.com",
+    phone: "9000000005",
+    categories: ["Home Services", "Electrical & Plumbing"],
+    cities: ["Hyderabad"],
+    areas: ["Gachibowli", "Hitech City", "Madhapur"],
+    kycStatus: "Approved",
+    accountStatus: "Active",
+    available: true,
+    conflictBookingIds: [],
+  },
 ];
 
 function filtersAreEqual(

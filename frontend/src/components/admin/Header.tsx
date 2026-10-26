@@ -13,14 +13,12 @@ export interface HeaderNotification {
 }
 
 interface HeaderProps {
-  /** Unread notifications. Wire to the notifications API when it exists. */
   notifications?: HeaderNotification[];
 }
 
 /** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
 export const Header: React.FC<HeaderProps> = () => {
   const { pathname } = useLocation();
-  // /admin/customers/:id -> breadcrumbs are hidden on mobile only (CSS handles the breakpoint)
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
   const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

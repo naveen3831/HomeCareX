@@ -6,7 +6,7 @@ import { asyncHandler } from '../../utils/asyncHandler';
 import { AUDIT_CONSTANTS } from './audit.constants';
 import { auditController } from './audit.controller';
 
-/** Mounted at /api/v1/admin. Admin only: audit logs hold actor, IP and before/after data. */
+/** Mounted at /api/v1/admin. Audit logs are restricted to authorized administrators. */
 export const auditRoutes = Router();
 
 // All audit-log endpoints require an authenticated admin
