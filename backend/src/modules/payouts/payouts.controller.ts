@@ -1,5 +1,7 @@
+
 import type { Request, Response } from 'express';
 import { getAuthUser } from '../../middleware/auth.middleware';
+import { sendSuccess } from '../../utils/response';
 import { PayoutsService } from './payouts.service';
 
 type CsvExportResult = {
@@ -7,98 +9,122 @@ type CsvExportResult = {
   filename?: string;
 };
 
+const getIp = (req: Request): string =>
+  req.ip || req.socket.remoteAddress || 'unknown';
+
+const num = (value: unknown): number | undefined => {
+  if (value === undefined || value === '') {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const str = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim()
+    ? value.trim()
+    : undefined;
+
 export class PayoutsController {
-  constructor(private readonly service = new PayoutsService()) {}
+  constructor(
+    private readonly service = new PayoutsService(),
+  ) {}
 
   /**
    * GET /admin/payouts?page=1&limit=20&status=pending
    */
   async list(req: Request, res: Response): Promise<void> {
     const result = await this.service.listBatches({
-      page:
-        req.query.page === undefined
-          ? undefined
-          : Number(req.query.page),
-      limit:
-        req.query.limit === undefined
-          ? undefined
-          : Number(req.query.limit),
-      status:
-        typeof req.query.status === 'string'
-          ? req.query.status
-          : undefined,
+      page: num(req.query.page),
+      limit: num(req.query.limit),
+      status: str(req.query.status),
     });
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
+    // Support both service result shapes:
+    // { items, pagination } and a direct result object.
+    if (
+      result &&
+      typeof result === 'object' &&
+      'items' in result &&
+      'pagination' in result
+    ) {
+      const paginated = result as {
+        items: unknown;
+        pagination: unknown;
+      };
+
+      sendSuccess(res, paginated.items, {
+        meta: { pagination: paginated.pagination },
+      });
+      return;
+    }
+
+    sendSuccess(res, result);
   }
 
   /**
    * POST /admin/payouts
    */
   async generate(req: Request, res: Response): Promise<void> {
-    const user = getAuthUser(req);
-    const { periodStart, periodEnd } = req.body ?? {};
+    const admin = getAuthUser(req);
 
     const result = await this.service.generateBatch({
-      periodStart,
-      periodEnd,
-      adminId: user.id,
-      ip: req.ip || req.socket.remoteAddress || 'unknown',
+      periodStart: req.body?.periodStart,
+      periodEnd: req.body?.periodEnd,
+      adminId: admin.id,
+      ip: getIp(req),
     });
 
-    res.status(201).json({
-      success: true,
-      data: result,
-    });
+    sendSuccess(res, result, { status: 201 });
   }
 
   /**
    * GET /admin/payouts/:id
    */
-  async getBatch(req: Request, res: Response): Promise<void> {
+  async get(req: Request, res: Response): Promise<void> {
     const result = await this.service.getBatch(
       String(req.params.id),
     );
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
+    sendSuccess(res, result);
+  }
+
+  /**
+   * Backward-compatible alias for routes using getBatch.
+   */
+  async getBatch(req: Request, res: Response): Promise<void> {
+    await this.get(req, res);
   }
 
   /**
    * GET /admin/payouts/:id/payouts
    */
-  async listPayouts(req: Request, res: Response): Promise<void> {
+  async listPayouts(
+    req: Request,
+    res: Response,
+  ): Promise<void> {
     const result = await this.service.listPayouts(
       String(req.params.id),
     );
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
+    sendSuccess(res, result);
   }
 
   /**
    * PATCH /admin/payouts/:id/mark-paid
    */
   async markPaid(req: Request, res: Response): Promise<void> {
-    const user = getAuthUser(req);
+    const admin = getAuthUser(req);
 
     const result = await this.service.markPaid({
       payoutId: String(req.params.id),
-      adminId: user.id,
-      ip: req.ip || req.socket.remoteAddress || 'unknown',
+      adminId: admin.id,
+      ip: getIp(req),
+      transactionId: str(req.body?.transactionId),
     });
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
+    sendSuccess(res, result);
   }
 
   /**
@@ -112,17 +138,15 @@ export class PayoutsController {
     let filename: string;
 
     if (typeof result === 'string') {
-      // Supports services that return the CSV string directly.
       csv = result;
       filename = `payouts-${batchId}.csv`;
     } else {
-      // Supports services that return { csv, filename }.
       const exportResult = result as CsvExportResult;
       csv = exportResult.csv;
       filename =
         typeof exportResult.filename === 'string' &&
         exportResult.filename.trim()
-          ? exportResult.filename
+          ? exportResult.filename.trim()
           : `payouts-${batchId}.csv`;
     }
 
@@ -134,7 +158,7 @@ export class PayoutsController {
       return;
     }
 
-    // Prevent unsafe characters in the download filename.
+    // Keep the downloaded filename safe.
     filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 
     if (!filename.toLowerCase().endsWith('.csv')) {
@@ -148,7 +172,6 @@ export class PayoutsController {
       `attachment; filename="${filename}"`,
     );
     res.setHeader('Cache-Control', 'no-store');
-
     res.send(csv);
   }
 }

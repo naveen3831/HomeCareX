@@ -84,7 +84,6 @@ export async function notifyAdmins(
   const settingKey = ADMIN_ALERT_SETTING[type];
 
   if (settingKey) {
-    // Use an explicit type to avoid an incorrectly narrowed comparison.
     const settingValue: unknown = await getSetting(settingKey);
 
     if (settingValue === false) {
@@ -112,6 +111,24 @@ export class NotificationsService {
   notify = notify;
 
   /**
+   * Lists notifications for a user, optionally filtering to unread items.
+   */
+  async listForUser(
+    userId: string,
+    limit = 30,
+    unreadOnly = false,
+  ) {
+    const rows = await NotificationModel.find({
+      userId,
+      ...(unreadOnly ? { readAt: null } : {}),
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+
+    return rows.map((row) => toDto(row as never));
+  }
+
+  /**
    * Lists customer notifications and returns unread counts by group.
    */
   async listForCustomer(
@@ -130,7 +147,7 @@ export class NotificationsService {
 
     const groupTypes: Record<
       Exclude<NotificationGroup, "system">,
-      unknown
+      RegExp | { $in: string[] }
     > = {
       booking: /^booking\./,
       payment: {
@@ -185,7 +202,7 @@ export class NotificationsService {
           ? filters[0]
           : { $and: filters },
       )
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .limit(limit),
 
       objectId
@@ -330,24 +347,6 @@ export class NotificationsService {
     });
 
     return result.deletedCount;
-  }
-
-  /**
-   * Backward-compatible list method.
-   */
-  async listForUser(
-    userId: string,
-    limit = 30,
-    unreadOnly = false,
-  ) {
-    const rows = await NotificationModel.find({
-      userId,
-      ...(unreadOnly ? { readAt: null } : {}),
-    })
-      .sort({ createdAt: -1, _id: -1 })
-      .limit(limit);
-
-    return rows.map((row) => toDto(row as never));
   }
 
   unreadCount(userId: string) {

@@ -1,5 +1,5 @@
 
-import type { Types } from "mongoose";
+import { Types } from "mongoose";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
 import ServiceModel from "../../models/Service";
@@ -26,18 +26,24 @@ export interface JobBookingDoc {
   serviceName: string;
   customerName?: string;
   quantity: number;
-  addOns: Array<{ addOnId: Types.ObjectId; quantity: number }>;
+  addOns: Array<{
+    addOnId: Types.ObjectId;
+    quantity: number;
+  }>;
   address: {
     line1: string;
     area?: string | null;
     city: string;
     pincode?: string | null;
-    location?: { coordinates?: number[] };
+    location?: {
+      coordinates?: number[];
+    };
   };
   date?: string;
   slot?: string;
   scheduledAt: Date;
   startedAt?: Date;
+  completedAt?: Date;
   status: BookingStatus;
   statusHistory: IBooking["statusHistory"];
   priceSnapshot?: {
@@ -49,13 +55,24 @@ export interface JobBookingDoc {
       amount: number;
     }>;
   };
-  priceBreakdown?: { total?: number };
+  priceBreakdown?: {
+    total?: number;
+  };
   partnerEarning?: number;
   paymentStatus: string;
-  paymentDetails?: { paidAt?: Date };
+  paymentDetails?: {
+    paidAt?: Date;
+  };
   instructions?: string;
-  checklist?: Array<{ id: string; label: string; done: boolean }>;
-  otpCodes?: { start?: string };
+  checklist?: Array<{
+    id: string;
+    label: string;
+    done: boolean;
+  }>;
+  otpCodes?: {
+    start?: string;
+    end?: string;
+  };
   extraCharges?: JobExtraCharge[];
   offers?: Array<{
     partnerId: Types.ObjectId;
@@ -117,7 +134,10 @@ export const partnerJobsRepository = {
       .lean<JobServiceDoc>();
   },
 
-  findJobRequests(partnerId: Types.ObjectId, now: Date = new Date()) {
+  findJobRequests(
+    partnerId: Types.ObjectId,
+    now: Date = new Date(),
+  ) {
     return BookingModel.find({
       status: "searching_for_partner",
       offers: {
@@ -142,7 +162,9 @@ export const partnerJobsRepository = {
       .select("status offers")
       .lean();
 
-    if (!existing) return "NOT_FOUND";
+    if (!existing) {
+      return "NOT_FOUND";
+    }
 
     const entry: StatusHistoryEntry = {
       from: "searching_for_partner",
@@ -171,7 +193,9 @@ export const partnerJobsRepository = {
           partnerId,
           "offers.$[offer].response": "accepted",
         },
-        $push: { statusHistory: entry },
+        $push: {
+          statusHistory: entry,
+        },
       },
       {
         arrayFilters: [
@@ -196,7 +220,9 @@ export const partnerJobsRepository = {
       .select("status offers")
       .lean();
 
-    if (!existing) return "NOT_FOUND";
+    if (!existing) {
+      return "NOT_FOUND";
+    }
 
     const result = await BookingModel.updateOne(
       {
@@ -223,7 +249,7 @@ export const partnerJobsRepository = {
       },
     );
 
-    return result.matchedCount > 0 ? "REJECTED" : "NOT_FOUND";
+    return result.modifiedCount > 0 ? "REJECTED" : "NOT_FOUND";
   },
 
   async transitionStatus(
@@ -240,8 +266,12 @@ export const partnerJobsRepository = {
         status: from,
       },
       {
-        $set: { status: to },
-        $push: { statusHistory: entry },
+        $set: {
+          status: to,
+        },
+        $push: {
+          statusHistory: entry,
+        },
       },
     );
 
@@ -252,36 +282,33 @@ export const partnerJobsRepository = {
     bookingId: string,
     partnerId: Types.ObjectId,
     entry: StatusHistoryEntry,
-    _now: Date = new Date(),
+    now: Date = new Date(),
   ): Promise<boolean> {
-    return this.transitionStatus(
-      bookingId,
-      partnerId,
-      "arrived",
-      "in_progress",
-      entry,
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        partnerId,
+        status: "arrived",
+      },
+      {
+        $set: {
+          status: "in_progress",
+          startedAt: now,
+        },
+        $push: {
+          statusHistory: entry,
+        },
+      },
     );
+
+    return result.modifiedCount === 1;
   },
 
   async completePartnerJob(
     bookingId: string,
     partnerId: Types.ObjectId,
     entry: StatusHistoryEntry,
-    _now: Date = new Date(),
-  ): Promise<boolean> {
-    return this.transitionStatus(
-      bookingId,
-      partnerId,
-      "in_progress",
-      "completed",
-      entry,
-    );
-  },
-
-  async addExtraCharge(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    charge: JobExtraCharge,
+    now: Date = new Date(),
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
       {
@@ -290,7 +317,42 @@ export const partnerJobsRepository = {
         status: "in_progress",
       },
       {
-        $push: { extraCharges: charge },
+        $set: {
+          status: "completed",
+          completedAt: now,
+        },
+        $push: {
+          statusHistory: entry,
+        },
+      },
+    );
+
+    return result.modifiedCount === 1;
+  },
+
+  async addExtraCharge(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    charge: JobExtraCharge,
+  ): Promise<boolean> {
+    const filter = Types.ObjectId.isValid(bookingId)
+      ? {
+          _id: new Types.ObjectId(bookingId),
+          partnerId,
+          status: "in_progress",
+        }
+      : {
+          _id: bookingId,
+          partnerId,
+          status: "in_progress",
+        };
+
+    const result = await BookingModel.updateOne(
+      filter,
+      {
+        $push: {
+          extraCharges: charge,
+        },
       },
     );
 
@@ -300,16 +362,24 @@ export const partnerJobsRepository = {
   async updateChecklist(
     bookingId: string,
     partnerId: Types.ObjectId,
-    checklist: Array<{ id: string; label: string; done: boolean }>,
+    checklist: Array<{
+      id: string;
+      label: string;
+      done: boolean;
+    }>,
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
       {
         _id: bookingId,
         partnerId,
-        status: { $in: ["assigned", "en_route", "arrived", "in_progress"] },
+        status: {
+          $in: ["assigned", "en_route", "arrived", "in_progress"],
+        },
       },
       {
-        $set: { checklist },
+        $set: {
+          checklist,
+        },
       },
     );
 

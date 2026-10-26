@@ -1,3 +1,4 @@
+
 import { Types } from 'mongoose';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
@@ -132,7 +133,7 @@ export const payoutsRepository: PayoutsRepository = {
         .map((group) => ({
           _id: new Types.ObjectId(),
           partnerId: new Types.ObjectId(group.partnerId),
-          amount: group.net,
+          amount: round2(group.net),
           status: 'pending' as const,
           method: methodOf(group.partnerId),
           batchId,
@@ -199,14 +200,19 @@ export const payoutsRepository: PayoutsRepository = {
   /**
    * Lists payout batches with pagination and an optional status filter.
    */
-  async listBatches({ page, limit, status }) {
+  async listBatches({ page = 1, limit = 20, status }) {
+    const safePage =
+      Number.isInteger(page) && page > 0 ? page : 1;
+    const safeLimit =
+      Number.isInteger(limit) && limit > 0 ? limit : 20;
+
     const match = status ? { status } : {};
 
     const [items, total] = await Promise.all([
       PayoutBatchModel.find(match)
         .sort({ createdAt: -1, _id: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit)
         .lean(),
 
       PayoutBatchModel.countDocuments(match),
@@ -215,10 +221,10 @@ export const payoutsRepository: PayoutsRepository = {
     return {
       items: items as unknown as BatchRecord[],
       pagination: {
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         total,
-        pages: Math.ceil(total / limit),
+        pages: Math.ceil(total / safeLimit),
       },
     };
   },
@@ -236,6 +242,14 @@ export const payoutsRepository: PayoutsRepository = {
    * Lists payouts in a batch and attaches the partner's name and email.
    */
   async listPayouts(batchId) {
+    if (!Types.ObjectId.isValid(batchId)) {
+      throw new AppError(
+        400,
+        'INVALID_BATCH_ID',
+        'Invalid payout batch ID',
+      );
+    }
+
     const payouts = await PayoutModel.find({
       batchId: new Types.ObjectId(batchId),
     })
@@ -288,6 +302,14 @@ export const payoutsRepository: PayoutsRepository = {
    * and recalculates its batch status.
    */
   async markPaid({ payoutId, transactionId }) {
+    if (!Types.ObjectId.isValid(payoutId)) {
+      throw new AppError(
+        400,
+        'INVALID_PAYOUT_ID',
+        'Invalid payout ID',
+      );
+    }
+
     const existing = await PayoutModel.findById(payoutId).lean();
 
     if (!existing) {
@@ -299,7 +321,7 @@ export const payoutsRepository: PayoutsRepository = {
     }
 
     if (existing.status === 'paid') {
-      // Heal a prior run that failed before recording the wallet debit.
+      // Reconcile the wallet ledger if a previous operation was interrupted.
       if (existing.partnerId) {
         await partnerWalletLedger.debitPayout({
           partnerId: String(existing.partnerId),
@@ -358,7 +380,9 @@ export const payoutsRepository: PayoutsRepository = {
         {
           $set: {
             status: computeBatchStatus(
-              siblings.map((sibling) => sibling.status as PayoutStatus),
+              siblings.map(
+                (sibling) => sibling.status as PayoutStatus,
+              ),
             ),
           },
         },
@@ -380,3 +404,5 @@ export const payoutsRepository: PayoutsRepository = {
     };
   },
 };
+
+export default payoutsRepository;

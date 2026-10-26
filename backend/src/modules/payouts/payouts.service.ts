@@ -1,33 +1,33 @@
-import { Types } from "mongoose";
 
-import { AppError } from "../../utils/AppError";
-import PayoutModel from "../../models/Payout";
-import PayoutBatchModel from "../../models/PayoutBatch";
+import { Types } from 'mongoose';
+import { AppError } from '../../utils/AppError';
+import PayoutModel from '../../models/Payout';
+import PayoutBatchModel from '../../models/PayoutBatch';
 import {
   auditService,
   type AuditService,
-} from "../audit/audit.service";
+} from '../audit/audit.service';
 import {
   DEFAULT_LIMIT,
   DEFAULT_PAGE,
   MAX_LIMIT,
   PAYOUT_BATCH_STATUSES,
-} from "./payouts.constants";
-import { payoutsRepository } from "./payouts.repository";
-import { payoutsDemoRepository } from "./payouts.demo.repository";
-import { alertPayoutFailed } from "../notifications/admin-alerts";
+} from './payouts.constants';
+import { payoutsRepository } from './payouts.repository';
+import { payoutsDemoRepository } from './payouts.demo.repository';
+import { alertPayoutFailed } from '../notifications/admin-alerts';
 import type {
   GenerateBatchInput,
   ListBatchesInput,
   MarkPaidInput,
   PayoutsRepository,
-} from "./payouts.types";
-import { isObjectId, parseDate } from "./payouts.validation";
+} from './payouts.types';
+import { isObjectId, parseDate } from './payouts.validation';
 
-type RepositoryPort = Omit<PayoutsRepository, "markPaid"> &
-  Partial<Pick<PayoutsRepository, "markPaid">>;
+type RepositoryPort = Omit<PayoutsRepository, 'markPaid'> &
+  Partial<Pick<PayoutsRepository, 'markPaid'>>;
 
-type PayoutStatus = "pending" | "processing" | "paid" | "failed";
+type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
 
 interface PartnerInfo {
   _id?: unknown;
@@ -46,41 +46,51 @@ interface PayoutDocument {
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
+  method?: string | null;
+  transactionId?: string | null;
   paidAt?: Date | string | null;
   createdAt?: Date | string;
 }
 
 const allowedTransitions: Record<PayoutStatus, PayoutStatus[]> = {
-  pending: ["processing", "failed", "paid"],
-  processing: ["failed", "paid"],
-  failed: ["processing"],
+  pending: ['processing', 'failed', 'paid'],
+  processing: ['failed', 'paid'],
+  failed: ['processing'],
   paid: [],
 };
 
 const CSV_HEADERS = [
-  "Payout ID",
-  "Partner ID",
-  "Partner Name",
-  "Partner Email",
-  "Batch ID",
-  "Period Start",
-  "Period End",
-  "Amount INR",
-  "Status",
-  "Paid At",
-  "Created At",
+  'Payout ID',
+  'Partner ID',
+  'Partner Name',
+  'Partner Email',
+  'Batch ID',
+  'Period Start',
+  'Period End',
+  'Amount INR',
+  'Status',
+  'Paid At',
+  'Created At',
 ];
 
 function idToString(value: unknown): string {
-  if (typeof value === "object" && value !== null && "_id" in value) {
-    return String(value._id ?? "");
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    '_id' in value
+  ) {
+    return String(value._id ?? '');
   }
 
-  return String(value ?? "");
+  return String(value ?? '');
 }
 
 function getPartner(value: unknown): PartnerInfo | null {
-  if (typeof value === "object" && value !== null && "name" in value) {
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    ('name' in value || '_id' in value || 'email' in value)
+  ) {
     return value as PartnerInfo;
   }
 
@@ -89,9 +99,9 @@ function getPartner(value: unknown): PartnerInfo | null {
 
 function getBatchInfo(value: unknown): BatchInfo | null {
   if (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
-    ("periodStart" in value || "periodEnd" in value)
+    ('periodStart' in value || 'periodEnd' in value)
   ) {
     return value as BatchInfo;
   }
@@ -102,23 +112,23 @@ function getBatchInfo(value: unknown): BatchInfo | null {
 function toIsoString(
   value: Date | string | null | undefined,
 ): string {
-  if (value == null) return "";
+  if (value == null) return '';
 
   const date = value instanceof Date ? value : new Date(value);
 
-  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
 }
 
+/** Quote CSV cells and protect spreadsheet users from formula injection. */
 export function escapeCsv(value: unknown): string {
   let text =
     value == null
-      ? ""
+      ? ''
       : value instanceof Date
         ? value.toISOString()
         : String(value);
 
-  // Prevent spreadsheet formula injection for non-numeric values.
-  if (typeof value !== "number" && /^\s*[=+\-@]/.test(text)) {
+  if (typeof value !== 'number' && /^\s*[=+\-@]/.test(text)) {
     text = `'${text}`;
   }
 
@@ -127,8 +137,8 @@ export function escapeCsv(value: unknown): string {
 
 function buildCsv(rows: unknown[][]): string {
   return rows
-    .map((row) => row.map(escapeCsv).join(","))
-    .join("\r\n");
+    .map((row) => row.map(escapeCsv).join(','))
+    .join('\r\n');
 }
 
 function payoutToCsvRow(payout: PayoutDocument): unknown[] {
@@ -138,8 +148,8 @@ function payoutToCsvRow(payout: PayoutDocument): unknown[] {
   return [
     idToString(payout._id),
     idToString(payout.partnerId),
-    partner?.name ?? "",
-    partner?.email ?? "",
+    partner?.name ?? '',
+    partner?.email ?? '',
     idToString(payout.batchId),
     toIsoString(batch?.periodStart),
     toIsoString(batch?.periodEnd),
@@ -151,117 +161,119 @@ function payoutToCsvRow(payout: PayoutDocument): unknown[] {
 }
 
 function getErrorCode(error: unknown): string {
-  if (typeof error === "object" && error !== null && "code" in error) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error
+  ) {
     return String(error.code);
   }
 
-  return "";
+  return '';
 }
 
 function getErrorMessage(error: unknown): string {
   if (
-    typeof error === "object" &&
+    typeof error === 'object' &&
     error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
+    'message' in error &&
+    typeof error.message === 'string'
   ) {
     return error.message;
   }
 
-  return "An unexpected payout error occurred";
+  return 'An unexpected payout error occurred';
 }
 
 function mapRepositoryError(error: unknown): never {
-  // Preserve already-mapped application errors.
   if (error instanceof AppError) {
     throw error;
   }
 
   const code = getErrorCode(error);
 
-  if (code === "INVALID_ADMIN_ID") {
-    throw new AppError(401, code, "A valid admin ID is required");
-  }
-
-  if (code === "INVALID_PERIOD" || code === "INVALID_PAYOUT_PERIOD") {
-    throw new AppError(
-      400,
-      code,
-      "Enter a valid payout period",
-    );
+  if (code === 'INVALID_ADMIN_ID') {
+    throw new AppError(401, code, 'A valid admin ID is required');
   }
 
   if (
-    code === "NO_ELIGIBLE_EARNINGS" ||
-    code === "NO_EARNINGS_TO_PAY"
+    code === 'INVALID_PERIOD' ||
+    code === 'INVALID_PAYOUT_PERIOD'
+  ) {
+    throw new AppError(400, code, 'Enter a valid payout period');
+  }
+
+  if (
+    code === 'NO_ELIGIBLE_EARNINGS' ||
+    code === 'NO_EARNINGS_TO_PAY'
   ) {
     throw new AppError(
       422,
       code,
-      "There are no pending earnings in this period",
+      'There are no pending earnings in this period',
     );
   }
 
   if (
-    code === "PAYOUT_BATCH_ALREADY_EXISTS" ||
-    code === "PAYOUT_EARNINGS_RESERVATION_CONFLICT"
+    code === 'PAYOUT_BATCH_ALREADY_EXISTS' ||
+    code === 'PAYOUT_EARNINGS_RESERVATION_CONFLICT'
   ) {
     throw new AppError(
       409,
       code,
-      "A payout batch already exists or the earnings are already reserved",
+      'A payout batch already exists or the earnings are already reserved',
     );
   }
 
-  if (code === "INVALID_PAYOUT_ID") {
-    throw new AppError(400, code, "Invalid payout ID");
+  if (code === 'INVALID_PAYOUT_ID') {
+    throw new AppError(400, code, 'Invalid payout ID');
   }
 
-  if (code === "PAYOUT_NOT_FOUND") {
-    throw new AppError(404, code, "Payout not found");
+  if (code === 'PAYOUT_NOT_FOUND') {
+    throw new AppError(404, code, 'Payout not found');
   }
 
-  if (code === "PAYOUT_ALREADY_PAID") {
+  if (code === 'PAYOUT_ALREADY_PAID') {
     throw new AppError(
       409,
       code,
-      "This payout is already marked as paid",
+      'This payout is already marked as paid',
     );
   }
 
-  if (code === "PAYOUT_STATUS_CONFLICT") {
+  if (code === 'PAYOUT_STATUS_CONFLICT') {
     throw new AppError(
       409,
       code,
-      "The requested payout status transition is not allowed",
+      'The requested payout status transition is not allowed',
     );
   }
 
-  if (code === "INVALID_PAYOUT_STATUS") {
-    throw new AppError(400, code, "Invalid payout status");
+  if (code === 'INVALID_PAYOUT_STATUS') {
+    throw new AppError(400, code, 'Invalid payout status');
   }
 
-  // Preserve the original message for unexpected errors where possible.
   throw new AppError(
     500,
-    "PAYOUT_OPERATION_FAILED",
+    'PAYOUT_OPERATION_FAILED',
     getErrorMessage(error),
   );
 }
 
 function isPayoutStatus(value: unknown): value is PayoutStatus {
   return (
-    value === "pending" ||
-    value === "processing" ||
-    value === "paid" ||
-    value === "failed"
+    value === 'pending' ||
+    value === 'processing' ||
+    value === 'paid' ||
+    value === 'failed'
   );
 }
 
 export class PayoutsService {
   constructor(
     private readonly repository: RepositoryPort = payoutsRepository,
-    private readonly audit: Pick<AuditService, "recordAudit"> = auditService,
+    private readonly audit: Pick<AuditService, 'recordAudit'> =
+      auditService,
     private readonly demoMode = false,
   ) {}
 
@@ -269,8 +281,8 @@ export class PayoutsService {
     if (!isObjectId(adminId)) {
       throw new AppError(
         401,
-        "INVALID_ADMIN_ID",
-        "A valid admin ID is required",
+        'INVALID_ADMIN_ID',
+        'A valid admin ID is required',
       );
     }
   }
@@ -279,19 +291,20 @@ export class PayoutsService {
     if (!isObjectId(batchId)) {
       throw new AppError(
         400,
-        "INVALID_BATCH_ID",
-        "A valid payout batch ID is required",
+        'INVALID_BATCH_ID',
+        'A valid payout batch ID is required',
       );
     }
   }
 
   private async record(
-    input: Parameters<AuditService["recordAudit"]>[0],
+    input: Parameters<AuditService['recordAudit']>[0],
   ): Promise<void> {
     try {
       await this.audit.recordAudit(input);
     } catch (error) {
-      console.error("[payouts] Audit log failed", error);
+      // Audit failure should not mask a completed payout operation.
+      console.error('[payouts] Audit log failed', error);
     }
   }
 
@@ -316,16 +329,16 @@ export class PayoutsService {
     ) {
       throw new AppError(
         400,
-        "INVALID_PAYOUT_PERIOD",
-        "Enter valid payout period dates",
+        'INVALID_PAYOUT_PERIOD',
+        'Enter valid payout period dates',
       );
     }
 
     if (periodStart.getTime() >= periodEnd.getTime()) {
       throw new AppError(
         400,
-        "INVALID_PAYOUT_PERIOD",
-        "The period start must be before the period end",
+        'INVALID_PAYOUT_PERIOD',
+        'The period start must be before the period end',
       );
     }
 
@@ -338,8 +351,8 @@ export class PayoutsService {
 
       await this.record({
         actor: input.adminId,
-        action: "PAYOUT_BATCH_GENERATED",
-        entity: "PayoutBatch",
+        action: 'PAYOUT_BATCH_GENERATED',
+        entity: 'PayoutBatch',
         entityId: idToString(batch._id),
         after: {
           periodStart,
@@ -350,7 +363,7 @@ export class PayoutsService {
           status: batch.status,
         },
         ip: input.ip,
-        result: "Success",
+        result: 'Success',
       });
 
       return batch;
@@ -366,27 +379,33 @@ export class PayoutsService {
     if (!Number.isInteger(page) || page < 1) {
       throw new AppError(
         400,
-        "INVALID_PAGE",
-        "Page must be a whole number of 1 or more",
+        'INVALID_PAGE',
+        'Page must be a whole number of 1 or more',
       );
     }
 
-    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
+    if (
+      !Number.isInteger(limit) ||
+      limit < 1 ||
+      limit > MAX_LIMIT
+    ) {
       throw new AppError(
         400,
-        "INVALID_LIMIT",
+        'INVALID_LIMIT',
         `Limit must be between 1 and ${MAX_LIMIT}`,
       );
     }
 
     if (
       input.status !== undefined &&
-      !(PAYOUT_BATCH_STATUSES as readonly string[]).includes(input.status)
+      !(PAYOUT_BATCH_STATUSES as readonly string[]).includes(
+        input.status,
+      )
     ) {
       throw new AppError(
         400,
-        "INVALID_BATCH_STATUS",
-        "Unsupported payout batch status",
+        'INVALID_BATCH_STATUS',
+        'Unsupported payout batch status',
       );
     }
 
@@ -405,8 +424,8 @@ export class PayoutsService {
     if (!batch) {
       throw new AppError(
         404,
-        "PAYOUT_BATCH_NOT_FOUND",
-        "Payout batch not found",
+        'PAYOUT_BATCH_NOT_FOUND',
+        'Payout batch not found',
       );
     }
 
@@ -421,8 +440,8 @@ export class PayoutsService {
     if (!batch) {
       throw new AppError(
         404,
-        "PAYOUT_BATCH_NOT_FOUND",
-        "Payout batch not found",
+        'PAYOUT_BATCH_NOT_FOUND',
+        'Payout batch not found',
       );
     }
 
@@ -435,16 +454,16 @@ export class PayoutsService {
     if (!isObjectId(input.payoutId)) {
       throw new AppError(
         400,
-        "INVALID_PAYOUT_ID",
-        "A valid payout ID is required",
+        'INVALID_PAYOUT_ID',
+        'A valid payout ID is required',
       );
     }
 
     if (!this.repository.markPaid) {
       throw new AppError(
         501,
-        "NOT_SUPPORTED",
-        "Marking payouts as paid is not supported by this repository",
+        'NOT_SUPPORTED',
+        'Marking payouts as paid is not supported by this repository',
       );
     }
 
@@ -456,8 +475,8 @@ export class PayoutsService {
 
       await this.record({
         actor: input.adminId,
-        action: "PAYOUT_MARKED_PAID",
-        entity: "Payout",
+        action: 'PAYOUT_MARKED_PAID',
+        entity: 'Payout',
         entityId: input.payoutId,
         after: {
           status: payout.status,
@@ -466,7 +485,7 @@ export class PayoutsService {
           transactionId: input.transactionId,
         },
         ip: input.ip,
-        result: "Success",
+        result: 'Success',
       });
 
       return payout;
@@ -475,6 +494,10 @@ export class PayoutsService {
     }
   }
 
+  /**
+   * Changes a payout status with transition validation.
+   * Used by admin workflows that support the full status lifecycle.
+   */
   async updateStatus(input: {
     payoutId: string;
     status: unknown;
@@ -484,7 +507,7 @@ export class PayoutsService {
     const { payoutId, status, adminId, ip } = input;
 
     if (!isObjectId(payoutId)) {
-      throw new AppError(400, "INVALID_PAYOUT_ID", "Invalid payout ID");
+      throw new AppError(400, 'INVALID_PAYOUT_ID', 'Invalid payout ID');
     }
 
     this.requireAdmin(adminId);
@@ -492,8 +515,8 @@ export class PayoutsService {
     if (!isPayoutStatus(status)) {
       throw new AppError(
         400,
-        "INVALID_PAYOUT_STATUS",
-        "Status must be pending, processing, paid, or failed",
+        'INVALID_PAYOUT_STATUS',
+        'Status must be pending, processing, paid, or failed',
       );
     }
 
@@ -506,14 +529,16 @@ export class PayoutsService {
           nextStatus,
         );
 
-        if (nextStatus === "failed") {
+        if (nextStatus === 'failed') {
           const payout = updated as unknown as PayoutDocument;
           const partner = getPartner(payout.partnerId);
 
           alertPayoutFailed({
             payoutId,
             amount: payout.amount,
-            partnerId: partner?._id ? String(partner._id) : undefined,
+            partnerId: partner?._id
+              ? String(partner._id)
+              : undefined,
             partnerName: partner?.name,
             batchId: idToString(payout.batchId),
           });
@@ -521,12 +546,12 @@ export class PayoutsService {
 
         await this.record({
           actor: adminId,
-          action: "PAYOUT_STATUS_UPDATED",
-          entity: "Payout",
+          action: 'PAYOUT_STATUS_UPDATED',
+          entity: 'Payout',
           entityId: payoutId,
           after: { status: nextStatus },
           ip,
-          result: "Success",
+          result: 'Success',
         });
 
         return updated;
@@ -539,15 +564,15 @@ export class PayoutsService {
     const before = beforeResult as unknown as PayoutDocument | null;
 
     if (!before) {
-      throw new AppError(404, "PAYOUT_NOT_FOUND", "Payout not found");
+      throw new AppError(404, 'PAYOUT_NOT_FOUND', 'Payout not found');
     }
 
     if (before.status === nextStatus) {
       throw new AppError(
         409,
-        before.status === "paid"
-          ? "PAYOUT_ALREADY_PAID"
-          : "PAYOUT_STATUS_CONFLICT",
+        before.status === 'paid'
+          ? 'PAYOUT_ALREADY_PAID'
+          : 'PAYOUT_STATUS_CONFLICT',
         `Payout is already in ${nextStatus} status`,
       );
     }
@@ -555,7 +580,7 @@ export class PayoutsService {
     if (!allowedTransitions[before.status]?.includes(nextStatus)) {
       throw new AppError(
         409,
-        "PAYOUT_STATUS_CONFLICT",
+        'PAYOUT_STATUS_CONFLICT',
         `Cannot change payout status from ${before.status} to ${nextStatus}`,
       );
     }
@@ -565,13 +590,13 @@ export class PayoutsService {
       {
         $set: {
           status: nextStatus,
-          paidAt: nextStatus === "paid" ? new Date() : null,
+          paidAt: nextStatus === 'paid' ? new Date() : null,
         },
       },
       { new: true, runValidators: true },
     )
-      .populate("partnerId", "name email")
-      .populate("batchId", "periodStart periodEnd status")
+      .populate('partnerId', 'name email')
+      .populate('batchId', 'periodStart periodEnd status')
       .lean();
 
     const updated = updatedResult as unknown as PayoutDocument | null;
@@ -579,8 +604,8 @@ export class PayoutsService {
     if (!updated) {
       throw new AppError(
         409,
-        "PAYOUT_STATUS_CONFLICT",
-        "The payout changed concurrently. Refresh and try again.",
+        'PAYOUT_STATUS_CONFLICT',
+        'The payout changed concurrently. Refresh and try again.',
       );
     }
 
@@ -591,34 +616,34 @@ export class PayoutsService {
 
       const remaining = await PayoutModel.countDocuments({
         batchId: batchObjectId,
-        status: { $ne: "paid" },
+        status: { $ne: 'paid' },
       });
 
-      let batchStatus = "pending";
+      let batchStatus = 'pending';
 
       if (remaining === 0) {
-        batchStatus = "completed";
+        batchStatus = 'completed';
       } else if (
         await PayoutModel.exists({
           batchId: batchObjectId,
-          status: "processing",
+          status: 'processing',
         })
       ) {
-        batchStatus = "processing";
+        batchStatus = 'processing';
       } else if (
         await PayoutModel.exists({
           batchId: batchObjectId,
-          status: "paid",
+          status: 'paid',
         })
       ) {
-        batchStatus = "processing";
+        batchStatus = 'processing';
       } else if (
         await PayoutModel.exists({
           batchId: batchObjectId,
-          status: "failed",
+          status: 'failed',
         })
       ) {
-        batchStatus = "failed";
+        batchStatus = 'failed';
       }
 
       await PayoutBatchModel.findByIdAndUpdate(batchObjectId, {
@@ -629,10 +654,10 @@ export class PayoutsService {
     await this.record({
       actor: adminId,
       action:
-        nextStatus === "paid"
-          ? "PAYOUT_MARKED_PAID"
-          : "PAYOUT_STATUS_UPDATED",
-      entity: "Payout",
+        nextStatus === 'paid'
+          ? 'PAYOUT_MARKED_PAID'
+          : 'PAYOUT_STATUS_UPDATED',
+      entity: 'Payout',
       entityId: payoutId,
       before: {
         status: before.status,
@@ -646,16 +671,18 @@ export class PayoutsService {
         batchId,
       },
       ip,
-      result: "Success",
+      result: 'Success',
     });
 
-    if (nextStatus === "failed") {
+    if (nextStatus === 'failed') {
       const partner = getPartner(updated.partnerId);
 
       alertPayoutFailed({
         payoutId,
         amount: updated.amount,
-        partnerId: partner?._id ? String(partner._id) : undefined,
+        partnerId: partner?._id
+          ? String(partner._id)
+          : undefined,
         partnerName: partner?.name,
         batchId,
       });
@@ -664,7 +691,13 @@ export class PayoutsService {
     return updated;
   }
 
-  async exportCsv(batchId?: string): Promise<string> {
+  /**
+   * Exports a specific batch as CSV.
+   * A missing batch ID exports all batches' payouts.
+   */
+  async exportCsv(
+    batchId?: string,
+  ): Promise<string | { csv: string; filename: string }> {
     if (batchId) {
       this.requireBatchId(batchId);
       await this.getBatch(batchId);
@@ -680,11 +713,7 @@ export class PayoutsService {
 
       const batchIds = batchId
         ? [batchId]
-        : (
-            batchesResult as {
-              items?: Array<{ _id: unknown }>;
-            }
-          )?.items?.map((batch) => String(batch._id)) ?? [];
+        : batchesResult?.items.map((batch) => String(batch._id)) ?? [];
 
       const payouts: PayoutDocument[] = [];
 
@@ -693,10 +722,15 @@ export class PayoutsService {
         payouts.push(...(result as unknown as PayoutDocument[]));
       }
 
-      return buildCsv([
-        CSV_HEADERS,
-        ...payouts.map(payoutToCsvRow),
-      ]);
+      return {
+        csv: buildCsv([
+          CSV_HEADERS,
+          ...payouts.map(payoutToCsvRow),
+        ]),
+        filename: batchId
+          ? `payouts-${batchId}.csv`
+          : 'payouts.csv',
+      };
     }
 
     const filter: Record<string, unknown> = {};
@@ -706,24 +740,27 @@ export class PayoutsService {
     }
 
     const results = await PayoutModel.find(filter)
-      .populate("partnerId", "name email")
-      .populate("batchId", "periodStart periodEnd status")
+      .populate('partnerId', 'name email')
+      .populate('batchId', 'periodStart periodEnd status')
       .sort({ createdAt: 1 })
       .lean()
       .exec();
 
     const payouts = results as unknown as PayoutDocument[];
 
-    return buildCsv([
-      CSV_HEADERS,
-      ...payouts.map(payoutToCsvRow),
-    ]);
+    return {
+      csv: buildCsv([
+        CSV_HEADERS,
+        ...payouts.map(payoutToCsvRow),
+      ]),
+      filename: batchId ? `payouts-${batchId}.csv` : 'payouts.csv',
+    };
   }
 }
 
 const payoutsDemoMode =
-  process.env.NODE_ENV === "development" &&
-  process.env.PAYOUTS_DEMO_MODE === "true";
+  process.env.NODE_ENV === 'development' &&
+  process.env.PAYOUTS_DEMO_MODE === 'true';
 
 export const payoutsService = payoutsDemoMode
   ? new PayoutsService(

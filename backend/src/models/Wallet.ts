@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, type Model } from 'mongoose';
 
 export type LedgerType =
   | 'credit'
@@ -16,16 +16,18 @@ export interface IWalletLedger extends Document {
   walletId: mongoose.Types.ObjectId;
   userId: string;
   type: LedgerType;
-  amount: number; // in paise
+  amount: number; // in rupees
   balanceAfter: number;
   description: string;
   referenceId?: string;
+  bookingId?: mongoose.Types.ObjectId | string;
+  refundId?: mongoose.Types.ObjectId | string;
   createdAt: Date;
 }
 
 export interface IWallet extends Document {
   userId: string;
-  balance: number; // in paise
+  balance: number; // in rupees
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,9 +64,20 @@ const WalletLedgerSchema = new Schema<IWalletLedger>(
     balanceAfter: { type: Number, required: true },
     description: { type: String, required: true },
     referenceId: { type: String, index: true },
+    bookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
+    refundId: { type: Schema.Types.ObjectId, ref: 'Refund' },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
-export const WalletModel = mongoose.model<IWallet>('Wallet', WalletSchema);
-export const WalletLedgerModel = mongoose.model<IWalletLedger>('WalletLedger', WalletLedgerSchema);
+WalletLedgerSchema.index({ userId: 1, createdAt: -1 });
+
+export const WalletModel: Model<IWallet> =
+  (mongoose.models.Wallet as Model<IWallet>) ||
+  mongoose.model<IWallet>('Wallet', WalletSchema);
+
+export const WalletLedgerModel: Model<IWalletLedger> =
+  (mongoose.models.WalletLedger as Model<IWalletLedger>) ||
+  mongoose.model<IWalletLedger>('WalletLedger', WalletLedgerSchema);
+
+export default WalletModel;

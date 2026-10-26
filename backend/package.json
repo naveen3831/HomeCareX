@@ -5,6 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
+    "prestart": "npm run build",
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "seed": "node scripts/run-seed.js",
@@ -31,7 +32,6 @@
     "mongoose": "^8.2.3",
     "morgan": "^1.10.0",
     "multer": "^2.5.0",
-     "multer": "^2.4.0",
     "nodemailer": "^10.0.13",
     "razorpay": "^2.9.8",
     "redis": "^4.6.13",
@@ -48,7 +48,6 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^20.11.30",
     "@types/nodemailer": "^6.4.24",
-     "@types/multer": "^2.3.0",
     "eslint": "^9.17.0",
     "globals": "^15.14.0",
     "mingo": "^7.2.4",

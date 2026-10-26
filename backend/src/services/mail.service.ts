@@ -37,7 +37,7 @@ function logo(): { src?: string; attachments: Mail.Attachment[] } {
   return { attachments: [] }; // falls back to a text wordmark
 }
 
-const escapeHtml = (value: string) =>
+const _escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (character) => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -126,7 +126,7 @@ export const mailService = {
   },
 
   async sendStaffInviteEmail(data: { name: string; email: string; inviteUrl: string; invitedBy?: string }) {
-    const { src, attachments } = logo();
+    const { attachments } = logo();
     const subject = 'You have been invited to join HomeCareX';
     const text = `Hello ${data.name},\n\nYou have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.\nPlease accept your invite by visiting: ${data.inviteUrl}\n\nHomeCareX Team`;
     const html = `<p>Hello ${data.name},</p><p>You have been invited to join HomeCareX${data.invitedBy ? ` by ${data.invitedBy}` : ''}.</p><p><a href="${data.inviteUrl}">Accept Invite</a></p><p>HomeCareX Team</p>`;

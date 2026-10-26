@@ -16,7 +16,6 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
-
   email: z.string().trim().toLowerCase().email('Enter a valid email'),
 
   phone: z
@@ -118,11 +117,6 @@ export const resetPasswordSchema = z
     },
   );
 
-/**
- * Signed-in password change.
- * Confirmation is optional to preserve compatibility with callers
- * that submit only currentPassword and newPassword.
- */
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Current password is required'),

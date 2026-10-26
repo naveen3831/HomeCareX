@@ -1,3 +1,4 @@
+
 import { Types } from 'mongoose';
 import { SettingModel } from '../../models/Settings';
 import { Errors } from '../../utils/errors';
@@ -22,14 +23,11 @@ const isKey = (key: string): key is SettingKey =>
   (SETTING_KEYS as readonly string[]).includes(key);
 
 /**
- * Inserts missing defaults without overwriting values already changed
- * by an administrator.
+ * Inserts missing defaults without overwriting existing administrator values.
  */
 export async function seedDefaultSettings(): Promise<number> {
   const existingRows = await SettingModel.find({}, 'key').lean();
-
   const existing = new Set(existingRows.map((setting) => setting.key));
-
   const missing = SETTING_KEYS.filter((key) => !existing.has(key));
 
   if (missing.length > 0) {
@@ -46,9 +44,7 @@ export async function seedDefaultSettings(): Promise<number> {
 }
 
 /**
- * Reads one setting.
- * Uses the cached value when available and falls back to the default
- * if the database read fails or the setting does not exist.
+ * Reads a setting, using its cached value or its built-in default.
  */
 export async function getSetting<K extends SettingKey>(
   key: K,
@@ -68,20 +64,15 @@ export async function getSetting<K extends SettingKey>(
       value = row.value;
     }
   } catch {
-    // Use the built-in default if the database is unavailable.
+    // Fall back to the built-in default if the database is unavailable.
   }
 
-  cache.set(key, {
-    value,
-    at: Date.now(),
-  });
+  cache.set(key, { value, at: Date.now() });
 
   return value as SettingValue<K>;
 }
 
-/**
- * Clears one cached setting or the entire cache.
- */
+/** Clears one cached setting or the entire cache. */
 export function clearSettingsCache(key?: string): void {
   if (key) {
     cache.delete(key);
@@ -96,14 +87,10 @@ export interface SettingActor {
   ip: string;
 }
 
-/**
- * Returns the current value and last update time for every known setting.
- */
 async function currentValues(): Promise<
   Map<SettingKey, { value: unknown; updatedAt?: Date }>
 > {
   const rows = await SettingModel.find().lean();
-
   const byKey = new Map(rows.map((row) => [row.key, row]));
 
   return new Map(
@@ -122,9 +109,7 @@ async function currentValues(): Promise<
 }
 
 export const settingsService = {
-  /**
-   * Lists settings grouped by section for the admin settings page.
-   */
+  /** Lists settings grouped by section for the admin settings page. */
   async list() {
     const values = await currentValues();
 
@@ -153,9 +138,7 @@ export const settingsService = {
 
   /**
    * Validates and updates multiple settings.
-   *
-   * If any value is invalid, nothing is written.
-   * Only changed values are persisted and audited.
+   * Invalid input is rejected before any writes occur.
    */
   async updateMany(input: unknown, actor: SettingActor) {
     if (
@@ -168,7 +151,6 @@ export const settingsService = {
     }
 
     const cleaned = new Map<SettingKey, unknown>();
-
     const problems: { field: string; message: string }[] = [];
 
     for (const [key, rawValue] of Object.entries(
@@ -179,7 +161,6 @@ export const settingsService = {
           field: key,
           message: `Unknown setting: ${key}`,
         });
-
         continue;
       }
 
@@ -201,13 +182,12 @@ export const settingsService = {
 
     const before = await currentValues();
 
-    const changes = [...cleaned].filter(([key, value]) => {
-      return !sameValue(before.get(key)!.value, value);
-    });
+    const changes = [...cleaned].filter(([key, value]) =>
+      !sameValue(before.get(key)!.value, value),
+    );
 
     if (changes.length > 0) {
-      // SettingModel.updatedBy expects a MongoDB ObjectId.
-      // Validate the actor ID before sending it to MongoDB.
+      // SettingModel.updatedBy expects a valid MongoDB ObjectId.
       if (!Types.ObjectId.isValid(actor.id)) {
         throw Errors.badRequest('Invalid setting actor ID');
       }
@@ -230,7 +210,7 @@ export const settingsService = {
         })),
       );
 
-      // Invalidate cached values after a successful database write.
+      // Invalidate cache only after a successful database write.
       for (const [key] of changes) {
         cache.delete(key);
       }
@@ -246,9 +226,7 @@ export const settingsService = {
             before: {
               value: before.get(key)!.value,
             },
-            after: {
-              value,
-            },
+            after: { value },
             ip: actor.ip,
             result: 'Success',
           });
@@ -267,20 +245,13 @@ export const settingsService = {
     };
   },
 
-  /**
-   * Updates one setting using the same validation and audit logic.
-   */
+  /** Updates one setting using the same validation and audit logic. */
   async update(key: string, value: unknown, actor: SettingActor) {
     if (!isKey(key)) {
       throw Errors.badRequest(`Unknown setting: ${key}`);
     }
 
-    await this.updateMany(
-      {
-        [key]: value,
-      },
-      actor,
-    );
+    await this.updateMany({ [key]: value }, actor);
 
     const checked = checkSetting(key, value);
 

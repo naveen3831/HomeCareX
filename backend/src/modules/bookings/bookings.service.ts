@@ -24,6 +24,7 @@ import {
   withPaymentRecord,
 } from "./bookings.invoice";
 import { PaymentModel } from "../../models/Payment";
+import { RefundModel } from "../../models/Refund";
 import {
   canTransition,
   type StatusHistoryEntry,
@@ -97,10 +98,7 @@ function stableStringify(value: unknown): string {
 
 function assertBookableDate(date: string): void {
   const now = nowInBookingTz();
-  const lastBookable = addDays(
-    now.date,
-    BOOKING_WINDOW_DAYS - 1,
-  );
+  const lastBookable = addDays(now.date, BOOKING_WINDOW_DAYS - 1);
 
   if (
     !isRealDate(date) ||
@@ -115,7 +113,6 @@ function assertBookableDate(date: string): void {
   }
 }
 
-/** A mongoose document (or plain object) as a plain object. */
 function rawObject(doc: unknown): Record<string, unknown> {
   const d = doc as {
     toObject?: () => Record<string, unknown>;
@@ -126,7 +123,6 @@ function rawObject(doc: unknown): Record<string, unknown> {
     : { ...(doc as Record<string, unknown>) };
 }
 
-/** Catalog details for the details page. */
 async function loadServiceInfo(
   serviceId: unknown,
   serviceName?: unknown,
@@ -178,7 +174,6 @@ async function loadServiceInfo(
   }
 }
 
-/** The latest payment attempt, preferring a paid one. */
 async function loadPaymentInfo(
   bookingId: string,
 ): Promise<PaymentInfo | null> {
@@ -202,6 +197,26 @@ async function loadPaymentInfo(
       transactionId: pick.razorpayPaymentId,
       paidAt: pick.paidAt,
     };
+  } catch {
+    return null;
+  }
+}
+
+/** Loads the most recent refund request when available. */
+async function loadRefundInfo(
+  bookingId: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    if (!Types.ObjectId.isValid(bookingId)) return null;
+
+    const row = await RefundModel.findOne({
+      bookingId: new Types.ObjectId(bookingId),
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+
+    return row as Record<string, unknown> | null;
   } catch {
     return null;
   }
@@ -244,7 +259,6 @@ function toView(
   return rest;
 }
 
-/** Convert a date and slot into an instant in Asia/Kolkata. */
 function slotStartDate(date: string, slot: string): Date {
   return new Date(`${date}T${slot.slice(0, 5)}:00+05:30`);
 }
@@ -289,7 +303,7 @@ function isDuplicateKey(
 
 export interface CancellationSummary extends CancellationQuote {
   hoursUntilSlot?: number;
-  refundMethod: "RAZORPAY" | null;
+  refundMethod: "WALLET" | "RAZORPAY" | null;
   refundStatus: "requested" | "none";
 }
 
@@ -307,11 +321,7 @@ export const BookingService = {
       SERVICE_SLOTS.map(
         async (slot): Promise<SlotAvailability> => {
           if (hasSlotStarted(date, slot)) {
-            return {
-              slot,
-              available: false,
-              remaining: 0,
-            };
+            return { slot, available: false, remaining: 0 };
           }
 
           const taken =
@@ -335,7 +345,6 @@ export const BookingService = {
     return { serviceId, date, slots };
   },
 
-  /** Fast real-time slot pre-check before advancing steps or paying. */
   async checkSlotAvailability(
     serviceId: string,
     date: string,
@@ -371,11 +380,7 @@ export const BookingService = {
       );
     }
 
-    return {
-      slot,
-      available: true,
-      remaining,
-    };
+    return { slot, available: true, remaining };
   },
 
   async createBooking(
@@ -441,6 +446,7 @@ export const BookingService = {
       id: String(row._id),
       name: row.name,
       basePrice: row.basePrice,
+      categoryId: row.categoryId,
       addOns: (row.addOns ?? []).map((addOn) => ({
         id: String(addOn._id),
         name: addOn.name,
@@ -505,7 +511,6 @@ export const BookingService = {
       await addressesService.assertServiceable(
         input.newAddress.pincode,
       );
-
       addressSnapshot = { ...input.newAddress };
     } else {
       throw new AppError(
@@ -538,7 +543,6 @@ export const BookingService = {
             err.message,
           );
         }
-
         throw err;
       }
     }
@@ -791,20 +795,22 @@ export const BookingService = {
 
     const startOtp = isArrived
       ? await bookingsRepository.getOrCreateStartOtp(
-          String((booking as any)._id || bookingId),
+          String((booking as { _id?: unknown })._id || bookingId),
         )
       : null;
 
     const raw = rawObject(booking);
 
-    const [service, payment] = await Promise.all([
+    const [service, payment, refundDoc] = await Promise.all([
       loadServiceInfo(raw.serviceId, raw.serviceName),
       loadPaymentInfo(bookingId),
+      loadRefundInfo(bookingId),
     ]);
 
     return buildDetailView(raw, startOtp, {
       service,
       payment,
+      refund: refundDoc,
     });
   },
 
@@ -840,8 +846,15 @@ export const BookingService = {
         );
       }
 
-      const charge = (booking as any).extraCharges?.find(
-        (item: any) => String(item._id) === chargeId,
+      const charge = (
+        booking as {
+          extraCharges?: Array<{
+            _id?: unknown;
+            status?: string;
+          }>;
+        }
+      ).extraCharges?.find(
+        (item) => String(item._id) === chargeId,
       );
 
       if (!charge) {
@@ -867,10 +880,7 @@ export const BookingService = {
       );
     }
 
-    return BookingService.getBooking(
-      customerId,
-      bookingId,
-    );
+    return BookingService.getBooking(customerId, bookingId);
   },
 
   async getInvoice(
@@ -949,7 +959,16 @@ export const BookingService = {
       .findPaidPayment(bookingId)
       .catch(() => null);
 
-    const paidAmount = paidRecord ? paidRecord.amount : 0;
+    const isPaid =
+      Boolean(paidRecord && paidRecord.status === "PAID") ||
+      booking.paymentStatus === "PAID";
+
+    const paidAmount = paidRecord
+      ? paidRecord.amount
+      : isPaid
+        ? Number(booking.priceBreakdown?.total ?? 0)
+        : 0;
+
     const slotStart = bookingSlotStart(booking as never);
     const now = new Date();
 
@@ -971,11 +990,11 @@ export const BookingService = {
       ...quote,
       hoursUntilSlot,
       refundMethod:
-        quote.refundAmount > 0 && paidRecord
+        quote.refundAmount > 0 && isPaid
           ? "RAZORPAY"
           : null,
       refundStatus:
-        quote.refundAmount > 0 && paidRecord
+        quote.refundAmount > 0 && isPaid
           ? "requested"
           : "none",
     };
@@ -1031,7 +1050,16 @@ export const BookingService = {
       .findPaidPayment(bookingId)
       .catch(() => null);
 
-    const paidAmount = paidRecord ? paidRecord.amount : 0;
+    const isPaid =
+      Boolean(paidRecord && paidRecord.status === "PAID") ||
+      booking.paymentStatus === "PAID";
+
+    const paidAmount = paidRecord
+      ? paidRecord.amount
+      : isPaid
+        ? Number(booking.priceBreakdown?.total ?? 0)
+        : 0;
+
     const slotStart = bookingSlotStart(booking as never);
     const now = new Date();
 
@@ -1071,8 +1099,14 @@ export const BookingService = {
     let refundStatus: CancellationSummary["refundStatus"] =
       "none";
 
-    if (quote.refundAmount > 0 && paidRecord) {
+    if (quote.refundAmount > 0 && isPaid) {
       try {
+        if (!paidRecord) {
+          throw new Error(
+            "Paid payment record is unavailable for refund processing",
+          );
+        }
+
         const refund =
           await bookingsRepository.createRefundRequest({
             payment: paidRecord,
@@ -1085,8 +1119,6 @@ export const BookingService = {
 
         refundStatus = "requested";
 
-        // Explicitly type the optional ID because the repository
-        // return type may be unknown.
         const refundId = String(
           (refund as { _id?: unknown } | null)?._id ?? "",
         );
@@ -1126,7 +1158,7 @@ export const BookingService = {
         ...quote,
         hoursUntilSlot,
         refundMethod:
-          quote.refundAmount > 0 && paidRecord
+          quote.refundAmount > 0 && isPaid
             ? "RAZORPAY"
             : null,
         refundStatus,
@@ -1165,9 +1197,14 @@ export const BookingService = {
       );
     }
 
+    const rawServiceId = (
+      booking as { serviceId?: unknown }
+    ).serviceId;
+
     const serviceId = String(
-      (booking as any).serviceId?._id ??
-        (booking as any).serviceId,
+      (rawServiceId as { _id?: unknown })?._id ??
+        rawServiceId ??
+        "",
     );
 
     if (!serviceId || !booking.date || !booking.slot) {
@@ -1269,7 +1306,7 @@ export const BookingService = {
                 ),
               },
               entry: historyEntry,
-            } as any);
+            });
 
           if (!updated) {
             throw new AppError(

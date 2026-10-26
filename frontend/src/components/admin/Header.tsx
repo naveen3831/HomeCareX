@@ -1,7 +1,9 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 import { useUIStore } from '@/store/useUIStore';
+<<<<<<< HEAD
 import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { useLocation } from 'react-router-dom';
@@ -35,6 +37,29 @@ export const Header: React.FC<HeaderProps> = ({
   // NotificationBell reads and displays notifications independently.
   // Keep the optional prop for compatibility with existing callers.
   void notifications;
+=======
+import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
+import { NotificationBell } from '@/components/admin/NotificationBell';
+
+export interface HeaderNotification {
+  id: string;
+  title: string;
+  time: string;
+  href?: string;
+}
+
+interface HeaderProps {
+  notifications?: HeaderNotification[];
+}
+
+/** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
+export const Header: React.FC<HeaderProps> = ({ notifications: _notifications = [] }) => {
+  const { pathname } = useLocation();
+  const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
+  const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
+>>>>>>> origin/develop
 
   return (
     <header className="admin-topbar">

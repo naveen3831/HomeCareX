@@ -411,8 +411,9 @@ export const ServicesPage: React.FC = () => {
               sm:grid-cols-2
               lg:grid-cols-3
             "
+            role="status"
             aria-busy="true"
-            aria-label="Loading services"
+            role="status" aria-label="Loading services"
           >
 
             {Array.from({

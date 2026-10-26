@@ -1,4 +1,5 @@
-import type { PayoutStatus } from "./payouts.calc";
+
+import type { PayoutStatus } from './payouts.calc';
 
 export type { PayoutStatus };
 
@@ -58,6 +59,7 @@ export interface ListBatchesInput {
   status?: string;
 }
 
+// Backward-compatible alias
 export type ListPayoutBatchesInput = ListBatchesInput;
 
 // Mark an individual payout as paid
@@ -68,6 +70,7 @@ export interface MarkPaidInput {
   transactionId?: string;
 }
 
+// Backward-compatible alias
 export type MarkPayoutPaidInput = MarkPaidInput;
 
 // CSV export row

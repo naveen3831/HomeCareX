@@ -1,6 +1,9 @@
+
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import mongoose, { Types } from 'mongoose';
+
 import { authRepository } from './auth.repository';
 import {
   ACCESS_TOKEN_TTL,
@@ -10,14 +13,15 @@ import {
   ROLE_HOME,
   ROLE_PERMISSIONS,
 } from './auth.constants';
+
 import {
   HttpError,
   type AccessTokenPayload,
   type AuthUserDto,
   type RefreshTokenPayload,
 } from './auth.types';
+
 import type {
-  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -27,8 +31,13 @@ import type {
   InviteStaffInput,
   VerifyInviteInput,
   AcceptInviteInput,
+  ChangePasswordInput,
 } from './auth.validation';
+
 import type { UserRole } from '../../models/User';
+import { CategoryModel } from '../../models/Category';
+import { ServiceModel } from '../../models/Service';
+import PartnerModel from '../../models/Partner';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 
@@ -150,7 +159,9 @@ export const authService = {
       user.failedLogins = (user.failedLogins ?? 0) + 1;
 
       if (user.failedLogins >= MAX_FAILED_LOGINS) {
-        user.lockedUntil = new Date(Date.now() + LOCK_MINUTES * 60_000);
+        user.lockedUntil = new Date(
+          Date.now() + LOCK_MINUTES * 60_000,
+        );
         user.failedLogins = 0;
       }
 
@@ -194,7 +205,165 @@ export const authService = {
       role: input.role,
       referralCode: input.referralCode,
       gender: input.gender,
+      avatar: input.avatar,
     });
+
+    // Provision the partner profile after successful partner registration.
+    if (
+      input.role === 'partner' &&
+      mongoose.connection?.readyState === 1
+    ) {
+      try {
+        let categoryIds: Types.ObjectId[] = [];
+        let serviceIds: Types.ObjectId[] = [];
+
+        if (input.category) {
+          const categoryDoc = await CategoryModel.findOne({
+            $or: [
+              { slug: input.category },
+              ...(Types.ObjectId.isValid(input.category)
+                ? [{ _id: new Types.ObjectId(input.category) }]
+                : []),
+              {
+                name: new RegExp(
+                  `^${input.category}$`,
+                  'i',
+                ),
+              },
+            ],
+          });
+
+          if (categoryDoc) {
+            categoryIds = [
+              categoryDoc._id as Types.ObjectId,
+            ];
+
+            const matched = await ServiceModel.find({
+              categoryId: categoryDoc._id,
+              active: true,
+            }).select('_id');
+
+            serviceIds = matched.map(
+              (service) => service._id as Types.ObjectId,
+            );
+          }
+        }
+
+        if (categoryIds.length === 0) {
+          const defaultCat = await CategoryModel.findOne({
+            active: true,
+          }).sort({
+            sortOrder: 1,
+            name: 1,
+          });
+
+          if (defaultCat) {
+            categoryIds = [
+              defaultCat._id as Types.ObjectId,
+            ];
+
+            const matched = await ServiceModel.find({
+              categoryId: defaultCat._id,
+              active: true,
+            }).select('_id');
+
+            serviceIds = matched.map(
+              (service) => service._id as Types.ObjectId,
+            );
+          }
+        }
+
+        const bankDetails =
+          input.accountHolder ||
+          input.accountNumber ||
+          input.ifsc ||
+          input.upiId
+            ? {
+                accountHolder: input.accountHolder,
+                accountLast4: input.accountNumber
+                  ? input.accountNumber.slice(-4)
+                  : undefined,
+                ifsc: input.ifsc
+                  ? input.ifsc.toUpperCase()
+                  : undefined,
+                upiId: input.upiId,
+              }
+            : undefined;
+
+        const kycDocs = [];
+
+        if (input.idProofDocument) {
+          const docType =
+            input.idProofType === 'pan'
+              ? 'pan_card'
+              : input.idProofType === 'driving_license'
+                ? 'driving_license'
+                : 'government_id';
+
+          kycDocs.push({
+            type: docType,
+            url: input.idProofDocument,
+            status: 'pending' as const,
+            uploadedAt: new Date(),
+          });
+        }
+
+        if (input.addressProofDocument) {
+          kycDocs.push({
+            type: 'address_proof' as const,
+            url: input.addressProofDocument,
+            status: 'pending' as const,
+            uploadedAt: new Date(),
+          });
+        }
+
+        await PartnerModel.findOneAndUpdate(
+          { userId: user._id || user.id },
+          {
+            $set: {
+              categories: categoryIds,
+              services: serviceIds,
+              skills: input.skills || [],
+              serviceRadiusKm: input.serviceRadiusKm || 15,
+              ...(bankDetails ? { bankDetails } : {}),
+            },
+            $setOnInsert: {
+              userId: user._id || user.id,
+              ratingAvg: 0,
+              ratingCount: 0,
+              stats: {
+                offersReceived: 0,
+                offersAccepted: 0,
+                jobsAssigned: 0,
+                jobsCompleted: 0,
+              },
+              kyc: {
+                status:
+                  kycDocs.length > 0
+                    ? 'submitted'
+                    : 'not_started',
+                documents: kycDocs,
+                submittedAt:
+                  kycDocs.length > 0
+                    ? new Date()
+                    : undefined,
+              },
+              trainingCompleted: false,
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+            setDefaultsOnInsert: true,
+          },
+        );
+      } catch (err) {
+        console.error(
+          'Failed to provision partner profile during registration',
+          err,
+        );
+      }
+    }
 
     try {
       await mailService.sendAccountCreatedEmail({
@@ -204,7 +373,10 @@ export const authService = {
         createdAt: user.createdAt,
       });
     } catch {
-      console.error('Account-created email failed for user', user.id);
+      console.error(
+        'Account-created email failed for user',
+        user.id,
+      );
     }
 
     return {
@@ -215,7 +387,9 @@ export const authService = {
 
   /** Verifies the refresh cookie, rotates tokens, and detects reuse. */
   async refresh(refreshToken?: string) {
-    if (!refreshToken) throw sessionExpired('NO_REFRESH_TOKEN');
+    if (!refreshToken) {
+      throw sessionExpired('NO_REFRESH_TOKEN');
+    }
 
     let payload: RefreshTokenPayload;
 
@@ -731,7 +905,7 @@ export const authService = {
     };
   },
 
-  /** Consumes the reset token, changes the password, and invalidates refresh tokens. */
+  /** Consumes the single-use reset token and revokes existing sessions. */
   async resetPassword({
     resetToken,
     token,

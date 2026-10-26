@@ -18,6 +18,7 @@ notificationsRoutes.use(authenticate);
 const listQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(30),
+    unread: z.enum(["true", "false"]).optional(),
   })
   .strict();
 
@@ -30,21 +31,14 @@ notificationsRoutes.get(
   validate(listQuerySchema, "query"),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-    const limit = Math.min(
-      Math.max(
-        Number.parseInt(String(req.query.limit ?? ""), 10) || 30,
-        1,
-      ),
-      100,
-    );
-    const unreadOnly = req.query.unread === "true";
+    const { limit, unread } = listQuerySchema.parse(req.query);
 
-    const [items, unread] = await Promise.all([
-      notificationsService.listForUser(id, limit, unreadOnly),
+    const [items, unreadCount] = await Promise.all([
+      notificationsService.listForUser(id, limit, unread === "true"),
       notificationsService.unreadCount(id),
     ]);
 
-    sendSuccess(res, items, { meta: { unread } });
+    sendSuccess(res, items, { meta: { unread: unreadCount } });
   }),
 );
 

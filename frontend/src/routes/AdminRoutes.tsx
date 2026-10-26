@@ -42,10 +42,16 @@ const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
 const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
 
+<<<<<<< HEAD
 // Roles, staff, and audit logs
 const AdminRolesPermissionsPage = lazy(
   () => import('@/pages/admin/RolesPermissions')
 );
+=======
+const AdminRolesPage = lazy(() => import('@/pages/admin/Roles'));
+const AdminRoleFormPage = lazy(() => import('@/pages/admin/Roles/RoleFormPage'));
+const AdminInviteStaffPage = lazy(() => import('@/pages/admin/Roles/InviteStaffPage'));
+>>>>>>> origin/develop
 const AdminStaffPage = lazy(() => import('@/pages/admin/Staff'));
 const AdminAuditLogsPage = lazy(() => import('@/pages/admin/AuditLogs'));
 
@@ -58,6 +64,10 @@ const AdminNotificationsPage = lazy(
 const AccountSecurityPage = lazy(
   () => import('@/pages/shared/AccountSecurity')
 );
+<<<<<<< HEAD
+=======
+const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
+>>>>>>> origin/develop
 
 interface AdminRoute {
   /** Relative to /admin. An empty path is the index route. */
@@ -129,12 +139,19 @@ const adminRoutes: AdminRoute[] = [
 
   // Settings
   {
+    path: 'audit-logs/:id',
+    element: <AdminAuditLogsPage />,
+  },
+  {
     path: 'settings',
     element: <AdminSettingsPage />,
     permission: 'settings:manage',
   },
+<<<<<<< HEAD
 
   // Account security
+=======
+>>>>>>> origin/develop
   { path: 'security', element: <AccountSecurityPage /> },
   { path: 'account/security', element: <AccountSecurityPage /> },
   { path: 'settings/security', element: <AccountSecurityPage /> },

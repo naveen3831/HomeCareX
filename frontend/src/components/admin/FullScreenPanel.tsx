@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+<<<<<<< HEAD
 import {
   ArrowLeft,
   PanelLeftClose,
@@ -7,6 +8,9 @@ import {
 } from 'lucide-react';
 
 import { NotificationBell } from './NotificationBell';
+=======
+import { ArrowLeft } from 'lucide-react';
+>>>>>>> origin/develop
 import { useOverlay } from '@/hooks/useOverlay';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useUIStore } from '@/store/useUIStore';
@@ -35,6 +39,7 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
   children,
 }) => {
   const panelRef = useOverlay<HTMLDivElement>(open, onClose);
+<<<<<<< HEAD
 
   // Keep the sidebar visible on desktop.
   const isDesktop = useMediaQuery('(min-width: 1024px)');
@@ -78,6 +83,17 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
         </div>
       </div>
 
+=======
+  // Leave the admin sidebar visible on desktop (260px, or 68px when collapsed). On mobile the sidebar is off-canvas.
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const collapsed = useUIStore((s) => s.isSidebarCollapsed);
+  const left = isDesktop ? (collapsed ? 68 : 260) : 0;
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="hcx-fs" style={{ left }} ref={panelRef} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
+>>>>>>> origin/develop
       <header className="hcx-fs__head">
         <button
           type="button"

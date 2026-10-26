@@ -1,4 +1,5 @@
-import  { Types } from "mongoose";
+
+import { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { HttpError } from "../auth/auth.types";
 import { Errors, httpError } from "../../utils/errors";
@@ -7,6 +8,7 @@ import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
 import { emitJobCompleted } from "../events/eventBus";
 import { getIOIfReady, rooms } from "../../sockets";
+import { ensurePartnerProfile } from "../partners/partners.service";
 import {
   partnerJobsRepository as repo,
   type JobBookingDoc,
@@ -20,16 +22,17 @@ import type {
   JobListItemDto,
   JobRequestDto,
 } from "./partner-jobs.types";
-import { ensurePartnerProfile } from "../partners/partners.service";
 import { alertSos } from "../notifications/admin-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
 
-/** "Rahul Kumar" -> "Rahul K." The partner never needs the full surname. */
+/** "Rahul Kumar" -> "Rahul K." */
 export const maskName = (name?: string): string => {
   const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+
   if (parts.length === 0) return "Customer";
   if (parts.length === 1) return parts[0];
+
   return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
 };
 
@@ -37,14 +40,20 @@ export const maskName = (name?: string): string => {
 export const maskPhone = (phone?: string): string | null => {
   const digits = (phone ?? "").replace(/\D/g, "");
   if (digits.length < 4) return null;
-  return `${"*".repeat(6)}${digits.slice(-4)}`;
-}
 
-/** Buttons the partner may press right now. Order follows the lifecycle. */
+  return `${"*".repeat(6)}${digits.slice(-4)}`;
+};
+
+/** Buttons the partner may press right now. */
 export const actionsFor = (status: BookingStatus): JobActionDto[] => {
-  if (status === "assigned")
+  if (status === "assigned") {
     return [{ status: "en_route", label: "On the way" }];
-  if (status === "en_route") return [{ status: "arrived", label: "Arrived" }];
+  }
+
+  if (status === "en_route") {
+    return [{ status: "arrived", label: "Arrived" }];
+  }
+
   return [];
 };
 
@@ -53,14 +62,15 @@ const toChecklist = (
   inclusions: string[],
 ): JobChecklistItemDto[] => {
   if (booking.checklist && booking.checklist.length > 0) {
-    return booking.checklist.map((c) => ({
-      id: c.id,
-      label: c.label,
-      done: c.done,
+    return booking.checklist.map((item) => ({
+      id: item.id,
+      label: item.label,
+      done: item.done,
     }));
   }
-  return inclusions.map((label, i) => ({
-    id: `inc-${i + 1}`,
+
+  return inclusions.map((label, index) => ({
+    id: `inc-${index + 1}`,
     label,
     done: false,
   }));
@@ -68,28 +78,35 @@ const toChecklist = (
 
 const toAddOns = (
   booking: JobBookingDoc,
-  catalog: Array<{ _id: Types.ObjectId; name: string; price: number }>,
+  catalog: Array<{
+    _id: Types.ObjectId;
+    name: string;
+    price: number;
+  }>,
 ): JobAddOnDto[] => {
   const fromSnapshot = (booking.priceSnapshot?.lines ?? []).filter(
-    (l) => l.kind === "ADDON",
+    (line) => line.kind === "ADDON",
   );
+
   if (fromSnapshot.length > 0) {
-    return fromSnapshot.map((l) => ({
-      name: l.name,
-      quantity: l.quantity,
-      amount: money(l.amount),
+    return fromSnapshot.map((line) => ({
+      name: line.name,
+      quantity: line.quantity,
+      amount: money(line.amount),
     }));
   }
-  return booking.addOns.flatMap((a) => {
+
+  return booking.addOns.flatMap((addOn) => {
     const found = catalog.find(
-      (c) => c._id.toString() === a.addOnId.toString(),
+      (item) => item._id.toString() === addOn.addOnId.toString(),
     );
+
     return found
       ? [
           {
             name: found.name,
-            quantity: a.quantity,
-            amount: money(found.price * a.quantity),
+            quantity: addOn.quantity,
+            amount: money(found.price * addOn.quantity),
           },
         ]
       : [];
@@ -98,34 +115,42 @@ const toAddOns = (
 
 async function getPartnerProfile(userId: string) {
   let partner = await repo.findPartnerByUserId(userId);
+
   if (!partner) {
     try {
       await ensurePartnerProfile(userId);
       partner = await repo.findPartnerByUserId(userId);
     } catch {
-      // ignore
+      // Profile provisioning may not be available for every account.
     }
   }
+
   if (!partner) {
     throw Errors.notFound(
       ERROR_CODES.PARTNER_NOT_FOUND,
       "No partner profile found for this account",
     );
   }
+
   return partner;
 }
 
-/** Loads the booking and proves it belongs to the signed-in partner. */
+/** Loads a booking and verifies ownership by the signed-in partner. */
 async function loadOwnedBooking(userId: string, bookingId: string) {
   const partner = await getPartnerProfile(userId);
   const booking = await repo.findBooking(bookingId);
-  if (!booking)
+
+  if (!booking) {
     throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+  }
+
   if (
     !booking.partnerId ||
     booking.partnerId.toString() !== partner._id.toString()
-  )
+  ) {
     throw Errors.notOwner();
+  }
+
   return { partner, booking };
 }
 
@@ -136,7 +161,9 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
       ? repo.findService(booking.serviceId)
       : Promise.resolve(null),
   ]);
-  const coords = booking.address.location?.coordinates;
+
+  const coordinates = booking.address.location?.coordinates;
+
   return {
     id: booking._id.toString(),
     status: booking.status,
@@ -155,15 +182,20 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
       city: booking.address.city,
       pincode: booking.address.pincode ?? null,
       coordinates:
-        coords && coords.length === 2
-          ? { lat: coords[1], lng: coords[0] }
+        coordinates && coordinates.length === 2
+          ? {
+              lat: coordinates[1],
+              lng: coordinates[0],
+            }
           : null,
     },
     schedule: {
       scheduledAt: booking.scheduledAt.toISOString(),
       date: booking.date ?? null,
       slot: booking.slot ?? null,
-      startedAt: booking.startedAt ? booking.startedAt.toISOString() : null,
+      startedAt: booking.startedAt
+        ? booking.startedAt.toISOString()
+        : null,
     },
     price: {
       currency: booking.priceSnapshot?.currency ?? "INR",
@@ -181,13 +213,13 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
     },
     actions: actionsFor(booking.status),
     otpRequired: booking.status === "arrived",
-    statusHistory: booking.statusHistory.map((h) => ({
-      from: h.from,
-      to: h.to,
-      at: h.at.toISOString(),
-      actorRole: h.actorRole,
-      actorId: h.actorId ?? null,
-      reason: h.reason ?? null,
+    statusHistory: booking.statusHistory.map((history) => ({
+      from: history.from,
+      to: history.to,
+      at: history.at.toISOString(),
+      actorRole: history.actorRole,
+      actorId: history.actorId ?? null,
+      reason: history.reason ?? null,
     })),
   };
 }
@@ -195,7 +227,7 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
 const invalid = (message: string): HttpError =>
   httpError(422, ERROR_CODES.INVALID_STATE_TRANSITION, message);
 
-/** Statuses in which navigation, chat and a masked call make sense. */
+/** Statuses where navigation, chat, and masked calling are relevant. */
 const LIVE_STATUSES: BookingStatus[] = [
   "assigned",
   "en_route",
@@ -204,31 +236,42 @@ const LIVE_STATUSES: BookingStatus[] = [
 ];
 
 export const partnerJobsService = {
-  /** GET /partner/jobs. The signed-in partner's live jobs, straight from the bookings collection. */
+  /** GET /partner/jobs */
   async listLiveJobs(userId: string): Promise<JobListItemDto[]> {
     const partner = await getPartnerProfile(userId);
-    const rows = await repo.listLiveForPartner(partner._id, LIVE_STATUSES);
-    return rows.map((b) => ({
-      id: b._id.toString(),
-      status: b.status,
-      service: { name: b.serviceName },
-      customerName: maskName(b.customerName),
-      address: [b.address.line1, b.address.area, b.address.city]
+    const rows = await repo.listLiveForPartner(
+      partner._id,
+      LIVE_STATUSES,
+    );
+
+    return rows.map((booking) => ({
+      id: booking._id.toString(),
+      status: booking.status,
+      service: { name: booking.serviceName },
+      customerName: maskName(booking.customerName),
+      address: [
+        booking.address.line1,
+        booking.address.area,
+        booking.address.city,
+      ]
         .filter(Boolean)
         .join(", "),
-      scheduledAt: b.scheduledAt.toISOString(),
-      slot: b.slot ?? null,
-      partnerEarning: money(b.partnerEarning ?? 0),
+      scheduledAt: booking.scheduledAt.toISOString(),
+      slot: booking.slot ?? null,
+      partnerEarning: money(booking.partnerEarning ?? 0),
     }));
   },
 
-  /** GET /partner/jobs/:id. Own jobs only. */
-  async getJob(userId: string, bookingId: string): Promise<JobDetailDto> {
+  /** GET /partner/jobs/:id */
+  async getJob(
+    userId: string,
+    bookingId: string,
+  ): Promise<JobDetailDto> {
     const { booking } = await loadOwnedBooking(userId, bookingId);
     return buildDetail(booking);
   },
 
-  /** GET /partner/job-requests. Pending, unexpired offers for this partner. */
+  /** GET /partner/job-requests */
   async listRequests(
     userId: string,
     now: Date = new Date(),
@@ -236,23 +279,26 @@ export const partnerJobsService = {
     const partner = await getPartnerProfile(userId);
     const bookings = await repo.findJobRequests(partner._id, now);
 
-    return bookings.flatMap((b): JobRequestDto[] => {
-      const offer = b.offers?.find(
-        (o) =>
-          o.partnerId.toString() === partner._id.toString() &&
-          o.response === "pending",
+    return bookings.flatMap((booking): JobRequestDto[] => {
+      const offer = booking.offers?.find(
+        (item) =>
+          item.partnerId.toString() === partner._id.toString() &&
+          item.response === "pending",
       );
 
-      // No pending offer with an expiry for this partner: nothing to show.
       if (!offer?.expiresAt) return [];
 
       return [
         {
-          id: b._id.toString(),
-          service: b.serviceName,
-          area: b.address.area || b.address.city,
-          price: money(b.partnerEarning || b.priceBreakdown?.total || 0),
-          scheduledAt: b.scheduledAt.toISOString(),
+          id: booking._id.toString(),
+          service: booking.serviceName,
+          area: booking.address.area || booking.address.city,
+          price: money(
+            booking.partnerEarning ||
+              booking.priceBreakdown?.total ||
+              0,
+          ),
+          scheduledAt: booking.scheduledAt.toISOString(),
           expiresAt: offer.expiresAt.toISOString(),
         },
       ];
@@ -260,12 +306,23 @@ export const partnerJobsService = {
   },
 
   /** POST /partner/jobs/:id/accept */
-  async acceptOffer(userId: string, bookingId: string, now: Date = new Date()) {
+  async acceptOffer(
+    userId: string,
+    bookingId: string,
+    now: Date = new Date(),
+  ) {
     const partner = await getPartnerProfile(userId);
-    const result = await repo.acceptOffer(bookingId, partner._id, userId, now);
+    const result = await repo.acceptOffer(
+      bookingId,
+      partner._id,
+      userId,
+      now,
+    );
+
     if (result === "NOT_FOUND") {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     }
+
     if (result === "EXPIRED_OR_UNAVAILABLE") {
       throw httpError(
         409,
@@ -273,41 +330,53 @@ export const partnerJobsService = {
         "This job offer has expired or has already been accepted by another partner",
       );
     }
-    return { success: true, message: "Job accepted successfully" };
+
+    return {
+      success: true,
+      message: "Job accepted successfully",
+    };
   },
 
   /** POST /partner/jobs/:id/reject */
   async rejectOffer(userId: string, bookingId: string) {
     const partner = await getPartnerProfile(userId);
     const result = await repo.rejectOffer(bookingId, partner._id);
+
     if (result === "NOT_FOUND") {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     }
-    return { success: true, message: "Job rejected" };
+
+    return {
+      success: true,
+      message: "Job rejected",
+    };
   },
 
-  /** PATCH /bookings/:id/status for partners. Goes through the booking state machine. */
-  /**
-   * POST /partner/jobs/:id/sos. The partner presses SOS on one of THEIR live jobs. Admins get a highlighted
-   * bell alert at once (socket). Only the owner can raise it, and only while the job is live.
-   */
+  /** POST /partner/jobs/:id/sos */
   async raiseSos(
     userId: string,
     bookingId: string,
     coordinates?: { lat: number; lng: number } | null,
   ): Promise<{ sent: true }> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
+
     if (!LIVE_STATUSES.includes(booking.status)) {
       throw invalid("SOS is only available while a job is active");
     }
+
     alertSos({
       bookingId: booking._id.toString(),
       partnerId: partner._id.toString(),
       coordinates: coordinates ?? null,
     });
+
     return { sent: true };
   },
 
+  /** PATCH /bookings/:id/status */
   async updateStatus(
     userId: string,
     bookingId: string,
@@ -315,13 +384,17 @@ export const partnerJobsService = {
     reason?: string,
     now: Date = new Date(),
   ): Promise<JobDetailDto> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
 
     if (target === "in_progress") {
       throw invalid(
         "A job can only be started after the customer OTP is verified",
       );
     }
+
     if (!isPartnerTarget(target)) {
       throw invalid(
         `A partner cannot set a job to "${target}" from this screen`,
@@ -332,7 +405,9 @@ export const partnerJobsService = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
     };
+
     let entry;
+
     try {
       entry = applyTransition(
         probe,
@@ -341,14 +416,15 @@ export const partnerJobsService = {
         reason,
         now,
       );
-    } catch (err) {
+    } catch (error) {
       if (
-        err instanceof HttpError &&
-        err.code === ERROR_CODES.INVALID_STATE_TRANSITION
+        error instanceof HttpError &&
+        error.code === ERROR_CODES.INVALID_STATE_TRANSITION
       ) {
-        throw invalid(err.message);
+        throw invalid(error.message);
       }
-      throw err;
+
+      throw error;
     }
 
     const applied = await repo.transitionStatus(
@@ -358,16 +434,21 @@ export const partnerJobsService = {
       target,
       entry,
     );
-    if (!applied)
+
+    if (!applied) {
       throw invalid(
         "This job was already updated. Refresh to see its latest status",
       );
+    }
 
     trackingService.emitStatus(bookingId, target, entry.at);
 
     const fresh = await repo.findBooking(bookingId);
-    if (!fresh)
+
+    if (!fresh) {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    }
+
     return buildDetail(fresh);
   },
 
@@ -378,7 +459,10 @@ export const partnerJobsService = {
     otp: string,
     now: Date = new Date(),
   ): Promise<JobDetailDto> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
 
     if (booking.status === "in_progress") {
       return buildDetail(booking);
@@ -389,6 +473,7 @@ export const partnerJobsService = {
     }
 
     const expectedOtp = booking.otpCodes?.start || "1234";
+
     if (otp !== expectedOtp && otp !== "1234") {
       throw httpError(
         422,
@@ -402,6 +487,7 @@ export const partnerJobsService = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
     };
+
     const entry = applyTransition(
       probe,
       "in_progress",
@@ -410,16 +496,27 @@ export const partnerJobsService = {
       now,
     );
 
-    const applied = await repo.verifyStartJob(bookingId, partner._id, entry, now);
+    const applied = await repo.verifyStartJob(
+      bookingId,
+      partner._id,
+      entry,
+      now,
+    );
+
     if (!applied) {
-      throw invalid("This job was already updated. Refresh to see its latest status");
+      throw invalid(
+        "This job was already updated. Refresh to see its latest status",
+      );
     }
 
     trackingService.emitStatus(bookingId, "in_progress", entry.at);
 
     const fresh = await repo.findBooking(bookingId);
-    if (!fresh)
+
+    if (!fresh) {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    }
+
     return buildDetail(fresh);
   },
 
@@ -430,18 +527,26 @@ export const partnerJobsService = {
     notes?: string,
     now: Date = new Date(),
   ): Promise<JobDetailDto> {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
 
     if (booking.status === "completed") {
       return buildDetail(booking);
     }
 
     if (booking.status !== "in_progress") {
-      throw invalid("You can only complete a job that is currently in progress");
+      throw invalid(
+        "You can only complete a job that is currently in progress",
+      );
     }
 
-    const pending = (booking.extraCharges ?? []).filter((c) => c.status === "pending");
-    if (pending.length > 0) {
+    const pendingCharges = (booking.extraCharges ?? []).filter(
+      (charge) => charge.status === "pending",
+    );
+
+    if (pendingCharges.length > 0) {
       throw httpError(
         422,
         ERROR_CODES.VALIDATION_ERROR,
@@ -453,6 +558,7 @@ export const partnerJobsService = {
       status: booking.status,
       statusHistory: [] as JobBookingDoc["statusHistory"],
     };
+
     const entry = applyTransition(
       probe,
       "completed",
@@ -461,21 +567,36 @@ export const partnerJobsService = {
       now,
     );
 
-    const applied = await repo.completePartnerJob(bookingId, partner._id, entry, now);
+    const applied = await repo.completePartnerJob(
+      bookingId,
+      partner._id,
+      entry,
+      now,
+    );
+
     if (!applied) {
-      throw invalid("This job was already updated. Refresh to see its latest status");
+      throw invalid(
+        "This job was already updated. Refresh to see its latest status",
+      );
     }
 
     trackingService.emitStatus(bookingId, "completed", entry.at);
 
     const fresh = await repo.findBooking(bookingId);
-    if (!fresh)
-      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
 
-    // Creates the partner's earning (and its wallet line). Idempotent per booking, so a repeat is harmless.
-    const gross = Number((fresh as { priceBreakdown?: { total?: number } }).priceBreakdown?.total ?? 0);
+    if (!fresh) {
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    }
+
+    const gross = Number(fresh.priceBreakdown?.total ?? 0);
+
     if (Number.isFinite(gross) && gross > 0) {
-      emitJobCompleted({ bookingId, partnerId: String(partner._id), gross, completedAt: now });
+      emitJobCompleted({
+        bookingId,
+        partnerId: String(partner._id),
+        gross,
+        completedAt: now,
+      });
     }
 
     return buildDetail(fresh);
@@ -484,16 +605,21 @@ export const partnerJobsService = {
   /** GET /partner/jobs/:id/extra-charges */
   async listExtraCharges(userId: string, bookingId: string) {
     const { booking } = await loadOwnedBooking(userId, bookingId);
-    return (booking.extraCharges ?? []).map((c) => ({
-      id: c._id.toString(),
-      title: c.title,
-      description: c.title,
-      quantity: c.quantity || 1,
-      amount: money(c.amount),
-      reason: c.reason,
-      status: c.status,
-      requestedAt: c.requestedAt ? c.requestedAt.toISOString() : undefined,
-      decidedAt: c.decidedAt ? c.decidedAt.toISOString() : undefined,
+
+    return (booking.extraCharges ?? []).map((charge) => ({
+      id: charge._id.toString(),
+      title: charge.title,
+      description: charge.title,
+      quantity: charge.quantity || 1,
+      amount: money(charge.amount),
+      reason: charge.reason,
+      status: charge.status,
+      requestedAt: charge.requestedAt
+        ? charge.requestedAt.toISOString()
+        : undefined,
+      decidedAt: charge.decidedAt
+        ? charge.decidedAt.toISOString()
+        : undefined,
     }));
   },
 
@@ -501,11 +627,25 @@ export const partnerJobsService = {
   async createExtraCharge(
     userId: string,
     bookingId: string,
-    data: { description: string; quantity: number; amount: number; reason?: string },
+    data: {
+      description: string;
+      quantity: number;
+      amount: number;
+      reason?: string;
+    },
     now: Date = new Date(),
   ) {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
+
+    if (booking.status !== "in_progress") {
+      throw invalid("Extra charges can only be added while a job is in progress");
+    }
+
     const chargeId = new Types.ObjectId();
+
     const newCharge = {
       _id: chargeId,
       title: data.description,
@@ -516,13 +656,26 @@ export const partnerJobsService = {
       requestedAt: now,
     };
 
-    await repo.addExtraCharge(booking._id.toString(), partner._id, newCharge);
+    const added = await repo.addExtraCharge(
+      booking._id.toString(),
+      partner._id,
+      newCharge,
+    );
+
+    if (!added) {
+      throw invalid(
+        "The job could not be updated. Refresh and try again",
+      );
+    }
 
     try {
       const io = getIOIfReady();
+
       if (io) {
+        const canonicalBookingId = booking._id.toString();
+
         const payload = {
-          bookingId: booking._id.toString(),
+          bookingId: canonicalBookingId,
           charge: {
             id: chargeId.toString(),
             _id: chargeId.toString(),
@@ -534,20 +687,25 @@ export const partnerJobsService = {
             requestedAt: now.toISOString(),
           },
         };
-        io.to(rooms.booking(booking._id.toString())).emit("booking:extra_charge", payload);
-        io.to(rooms.booking(booking._id.toString())).emit("booking:updated", { bookingId: booking._id.toString() });
-        if (bookingId && bookingId !== booking._id.toString()) {
-          io.to(rooms.booking(bookingId)).emit("booking:extra_charge", payload);
-          io.to(rooms.booking(bookingId)).emit("booking:updated", { bookingId });
-        }
-        if (booking?.customerId) {
-          io.to(rooms.user(booking.customerId.toString())).emit("booking:updated", {
-            bookingId: booking._id.toString(),
-          });
+
+        io.to(rooms.booking(canonicalBookingId)).emit(
+          "booking:extra_charge",
+          payload,
+        );
+        io.to(rooms.booking(canonicalBookingId)).emit(
+          "booking:updated",
+          { bookingId: canonicalBookingId },
+        );
+
+        if (booking.customerId) {
+          io.to(rooms.user(booking.customerId.toString())).emit(
+            "booking:updated",
+            { bookingId: canonicalBookingId },
+          );
         }
       }
     } catch {
-      // Best effort
+      // Socket notifications are best-effort.
     }
 
     return {
@@ -562,7 +720,6 @@ export const partnerJobsService = {
     };
   },
 
-
   /** PATCH /partner/jobs/:id/checklist/:itemId */
   async updateChecklistItem(
     userId: string,
@@ -570,26 +727,48 @@ export const partnerJobsService = {
     itemId: string,
     done: boolean,
   ) {
-    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+    const { partner, booking } = await loadOwnedBooking(
+      userId,
+      bookingId,
+    );
+
     let checklist =
       booking.checklist && booking.checklist.length > 0
         ? [...booking.checklist]
         : [];
+
     if (checklist.length === 0 && booking.serviceId) {
-      const svc = await repo.findService(booking.serviceId);
-      checklist = toChecklist(booking, svc?.inclusions ?? []);
+      const service = await repo.findService(booking.serviceId);
+      checklist = toChecklist(booking, service?.inclusions ?? []);
     }
 
-    const idx = checklist.findIndex((c) => c.id === itemId);
-    if (idx >= 0) {
-      checklist[idx] = { ...checklist[idx], done };
+    const index = checklist.findIndex((item) => item.id === itemId);
+
+    if (index >= 0) {
+      checklist[index] = {
+        ...checklist[index],
+        done,
+      };
     } else {
-      checklist.push({ id: itemId, label: itemId, done });
+      checklist.push({
+        id: itemId,
+        label: itemId,
+        done,
+      });
     }
 
-    await repo.updateChecklist(bookingId, partner._id, checklist);
+    const updated = await repo.updateChecklist(
+      bookingId,
+      partner._id,
+      checklist,
+    );
+
+    if (!updated) {
+      throw invalid(
+        "The checklist could not be updated. Refresh and try again",
+      );
+    }
+
     return { checklist };
   },
 };
-
-  
