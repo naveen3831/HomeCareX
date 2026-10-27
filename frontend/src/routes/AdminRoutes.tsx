@@ -1,4 +1,3 @@
-
 import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -125,10 +124,14 @@ const adminRoutes: AdminRoute[] = [
   { path: "payments", element: <AdminPaymentsPage /> },
   { path: "refunds", element: <AdminRefundsPage /> },
 
-  // Refund details: required for the Review button.
+  // Refund details
   { path: "refunds/:id", element: <AdminRefundsPage /> },
 
+  // Payouts list
   { path: "payouts", element: <AdminPayoutsPage /> },
+
+  // Payout details — added to fix View Details navigation
+  { path: "payouts/:id", element: <AdminPayoutsPage /> },
 
   // Quality and reporting
   { path: "reviews", element: <AdminReviewsPage /> },
@@ -208,7 +211,7 @@ const NotFound: React.FC = () => (
       Page not found
     </h1>
     <p className="hcx-page-header__desc">
-      That admin page doesn&apos;t exist.
+      That admin page doesn't exist.
     </p>
   </div>
 );

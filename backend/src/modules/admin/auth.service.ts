@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 
 import jwt from "jsonwebtoken";
 
-import { authRepository } from "./auth.repository";
+import { authRepository } from '../auth/auth.repository';
 import { ensurePartnerProfile } from "../partners/partners.service";
 
 import {
@@ -16,14 +16,14 @@ import {
   REFRESH_TOKEN_TTL_DAYS,
   ROLE_HOME,
   ROLE_PERMISSIONS,
-} from "./auth.constants";
+} from "../auth/auth.constants";
 
 import {
   HttpError,
   type AccessTokenPayload,
   type AuthUserDto,
   type RefreshTokenPayload,
-} from "./auth.types";
+} from "../auth/auth.types";
 
 import type {
   AcceptInviteInput,
@@ -36,7 +36,7 @@ import type {
   ResetPasswordInput,
   VerifyInviteInput,
   VerifyOtpInput,
-} from "./auth.validation";
+} from "../auth/auth.validation";
 
 import type { UserRole } from "../../models/User";
 import { StaffModel } from "../../models/Staff";
@@ -280,156 +280,174 @@ export const authService = {
   },
 
   async register(input: RegisterInput) {
-    if (await authRepository.existsByEmailOrPhone(input.email, input.phone)) {
-      throw new HttpError(
-        409,
-        "An account with this email or phone already exists",
-        "DUPLICATE_ACCOUNT",
+  if (await authRepository.existsByEmailOrPhone(input.email, input.phone)) {
+    throw new HttpError(
+      409,
+      "An account with this email or phone already exists",
+      "DUPLICATE_ACCOUNT",
+    );
+  }
+
+  const referrerId =
+    input.referralCode && input.role === "customer"
+      ? await referralsService.resolve(input.referralCode)
+      : undefined;
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+
+  const user = await authRepository.create({
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    passwordHash,
+    role: input.role,
+    referralCode: input.referralCode,
+    avatar: input.avatar,
+    gender: input.gender,
+  });
+
+  if (referrerId && input.referralCode) {
+    try {
+      await referralsService.attach(
+        user.id,
+        input.referralCode,
+        referrerId,
+      );
+    } catch (error) {
+      // Undo account creation if attaching the referral fails.
+      await mongoose.model("User").deleteOne({ _id: user.id });
+      throw error;
+    }
+  }
+
+  if (user.role === "partner" && mongoose.connection.readyState === 1) {
+    try {
+      const partner = await ensurePartnerProfile(user.id);
+
+      if (partner) {
+        // The Partner type does not currently declare every registration field.
+        // Keep the existing typed properties on `partner`; use this reference
+        // for the additional profile fields.
+        const partnerProfile = partner as any;
+
+        if (input.skills && input.skills.length > 0) {
+          partner.skills = input.skills;
+        }
+
+        if (input.serviceRadiusKm) {
+          partner.serviceRadiusKm = input.serviceRadiusKm;
+        }
+
+        if (
+          input.accountHolder ||
+          input.accountNumber ||
+          input.ifsc ||
+          input.upiId
+        ) {
+          partner.bankDetails = {
+            accountHolder: input.accountHolder,
+            accountLast4: input.accountNumber
+              ? input.accountNumber.slice(-4)
+              : undefined,
+            ifsc: input.ifsc?.toUpperCase(),
+            upiId: input.upiId,
+          };
+        }
+
+        if (input.dob) {
+          partnerProfile.dob = new Date(input.dob);
+        }
+
+        if (input.gender) {
+          partnerProfile.gender = input.gender;
+        }
+
+        if (input.idProofType || input.idProofNumber) {
+          partnerProfile.idProof = {
+            type: input.idProofType,
+            number: input.idProofNumber,
+          };
+        }
+
+        if (input.address || input.city || input.state || input.pincode) {
+          partnerProfile.address = {
+            line: input.address,
+            city: input.city,
+            state: input.state,
+            pincode: input.pincode,
+          };
+        }
+
+        if (input.experienceYears !== undefined) {
+          partnerProfile.experienceYears = input.experienceYears;
+        }
+
+        if (
+          input.workingDays ||
+          input.workingHoursStart ||
+          input.workingHoursEnd
+        ) {
+          partnerProfile.workingHours = {
+            days: input.workingDays ?? [],
+            start: input.workingHoursStart,
+            end: input.workingHoursEnd,
+          };
+        }
+
+        const docs: Array<{
+          type: "id_proof" | "address_proof";
+          url: string;
+          status: "approved";
+        }> = [];
+
+        if (input.idProofDocument) {
+          docs.push({
+            type: "id_proof",
+            url: input.idProofDocument,
+            status: "approved",
+          });
+        }
+
+        if (input.addressProofDocument) {
+          docs.push({
+            type: "address_proof",
+            url: input.addressProofDocument,
+            status: "approved",
+          });
+        }
+
+        partnerProfile.kyc = {
+          ...(partnerProfile.kyc ?? {}),
+          status: "approved",
+          ...(docs.length > 0 ? { documents: docs } : {}),
+        };
+
+        await partner.save();
+      }
+    } catch (err) {
+      console.error(
+        "Partner profile creation failed during registration:",
+        err,
       );
     }
+  }
 
-    const referrerId =
-      input.referralCode && input.role === "customer"
-        ? await referralsService.resolve(input.referralCode)
-        : undefined;
-    const passwordHash = await bcrypt.hash(input.password, 12);
-
-    const user = await authRepository.create({
-      name: input.name,
-
-      email: input.email,
-
-      phone: input.phone,
-
-      passwordHash,
-
-      role: input.role,
-
-      referralCode: input.referralCode,
-
-      avatar: input.avatar,
-      gender: input.gender,
+  try {
+    await mailService.sendAccountCreatedEmail({
+      name: user.name,
+      email: user.email,
+      role: user.role as UserRole,
+      createdAt: user.createdAt,
     });
+  } catch {
+    console.error("Account-created email failed for user", user.id);
+  }
 
-    if (referrerId && input.referralCode) {
-      try {
-        await referralsService.attach(user.id, input.referralCode, referrerId);
-      } catch (error) {
-        // Account creation has not been returned to the caller yet; undo this attempt on failure.
-        await mongoose.model("User").deleteOne({ _id: user.id });
-        throw error;
-      }
-    }
-
-    if (user.role === "partner" && mongoose.connection.readyState === 1) {
-      try {
-        const partner = await ensurePartnerProfile(user.id);
-        if (partner) {
-          if (input.skills && input.skills.length > 0) {
-            partner.skills = input.skills;
-          }
-          if (input.serviceRadiusKm) {
-            partner.serviceRadiusKm = input.serviceRadiusKm;
-          }
-          if (
-            input.accountHolder ||
-            input.accountNumber ||
-            input.ifsc ||
-            input.upiId
-          ) {
-            partner.bankDetails = {
-              accountHolder: input.accountHolder,
-              accountLast4: input.accountNumber
-                ? input.accountNumber.slice(-4)
-                : undefined,
-              ifsc: input.ifsc?.toUpperCase(),
-              upiId: input.upiId,
-            };
-          }
-          if (input.dob) {
-            partner.dob = new Date(input.dob);
-          }
-          if (input.gender) {
-            (partner as any).gender = input.gender;
-          }
-          if (input.idProofType || input.idProofNumber) {
-            partner.idProof = {
-              type: input.idProofType,
-              number: input.idProofNumber,
-            };
-          }
-          if (input.address || input.city || input.state || input.pincode) {
-            partner.address = {
-              line: input.address,
-              city: input.city,
-              state: input.state,
-              pincode: input.pincode,
-            };
-          }
-          if (input.experienceYears !== undefined) {
-            partner.experienceYears = input.experienceYears;
-          }
-          if (
-            input.workingDays ||
-            input.workingHoursStart ||
-            input.workingHoursEnd
-          ) {
-            partner.workingHours = {
-              days: input.workingDays ?? [],
-              start: input.workingHoursStart,
-              end: input.workingHoursEnd,
-            };
-          }
-          const docs: Array<{
-            type: "id_proof" | "address_proof";
-            url: string;
-            status: "approved";
-          }> = [];
-          if (input.idProofDocument) {
-            docs.push({
-              type: "id_proof",
-              url: input.idProofDocument,
-              status: "approved",
-            });
-          }
-          if (input.addressProofDocument) {
-            docs.push({
-              type: "address_proof",
-              url: input.addressProofDocument,
-              status: "approved",
-            });
-          }
-          (partner as any).kyc = {
-            ...(partner.kyc ?? {}),
-            status: "approved",
-            ...(docs.length > 0 ? { documents: docs } : {}),
-          };
-          await partner.save();
-        }
-      } catch (err) {
-        console.error(
-          "Partner profile creation failed during registration:",
-          err,
-        );
-      }
-    }
-
-    try {
-      await mailService.sendAccountCreatedEmail({
-        name: user.name,
-
-        email: user.email,
-
-        role: user.role as UserRole,
-
-        createdAt: user.createdAt,
-      });
-    } catch {
-      console.error("Account-created email failed for user", user.id);
-    }
-
-    return { user: await withPermissions(toAuthUser(user)), ...issueTokens(user) };
-  },
+  return {
+    user: await withPermissions(toAuthUser(user)),
+    ...issueTokens(user),
+  };
+ },
 
   /** Verifies the refresh cookie, rotates the token pair, and detects reuse. */
 

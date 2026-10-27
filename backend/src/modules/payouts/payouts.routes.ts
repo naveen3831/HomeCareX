@@ -1,16 +1,16 @@
-
 import { Router } from "express";
 import { authenticate } from "../../middleware/auth.middleware";
 import { requireAdmin } from "../../middleware/role.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
-import { asyncHandler } from "../../utils/asyncHandler";
 import {
   PAYOUTS_APPROVE,
   PAYOUTS_EXPORT,
 } from "./payouts.constants";
 import { payoutsController } from "./payouts.controller";
 
-/** Mounted at /admin. */
+/**
+ * This router is mounted at /admin.
+ */
 export const payoutsRoutes = Router();
 
 /**
@@ -21,21 +21,22 @@ payoutsRoutes.use(authenticate, requireAdmin);
 /**
  * GET /api/v1/admin/payouts/export
  * Export payouts as CSV.
- * Keep this route before /payouts/:id to avoid treating "export" as an ID.
+ *
+ * Keep this route before /:id.
  */
 payoutsRoutes.get(
   "/payouts/export",
   requirePermission(PAYOUTS_EXPORT),
-  asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
+  payoutsController.exportCsv,
 );
 
 /**
- * GET /api/v1/admin/payouts?page=1&limit=20&status=pending
+ * GET /api/v1/admin/payouts
  * List payout batches.
  */
 payoutsRoutes.get(
   "/payouts",
-  asyncHandler((req, res) => payoutsController.list(req, res)),
+  payoutsController.listBatches,
 );
 
 /**
@@ -45,26 +46,50 @@ payoutsRoutes.get(
 payoutsRoutes.post(
   "/payouts",
   requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
+  payoutsController.generateBatch,
 );
 
 /**
  * GET /api/v1/admin/payouts/:id/payouts
  * List payouts belonging to a batch.
+ *
+ * Keep this before /payouts/:id.
  */
 payoutsRoutes.get(
   "/payouts/:id/payouts",
-  asyncHandler((req, res) => payoutsController.listPayouts(req, res)),
+  payoutsController.listPayouts,
 );
 
 /**
  * GET /api/v1/admin/payouts/:id/export
- * Export a payout batch as CSV.
+ * Export one batch as CSV.
  */
 payoutsRoutes.get(
   "/payouts/:id/export",
   requirePermission(PAYOUTS_EXPORT),
-  asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
+  payoutsController.exportCsv,
+);
+
+/**
+ * PATCH /api/v1/admin/payouts/:id/mark-paid
+ * Mark an individual payout as paid.
+ *
+ * Keep this before the generic PATCH /payouts/:id route.
+ */
+payoutsRoutes.patch(
+  "/payouts/:id/mark-paid",
+  requirePermission(PAYOUTS_APPROVE),
+  payoutsController.markPaid,
+);
+
+/**
+ * PATCH /api/v1/admin/payouts/:id/status
+ * Update an individual payout status.
+ */
+payoutsRoutes.patch(
+  "/payouts/:id/status",
+  requirePermission(PAYOUTS_APPROVE),
+  payoutsController.updateStatus,
 );
 
 /**
@@ -73,27 +98,17 @@ payoutsRoutes.get(
  */
 payoutsRoutes.get(
   "/payouts/:id",
-  asyncHandler((req, res) => payoutsController.getBatch(req, res)),
+  payoutsController.getBatch,
 );
 
 /**
  * PATCH /api/v1/admin/payouts/:id
- * Mark an individual payout as paid.
+ * Compatibility endpoint for marking an individual payout as paid.
  */
 payoutsRoutes.patch(
   "/payouts/:id",
   requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
-);
-
-/**
- * PATCH /api/v1/admin/payouts/:id/mark-paid
- * Backward-compatible alias for marking a payout as paid.
- */
-payoutsRoutes.patch(
-  "/payouts/:id/mark-paid",
-  requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
+  payoutsController.markPaid,
 );
 
 /**
@@ -102,28 +117,28 @@ payoutsRoutes.patch(
 payoutsRoutes.post(
   "/payout-batches",
   requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
+  payoutsController.generateBatch,
 );
 
 payoutsRoutes.get(
   "/payout-batches",
-  asyncHandler((req, res) => payoutsController.list(req, res)),
+  payoutsController.listBatches,
 );
 
 payoutsRoutes.get(
   "/payout-batches/:id/payouts",
-  asyncHandler((req, res) => payoutsController.listPayouts(req, res)),
+  payoutsController.listPayouts,
 );
 
 payoutsRoutes.get(
   "/payout-batches/:id/export",
   requirePermission(PAYOUTS_EXPORT),
-  asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
+  payoutsController.exportCsv,
 );
 
 payoutsRoutes.get(
   "/payout-batches/:id",
-  asyncHandler((req, res) => payoutsController.getBatch(req, res)),
+  payoutsController.getBatch,
 );
 
 export default payoutsRoutes;
