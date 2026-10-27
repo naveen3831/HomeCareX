@@ -413,7 +413,11 @@ const AdminAuditLogsPage: React.FC = () => {
 
       {loading && <div className="auditlogs-count">Loading audit logs...</div>}
 
-      {!loading && error && <div className="auditlogs-count">{error}</div>}
+      {!loading && error && (
+        <div className="auditlogs-count" role="alert">
+          {error}
+        </div>
+      )}
 
       {!loading && !error && (
         <>
