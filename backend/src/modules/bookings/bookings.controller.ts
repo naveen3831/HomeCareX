@@ -1,3 +1,8 @@
+import { Request, Response } from "express";
+import { BookingService } from "./bookings.service";
+import type { CreateBookingInput } from "./bookings.types";
+import type { ListBookingsQuery } from "./bookings.query";
+import { AppError } from "../../utils/AppError";
 
 import { Request, Response } from 'express';
 
@@ -12,6 +17,12 @@ import { AppError } from '../../utils/AppError';
  */
 function requireUserId(req: Request): string {
   const id = req.user?.id;
+  if (!id)
+    throw new AppError(
+      401,
+      "UNAUTHENTICATED",
+      "Authentication token is missing",
+    );
 
   if (!id) {
     throw new AppError(
@@ -41,6 +52,11 @@ export const bookingsController = {
   },
 
   async checkSlot(req: Request, res: Response) {
+    const serviceId = (req.params.id ||
+      req.body.serviceId ||
+      req.query.serviceId) as string;
+    const date = (req.query.date || req.body.date) as string;
+    const slot = (req.query.slot || req.body.slot) as string;
     const serviceId = (
       req.params.id ||
       req.body.serviceId ||
@@ -58,13 +74,14 @@ export const bookingsController = {
 
     res.status(200).json({
       success: true,
-      message: 'Slot is available',
+      message: "Slot is available",
       data: result,
     });
   },
 
   async createBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
+    const idempotencyKey = req.header("Idempotency-Key");
     const idempotencyKey = req.header('Idempotency-Key');
 
     const result = await BookingService.createBooking(
@@ -75,7 +92,7 @@ export const bookingsController = {
 
     res.status(result.replayed ? 200 : 201).json({
       success: true,
-      message: 'Booking confirmed successfully',
+      message: "Booking confirmed successfully",
       data: result.booking,
       replayed: result.replayed,
     });
@@ -134,6 +151,9 @@ export const bookingsController = {
     res.json({
       success: true,
       message:
+        decision === "approve"
+          ? "Extra charge approved"
+          : "Extra charge rejected",
         decision === 'approve'
           ? 'Extra charge approved'
           : 'Extra charge rejected',
@@ -141,8 +161,13 @@ export const bookingsController = {
     });
   },
 
-  async previewCancellation(req: Request, res: Response) {
+  async previewCancel(req: Request, res: Response) {
     const customerId = requireUserId(req);
+    const preview = await BookingService.previewCancellation(
+      customerId,
+      req.params.id,
+    );
+    res.json({ success: true, data: preview });
 
     const result = await BookingService.previewCancellation(
       customerId,
@@ -169,6 +194,7 @@ export const bookingsController = {
       req.params.id,
       reason,
     );
+    res.json({ success: true, message: "Booking cancelled", data: result });
 
     res.json({
       success: true,
@@ -179,6 +205,8 @@ export const bookingsController = {
 
   async rescheduleBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
+    const { date, slot } = req.body as { date: string; slot: string };
+    const booking = await BookingService.rescheduleBooking(
     const { date, slot } = req.body as {
       date: string;
       slot: string;
@@ -189,6 +217,7 @@ export const bookingsController = {
       req.params.id,
       { date, slot },
     );
+    res.json({ success: true, message: "Booking rescheduled", data: booking });
 
     res.json({
       success: true,
@@ -208,6 +237,7 @@ export const bookingsController = {
       customerId,
       query,
     );
+    res.json({ success: true, count: items.length, data: items, meta });
 
     res.json({
       success: true,

@@ -1,5 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
@@ -34,6 +33,67 @@ const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand 
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
+  const { pathname, key } = useLocation();
+  const navigate = useNavigate();
+
+  // React Router gives the first entry of a session the key "default": nothing to go back to.
+  // null on Home. Everywhere else the bar becomes "← Page name".
+  const meta = getCustomerPageMeta(pathname);
+  const inner = meta !== null;
+
+  // key === "default" means this is the first entry of the session, so there is nothing to go back to.
+  const goBack = () => {
+    if (!meta) return;
+    if (key !== "default") navigate(-1);
+    else navigate(meta.parent, { replace: true });
+  };
+
+  // Desktop only: only shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar.
+  const hamburger = !sidebarOpen && (
+    <button
+      type="button"
+      onClick={onToggleSidebar}
+      aria-label="Open sidebar"
+      aria-expanded={false}
+      aria-controls={CUSTOMER_SIDEBAR_ID}
+      className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
+    >
+      <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
+      <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
+      <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
+    </button>
+  );
+
+  return (
+    <header
+      data-inner={inner ? "true" : undefined}
+      className={clsx(
+        "customer-topbar flex h-[64px] items-center justify-between gap-3 px-3 md:h-[68px] md:px-8",
+        inner ? "border-b border-line bg-canvas" : "bg-white/85 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        {meta ? (
+          <>
+            {hamburger}
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label={`Back from ${meta.title}`}
+              className={clsx(
+                "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                FOCUS_RING,
+              )}
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{meta.title}</span>
+            </button>
+          </>
+        ) : (
+          <>
+            {hamburger}
+            <Link
+              to={customerPath()}
   const { pathname } = useLocation();
   // On the notifications page the address picker gives way to a back button that returns to the home page.
   const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
@@ -106,12 +166,24 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
                 onReferrals && "hidden md:block",
               )}
             >
+              <span className="text-accent">Home</span>
+              <span className="text-brand">CareX</span>
+            </Link>
+
+            <span
+              aria-hidden="true"
+              className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
+            />
+
+            <div className="min-w-0 flex-1 md:flex-none">
               <LocationPicker />
             </div>
           </>
         )}
       </div>
 
+      {/* Phones: bell on Home only. md+: always. */}
+      <div className={clsx(inner && "hidden md:block")}>
       <div className={clsx(onReferrals && "hidden md:block")}>
         <NotificationBell count={unread} />
       </div>
