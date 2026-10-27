@@ -792,6 +792,16 @@ function PartnerSidebar({
                               end={end || hasChildren}
                               title={collapsed ? label : undefined}
                               style={{
+                                background: "none",
+                                border: 0,
+                                padding: "0.5rem",
+                                color: "inherit",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minWidth: 40,
+                                minHeight: 40,
                                 flex: 1,
                                 minWidth: 0,
                               }}
@@ -1245,7 +1255,7 @@ export default function PartnerLayout() {
                   onClick={goBack}
                   aria-label="Go back"
                   title="Back"
-                  className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                  className="shrink-0 rounded-md p-2 min-h-10 min-w-10 inline-flex items-center justify-center text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
                 >
                   <ArrowLeft size={20} aria-hidden="true" />
                 </button>
@@ -1300,7 +1310,7 @@ export default function PartnerLayout() {
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                className="relative inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
               >
                 <Bell size={20} aria-hidden="true" />
               </button>

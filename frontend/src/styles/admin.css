@@ -627,6 +627,28 @@ overscroll-behavior: contain;}
 .hcx-no-scrollbar::-webkit-scrollbar { display: none; }
 .hcx-notif-panel { scrollbar-width: none; -ms-overflow-style: none; }
 .hcx-notif-panel::-webkit-scrollbar { display: none; }
+/* Tap targets: mobile partner menu */
+@media (max-width: 1023px) {
+  .nav-group__toggle { min-height: 40px; display: flex; align-items: center; justify-content: space-between; }
+}
+
+
+/* Tap targets: mobile sidebar footer */
+@media (max-width: 1023px) {
+  .sidebar-footer__user-btn, .sidebar-signout-btn { min-height: 40px; display: flex; align-items: center; }
+}
+
+
+/* Tap targets: page controls on phones */
+@media (max-width: 767px) {
+  main button:not([role="switch"]),
+  main [role="tab"],
+  header button { min-height: 40px; min-width: 40px; }
+}
+/* Switches kept in their own rule so it is easy to remove if they look wrong */
+@media (max-width: 767px) {
+  main [role="switch"] { min-height: 40px; }
+}
 /* Header right side: help, bell, avatar */
 .admin-topbar .topbar-right { display: flex; align-items: center; gap: 8px; }
 
