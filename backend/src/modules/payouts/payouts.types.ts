@@ -1,14 +1,12 @@
-<<<<<<< HEAD
+import type { PayoutStatus } from './payouts.calc';
+
+export type { PayoutStatus };
 
 export type PayoutBatchStatus =
   | 'pending'
   | 'processing'
   | 'completed'
   | 'failed';
-=======
-import type { PayoutStatus } from './payouts.calc';
-
-export type { PayoutStatus };
 
 export interface Pagination {
   page: number;
@@ -45,7 +43,6 @@ export interface GenerateBatchInput {
   adminId: string;
   ip: string;
 }
->>>>>>> origin/develop
 
 export interface GeneratePayoutBatchInput {
   periodStart: string;
@@ -54,12 +51,12 @@ export interface GeneratePayoutBatchInput {
   ip: string;
 }
 
-<<<<<<< HEAD
 export interface PayoutBatchQuery {
   page?: number;
   limit?: number;
   status?: PayoutBatchStatus;
-=======
+}
+
 export interface ListBatchesInput {
   page?: number;
   limit?: number;
@@ -77,7 +74,6 @@ export interface MarkPaidInput {
   adminId: string;
   ip: string;
   transactionId?: string;
->>>>>>> origin/develop
 }
 
 export interface MarkPayoutPaidInput {
@@ -86,7 +82,6 @@ export interface MarkPayoutPaidInput {
   ip: string;
 }
 
-<<<<<<< HEAD
 export interface PayoutBatchTotals {
   gross: number;
   commission: number;
@@ -105,7 +100,7 @@ export interface PayoutBatchResponse {
   payoutCount: number;
   createdAt: Date;
 }
-=======
+
 export interface PayoutCsvRow {
   payoutId: string;
   partner: string;
@@ -124,4 +119,3 @@ export interface PayoutsRepository {
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
   markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
 }
->>>>>>> origin/develop

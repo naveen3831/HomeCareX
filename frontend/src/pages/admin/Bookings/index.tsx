@@ -55,15 +55,13 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
   "Refunded",
 ];
 
-<<<<<<< HEAD
-=======
 /*
  * Frontend fallback partner.
  *
  * This is only for frontend testing while the backend
  * eligibility/availability setup is being completed.
  */
-const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
+export const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
   {
     id: "6acc7f5fc95d912674fb2aff",
     name: "Test Partner",
@@ -79,7 +77,6 @@ const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
   },
 ];
 
->>>>>>> origin/develop
 function filtersAreEqual(
   first: BookingFilters,
   second: BookingFilters,

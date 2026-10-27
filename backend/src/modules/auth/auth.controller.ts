@@ -13,17 +13,11 @@ import type {
 import { authService } from './auth.service';
  
 import {
-<<<<<<< HEAD
-
   acceptInviteSchema,
+  changePasswordSchema,
   forgotPasswordSchema,
   inviteStaffSchema,
   verifyInviteSchema,
-
-=======
-  changePasswordSchema,
-  forgotPasswordSchema,
->>>>>>> origin/develop
   loginSchema,
   parseBody,
   registerSchema,
@@ -607,8 +601,6 @@ export const authController = {
     });
   }),
 
-<<<<<<< HEAD
-
   /** POST /api/v1/admin/staff (admin; role existence is checked by the route). */
   inviteStaff: wrap(async (req, res) => {
     const invitedBy = String((res.locals.auth as { sub?: string } | undefined)?.sub ?? '') || undefined;
@@ -627,21 +619,14 @@ export const authController = {
     res.json({ success: true, data: { ok: true } });
   }),
 
-  /** POST /api/v1/auth/revoke-user-sessions/:id (admin) */
+  /** POST /api/v1/auth/revoke-user-sessions/:id or /:userId */
   revokeUserSessions: wrap(async (req, res) => {
-    await authService.revokeUserSessions(String(req.params.id));
-    res.json({ success: true, data: { ok: true } });
-=======
-  /** POST /api/v1/auth/revoke-user-sessions/:userId */
-  revokeUserSessions: wrap(async (req, res) => {
-    const { userId } = req.params;
-    const result = await authService.revokeUserSessions(userId);
+    const targetUserId = req.params.userId || req.params.id;
+    const result = await authService.revokeUserSessions(String(targetUserId));
     res.json({
       success: true,
-      data: { revokedSessionsCount: result.revokedSessionsCount },
-      message: result.message,
+      data: { revokedSessionsCount: result?.revokedSessionsCount ?? 1 },
+      message: result?.message ?? 'All sessions for this user have been revoked',
     });
->>>>>>> origin/develop
   }),
 };
- 

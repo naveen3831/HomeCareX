@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import DataTable, { Column } from "../../../components/tables/DataTable";
-import "./index.css";
+import DataTable, {
+  Column,
+} from "../../../components/tables/DataTable";
+import './index.css';
 import http from "@/lib/http";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import FullScreenPanel from "@/components/admin/FullScreenPanel";
 import { diffRecords } from "@/components/admin/AuditDiffDrawer";
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/develop
 interface AuditLog {
   id: string;
   timestamp: string;
@@ -27,19 +25,11 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-<<<<<<< HEAD
-  actor?: string;
-  actorName?: string | null;
-  action?: string;
-  entity?: string;
-  entityId?: string;
-=======
   actor: string;
   actorName?: string | null;
   action: string;
   entity: string;
   entityId: string;
->>>>>>> origin/develop
   before?: unknown;
   after?: unknown;
   ip: string;
@@ -50,34 +40,14 @@ interface AuditLogApi {
 
 interface AuditLogsResponse {
   success: boolean;
-  data: { items: AuditLogApi[]; total: number; page: number; limit: number };
+  data: {
+    items: AuditLogApi[];
+    total: number;
+    page: number;
+    limit: number;
+  };
 }
 
-const formatJson = (value: unknown): string => {
-  if (value === undefined || value === null) return "{}";
-  if (typeof value === "string") {
-    try {
-      return JSON.stringify(JSON.parse(value), null, 2);
-    } catch {
-      return value;
-    }
-  }
-  try {
-    return JSON.stringify(value, null, 2) ?? "{}";
-  } catch {
-    return String(value);
-  }
-};
-
-const formatTimestamp = (timestamp?: string, createdAt?: string): string => {
-  const raw = timestamp || createdAt;
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
-};
-
-const normalizeResult = (result?: string): "Success" | "Failed" =>
-  result?.toLowerCase() === "success" ? "Success" : "Failed";
 
 const parseJson = (raw: string): Record<string, unknown> | null => {
   try {
@@ -161,18 +131,14 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
+  // Search box sits right under the page title
+  const [search, setSearch] = useState("");
   // Mouse drag-scroll for the table (swipe already works on phones)
   const scrollRootRef = useDragScroll<HTMLDivElement>(".datatable-wrapper");
-<<<<<<< HEAD
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
-  const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
-  const [searchValue, setSearchValue] = useState("");
-=======
   const [selectedLog, setSelectedLog] =
     useState<AuditLog | null>(null);
 
   const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
->>>>>>> origin/develop
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -182,60 +148,6 @@ const AdminAuditLogsPage: React.FC = () => {
         setLoading(true);
         setError("");
 
-<<<<<<< HEAD
-        // Shared axios client: sends the admin Bearer token + cookies, same base URL as every admin page.
-        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", { params: { limit: 100 } });
-        if (!result?.success || !result.data || !Array.isArray(result.data.items)) {
-          throw new Error("Invalid audit logs response.");
-        }
-
-        const logs: AuditLog[] = result.data.items.map((log) => ({
-          id: String(log.id || log._id || ""),
-          timestamp: formatTimestamp(log.timestamp, log.createdAt),
-          actor: log.actor || "—",
-          actorName: log.actorName || log.actor || "—",
-          action: log.action || "—",
-          entity: log.entity || "—",
-          entityId: log.entityId || "—",
-          ip: log.ip || "—",
-          result: normalizeResult(log.result),
-          before: formatJson(log.before),
-          after: formatJson(log.after),
-        }));
-
-        if (!cancelled) setAuditLogsData(logs);
-      } catch (err) {
-        console.error("Failed to fetch audit logs:", err);
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        if (!cancelled) {
-          setError(
-            status === 401
-              ? "Your session has expired. Please sign in again."
-              : status === 403
-                ? "You do not have permission to view audit logs."
-                : "Unable to load audit logs. Please check that the backend is running.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void fetchAuditLogs();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const query = searchValue.toLowerCase().trim();
-  const filteredLogs = auditLogsData.filter((log) =>
-    !query
-      ? true
-      : [log.id, log.timestamp, log.actor, log.actorName, log.action, log.entity, log.entityId, log.ip, log.result].some((v) =>
-          v.toLowerCase().includes(query),
-        ),
-  );
-=======
         // Shared axios client: sends the admin Bearer token + cookies and uses the
         // same /api/v1 base URL (dev proxy) as every other admin page.
         const { data: result } = await http.get<AuditLogsResponse>(
@@ -340,50 +252,55 @@ const AdminAuditLogsPage: React.FC = () => {
         .includes(searchValue)
     );
   });
->>>>>>> origin/develop
 
   const auditColumns: Column<AuditLog>[] = [
-    { key: "timestamp", header: "Timestamp", sortValue: (row) => row.timestamp },
-    { key: "actor", header: "Actor", sortValue: (row) => row.actorName, cell: (row) => row.actorName },
-    { key: "action", header: "Action", sortValue: (row) => row.action },
-    { key: "entity", header: "Entity", sortValue: (row) => row.entity },
-    { key: "entityId", header: "Entity ID", sortValue: (row) => row.entityId },
-    { key: "ip", header: "IP Address", sortValue: (row) => row.ip },
+    {
+      key: "timestamp",
+      header: "Timestamp",
+      sortValue: (row) => row.timestamp,
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      sortValue: (row) => row.actorName,
+      cell: (row) => row.actorName,
+    },
+    {
+      key: "action",
+      header: "Action",
+      sortValue: (row) => row.action,
+    },
+    {
+      key: "entity",
+      header: "Entity",
+      sortValue: (row) => row.entity,
+    },
+    {
+      key: "entityId",
+      header: "Entity ID",
+      sortValue: (row) => row.entityId,
+    },
+    {
+      key: "ip",
+      header: "IP Address",
+      sortValue: (row) => row.ip,
+    },
     {
       key: "result",
       header: "Result",
       sortValue: (row) => row.result,
-      cell: (row) => <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>,
-    },
-<<<<<<< HEAD
-    {
-      key: "details",
-      header: "Details",
       cell: (row) => (
-        <button
-          type="button"
-          className="view-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedLog(row);
-          }}
+        <span
+          className={
+            row.result === "Success"
+              ? "success-badge"
+              : "failed-badge"
+          }
         >
-          View Audit
-        </button>
+          {row.result}
+        </span>
       ),
     },
-  ];
-
-  return (
-    <main className="admin-auditlogs-container" ref={scrollRootRef}>
-      <div className="auditlogs-header">
-        <div className="auditlogs-heading-content">
-          <h1 className="auditlogs-title">Audit Logs</h1>
-          <p className="auditlogs-description">
-            Monitor system activity, track administrative actions, and review changes for accountability and security.
-          </p>
-        </div>
-=======
   ];
 
   return (
@@ -392,31 +309,26 @@ const AdminAuditLogsPage: React.FC = () => {
         <h1 className="auditlogs-title">
           Audit Logs
         </h1>
->>>>>>> origin/develop
       </div>
 
       <div className="auditlogs-search">
         <Search size={18} aria-hidden="true" className="auditlogs-search__icon" />
         <input
-          type="search"
+          type="text"
           inputMode="search"
           autoComplete="off"
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search actor, action, entity, ID or IP…"
           aria-label="Search audit logs"
         />
-<<<<<<< HEAD
-        {searchValue && (
-          <button type="button" className="auditlogs-search-clear" onClick={() => setSearchValue("")} aria-label="Clear search" title="Clear search">
-            ×
-          </button>
-        )}
-=======
->>>>>>> origin/develop
       </div>
 
-      {loading && <div className="auditlogs-count">Loading audit logs...</div>}
+      {loading && (
+        <div className="auditlogs-count">
+          Loading audit logs...
+        </div>
+      )}
 
       {!loading && error && (
         <div className="auditlogs-count">
@@ -436,18 +348,17 @@ const AdminAuditLogsPage: React.FC = () => {
               defaultPageSize={10}
               pageSizeOptions={[5, 10, 20, 50]}
               emptyTitle="No audit logs found"
-<<<<<<< HEAD
-              emptyMessage={query ? "No audit logs match your search." : "There are no audit logs to display."}
-=======
               emptyMessage={
                 search
                   ? "No audit logs match your search."
                   : "There are no audit logs to display."
               }
->>>>>>> origin/develop
             />
           </div>
-          <div className="auditlogs-count">Total Logs: {filteredLogs.length}</div>
+
+          <div className="auditlogs-count">
+            Total Logs: {filteredLogs.length}
+          </div>
         </>
       )}
 
@@ -459,11 +370,7 @@ const AdminAuditLogsPage: React.FC = () => {
       >
         {selectedLog && <AuditDetails log={selectedLog} />}
       </FullScreenPanel>
-<<<<<<< HEAD
-    </main>
-=======
     </div>
->>>>>>> origin/develop
   );
 };
 

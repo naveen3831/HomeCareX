@@ -7,7 +7,6 @@ import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
-import CategoryModel from '../../models/Category';
 
 import { Errors } from '../../utils/errors';
 import { HttpError } from '../auth/auth.types';
