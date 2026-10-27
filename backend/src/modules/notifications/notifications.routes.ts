@@ -10,13 +10,16 @@ import { notificationsService } from './notifications.service';
 export const notificationsRoutes = Router();
 notificationsRoutes.use(authenticate);
 
-const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(30),
-  unread: z.string().optional(),
+const listQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(30),
+    unread: z.enum(['true', 'false']).optional(),
+  })
+  .strict();
+
+const idParamsSchema = z.object({
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid notification id'),
 });
-  unread: z.enum(['true', 'false']).optional(),
-}).strict();
-const idParamsSchema = z.object({ id: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid notification id') });
 
 notificationsRoutes.get(
   '/',

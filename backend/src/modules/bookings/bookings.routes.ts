@@ -14,8 +14,6 @@ import {
   checkSlotBodySchema,
   cancelBookingBodySchema,
   rescheduleBookingBodySchema,
-} from "./bookings.validation";
-import { listBookingsQuerySchema } from "./bookings.query";
 } from './bookings.validation';
 import { listBookingsQuerySchema } from './bookings.query';
 
@@ -23,13 +21,11 @@ export const bookingsRoutes = Router();
 
 // GET /services/:id/slots?date=YYYY-MM-DD
 bookingsRoutes.get(
-  "/services/:id/slots",
-  ['/services/:id/slots', '/services/:serviceId/slots'],
+  '/services/:id/slots',
   validationMiddleware({
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
   }),
-  asyncHandler(async (req, res) => bookingsController.getSlots(req, res)),
   asyncHandler(async (req, res) => bookingsController.getSlots(req, res))
 );
 
@@ -65,6 +61,60 @@ bookingsRoutes.get(
   roleMiddleware('customer'),
   validationMiddleware({ params: getBookingParamsSchema }),
   asyncHandler(async (req, res) => bookingsController.getBooking(req, res))
+);
+
+// GET /bookings/:id/invoice — HTML invoice for a paid booking
+bookingsRoutes.get(
+  '/bookings/:id/invoice',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({ params: getBookingParamsSchema }),
+  asyncHandler(async (req, res) => bookingsController.getInvoice(req, res))
+);
+
+// PATCH /bookings/:id/extra-charges/:chargeId — approve or reject an extra charge
+bookingsRoutes.patch(
+  '/bookings/:id/extra-charges/:chargeId',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: extraChargeDecisionParamsSchema,
+    body: extraChargeDecisionBodySchema,
+  }),
+  asyncHandler(async (req, res) => bookingsController.decideExtraCharge(req, res))
+);
+
+// GET /bookings/:id/cancellation-preview — fee and refund if cancelled right now
+bookingsRoutes.get(
+  '/bookings/:id/cancellation-preview',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({ params: getBookingParamsSchema }),
+  asyncHandler(async (req, res) => bookingsController.previewCancellation(req, res))
+);
+
+// POST /bookings/:id/cancel — cancel the booking
+bookingsRoutes.post(
+  '/bookings/:id/cancel',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: cancelBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) => bookingsController.cancelBooking(req, res))
+);
+
+// POST /bookings/:id/reschedule — move the booking to another date and slot
+bookingsRoutes.post(
+  '/bookings/:id/reschedule',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: rescheduleBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) => bookingsController.rescheduleBooking(req, res))
 );
 
 export default bookingsRoutes;

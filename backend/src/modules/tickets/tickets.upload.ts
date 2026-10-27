@@ -11,6 +11,7 @@ export const ATTACHMENT_TYPES = [
   "image/webp",
   "application/pdf",
 ] as const;
+
 export interface EvidenceFile {
   name: string;
   mimeType: string;
@@ -36,6 +37,7 @@ export function validateEvidence(
       "INVALID_ATTACHMENT",
     );
   }
+
   const b = file.buffer;
   const matches =
     (file.mimetype === "image/png" &&
@@ -51,113 +53,24 @@ export function validateEvidence(
       b.subarray(8, 12).toString() === "WEBP") ||
     (file.mimetype === "application/pdf" &&
       b.subarray(0, 5).toString() === "%PDF-");
-  if (!matches)
+
+  if (!matches) {
     throw new HttpError(
       400,
       "Attachment content does not match an allowed image or PDF.",
       "INVALID_ATTACHMENT",
     );
+  }
+
   const name =
     Array.from(file.originalname.replace(/.*[/\\]/, ""))
       .filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127)
       .slice(0, 180)
       .join("") || "attachment";
+
   return { name, mimeType: file.mimetype, sizeBytes: file.size, data: b };
 }
 
-interface UploadedFile {
-  originalname: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
-}
-
-const invalidUpload = (message = "Upload up to 3 files and check the form fields.") =>
-  new HttpError(400, message, "INVALID_ATTACHMENT");
-
-interface ParsedForm {
-  files: UploadedFile[];
-  fields: Record<string, string>;
-}
-
-async function readMultipart(req: Request): Promise<ParsedForm> {
-  const contentType = req.headers["content-type"] ?? "";
-  const boundaryMatch = /^multipart\/form-data\s*;.*?boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(
-    contentType,
-  );
-  if (!boundaryMatch) throw invalidUpload("A multipart form is required.");
-  const boundary = boundaryMatch[1] ?? boundaryMatch[2];
-  if (!boundary || boundary.length > 70) throw invalidUpload();
-
-  // Maximum file data, form fields, and a bounded amount of multipart overhead.
-  const maxBodyBytes = MAX_ATTACHMENT_BYTES * MAX_ATTACHMENTS + 500_000;
-  const chunks: Buffer[] = [];
-  let totalBytes = 0;
-  for await (const chunk of req) {
-    const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-    totalBytes += data.length;
-    if (totalBytes > maxBodyBytes) throw invalidUpload();
-    chunks.push(data);
-  }
-
-  const body = Buffer.concat(chunks, totalBytes).toString("latin1");
-  const sections = body.split(`--${boundary}`);
-  if (sections.length < 2 || sections[0] !== "") throw invalidUpload();
-  const ending = sections.pop();
-  if (ending !== "--" && ending !== "--\r\n") throw invalidUpload();
-  const parts = sections.slice(1);
-  if (parts.length > 12) throw invalidUpload();
-
-  const files: UploadedFile[] = [];
-  const fields: Record<string, string> = {};
-  let fieldCount = 0;
-  for (const section of parts) {
-    const part = section.startsWith("\r\n") ? section.slice(2) : section;
-    const headerEnd = part.indexOf("\r\n\r\n");
-    if (headerEnd < 0 || !part.endsWith("\r\n")) throw invalidUpload();
-    const headers = part.slice(0, headerEnd);
-    const payload = part.slice(headerEnd + 4, -2);
-    const disposition = /^content-disposition:\s*form-data\s*;(.*)$/im.exec(headers)?.[1];
-    const fieldName = /(?:^|;)\s*name="([^"]*)"/i.exec(disposition ?? "")?.[1];
-    if (fieldName === undefined) throw invalidUpload();
-    const filename = /(?:^|;)\s*filename="([^"]*)"/i.exec(disposition ?? "")?.[1];
-
-    if (filename !== undefined) {
-      if (fieldName !== "attachments" || files.length >= MAX_ATTACHMENTS)
-        throw invalidUpload();
-      const buffer = Buffer.from(payload, "latin1");
-      if (buffer.length > MAX_ATTACHMENT_BYTES) {
-        throw invalidUpload("Each attachment must be 5 MB or smaller.");
-      }
-      const mimetype = /^content-type:\s*([^\r\n]+)/im.exec(headers)?.[1]?.trim() ?? "";
-      if (!(ATTACHMENT_TYPES as readonly string[]).includes(mimetype)) {
-        throw invalidUpload("Use JPG, PNG, GIF, WebP or PDF files only.");
-      }
-      files.push({ originalname: filename, mimetype, buffer, size: buffer.length });
-    } else {
-      fieldCount++;
-      if (fieldCount > 8 || Buffer.byteLength(payload, "latin1") > 20_000)
-        throw invalidUpload();
-      // The body was read as latin1 to keep file bytes intact; text fields are UTF-8.
-      fields[fieldName] = Buffer.from(payload, "latin1").toString("utf8");
-    }
-  }
-  return { files, fields };
-}
-
-/** Applied only to authenticated ticket mutations. */
-export const receiveTicketFiles: RequestHandler = (req, res, next) => {
-  // Text-only requests may be plain JSON (already parsed by express.json()); they carry no files.
-  if (req.is("application/json")) {
-    res.locals.ticketFiles = [];
-    return next();
-  }
-
-  void readMultipart(req)
-    .then(({ files, fields }) => {
-      res.locals.ticketFiles = files.map(validateEvidence);
-      // Validation runs on req.body next, so the form fields must be there.
-      req.body = fields;
 const receive = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -168,9 +81,9 @@ const receive = multer({
     parts: 12,
   },
   fileFilter: (_req, file, cb) => {
-    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype))
+    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype)) {
       cb(null, true);
-    else
+    } else {
       cb(
         new HttpError(
           400,
@@ -178,10 +91,15 @@ const receive = multer({
           "INVALID_ATTACHMENT",
         ),
       );
+    }
   },
 }).array("attachments", MAX_ATTACHMENTS);
 
-/** Applied only to authenticated ticket mutations. */
+/**
+ * Applied only to authenticated ticket mutations.
+ * Multer ignores non-multipart requests, so plain JSON bodies (already parsed
+ * by express.json()) pass straight through with no files.
+ */
 export const receiveTicketFiles: RequestHandler = (req, res, next) => {
   receive(req, res, (error: unknown) => {
     if (error instanceof multer.MulterError) {
@@ -196,6 +114,7 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
       );
     }
     if (error) return next(error);
+
     try {
       res.locals.ticketFiles = (Array.isArray(req.files) ? req.files : []).map(
         validateEvidence,

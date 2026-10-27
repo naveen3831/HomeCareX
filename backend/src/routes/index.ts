@@ -21,17 +21,10 @@ import {
   customerProfileRoutes,
 } from '../modules/customer-profile/customer-profile.routes';
 import { designationsRoutes } from '../modules/designations/designations.routes';
-import { reportsRoutes } from '../modules/reports/reports.routes';
-import { servicesRoutes } from '../modules/services/services.routes';
-import { settingsRoutes } from '../modules/settings/settings.routes';
-import { partnersRoutes } from '../modules/partners/partners.routes';
-import { payoutsRoutes } from '../modules/payouts/payouts.routes';
-import refundsRoutes from '../modules/refunds/refunds.routes';
-import { couponsRoutes, couponCustomerRoutes } from '../modules/coupons/coupons.routes';
-import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
 import { incentivesRoutes } from '../modules/incentives/incentives.routes';
 import leadsRoutes from '../modules/leads/leads.routes';
 import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
+import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
 import customerNotificationsRoutes from '../modules/notifications/customer-notifications.routes';
 import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 import {
@@ -39,41 +32,44 @@ import {
   partnerJobRequestsRoutes,
   partnerJobsRoutes,
 } from '../modules/partner-jobs/partner-jobs.routes';
-import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
 import { partnerLocationRoutes } from '../modules/partner-location/partner-location.routes';
-import { partnerDashboardRoutes } from '../modules/partners/partner-dashboard.routes';
-import { partnerKycRoutes } from '../modules/partners/partner-kyc.routes';
-import { partnersRoutes } from '../modules/partners/partners.routes';
+import { partnerPayoutsRoutes } from '../modules/partner-payouts/partner-payouts.routes';
 import { partnerPerformanceRoutes } from '../modules/partner-performance/partner-performance.routes';
 import { partnerReviewsRoutes } from '../modules/partner-reviews/partner-reviews.routes';
-import { partnerPayoutsRoutes } from '../modules/partner-payouts/partner-payouts.routes';
-import { partnerTicketsRoutes } from '../modules/partner-tickets/partner-tickets.routes';
-import {
-  partnerWalletRoutes,
-  partnerWalletSummaryRoutes,
-} from '../modules/partner-wallet/partner-wallet.routes';
 import {
   partnerServiceAreaRoutes,
   partnerServicesRoutes,
 } from '../modules/partner-services/partner-services.routes';
 import { partnerSettingsRoutes } from '../modules/partner-settings/partner-settings.routes';
-import { sosRoutes } from '../modules/sos/sos.routes';
+import { partnerTicketsRoutes } from '../modules/partner-tickets/partner-tickets.routes';
+import {
+  partnerWalletRoutes,
+  partnerWalletSummaryRoutes,
+} from '../modules/partner-wallet/partner-wallet.routes';
+import { partnerDashboardRoutes } from '../modules/partners/partner-dashboard.routes';
+import { partnerKycRoutes } from '../modules/partners/partner-kyc.routes';
+import { partnersRoutes } from '../modules/partners/partners.routes';
 import paymentRoutes from '../modules/payments/payments.routes';
-import { adminPricingRoutes, pricingRoutes } from '../modules/pricing/pricing.routes';
 import { payoutsRoutes } from '../modules/payouts/payouts.routes';
+import { adminPricingRoutes, pricingRoutes } from '../modules/pricing/pricing.routes';
 import { referralsRoutes } from '../modules/referrals/referrals.routes';
-import { reportsRoutes } from '../modules/reports/reports.routes';
 import refundsRoutes from '../modules/refunds/refunds.routes';
+import { reportsRoutes } from '../modules/reports/reports.routes';
 import { reviewsRoutes } from '../modules/reviews/reviews.routes';
 import { servicesRoutes } from '../modules/services/services.routes';
 import { settingsRoutes } from '../modules/settings/settings.routes';
+import { sosRoutes } from '../modules/sos/sos.routes';
 import { ticketsRoutes } from '../modules/tickets/tickets.routes';
 import walletRoutes from '../modules/wallet/wallet.routes';
+// TODO: `earningsRoutes` was used but never imported in the merged file.
+// Fix this path to wherever your earnings routes file actually lives.
+import { earningsRoutes } from '../modules/earnings/earnings.routes';
 
 export const rootRouter = Router();
 
 rootRouter.use('/auth', authRoutes);
 
+// Admin
 rootRouter.use('/admin/dashboard', adminDashboardRoutes);
 rootRouter.use('/admin/settings', settingsRoutes);
 rootRouter.use('/admin/designations', designationsRoutes);
@@ -94,6 +90,7 @@ rootRouter.use('/admin', refundsRoutes);
 rootRouter.use('/admin', auditRoutes);
 rootRouter.use('/admin', adminRoutes);
 
+// Public
 rootRouter.use(catalogRoutes);
 rootRouter.use('/banners', publicMarketingRoutes);
 rootRouter.use('/serviceability', serviceabilityRoutes);
@@ -108,7 +105,6 @@ rootRouter.use('/customer/notifications', customerNotificationsRoutes);
 rootRouter.use('/customer/dashboard', customerDashboardRoutes);
 rootRouter.use('/customer/profile', customerProfileRoutes);
 rootRouter.use('/customer/preferences', customerPreferencesRoutes);
-rootRouter.use('/customer/notifications', customerNotificationsRoutes);
 rootRouter.use('/addresses', addressesRoutes);
 rootRouter.use('/payments', paymentRoutes);
 rootRouter.use('/wallet', walletRoutes);
@@ -116,7 +112,6 @@ rootRouter.use('/tickets', ticketsRoutes);
 rootRouter.use('/support/tickets', ticketsRoutes);
 rootRouter.use('/referrals', referralsRoutes);
 rootRouter.use('/coupons', couponCustomerRoutes);
-rootRouter.use('/notifications', notificationsRoutes);
 
 // Partner
 rootRouter.use('/partner/dashboard', partnerDashboardRoutes);
@@ -145,7 +140,6 @@ rootRouter.use('/partner/notifications', notificationsRoutes);
 rootRouter.use(bookingsRoutes);
 rootRouter.use('/bookings', bookingStatusRoutes);
 rootRouter.use('/bookings', chatRoutes);
-rootRouter.use(bookingsRoutes);
 rootRouter.use(reviewsRoutes);
 
 export default rootRouter;

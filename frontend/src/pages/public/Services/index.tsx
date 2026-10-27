@@ -10,15 +10,12 @@ import {
   toServicesSearchParams,
   uiSortToApi,
 } from "@/lib/querySanitize";
-import type {
-  ServiceListParams,
-  ServiceSort,
-} from "@/types/catalog";
+import type { ServiceListParams, ServiceSort } from "@/types/catalog";
 
 import ServiceCard from "../../../components/public/ServiceCard";
 import ServiceCardSkeleton from "../../../components/public/ServiceCardSkeleton";
 import ServiceFilters, {
-  SortOption,
+  type SortOption,
 } from "../../../components/public/ServiceFilters";
 import Pagination from "../../../components/public/Pagination";
 import Seo from "../../../components/common/Seo";
@@ -26,35 +23,62 @@ import { breadcrumbLd } from "../../../lib/jsonld";
 import { slugToTitle } from "../../../lib/seo";
 
 // ============================================================
-// ITEMS PER PAGE
+// CONSTANTS
 // ============================================================
 
 const ITEMS_PER_PAGE = 6;
-
-// ============================================================
-// SEARCH DEBOUNCE DELAY
-// ============================================================
-
 const SEARCH_DEBOUNCE_MS = 300;
+
+const PRIMARY_BUTTON =
+  "mt-6 rounded-xl bg-[#4338ca] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#3730a3] focus:outline-none focus:ring-2 focus:ring-[#4338ca] focus:ring-offset-2";
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+/** Picks a local fallback picture from the service name. */
+function pickServiceImage(serviceName: string): string {
+  const name = serviceName.toLowerCase();
+
+  if (name.includes("deep") && name.includes("clean")) {
+    return "/images/deep-cleaning.jpg";
+  }
+  if (name.includes("clean")) {
+    return "/images/home-cleaning.jpg";
+  }
+  if (
+    name.includes("ac service") ||
+    name.includes("gas refill") ||
+    name.includes("appliance") ||
+    name.includes("geyser") ||
+    name.includes("refrigerator") ||
+    name.includes("washing machine") ||
+    name.includes("microwave")
+  ) {
+    return "/images/appliance-repair.jpg";
+  }
+  if (name.includes("electrician") || name.includes("electrical")) {
+    return "/images/electrical.jpg";
+  }
+  if (name.includes("plumbing")) return "/images/plumbing.jpg";
+  if (name.includes("painting")) return "/images/painting.jpg";
+  if (name.includes("pest")) return "/images/pest-control-clean.webp";
+  if (name.includes("massage")) return "/images/full-body-massage.webp";
+  if (name.includes("makeup")) return "/images/bridal-makeup.webp";
+  if (name.includes("bathroom")) return "/images/bathroom-cleaning.webp";
+
+  return "/images/home-cleaning.jpg";
+}
 
 // ============================================================
 // SERVICES PAGE
 // ============================================================
 
 export const ServicesPage: React.FC = () => {
-  // ==========================================================
-  // URL SEARCH PARAMS
-  // ==========================================================
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [searchParams, setSearchParams] =
-    useSearchParams();
-
-  // ==========================================================
-  // READ VALUES FROM URL (sanitised)
-  // A hand-edited URL (long q, sort=<injection>, page=-1, bad pincode)
-  // can never reach the API or the UI as-is.
-  // ==========================================================
-
+  // Read values from the URL (sanitised). A hand-edited URL (long q,
+  // sort=<injection>, page=-1, bad pincode) can never reach the API or UI as-is.
   const {
     q: search,
     category,
@@ -71,9 +95,9 @@ export const ServicesPage: React.FC = () => {
     setSearchParams(
       toServicesSearchParams(
         { q: search, category, sort, page: currentPage, pincode },
-        searchParams
+        searchParams,
       ),
-      { replace: true }
+      { replace: true },
     );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,15 +131,14 @@ export const ServicesPage: React.FC = () => {
   const apiServices = servicesQuery.data?.items ?? [];
   const totalPages = servicesQuery.data?.meta.totalPages ?? 0;
   const safeCurrentPage = servicesQuery.data?.meta.page ?? currentPage;
+  const totalServices = servicesQuery.data?.meta.total ?? 0;
 
-  // ==========================================================
-  // SEARCH INPUT
-  // ==========================================================
+  // ----------------------------------------------------------
+  // Local input state (typed text before it reaches the URL)
+  // ----------------------------------------------------------
 
-  const [searchInput, setSearchInput] =
-    useState(search);
-  const [pincodeInput, setPincodeInput] =
-    useState(pincode);
+  const [searchInput, setSearchInput] = useState(search);
+  const [pincodeInput, setPincodeInput] = useState(pincode);
 
   useEffect(() => {
     setSearchInput(search);
@@ -125,10 +148,9 @@ export const ServicesPage: React.FC = () => {
     setPincodeInput(pincode);
   }, [pincode]);
 
-  // ==========================================================
-  // SEARCH DEBOUNCE - 300ms
-  // The URL only ever receives the sanitised text.
-  // ==========================================================
+  // ----------------------------------------------------------
+  // Search debounce. The URL only ever receives the sanitised text.
+  // ----------------------------------------------------------
 
   useEffect(() => {
     const cleaned = sanitizeSearchText(searchInput);
@@ -139,8 +161,7 @@ export const ServicesPage: React.FC = () => {
 
     const timer = window.setTimeout(() => {
       setSearchParams((previous) => {
-        const params =
-          new URLSearchParams(previous);
+        const params = new URLSearchParams(previous);
 
         if (cleaned) {
           params.set("q", cleaned);
@@ -161,85 +182,43 @@ export const ServicesPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  // ==========================================================
-  // UPDATE URL PARAMETERS
-  // ==========================================================
+  // ----------------------------------------------------------
+  // Handlers
+  // ----------------------------------------------------------
 
-  const updateParams = (
-    updates: Record<string, string>
-  ) => {
-    const params =
-      new URLSearchParams(searchParams);
+  const updateParams = (updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams);
 
-    Object.entries(updates).forEach(
-      ([key, value]) => {
-        if (value) {
-          params.set(key, value);
-        } else {
-          params.delete(key);
-        }
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
       }
-    );
+    });
 
     setSearchParams(params);
   };
 
-  // ==========================================================
-  // SEARCH
-  // ==========================================================
-
-  const handleSearchChange = (
-    value: string
-  ) => {
+  const handleSearchChange = (value: string) => {
     // Length cap while typing; the URL/API only ever get the sanitised text.
     setSearchInput(value.slice(0, QUERY_LIMITS.q));
   };
 
-  // ==========================================================
-  // CATEGORY
-  // ==========================================================
-
-  const handleCategoryChange = (
-    value: string
-  ) => {
-    updateParams({
-      category: value,
-      page: "1",
-    });
+  const handleCategoryChange = (value: string) => {
+    updateParams({ category: value, page: "1" });
   };
 
-  // ==========================================================
-  // SORT
-  // ==========================================================
-
-  const handleSortChange = (
-    value: SortOption
-  ) => {
-    updateParams({
-      sort: value,
-      page: "1",
-    });
+  const handleSortChange = (value: SortOption) => {
+    updateParams({ sort: value, page: "1" });
   };
 
-  // ==========================================================
-  // PINCODE
-  // ==========================================================
-
-  const handlePincodeChange = (
-    value: string
-  ) => {
+  const handlePincodeChange = (value: string) => {
     setPincodeInput(value);
     if (value === "" || value.length === 6) {
-      updateParams({
-        pincode: value,
-        page: "1",
-      });
+      updateParams({ pincode: value, page: "1" });
     }
   };
-
-  // ==========================================================
-  // CLEAR FILTERS
-  // ==========================================================
 
   const handleClear = () => {
     setSearchInput("");
@@ -247,40 +226,24 @@ export const ServicesPage: React.FC = () => {
     setSearchParams({});
   };
 
-  // ==========================================================
-  // RETRY
-  // ==========================================================
-
   const handleRetry = () => {
     void servicesQuery.refetch();
   };
 
-  // ==========================================================
-  // PAGE CHANGE
-  // ==========================================================
-
-  const handlePageChange = (
-    page: number
-  ) => {
-    updateParams({
-      page: String(page),
-    });
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+  const handlePageChange = (page: number) => {
+    updateParams({ page: String(page) });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // SEO (canonical keeps ?category= only, see lib/seo.ts)
-  // ==========================================================
+  // ----------------------------------------------------------
 
   const categoryName = category ? slugToTitle(category) : "";
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // UI
-  // ==========================================================
+  // ----------------------------------------------------------
 
   return (
     <main className="min-h-screen bg-[#f8f9ff] px-4 py-10 sm:px-6 lg:px-8">
@@ -311,13 +274,8 @@ export const ServicesPage: React.FC = () => {
       />
 
       <div className="mx-auto max-w-7xl">
-
-        {/* ====================================================
-            PAGE HEADER
-        ==================================================== */}
-
+        {/* PAGE HEADER */}
         <div className="mb-8 text-center">
-
           <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
             HomeCareX Services
           </p>
@@ -327,55 +285,28 @@ export const ServicesPage: React.FC = () => {
           </h1>
 
           <p className="mx-auto mt-3 max-w-2xl text-gray-600">
-            Browse our professional home services
-            and choose the right service for your
-            everyday needs.
+            Browse our professional home services and choose the right service
+            for your everyday needs.
           </p>
-
         </div>
 
-        {/* ====================================================
-            FILTERS
-        ==================================================== */}
-
+        {/* FILTERS */}
         <ServiceFilters
           q={searchInput}
           category={category}
           sort={sort}
           pincode={pincodeInput}
-
-          onQueryChange={
-            handleSearchChange
-          }
-
-          onCategoryChange={
-            handleCategoryChange
-          }
-
-          onSortChange={
-            handleSortChange
-          }
-
-          onPincodeChange={
-            handlePincodeChange
-          }
-
+          onQueryChange={handleSearchChange}
+          onCategoryChange={handleCategoryChange}
+          onSortChange={handleSortChange}
+          onPincodeChange={handlePincodeChange}
           onClear={handleClear}
         />
 
-        {/* ====================================================
-            RESULT COUNT
-        ==================================================== */}
-
+        {/* RESULT COUNT */}
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
           <p className="text-sm font-semibold text-[#6b6b8a]">
-
-            {servicesQuery.data?.meta.total ?? 0}{" "}
-            {(servicesQuery.data?.meta.total ?? 0) === 1
-              ? "service"
-              : "services"}{" "}
-            found
+            {totalServices} {totalServices === 1 ? "service" : "services"} found
           </p>
 
           {category && (
@@ -383,193 +314,54 @@ export const ServicesPage: React.FC = () => {
               Category: {category}
             </p>
           )}
-
         </div>
 
-        {/* ====================================================
-            SERVICE GRID / OFFLINE / LOADING / ERROR / EMPTY
-        ==================================================== */}
-
+        {/* SERVICE GRID / OFFLINE / LOADING / ERROR / EMPTY */}
         {showOffline ? (
-
-          /* ==================================================
-             OFFLINE STATE
-          ================================================== */
-
           <OfflineState onRetry={handleRetry} />
-
         ) : loading ? (
-
-          /* ==================================================
-             LOADING STATE
-          ================================================== */
-
           <div
-            className="
-              grid
-              gap-6
-              sm:grid-cols-2
-              lg:grid-cols-3
-            "
+            className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
             role="status"
             aria-busy="true"
-            role="status" aria-label="Loading services"
+            aria-label="Loading services"
           >
-
-            {Array.from({
-              length: 6,
-            }).map((_, index) => (
-
-              <ServiceCardSkeleton
-                key={index}
-              />
-
+            {Array.from({ length: 6 }).map((_, index) => (
+              <ServiceCardSkeleton key={index} />
             ))}
-
           </div>
-
         ) : error ? (
-
-          /* ==================================================
-             ERROR STATE
-          ================================================== */
-
           <div
-            className="
-              rounded-3xl
-              border
-              border-red-100
-              bg-white
-              px-6
-              py-20
-              text-center
-              shadow-sm
-            "
+            className="rounded-3xl border border-red-100 bg-white px-6 py-20 text-center shadow-sm"
             role="alert"
           >
-
             <div className="mx-auto max-w-md">
-
-              {/* Error Icon */}
-
-              <div
-                className="
-                  mx-auto
-                  flex
-                  h-16
-                  w-16
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-red-50
-                  text-2xl
-                "
-              >
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-2xl">
                 ⚠️
               </div>
 
-              {/* Error Title */}
-
-              <h2
-                className="
-                  mt-5
-                  text-xl
-                  font-bold
-                  text-[#11104f]
-                "
-              >
+              <h2 className="mt-5 text-xl font-bold text-[#11104f]">
                 Unable to load services
               </h2>
 
-              {/* Error Message */}
-
               <p className="mt-2 text-gray-600">
-                Something went wrong while
-                loading the services. Please
-                try again.
+                Something went wrong while loading the services. Please try
+                again.
               </p>
-
-              {/* Retry Button */}
 
               <button
                 type="button"
                 onClick={handleRetry}
-                className="
-                  mt-6
-                  rounded-xl
-                  bg-[#4338ca]
-                  px-6
-                  py-3
-                  text-sm
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-[#3730a3]
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-[#4338ca]
-                  focus:ring-offset-2
-                "
+                className={PRIMARY_BUTTON}
               >
                 Retry
               </button>
-
             </div>
-
           </div>
-
         ) : apiServices.length > 0 ? (
-
-          /* ==================================================
-             SERVICE CARDS
-          ================================================== */
-
-          <div
-            className="
-              grid
-              gap-6
-              sm:grid-cols-2
-              lg:grid-cols-3
-            "
-          >
-
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {apiServices.map((service) => {
-              const name = service.name.toLowerCase();
-
-              let image = "/images/home-cleaning.jpg";
-
-              if (name.includes("deep") && name.includes("clean")) {
-                image = "/images/deep-cleaning.jpg";
-              } else if (name.includes("clean")) {
-                image = "/images/home-cleaning.jpg";
-              } else if (
-                name.includes("ac service") ||
-                name.includes("gas refill") ||
-                name.includes("appliance") ||
-                name.includes("geyser") ||
-                name.includes("refrigerator") ||
-                name.includes("washing machine") ||
-                name.includes("microwave")
-              ) {
-                image = "/images/appliance-repair.jpg";
-              } else if (
-                name.includes("electrician") ||
-                name.includes("electrical")
-              ) {
-                image = "/images/electrical.jpg";
-              } else if (name.includes("plumbing")) {
-                image = "/images/plumbing.jpg";
-              } else if (name.includes("painting")) {
-                image = "/images/painting.jpg";
-              } else if (name.includes("pest")) {
-                image = "/images/pest-control-clean.webp";
-              } else if (name.includes("massage")) {
-                image = "/images/full-body-massage.webp";
-              } else if (name.includes("makeup")) {
-                image = "/images/bridal-makeup.webp";
-              } else if (name.includes("bathroom")) {
-                image = "/images/bathroom-cleaning.webp";
-              }
+              const image = pickServiceImage(service.name);
 
               return (
                 <ServiceCard
@@ -585,132 +377,47 @@ export const ServicesPage: React.FC = () => {
                 />
               );
             })}
-
           </div>
-
         ) : (
-
-          /* ==================================================
-             EMPTY STATE
-          ================================================== */
-
-          <div
-            className="
-              rounded-3xl
-              border
-              border-[#e0e7ff]
-              bg-white
-              px-6
-              py-20
-              text-center
-              shadow-sm
-            "
-          >
-
+          <div className="rounded-3xl border border-[#e0e7ff] bg-white px-6 py-20 text-center shadow-sm">
             <div className="mx-auto max-w-md">
-
-              {/* Empty Icon */}
-
-              <div
-                className="
-                  mx-auto
-                  flex
-                  h-16
-                  w-16
-                  items-center
-                  justify-center
-                  rounded-full
-                  bg-[#eef2ff]
-                  text-2xl
-                "
-              >
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#eef2ff] text-2xl">
                 🔍
               </div>
 
-              {/* Empty Title */}
-
-              <h2
-                className="
-                  mt-5
-                  text-xl
-                  font-bold
-                  text-[#11104f]
-                "
-              >
+              <h2 className="mt-5 text-xl font-bold text-[#11104f]">
                 No services found
               </h2>
 
-              {/* Empty Message */}
-
               <p className="mt-2 text-gray-600">
-                Try searching for a different
-                service or selecting another
+                Try searching for a different service or selecting another
                 category.
               </p>
-
-              {/* Clear Filters */}
 
               <button
                 type="button"
                 onClick={handleClear}
-                className="
-                  mt-6
-                  rounded-xl
-                  bg-[#4338ca]
-                  px-6
-                  py-3
-                  text-sm
-                  font-bold
-                  text-white
-                  transition
-                  hover:bg-[#3730a3]
-                  focus:outline-none
-                  focus:ring-2
-                  focus:ring-[#4338ca]
-                  focus:ring-offset-2
-                "
+                className={PRIMARY_BUTTON}
               >
                 Clear Filters
               </button>
-
             </div>
-
           </div>
         )}
 
-        {/* ====================================================
-            PAGINATION
-        ==================================================== */}
+        {/* PAGINATION */}
+        {!showOffline && !loading && !error && apiServices.length > 0 && (
+          <Pagination
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
 
-        {!showOffline &&
-          !loading &&
-          !error &&
-          apiServices.length > 0 && (
-
-            <Pagination
-              currentPage={
-                safeCurrentPage
-              }
-              totalPages={
-                totalPages
-              }
-              onPageChange={
-                handlePageChange
-              }
-            />
-
-          )}
-
-        {/* =================================================
-            SERVICES INFORMATION
-        ================================================= */}
-
+        {/* SERVICES INFORMATION */}
         <section className="mt-16 rounded-3xl border border-[#e0e7ff] bg-white px-6 py-10 shadow-sm sm:px-10">
-
           <div className="mx-auto max-w-5xl">
-
             <div className="text-center">
-
               <p className="text-sm font-bold uppercase tracking-wider text-[#6366f1]">
                 Why Choose HomeCareX
               </p>
@@ -720,79 +427,47 @@ export const ServicesPage: React.FC = () => {
               </h2>
 
               <p className="mx-auto mt-4 max-w-3xl text-gray-600">
-                HomeCareX connects you with
-                trusted professionals for reliable,
-                convenient, and quality home
-                services.
+                HomeCareX connects you with trusted professionals for reliable,
+                convenient, and quality home services.
               </p>
-
             </div>
 
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-
-              {/* Trusted Professionals */}
-
               <div className="rounded-2xl bg-[#f8f9ff] p-6">
-
                 <h3 className="text-lg font-bold text-[#11104f]">
                   Trusted Professionals
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Get access to experienced service
-                  professionals who are ready to help
-                  with your everyday home needs.
+                  Get access to experienced service professionals who are ready
+                  to help with your everyday home needs.
                 </p>
-
               </div>
 
-              {/* Transparent Pricing */}
-
               <div className="rounded-2xl bg-[#f8f9ff] p-6">
-
                 <h3 className="text-lg font-bold text-[#11104f]">
                   Transparent Pricing
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  View starting prices and service
-                  details before choosing the right
-                  service for your home.
+                  View starting prices and service details before choosing the
+                  right service for your home.
                 </p>
-
               </div>
 
-              {/* Convenient Home Services */}
-
               <div className="rounded-2xl bg-[#f8f9ff] p-6">
-
                 <h3 className="text-lg font-bold text-[#11104f]">
                   Convenient Home Services
                 </h3>
-
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Find cleaning, plumbing,
-                  electrical, appliance repair,
-                  painting, and maintenance
-                  services in one place.
+                  Find cleaning, plumbing, electrical, appliance repair,
+                  painting, and maintenance services in one place.
                 </p>
-
               </div>
-
             </div>
-
           </div>
-
         </section>
-
       </div>
-
     </main>
   );
 };
-
-// ============================================================
-// DEFAULT EXPORT
-// ============================================================
 
 export default ServicesPage;

@@ -1,4 +1,3 @@
-
 import { Types } from 'mongoose';
 import { ERROR_CODES } from '../../constants/errorCodes';
 import { BookingModel } from '../../models/Booking';
@@ -36,11 +35,14 @@ import {
   type ReviewStatus,
 } from './reviews.validation';
 
-/** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
-interface ReviewAuditActor {
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
   id: string;
-  ip: string;
+  ip?: string;
 }
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
@@ -62,9 +64,7 @@ const toPublicReview = (r: VisibleReviewRow): PublicReviewDto => ({
 });
 
 /** Zero-filled star distribution and one-decimal average. */
-export function buildSummary(
-  counts: Map<number, number>,
-): ReviewSummaryDto {
+export function buildSummary(counts: Map<number, number>): ReviewSummaryDto {
   const distribution: StarDistribution = {
     '1': 0,
     '2': 0,
@@ -84,8 +84,7 @@ export function buildSummary(
   }
 
   return {
-    average:
-      count === 0 ? 0 : Math.round((sum / count) * 10) / 10,
+    average: count === 0 ? 0 : Math.round((sum / count) * 10) / 10,
     count,
     distribution,
   };
@@ -116,21 +115,6 @@ const toCustomerReviewDto = (
   verified: r.verified === true,
   createdAt: new Date(r.createdAt).toISOString(),
 });
-
-/** Who performed an admin review action (recorded in the audit log). */
-export interface ReviewAuditActor {
-  id: string;
-  ip?: string;
-}
-
-export class ReviewsService {
-  private escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-interface ReviewAuditActor {
-  id: string;
-  ip?: string;
-}
 
 export class ReviewsService {
   /**
@@ -172,11 +156,7 @@ export class ReviewsService {
     }
 
     if (!Types.ObjectId.isValid(customerId)) {
-      throw new HttpError(
-        401,
-        'Authentication required',
-        'NO_ACCESS_TOKEN',
-      );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
     const customer = await UserModel.findById(customerId)
@@ -226,9 +206,7 @@ export class ReviewsService {
     bookingId: unknown,
     input: unknown,
   ): Promise<CustomerReviewDto> {
-    const idParsed = bookingIdParamSchema.safeParse({
-      id: bookingId,
-    });
+    const idParsed = bookingIdParamSchema.safeParse({ id: bookingId });
 
     if (!idParsed.success) {
       throw new HttpError(
@@ -295,10 +273,10 @@ export class ReviewsService {
       );
     }
 
-    let review;
+    let saved: CustomerReviewRow;
 
     try {
-      review = await ReviewModel.create({
+      const review = await ReviewModel.create({
         customerId: customer._id,
         customerName: customer.name,
         customerEmail: customer.email,
@@ -306,18 +284,17 @@ export class ReviewsService {
         message: parsed.data.comment,
         tags: parsed.data.tags,
         bookingId: new Types.ObjectId(id),
-        ...(booking.serviceId
-          ? { serviceId: booking.serviceId }
-          : {}),
-        ...(booking.partnerId
-          ? { partnerId: booking.partnerId }
-          : {}),
+        ...(booking.serviceId ? { serviceId: booking.serviceId } : {}),
+        ...(booking.partnerId ? { partnerId: booking.partnerId } : {}),
         verified: true,
       });
-      const saved = review.toObject ? review.toObject() : review;
-      saved.status = 'approved';
-      saved.visible = true;
-      review = { ...review, toObject: () => saved } as typeof review;
+
+      // The response shows the review as approved and visible.
+      saved = {
+        ...review.toObject(),
+        status: 'approved',
+        visible: true,
+      } as unknown as CustomerReviewRow;
     } catch (err) {
       if (isDuplicateKey(err)) {
         throw new HttpError(
@@ -360,7 +337,7 @@ export class ReviewsService {
     ]);
 
     return toCustomerReviewDto(
-      review.toObject() as unknown as CustomerReviewRow,
+      saved,
       serviceNames.get(id) ?? null,
       booking.partnerId
         ? partnerNames.get(String(booking.partnerId)) ?? null
@@ -369,26 +346,15 @@ export class ReviewsService {
   }
 
   /** GET /reviews — signed-in customer's reviews. */
-  async listMyReviews(
-    customerId: string,
-  ): Promise<CustomerReviewDto[]> {
+  async listMyReviews(customerId: string): Promise<CustomerReviewDto[]> {
     if (!Types.ObjectId.isValid(customerId)) {
-      throw new HttpError(
-        401,
-        'Authentication required',
-        'NO_ACCESS_TOKEN',
-      );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
     const rows = await reviewsRepository.listForCustomer(customerId);
 
-    const bookingIds = rows.flatMap((r) =>
-      r.bookingId ? [r.bookingId] : [],
-    );
-
-    const partnerIds = rows.flatMap((r) =>
-      r.partnerId ? [r.partnerId] : [],
-    );
+    const bookingIds = rows.flatMap((r) => (r.bookingId ? [r.bookingId] : []));
+    const partnerIds = rows.flatMap((r) => (r.partnerId ? [r.partnerId] : []));
 
     const [serviceNames, partnerNames] = await Promise.all([
       reviewsRepository.serviceNames(bookingIds),
@@ -398,20 +364,14 @@ export class ReviewsService {
     return rows.map((r) =>
       toCustomerReviewDto(
         r,
-        r.bookingId
-          ? serviceNames.get(String(r.bookingId)) ?? null
-          : null,
-        r.partnerId
-          ? partnerNames.get(String(r.partnerId)) ?? null
-          : null,
+        r.bookingId ? serviceNames.get(String(r.bookingId)) ?? null : null,
+        r.partnerId ? partnerNames.get(String(r.partnerId)) ?? null : null,
       ),
     );
   }
 
   /** GET /reviews/pending — completed bookings not reviewed yet. */
-  async listPendingReviews(
-    customerId: string,
-  ): Promise<PendingReviewDto[]> {
+  async listPendingReviews(customerId: string): Promise<PendingReviewDto[]> {
     if (!Types.ObjectId.isValid(customerId)) {
       throw new HttpError(
         401,
@@ -420,8 +380,7 @@ export class ReviewsService {
       );
     }
 
-    const rows =
-      await reviewsRepository.listPendingForCustomer(customerId);
+    const rows = await reviewsRepository.listPendingForCustomer(customerId);
 
     const partnerNames = await reviewsRepository.partnerNames(
       rows.flatMap((b) => (b.partnerId ? [b.partnerId] : [])),
@@ -457,8 +416,7 @@ export class ReviewsService {
       };
     }
 
-    const booking =
-      await reviewsRepository.findBookingForReview(bookingId);
+    const booking = await reviewsRepository.findBookingForReview(bookingId);
 
     if (!booking || String(booking.customerId) !== customerId) {
       throw new HttpError(
@@ -468,10 +426,7 @@ export class ReviewsService {
       );
     }
 
-    if (
-      !booking.serviceId ||
-      String(booking.serviceId) !== serviceId
-    ) {
+    if (!booking.serviceId || String(booking.serviceId) !== serviceId) {
       throw new HttpError(
         400,
         'This booking is not for that service',
@@ -503,20 +458,12 @@ export class ReviewsService {
     const { page, limit } = serviceReviewsQuerySchema.parse(query);
 
     if (!(await reviewsRepository.isServiceVisible(id))) {
-      throw new HttpError(
-        404,
-        'Service not found',
-        ERROR_CODES.NOT_FOUND,
-      );
+      throw new HttpError(404, 'Service not found', ERROR_CODES.NOT_FOUND);
     }
 
     const [counts, rows] = await Promise.all([
       reviewsRepository.starCounts(id),
-      reviewsRepository.findVisible(
-        id,
-        (page - 1) * limit,
-        limit,
-      ),
+      reviewsRepository.findVisible(id, (page - 1) * limit, limit),
     ]);
 
     const summary = buildSummary(counts);
@@ -536,16 +483,10 @@ export class ReviewsService {
   /** GET /reviews/mine — legacy customer review endpoint. */
   async listCustomerReviews(customerId: string) {
     if (!Types.ObjectId.isValid(customerId)) {
-      throw new HttpError(
-        401,
-        'Authentication required',
-        'NO_ACCESS_TOKEN',
-      );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
-    return ReviewModel.find({ customerId })
-      .sort({ createdAt: -1 })
-      .lean();
+    return ReviewModel.find({ customerId }).sort({ createdAt: -1 }).lean();
   }
 
   /** GET /admin/reviews — list and filter reviews. */
@@ -553,11 +494,7 @@ export class ReviewsService {
     const parsed = adminReviewQuerySchema.safeParse(query);
 
     if (!parsed.success) {
-      throw new HttpError(
-        400,
-        'Invalid review filters',
-        'VALIDATION_ERROR',
-      );
+      throw new HttpError(400, 'Invalid review filters', 'VALIDATION_ERROR');
     }
 
     const { page, limit, search, status } = parsed.data;
@@ -577,25 +514,19 @@ export class ReviewsService {
       ];
     }
 
-    const [
-      reviews,
-      total,
-      pending,
-      approved,
-      rejected,
-      allReviews,
-    ] = await Promise.all([
-      ReviewModel.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-      ReviewModel.countDocuments(filter),
-      ReviewModel.countDocuments({ status: 'pending' }),
-      ReviewModel.countDocuments({ status: 'approved' }),
-      ReviewModel.countDocuments({ status: 'rejected' }),
-      ReviewModel.countDocuments(),
-    ]);
+    const [reviews, total, pending, approved, rejected, allReviews] =
+      await Promise.all([
+        ReviewModel.find(filter)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean(),
+        ReviewModel.countDocuments(filter),
+        ReviewModel.countDocuments({ status: 'pending' }),
+        ReviewModel.countDocuments({ status: 'approved' }),
+        ReviewModel.countDocuments({ status: 'rejected' }),
+        ReviewModel.countDocuments(),
+      ]);
 
     // DEMO ONLY: mock names are displayed only when real names are unavailable.
     // These names are not real partner assignments and are never saved to MongoDB.
@@ -619,9 +550,7 @@ export class ReviewsService {
 
     const bookings = bookingIds.length
       ? await BookingModel.find({
-          _id: {
-            $in: bookingIds.map((id) => new Types.ObjectId(id)),
-          },
+          _id: { $in: bookingIds.map((id) => new Types.ObjectId(id)) },
         })
           .select('_id partnerId offers')
           .lean()
@@ -631,9 +560,7 @@ export class ReviewsService {
     const bookingPartnerMap = new Map<string, string>();
 
     for (const booking of bookings) {
-      let partnerId = booking.partnerId
-        ? String(booking.partnerId)
-        : null;
+      let partnerId = booking.partnerId ? String(booking.partnerId) : null;
 
       // Use an accepted offer only if exactly one valid partner is identified.
       if (!partnerId) {
@@ -659,9 +586,7 @@ export class ReviewsService {
       ...new Set(
         reviews.flatMap((review) => {
           const partnerId =
-            (review.partnerId
-              ? String(review.partnerId)
-              : undefined) ??
+            (review.partnerId ? String(review.partnerId) : undefined) ??
             (review.bookingId
               ? bookingPartnerMap.get(String(review.bookingId))
               : undefined);
@@ -680,9 +605,7 @@ export class ReviewsService {
     // Return real partner names when available; otherwise use demo labels.
     const enrichedReviews = reviews.map((review, index) => {
       const partnerId =
-        (review.partnerId
-          ? String(review.partnerId)
-          : undefined) ??
+        (review.partnerId ? String(review.partnerId) : undefined) ??
         (review.bookingId
           ? bookingPartnerMap.get(String(review.bookingId))
           : undefined);
@@ -692,8 +615,7 @@ export class ReviewsService {
         : null;
 
       const partnerName =
-        realPartnerName ??
-        mockPartnerNames[index % mockPartnerNames.length];
+        realPartnerName ?? mockPartnerNames[index % mockPartnerNames.length];
 
       return {
         ...review,
@@ -720,16 +642,9 @@ export class ReviewsService {
   }
 
   /** PATCH /admin/reviews/:id/visibility — hide or restore a review. */
-  async updateReviewVisibility(
-    id: string,
-    visible: unknown,
-  ) {
+  async updateReviewVisibility(id: string, visible: unknown) {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(
-        400,
-        'Invalid review ID',
-        'INVALID_ID',
-      );
+      throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
     }
 
     const parsed = reviewVisibilitySchema.safeParse({ visible });
@@ -737,8 +652,7 @@ export class ReviewsService {
     if (!parsed.success) {
       throw new HttpError(
         400,
-        parsed.error.issues[0]?.message ??
-          'Invalid visibility value',
+        parsed.error.issues[0]?.message ?? 'Invalid visibility value',
         'VALIDATION_ERROR',
       );
     }
@@ -746,63 +660,55 @@ export class ReviewsService {
     const existingReview = await ReviewModel.findById(id).lean();
 
     if (!existingReview) {
-      throw new HttpError(
-        404,
-        'Review not found',
-        'NOT_FOUND',
-      );
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
     }
 
     const review = await ReviewModel.findByIdAndUpdate(
       id,
-      {
-        $set: {
-          visible: parsed.data.visible,
-        },
-      },
-      {
-        new: true,
-        runValidators: true,
-      },
+      { $set: { visible: parsed.data.visible } },
+      { new: true, runValidators: true },
     ).lean();
 
     if (!review) {
-      throw new HttpError(
-        404,
-        'Review not found',
-        'NOT_FOUND',
-      );
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
     }
 
     // Recalculate ratings after hiding or restoring a review.
     if (review.partnerId) {
-      await reviewsRepository.recomputePartnerRating(
-        String(review.partnerId),
-      );
+      await reviewsRepository.recomputePartnerRating(String(review.partnerId));
     }
 
     if (review.serviceId) {
-      await reviewsRepository.recomputeServiceRating(
-        String(review.serviceId),
-      );
+      await reviewsRepository.recomputeServiceRating(String(review.serviceId));
     }
 
     return review;
   }
-}
 
+  /** PATCH /admin/reviews/:id/status — approve or reject a review. */
   async updateReviewStatus(
     id: string,
     status: unknown,
     actor: ReviewAuditActor,
   ) {
-    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+    }
+
     const parsedStatus = reviewStatusSchema.safeParse(status);
-    if (!parsedStatus.success) throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
+
+    if (!parsedStatus.success) {
+      throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
+    }
 
     // Read first so the audit entry contains the actual previous status.
-    const existingReview = await ReviewModel.findById(id).select('_id status').lean();
-    if (!existingReview) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    const existingReview = await ReviewModel.findById(id)
+      .select('_id status')
+      .lean();
+
+    if (!existingReview) {
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    }
 
     const previousStatus = existingReview.status;
     const nextStatus = parsedStatus.data as ReviewStatus;
@@ -813,11 +719,14 @@ export class ReviewsService {
       { new: true, runValidators: true },
     ).lean();
 
-    if (!review) throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    if (!review) {
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    }
 
     if (review.partnerId) {
       await reviewsRepository.recomputePartnerRating(String(review.partnerId));
     }
+
     if (review.serviceId) {
       await reviewsRepository.recomputeServiceRating(String(review.serviceId));
     }
@@ -834,6 +743,3 @@ export class ReviewsService {
     return review;
   }
 }
-
-const escapeRegex = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

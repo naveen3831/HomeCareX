@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import DataTable, {
   Column,
@@ -130,6 +131,10 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
+  // Optional route param: /admin/audit-logs/:auditId opens the full-page details view
+  const { auditId } = useParams<{ auditId: string }>();
+  const navigate = useNavigate();
+
   // Search box sits right under the page title
   const [search, setSearch] = useState("");
   // Mouse drag-scroll for the table (swipe already works on phones)
@@ -154,7 +159,7 @@ const AdminAuditLogsPage: React.FC = () => {
           { params: { limit: 100 } }
         );
 
-        if (!result.success) {
+        if (!result.success || !result.data) {
           throw new Error("Failed to load audit logs");
         }
 
@@ -220,8 +225,11 @@ const AdminAuditLogsPage: React.FC = () => {
     fetchAuditLogs();
   }, []);
 
+  const query = search.toLowerCase().trim();
+  const totalLogs = auditLogsData.length;
+
   const filteredLogs = auditLogsData.filter((log) => {
-    const searchValue = search.toLowerCase().trim();
+    const searchValue = query;
 
     if (!searchValue) {
       return true;
@@ -252,7 +260,7 @@ const AdminAuditLogsPage: React.FC = () => {
     );
   });
 
-  const selectedAuditLog = auditLogs.find((log) => log.id === auditId);
+  const selectedAuditLog = auditLogsData.find((log) => log.id === auditId);
   if (auditId) {
     if (loading) {
       return (
