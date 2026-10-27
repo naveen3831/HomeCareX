@@ -59,7 +59,7 @@ const renderWithProviders = (initialRoute = '/') => {
               <Route path="/verify-otp" element={<VerifyOtpPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<div data-testid="unauthorized-page">Unauthorized Access</div>} />
-              
+
               {/* Protected Dashboards */}
               <Route
                 path="/customer"
@@ -129,7 +129,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       await user.type(screen.getByLabelText(/phone number/i), '9876543210');
       await user.type(screen.getByLabelText(/^password/i), 'SecurePass@123');
       await user.type(screen.getByLabelText(/confirm password/i), 'SecurePass@123');
-      
+
       // Accept terms
       await user.click(screen.getByRole('checkbox', { name: /terms/i }));
 

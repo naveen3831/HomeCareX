@@ -17,34 +17,56 @@ interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
-/** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
-export const Header: React.FC<HeaderProps> = ({ notifications: _notifications = [] }) => {
+/** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
+export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
   const { pathname } = useLocation();
+  const isCollapsed = useUIStore((state) => state.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
-  const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
-  const toggleMobileMenu = useUIStore((s) => s.toggleMobileMenu);
+
+  // Notifications are rendered by NotificationBell; keep the prop for existing callers.
+  void notifications;
 
   return (
     <header className="admin-topbar">
-      <button type="button" onClick={toggleMobileMenu} className="icon-btn mobile-only" aria-label="Open menu">
-        <Menu size={20} />
+      <button
+        type="button"
+        onClick={toggleMobileMenu}
+        className="icon-btn mobile-only"
+        aria-label="Open menu"
+      >
+        <Menu size={20} aria-hidden="true" />
       </button>
+
       <button
         type="button"
         onClick={toggleSidebar}
         className="icon-btn desktop-only"
         aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        {isCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+        {isCollapsed ? (
+          <PanelLeftOpen size={20} aria-hidden="true" />
+        ) : (
+          <PanelLeftClose size={20} aria-hidden="true" />
+        )}
       </button>
 
-      <div className={`admin-topbar__crumbs${isCustomerDetails ? ' admin-topbar__crumbs--hide-mobile' : ''}`}>
+      <div
+        className={`admin-topbar__crumbs${
+          isCustomerDetails ? ' admin-topbar__crumbs--hide-mobile' : ''
+        }`}
+      >
         <Breadcrumbs />
       </div>
 
       <div className="topbar-right">
-        <Link to="/admin/support" className="icon-btn" aria-label="Help and support" title="Help and support">
+        <Link
+          to="/admin/support"
+          className="icon-btn"
+          aria-label="Help and support"
+          title="Help and support"
+        >
           <HelpCircle size={20} />
         </Link>
         <NotificationBell />

@@ -18,8 +18,6 @@ import { registerTicketSocket } from './ticket.socket';
  * - booking:<id> after successful booking:join authorization
  * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
  * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
- * - tracking:<id> after successful tracking:join authorization
- * - ticket:admin:<id> after successful ticket:join authorization
  */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -65,22 +63,26 @@ export const emitToBooking = (
   payload: unknown,
 ) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
-
-/** Customers: their own bookings. Partners: bookings assigned to them. Admins: any booking. */
+/**
+ * Admins can join existing bookings.
+ * Customers can join only their own bookings.
+ * Partners can join only bookings assigned to them.
+ */
 async function canJoinBooking(
   auth: AccessTokenPayload,
   bookingId: string,
 ): Promise<boolean> {
   if (auth.role === 'admin') {
-    return !!(await BookingModel.exists({ _id: bookingId }));
+    return Boolean(await BookingModel.exists({ _id: bookingId }));
   }
 
   if (auth.role === 'customer') {
-  if (auth.role === 'customer')
-    return !!(await BookingModel.exists({
-      _id: bookingId,
-      customerId: auth.sub,
-    }));
+    return Boolean(
+      await BookingModel.exists({
+        _id: bookingId,
+        customerId: auth.sub,
+      }),
+    );
   }
 
   if (auth.role === 'partner') {
@@ -89,11 +91,13 @@ async function canJoinBooking(
       .lean();
 
     return (
-      !!partner &&
-      !!(await BookingModel.exists({
-        _id: bookingId,
-        partnerId: partner._id,
-      }))
+      Boolean(partner) &&
+      Boolean(
+        await BookingModel.exists({
+          _id: bookingId,
+          partnerId: partner?._id,
+        }),
+      )
     );
   }
 
@@ -202,50 +206,6 @@ export const initSockets = (server: HttpServer): Server => {
         });
       }
     });
-    socket.on(
-      'booking:join',
-      async (payload: unknown, ack?: AckFn) => {
-        const reply: AckFn =
-          typeof ack === 'function' ? ack : () => undefined;
-
-        const parsed = bookingPayload.safeParse(payload);
-
-        if (!parsed.success) {
-          return reply({
-            ok: false,
-            code: ERROR_CODES.VALIDATION_ERROR,
-            message: 'bookingId is required',
-          });
-        }
-
-        try {
-          const allowed = await canJoinBooking(
-            auth,
-            parsed.data.bookingId,
-          );
-
-          if (!allowed) {
-            return reply({
-              ok: false,
-              code: ERROR_CODES.RESOURCE_FORBIDDEN,
-              message: 'You cannot join this booking',
-            });
-          }
-
-          await socket.join(
-            rooms.booking(parsed.data.bookingId),
-          );
-
-          return reply({ ok: true });
-        } catch {
-          return reply({
-            ok: false,
-            code: ERROR_CODES.INTERNAL_ERROR,
-            message: 'Could not join booking',
-          });
-        }
-      },
-    );
 
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);

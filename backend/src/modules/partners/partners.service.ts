@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { Types } from 'mongoose';
 
 import BookingModel from '../../models/Booking';
-import { CategoryModel } from '../../models/Category';
+import CategoryModel from '../../models/Category';
 import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import { ServiceModel } from '../../models/Service';
