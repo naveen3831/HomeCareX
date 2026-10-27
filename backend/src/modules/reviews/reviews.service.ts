@@ -45,6 +45,9 @@ const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
+
+/** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
+/** Masks customer names before displaying them publicly. */
 export function maskAuthor(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
 
@@ -115,6 +118,19 @@ const toCustomerReviewDto = (
   verified: r.verified === true,
   createdAt: new Date(r.createdAt).toISOString(),
 });
+
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
+
+
+interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
 
 export class ReviewsService {
   /**
@@ -673,6 +689,11 @@ export class ReviewsService {
   }
 
   /** PATCH /admin/reviews/:id/status — approve or reject a review. */
+
+  async updateReviewStatus( id: string,    status: unknown,    actor: ReviewAuditActor,  )
+   {
+    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+  /** PATCH /admin/reviews/:id/status */
   async updateReviewStatus(
     id: string,
     status: unknown,

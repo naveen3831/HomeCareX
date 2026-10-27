@@ -2,6 +2,10 @@ import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { notifyAdmins } from '../notifications';
 import { alertRefundRequested } from '../notifications/admin-alerts';
+import { createHash } from "crypto";
+import { notifyAdmins } from "../notifications";
+import { alertRefundRequested } from "../notifications/admin-alerts";
+import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
 import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
 import { bookingsRepository } from './bookings.repository';
@@ -12,6 +16,7 @@ import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } fr
 import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
 import { PaymentModel } from '../../models/Payment';
 import { RefundModel } from '../../models/Refund';
+
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
@@ -24,6 +29,12 @@ import {
 } from './bookings.constants';
 import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
 import { computeCancellation, type CancellationQuote } from './bookings.cancel';
+import {
+
+  canTransition,
+  type StatusHistoryEntry,
+} from "./bookings.stateMachine";
+import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
 import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
@@ -191,6 +202,557 @@ export const BookingService = {
 
     return { serviceId, date, slots };
   },
+
+  /**
+   * Fast real-time slot pre-check before advancing steps or paying
+   */
+  async checkSlotAvailability(serviceId: string, date: string, slot: string): Promise<SlotAvailability> {
+    assertBookableDate(date);
+    if (hasSlotStarted(date, slot)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+    const capacity = await bookingSettings.getSlotCapacity(serviceId);
+    const taken = await bookingsRepository.countActiveForSlot(serviceId, date, slot);
+    const remaining = Math.max(capacity - taken, 0);
+
+    if (remaining <= 0) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+
+    return { slot, available: true, remaining };
+  },
+
+  async createBooking(customerId: string, input: CreateBookingInput, idempotencyKey: string | undefined) {
+    if (!idempotencyKey || idempotencyKey.length > 200) {
+      throw new AppError(400, 'IDEMPOTENCY_KEY_REQUIRED', 'An Idempotency-Key header is required to create a booking');
+    }
+    const requestHash = createHash('sha256').update(stableStringify(input)).digest('hex');
+
+    const replay = async () => {
+      const existing = await bookingsRepository.findByCustomerAndIdempotencyKey(customerId, idempotencyKey);
+      if (!existing) return null;
+      if (existing.requestHash !== requestHash) {
+        throw new AppError(409, 'IDEMPOTENCY_KEY_REUSED', 'This Idempotency-Key was already used with a different request');
+      }
+      return { booking: toView(existing as never), replayed: true };
+    };
+
+    const replayed = await replay();
+    if (replayed) return replayed;
+
+    const row = await ServiceModel.findOne(
+      { _id: input.serviceId, active: { $ne: false } },
+      'name basePrice addOns categoryId',
+    ).lean();
+    if (!row) throw new AppError(404, 'SERVICE_NOT_FOUND', 'That service was not found');
+    const service = {
+      id: String(row._id), name: row.name, basePrice: row.basePrice,
+      categoryId: (row as { categoryId?: Types.ObjectId }).categoryId,
+      addOns: (row.addOns ?? []).map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
+    };
+
+    const addOnLines: PriceLine[] = input.addOns.map((a) => {
+      const addOn = service.addOns.find((x) => x.id === a.addOnId);
+      if (!addOn) {
+        throw new AppError(422, 'ADDON_NOT_FOUND', 'One of the selected add-ons is not available for this service', {
+          addOnId: a.addOnId,
+        });
+      }
+      return {
+        kind: 'ADDON',
+        refId: new Types.ObjectId(addOn.id),
+        name: addOn.name,
+        unitPrice: addOn.price,
+        quantity: a.quantity,
+        amount: addOn.price * a.quantity,
+      };
+    });
+
+    if (new Set(input.addOns.map((a) => a.addOnId)).size !== input.addOns.length) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Each add-on can only be listed once');
+    }
+
+    assertBookableDate(input.date);
+    if (hasSlotStarted(input.date, input.slot)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+
+    let addressSnapshot: ResolvedAddress;
+    if (input.addressId) {
+      addressSnapshot = await addressesService.resolveForBooking(customerId, input.addressId);
+    } else if (input.newAddress) {
+      await addressesService.assertServiceable(input.newAddress.pincode);
+      addressSnapshot = { ...input.newAddress };
+    } else {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Provide exactly one of addressId or newAddress');
+    }
+
+    let coupon: { code: string; discount: number } | null = null;
+    if (input.couponCode) {
+      try {
+        coupon = await couponsService.validate(
+          {
+            serviceId: input.serviceId,
+            quantity: input.quantity,
+            addOns: input.addOns,
+            date: input.date,
+            slot: input.slot,
+            couponCode: input.couponCode,
+          },
+          customerId,
+        );
+      } catch (err) {
+        if (err instanceof HttpError) {
+          throw new AppError(422, toQuoteCouponCode(err.code ?? 'COUPON_INVALID'), err.message);
+        }
+        throw err;
+      }
+    }
+
+    const lines: PriceLine[] = [
+      {
+        kind: 'BASE',
+        refId: new Types.ObjectId(service.id),
+        name: service.name,
+        unitPrice: service.basePrice,
+        quantity: input.quantity,
+        amount: service.basePrice * input.quantity,
+      },
+      ...addOnLines,
+    ];
+    // Same calculation as POST /pricing/quote, so the stored total is what the customer was shown.
+    const pricing = calculatePricing({ lines, slot: input.slot, discount: coupon?.discount ?? 0 });
+    const priceSnapshot: PriceSnapshot = {
+      currency: 'INR',
+      lines,
+      ...pricing,
+      ...(coupon ? { couponCode: coupon.code } : {}),
+      computedAt: new Date(),
+    };
+
+    if (input.expectedTotal !== undefined && Math.abs(input.expectedTotal - priceSnapshot.total) > PRICE_CHANGED_TOLERANCE) {
+      throw new AppError(409, 'PRICE_CHANGED', `The price changed to ₹${priceSnapshot.total}. Please review and confirm again.`, {
+        expectedTotal: input.expectedTotal,
+        total: priceSnapshot.total,
+      });
+    }
+
+    const requirePayment = await bookingSettings.isPaymentRequired();
+    const capacity = await bookingSettings.getSlotCapacity(input.serviceId);
+    const initialStatus = requirePayment ? BOOKING_STATUS.PENDING_PAYMENT : BOOKING_STATUS.CONFIRMED;
+    const initialPaymentStatus = BOOKING_PAYMENT_STATUS.PENDING;
+    const now = new Date();
+
+    try {
+      const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
+        await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
+        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
+        if (seat === null) {
+          throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+        }
+        const createdBooking = await bookingsRepository.create({
+          customerId: new Types.ObjectId(customerId),
+          serviceId: new Types.ObjectId(input.serviceId),
+          categoryId: service.categoryId,
+          quantity: input.quantity,
+          addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
+          addressSnapshot: {
+            ...addressSnapshot,
+            sourceAddressId: addressSnapshot.sourceAddressId ? new Types.ObjectId(addressSnapshot.sourceAddressId) : undefined,
+          },
+          // Fields read by the partner jobs/dashboard side (P02-P05).
+          serviceName: service.name,
+          address: {
+            line1: addressSnapshot.line1,
+            area: addressSnapshot.line2,
+            city: addressSnapshot.city,
+            pincode: addressSnapshot.pincode,
+            ...(addressSnapshot.location
+              ? { location: { type: 'Point', coordinates: [addressSnapshot.location.lng, addressSnapshot.location.lat] } }
+              : {}),
+          },
+          scheduledAt: slotStartDate(input.date, input.slot),
+          priceBreakdown: {
+            base: lines[0].amount,
+            addOns: pricing.addOnsTotal,
+            surge: pricing.surge,
+            discount: priceSnapshot.discount,
+            convenienceFee: priceSnapshot.convenienceFee,
+            tax: pricing.gst,
+            total: priceSnapshot.total,
+          },
+          date: input.date,
+          slot: input.slot,
+          priceSnapshot,
+          status: initialStatus,
+          paymentStatus: initialPaymentStatus,
+          statusHistory: [
+            {
+              from: null,
+              to: initialStatus,
+              at: now,
+              actorId: customerId,
+              actorRole: 'customer',
+              reason: requirePayment ? 'Booking created, awaiting payment' : 'Booking confirmed',
+            },
+          ],
+          slotSeat: seat,
+          idempotencyKey,
+          requestHash,
+          holdExpiresAt: requirePayment ? new Date(now.getTime() + BOOKING_HOLD_MS) : undefined,
+        } as never);
+
+        if (coupon) {
+          await couponsService.recordUsage(coupon.code, customerId, (createdBooking as { _id?: unknown })._id?.toString());
+        }
+        return createdBooking;
+      });
+
+      // Alerts are best effort and must not change the outcome of a successful booking.
+      void notifyAdmins('booking.created', {
+        bookingId: String((created as { _id?: unknown })._id ?? ''),
+        serviceId: input.serviceId,
+      }).catch(() => undefined);
+
+      return { booking: toView(created as never), replayed: false };
+    } catch (err) {
+      if (isDuplicateKey(err, 'uniq_customer_idem_key')) {
+        const raced = await replay();
+        if (raced) return raced;
+      }
+      if (isDuplicateKey(err, 'uniq_active_slot_seat')) {
+        throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+      }
+      throw err;
+    }
+  },
+
+  /**
+   * One booking for its owner. A booking that belongs to someone else is indistinguishable from one
+   * that does not exist: both are 404, so ids can't be probed.
+   */
+  async getBooking(customerId: string, bookingId: string) {
+    let booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+
+    if (
+      booking.status === BOOKING_STATUS.PENDING_PAYMENT &&
+      booking.holdExpiresAt &&
+      new Date(booking.holdExpiresAt).getTime() <= Date.now()
+    ) {
+      await bookingsRepository.releaseStaleHolds(
+        booking.serviceId ? String(booking.serviceId) : undefined,
+        booking.date,
+        booking.slot,
+      );
+      const refreshed = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+      if (refreshed) booking = refreshed;
+    }
+
+    const normalizedStatus = String(booking.status || '').toLowerCase();
+    const isArrived =
+      normalizedStatus === START_OTP_STATUS ||
+      normalizedStatus === 'arrived' ||
+      booking.status === START_OTP_STATUS;
+    const startOtp = isArrived
+      ? await bookingsRepository.getOrCreateStartOtp(String((booking as { _id?: unknown })._id || bookingId))
+      : null;
+    const raw = rawObject(booking);
+    const [service, payment, refundDoc] = await Promise.all([
+      loadServiceInfo(raw.serviceId, raw.serviceName),
+      loadPaymentInfo(bookingId),
+      loadRefundInfo(bookingId),
+    ]);
+    return buildDetailView(raw, startOtp, { service, payment, refund: refundDoc as Record<string, unknown> | null });
+  },
+
+  /** Approve or reject one pending extra charge, then return the refreshed booking. */
+  async decideExtraCharge(
+    customerId: string,
+    bookingId: string,
+    chargeId: string,
+    decision: 'approve' | 'reject',
+  ) {
+    const next = decision === 'approve' ? 'approved' : 'rejected';
+    const updated = await bookingsRepository.decideExtraCharge(bookingId, customerId, chargeId, next);
+
+    if (!updated) {
+      // Nothing was changed. Work out why so the client gets an honest answer (own bookings only).
+      const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+      if (!booking) throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+
+      const charge = (booking as { extraCharges?: Array<{ _id?: unknown; status?: string }> }).extraCharges?.find((c) => String(c._id) === chargeId);
+      if (!charge) throw new AppError(404, 'EXTRA_CHARGE_NOT_FOUND', 'Extra charge not found');
+      if (charge.status !== 'pending') {
+        throw new AppError(409, 'EXTRA_CHARGE_ALREADY_DECIDED', `This extra charge was already ${charge.status}`);
+      }
+      throw new AppError(
+        409,
+        'INVALID_STATE_TRANSITION',
+        `An extra charge can't be decided while the booking is ${booking.status}`,
+      );
+    }
+
+    return BookingService.getBooking(customerId, bookingId);
+  },
+
+  /**
+   * The invoice (HTML) for one of the customer's own bookings.
+   * 404 for someone else's booking (same answer as GET /bookings/:id, so ids can't be probed);
+   * 409 until the booking is paid or settled, because there is nothing to invoice before that.
+   */
+  async getInvoice(
+    customerId: string,
+    bookingId: string,
+  ): Promise<{ html: string; invoiceNo: string }> {
+    const view = await BookingService.getBooking(customerId, bookingId);
+    if (view.paymentStatus !== 'PAID') {
+      throw new AppError(
+        409,
+        'INVOICE_NOT_AVAILABLE',
+        'The invoice is available once the booking is paid',
+      );
+    }
+    const customer =
+      (await bookingsRepository.findCustomerContact(customerId)) ?? {};
+    // The booking view's payment lookup is best-effort; read the paid Payment record directly so the
+    // method, transaction ID and payment date on the receipt are always filled when they exist.
+    const paidRecord = await bookingsRepository
+      .findPaidPayment(bookingId)
+      .catch(() => null);
+    const data = buildInvoiceData(
+      withPaymentRecord(view, paidRecord as never),
+      customer,
+    );
+    return { html: renderInvoiceHtml(data), invoiceNo: data.invoiceNo };
+  },
+
+  /**
+   * Fee and refund summary if the customer cancelled right now.
+   */
+  async previewCancellation(customerId: string, bookingId: string): Promise<CancellationSummary> {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+    if (!canTransition(booking.status as BookingStatus, 'cancelled_by_customer', 'customer')) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking in ${booking.status} cannot be cancelled`);
+    }
+
+    const policy = await bookingSettings.getCancellationPolicy();
+    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
+    const isPaid = Boolean(paidRecord && paidRecord.status === 'PAID') || booking.paymentStatus === 'PAID';
+    const paidAmount = paidRecord ? paidRecord.amount : (isPaid ? Number(booking.priceBreakdown?.total ?? 0) : 0);
+    const slotStart = bookingSlotStart(booking as never);
+    const now = new Date();
+    const quote = computeCancellation({ slotStart, now, paidAmount, policy });
+    const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
+
+    return {
+      ...quote,
+      hoursUntilSlot,
+      refundMethod: quote.refundAmount > 0 && isPaid ? ('WALLET' as const) : null,
+      refundStatus: quote.refundAmount > 0 && isPaid ? ('requested' as const) : ('none' as const),
+    };
+  },
+
+  // Alias
+  async previewCancel(customerId: string, bookingId: string): Promise<CancellationSummary> {
+    return BookingService.previewCancellation(customerId, bookingId);
+  },
+
+  /**
+   * Cancels the customer's booking. Order matters: the status moves first, atomically and through the
+   * state machine (so a double tap or a partner moving the job on cannot cancel twice or after in_progress),
+   * then the refund request is filed for the amount shown in the preview.
+   */
+  async cancelBooking(customerId: string, bookingId: string, reason: string) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+    if (!canTransition(booking.status as BookingStatus, 'cancelled_by_customer', 'customer')) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking in ${booking.status} cannot be cancelled`);
+    }
+
+    const policy = await bookingSettings.getCancellationPolicy();
+    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
+    const isPaid = Boolean(paidRecord && paidRecord.status === 'PAID') || booking.paymentStatus === 'PAID';
+    const paidAmount = paidRecord ? paidRecord.amount : (isPaid ? Number(booking.priceBreakdown?.total ?? 0) : 0);
+    const slotStart = bookingSlotStart(booking as never);
+    const now = new Date();
+    const quote = computeCancellation({ slotStart, now, paidAmount, policy });
+
+    const historyEntry: StatusHistoryEntry = {
+      from: booking.status as BookingStatus,
+      to: 'cancelled_by_customer',
+      at: now,
+      actorId: customerId,
+      actorRole: 'customer',
+      reason,
+    };
+
+    const cancelled = await bookingsRepository.markCancelled(
+      bookingId,
+      customerId,
+      booking.status as BookingStatus,
+      historyEntry,
+      reason,
+      isPaid && quote.refundAmount > 0 ? 'PENDING_APPROVAL' : 'NOT_REQUIRED',
+    );
+
+    if (!cancelled) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
+    }
+
+    let refundStatus: CancellationSummary['refundStatus'] = 'none';
+    if (quote.refundAmount > 0 && isPaid) {
+      try {
+        const refund = (await bookingsRepository.createRefundRequest({
+          payment: paidRecord,
+          bookingId,
+          customerId,
+          amount: quote.refundAmount,
+          reason,
+          now,
+        }));
+        refundStatus = 'requested';
+        if (refund && refund._id) {
+          alertRefundRequested({
+            refundId: String(refund._id),
+            bookingId,
+            amount: quote.refundAmount,
+          });
+        }
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
+      } catch {
+        throw new AppError(
+          500,
+          'REFUND_REQUEST_FAILED',
+          'Your booking is cancelled, but we could not file the refund request. Please contact support.',
+        );
+      }
+    }
+
+    const updatedBooking = await BookingService.getBooking(customerId, bookingId);
+    const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
+
+    return {
+      booking: updatedBooking,
+      cancellation: {
+        ...quote,
+        hoursUntilSlot,
+        refundMethod: quote.refundAmount > 0 && isPaid ? ('WALLET' as const) : null,
+        refundStatus,
+      },
+    };
+  },
+
+  /**
+   * Moves the customer's booking to another date and slot. The new slot is re-checked while holding the
+   * same lock createBooking uses, so two customers can't take its last seat, then the booking is updated
+   * and a history entry is written. 404 for someone else's booking, 409 when the status doesn't allow it
+   * or the slot is gone.
+   */
+  async rescheduleBooking(
+    customerId: string,
+    bookingId: string,
+    input: { date: string; slot: string },
+  ) {
+    const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
+    if (!booking) {
+      throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
+    }
+
+    if (!RESCHEDULABLE_STATUSES.includes(booking.status as BookingStatus)) {
+      throw new AppError(409, 'INVALID_STATE_TRANSITION', `A booking can't be rescheduled while it is ${booking.status}`);
+    }
+
+    const rawServiceId = (booking as { serviceId?: unknown }).serviceId;
+    const serviceId = String((rawServiceId as { _id?: unknown })?._id ?? rawServiceId);
+    if (!serviceId || !booking.date || !booking.slot) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has no slot that can be changed');
+    }
+
+    if (hasSlotStarted(booking.date, booking.slot)) {
+      throw new AppError(409, 'BOOKING_NOT_RESCHEDULABLE', 'This booking has already started');
+    }
+
+    if (booking.date === input.date && booking.slot === input.slot) {
+      throw new AppError(400, 'SAME_SLOT', 'Pick a different date or time slot');
+    }
+
+    assertBookableDate(input.date);
+    if (hasSlotStarted(input.date, input.slot)) {
+      throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+    }
+
+    const capacity = await bookingSettings.getSlotCapacity(serviceId);
+    const now = new Date();
+    const fromDate = booking.date;
+    const fromSlot = booking.slot;
+    const fromStatus = booking.status as BookingStatus;
+
+    try {
+      return await withSlotLock(`booking:${serviceId}:${input.date}:${input.slot}`, async () => {
+        await bookingsRepository.releaseStaleHolds(serviceId, input.date, input.slot, now);
+        const seat = await bookingsRepository.findFreeSeat(serviceId, input.date, input.slot, capacity, now);
+        if (seat === null) {
+          throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+        }
+
+        const historyEntry: StatusHistoryEntry = {
+          from: fromStatus,
+          to: fromStatus,
+          at: now,
+          actorId: customerId,
+          actorRole: 'customer',
+          reason: `Rescheduled from ${fromDate} (${fromSlot}) to ${input.date} (${input.slot})`,
+        };
+
+        const updated = await bookingsRepository.reschedule({
+          bookingId,
+          customerId,
+          fromStatus,
+          fromDate,
+          fromSlot,
+          to: {
+            date: input.date,
+            slot: input.slot,
+            seat,
+            scheduledAt: slotStartDate(input.date, input.slot),
+          },
+          entry: historyEntry,
+        });
+
+        if (!updated) {
+          throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
+        }
+
+        return BookingService.getBooking(customerId, bookingId);
+      });
+    } catch (err) {
+      if (isDuplicateKey(err, 'uniq_active_slot_seat')) {
+        throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
+      }
+      throw err;
+    }
+  },
+      const created = await withSlotLock(
+        `booking:${input.serviceId}:${input.date}:${input.slot}`,
+        async () => {
+          await bookingsRepository.releaseStaleHolds(
+            input.serviceId,
+            input.date,
+            input.slot,
+            now,
+          );
 
   /**
    * Fast real-time slot pre-check before advancing steps or paying

@@ -15,6 +15,11 @@ export const notificationsRoutes = Router();
 
 notificationsRoutes.use(authenticate);
 
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  unread: z.enum(['true', 'false']).optional(),
+});
+
 // `.strict()` rejects unknown query keys, so every supported key (limit, unread) must be listed here.
 const listQuerySchema = z
   .object({

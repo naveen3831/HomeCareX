@@ -22,6 +22,13 @@ import {
 } from './modules/referrals/referrals.model';
 import { WalletLedgerModel, WalletModel } from './models/Wallet';
 import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
+import { initSockets } from './sockets';
+
+const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
+import {
+  WalletLedgerModel,
+  WalletModel,
+} from './models/Wallet';
 
 const timed = async <T>(
   label: string,
@@ -37,6 +44,7 @@ const timed = async <T>(
 };
  
 const server = http.createServer(app);
+// Attach Socket.IO to the same HTTP server, otherwise /socket.io/ requests fall through to Express and return 404.
 
 // Initialize Socket.IO once, before the HTTP server starts listening.
 initSockets(server);
@@ -47,6 +55,21 @@ let stopReferralWorker: (() => void) | undefined;
 let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
+/** Non-critical default data; failures do not stop the server. */
+const seedDefaults = async (): Promise<void> => {
+  try {
+    const added = await timed('seed settings', seedDefaultSettings);
+    if (added) {
+      console.log(`Seeded ${added} default setting(s)`);
+    }
+
+    await timed('seed designations', seedDefaultDesignations);
+    const freshCatalog = await timed('count services', async () =>
+      (await ServiceModel.estimatedDocumentCount()) === 0,
+    );
+
+    await timed('seed categories', seedDefaultCategories);
+    await timed('seed services', seedDefaultServices);
 /**
  * Seeds default data without preventing the server from running
  * if a non-critical seeding operation fails.
@@ -148,6 +171,7 @@ const startServer = async (): Promise<void> => {
     console.log(`HomeCareX server running on port ${PORT}`);
 
     console.log(
+      `[timing] process uptime at listen: ${Math.round(process.uptime() * 1000)} ms`,
       `[timing] process uptime at listen: ${Math.round(
         process.uptime() * 1000,
       )} ms`,
@@ -156,6 +180,9 @@ const startServer = async (): Promise<void> => {
     stopReferralWorker = startReferralWorker((error) => {
       console.error(
         '[referral-worker] Background referral processing failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      ),
+    );
         error instanceof Error
           ? error.message
           : String(error),
@@ -180,6 +207,10 @@ const startServer = async (): Promise<void> => {
     stopSlaSweep?.();
 
     if (server.listening) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close().catch(() => undefined);
       await new Promise<void>((resolve) => {
         server.close(() => resolve());
       });
@@ -217,6 +248,16 @@ const shutdown = async (): Promise<void> => {
   try {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+    }
+    console.log('Database connection closed.');
+    process.exitCode = 0;
+  } catch (error) {
+    console.error('Error during graceful shutdown:', error);
         server.close((error) => {
           if (error) {
             reject(error);
@@ -244,5 +285,3 @@ process.on('SIGTERM', () => void shutdown());
 process.on('SIGINT', () => void shutdown());
 
 void startServer();
- 
- 

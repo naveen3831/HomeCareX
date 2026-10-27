@@ -62,6 +62,7 @@ export const emitToUser = (
   payload: unknown,
 ) => getIO().to(rooms.user(userId)).emit(event, payload);
 
+
 /** Emits an event to all sockets in a booking room. */
 export const emitToBooking = (
   bookingId: string,
@@ -84,6 +85,12 @@ async function canJoinBooking(
     );
   }
 
+ 
+  if (auth.role === 'customer')
+    return !!(await BookingModel.exists({
+      _id: bookingId,
+      customerId: auth.sub,
+    }));
   if (auth.role === 'customer') {
     return Boolean(
       await BookingModel.exists({
@@ -235,6 +242,10 @@ export const initSockets = (server: HttpServer): Server => {
         void socket.leave(rooms.booking(parsed.data.bookingId));
       }
     });
+
+    // --------------------------------------------------
+    // TRACKING + TICKET SOCKET EVENTS
+    // --------------------------------------------------
 
     // Preserve the existing tracking and ticket event implementations.
     registerTrackingSocket(socket);

@@ -19,6 +19,8 @@ import { BookingTabs, tabId } from "./components/BookingTabs";
 import { DEFAULT_SORT, EMPTY_COPY, PAGE_SIZE } from "./bookingTabs";
 import {
   cancelNote,
+  OVERDUE_NOTE,
+  phaseOf,
   getBookingCode,
   getBookingId,
   getServiceName,
@@ -232,7 +234,13 @@ export default function MyBookingsPage() {
               tab={state.tab}
               now={now}
               index={i}
-              note={state.tab === "cancelled" ? cancelNote(b, now) : undefined}
+              note={
+                state.tab === "cancelled"
+                  ? cancelNote(b, now)
+                  : phaseOf(b, now) === "overdue"
+                    ? OVERDUE_NOTE
+                    : undefined
+              }
               footer={renderFooter(b)}
             />
           ))}

@@ -17,6 +17,11 @@ const UserSchema = new Schema(
     /** Partners only: the specialist type (Plumber, Electrician...). */
     designation: { type: String, trim: true },
     gender: { type: String, enum: ['male', 'female', 'other'] },
+    /** Customer profile photo as a data URL (jpeg/png/webp, max 2 MB). Not selected by default: it is large. Read it with .select('+avatar'). */
+    avatar: { type: String, select: false },
+    /** Customer preferences (see customer-profile module). */
+    language: { type: String },
+    notificationPrefs: { type: Schema.Types.Mixed },
     status: { type: String, enum: ['active', 'blocked', 'invited'], default: 'active' },
     staffRoleId: { type: Schema.Types.ObjectId, ref: 'StaffRole' },
     failedLogins: { type: Number, default: 0 },
