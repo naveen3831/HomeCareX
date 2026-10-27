@@ -118,6 +118,7 @@ function HelpCenter() {
               >
                 <summary>
                   <span>
+                    <h3 className="hcx-support-faq-cat">{section.title}</h3>
                     <small className="hcx-support-faq-cat">
                       {section.title}
                     </small>
@@ -155,6 +156,8 @@ function TicketList() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TicketStatus | "">("");
   const tickets = useTickets({ page, status: status || undefined });
+  return (
+    <section aria-label="My support tickets">
 
   const raw = tickets.data as unknown;
   const items: CustomerTicket[] = Array.isArray(raw)
@@ -180,6 +183,7 @@ function TicketList() {
         </div>
         <TicketStatusFilter
           value={status}
+          onChange={(nextStatus: TicketStatus | "") => {
           onChange={(nextStatus) => {
             setStatus(nextStatus);
             setPage(1);
@@ -200,11 +204,13 @@ function TicketList() {
         </div>
       )}
       {tickets.data &&
+        (tickets.data.items.length ? (
         (items.length ? (
           <ul
             className="hcx-support-ticket-list"
             aria-busy={tickets.isFetching}
           >
+            {tickets.data.items.map((ticket) => (
             {items.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} />
             ))}
@@ -221,6 +227,7 @@ function TicketList() {
             <Link to="/customer/support?view=new">Create a ticket</Link>
           </div>
         ))}
+      {tickets.data && tickets.data.meta.pages > 1 && (
       {tickets.data && (meta.pages ?? 1) > 1 && (
         <nav className="hcx-support-pagination" aria-label="Ticket pages">
           <button
@@ -231,11 +238,13 @@ function TicketList() {
             Previous
           </button>
           <span>
+            Page {page} of {tickets.data.meta.pages}
             Page {page} of {meta.pages}
           </span>
           <button
             type="button"
             disabled={
+              page >= tickets.data.meta.pages || tickets.isFetching || !online
               page >= (meta.pages ?? 1) || tickets.isFetching || !online
             }
             onClick={() => setPage((p) => p + 1)}

@@ -163,7 +163,15 @@ export class ReviewsController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const review = await this.reviewsService.updateReviewStatus(
+      const review = await (
+        this.reviewsService as ReviewsService & {
+          updateReviewStatus: (
+            reviewId: string,
+            status: unknown,
+            audit: { id: string; ip: string },
+          ) => Promise<unknown>;
+        }
+      ).updateReviewStatus(
         req.params.id,
         req.body?.status,
         {

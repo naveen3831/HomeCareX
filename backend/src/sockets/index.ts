@@ -12,6 +12,16 @@ import type { AccessTokenPayload } from '../modules/auth/auth.types';
 import { registerTicketSocket } from './ticket.socket';
 import { registerTrackingSocket } from './tracking.socket';
 
+/**
+ * Room names.
+ *
+ * A socket joins:
+ * - user:<id>
+ * - role:<role>
+ * - booking:<id> after successful booking:join authorization
+ * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
+ * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
+ */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
   role: (role: string) => `role:${role}`,
@@ -52,6 +62,7 @@ export const emitToUser = (
   payload: unknown,
 ) => getIO().to(rooms.user(userId)).emit(event, payload);
 
+
 /** Emits an event to all sockets in a booking room. */
 export const emitToBooking = (
   bookingId: string,
@@ -74,6 +85,13 @@ async function canJoinBooking(
     );
   }
 
+
+ 
+  if (auth.role === 'customer')
+    return !!(await BookingModel.exists({
+      _id: bookingId,
+      customerId: auth.sub,
+    }));
   if (auth.role === 'customer') {
     return Boolean(
       await BookingModel.exists({
@@ -225,6 +243,10 @@ export const initSockets = (server: HttpServer): Server => {
         void socket.leave(rooms.booking(parsed.data.bookingId));
       }
     });
+
+    // --------------------------------------------------
+    // TRACKING + TICKET SOCKET EVENTS
+    // --------------------------------------------------
 
     // Preserve the existing tracking and ticket event implementations.
     registerTrackingSocket(socket);

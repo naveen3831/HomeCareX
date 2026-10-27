@@ -1,46 +1,10 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import {
-  HelpCircle,
-  Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
-} from "lucide-react";
-
-import { useUIStore } from "@/store/useUIStore";
-import { NotificationBell } from "@/components/admin/NotificationBell";
-import { Breadcrumbs } from "@/components/admin/Breadcrumbs";
-import { ProfileMenu } from "@/components/admin/ProfileMenu";
-
-export interface HeaderNotification {
-  id: string;
-  title: string;
-  time: string;
-  href?: string;
-}
-
-interface HeaderProps {
-  /** Optional notifications retained for compatibility with existing callers. */
-  notifications?: HeaderNotification[];
-}
-
-/**
- * Sticky admin header with mobile navigation,
- * desktop sidebar controls, breadcrumbs, help,
- * notifications, and the profile menu.
- */
-export const Header: React.FC<HeaderProps> = ({
-  notifications = [],
-}) => {
-  const { pathname } = useLocation();
-
-  const isCollapsed = useUIStore(
-    (state) => state.isSidebarCollapsed,
-  );
-
-  const toggleSidebar = useUIStore(
-    (state) => state.toggleSidebar,
-  );
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useUIStore } from '@/store/useUIStore';
+import { NotificationBell } from '@/components/admin/NotificationBell';
+import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
+import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
   const toggleMobileMenu = useUIStore(
     (state) => state.toggleMobileMenu,
@@ -51,8 +15,15 @@ export const Header: React.FC<HeaderProps> = ({
   const isCustomerDetails =
     /^\/admin\/customers\/[^/]+/.test(pathname);
 
-  // NotificationBell manages its own live notifications.
-  // Retain this prop for compatibility with existing callers.
+/** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
+export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
+  const { pathname } = useLocation();
+  const isCollapsed = useUIStore((state) => state.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
+  const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
+
+  // Notifications are rendered by NotificationBell; keep the prop for existing callers.
   void notifications;
 
   return (
@@ -83,9 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       <div
         className={`admin-topbar__crumbs${
-          isCustomerDetails
-            ? " admin-topbar__crumbs--hide-mobile"
-            : ""
+          isCustomerDetails ? ' admin-topbar__crumbs--hide-mobile' : ''
         }`}
       >
         <Breadcrumbs />
@@ -98,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
           aria-label="Help and support"
           title="Help and support"
         >
-          <HelpCircle size={20} aria-hidden="true" />
+          <HelpCircle size={20} />
         </Link>
 
         <NotificationBell />

@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 
 import jwt from "jsonwebtoken";
 
-import { authRepository } from '../auth/auth.repository';
+import { authRepository } from "../auth/auth.repository";
 import { ensurePartnerProfile } from "../partners/partners.service";
 
 import {
@@ -378,20 +378,61 @@ export const authService = {
           };
         }
 
-        if (input.experienceYears !== undefined) {
-          partnerProfile.experienceYears = input.experienceYears;
-        }
-
-        if (
-          input.workingDays ||
-          input.workingHoursStart ||
-          input.workingHoursEnd
-        ) {
-          partnerProfile.workingHours = {
-            days: input.workingDays ?? [],
-            start: input.workingHoursStart,
-            end: input.workingHoursEnd,
-          };
+    if (user.role === "partner" && mongoose.connection.readyState === 1) {
+      try {
+        const partner = await ensurePartnerProfile(user.id);
+        if (partner) {
+          if (input.skills && input.skills.length > 0) {
+            partner.skills = input.skills;
+          }
+          if (input.serviceRadiusKm) {
+            partner.serviceRadiusKm = input.serviceRadiusKm;
+          }
+          if (
+            input.accountHolder ||
+            input.accountNumber ||
+            input.ifsc ||
+            input.upiId
+          ) {
+            partner.bankDetails = {
+              accountHolder: input.accountHolder,
+              accountLast4: input.accountNumber
+                ? input.accountNumber.slice(-4)
+                : undefined,
+              ifsc: input.ifsc?.toUpperCase(),
+              upiId: input.upiId,
+            };
+          }
+          const docs: Array<{
+            type: "id_proof" | "address_proof";
+            url: string;
+            status: "pending";
+            uploadedAt: Date;
+          }> = [];
+          if (input.idProofDocument) {
+            docs.push({
+              type: "id_proof",
+              url: input.idProofDocument,
+              status: "pending",
+              uploadedAt: new Date(),
+            });
+          }
+          if (input.addressProofDocument) {
+            docs.push({
+              type: "address_proof",
+              url: input.addressProofDocument,
+              status: "pending",
+              uploadedAt: new Date(),
+            });
+          }
+          if (docs.length > 0) {
+            partner.set("kyc", {
+              status: "submitted",
+              submittedAt: new Date(),
+              documents: [...(partner.kyc?.documents ?? []), ...docs],
+            });
+          }
+          await partner.save();
         }
 
         const docs: Array<{

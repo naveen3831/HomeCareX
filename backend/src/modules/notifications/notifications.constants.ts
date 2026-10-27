@@ -34,6 +34,15 @@ export const NOTIFICATION_GROUPS = [
 
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
+export const GROUP_PREFIXES: Record<NotificationGroup, readonly string[]> = {
+  booking: ["booking."],
+  offers: ["offer."],
+  partner: ["partner.", "kyc."],
+  payment: ["payment.", "payout.", "refund."],
+  support: ["ticket.", "sla."],
+  system: [],
+};
+
 export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
   ...NOTIFICATION_TYPES,
   'payment.succeeded',
@@ -61,9 +70,9 @@ export function groupOf(type: string): NotificationGroup {
   ) {
     return 'payment';
   }
-  if (type.startsWith('partner.')) return 'partner';
+  if (type.startsWith('partner.') || type.startsWith('kyc.')) return 'partner';
   if (type.startsWith('offer.')) return 'offers';
-  if (type.startsWith('ticket.')) return 'support';
+  if (type.startsWith('ticket.') || type.startsWith('sla.')) return 'support';
   return 'system';
 }
 

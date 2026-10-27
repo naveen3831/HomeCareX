@@ -1,240 +1,78 @@
-import { Request, Response, NextFunction } from "express";
-import { payoutsService } from "./payouts.service";
-import { AppError } from "../../utils/AppError";
+import type { Request, Response } from 'express';
+import { getAuthUser } from '../../middleware/auth.middleware';
+import { sendSuccess } from '../../utils/response';
+import { payoutsService } from './payouts.service';
 
-type AuthenticatedRequest = Request & {
-  user?: {
-    id?: string;
-    _id?: string;
-    userId?: string;
-    role?: string;
-  };
-  admin?: {
-    id?: string;
-    _id?: string;
-  };
-};
+const getIp = (req: Request): string =>
+  req.ip || req.socket.remoteAddress || 'unknown';
 
-function getAdminId(req: AuthenticatedRequest): string {
-  const user = req.user;
-  const admin = req.admin;
+const num = (value: unknown): number | undefined =>
+  value === undefined || value === '' ? undefined : Number(value);
 
-  return String(
-    admin?.id ??
-      admin?._id ??
-      user?.id ??
-      user?._id ??
-      user?.userId ??
-      "",
-  );
-}
+const str = (value: unknown): string | undefined =>
+  typeof value === 'string' && value ? value : undefined;
 
-function getClientIp(req: Request): string {
-  return req.ip || req.socket.remoteAddress || "";
-}
-
-function getRouteId(req: Request): string {
-  return String(
-    req.params.batchId ??
-      req.params.payoutId ??
-      req.params.id ??
-      "",
-  );
-}
-
-function parsePositiveInteger(
-  value: unknown,
-  defaultValue: number,
-): number {
-  if (value === undefined || value === null || value === "") {
-    return defaultValue;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new AppError(
-      400,
-      "INVALID_PAGINATION",
-      "Pagination values must be positive integers",
-    );
-  }
-
-  return parsed;
-}
-
-function asyncHandler(
-  handler: (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction,
-  ) => Promise<unknown>,
-) {
-  return (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): void => {
-    Promise.resolve(
-      handler(req as AuthenticatedRequest, res, next),
-    ).catch(next);
-  };
-}
-
-export class PayoutsController {
-  /**
-   * POST /admin/payouts
-   * Generate a payout batch.
-   */
-  generateBatch = asyncHandler(async (req, res) => {
-    const adminId = getAdminId(req);
-
-    const result = await payoutsService.generateBatch({
-      adminId,
+export const payoutsController = {
+  /** POST /admin/payout-batches or /admin/payouts  { periodStart, periodEnd } */
+  async generate(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+    const batch = await payoutsService.generateBatch({
       periodStart: req.body?.periodStart,
       periodEnd: req.body?.periodEnd,
-      ip: getClientIp(req),
+      adminId: admin.id,
+      ip: getIp(req),
     });
+    sendSuccess(res, batch, { status: 201 });
+  },
 
-    res.status(201).json({
-      success: true,
-      message: "Payout batch generated successfully",
-      data: result,
-    });
-  });
-
-  /**
-   * GET /admin/payouts
-   * List payout batches.
-   */
-  listBatches = asyncHandler(async (req, res) => {
-    const page = parsePositiveInteger(req.query.page, 1);
-    const limit = parsePositiveInteger(req.query.limit, 20);
-
+  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
+  async list(req: Request, res: Response) {
     const result = await payoutsService.listBatches({
-      page,
-      limit,
-      status:
-        typeof req.query.status === "string"
-          ? req.query.status
-          : undefined,
+      page: num(req.query.page),
+      limit: num(req.query.limit),
+      status: str(req.query.status),
     });
+    sendSuccess(res, result.items, { meta: { pagination: result.pagination } });
+  },
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  });
+  /** GET /admin/payout-batches/:id or /admin/payouts/:id */
+  async get(req: Request, res: Response) {
+    sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
+  },
 
-  /**
-   * GET /admin/payouts/:id
-   * Also supports /admin/payouts/batches/:batchId.
-   */
-  getBatch = asyncHandler(async (req, res) => {
-    const batchId = getRouteId(req);
+  async getBatch(req: Request, res: Response) {
+    return this.get(req, res);
+  },
 
-    const result = await payoutsService.getBatch(batchId);
+  /** GET /admin/payout-batches/:id/payouts or /admin/payouts/:id/payouts */
+  async listPayouts(req: Request, res: Response) {
+    sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
+  },
 
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  });
+  /** PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id  { transactionId? } */
+  async markPaid(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+    sendSuccess(
+      res,
+      await payoutsService.markPaid({
+        payoutId: String(req.params.id),
+        adminId: admin.id,
+        ip: getIp(req),
+        transactionId: str(req.body?.transactionId),
+      }),
+    );
+  },
 
-  /**
-   * GET /admin/payouts/:id/payouts
-   * Also supports /admin/payouts/batches/:batchId/payouts.
-   */
-  listPayouts = asyncHandler(async (req, res) => {
-    const batchId = getRouteId(req);
-
-    const result = await payoutsService.listPayouts(batchId);
-
-    res.status(200).json({
-      success: true,
-      data: result,
-    });
-  });
-
-  /**
-   * PATCH /admin/payouts/:id/mark-paid
-   * PATCH /admin/payouts/:id
-   * Mark an individual payout as paid.
-   */
-  markPaid = asyncHandler(async (req, res) => {
-    const payoutId = getRouteId(req);
-
-    const result = await payoutsService.markPaid({
-      payoutId,
-      adminId: getAdminId(req),
-      transactionId: req.body?.transactionId,
-      ip: getClientIp(req),
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Payout marked as paid successfully",
-      data: result,
-    });
-  });
-
-  /**
-   * PATCH /admin/payouts/:id/status
-   * Update an individual payout status.
-   */
-  updateStatus = asyncHandler(async (req, res) => {
-    const payoutId = getRouteId(req);
-
-    const result = await payoutsService.updateStatus({
-      payoutId,
-      status: req.body?.status,
-      adminId: getAdminId(req),
-      ip: getClientIp(req),
-    });
-
-    res.status(200).json({
-      success: true,
-      message: "Payout status updated successfully",
-      data: result,
-    });
-  });
-
-  /**
-   * GET /admin/payouts/export
-   * GET /admin/payouts/:id/export
-   */
-  exportCsv = asyncHandler(async (req, res) => {
-    const batchId =
-      typeof req.query.batchId === "string"
-        ? req.query.batchId
-        : req.params.batchId ?? req.params.id;
-
-    const result = await payoutsService.exportCsv(batchId);
-
-    if (typeof result === "string") {
-      res
-        .status(200)
-        .type("text/csv")
-        .setHeader(
-          "Content-Disposition",
-          'attachment; filename="payouts.csv"',
-        )
-        .send(result);
-
-      return;
-    }
-
-    res
-      .status(200)
-      .type("text/csv")
-      .setHeader(
-        "Content-Disposition",
-        `attachment; filename="${result.filename}"`,
-      )
-      .send(result.csv);
-  });
-}
-
-export const payoutsController = new PayoutsController();
+  /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */
+  async exportCsv(req: Request, res: Response) {
+    const result = await payoutsService.exportCsv(str(req.params.id));
+    const csv = typeof result === 'string' ? result : result.csv;
+    const filename =
+      typeof result === 'string' ? 'payouts.csv' : result.filename;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  },
+};
 
 export default payoutsController;

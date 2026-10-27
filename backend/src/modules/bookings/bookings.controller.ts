@@ -18,6 +18,13 @@ function requireUserId(req: Request): string {
       'UNAUTHENTICATED',
       'Authentication token is missing',
     );
+
+  if (!id) {
+    throw new AppError(
+      401,
+      'UNAUTHENTICATED',
+      'Authentication token is missing',
+    );
   }
 
   return id;
@@ -57,8 +64,8 @@ function requireString(value: unknown, fieldName: string): string {
 
 export const bookingsController = {
   async getSlots(req: Request, res: Response) {
-    const serviceId = requireParam(req, 'id');
-    const date = requireString(req.query.date, 'date');
+    const serviceId = req.params.id || req.params.serviceId;
+    const date = req.query.date as string;
 
     const result = await BookingService.getAvailableSlots(
       serviceId,
@@ -77,15 +84,16 @@ export const bookingsController = {
       'serviceId',
     );
 
-    const date = requireString(
-      req.query.date ?? req.body?.date,
-      'date',
-    );
+    const date = (req.query.date || req.body.date) as string;
+    const slot = (req.query.slot || req.body.slot) as string;
+    const serviceId = (
+      req.params.id ||
+      req.body.serviceId ||
+      req.query.serviceId
+    ) as string;
 
-    const slot = requireString(
-      req.query.slot ?? req.body?.slot,
-      'slot',
-    );
+    const date = (req.query.date || req.body.date) as string;
+    const slot = (req.query.slot || req.body.slot) as string;
 
     const result = await BookingService.checkSlotAvailability(
       serviceId,
@@ -102,8 +110,8 @@ export const bookingsController = {
 
   async createBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-    const idempotencyKey =
-      req.header('Idempotency-Key') || undefined;
+    const idempotencyKey = req.header("Idempotency-Key");
+    const idempotencyKey = req.header('Idempotency-Key');
 
     const result = await BookingService.createBooking(
       customerId,
@@ -219,6 +227,9 @@ export const bookingsController = {
     return res.status(200).json({
       success: true,
       message:
+        decision === "approve"
+          ? "Extra charge approved"
+          : "Extra charge rejected",
         decision === 'approve'
           ? 'Extra charge approved'
           : 'Extra charge rejected',
@@ -235,7 +246,14 @@ export const bookingsController = {
       bookingId,
     );
 
-    return res.status(200).json({
+    res.json({ success: true, data: preview });
+
+    const result = await BookingService.previewCancellation(
+      customerId,
+      req.params.id,
+    );
+
+    res.json({
       success: true,
       data: result,
     });
@@ -245,18 +263,7 @@ export const bookingsController = {
    * Alias retained for existing routes that use previewCancel.
    */
   async previewCancel(req: Request, res: Response) {
-    const customerId = requireUserId(req);
-    const bookingId = requireParam(req, 'id');
-
-    const result = await BookingService.previewCancellation(
-      customerId,
-      bookingId,
-    );
-
-    return res.status(200).json({
-      success: true,
-      data: result,
-    });
+    return bookingsController.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {
@@ -269,6 +276,7 @@ export const bookingsController = {
       bookingId,
       reason,
     );
+    res.json({ success: true, message: "Booking cancelled", data: result });
 
     return res.status(200).json({
       success: true,
@@ -279,16 +287,19 @@ export const bookingsController = {
 
   async rescheduleBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-    const bookingId = requireParam(req, 'id');
-
-    const date = requireString(req.body?.date, 'date');
-    const slot = requireString(req.body?.slot, 'slot');
+    const { date, slot } = req.body as { date: string; slot: string };
+    const booking = await BookingService.rescheduleBooking(
+    const { date, slot } = req.body as {
+      date: string;
+      slot: string;
+    };
 
     const result = await BookingService.rescheduleBooking(
       customerId,
       bookingId,
       { date, slot },
     );
+    res.json({ success: true, message: "Booking rescheduled", data: booking });
 
     return res.status(200).json({
       success: true,
@@ -307,6 +318,7 @@ export const bookingsController = {
       customerId,
       query,
     );
+    res.json({ success: true, count: items.length, data: items, meta });
 
     return res.status(200).json({
       success: true,

@@ -61,18 +61,8 @@ const renderWithProviders = (initialRoute = '/') => {
                 element={<ForgotPasswordPage />}
               />
               <Route path="/verify-otp" element={<VerifyOtpPage />} />
-              <Route
-                path="/reset-password"
-                element={<ResetPasswordPage />}
-              />
-              <Route
-                path="/unauthorized"
-                element={
-                  <div data-testid="unauthorized-page">
-                    Unauthorized Access
-                  </div>
-                }
-              />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/unauthorized" element={<div data-testid="unauthorized-page">Unauthorized Access</div>} />
 
               {/* Protected Dashboards */}
               <Route
@@ -136,6 +126,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           email: 'priya.sharma@example.com',
           phone: '9876543210',
           role: 'customer',
+          permissions: [],
           home: '/customer',
           permissions: [],
         },
@@ -144,34 +135,18 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
 
       renderWithProviders('/register');
 
-      await user.type(
-        screen.getByLabelText(/full name/i),
-        'Priya Sharma',
-      );
-      await user.type(
-        screen.getByLabelText(/email address/i),
-        'priya.sharma@example.com',
-      );
-      await user.type(
-        screen.getByLabelText(/phone number/i),
-        '9876543210',
-      );
-      await user.type(
-        screen.getByLabelText(/^password/i),
-        'SecurePass@123',
-      );
-      await user.type(
-        screen.getByLabelText(/confirm password/i),
-        'SecurePass@123',
-      );
+      // Fill in valid registration details
+      await user.type(screen.getByLabelText(/full name/i), 'Priya Sharma');
+      await user.type(screen.getByLabelText(/email address/i), 'priya.sharma@example.com');
+      await user.type(screen.getByLabelText(/phone number/i), '9876543210');
+      await user.type(screen.getByLabelText(/^password/i), 'SecurePass@123');
+      await user.type(screen.getByLabelText(/confirm password/i), 'SecurePass@123');
 
-      await user.click(
-        screen.getByRole('checkbox', { name: /terms/i }),
-      );
+      // Accept terms
+      await user.click(screen.getByRole('checkbox', { name: /terms/i }));
 
-      await user.click(
-        screen.getByRole('button', { name: /create account/i }),
-      );
+      // Submit
+      await user.click(screen.getByRole('button', { name: /create account/i }));
 
       await waitFor(() => {
         expect(authApi.register).toHaveBeenCalledWith({
@@ -323,6 +298,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Customer',
           email: 'customer@homecarex.com',
           role: 'customer',
+          permissions: [],
           home: '/customer',
           permissions: [],
         },
@@ -365,6 +341,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Partner',
           email: 'partner@homecarex.com',
           role: 'partner',
+          permissions: [],
           home: '/partner',
           permissions: [],
         },
@@ -472,6 +449,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Customer',
           email: 'customer@homecarex.com',
           role: 'customer',
+          permissions: [],
           home: '/customer',
           permissions: [],
         },
@@ -546,8 +524,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
 
       vi.mocked(authApi.forgotPassword).mockResolvedValueOnce({
         success: true,
-        message: forgotPasswordMessage,
-        data: { message: forgotPasswordMessage },
+        data: { message: 'If an account exists, a verification code has been sent.' },
       });
 
       renderWithProviders('/forgot-password');
@@ -604,8 +581,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
 
       vi.mocked(authApi.resetPassword).mockResolvedValueOnce({
         success: true,
-        message: resetPasswordMessage,
-        data: { message: resetPasswordMessage },
+        data: { message: 'Your password has been reset successfully.' },
       });
 
       await user.type(
