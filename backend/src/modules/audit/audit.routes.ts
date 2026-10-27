@@ -9,7 +9,6 @@ import { auditController } from './audit.controller';
 /** Mounted at /api/v1/admin. Audit logs are restricted to authorized administrators. */
 export const auditRoutes = Router();
 
-// GET /api/v1/admin/audit-logs (needs the audit permission)
 // GET /api/v1/admin/audit-logs
 auditRoutes.get(
   '/audit-logs',
@@ -17,7 +16,6 @@ auditRoutes.get(
   requireAdmin,
   requirePermission(AUDIT_CONSTANTS.PERMISSION),
   asyncHandler((req, res) => auditController.getAuditLogs(req, res)),
-  asyncHandler((req, res) => auditController.getAuditLogs(req, res))
 );
 
 export default auditRoutes;

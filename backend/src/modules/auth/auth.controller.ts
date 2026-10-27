@@ -13,17 +13,14 @@ import type {
 import { authService } from './auth.service';
  
 import {
-<<<<<<< HEAD
 
   acceptInviteSchema,
-  forgotPasswordSchema,
+ 
   inviteStaffSchema,
   verifyInviteSchema,
 
-=======
   changePasswordSchema,
   forgotPasswordSchema,
->>>>>>> origin/develop
   loginSchema,
   parseBody,
   registerSchema,
@@ -561,7 +558,27 @@ export const authController = {
       );
     res.json(result);
   }),
+  /** POST /api/v1/auth/verify-invite */
+  verifyInvite: wrap(async (req, res) => {
+    const payload = parseBody(verifyInviteSchema, req.body);
+    const result = await authService.verifyInvite(payload);
 
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
+  /** POST /api/v1/auth/accept-invite */
+  acceptInvite: wrap(async (req, res) => {
+    const payload = parseBody(acceptInviteSchema, req.body);
+    const result = await authService.acceptInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
   /** POST /api/v1/auth/change-password */
   changePassword: wrap(async (req, res) => {
     const userId = res.locals.auth?.sub || req.user?.id;
@@ -607,41 +624,19 @@ export const authController = {
     });
   }),
 
-<<<<<<< HEAD
 
-  /** POST /api/v1/admin/staff (admin; role existence is checked by the route). */
-  inviteStaff: wrap(async (req, res) => {
-    const invitedBy = String((res.locals.auth as { sub?: string } | undefined)?.sub ?? '') || undefined;
-    const data = await authService.inviteStaff(parseBody(inviteStaffSchema, req.body), invitedBy);
-    res.status(201).json({ success: true, data });
-  }),
-
-  /** POST /api/v1/auth/verify-invite (public) */
-  verifyInvite: wrap(async (req, res) => {
-    res.json({ success: true, data: await authService.verifyInvite(parseBody(verifyInviteSchema, req.body)) });
-  }),
-
-  /** POST /api/v1/auth/accept-invite (public) */
-  acceptInvite: wrap(async (req, res) => {
-    await authService.acceptInvite(parseBody(acceptInviteSchema, req.body));
-    res.json({ success: true, data: { ok: true } });
-  }),
-
-  /** POST /api/v1/auth/revoke-user-sessions/:id (admin) */
-  revokeUserSessions: wrap(async (req, res) => {
-    await authService.revokeUserSessions(String(req.params.id));
-    res.json({ success: true, data: { ok: true } });
-=======
-  /** POST /api/v1/auth/revoke-user-sessions/:userId */
+  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
   revokeUserSessions: wrap(async (req, res) => {
     const { userId } = req.params;
+
     const result = await authService.revokeUserSessions(userId);
+
     res.json({
       success: true,
-      data: { revokedSessionsCount: result.revokedSessionsCount },
+      data: {
+        revokedSessionsCount: result.revokedSessionsCount,
+      },
       message: result.message,
     });
->>>>>>> origin/develop
   }),
 };
- 

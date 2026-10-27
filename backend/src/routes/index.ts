@@ -41,6 +41,7 @@ import { settingsRoutes } from "../modules/settings/settings.routes";
 // Catalog & Public
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
+import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
 
 // Bookings & Payments
 import {
@@ -105,6 +106,7 @@ rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
 rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requireResourceAccess("catalog"), categoriesRoutes);
 rootRouter.use("/admin/services", authMiddleware, requireAdmin, requireResourceAccess("catalog"), servicesRoutes);
+rootRouter.use("/admin/leads", authMiddleware, requireAdmin, requireResourceAccess("leads"), adminLeadsRoutes);
 rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResourceAccess("customers"), adminCustomersRoutes);
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);

@@ -3,7 +3,7 @@ import { authController } from './auth.controller';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
 import { authRateLimit } from '../../middleware/rateLimit.middleware';
-import { requireAdmin } from '../../middleware/role.middleware';
+
 
 export const authRoutes = Router();
 

@@ -54,14 +54,14 @@ const adminRoutes: AdminRoute[] = [
   { path: '', element: <AdminDashboardPage /> },
 
   // Operations
-  { path: 'leads', element: <AdminLeadsPage /> },
-  { path: 'bookings', element: <AdminBookingsPage /> },
-  { path: 'customers', element: <AdminCustomersPage /> },
-  { path: 'customers/:id', element: <AdminCustomerDetailsPage /> },
-  { path: 'partners', element: <AdminPartnersPage /> },
-  { path: 'manage-partners', element: <AdminManagePartnersPage /> },
-  { path: 'partners/:id', element: <AdminPartnerDetailsPage /> },
-  { path: 'support', element: <AdminSupportPage /> },
+  { path: 'leads', element: <AdminLeadsPage />, permission: 'leads:view' },
+  { path: 'bookings', element: <AdminBookingsPage />, permission: 'bookings:view' },
+  { path: 'customers', element: <AdminCustomersPage />, permission: 'customers:view' },
+  { path: 'customers/:id', element: <AdminCustomerDetailsPage />, permission: 'customers:view' },
+  { path: 'partners', element: <AdminPartnersPage />, permission: 'partners:view' },
+  { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
+  { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
+  { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
 
   // Catalog
   { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
@@ -69,25 +69,25 @@ const adminRoutes: AdminRoute[] = [
   { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:view' },
 
   // Coupons
-  { path: 'coupons', element: <AdminCouponsPage /> },
-  { path: 'coupons/create', element: <AdminCouponsPage /> },
-  { path: 'coupons/:id/edit', element: <AdminCouponsPage /> },
+  { path: 'coupons', element: <AdminCouponsPage />, permission: 'coupons:view' },
+  { path: 'coupons/create', element: <AdminCouponsPage />, permission: 'coupons:create' },
+  { path: 'coupons/:id/edit', element: <AdminCouponsPage />, permission: 'coupons:update' },
 
   // Marketing
-  { path: 'marketing', element: <AdminMarketingPage /> },
-  { path: 'marketing/create', element: <AdminMarketingPage /> },
-  { path: 'marketing/:id/edit', element: <AdminMarketingPage /> },
+  { path: 'marketing', element: <AdminMarketingPage />, permission: 'marketing:view' },
+  { path: 'marketing/create', element: <AdminMarketingPage />, permission: 'marketing:manage' },
+  { path: 'marketing/:id/edit', element: <AdminMarketingPage />, permission: 'marketing:manage' },
 
   // Finance
-  { path: 'payments', element: <AdminPaymentsPage /> },
-  { path: 'refunds', element: <AdminRefundsPage /> },
+  { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
-  { path: 'refunds/:id', element: <AdminRefundsPage /> },
-  { path: 'payouts', element: <AdminPayoutsPage /> },
+  { path: 'refunds/:id', element: <AdminRefundsPage />, permission: 'refunds:view' },
+  { path: 'payouts', element: <AdminPayoutsPage />, permission: 'payouts:view' },
 
   // Reporting
-  { path: 'reports', element: <AdminReportsPage /> },
+  { path: 'reports', element: <AdminReportsPage />, permission: 'reports:view' },
 
   // System
   { path: 'roles', element: <AdminRolesPage />, permission: 'roles:view' },
