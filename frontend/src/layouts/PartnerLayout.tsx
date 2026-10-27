@@ -574,7 +574,92 @@ function PartnerSidebar({
                               to={to}
                               end={end || hasChildren}
                               title={collapsed ? label : undefined}
-                              style={{ flex: 1, minWidth: 0 }}
+                              style={{
+                                background: "none",
+                                border: 0,
+                                padding: "0.5rem",
+                                color: "inherit",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minWidth: 40,
+                                minHeight: 40,
+                                flex: 1,
+                                minWidth: 0,
+                              }}
+                              onClick={() => {
+                                if (hasChildren) {
+                                  openItem(key);
+                                }
+                              }}
+                              className={({ isActive }) =>
+                                `nav-link${
+                                  isActive ? " is-active" : ""
+                                }`
+                              }
+                            >
+                              <Icon
+                                className="nav-link__icon"
+                                size={20}
+                                aria-hidden="true"
+                              />
+
+                              {!collapsed && (
+                                <span className="nav-link__label">
+                                  {label}
+                                </span>
+                              )}
+
+                              {collapsed && (
+                                <span className="sr-only">
+                                  {label}
+                                </span>
+                              )}
+                            </NavLink>
+
+                            {hasChildren && (
+                              <button
+                                type="button"
+                                aria-label={`${
+                                  expanded ? "Collapse" : "Expand"
+                                } ${label}`}
+                                aria-expanded={expanded}
+                                onClick={() => toggleItem(key)}
+                                style={{
+                                  background: "none",
+                                  border: 0,
+                                  padding: "0.5rem",
+                                  color: "inherit",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                }}
+                              >
+                                <ChevronDown
+                                  size={14}
+                                  style={{
+                                    transition: "transform 150ms",
+                                    transform: expanded
+                                      ? "rotate(180deg)"
+                                      : "none",
+                                  }}
+                                />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Sub-links open under the parent */}
+                          {expanded && children && (
+                            <ul
+                              className="nav-list"
+                              style={{
+                                marginLeft: "1.6rem",
+                                paddingLeft: "0.25rem",
+                                borderLeft: "1px solid rgba(148,163,184,0.35)",
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                              }}
                               onClick={() => {
                                 if (hasChildren) openItem(key);
                               }}
@@ -864,7 +949,7 @@ export default function PartnerLayout() {
                   onClick={goBack}
                   aria-label="Go back"
                   title="Back"
-                  className="shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                  className="shrink-0 rounded-md p-2 min-h-10 min-w-10 inline-flex items-center justify-center text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
                 >
                   <ArrowLeft size={20} aria-hidden="true" />
                 </button>
@@ -915,7 +1000,7 @@ export default function PartnerLayout() {
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                className="relative inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
               >
                 <Bell size={20} aria-hidden="true" />
               </button>
