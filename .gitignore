@@ -105,3 +105,6 @@ app.zip
 
 
 package-lock.json
+
+frontend/playwright-report-partner/
+frontend/test-results/
