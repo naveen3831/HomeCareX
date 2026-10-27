@@ -85,6 +85,7 @@ async function canJoinBooking(
     );
   }
 
+
  
   if (auth.role === 'customer')
     return !!(await BookingModel.exists({

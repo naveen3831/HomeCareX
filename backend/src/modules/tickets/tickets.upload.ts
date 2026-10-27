@@ -85,13 +85,38 @@ export function validateEvidence(
       .slice(0, 180)
       .join('') || 'attachment';
 
-interface UploadedFile {
-  originalname: string;
-  mimetype: string;
-  buffer: Buffer;
-  size: number;
+  return {
+    name,
+    mimeType: file.mimetype,
+    sizeBytes: file.size,
+    data: b,
+  };
 }
 
+const receive = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_ATTACHMENT_BYTES,
+    files: MAX_ATTACHMENTS,
+    fields: 8,
+    fieldSize: 20_000,
+    parts: 12,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (
+      (ATTACHMENT_TYPES as readonly string[]).includes(
+        file.mimetype,
+      )
+    ) {
+      cb(null, true);
+    } else {
+      cb(
+        new HttpError(
+          400,
+          'Use JPG, PNG, GIF, WebP or PDF files only.',
+          'INVALID_ATTACHMENT',
+        ),
+      );
 const invalidUpload = (message = "Upload up to 3 files and check the form fields.") =>
   new HttpError(400, message, "INVALID_ATTACHMENT");
 
@@ -161,7 +186,31 @@ async function readMultipart(req: Request): Promise<ParsedForm> {
       // The body was read as latin1 to keep file bytes intact; text fields are UTF-8.
       fields[fieldName] = Buffer.from(payload, "latin1").toString("utf8");
     }
+  },
+}).array('attachments', MAX_ATTACHMENTS);
+
+/**
+ * Applied only to authenticated ticket mutations.
+ * Supports JSON requests without files and multipart requests with files.
+ */
+export const receiveTicketFiles: RequestHandler = (
+  req,
+  res,
+  next,
+) => {
+  if (req.is('application/json')) {
+    res.locals.ticketFiles = [];
+    return next();
   }
+
+  receive(req, res, (error: unknown) => {
+    if (error instanceof multer.MulterError) {
+      return next(
+        new HttpError(
+          400,
+          error.code === 'LIMIT_FILE_SIZE'
+            ? 'Each attachment must be 5 MB or smaller.'
+            : 'Upload up to 3 files and check the form fields.',
   return { files, fields };
 }
 
@@ -202,6 +251,17 @@ const receive = multer({
         ),
       );
     }
+
+    if (error) {
+      return next(error);
+    }
+
+    try {
+      res.locals.ticketFiles = (
+        Array.isArray(req.files) ? req.files : []
+      ).map(validateEvidence);
+
+      next();
   },
 }).array('attachments', MAX_ATTACHMENTS);
 

@@ -617,6 +617,7 @@ export const BookingService = {
           amount: quote.refundAmount,
           reason,
           now,
+        })) as any;
         }));
         refundStatus = 'requested';
         if (refund && refund._id) {

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
+  ArrowLeft,
   CalendarDays,
   CalendarClock,
   Clock,
@@ -292,6 +293,51 @@ function DetailsBody({
 
   return (
     <>
+      {/* Top back button */}
+      <div className="mb-4">
+        <Link
+          to={customerPath("/bookings")}
+          className={clsx(
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink",
+            FOCUS_RING,
+          )}
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          <span>Back to all bookings</span>
+        </Link>
+      </div>
+
+      {/* Header card */}
+      <div className="mb-4 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:mb-6 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <span
+              className={clsx(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                PILL_CLASS[pill.tone],
+              )}
+            >
+              {pill.dot && (
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+                />
+              )}
+              {pill.label}
+            </span>
+            <h1 className="mt-2 truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">
+              {name}
+            </h1>
+            <p className="mt-1 text-xs text-muted">
+              Booking ID: <span className="font-semibold text-ink">{code}</span>
+              {bookedOn && (
+                <>
+                  <span className="mx-2 text-line">•</span>
+                  <span>Booked on {bookedOn}</span>
+                </>
+              )}
+            </p>
+          </div>
       {/* Back link and header sit above both columns.
       <Link
         to={customerPath("/bookings")}

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
+import { requirePermission } from "../middleware/permission.middleware";
 import { requireResourceAccess } from "../middleware/permission.middleware";
 
 // Core & Auth
@@ -121,6 +122,19 @@ rootRouter.use("/auth", authRoutes);
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
+rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requirePermission("catalog"), categoriesRoutes);
+rootRouter.use("/admin/services", authMiddleware, requireAdmin, requirePermission("catalog"), servicesRoutes);
+rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requirePermission("customers"), adminCustomersRoutes);
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/tickets", adminTicketsRoutes);
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
+rootRouter.use("/admin/partners", authMiddleware, requireAdmin, requirePermission("partners"), partnersRoutes);
+rootRouter.use("/admin/coupons", authMiddleware, requireAdmin, requirePermission("coupons"), couponsRoutes);
+rootRouter.use("/admin/banners", authMiddleware, requireAdmin, requirePermission("marketing"), marketingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin/incentives", incentivesRoutes);
+// Admin reports and CSV exports.
+rootRouter.use("/admin/reports", authMiddleware, requireAdmin, requirePermission("reports"), reportsRoutes);
 rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requireResourceAccess("catalog"), categoriesRoutes);
 rootRouter.use("/admin/services", authMiddleware, requireAdmin, requireResourceAccess("catalog"), servicesRoutes);
 rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResourceAccess("customers"), adminCustomersRoutes);
@@ -146,6 +160,7 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
+rootRouter.use('/partner/kyc', partnerKycRoutes);
 
 // ---- Notifications ----
 rootRouter.use("/notifications", notificationsRoutes);
@@ -187,6 +202,7 @@ rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
+// ---- Bookings, chat & reviews ----
 rootRouter.use(bookingsRoutes);
 rootRouter.use("/bookings", bookingStatusRoutes);
 rootRouter.use("/bookings", chatRoutes);

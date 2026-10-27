@@ -24,8 +24,6 @@ import {
   checkSlotBodySchema,
   cancelBookingBodySchema,
   rescheduleBookingBodySchema,
-} from "./bookings.validation";
-import { listBookingsQuerySchema } from "./bookings.query";
 } from './bookings.validation';
 
 import { listBookingsQuerySchema } from './bookings.query';
@@ -34,7 +32,6 @@ export const bookingsRoutes = Router();
 
 // GET /services/:id/slots or /services/:serviceId/slots
 bookingsRoutes.get(
-  "/services/:id/slots",
   ['/services/:id/slots', '/services/:serviceId/slots'],
   (req, _res, next) => {
     if (!req.params.id) {
@@ -46,6 +43,41 @@ bookingsRoutes.get(
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
   }),
+  asyncHandler(async (req, res) =>
+    bookingsController.getSlots(req, res),
+  ),
+);
+
+// POST /bookings/check-slot
+// Verify slot availability before creating a booking.
+bookingsRoutes.post(
+  '/bookings/check-slot',
+  validationMiddleware({
+    body: checkSlotBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.checkSlot(req, res),
+  ),
+);
+
+// POST /bookings
+bookingsRoutes.post(
+  '/bookings',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    body: createBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.createBooking(req, res),
+  ),
+);
+
+// GET /bookings
+bookingsRoutes.get(
+  '/bookings',
+  authMiddleware,
+  roleMiddleware('customer'),
   asyncHandler(async (req, res) => bookingsController.getSlots(req, res)),
   asyncHandler(async (req, res) =>
     bookingsController.getSlots(req, res),
@@ -152,10 +184,16 @@ bookingsRoutes.post(
   authMiddleware,
   roleMiddleware('customer'),
   validationMiddleware({
-    params: getBookingParamsSchema,
-    body: cancelBookingBodySchema,
+    query: listBookingsQuerySchema,
   }),
   asyncHandler(async (req, res) =>
+    bookingsController.listBookings(req, res),
+  ),
+);
+
+// GET /bookings/:id
+bookingsRoutes.get(
+  '/bookings/:id',
     bookingsController.cancelBooking(req, res),
   ),
 );
@@ -167,13 +205,43 @@ bookingsRoutes.post(
   roleMiddleware('customer'),
   validationMiddleware({
     params: getBookingParamsSchema,
-    body: rescheduleBookingBodySchema,
   }),
   asyncHandler(async (req, res) =>
-    bookingsController.rescheduleBooking(req, res),
+    bookingsController.getBooking(req, res),
   ),
 );
 
+// GET /bookings/:id/invoice
+bookingsRoutes.get(
+  '/bookings/:id/invoice',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.getInvoice(req, res),
+  ),
+);
+
+// GET cancellation preview using supported URL aliases
+bookingsRoutes.get(
+  [
+    '/bookings/:id/cancel-preview',
+    '/bookings/:id/preview-cancellation',
+    '/bookings/:id/cancel-quote',
+  ],
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.previewCancellation(req, res),
+  ),
+);
+
+// POST /bookings/:id/cancel
 // POST /bookings/:id/extra-charges/:chargeId/decision
 bookingsRoutes.post(
   '/bookings/:id/extra-charges/:chargeId/decision',
@@ -212,6 +280,11 @@ bookingsRoutes.post(
     body: extraChargeDecisionBodySchema,
   }),
   asyncHandler(async (req, res) =>
+    bookingsController.cancelBooking(req, res),
+  ),
+);
+
+// POST /bookings/:id/reschedule
     bookingsController.decideExtraCharge(req, res),
   ),
 );
@@ -235,6 +308,12 @@ bookingsRoutes.post(
     params: getBookingParamsSchema,
     body: cancelBookingBodySchema,
   }),
+  asyncHandler(async (req, res) =>
+    bookingsController.rescheduleBooking(req, res),
+  ),
+);
+
+// POST /bookings/:id/extra-charges/:chargeId/decision
   asyncHandler(async (req, res) => bookingsController.cancelBooking(req, res)),
 );
 
@@ -248,6 +327,7 @@ bookingsRoutes.post(
     body: rescheduleBookingBodySchema,
   }),
   asyncHandler(async (req, res) =>
+    bookingsController.decideExtraCharge(req, res),
     bookingsController.rescheduleBooking(req, res),
   ),
 );

@@ -14,6 +14,13 @@ import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 
 import { ServiceModel } from './models/Service';
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
+import { startReferralWorker } from './modules/referrals/referrals.worker';
+
+import {
+  ReferralCodeModel,
+  ReferralModel,
+} from './modules/referrals/referrals.model';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
 
 import {
@@ -55,6 +62,12 @@ let stopReferralWorker: (() => void) | undefined;
 let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
+/**
+ * Seeds default data without preventing the server from running
+ * if a non-critical seeding operation fails.
+ */
+const seedDefaults = async (): Promise<void> => {
+  try {
 /** Non-critical default data; failures do not stop the server. */
 const seedDefaults = async (): Promise<void> => {
   try {
@@ -106,12 +119,39 @@ const seedDefaults = async (): Promise<void> => {
       seedDefaultServices,
     );
 
+
+    if (added > 0) {
+      console.log(`Seeded ${added} default setting(s)`);
+    }
+
+    await timed(
+      'seed designations',
+      seedDefaultDesignations,
+    );
+
+    const freshCatalog = await timed(
+      'count services',
+      async () =>
+        (await ServiceModel.estimatedDocumentCount()) === 0,
+    );
+
+    await timed(
+      'seed categories',
+      seedDefaultCategories,
+    );
+
+    await timed(
+      'seed services',
+      seedDefaultServices,
+    );
+
     if (freshCatalog) {
       await timed(
         'catalog seed',
         upsertCatalogSeed,
       );
     }
+
  
     console.log('[startup] Default seeding completed.');
   } catch (error) {
@@ -162,6 +202,7 @@ const startServer = async (): Promise<void> => {
         server.removeListener('error', onError);
         resolve();
       };
+
  
       server.once('error', onError);
       server.once('listening', onListening);
@@ -203,6 +244,8 @@ const startServer = async (): Promise<void> => {
     );
 
     process.exitCode = 1;
+
+    process.exitCode = 1;
     stopReferralWorker?.();
     stopSlaSweep?.();
 
@@ -239,6 +282,8 @@ const shutdown = async (): Promise<void> => {
   }
 
   shuttingDown = true;
+
+  shuttingDown = true;
  
   console.log('Stopping server gracefully...');
 
@@ -271,6 +316,23 @@ const shutdown = async (): Promise<void> => {
     if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close();
     }
+
+    console.log('Database connection closed.');
+    process.exitCode = 0;
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exitCode = 1;
+  }
+};
+
+process.on('SIGTERM', () => {
+  void shutdown();
+});
+
+process.on('SIGINT', () => {
+  void shutdown();
+});
+
 
     console.log('Database connection closed.');
     process.exitCode = 0;
