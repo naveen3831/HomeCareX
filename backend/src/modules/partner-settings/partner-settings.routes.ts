@@ -36,11 +36,10 @@ partnerSettingsRoutes.patch('/security', ...write, validate(securityPatchSchema,
  
 // Sessions and logout-all are central auth's (Nithya's): the same handlers, no duplicated logic here.
 // GET /api/v1/partner/settings/sessions
-partnerSettingsRoutes.get('/sessions', ...read, (_req, res) => {
-  res.status(501).json({ message: 'Session management is not available' });
-});
+partnerSettingsRoutes.get('/sessions', ...read, authController.getSessions);
 // POST /api/v1/partner/settings/logout-all
-partnerSettingsRoutes.post('/logout-all', ...write, authController.logout);
+// logoutAll (not logout): logout only ends the current session and does nothing without a refresh cookie.
+partnerSettingsRoutes.post('/logout-all', ...write, authController.logoutAll);
  
 export default partnerSettingsRoutes;
  

@@ -231,7 +231,12 @@ export const PartnerBlackoutDatesPage: React.FC = () => {
         </div>
       </div>
 
-      {error && <p className="pa-error bd-alert" role="alert">{error}</p>}
+      {error && (
+        <div className="bd-alert-row">
+          <p className="pa-error bd-alert" role="alert">{error}</p>
+          <button type="button" className="pa-btn" onClick={() => { void load(); }}>Try again</button>
+        </div>
+      )}
 
       <div className="bd-layout">
         <form className="bd-form" onSubmit={add} noValidate>
