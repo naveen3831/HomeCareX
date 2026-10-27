@@ -1,3 +1,4 @@
+
 # Dependencies
 node_modules/
 .pnp
@@ -33,8 +34,13 @@ Thumbs.db
 *.swp
 *.swo
 
-# Internal planning docs (kept local only)
-docs/
+# Internal planning docs (keep local except Day 17 QA checklist)
+docs/*
+!docs/qa/
+docs/qa/*
+!docs/qa/day-17-verification-checklist.md
+
+# Documents and internal files
 *.pdf
 MEMORY.md
 .postman/
@@ -44,64 +50,13 @@ postman/
 package.json
 package-lock.json
 frontend/package.json
-backend/package.json
-*/package.json
-*/package-lock.json
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Testing
-coverage/
-
-# Production Build
-dist/
-build/
-
-# Environment Variables
-.env
-.env.example
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-logs/
-*.log
-
-# OS & Editor Files
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Internal planning docs (kept local only)
-docs/
-*.pdf
-MEMORY.md
-
-
-
-.postman/
-postman/
-
-# Package files
+frontend/package-lock.json
 backend/package.json
 backend/package-lock.json
-frontend/package.json
-frontend/package-lock.json
+*/package.json
+*/package-lock.json
 **/package.json
 **/package-lock.json
 
-
+# Archives
 app.zip
-
-
-package-lock.json

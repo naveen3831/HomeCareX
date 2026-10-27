@@ -1,17 +1,17 @@
 import React from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import ServicesPage from "../pages/public/Services";
-
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HelmetProvider } from "react-helmet-async";
-import ServicesPage from "../pages/public/Services";
+import ServicesPage from "@/pages/public/Services";
 
 vi.mock("@/services/catalogApi", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/services/catalogApi")>();
+  const actual = await importOriginal<
+    typeof import("@/services/catalogApi")
+  >();
+
   return {
     ...actual,
     fetchServices: async () => ({
@@ -21,29 +21,14 @@ vi.mock("@/services/catalogApi", async (importOriginal) => {
   };
 });
 
-import ServicesPage from "../pages/public/Services";
-
-/* =========================================================
-   Constants
-========================================================= */
-
 const SEARCH_PLACEHOLDER = "Search for cleaning, plumbing, electrical...";
 
-// Anchored so it does NOT match the "Clear filters" button
 const FILTERS_BUTTON = /^filters/i;
-
-/* =========================================================
-   Location Display
-========================================================= */
 
 const LocationDisplay: React.FC = () => {
   const location = useLocation();
   return <div data-testid="location-search">{location.search}</div>;
 };
-
-/* =========================================================
-   Test Wrapper
-========================================================= */
 
 interface TestWrapperProps {
   initialEntry?: string;
@@ -51,21 +36,17 @@ interface TestWrapperProps {
 
 const TestWrapper: React.FC<TestWrapperProps> = ({
   initialEntry = "/services",
-}) => (
-  <HelmetProvider>
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <ServicesPage />
-      <LocationDisplay />
-    </MemoryRouter>
-  </HelmetProvider>
-);
 }) => {
   const [client] = React.useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        defaultOptions: {
+          queries: { retry: false },
+          mutations: { retry: false },
+        },
       }),
   );
+
   return (
     <HelmetProvider>
       <QueryClientProvider client={client}>
@@ -84,7 +65,7 @@ const TestWrapper: React.FC<TestWrapperProps> = ({
 
 const getParams = () =>
   new URLSearchParams(
-    screen.getByTestId("location-search").textContent ?? ""
+    screen.getByTestId("location-search").textContent ?? "",
   );
 
 // Page resets to 1 (or the param is removed when page is 1)
@@ -107,29 +88,28 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
         }
-      />
+      />,
     );
 
     const searchInput = screen.getByPlaceholderText(SEARCH_PLACEHOLDER);
 
     await waitFor(() =>
-      expect((searchInput as HTMLInputElement).value).toBe("Cleaning")
+      expect((searchInput as HTMLInputElement).value).toBe("Cleaning"),
     );
 
     await openFilters(user);
 
     await waitFor(() => {
       expect(
-        (screen.getByLabelText("Category") as HTMLSelectElement).value
-      ).toBe("Cleaning");
-        ).toBe("home-cleaning");
+        (screen.getByLabelText("Category") as HTMLSelectElement).value,
+      ).toBe("home-cleaning");
       expect(
-        (screen.getByLabelText("Sort By") as HTMLSelectElement).value
+        (screen.getByLabelText("Sort By") as HTMLSelectElement).value,
       ).toBe("price-low");
       expect(
-        (screen.getByLabelText("Your Location") as HTMLInputElement).value
+        (screen.getByLabelText("Your Location") as HTMLInputElement).value,
       ).toBe("517501");
     });
   });
@@ -141,11 +121,14 @@ describe("ServicesPage URL synchronization", () => {
 
     await openFilters(user);
 
-    await user.selectOptions(screen.getByLabelText("Category"), "Cleaning");
+    await user.selectOptions(
+      screen.getByLabelText("Category"),
+      "home-cleaning",
+    );
 
     await waitFor(() => {
       const params = getParams();
-      expect(params.get("category")).toBe("Cleaning");
+      expect(params.get("category")).toBe("home-cleaning");
       expectPageReset(params);
     });
   });
@@ -181,7 +164,7 @@ describe("ServicesPage URL synchronization", () => {
         expect(params.get("pincode")).toBe("517501");
         expectPageReset(params);
       },
-      { timeout: 1500 }
+      { timeout: 1500 },
     );
   });
 
@@ -190,7 +173,10 @@ describe("ServicesPage URL synchronization", () => {
 
     render(<TestWrapper initialEntry="/services?page=3" />);
 
-    await user.type(screen.getByPlaceholderText(SEARCH_PLACEHOLDER), "Cleaning");
+    await user.type(
+      screen.getByPlaceholderText(SEARCH_PLACEHOLDER),
+      "Cleaning",
+    );
 
     await waitFor(
       () => {
@@ -198,7 +184,7 @@ describe("ServicesPage URL synchronization", () => {
         expect(params.get("q")).toBe("Cleaning");
         expectPageReset(params);
       },
-      { timeout: 1500 }
+      { timeout: 1500 },
     );
   });
 
@@ -208,12 +194,12 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
         }
-      />
+      />,
     );
 
-    // getAll: an empty-results state may also render a "Clear filters" button
+    // findAll: an empty-results state may also render a "Clear filters" button
     const clearButtons = await screen.findAllByRole("button", {
       name: /clear filters/i,
     });
