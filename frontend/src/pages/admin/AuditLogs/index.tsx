@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import DataTable, { Column } from "../../../components/tables/DataTable";
@@ -25,26 +25,34 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-  actor?: string;
+  actor?: string | null;
   actorName?: string | null;
-  action?: string;
-  entity?: string;
-  entityId?: string;
+  action?: string | null;
+  entity?: string | null;
+  entityId?: string | null;
   before?: unknown;
   after?: unknown;
-  ip?: string;
-  result?: string;
+  ip?: string | null;
+  result?: string | null;
   timestamp?: string;
   createdAt?: string;
 }
 
 interface AuditLogsResponse {
   success: boolean;
-  data: { items: AuditLogApi[]; total: number; page: number; limit: number };
+  data?: {
+    items?: AuditLogApi[];
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
 }
 
 const formatJson = (value: unknown): string => {
-  if (value === undefined || value === null) return "{}";
+  if (value === undefined || value === null) {
+    return "{}";
+  }
+
   if (typeof value === "string") {
     try {
       return JSON.stringify(JSON.parse(value), null, 2);
@@ -52,6 +60,7 @@ const formatJson = (value: unknown): string => {
       return value;
     }
   }
+
   try {
     return JSON.stringify(value, null, 2) ?? "{}";
   } catch {
@@ -66,20 +75,30 @@ const formatTimestamp = (timestamp?: string, createdAt?: string): string => {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 };
 
-const normalizeResult = (result?: string): "Success" | "Failed" =>
+const normalizeResult = (result?: string | null): "Success" | "Failed" =>
   result?.toLowerCase() === "success" ? "Success" : "Failed";
 
 const parseJson = (raw: string): Record<string, unknown> | null => {
   try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    const value: unknown = JSON.parse(raw);
+
+    return value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
 };
 
-const showValue = (v: unknown) =>
-  v === undefined ? "—" : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+const showValue = (value: unknown): string => {
+  if (value === undefined || value === null) {
+    return "—";
+  }
+
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+};
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
   const changes = diffRecords(parseJson(log.before), parseJson(log.after));
@@ -104,14 +123,16 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
             {log.entityId ? ` · ${log.entityId}` : ""}
           </span>
         </div>
-        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>{log.result}</span>
+        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>
+          {log.result}
+        </span>
       </section>
 
       <dl className="audit-detail__facts">
-        {facts.map((f) => (
-          <div key={f.label} className="audit-detail__fact">
-            <dt>{f.label}</dt>
-            <dd>{f.value || "—"}</dd>
+        {facts.map((fact) => (
+          <div key={fact.label} className="audit-detail__fact">
+            <dt>{fact.label}</dt>
+            <dd>{fact.value || "—"}</dd>
           </div>
         ))}
       </dl>
@@ -122,13 +143,15 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
           <p className="audit-detail__empty">No field-level changes were recorded.</p>
         ) : (
           <ul className="audit-detail__changes">
-            {changes.map((c) => (
-              <li key={c.field}>
-                <code>{c.field}</code>
+            {changes.map((change) => (
+              <li key={change.field}>
+                <code>{change.field}</code>
                 <div className="audit-detail__change-vals">
-                  <span className="audit-detail__before">{showValue(c.before)}</span>
-                  <span aria-hidden="true" className="audit-detail__arrow">→</span>
-                  <span className="audit-detail__after">{showValue(c.after)}</span>
+                  <span className="audit-detail__before">{showValue(change.before)}</span>
+                  <span aria-hidden="true" className="audit-detail__arrow">
+                    →
+                  </span>
+                  <span className="audit-detail__after">{showValue(change.after)}</span>
                 </div>
               </li>
             ))}
@@ -172,7 +195,10 @@ const AdminAuditLogsPage: React.FC = () => {
         setError("");
 
         // Shared axios client: sends the admin Bearer token + cookies, same base URL as every admin page.
-        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", { params: { limit: 100 } });
+        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", {
+          params: { limit: 100 },
+        });
+
         if (!result?.success || !result.data || !Array.isArray(result.data.items)) {
           throw new Error("Invalid audit logs response.");
         }
@@ -210,6 +236,7 @@ const AdminAuditLogsPage: React.FC = () => {
     };
 
     void fetchAuditLogs();
+
     return () => {
       cancelled = true;
     };
@@ -217,12 +244,25 @@ const AdminAuditLogsPage: React.FC = () => {
 
   const query = searchValue.toLowerCase().trim();
   const totalLogs = auditLogsData.length;
-  const filteredLogs = auditLogsData.filter((log) =>
-    !query
-      ? true
-      : [log.id, log.timestamp, log.actor, log.actorName, log.action, log.entity, log.entityId, log.ip, log.result].some((v) =>
-          v.toLowerCase().includes(query),
-        ),
+
+  const filteredLogs = useMemo(
+    () =>
+      auditLogsData.filter((log) =>
+        !query
+          ? true
+          : [
+              log.id,
+              log.timestamp,
+              log.actor,
+              log.actorName,
+              log.action,
+              log.entity,
+              log.entityId,
+              log.ip,
+              log.result,
+            ].some((value) => value.toLowerCase().includes(query)),
+      ),
+    [auditLogsData, query],
   );
 
   // Full-page details view (only when the URL has an :auditId)
@@ -314,7 +354,9 @@ const AdminAuditLogsPage: React.FC = () => {
       key: "result",
       header: "Result",
       sortValue: (row) => row.result,
-      cell: (row) => <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>,
+      cell: (row) => (
+        <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>
+      ),
     },
     {
       key: "details",
@@ -357,7 +399,13 @@ const AdminAuditLogsPage: React.FC = () => {
           aria-label="Search audit logs"
         />
         {searchValue && (
-          <button type="button" className="auditlogs-search-clear" onClick={() => setSearchValue("")} aria-label="Clear search" title="Clear search">
+          <button
+            type="button"
+            className="auditlogs-search-clear"
+            onClick={() => setSearchValue("")}
+            aria-label="Clear search"
+            title="Clear search"
+          >
             ×
           </button>
         )}
