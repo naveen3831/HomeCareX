@@ -413,7 +413,7 @@ export const ServicesPage: React.FC = () => {
             "
             role="status"
             aria-busy="true"
-            role="status" aria-label="Loading services"
+            aria-label="Loading services"
           >
 
             {Array.from({

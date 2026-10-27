@@ -118,6 +118,16 @@ const startServer = async (): Promise<void> => {
     stopSlaSweep = startSlaSweep();
 
     // Seed default data after the server starts; failures are logged only.
+      `[timing] process uptime at listen: ${Math.round(
+        process.uptime() * 1000,
+      )} ms`,
+    );
+
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error('[referral-worker] Background referral processing failed:', error),
+    );
+    stopSlaSweep = startSlaSweep();
+    registerEarningsListeners();
     void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);
