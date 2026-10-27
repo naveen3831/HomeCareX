@@ -16,6 +16,7 @@ import type {
   JobsResponse,
   PartnerDashboard,
   PartnerJob,
+  PartnerJobStatus,
   PartnerNotification,
 } from "@/types/partner";
 
@@ -328,17 +329,123 @@ async function getJobs(
 ): Promise<JobsResponse> {
   const trimmedSearch = search.trim();
 
-  if (!USE_MOCKS) {
-    const res = await http.get<ApiResponse<JobsResponse>>("/partner/jobs", {
-      params: {
-        tab,
-        page,
-        limit,
-        ...(trimmedSearch ? { search: trimmedSearch } : {}),
-      },
-    });
+  try {
+    if (tab === "requests") {
+      const res = await http.get<ApiResponse<JobRequest[]>>("/partner/job-requests");
+      const requests = Array.isArray(res.data?.data) ? res.data.data : [];
+      if (requests.length > 0 || !USE_MOCKS) {
+        const mappedJobs: PartnerJob[] = requests.map((req) => ({
+          id: req.id,
+          bookingId: `#${req.id.slice(-6).toUpperCase()}`,
+          service: req.service,
+          customer: "Customer",
+          location: req.area || "Hyderabad",
+          distance: 2.0,
+          scheduledAt: req.scheduledAt,
+          amount: req.price,
+          status: "requested" as PartnerJobStatus,
+          expiresAt: req.expiresAt,
+        }));
 
-    return res.data.data;
+        const normalizedSearch = trimmedSearch.toLowerCase();
+        const filtered = mappedJobs.filter((job) => {
+          if (!normalizedSearch) return true;
+          return [job.bookingId, job.service, job.customer, job.location, job.status].some(
+            (val) => val.toLowerCase().includes(normalizedSearch),
+          );
+        });
+
+        const startIndex = (page - 1) * limit;
+        return {
+          jobs: filtered.slice(startIndex, startIndex + limit),
+          total: filtered.length,
+          page,
+          limit,
+        };
+      }
+    } else {
+      const res = await http.get<ApiResponse<unknown>>("/partner/jobs");
+      const rawData = res.data?.data;
+      if (Array.isArray(rawData)) {
+        const liveJobs: PartnerJob[] = rawData.map((rawItem: unknown) => {
+          const item = (rawItem && typeof rawItem === "object" ? rawItem : {}) as Record<string, unknown>;
+          let status: PartnerJobStatus = "upcoming";
+          const itemStatus = typeof item.status === "string" ? item.status : "";
+          if (["en_route", "arrived", "in_progress"].includes(itemStatus)) {
+            status = "active";
+          } else if (itemStatus === "completed") {
+            status = "completed";
+          } else if (itemStatus.startsWith("cancelled")) {
+            status = "cancelled";
+          } else {
+            status = "upcoming"; // "assigned"
+          }
+
+          const rawId = item.id || item._id;
+          const id = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "";
+          const serviceName =
+            typeof item.service === "object" && item.service !== null && "name" in item.service
+              ? String((item.service as { name?: unknown }).name)
+              : typeof item.service === "string"
+                ? item.service
+                : "Home Service";
+          const customer =
+            typeof item.customerName === "string"
+              ? item.customerName
+              : typeof item.customer === "string"
+                ? item.customer
+                : "Customer";
+          const location =
+            typeof item.address === "string"
+              ? item.address
+              : typeof item.location === "string"
+                ? item.location
+                : "Hyderabad";
+          const scheduledAt =
+            typeof item.scheduledAt === "string" ? item.scheduledAt : new Date().toISOString();
+          const amount =
+            typeof item.partnerEarning === "number"
+              ? item.partnerEarning
+              : typeof item.amount === "number"
+                ? item.amount
+                : 1499;
+
+          return {
+            id,
+            bookingId: `#${id.slice(-6).toUpperCase()}`,
+            service: serviceName,
+            customer,
+            location,
+            distance: 2.5,
+            scheduledAt,
+            amount,
+            status,
+            instructions: typeof item.instructions === "string" ? item.instructions : undefined,
+          };
+        });
+
+        const normalizedSearch = trimmedSearch.toLowerCase();
+        const filtered = liveJobs.filter((job) => {
+          if (!matchesJobTab(job, tab)) return false;
+          if (!normalizedSearch) return true;
+          return [job.bookingId, job.service, job.customer, job.location, job.status].some(
+            (val) => val.toLowerCase().includes(normalizedSearch),
+          );
+        });
+
+        if (filtered.length > 0 || !USE_MOCKS) {
+          const startIndex = (page - 1) * limit;
+          return {
+            jobs: filtered.slice(startIndex, startIndex + limit),
+            total: filtered.length,
+            page,
+            limit,
+          };
+        }
+      }
+    }
+  } catch {
+    // If live API is unavailable, fall back to mock data
   }
 
   await delay(400);

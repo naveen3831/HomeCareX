@@ -1,1 +1,1 @@
-export interface UsersTypes {}
+export type UsersTypes = Record<string, unknown>;

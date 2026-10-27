@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
 import { requirePermission } from "../middleware/permission.middleware";
+import { requireResourceAccess } from "../middleware/permission.middleware";
 
 // Core & Auth
 import { authRoutes } from "../modules/auth/auth.routes";
@@ -62,6 +63,15 @@ import customerDashboardRoutes from "../modules/customer-dashboard/customer-dash
 import {
   customerPreferencesRoutes,
   customerProfileRoutes,
+} from '../modules/customer-profile/customer-profile.routes';
+import { designationsRoutes } from '../modules/designations/designations.routes';
+import { earningsRoutes } from '../modules/earnings/earnings.routes';
+
+import { incentivesRoutes } from '../modules/incentives/incentives.routes';
+import leadsRoutes from '../modules/leads/leads.routes';
+import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
+import customerNotificationsRoutes from '../modules/notifications/customer-notifications.routes';
+import { notificationsRoutes } from '../modules/notifications/notifications.routes';
 } from "../modules/customer-profile/customer-profile.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
@@ -86,6 +96,15 @@ import {
   bookingStatusRoutes,
   partnerJobRequestsRoutes,
   partnerJobsRoutes,
+} from '../modules/partner-jobs/partner-jobs.routes';
+import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
+import { partnerLocationRoutes } from '../modules/partner-location/partner-location.routes';
+import { partnerDashboardRoutes } from '../modules/partners/partner-dashboard.routes';
+import { partnersRoutes } from '../modules/partners/partners.routes';
+import { partnerPerformanceRoutes } from '../modules/partner-performance/partner-performance.routes';
+import { partnerReviewsRoutes } from '../modules/partner-reviews/partner-reviews.routes';
+import { partnerPayoutsRoutes } from '../modules/partner-payouts/partner-payouts.routes';
+import { partnerTicketsRoutes } from '../modules/partner-tickets/partner-tickets.routes';
 } from "../modules/partner-jobs/partner-jobs.routes";
 import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
@@ -116,6 +135,19 @@ rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/incentives", incentivesRoutes);
 // Admin reports and CSV exports.
 rootRouter.use("/admin/reports", authMiddleware, requireAdmin, requirePermission("reports"), reportsRoutes);
+rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requireResourceAccess("catalog"), categoriesRoutes);
+rootRouter.use("/admin/services", authMiddleware, requireAdmin, requireResourceAccess("catalog"), servicesRoutes);
+rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResourceAccess("customers"), adminCustomersRoutes);
+rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/tickets", adminTicketsRoutes);
+rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
+rootRouter.use("/admin/partners", authMiddleware, requireAdmin, requireResourceAccess("partners"), partnersRoutes);
+rootRouter.use("/admin/coupons", authMiddleware, requireAdmin, requireResourceAccess("coupons"), couponsRoutes);
+rootRouter.use("/admin/banners", authMiddleware, requireAdmin, requireResourceAccess("marketing"), marketingRoutes);
+rootRouter.use("/admin/pricing", adminPricingRoutes);
+rootRouter.use("/admin/incentives", incentivesRoutes);
+// Admin reports and CSV exports.
+rootRouter.use("/admin/reports", authMiddleware, requireAdmin, requireResourceAccess("reports"), reportsRoutes);
 
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);

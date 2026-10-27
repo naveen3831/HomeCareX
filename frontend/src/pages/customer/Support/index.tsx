@@ -18,6 +18,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
   CATEGORIES,
   problem,
+  type CustomerTicket,
   type TicketCategory,
   type TicketStatus,
 } from "@/features/support/types";
@@ -118,6 +119,9 @@ function HelpCenter() {
                 <summary>
                   <span>
                     <h3 className="hcx-support-faq-cat">{section.title}</h3>
+                    <small className="hcx-support-faq-cat">
+                      {section.title}
+                    </small>
                     <span className="hcx-support-faq-q">
                       {article.question}
                     </span>
@@ -154,6 +158,22 @@ function TicketList() {
   const tickets = useTickets({ page, status: status || undefined });
   return (
     <section aria-label="My support tickets">
+
+  const raw = tickets.data as unknown;
+  const items: CustomerTicket[] = Array.isArray(raw)
+    ? (raw as CustomerTicket[])
+    : Array.isArray((raw as { items?: CustomerTicket[] })?.items)
+    ? ((raw as { items: CustomerTicket[] }).items)
+    : [];
+
+  const meta = (raw as { meta?: { pages?: number; page?: number; total?: number } })?.meta ?? {
+    pages: 1,
+    page: 1,
+    total: items.length,
+  };
+
+  return (
+    <section aria-label="Ticket list">
       <div className="hcx-support-section-head">
         <div>
           <h2>My tickets</h2>
@@ -164,6 +184,7 @@ function TicketList() {
         <TicketStatusFilter
           value={status}
           onChange={(nextStatus: TicketStatus | "") => {
+          onChange={(nextStatus) => {
             setStatus(nextStatus);
             setPage(1);
           }}
@@ -184,11 +205,13 @@ function TicketList() {
       )}
       {tickets.data &&
         (tickets.data.items.length ? (
+        (items.length ? (
           <ul
             className="hcx-support-ticket-list"
             aria-busy={tickets.isFetching}
           >
             {tickets.data.items.map((ticket) => (
+            {items.map((ticket) => (
               <TicketCard key={ticket.id} ticket={ticket} />
             ))}
           </ul>
@@ -205,6 +228,7 @@ function TicketList() {
           </div>
         ))}
       {tickets.data && tickets.data.meta.pages > 1 && (
+      {tickets.data && (meta.pages ?? 1) > 1 && (
         <nav className="hcx-support-pagination" aria-label="Ticket pages">
           <button
             type="button"
@@ -215,11 +239,13 @@ function TicketList() {
           </button>
           <span>
             Page {page} of {tickets.data.meta.pages}
+            Page {page} of {meta.pages}
           </span>
           <button
             type="button"
             disabled={
               page >= tickets.data.meta.pages || tickets.isFetching || !online
+              page >= (meta.pages ?? 1) || tickets.isFetching || !online
             }
             onClick={() => setPage((p) => p + 1)}
           >

@@ -20,7 +20,6 @@ import {
   RotateCcw,
   Settings,
   ShieldCheck,
-  Star,
   Tag,
   Ticket,
   UserCircle,
@@ -80,17 +79,13 @@ export const adminNavGroups: AdminNavGroup[] = [
     ],
   },
   {
-    groupName: 'Quality',
-    items: [{ label: 'Reviews', path: '/admin/reviews', icon: Star }],
-  },
-  {
     groupName: 'Reporting',
     items: [{ label: 'Reports', path: '/admin/reports', icon: BarChart3 }],
   },
   {
     groupName: 'System',
     items: [
-      { label: 'Roles', path: '/admin/roles-permissions', icon: ShieldCheck },
+      { label: 'Roles', path: '/admin/roles', icon: ShieldCheck },
       { label: 'Staff', path: '/admin/staff', icon: UserCog },
       { label: 'Audit Logs', path: '/admin/audit-logs', icon: FileClock },
       { label: 'Account Security', path: '/admin/security', icon: Lock },

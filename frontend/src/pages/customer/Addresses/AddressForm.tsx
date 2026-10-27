@@ -214,14 +214,14 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
           {!initial?.isDefault && !isFirst && (
             <label className="flex min-h-[48px] cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-canvas px-3.5 py-2 sm:min-h-[56px] sm:px-4 sm:py-3">
               <span>
-                <span className="block text-sm font-medium text-ink">Use this as my delivery address.</span>
+                <span className="block text-sm font-medium text-ink">Use this as my delivery address on the dashboard</span>
                 <span className="block text-xs text-muted">You can change it any time.</span>
               </span>
               <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} className="peer sr-only" />
               <span aria-hidden="true" className="relative h-6 w-11 shrink-0 rounded-full bg-line transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-brand peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2" />
             </label>
           )}
-          {isFirst && !initial && <p className="text-xs text-muted">This will be your delivery address.</p>}
+          {isFirst && !initial && <p className="text-xs text-muted">This will be your delivery address on the dashboard.</p>}
 
           {serverError && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{serverError}</p>}
           {unavailable && (

@@ -7,7 +7,6 @@ import { ADMIN_ROLES, type AuthUser } from '@/types/auth';
 import { ROUTES } from '@/constants/routes';
 import PasswordField from '@/components/auth/PasswordField';
 import AuthFormHeader from '@/components/auth/AuthFormHeader';
-import Seo from '@/components/common/Seo';
 
 /** Only same-origin paths are allowed as returnUrl (blocks //evil.com, https://..., javascript:). */
 function safeReturnUrl(raw: string | null): string | null {
@@ -25,58 +24,31 @@ function destinationFor(user: AuthUser, returnUrl: string | null): string {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^[6-9]\d{9}$/;
 
-const REMEMBERED_CREDS_KEY = 'homecarex_remembered_credentials';
+const REMEMBERED_ID_KEY = 'homecarex_remembered_identifier';
 
-interface SavedCredentials {
-  identifier: string;
-  password: string;
-}
-
-function getSavedCredentials(): SavedCredentials | null {
+function getSavedIdentifier(): string {
   try {
-    const raw = localStorage.getItem(REMEMBERED_CREDS_KEY);
-    if (!raw) {
-      // Legacy fallback: check for previous identifier-only key
-      const legacyId = localStorage.getItem('homecarex_remembered_identifier');
-      return legacyId ? { identifier: legacyId, password: '' } : null;
-    }
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.identifier === 'string') {
-      let decodedPassword = '';
-      if (parsed.password) {
-        try {
-          decodedPassword = atob(parsed.password);
-        } catch {
-          decodedPassword = parsed.password;
-        }
-      }
-      return {
-        identifier: parsed.identifier,
-        password: decodedPassword,
-      };
-    }
+    // Proactively purge any legacy insecure password storage
+    localStorage.removeItem('homecarex_remembered_credentials');
+    return localStorage.getItem(REMEMBERED_ID_KEY) || '';
   } catch {
-    // Ignore storage parse errors
+    return '';
   }
-  return null;
 }
 
-function saveCredentials(identifier: string, password: string) {
+function saveIdentifier(identifier: string) {
   try {
-    const encoded = btoa(password);
-    localStorage.setItem(
-      REMEMBERED_CREDS_KEY,
-      JSON.stringify({ identifier, password: encoded })
-    );
+    localStorage.setItem(REMEMBERED_ID_KEY, identifier);
+    localStorage.removeItem('homecarex_remembered_credentials');
   } catch {
     // Ignore storage write errors in restricted contexts
   }
 }
 
-function clearCredentials() {
+function clearIdentifier() {
   try {
-    localStorage.removeItem(REMEMBERED_CREDS_KEY);
-    localStorage.removeItem('homecarex_remembered_identifier');
+    localStorage.removeItem(REMEMBERED_ID_KEY);
+    localStorage.removeItem('homecarex_remembered_credentials');
   } catch {
     // Ignore storage errors
   }
@@ -89,12 +61,12 @@ export const LoginPage: React.FC = () => {
   const [params] = useSearchParams();
   const returnUrl = safeReturnUrl(params.get('returnUrl'));
 
-  // Initialize directly from stored credentials so fields are instantly autofilled
-  const [initialCreds] = useState<SavedCredentials | null>(() => getSavedCredentials());
-  const [identifier, setIdentifier] = useState(initialCreds?.identifier ?? '');
-  const [password, setPassword] = useState(initialCreds?.password ?? '');
-  const [rememberMe, setRememberMe] = useState(Boolean(initialCreds));
-  const [termsAccepted, setTermsAccepted] = useState(Boolean(initialCreds));
+  // Remember-me restores identifier (email/phone) only. Passwords are never stored in browser storage.
+  const [initialId] = useState<string>(() => getSavedIdentifier());
+  const [identifier, setIdentifier] = useState(initialId);
+  const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(Boolean(initialId));
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState(params.get('expired') ? 'Your session has expired. Please log in again.' : '');
   const [successMessage] = useState(() => {
     const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
@@ -111,6 +83,10 @@ export const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
 
+  useEffect(() => {
+    document.title = 'Log in | HomeCareX';
+  }, []);
+
   // Autofill credentials when unauthenticated or after logging out
   useEffect(() => {
     if (!isAuthenticated) {
@@ -119,12 +95,10 @@ export const LoginPage: React.FC = () => {
         setIdentifier(stateEmail);
         return;
       }
-      const saved = getSavedCredentials();
-      if (saved) {
-        setIdentifier(saved.identifier);
-        setPassword(saved.password);
+      const savedId = getSavedIdentifier();
+      if (savedId) {
+        setIdentifier(savedId);
         setRememberMe(true);
-        setTermsAccepted(true);
       }
     }
   }, [isAuthenticated, location.state]);
@@ -211,9 +185,9 @@ export const LoginPage: React.FC = () => {
       const trimmed = identifier.trim();
       const signedIn = await login({ email: trimmed, password });
       if (rememberMe) {
-        saveCredentials(trimmed, password);
+        saveIdentifier(trimmed);
       } else {
-        clearCredentials();
+        clearIdentifier();
       }
       navigate(destinationFor(signedIn, returnUrl), { replace: true });
     } catch (err) {
@@ -244,12 +218,6 @@ export const LoginPage: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Title + meta description (also needed for the Lighthouse SEO score) */}
-      <Seo
-        title="Log in | HomeCareX"
-        description="Log in to your HomeCareX account to book home services, track your bookings and manage your profile."
-      />
-
       {/* Top Navigation: Back to Home */}
       <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200/60">
         <Link
@@ -431,7 +399,7 @@ export const LoginPage: React.FC = () => {
         </button>
       </form>
 
-      <p className="text-center text-xs sm:text-sm text-gray-600 mt-3.5 sm:mt-4">
+      <p className="text-center text-xs sm:text-sm text-gray-500 mt-3.5 sm:mt-4">
         Don&apos;t have an account?{' '}
         <Link to="/register" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
           Create an account

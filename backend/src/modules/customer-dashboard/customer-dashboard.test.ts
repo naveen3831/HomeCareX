@@ -22,7 +22,7 @@ import {
   shortPartnerName,
 } from "./customer-dashboard.service";
 import type {
-  BookingRow,
+
   BookingsFacet,
   CategoryRow,
   ServiceRow,
@@ -244,7 +244,7 @@ function useSeededRepo() {
   return calls;
 }
 
-const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
+const _ids = (rows: { id: string }[]) => rows.map((r) => r.id);
 
 /* ------------------------------------------------------------------ */
 /* 1. Pure mappers                                                    */

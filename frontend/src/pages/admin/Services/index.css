@@ -120,3 +120,5 @@
 .svp--fs .svp-media, .svp--fs .svp-info { display: flex; flex-direction: column; gap: 16px; min-width: 0; padding: 20px; background: #fff; border: 1px solid var(--c-line, #e2e8f0); border-radius: 16px; }
 .svp--fs .svp-media { position: sticky; top: 0; }
 @media (max-width: 960px) { .svp--fs { grid-template-columns: minmax(0, 1fr); } .svp--fs .svp-media { position: static; } }
+
+.svc-select { width: 18px; height: 18px; flex-shrink: 0; accent-color: #4338ca; cursor: pointer; }

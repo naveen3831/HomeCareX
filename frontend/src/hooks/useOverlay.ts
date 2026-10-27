@@ -1,6 +1,32 @@
 import { useEffect, useRef } from 'react';
 
 /**
+ * Shared, reference-counted page scroll lock.
+ * Each overlay used to save and restore body.style.overflow on its own. When two overlays overlapped
+ * (or one was closed first) the second one "restored" the already-locked value 'hidden', and the page behind
+ * stayed unscrollable after going Back. Now the original value is saved once, by the first lock,
+ * and restored only when the last lock is released.
+ */
+let lockCount = 0;
+let savedOverflow = '';
+function lockBodyScroll() {
+  if (lockCount === 0) {
+    const current = document.body.style.overflow;
+    // Never treat a leftover 'hidden' as the page's real value.
+    savedOverflow = current === 'hidden' ? '' : current;
+    document.body.style.overflow = 'hidden';
+  }
+  lockCount += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    lockCount = Math.max(lockCount - 1, 0);
+    if (lockCount === 0) document.body.style.overflow = savedOverflow;
+  };
+}
+
+/**
  * Shared behaviour for Modal / Drawer / ConfirmDialog while `open`:
  * Escape closes, page scroll is locked, focus moves into the panel and is
  * restored to the previously focused element on close.
@@ -13,8 +39,7 @@ export function useOverlay<T extends HTMLElement>(open: boolean, onClose: () => 
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlockScroll = lockBodyScroll();
 
     const panel = panelRef.current;
     const focusable = () =>
@@ -51,7 +76,7 @@ export function useOverlay<T extends HTMLElement>(open: boolean, onClose: () => 
 
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       previouslyFocused?.focus?.();
     };
   }, [open]);

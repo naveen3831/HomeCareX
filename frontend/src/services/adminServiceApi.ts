@@ -1,5 +1,5 @@
 import http, { type ApiResponse } from '@/lib/http';
-import { adminCategoryApi } from '@/pages/admin/Services/adminCategoryApi';
+import { adminCategoryApi, catalogDemo } from '@/pages/admin/Services/adminCategoryApi';
 import { slugify } from '@/lib/slug';
 import { hasErrors, validateService, type CategoryRef } from '@/lib/serviceValidation';
 import type {
@@ -362,7 +362,6 @@ const demo = {
 };
 
 // ====================== public client ======================
-const backendUnavailable = (e: ServiceApiError) => e.status === undefined || e.status === 404 || e.status === 501 || e.status >= 500;
 async function run<T>(fn: () => Promise<T>): Promise<T> {
   try { return await fn(); } catch (e) { throw toErr(e); }
 }
@@ -373,21 +372,12 @@ export interface CategoryOption extends CategoryRef { name: string }
 export const adminServiceApi = {
   /** Decides live vs demo. 401/403 are real errors and are shown, never hidden behind demo data. */
   async list(): Promise<AdminService[]> {
+    if (mode === 'unknown' && catalogDemo()) { mode = 'demo'; modeReason = 'VITE_MOCK_CATALOG=true'; }
     if (mode === 'demo') return demo.list();
-    try {
-      const rows = await live.list();
-      mode = 'live';
-      modeReason = '';
-      return rows;
-    } catch (e) {
-      const err = toErr(e);
-      if (mode === 'unknown' && backendUnavailable(err)) {
-        mode = 'demo';
-        modeReason = err.status ? `server answered ${err.status}` : 'no response';
-        return demo.list();
-      }
-      throw err;
-    }
+    const rows = await run(() => live.list());
+    mode = 'live';
+    modeReason = '';
+    return rows;
   },
   create: (input: ServiceInput, categories: CategoryOption[]) =>
     run(() => (mode === 'demo' ? demo.create(input, categories, nameMap(categories)) : live.create(input, categories))),

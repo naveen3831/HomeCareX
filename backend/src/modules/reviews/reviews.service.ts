@@ -5,6 +5,12 @@ import { BookingModel } from "../../models/Booking";
 import { ReviewModel } from "../../models/Review";
 import { UserModel } from "../../models/User";
 import { HttpError } from "../auth/auth.types";
+import { Types } from 'mongoose';
+import { ERROR_CODES } from '../../constants/errorCodes';
+import { BookingModel } from '../../models/Booking';
+import { ReviewModel } from '../../models/Review';
+import { UserModel } from '../../models/User';
+import { HttpError } from '../auth/auth.types';
 import {
   COMPLETED_STATUSES,
   type BookingStatus,
@@ -36,6 +42,18 @@ import {
   type ReviewStatus,
 } from "./reviews.validation";
 
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
+
+/** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 /** Masks customer names before displaying them publicly. */
 export function maskAuthor(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -58,6 +76,8 @@ const toPublicReview = (r: VisibleReviewRow): PublicReviewDto => ({
 export function buildSummary(
   counts: Map<number, number>,
 ): ReviewSummaryDto {
+/** Zero-filled star distribution and one-decimal average. */
+export function buildSummary(counts: Map<number, number>): ReviewSummaryDto {
   const distribution: StarDistribution = {
     "1": 0,
     "2": 0,
@@ -117,6 +137,19 @@ interface ReviewAuditActor {
   ip?: string;
 }
 
+/** Who performed an admin review action (recorded in the audit log). */
+export interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
+
+
+interface ReviewAuditActor {
+  id: string;
+  ip?: string;
+}
+
 export class ReviewsService {
   /**
    * Fail-safe audit helper. Audit failure must not undo a successful
@@ -162,6 +195,7 @@ export class ReviewsService {
         "Authentication required",
         "NO_ACCESS_TOKEN",
       );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
     const customer = await UserModel.findById(customerId)
@@ -275,10 +309,10 @@ export class ReviewsService {
       );
     }
 
-    let review;
+    let saved: CustomerReviewRow;
 
     try {
-      review = await ReviewModel.create({
+      const review = await ReviewModel.create({
         customerId: customer._id,
         customerName: customer.name,
         customerEmail: customer.email,
@@ -290,6 +324,13 @@ export class ReviewsService {
         ...(booking.partnerId ? { partnerId: booking.partnerId } : {}),
         verified: true,
       });
+
+      // The response shows the review as approved and visible.
+      saved = {
+        ...review.toObject(),
+        status: 'approved',
+        visible: true,
+      } as unknown as CustomerReviewRow;
     } catch (err) {
       if (isDuplicateKey(err)) {
         throw new HttpError(
@@ -348,6 +389,7 @@ export class ReviewsService {
 
     return toCustomerReviewDto(
       savedReview as unknown as CustomerReviewRow,
+      saved,
       serviceNames.get(id) ?? null,
       booking.partnerId
         ? partnerNames.get(String(booking.partnerId)) ?? null
@@ -356,26 +398,20 @@ export class ReviewsService {
   }
 
   /** GET /reviews — signed-in customer's reviews. */
-  async listMyReviews(
-    customerId: string,
-  ): Promise<CustomerReviewDto[]> {
+  async listMyReviews(customerId: string): Promise<CustomerReviewDto[]> {
     if (!Types.ObjectId.isValid(customerId)) {
       throw new HttpError(
         401,
         "Authentication required",
         ERROR_CODES.NO_ACCESS_TOKEN,
       );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
     const rows = await reviewsRepository.listForCustomer(customerId);
 
-    const bookingIds = rows.flatMap((r) =>
-      r.bookingId ? [r.bookingId] : [],
-    );
-
-    const partnerIds = rows.flatMap((r) =>
-      r.partnerId ? [r.partnerId] : [],
-    );
+    const bookingIds = rows.flatMap((r) => (r.bookingId ? [r.bookingId] : []));
+    const partnerIds = rows.flatMap((r) => (r.partnerId ? [r.partnerId] : []));
 
     const [serviceNames, partnerNames] = await Promise.all([
       reviewsRepository.serviceNames(bookingIds),
@@ -385,20 +421,14 @@ export class ReviewsService {
     return rows.map((r) =>
       toCustomerReviewDto(
         r,
-        r.bookingId
-          ? serviceNames.get(String(r.bookingId)) ?? null
-          : null,
-        r.partnerId
-          ? partnerNames.get(String(r.partnerId)) ?? null
-          : null,
+        r.bookingId ? serviceNames.get(String(r.bookingId)) ?? null : null,
+        r.partnerId ? partnerNames.get(String(r.partnerId)) ?? null : null,
       ),
     );
   }
 
   /** GET /reviews/pending — completed bookings not reviewed yet. */
-  async listPendingReviews(
-    customerId: string,
-  ): Promise<PendingReviewDto[]> {
+  async listPendingReviews(customerId: string): Promise<PendingReviewDto[]> {
     if (!Types.ObjectId.isValid(customerId)) {
       throw new HttpError(
         401,
@@ -407,8 +437,7 @@ export class ReviewsService {
       );
     }
 
-    const rows =
-      await reviewsRepository.listPendingForCustomer(customerId);
+    const rows = await reviewsRepository.listPendingForCustomer(customerId);
 
     const partnerNames = await reviewsRepository.partnerNames(
       rows.flatMap((b) => (b.partnerId ? [b.partnerId] : [])),
@@ -440,8 +469,7 @@ export class ReviewsService {
       };
     }
 
-    const booking =
-      await reviewsRepository.findBookingForReview(bookingId);
+    const booking = await reviewsRepository.findBookingForReview(bookingId);
 
     if (!booking || String(booking.customerId) !== customerId) {
       throw new HttpError(
@@ -488,6 +516,7 @@ export class ReviewsService {
         "Service not found",
         ERROR_CODES.NOT_FOUND,
       );
+      throw new HttpError(404, 'Service not found', ERROR_CODES.NOT_FOUND);
     }
 
     const [counts, rows] = await Promise.all([
@@ -517,11 +546,10 @@ export class ReviewsService {
         "Authentication required",
         ERROR_CODES.NO_ACCESS_TOKEN,
       );
+      throw new HttpError(401, 'Authentication required', 'NO_ACCESS_TOKEN');
     }
 
-    return ReviewModel.find({ customerId })
-      .sort({ createdAt: -1 })
-      .lean();
+    return ReviewModel.find({ customerId }).sort({ createdAt: -1 }).lean();
   }
 
   /** GET /admin/reviews */
@@ -534,6 +562,7 @@ export class ReviewsService {
         "Invalid review filters",
         "VALIDATION_ERROR",
       );
+      throw new HttpError(400, 'Invalid review filters', 'VALIDATION_ERROR');
     }
 
     const { page, limit, search, status } = parsed.data;
@@ -543,6 +572,8 @@ export class ReviewsService {
 
     if (search) {
       const expression = new RegExp(escapeRegex(search), "i");
+      const expression = new RegExp(escapeRegex(search), 'i');
+
       filter.$or = [
         { customerName: expression },
         { customerEmail: expression },
@@ -561,6 +592,9 @@ export class ReviewsService {
         ReviewModel.countDocuments({ status: "pending" }),
         ReviewModel.countDocuments({ status: "approved" }),
         ReviewModel.countDocuments({ status: "rejected" }),
+        ReviewModel.countDocuments({ status: 'pending' }),
+        ReviewModel.countDocuments({ status: 'approved' }),
+        ReviewModel.countDocuments({ status: 'rejected' }),
         ReviewModel.countDocuments(),
       ]);
 
@@ -575,9 +609,7 @@ export class ReviewsService {
 
     const bookings = bookingIds.length
       ? await BookingModel.find({
-          _id: {
-            $in: bookingIds.map((id) => new Types.ObjectId(id)),
-          },
+          _id: { $in: bookingIds.map((id) => new Types.ObjectId(id)) },
         })
           .select("_id partnerId offers")
           .lean()
@@ -586,9 +618,7 @@ export class ReviewsService {
     const bookingPartnerMap = new Map<string, string>();
 
     for (const booking of bookings) {
-      let partnerId = booking.partnerId
-        ? String(booking.partnerId)
-        : null;
+      let partnerId = booking.partnerId ? String(booking.partnerId) : null;
 
       if (!partnerId) {
         const acceptedOffers = (booking.offers ?? []).filter(
@@ -719,6 +749,10 @@ export class ReviewsService {
   ) {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpError(400, "Invalid review ID", "INVALID_ID");
+  /** PATCH /admin/reviews/:id/visibility — hide or restore a review. */
+  async updateReviewVisibility(id: string, visible: unknown) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
     }
 
     const parsedStatus = reviewStatusSchema.safeParse(status);
@@ -728,6 +762,8 @@ export class ReviewsService {
         400,
         "Invalid review status",
         "VALIDATION_ERROR",
+        parsed.error.issues[0]?.message ?? 'Invalid visibility value',
+        'VALIDATION_ERROR',
       );
     }
 
@@ -737,6 +773,63 @@ export class ReviewsService {
 
     if (!existingReview) {
       throw new HttpError(404, "Review not found", "NOT_FOUND");
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    }
+
+    const previousStatus = existingReview.status;
+    const nextStatus = parsedStatus.data as ReviewStatus;
+
+    const review = await ReviewModel.findByIdAndUpdate(
+      id,
+      { $set: { status: nextStatus } },
+      { $set: { visible: parsed.data.visible } },
+      { new: true, runValidators: true },
+    ).lean();
+
+    if (!review) {
+      throw new HttpError(404, "Review not found", "NOT_FOUND");
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
+    }
+
+    if (review.partnerId) {
+      await reviewsRepository.recomputePartnerRating(String(review.partnerId));
+    }
+
+    if (review.serviceId) {
+      await reviewsRepository.recomputeServiceRating(String(review.serviceId));
+    }
+
+    return review;
+  }
+
+  /** PATCH /admin/reviews/:id/status — approve or reject a review. */
+
+  async updateReviewStatus( id: string,    status: unknown,    actor: ReviewAuditActor,  )
+   {
+    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+  /** PATCH /admin/reviews/:id/status */
+  async updateReviewStatus(
+    id: string,
+    status: unknown,
+    actor: ReviewAuditActor,
+  ) {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+    }
+
+    const parsedStatus = reviewStatusSchema.safeParse(status);
+
+    if (!parsedStatus.success) {
+      throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
+    }
+
+    // Read first so the audit entry contains the actual previous status.
+    const existingReview = await ReviewModel.findById(id)
+      .select('_id status')
+      .lean();
+
+    if (!existingReview) {
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
     }
 
     const previousStatus = existingReview.status;
@@ -749,21 +842,18 @@ export class ReviewsService {
     ).lean();
 
     if (!review) {
-      throw new HttpError(404, "Review not found", "NOT_FOUND");
+      throw new HttpError(404, 'Review not found', 'NOT_FOUND');
     }
 
     if (review.partnerId) {
-      await reviewsRepository.recomputePartnerRating(
-        String(review.partnerId),
-      );
+      await reviewsRepository.recomputePartnerRating(String(review.partnerId));
     }
 
     if (review.serviceId) {
-      await reviewsRepository.recomputeServiceRating(
-        String(review.serviceId),
-      );
+      await reviewsRepository.recomputeServiceRating(String(review.serviceId));
     }
 
+    // Only record after the update succeeds.
     await this.recordReviewAudit(
       "review.status_updated",
       String(review._id),

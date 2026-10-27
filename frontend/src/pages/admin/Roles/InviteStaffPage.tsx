@@ -44,7 +44,7 @@ export const InviteStaffPage: React.FC = () => {
           backToStaff(`Invite created for ${input.email}, but the email could not be sent. Check the SMTP settings in backend/.env and the backend console.`);
           return;
         }
-        backToStaff(`Invited ${input.email}. They’ll get an email to set their password.`);
+        backToStaff(`Invite sent to ${input.email}. They’ll get an email to set their password.`);
       },
       onError: (err) => setServerError(errorMessage(err)),
     });

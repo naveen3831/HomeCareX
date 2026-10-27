@@ -1,4 +1,4 @@
-import { categoryImage } from "@/features/public/presentation";
+import { categoryImage } from '../features/public/presentation';
 
 export const SITE_NAME = "HomeCareX";
 

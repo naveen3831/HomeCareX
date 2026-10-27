@@ -72,6 +72,37 @@ export const isCancelledBooking = (
   now: number = Date.now(),
 ): boolean => isCancelledStatus(booking.status) || isExpiredHold(booking, now);
 
+export interface RefundBadge {
+  label: string;
+  tone: PillTone;
+  dot?: boolean;
+}
+
+export function refundBadge(
+  refund?: { status?: string } | null,
+  refundStatus?: string,
+): RefundBadge | null {
+  const raw = refund?.status || refundStatus;
+  if (!raw) return null;
+  const s = String(raw).trim().toUpperCase();
+  if (s === "PENDING_APPROVAL" || s === "REQUESTED") {
+    return { label: "Refund Pending Approval", tone: "amber", dot: true };
+  }
+  if (s === "CREDITED" || s === "PROCESSED") {
+    return { label: "Refund Credited", tone: "green" };
+  }
+  if (s === "REJECTED") {
+    return { label: "Refund Rejected", tone: "red" };
+  }
+  if (s === "PROCESSING") {
+    return { label: "Refund Processing", tone: "amber", dot: true };
+  }
+  if (s === "CREDIT_FAILED") {
+    return { label: "Refund Credit Failed", tone: "red" };
+  }
+  return null;
+}
+
 /** The partner is on site, so extra charges can be decided. Mirrors the server rule. */
 export const canDecideExtraCharges = (status: string): boolean => {
   const normalized = normalizeStatus(status);
@@ -179,8 +210,8 @@ export function buildTimeline(
 ): TimelineItem[] {
   const history = Array.isArray(booking?.statusHistory)
     ? booking.statusHistory
-    : Array.isArray((booking as any)?.history)
-    ? (booking as any).history
+    : Array.isArray((booking as { history?: unknown[] })?.history)
+    ? ((booking as { history?: BookingDetailView['statusHistory'] }).history ?? [])
     : [];
   const status = normalizeStatus(booking?.status);
   const expired = isExpiredHold(booking, now);
@@ -264,9 +295,9 @@ export function formatLongDate(date: string): string {
 }
 
 /** "12 Oct, 4:05 PM" for a moment in time; empty when missing or invalid. */
-export function formatMoment(iso?: string): string {
+export function formatMoment(iso?: string | Date): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  const d = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString("en-IN", {
     day: "numeric",

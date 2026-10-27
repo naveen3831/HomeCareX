@@ -26,17 +26,19 @@ function Dot({ item }: { item: TimelineItem }) {
     <span
       aria-hidden="true"
       className={clsx(
-        "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2",
-        item.state === "done" && "border-brand bg-brand text-white",
+        "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all",
+        item.state === "done" &&
+          "bg-brand text-white shadow-sm ring-4 ring-brand/10",
         item.state === "current" &&
-          "border-brand bg-panel text-brand shadow-[0_0_0_4px_rgba(82,71,210,0.12)]",
+          "border-2 border-brand bg-panel text-brand shadow-[0_0_0_4px_rgba(67,56,202,0.15)]",
         item.state === "upcoming" &&
-          "border-transparent bg-slate-100 text-slate-400",
-        item.state === "failed" && "border-danger bg-danger text-white",
+          "border border-line/80 bg-slate-50 text-slate-400",
+        item.state === "failed" &&
+          "bg-danger text-white shadow-sm ring-4 ring-danger/10",
       )}
     >
-      {item.state === "done" && <Check className="h-4 w-4" />}
-      {item.state === "failed" && <X className="h-4 w-4" />}
+      {item.state === "done" && <Check className="h-4 w-4 stroke-[2.5]" />}
+      {item.state === "failed" && <X className="h-4 w-4 stroke-[2.5]" />}
       {(item.state === "current" || item.state === "upcoming") && (
         <Icon className="h-4 w-4" />
       )}
@@ -56,15 +58,23 @@ function Label({
     <div className={clsx("min-w-0", align === "center" && "text-center")}>
       <p
         className={clsx(
-          "break-words text-xs leading-tight",
-          item.state === "upcoming" ? "text-muted" : "font-semibold text-ink",
-          item.state === "failed" && "text-danger",
+          "break-words text-[11px] leading-snug sm:text-xs",
+          item.state === "current"
+            ? "font-bold text-brand"
+            : item.state === "done"
+            ? "font-semibold text-ink"
+            : "text-muted",
+          item.state === "failed" && "font-semibold text-danger",
         )}
       >
         {item.label}
         <span className="sr-only"> — {STATE_TEXT[item.state]}</span>
       </p>
-      {when && <p className="mt-0.5 text-[11px] text-muted">{when}</p>}
+      {when && (
+        <p className="mt-0.5 text-[10px] text-muted tabular-nums sm:text-[11px]">
+          {when}
+        </p>
+      )}
     </div>
   );
 }
@@ -72,14 +82,17 @@ function Label({
 /** Horizontal stepper on wide screens, a vertical list on phones. The current step is announced to screen readers. */
 export default function StatusTimeline({ items }: { items: TimelineItem[] }) {
   return (
-    <>
+    <div className="w-full">
       {/* Wide screens */}
-      <ol aria-label="Booking progress" className="hidden md:flex">
+      <ol
+        aria-label="Booking progress"
+        className="hidden items-start justify-between md:flex"
+      >
         {items.map((item, i) => (
           <li
             key={item.key}
             aria-current={item.state === "current" ? "step" : undefined}
-            className="relative flex min-w-0 flex-1 flex-col items-center gap-2 px-1"
+            className="relative flex min-w-0 flex-1 flex-col items-center gap-2.5 px-1"
           >
             {i > 0 && (
               <span
@@ -106,7 +119,7 @@ export default function StatusTimeline({ items }: { items: TimelineItem[] }) {
             <li
               key={item.key}
               aria-current={item.state === "current" ? "step" : undefined}
-              className="relative flex gap-3 pb-5 last:pb-0"
+              className="relative flex gap-3.5 pb-5 last:pb-0"
             >
               {!last && (
                 <span
@@ -118,13 +131,13 @@ export default function StatusTimeline({ items }: { items: TimelineItem[] }) {
                 />
               )}
               <Dot item={item} />
-              <div className="pt-1.5">
+              <div className="pt-1">
                 <Label item={item} align="left" />
               </div>
             </li>
           );
         })}
       </ol>
-    </>
+    </div>
   );
 }

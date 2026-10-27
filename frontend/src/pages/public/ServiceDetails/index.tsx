@@ -685,8 +685,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
               </li>
             ))}
           </ul>
-          {/* CHANGED: text-[#8b8ba7] -> text-[#6b6b8a] (contrast) */}
-          <p className="mt-4 text-sm text-[#6b6b8a]">
+          <p className="mt-4 text-sm text-[#8b8ba7]">
             You can choose add-ons while booking.
           </p>
         </>
@@ -860,10 +859,9 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
                       <p className="text-sm font-extrabold text-[#11104f]">
                         {review.author}
                       </p>
-                      {/* CHANGED: text-[#8b8ba7] -> text-[#6b6b8a] (contrast) */}
                       <time
                         dateTime={review.createdAt}
-                        className="text-xs text-[#6b6b8a]"
+                        className="text-xs text-[#8b8ba7]"
                       >
                         {formatReviewDate(review.createdAt)}
                       </time>
@@ -1041,7 +1039,6 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
                   width={1280}
                   height={800}
                   loading="eager"
-                     fetchPriority="high"
                   decoding="async"
                   onError={() => markFailed(photos[selectedIndex].url)}
                   className="absolute inset-0 h-full w-full object-cover transition duration-700 motion-safe:group-hover:scale-105"
@@ -1148,29 +1145,27 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
           )}
         </div>
 
-        {/* ================= QUICK FACTS =================
-            CHANGED: was <dl>/<dt>/<dd> with extra wrapper elements (invalid for
-            screen readers and Lighthouse). Now a plain list; label text is darker. */}
-        <ul className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-3xl bg-[#e4e7f5] shadow-[0_12px_32px_rgba(17,16,79,0.06)] lg:grid-cols-4">
+        {/* ================= QUICK FACTS ================= */}
+        <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-3xl bg-[#e4e7f5] shadow-[0_12px_32px_rgba(17,16,79,0.06)] lg:grid-cols-4">
           {[
             { icon: CalendarCheck, label: "Earliest slot", value: earliest },
             { icon: Clock, label: "Duration", value: duration },
             { icon: Wallet, label: "Payment", value: "After the service" },
             { icon: ShieldCheck, label: "Cancellation", value: "Free before arrival" },
           ].map(({ icon: Icon, label, value }) => (
-            <li key={label} className="flex items-center gap-3 bg-white px-5 py-4">
+            <div key={label} className="flex items-center gap-3 bg-white px-5 py-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef2ff] text-[#4338ca]">
                 <Icon size={20} aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-xs text-[#6b6b8a]">{label}</p>
-                <p className="truncate text-sm font-extrabold text-[#11104f]">
+                <dt className="text-xs text-[#8b8ba7]">{label}</dt>
+                <dd className="truncate text-sm font-extrabold text-[#11104f]">
                   {value}
-                </p>
+                </dd>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </dl>
 
         {/* ================= TWO COLUMNS: tabs (left) + booking card (right) ================= */}
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_440px] lg:items-start">
@@ -1261,8 +1256,7 @@ const ServiceDetailsPage: React.FC<{ slug: string }> = ({ slug }) => {
                   Book now
                 </button>
 
-                {/* CHANGED: text-[#8b8ba7] -> text-[#6b6b8a] (contrast) */}
-                <p className="mt-4 text-center text-sm text-[#6b6b8a]">
+                <p className="mt-4 text-center text-sm text-[#8b8ba7]">
                   Pick your date, time and add-ons in the next steps.
                 </p>
               </div>
