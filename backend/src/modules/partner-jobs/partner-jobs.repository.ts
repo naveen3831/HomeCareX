@@ -1,3 +1,4 @@
+
 import { Types } from "mongoose";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
@@ -5,6 +6,17 @@ import ServiceModel from "../../models/Service";
 import UserModel from "../../models/User";
 import type { BookingStatus } from "../bookings/bookings.constants";
 import type { StatusHistoryEntry } from "../bookings/bookings.stateMachine";
+
+export interface JobExtraCharge {
+  _id: Types.ObjectId;
+  title: string;
+  reason?: string;
+  amount: number;
+  quantity: number;
+  status: "pending" | "approved" | "rejected";
+  requestedAt: Date;
+  decidedAt?: Date;
+}
 
 export interface JobBookingDoc {
   _id: Types.ObjectId;
@@ -14,18 +26,24 @@ export interface JobBookingDoc {
   serviceName: string;
   customerName?: string;
   quantity: number;
-  addOns: Array<{ addOnId: Types.ObjectId; quantity: number }>;
+  addOns: Array<{
+    addOnId: Types.ObjectId;
+    quantity: number;
+  }>;
   address: {
     line1: string;
     area?: string | null;
     city: string;
     pincode?: string | null;
-    location?: { coordinates?: number[] };
+    location?: {
+      coordinates?: number[];
+    };
   };
   date?: string;
   slot?: string;
   scheduledAt: Date;
   startedAt?: Date;
+  completedAt?: Date;
   status: BookingStatus;
   statusHistory: IBooking["statusHistory"];
   priceSnapshot?: {
@@ -37,35 +55,41 @@ export interface JobBookingDoc {
       amount: number;
     }>;
   };
-  priceBreakdown?: { total?: number };
+  priceBreakdown?: {
+    total?: number;
+  };
   partnerEarning?: number;
   paymentStatus: string;
-  paymentDetails?: { paidAt?: Date };
+  paymentDetails?: {
+    paidAt?: Date;
+  };
   instructions?: string;
-  checklist?: Array<{ id: string; label: string; done: boolean }>;
-  extraCharges?: Array<{
-    _id: Types.ObjectId;
-    title: string;
-    reason?: string;
-    amount: number;
-    quantity: number;
-    status: "pending" | "approved" | "rejected";
-    requestedAt?: Date;
-    decidedAt?: Date;
+  checklist?: Array<{
+    id: string;
+    label: string;
+    done: boolean;
   }>;
-  otpCodes?: { start?: string; end?: string };
+  otpCodes?: {
+    start?: string;
+    end?: string;
+  };
+  extraCharges?: JobExtraCharge[];
   offers?: Array<{
     partnerId: Types.ObjectId;
     offeredAt: Date;
     expiresAt: Date;
-    response: 'pending' | 'accepted' | 'rejected' | 'expired';
+    response: "pending" | "accepted" | "rejected" | "expired";
   }>;
 }
 
 export interface JobServiceDoc {
   durationMinutes?: number;
   inclusions?: string[];
-  addOns?: Array<{ _id: Types.ObjectId; name: string; price: number }>;
+  addOns?: Array<{
+    _id: Types.ObjectId;
+    name: string;
+    price: number;
+  }>;
 }
 
 export interface JobCustomerDoc {
@@ -80,13 +104,15 @@ export const partnerJobsRepository = {
       .lean<{ _id: Types.ObjectId }>();
   },
 
-  /** Live jobs of one partner, soonest first. */
   listLiveForPartner(
     partnerId: Types.ObjectId,
     statuses: BookingStatus[],
     limit = 50,
   ) {
-    return BookingModel.find({ partnerId, status: { $in: statuses } })
+    return BookingModel.find({
+      partnerId,
+      status: { $in: statuses },
+    })
       .sort({ scheduledAt: 1 })
       .limit(limit)
       .lean<JobBookingDoc[]>();
@@ -108,13 +134,16 @@ export const partnerJobsRepository = {
       .lean<JobServiceDoc>();
   },
 
-  findJobRequests(partnerId: Types.ObjectId, now: Date = new Date()) {
+  findJobRequests(
+    partnerId: Types.ObjectId,
+    now: Date = new Date(),
+  ) {
     return BookingModel.find({
-      status: 'searching_for_partner',
+      status: "searching_for_partner",
       offers: {
         $elemMatch: {
           partnerId,
-          response: 'pending',
+          response: "pending",
           expiresAt: { $gt: now },
         },
       },
@@ -128,77 +157,101 @@ export const partnerJobsRepository = {
     partnerId: Types.ObjectId,
     userId: string,
     now: Date = new Date(),
-  ): Promise<'ACCEPTED' | 'EXPIRED_OR_UNAVAILABLE' | 'NOT_FOUND'> {
-    const existing = await BookingModel.findById(bookingId).select('status offers').lean();
-    if (!existing) return 'NOT_FOUND';
+  ): Promise<"ACCEPTED" | "EXPIRED_OR_UNAVAILABLE" | "NOT_FOUND"> {
+    const existing = await BookingModel.findById(bookingId)
+      .select("status offers")
+      .lean();
+
+    if (!existing) {
+      return "NOT_FOUND";
+    }
 
     const entry: StatusHistoryEntry = {
-      from: 'searching_for_partner',
-      to: 'assigned',
+      from: "searching_for_partner",
+      to: "assigned",
       at: now,
-      actorRole: 'partner',
+      actorRole: "partner",
       actorId: userId,
-      reason: 'Offer accepted by partner',
+      reason: "Offer accepted by partner",
     };
 
     const result = await BookingModel.updateOne(
       {
         _id: bookingId,
-        status: 'searching_for_partner',
+        status: "searching_for_partner",
         offers: {
           $elemMatch: {
             partnerId,
-            response: 'pending',
+            response: "pending",
             expiresAt: { $gt: now },
           },
         },
       },
       {
         $set: {
-          status: 'assigned',
+          status: "assigned",
           partnerId,
-          'offers.$[offer].response': 'accepted',
+          "offers.$[offer].response": "accepted",
         },
-        $push: { statusHistory: entry },
+        $push: {
+          statusHistory: entry,
+        },
       },
       {
-        arrayFilters: [{ 'offer.partnerId': partnerId }],
+        arrayFilters: [
+          {
+            "offer.partnerId": partnerId,
+            "offer.response": "pending",
+          },
+        ],
       },
     );
 
-    if (result.modifiedCount === 1) {
-      return 'ACCEPTED';
-    }
-    return 'EXPIRED_OR_UNAVAILABLE';
+    return result.modifiedCount === 1
+      ? "ACCEPTED"
+      : "EXPIRED_OR_UNAVAILABLE";
   },
 
   async rejectOffer(
     bookingId: string,
     partnerId: Types.ObjectId,
-  ): Promise<'REJECTED' | 'NOT_FOUND'> {
-    const existing = await BookingModel.findById(bookingId).select('status offers').lean();
-    if (!existing) return 'NOT_FOUND';
+  ): Promise<"REJECTED" | "NOT_FOUND"> {
+    const existing = await BookingModel.findById(bookingId)
+      .select("status offers")
+      .lean();
 
-    await BookingModel.updateOne(
+    if (!existing) {
+      return "NOT_FOUND";
+    }
+
+    const result = await BookingModel.updateOne(
       {
         _id: bookingId,
-        'offers.partnerId': partnerId,
+        offers: {
+          $elemMatch: {
+            partnerId,
+            response: "pending",
+          },
+        },
       },
       {
-        $set: { 'offers.$[offer].response': 'rejected' },
+        $set: {
+          "offers.$[offer].response": "rejected",
+        },
       },
       {
-        arrayFilters: [{ 'offer.partnerId': partnerId }],
+        arrayFilters: [
+          {
+            "offer.partnerId": partnerId,
+            "offer.response": "pending",
+          },
+        ],
       },
     );
 
-    return 'REJECTED';
+    return result.modifiedCount > 0 ? "REJECTED" : "NOT_FOUND";
   },
 
-  /**
-   * Atomic compare-and-set: only succeeds while the booking is still in `from` and still belongs to this
-   * partner, so a double click or two devices can never apply the same step twice.
-   */
   async transitionStatus(
     bookingId: string,
     partnerId: Types.ObjectId,
@@ -207,44 +260,21 @@ export const partnerJobsRepository = {
     entry: StatusHistoryEntry,
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId, status: from },
-      { $set: { status: to }, $push: { statusHistory: entry } },
+      {
+        _id: bookingId,
+        partnerId,
+        status: from,
+      },
+      {
+        $set: {
+          status: to,
+        },
+        $push: {
+          statusHistory: entry,
+        },
+      },
     );
-    return result.modifiedCount === 1;
-  },
 
-  async addExtraCharge(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    charge: {
-      _id: Types.ObjectId;
-      title: string;
-      reason?: string;
-      amount: number;
-      quantity: number;
-      status: "pending";
-      requestedAt: Date;
-    },
-  ): Promise<boolean> {
-    const filter = Types.ObjectId.isValid(bookingId)
-      ? { _id: new Types.ObjectId(bookingId), partnerId }
-      : { _id: bookingId, partnerId };
-    const result = await BookingModel.updateOne(
-      filter,
-      { $push: { extraCharges: charge } },
-    );
-    return result.modifiedCount === 1;
-  },
-
-  async updateChecklist(
-    bookingId: string,
-    partnerId: Types.ObjectId,
-    checklist: Array<{ id: string; label: string; done: boolean }>,
-  ): Promise<boolean> {
-    const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId },
-      { $set: { checklist } },
-    );
     return result.modifiedCount === 1;
   },
 
@@ -255,12 +285,22 @@ export const partnerJobsRepository = {
     now: Date = new Date(),
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId, status: "arrived" },
       {
-        $set: { status: "in_progress", startedAt: now },
-        $push: { statusHistory: entry },
+        _id: bookingId,
+        partnerId,
+        status: "arrived",
+      },
+      {
+        $set: {
+          status: "in_progress",
+          startedAt: now,
+        },
+        $push: {
+          statusHistory: entry,
+        },
       },
     );
+
     return result.modifiedCount === 1;
   },
 
@@ -271,12 +311,78 @@ export const partnerJobsRepository = {
     now: Date = new Date(),
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
-      { _id: bookingId, partnerId, status: "in_progress" },
       {
-        $set: { status: "completed", completedAt: now },
-        $push: { statusHistory: entry },
+        _id: bookingId,
+        partnerId,
+        status: "in_progress",
+      },
+      {
+        $set: {
+          status: "completed",
+          completedAt: now,
+        },
+        $push: {
+          statusHistory: entry,
+        },
       },
     );
+
+    return result.modifiedCount === 1;
+  },
+
+  async addExtraCharge(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    charge: JobExtraCharge,
+  ): Promise<boolean> {
+    const filter = Types.ObjectId.isValid(bookingId)
+      ? {
+          _id: new Types.ObjectId(bookingId),
+          partnerId,
+          status: "in_progress",
+        }
+      : {
+          _id: bookingId,
+          partnerId,
+          status: "in_progress",
+        };
+
+    const result = await BookingModel.updateOne(
+      filter,
+      {
+        $push: {
+          extraCharges: charge,
+        },
+      },
+    );
+
+    return result.modifiedCount === 1;
+  },
+
+  async updateChecklist(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    checklist: Array<{
+      id: string;
+      label: string;
+      done: boolean;
+    }>,
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        partnerId,
+        status: {
+          $in: ["assigned", "en_route", "arrived", "in_progress"],
+        },
+      },
+      {
+        $set: {
+          checklist,
+        },
+      },
+    );
+
     return result.modifiedCount === 1;
   },
 };

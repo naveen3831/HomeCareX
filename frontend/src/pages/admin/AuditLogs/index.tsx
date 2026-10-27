@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import DataTable, { Column } from "../../../components/tables/DataTable";
+import DataTable, {
+  Column,
+} from "../../../components/tables/DataTable";
 import "./index.css";
 import http from "@/lib/http";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import FullScreenPanel from "@/components/admin/FullScreenPanel";
 import { diffRecords } from "@/components/admin/AuditDiffDrawer";
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/develop
 interface AuditLog {
   id: string;
   timestamp: string;
@@ -27,34 +27,34 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-<<<<<<< HEAD
-  actor?: string;
+  actor?: string | null;
   actorName?: string | null;
-  action?: string;
-  entity?: string;
-  entityId?: string;
-=======
-  actor: string;
-  actorName?: string | null;
-  action: string;
-  entity: string;
-  entityId: string;
->>>>>>> origin/develop
+  action?: string | null;
+  entity?: string | null;
+  entityId?: string | null;
   before?: unknown;
   after?: unknown;
-  ip: string;
-  result: "Success" | "Failed";
+  ip?: string | null;
+  result?: string | null;
   timestamp?: string;
   createdAt?: string;
 }
 
 interface AuditLogsResponse {
   success: boolean;
-  data: { items: AuditLogApi[]; total: number; page: number; limit: number };
+  data?: {
+    items?: AuditLogApi[];
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
 }
 
 const formatJson = (value: unknown): string => {
-  if (value === undefined || value === null) return "{}";
+  if (value === undefined || value === null) {
+    return "{}";
+  }
+
   if (typeof value === "string") {
     try {
       return JSON.stringify(JSON.parse(value), null, 2);
@@ -62,6 +62,7 @@ const formatJson = (value: unknown): string => {
       return value;
     }
   }
+
   try {
     return JSON.stringify(value, null, 2) ?? "{}";
   } catch {
@@ -69,31 +70,73 @@ const formatJson = (value: unknown): string => {
   }
 };
 
-const formatTimestamp = (timestamp?: string, createdAt?: string): string => {
+const formatTimestamp = (
+  timestamp?: string,
+  createdAt?: string,
+): string => {
   const raw = timestamp || createdAt;
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
+
+  if (!raw) {
+    return "—";
+  }
+
+  const date = new Date(raw);
+
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString();
 };
 
-const normalizeResult = (result?: string): "Success" | "Failed" =>
-  result?.toLowerCase() === "success" ? "Success" : "Failed";
+const normalizeResult = (
+  result?: string | null,
+): "Success" | "Failed" => {
+  return result?.toLowerCase() === "success"
+    ? "Success"
+    : "Failed";
+};
 
-const parseJson = (raw: string): Record<string, unknown> | null => {
+const parseJson = (
+  raw: string,
+): Record<string, unknown> | null => {
   try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    const value: unknown = JSON.parse(raw);
+
+    return value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
 };
 
-const showValue = (v: unknown) =>
-  v === undefined ? "—" : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+const showValue = (value: unknown): string => {
+  if (value === undefined || value === null) {
+    return "—";
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+};
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
-  const changes = diffRecords(parseJson(log.before), parseJson(log.after));
-  const facts: { label: string; value: React.ReactNode }[] = [
+  const changes = diffRecords(
+    parseJson(log.before),
+    parseJson(log.after),
+  );
+
+  const facts: {
+    label: string;
+    value: React.ReactNode;
+  }[] = [
     { label: "Timestamp", value: log.timestamp },
     { label: "Actor", value: log.actorName },
     { label: "Actor ID", value: log.actor },
@@ -107,38 +150,71 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
     <div className="audit-detail">
       <section className="audit-detail__hero">
         <div className="audit-detail__hero-main">
-          <span className="audit-detail__eyebrow">Action</span>
-          <strong className="audit-detail__action">{log.action}</strong>
+          <span className="audit-detail__eyebrow">
+            Action
+          </span>
+
+          <strong className="audit-detail__action">
+            {log.action}
+          </strong>
+
           <span className="audit-detail__sub">
             on {log.entity}
             {log.entityId ? ` · ${log.entityId}` : ""}
           </span>
         </div>
-        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>{log.result}</span>
+
+        <span
+          className={
+            log.result === "Success"
+              ? "success-badge"
+              : "failed-badge"
+          }
+        >
+          {log.result}
+        </span>
       </section>
 
       <dl className="audit-detail__facts">
-        {facts.map((f) => (
-          <div key={f.label} className="audit-detail__fact">
-            <dt>{f.label}</dt>
-            <dd>{f.value || "—"}</dd>
+        {facts.map((fact) => (
+          <div
+            key={fact.label}
+            className="audit-detail__fact"
+          >
+            <dt>{fact.label}</dt>
+            <dd>{fact.value || "—"}</dd>
           </div>
         ))}
       </dl>
 
       <section className="audit-detail__card">
         <h3>What changed</h3>
+
         {changes.length === 0 ? (
-          <p className="audit-detail__empty">No field-level changes were recorded.</p>
+          <p className="audit-detail__empty">
+            No field-level changes were recorded.
+          </p>
         ) : (
           <ul className="audit-detail__changes">
-            {changes.map((c) => (
-              <li key={c.field}>
-                <code>{c.field}</code>
+            {changes.map((change) => (
+              <li key={change.field}>
+                <code>{change.field}</code>
+
                 <div className="audit-detail__change-vals">
-                  <span className="audit-detail__before">{showValue(c.before)}</span>
-                  <span aria-hidden="true" className="audit-detail__arrow">→</span>
-                  <span className="audit-detail__after">{showValue(c.after)}</span>
+                  <span className="audit-detail__before">
+                    {showValue(change.before)}
+                  </span>
+
+                  <span
+                    aria-hidden="true"
+                    className="audit-detail__arrow"
+                  >
+                    →
+                  </span>
+
+                  <span className="audit-detail__after">
+                    {showValue(change.after)}
+                  </span>
                 </div>
               </li>
             ))}
@@ -151,6 +227,7 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
           <h3>Before</h3>
           <pre className="json-box">{log.before}</pre>
         </section>
+
         <section className="audit-detail__card">
           <h3>After</h3>
           <pre className="json-box">{log.after}</pre>
@@ -161,201 +238,176 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
-  // Mouse drag-scroll for the table (swipe already works on phones)
-  const scrollRootRef = useDragScroll<HTMLDivElement>(".datatable-wrapper");
-<<<<<<< HEAD
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
-  const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
-  const [searchValue, setSearchValue] = useState("");
-=======
+  const scrollRootRef =
+    useDragScroll<HTMLDivElement>(".datatable-wrapper");
+
+  const [search, setSearch] = useState("");
   const [selectedLog, setSelectedLog] =
     useState<AuditLog | null>(null);
-
-  const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
->>>>>>> origin/develop
+  const [auditLogsData, setAuditLogsData] =
+    useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
+
     const fetchAuditLogs = async () => {
       try {
         setLoading(true);
         setError("");
 
-<<<<<<< HEAD
-        // Shared axios client: sends the admin Bearer token + cookies, same base URL as every admin page.
-        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", { params: { limit: 100 } });
-        if (!result?.success || !result.data || !Array.isArray(result.data.items)) {
+        const { data: response } =
+          await http.get<AuditLogsResponse>(
+            "/admin/audit-logs",
+            {
+              params: {
+                limit: 100,
+              },
+            },
+          );
+
+        if (
+          !response?.success ||
+          !response.data ||
+          !Array.isArray(response.data.items)
+        ) {
           throw new Error("Invalid audit logs response.");
         }
 
-        const logs: AuditLog[] = result.data.items.map((log) => ({
-          id: String(log.id || log._id || ""),
-          timestamp: formatTimestamp(log.timestamp, log.createdAt),
-          actor: log.actor || "—",
-          actorName: log.actorName || log.actor || "—",
-          action: log.action || "—",
-          entity: log.entity || "—",
-          entityId: log.entityId || "—",
-          ip: log.ip || "—",
-          result: normalizeResult(log.result),
-          before: formatJson(log.before),
-          after: formatJson(log.after),
-        }));
+        const logs: AuditLog[] =
+          response.data.items.map((log) => {
+            const actor = log.actor || "—";
 
-        if (!cancelled) setAuditLogsData(logs);
+            return {
+              id: String(log.id || log._id || ""),
+              timestamp: formatTimestamp(
+                log.timestamp,
+                log.createdAt,
+              ),
+              actor,
+              actorName: log.actorName || actor,
+              action: log.action || "—",
+              entity: log.entity || "—",
+              entityId: log.entityId || "—",
+              ip: log.ip || "—",
+              result: normalizeResult(log.result),
+              before: formatJson(log.before),
+              after: formatJson(log.after),
+            };
+          });
+
+        if (!cancelled) {
+          setAuditLogsData(logs);
+        }
       } catch (err) {
         console.error("Failed to fetch audit logs:", err);
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        if (!cancelled) {
-          setError(
-            status === 401
-              ? "Your session has expired. Please sign in again."
-              : status === 403
-                ? "You do not have permission to view audit logs."
-                : "Unable to load audit logs. Please check that the backend is running.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
 
-    void fetchAuditLogs();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const query = searchValue.toLowerCase().trim();
-  const filteredLogs = auditLogsData.filter((log) =>
-    !query
-      ? true
-      : [log.id, log.timestamp, log.actor, log.actorName, log.action, log.entity, log.entityId, log.ip, log.result].some((v) =>
-          v.toLowerCase().includes(query),
-        ),
-  );
-=======
-        // Shared axios client: sends the admin Bearer token + cookies and uses the
-        // same /api/v1 base URL (dev proxy) as every other admin page.
-        const { data: result } = await http.get<AuditLogsResponse>(
-          "/admin/audit-logs",
-          { params: { limit: 100 } }
-        );
-
-        if (!result.success) {
-          throw new Error("Failed to load audit logs");
+        if (cancelled) {
+          return;
         }
 
-        const logs: AuditLog[] =
-          result.data.items.map((log) => ({
-            id: log.id || log._id || "",
-            timestamp: new Date(
-              log.timestamp || log.createdAt || ""
-            ).toLocaleString(),
-            actor: log.actor,
-            actorName: log.actorName || log.actor,
-            action: log.action,
-            entity: log.entity,
-            entityId: log.entityId,
-            ip: log.ip,
-            result: log.result,
-            before:
-              log.before === undefined ||
-              log.before === null
-                ? "{}"
-                : typeof log.before === "string"
-                ? log.before
-                : JSON.stringify(
-                    log.before,
-                    null,
-                    2
-                  ),
-            after:
-              log.after === undefined ||
-              log.after === null
-                ? "{}"
-                : typeof log.after === "string"
-                ? log.after
-                : JSON.stringify(
-                    log.after,
-                    null,
-                    2
-                  ),
-          }));
-
-        setAuditLogsData(logs);
-      } catch (err) {
-        console.error(
-          "Failed to fetch audit logs:",
-          err
-        );
-
-        const status = (err as { response?: { status?: number } })
-          ?.response?.status;
+        const status = (
+          err as {
+            response?: {
+              status?: number;
+            };
+          }
+        )?.response?.status;
 
         setError(
           status === 401
             ? "Your session has expired. Please sign in again."
             : status === 403
-            ? "You do not have permission to view audit logs."
-            : "Unable to load audit logs. Please check that the backend is running."
+              ? "You do not have permission to view audit logs."
+              : "Unable to load audit logs. Please check that the backend is running.",
         );
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchAuditLogs();
+    void fetchAuditLogs();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const filteredLogs = auditLogsData.filter((log) => {
-    const searchValue = search.toLowerCase().trim();
+  const filteredLogs = useMemo(() => {
+    const query = search.toLowerCase().trim();
 
-    if (!searchValue) {
-      return true;
+    if (!query) {
+      return auditLogsData;
     }
 
-    return (
-      log.actorName
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.actor
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.action
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.entity
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.entityId
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.ip
-        .toLowerCase()
-        .includes(searchValue) ||
-      log.result
-        .toLowerCase()
-        .includes(searchValue)
+    return auditLogsData.filter((log) =>
+      [
+        log.id,
+        log.timestamp,
+        log.actor,
+        log.actorName,
+        log.action,
+        log.entity,
+        log.entityId,
+        log.ip,
+        log.result,
+      ].some((value) =>
+        value.toLowerCase().includes(query),
+      ),
     );
-  });
->>>>>>> origin/develop
+  }, [auditLogsData, search]);
 
-  const auditColumns: Column<AuditLog>[] = [
-    { key: "timestamp", header: "Timestamp", sortValue: (row) => row.timestamp },
-    { key: "actor", header: "Actor", sortValue: (row) => row.actorName, cell: (row) => row.actorName },
-    { key: "action", header: "Action", sortValue: (row) => row.action },
-    { key: "entity", header: "Entity", sortValue: (row) => row.entity },
-    { key: "entityId", header: "Entity ID", sortValue: (row) => row.entityId },
-    { key: "ip", header: "IP Address", sortValue: (row) => row.ip },
+  const columns: Column<AuditLog>[] = [
+    {
+      key: "timestamp",
+      header: "Timestamp",
+      sortValue: (row) => row.timestamp,
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      sortValue: (row) => row.actorName,
+      cell: (row) => row.actorName,
+    },
+    {
+      key: "action",
+      header: "Action",
+      sortValue: (row) => row.action,
+    },
+    {
+      key: "entity",
+      header: "Entity",
+      sortValue: (row) => row.entity,
+    },
+    {
+      key: "entityId",
+      header: "Entity ID",
+      sortValue: (row) => row.entityId,
+    },
+    {
+      key: "ip",
+      header: "IP Address",
+      sortValue: (row) => row.ip,
+    },
     {
       key: "result",
       header: "Result",
       sortValue: (row) => row.result,
-      cell: (row) => <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>,
+      cell: (row) => (
+        <span
+          className={
+            row.result === "Success"
+              ? "success-badge"
+              : "failed-badge"
+          }
+        >
+          {row.result}
+        </span>
+      ),
     },
-<<<<<<< HEAD
     {
       key: "details",
       header: "Details",
@@ -363,8 +415,8 @@ const AdminAuditLogsPage: React.FC = () => {
         <button
           type="button"
           className="view-btn"
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={(event) => {
+            event.stopPropagation();
             setSelectedLog(row);
           }}
         >
@@ -375,51 +427,61 @@ const AdminAuditLogsPage: React.FC = () => {
   ];
 
   return (
-    <main className="admin-auditlogs-container" ref={scrollRootRef}>
+    <main
+      className="admin-auditlogs-container"
+      ref={scrollRootRef}
+    >
       <div className="auditlogs-header">
         <div className="auditlogs-heading-content">
-          <h1 className="auditlogs-title">Audit Logs</h1>
+          <h1 className="auditlogs-title">
+            Audit Logs
+          </h1>
+
           <p className="auditlogs-description">
-            Monitor system activity, track administrative actions, and review changes for accountability and security.
+            Monitor system activity, track administrative actions,
+            and review changes for accountability and security.
           </p>
         </div>
-=======
-  ];
-
-  return (
-    <div className="admin-auditlogs-container" ref={scrollRootRef}>
-      <div className="auditlogs-header">
-        <h1 className="auditlogs-title">
-          Audit Logs
-        </h1>
->>>>>>> origin/develop
       </div>
 
       <div className="auditlogs-search">
-        <Search size={18} aria-hidden="true" className="auditlogs-search__icon" />
+        <Search
+          size={18}
+          aria-hidden="true"
+          className="auditlogs-search__icon"
+        />
+
         <input
           type="search"
           inputMode="search"
           autoComplete="off"
-          value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
           placeholder="Search actor, action, entity, ID or IP…"
           aria-label="Search audit logs"
         />
-<<<<<<< HEAD
-        {searchValue && (
-          <button type="button" className="auditlogs-search-clear" onClick={() => setSearchValue("")} aria-label="Clear search" title="Clear search">
+
+        {search && (
+          <button
+            type="button"
+            className="auditlogs-search-clear"
+            onClick={() => setSearch("")}
+            aria-label="Clear search"
+            title="Clear search"
+          >
             ×
           </button>
         )}
-=======
->>>>>>> origin/develop
       </div>
 
-      {loading && <div className="auditlogs-count">Loading audit logs...</div>}
+      {loading && (
+        <div className="auditlogs-count">
+          Loading audit logs...
+        </div>
+      )}
 
       {!loading && error && (
-        <div className="auditlogs-count">
+        <div className="auditlogs-count" role="alert">
           {error}
         </div>
       )}
@@ -428,7 +490,7 @@ const AdminAuditLogsPage: React.FC = () => {
         <>
           <div className="auditlogs-table-container">
             <DataTable
-              columns={auditColumns}
+              columns={columns}
               data={filteredLogs}
               rowKey={(row) => String(row.id)}
               label="Audit logs"
@@ -436,18 +498,17 @@ const AdminAuditLogsPage: React.FC = () => {
               defaultPageSize={10}
               pageSizeOptions={[5, 10, 20, 50]}
               emptyTitle="No audit logs found"
-<<<<<<< HEAD
-              emptyMessage={query ? "No audit logs match your search." : "There are no audit logs to display."}
-=======
               emptyMessage={
-                search
+                search.trim()
                   ? "No audit logs match your search."
                   : "There are no audit logs to display."
               }
->>>>>>> origin/develop
             />
           </div>
-          <div className="auditlogs-count">Total Logs: {filteredLogs.length}</div>
+
+          <div className="auditlogs-count">
+            Total Logs: {filteredLogs.length}
+          </div>
         </>
       )}
 
@@ -455,15 +516,17 @@ const AdminAuditLogsPage: React.FC = () => {
         open={selectedLog !== null}
         onClose={() => setSelectedLog(null)}
         title="Audit Log Details"
-        subtitle={selectedLog ? `${selectedLog.actorName} · ${selectedLog.timestamp}` : undefined}
+        subtitle={
+          selectedLog
+            ? `${selectedLog.actorName} · ${selectedLog.timestamp}`
+            : undefined
+        }
       >
-        {selectedLog && <AuditDetails log={selectedLog} />}
+        {selectedLog && (
+          <AuditDetails log={selectedLog} />
+        )}
       </FullScreenPanel>
-<<<<<<< HEAD
     </main>
-=======
-    </div>
->>>>>>> origin/develop
   );
 };
 

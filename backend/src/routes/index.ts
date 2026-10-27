@@ -128,6 +128,7 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
+rootRouter.use('/partner/kyc', partnerKycRoutes);
 
 // ---- Notifications ----
 rootRouter.use("/notifications", notificationsRoutes);

@@ -1,26 +1,17 @@
+
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
-import { authService } from '../modules/auth/auth.service';
-import type { AccessTokenPayload } from '../modules/auth/auth.types';
+
+import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
 import BookingModel from '../models/Booking';
 import PartnerModel from '../models/Partner';
-import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
-import { registerTrackingSocket } from './tracking.socket';
-import { registerTicketSocket } from './ticket.socket';
+import { authService } from '../modules/auth/auth.service';
+import type { AccessTokenPayload } from '../modules/auth/auth.types';
 
-/**
- * Room names.
- *
- * A socket joins:
- * - user:<id>
- * - role:<role>
- * - booking:<id> after successful booking:join authorization
- * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
- * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
- * - tracking:<id> after successful tracking:join authorization
- * - ticket:admin:<id> after successful ticket:join authorization
- */
+import { registerTicketSocket } from './ticket.socket';
+import { registerTrackingSocket } from './tracking.socket';
+
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
   role: (role: string) => `role:${role}`,
@@ -40,25 +31,28 @@ const bookingPayload = z.object({
 
 let io: Server | null = null;
 
-/**
- * Returns the initialized Socket.IO server.
- * Throws if initSockets() has not been called.
- */
+/** Returns the initialized Socket.IO server. */
 export const getIO = (): Server => {
   if (!io) {
     throw new Error(
       'Socket.IO has not been initialised. Call initSockets(server) first.',
     );
   }
+
   return io;
 };
 
-/** Null before initSockets() (unit tests, scripts). Emitters use this so a missing server never fails a request. */
+/** Returns the initialized Socket.IO server, or null if not initialized. */
 export const getIOIfReady = (): Server | null => io;
 
-export const emitToUser = (userId: string, event: string, payload: unknown) =>
-  getIO().to(rooms.user(userId)).emit(event, payload);
+/** Emits an event to all sockets belonging to a user. */
+export const emitToUser = (
+  userId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(rooms.user(userId)).emit(event, payload);
 
+/** Emits an event to all sockets in a booking room. */
 export const emitToBooking = (
   bookingId: string,
   event: string,
@@ -66,67 +60,72 @@ export const emitToBooking = (
 ) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
 /**
- * Decides whether an authenticated user may join a booking room.
- * - admin: any existing booking
- * - customer: only their own booking
- * - partner: only a booking assigned to them
+ * Admins can join existing bookings.
+ * Customers can join only their own bookings.
+ * Partners can join only bookings assigned to them.
  */
-export const emitToBooking = (bookingId: string, event: string, payload: unknown) =>
-  getIO().to(rooms.booking(bookingId)).emit(event, payload);
-
-/** Customers: their own bookings. Partners: bookings assigned to them. Admins: any booking. */
 async function canJoinBooking(
   auth: AccessTokenPayload,
   bookingId: string,
 ): Promise<boolean> {
   if (auth.role === 'admin') {
-    return !!(await BookingModel.exists({ _id: bookingId }));
+    return Boolean(
+      await BookingModel.exists({ _id: bookingId }),
+    );
   }
 
   if (auth.role === 'customer') {
-  if (auth.role === 'admin')
-    return !!(await BookingModel.exists({ _id: bookingId }));
-  if (auth.role === 'customer')
-    return !!(await BookingModel.exists({
-      _id: bookingId,
-      customerId: auth.sub,
-    }));
+    return Boolean(
+      await BookingModel.exists({
+        _id: bookingId,
+        customerId: auth.sub,
+      }),
+    );
   }
 
   if (auth.role === 'partner') {
-    const partner = await PartnerModel.findOne({ userId: auth.sub })
+    const partner = await PartnerModel.findOne({
+      userId: auth.sub,
+    })
       .select('_id')
       .lean();
 
-    return (
-      !!partner &&
-      !!(await BookingModel.exists({
+    if (!partner) {
+      return false;
+    }
+
+    return Boolean(
+      await BookingModel.exists({
         _id: bookingId,
         partnerId: partner._id,
-      }))
+      }),
     );
   }
 
   return false;
 }
 
-/**
- * Extracts an access token from the Socket.IO handshake.
- */
+/** Extracts an access token from the Socket.IO handshake. */
 const tokenFrom = (socket: Socket): string | undefined => {
   const fromAuth: unknown = socket.handshake.auth?.token;
-  if (typeof fromAuth === 'string' && fromAuth) return fromAuth;
+
+  if (typeof fromAuth === 'string' && fromAuth) {
+    return fromAuth;
+  }
+
   const header = socket.handshake.headers.authorization;
-  return header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+
+  return header?.startsWith('Bearer ')
+    ? header.slice(7)
+    : undefined;
 };
 
-/**
- * Creates a Socket.IO authentication error.
- */
+/** Creates a Socket.IO authentication error. */
 const reject = (code: ErrorCode) => {
   const err = new Error(code) as Error & {
     data?: { code: ErrorCode };
   };
+
   err.data = { code };
   return err;
 };
@@ -151,7 +150,6 @@ export const initSockets = (server: HttpServer): Server => {
     },
   });
 
-  // Authenticate each socket using an access token.
   io.use((socket, next) => {
     const token = tokenFrom(socket);
 
@@ -170,48 +168,13 @@ export const initSockets = (server: HttpServer): Server => {
   io.on('connection', (socket) => {
     const auth = socket.data.auth as AccessTokenPayload;
 
-    // Automatically join the user's room and role room.
-    void socket.join([rooms.user(auth.sub), rooms.role(auth.role)]);
+    // Automatically join the authenticated user's and role's rooms.
+    void socket.join([
+      rooms.user(auth.sub),
+      rooms.role(auth.role),
+    ]);
 
-    // --------------------------------------------------
-    // BOOKING SOCKET EVENTS
-    // --------------------------------------------------
-
-    socket.on('booking:join', async (payload: unknown, ack?: AckFn) => {
-      const reply: AckFn = typeof ack === 'function' ? ack : () => undefined;
-
-      const parsed = bookingPayload.safeParse(payload);
-
-      if (!parsed.success) {
-        return reply({
-          ok: false,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'bookingId is required',
-        });
-      }
-
-      try {
-        const allowed = await canJoinBooking(auth, parsed.data.bookingId);
-
-        if (!allowed) {
-          return reply({
-            ok: false,
-            code: ERROR_CODES.RESOURCE_FORBIDDEN,
-            message: 'You cannot join this booking',
-          });
-        }
-
-        await socket.join(rooms.booking(parsed.data.bookingId));
-
-        return reply({ ok: true });
-      } catch {
-        return reply({
-          ok: false,
-          code: ERROR_CODES.INTERNAL_ERROR,
-          message: 'Could not join booking',
-        });
-      }
-    });
+    // Booking room access is checked for every join request.
     socket.on(
       'booking:join',
       async (payload: unknown, ack?: AckFn) => {
@@ -242,9 +205,7 @@ export const initSockets = (server: HttpServer): Server => {
             });
           }
 
-          await socket.join(
-            rooms.booking(parsed.data.bookingId),
-          );
+          await socket.join(rooms.booking(parsed.data.bookingId));
 
           return reply({ ok: true });
         } catch {
@@ -265,16 +226,7 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
-    // --------------------------------------------------
-    // TRACKING + TICKET SOCKET EVENTS
-    // --------------------------------------------------
-
-        void socket.leave(
-          rooms.booking(parsed.data.bookingId),
-        );
-      }
-    });
-
+    // Preserve the existing tracking and ticket event implementations.
     registerTrackingSocket(socket);
     registerTicketSocket(socket);
   });

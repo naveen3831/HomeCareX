@@ -1,209 +1,399 @@
-<<<<<<< HEAD
 
-import type { Request, Response } from 'express';
+import mongoose, { Types } from "mongoose";
+import { NotificationModel } from "../../models/Notification";
+import { UserModel } from "../../models/User";
+import { getSetting } from "../settings";
+import { HttpError } from "../auth/auth.types";
+import { emitToUser } from "../../sockets";
+import {
+  ADMIN_ALERT_SETTING,
+  GROUP_PREFIXES,
+  NOTIFICATION_GROUPS,
+  NOTIFICATION_SOCKET_EVENT,
+  NOTIFICATION_TYPES,
+  groupOf,
+  type NotificationGroup,
+  type NotificationType,
+} from "./notifications.constants";
 
-import { getAuthUser } from '../../middleware/auth.middleware';
-import { payoutsService } from './payouts.service';
+export interface NotificationDto {
+  id: string;
+  userId: string;
+  type: string;
+  payload: unknown;
+  readAt: Date | null;
+  createdAt: Date;
+}
 
-interface PayoutBatchListResult {
-  items: unknown[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
+export interface CustomerNotificationDto extends NotificationDto {
+  group: NotificationGroup;
+}
+
+export interface CustomerNotificationsResult {
+  items: CustomerNotificationDto[];
+  unread: number;
+  groups: Record<NotificationGroup, { total: number; unread: number }>;
+}
+
+export interface CustomerNotificationQuery {
+  group?: NotificationGroup;
+  unreadOnly?: boolean;
+  limit: number;
+}
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const prefixRegex = (prefixes: readonly string[]): RegExp =>
+  new RegExp(
+    `^(?:${prefixes.map(escapeRegex).join("|")})`,
+  );
+
+const ALL_PREFIXES = Object.values(GROUP_PREFIXES).flat() as string[];
+
+/**
+ * Creates a MongoDB filter for a notification group.
+ * The system group contains notification types that do not match
+ * any of the other configured group prefixes.
+ */
+export function groupFilter(
+  group: NotificationGroup,
+): Record<string, unknown> {
+  if (group === "system") {
+    return { type: { $not: prefixRegex(ALL_PREFIXES) } };
+  }
+
+  return { type: prefixRegex(GROUP_PREFIXES[group]) };
+}
+
+function toDto(
+  notification: InstanceType<typeof NotificationModel>,
+): NotificationDto {
+  return {
+    id: String(notification._id),
+    userId: String(notification.userId),
+    type: notification.type,
+    payload: notification.payload,
+    readAt: notification.readAt ?? null,
+    createdAt: notification.createdAt,
   };
 }
 
-function getIp(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown';
+/**
+ * Saves a notification and then pushes it to the user's socket room.
+ */
+export async function notify(
+  userId: string,
+  type: NotificationType,
+  payload: Record<string, unknown> = {},
+): Promise<NotificationDto> {
+  const doc = await NotificationModel.create({
+    userId,
+    type,
+    payload,
+  });
+
+  const dto = toDto(doc);
+
+  try {
+    emitToUser(userId, NOTIFICATION_SOCKET_EVENT, dto);
+  } catch {
+    // Sockets may not be initialized in scripts or tests.
+  }
+
+  return dto;
 }
 
-export class PayoutsController {
-  async generate(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-
-    const batch = await payoutsService.generateBatch({
-      periodStart: String(req.body.periodStart ?? ''),
-      periodEnd: String(req.body.periodEnd ?? ''),
-      adminId: admin.id,
-      ip: getIp(req),
-    });
-
-    res.status(201).json({
-      success: true,
-      data: batch,
-    });
+/**
+ * Notifies active administrators unless the relevant alert is disabled.
+ */
+export async function notifyAdmins(
+  type: NotificationType,
+  payload: Record<string, unknown> = {},
+): Promise<number> {
+  if (mongoose.connection.readyState !== 1) {
+    return 0;
   }
 
-  async list(req: Request, res: Response) {
-    const result = (await payoutsService.listBatches({
-      page:
-        typeof req.query.page === 'string'
-          ? Number(req.query.page)
-          : undefined,
-      limit:
-        typeof req.query.limit === 'string'
-          ? Number(req.query.limit)
-          : undefined,
-      status:
-        typeof req.query.status === 'string'
-          ? req.query.status
-          : undefined,
-    })) as PayoutBatchListResult;
+  const settingKey = ADMIN_ALERT_SETTING[type];
 
-    res.status(200).json({
-      success: true,
-      data: result.items,
-      meta: result.pagination,
-    });
+  if (settingKey) {
+    const settingValue: unknown = await getSetting(settingKey);
+
+    if (settingValue === false) {
+      return 0;
+    }
   }
 
-  async getBatch(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(req.params.id);
+  const admins = await UserModel.find({
+    role: "admin",
+    status: "active",
+  })
+    .select("_id")
+    .lean();
 
-    res.status(200).json({
-      success: true,
-      data: batch,
-    });
-  }
+  await Promise.all(
+    admins.map((admin) =>
+      notify(String(admin._id), type, payload),
+    ),
+  );
 
-  async listBatchPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(req.params.id);
+  return admins.length;
+}
 
-    res.status(200).json({
-      success: true,
-      data: payouts,
-    });
+export class NotificationsService {
+  notify = notify;
+
+  /**
+   * Lists notifications for a user, optionally filtering to unread items.
+   */
+  async listForUser(
+    userId: string,
+    limit = 30,
+    unreadOnly = false,
+  ): Promise<NotificationDto[]> {
+    const rows = await NotificationModel.find({
+      userId,
+      ...(unreadOnly ? { readAt: null } : {}),
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
+
+    return rows.map((row) => toDto(row));
   }
 
   /**
-   * Update an individual payout's status.
-   * The service validates the requested status and transition.
+   * Lists customer notifications and returns unread counts by group.
    */
-  async updateStatus(req: Request, res: Response) {
-    const admin = getAuthUser(req);
+  async listForCustomer(
+    userId: string,
+    query: CustomerNotificationQuery,
+  ): Promise<CustomerNotificationsResult> {
+    const filter: Record<string, unknown> = { userId };
 
-    const payout = await payoutsService.updateStatus({
-      payoutId: req.params.id,
-      status: req.body.status,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
+    if (query.group) {
+      Object.assign(filter, groupFilter(query.group));
+    }
 
-    res.status(200).json({
-      success: true,
-      data: payout,
-    });
-  }
+    if (query.unreadOnly) {
+      filter.readAt = null;
+    }
 
-  /**
-   * Mark an individual payout as paid.
-   * Retained for compatibility with any existing callers.
-   */
-  async markPaid(req: Request, res: Response) {
-    const admin = getAuthUser(req);
+    const [rows, byType] = await Promise.all([
+      NotificationModel.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(query.limit),
 
-    const payout = await payoutsService.markPaid({
-      payoutId: req.params.id,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
+      Types.ObjectId.isValid(userId)
+        ? NotificationModel.aggregate<{
+            _id: string;
+            total: number;
+            unread: number;
+          }>([
+            {
+              $match: {
+                userId: new Types.ObjectId(userId),
+              },
+            },
+            {
+              $group: {
+                _id: "$type",
+                total: { $sum: 1 },
+                unread: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$readAt", null] },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ])
+        : Promise.resolve([]),
+    ]);
 
-    res.status(200).json({
-      success: true,
-      data: payout,
-    });
-  }
+    const groups = Object.fromEntries(
+      NOTIFICATION_GROUPS.map((group) => [
+        group,
+        { total: 0, unread: 0 },
+      ]),
+    ) as CustomerNotificationsResult["groups"];
 
-  async exportCsv(req: Request, res: Response) {
-    const batchId =
-      typeof req.query.batchId === 'string'
-        ? req.query.batchId
-        : undefined;
+    for (const row of byType) {
+      const group = groupOf(row._id);
+      groups[group].total += row.total;
+      groups[group].unread += row.unread;
+    }
 
-    const csv = await payoutsService.exportCsv(batchId);
-
-    res.status(200);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="homecarex-payouts${batchId ? `-${batchId}` : ''}.csv"`,
+    const unread = NOTIFICATION_GROUPS.reduce(
+      (total, group) => total + groups[group].unread,
+      0,
     );
-    res.send(csv);
-  }
-}
 
-export const payoutsController = new PayoutsController();
-=======
-import type { Request, Response } from 'express';
-import { getAuthUser } from '../../middleware/auth.middleware';
-import { sendSuccess } from '../../utils/response';
-import { payoutsService } from './payouts.service';
-
-const getIp = (req: Request): string => req.ip || req.socket.remoteAddress || 'unknown';
-const num = (v: unknown): number | undefined => (v === undefined || v === '' ? undefined : Number(v));
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
-
-export const payoutsController = {
-  /** POST /admin/payout-batches or /admin/payouts  { periodStart, periodEnd } */
-  async generate(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-    const batch = await payoutsService.generateBatch({
-      periodStart: req.body?.periodStart,
-      periodEnd: req.body?.periodEnd,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
-    sendSuccess(res, batch, { status: 201 });
-  },
-
-  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
-  async list(req: Request, res: Response) {
-    const result = await payoutsService.listBatches({
-      page: num(req.query.page),
-      limit: num(req.query.limit),
-      status: str(req.query.status),
-    });
-    sendSuccess(res, result.items, { meta: { pagination: result.pagination } });
-  },
-
-  /** GET /admin/payout-batches/:id or /admin/payouts/:id */
-  async get(req: Request, res: Response) {
-    sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
-  },
-
-  async getBatch(req: Request, res: Response) {
-    return this.get(req, res);
-  },
-
-  /** GET /admin/payout-batches/:id/payouts or /admin/payouts/:id/payouts */
-  async listPayouts(req: Request, res: Response) {
-    sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
-  },
-
-  /** PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id  { transactionId? } */
-  async markPaid(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-    sendSuccess(
-      res,
-      await payoutsService.markPaid({
-        payoutId: String(req.params.id),
-        adminId: admin.id,
-        ip: getIp(req),
-        transactionId: str(req.body?.transactionId),
+    const items: CustomerNotificationDto[] = rows.map(
+      (row) => ({
+        ...toDto(row),
+        group: groupOf(row.type),
       }),
     );
-  },
 
-  /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */
-  async exportCsv(req: Request, res: Response) {
-    const { csv, filename } = await payoutsService.exportCsv(String(req.params.id));
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(csv);
-  },
-};
->>>>>>> origin/develop
+    return {
+      items,
+      unread,
+      groups,
+    };
+  }
 
-export default payoutsController;
+  /**
+   * Marks one of the caller's notifications as read.
+   * A notification belonging to another user is not accessible.
+   */
+  async markReadForCustomer(
+    userId: string,
+    id: string,
+  ): Promise<CustomerNotificationDto> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
+    }
+
+    const notification = await NotificationModel.findOne({
+      _id: id,
+      userId,
+    });
+
+    if (!notification) {
+      throw new HttpError(
+        404,
+        "Notification not found",
+        "NOT_FOUND",
+      );
+    }
+
+    if (!notification.readAt) {
+      notification.readAt = new Date();
+      await notification.save();
+    }
+
+    return {
+      ...toDto(notification),
+      group: groupOf(notification.type),
+    };
+  }
+
+  /**
+   * Marks all unread notifications belonging to the customer as read.
+   */
+  async markAllReadForCustomer(
+    userId: string,
+  ): Promise<number> {
+    const result = await NotificationModel.updateMany(
+      {
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
+    );
+
+    return result.modifiedCount;
+  }
+
+  /**
+   * Deletes one notification belonging to the customer.
+   */
+  async deleteForCustomer(
+    userId: string,
+    id: string,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
+    }
+
+    const result = await NotificationModel.deleteOne({
+      _id: id,
+      userId,
+    });
+
+    if (result.deletedCount === 0) {
+      throw new HttpError(
+        404,
+        "Notification not found",
+        "NOT_FOUND",
+      );
+    }
+  }
+
+  /**
+   * Deletes every notification belonging to the customer.
+   */
+  async deleteAllForCustomer(
+    userId: string,
+  ): Promise<number> {
+    const result = await NotificationModel.deleteMany({
+      userId,
+    });
+
+    return result.deletedCount;
+  }
+
+  /**
+   * Returns the unread notification count for a user.
+   */
+  unreadCount(userId: string) {
+    return NotificationModel.countDocuments({
+      userId,
+      readAt: null,
+    });
+  }
+
+  /**
+   * Marks one notification as read for a user.
+   */
+  async markRead(
+    userId: string,
+    id: string,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) {
+      return;
+    }
+
+    await NotificationModel.updateOne(
+      {
+        _id: id,
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
+    );
+  }
+
+  /**
+   * Marks all unread notifications for a user as read.
+   */
+  async markAllRead(userId: string): Promise<void> {
+    await NotificationModel.updateMany(
+      {
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
+    );
+  }
+}
+
+export const notificationsService = new NotificationsService();
