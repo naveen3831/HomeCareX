@@ -18,7 +18,7 @@ interface AuditLog {
   entity: string;
   entityId: string;
   ip: string;
-  result: 'Success' | 'Failed';
+  result: "Success" | "Failed";
   before: string;
   after: string;
 }
@@ -41,37 +41,37 @@ interface AuditLogApi {
 
 interface AuditLogsResponse {
   success: boolean;
-  data?: {
+  data: {
     items: AuditLogApi[];
     total: number;
+    page: number;
+    limit: number;
   };
 }
 
 
 const parseJson = (raw: string): Record<string, unknown> | null => {
   try {
-    const value: unknown = JSON.parse(raw);
-    return value && typeof value === 'object' && !Array.isArray(value)
-      ? value as Record<string, unknown>
-      : null;
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
   } catch {
     return null;
   }
 };
 
-const showValue = (value: unknown): string =>
-  value === undefined ? '—' : typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+const showValue = (v: unknown) =>
+  v === undefined ? "—" : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
   const changes = diffRecords(parseJson(log.before), parseJson(log.after));
-  const facts: { label: string; value: string }[] = [
-    { label: 'Timestamp', value: log.timestamp },
-    { label: 'Actor', value: log.actorName },
-    { label: 'Actor ID', value: log.actor },
-    { label: 'Action', value: log.action },
-    { label: 'Entity', value: log.entity },
-    { label: 'Entity ID', value: log.entityId },
-    { label: 'IP address', value: log.ip },
+  const facts: { label: string; value: React.ReactNode }[] = [
+    { label: "Timestamp", value: log.timestamp },
+    { label: "Actor", value: log.actorName },
+    { label: "Actor ID", value: log.actor },
+    { label: "Action", value: log.action },
+    { label: "Entity", value: log.entity },
+    { label: "Entity ID", value: log.entityId },
+    { label: "IP address", value: log.ip },
   ];
 
   return (
@@ -81,17 +81,18 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
           <span className="audit-detail__eyebrow">Action</span>
           <strong className="audit-detail__action">{log.action}</strong>
           <span className="audit-detail__sub">
-            on {log.entity}{log.entityId !== '—' ? ` · ${log.entityId}` : ''}
+            on {log.entity}
+            {log.entityId ? ` · ${log.entityId}` : ""}
           </span>
         </div>
-        <span className={log.result === 'Success' ? 'success-badge' : 'failed-badge'}>{log.result}</span>
+        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>{log.result}</span>
       </section>
 
       <dl className="audit-detail__facts">
-        {facts.map((fact) => (
-          <div key={fact.label} className="audit-detail__fact">
-            <dt>{fact.label}</dt>
-            <dd>{fact.value || '—'}</dd>
+        {facts.map((f) => (
+          <div key={f.label} className="audit-detail__fact">
+            <dt>{f.label}</dt>
+            <dd>{f.value || "—"}</dd>
           </div>
         ))}
       </dl>
@@ -102,13 +103,13 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
           <p className="audit-detail__empty">No field-level changes were recorded.</p>
         ) : (
           <ul className="audit-detail__changes">
-            {changes.map((change) => (
-              <li key={change.field}>
-                <code>{change.field}</code>
+            {changes.map((c) => (
+              <li key={c.field}>
+                <code>{c.field}</code>
                 <div className="audit-detail__change-vals">
-                  <span className="audit-detail__before">{showValue(change.before)}</span>
+                  <span className="audit-detail__before">{showValue(c.before)}</span>
                   <span aria-hidden="true" className="audit-detail__arrow">→</span>
-                  <span className="audit-detail__after">{showValue(change.after)}</span>
+                  <span className="audit-detail__after">{showValue(c.after)}</span>
                 </div>
               </li>
             ))}
@@ -144,13 +145,13 @@ const AdminAuditLogsPage: React.FC = () => {
 
   const [auditLogsData, setAuditLogsData] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const fetchAuditLogs = async () => {
       try {
         setLoading(true);
-        setError('');
+        setError("");
 
         // Shared axios client: sends the admin Bearer token + cookies and uses the
         // same /api/v1 base URL (dev proxy) as every other admin page.
@@ -337,25 +338,58 @@ const AdminAuditLogsPage: React.FC = () => {
     );
   }
 
-  const columns: Column<AuditLog>[] = [
-    { key: 'timestamp', header: 'Timestamp', sortValue: (row) => row.timestamp },
-    { key: 'actor', header: 'Actor', sortValue: (row) => row.actorName, cell: (row) => row.actorName },
-    { key: 'action', header: 'Action', sortValue: (row) => row.action },
-    { key: 'entity', header: 'Entity', sortValue: (row) => row.entity },
-    { key: 'entityId', header: 'Entity ID', sortValue: (row) => row.entityId },
-    { key: 'ip', header: 'IP Address', sortValue: (row) => row.ip },
+  const auditColumns: Column<AuditLog>[] = [
     {
-      key: 'result',
-      header: 'Result',
+      key: "timestamp",
+      header: "Timestamp",
+      sortValue: (row) => row.timestamp,
+    },
+    {
+      key: "actor",
+      header: "Actor",
+      sortValue: (row) => row.actorName,
+      cell: (row) => row.actorName,
+    },
+    {
+      key: "action",
+      header: "Action",
+      sortValue: (row) => row.action,
+    },
+    {
+      key: "entity",
+      header: "Entity",
+      sortValue: (row) => row.entity,
+    },
+    {
+      key: "entityId",
+      header: "Entity ID",
+      sortValue: (row) => row.entityId,
+    },
+    {
+      key: "ip",
+      header: "IP Address",
+      sortValue: (row) => row.ip,
+    },
+    {
+      key: "result",
+      header: "Result",
       sortValue: (row) => row.result,
       cell: (row) => (
-        <span className={row.result === 'Success' ? 'success-badge' : 'failed-badge'}>{row.result}</span>
+        <span
+          className={
+            row.result === "Success"
+              ? "success-badge"
+              : "failed-badge"
+          }
+        >
+          {row.result}
+        </span>
       ),
     },
   ];
 
   return (
-    <main className="admin-auditlogs-container" ref={scrollRootRef}>
+    <div className="admin-auditlogs-container" ref={scrollRootRef}>
       <div className="auditlogs-header">
         <h1 className="auditlogs-title">
           Audit Logs
@@ -369,7 +403,7 @@ const AdminAuditLogsPage: React.FC = () => {
           inputMode="search"
           autoComplete="off"
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           placeholder="Search actor, action, entity, ID or IP…"
           aria-label="Search audit logs"
         />
@@ -391,19 +425,26 @@ const AdminAuditLogsPage: React.FC = () => {
         <>
           <div className="auditlogs-table-container">
             <DataTable
-              columns={columns}
+              columns={auditColumns}
               data={filteredLogs}
-              rowKey={(row) => row.id}
+              rowKey={(row) => String(row.id)}
               label="Audit logs"
-              onRowClick={setSelectedLog}
+              onRowClick={(row) => setSelectedLog(row)}
               defaultPageSize={10}
               pageSizeOptions={[5, 10, 20, 50]}
               emptyTitle="No audit logs found"
-              emptyMessage={query ? 'No audit logs match your search.' : 'There are no audit logs to display.'}
+              emptyMessage={
+                query
+                  ? "No audit logs match your search."
+                  : "There are no audit logs to display."
+              }
             />
           </div>
+
           <div className="auditlogs-count">
-            {query ? `Showing ${filteredLogs.length} of ${totalLogs} logs` : `Total Logs: ${totalLogs}`}
+            {query
+              ? `Showing ${filteredLogs.length} of ${totalLogs} logs`
+              : `Total Logs: ${totalLogs}`}
           </div>
         </>
       )}
@@ -416,7 +457,7 @@ const AdminAuditLogsPage: React.FC = () => {
       >
         {selectedLog && <AuditDetails log={selectedLog} />}
       </FullScreenPanel>
-    </main>
+    </div>
   );
 };
 
