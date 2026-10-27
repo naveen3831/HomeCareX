@@ -584,14 +584,6 @@ export class ReviewsService {
     ]);
 
     // DEMO ONLY: mock names are displayed only when real names are unavailable.
-    // These names are not real partner assignments and are never saved to MongoDB.
-    const mockPartnerNames = [
-      'Rahul Sharma',
-      'Priya Reddy',
-      'Amit Kumar',
-      'Sneha Patel',
-      'Arjun Rao',
-    ];
 
     // Collect booking IDs for reviews without a stored partner ID.
     const bookingIds = [
@@ -663,8 +655,8 @@ export class ReviewsService {
       partnerIds.map((id) => new Types.ObjectId(id)),
     );
 
-    // Return real partner names when available; otherwise use demo labels.
-    const enrichedReviews = reviews.map((review, index) => {
+    // Return real partner names; null when the review has no assigned partner.
+    const enrichedReviews = reviews.map((review) => {
       const partnerId =
         (review.partnerId
           ? String(review.partnerId)
@@ -677,9 +669,8 @@ export class ReviewsService {
         ? partnerNames.get(partnerId) ?? null
         : null;
 
-      const partnerName =
-        realPartnerName ??
-        mockPartnerNames[index % mockPartnerNames.length];
+      // Real partner only. No placeholder names: an unassigned review shows no partner.
+      const partnerName = realPartnerName;
 
       return {
         ...review,

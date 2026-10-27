@@ -1,26 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/admin/Sidebar';
 import { Header } from '@/components/admin/Header';
 import { AdminSearch } from '@/components/admin/AdminSearch';
+import { useUIStore } from '@/store/useUIStore';
 import '@/styles/admin.css';
 
 export const AdminLayout: React.FC = () => {
   const { pathname } = useLocation();
 
-  // Customers has its own search bar under the page title.
-  const hideGlobalSearch =
-    pathname === '/admin/customers' ||
-    pathname.startsWith('/admin/customers/');
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/admin';
 
-  // These pages position search on the left under the navbar.
-  const normalizedPath = pathname.replace(/\/+$/, '');
+  // The header search bar only exists on the Dashboard. Other pages search inside themselves.
+  const showGlobalSearch = normalizedPath === '/admin';
 
-  const searchLeft = [
-    '/admin/manage-partners',
-    '/admin/categories',
-    '/admin/services',
-  ].includes(normalizedPath);
+  // Every page starts with an empty page-search box.
+  const setPageSearch = useUIStore((s) => s.setPageSearch);
+  useEffect(() => {
+    setPageSearch('');
+  }, [pathname, setPageSearch]);
 
   return (
     <div className="admin-layout">
@@ -33,20 +31,9 @@ export const AdminLayout: React.FC = () => {
       <div className="admin-layout__content">
         <Header />
 
-        {!hideGlobalSearch && (
-          <div
-            className={`breadcrumb-bar${
-              searchLeft ? ' breadcrumb-bar--left' : ''
-            }`}
-          >
+        {showGlobalSearch && (
+          <div className="breadcrumb-bar">
             <AdminSearch />
-
-            {normalizedPath === '/admin/services' && (
-              <div
-                id="admin-search-slot"
-                className="admin-search-slot"
-              />
-            )}
           </div>
         )}
 

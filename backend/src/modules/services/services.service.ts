@@ -22,6 +22,13 @@ const toDto = (s: ServiceDoc, cat: CategoryLite | null): ServiceDto => ({
   durationMinutes: s.durationMinutes,
   addOns: s.addOns.map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
   active: s.active,
+  media: (s.media ?? []).map((m) => ({ url: m.url, alt: m.alt ?? '' })),
+  inclusions: s.inclusions ?? [],
+  exclusions: s.exclusions ?? [],
+  faqs: (s.faqs ?? []).map((f) => ({ id: String(f._id), question: f.question, answer: f.answer })),
+  checklist: (s.checklist ?? []).map((c) => ({ id: String(c._id), label: c.label, required: !!c.required })),
+  createdAt: (s as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? '',
+  updatedAt: (s as unknown as { updatedAt?: Date }).updatedAt?.toISOString() ?? '',
 });
 
 async function categoryMap(ids: unknown[]): Promise<Map<string, CategoryLite>> {

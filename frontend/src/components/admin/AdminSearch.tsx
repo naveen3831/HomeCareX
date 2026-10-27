@@ -1,38 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
-import { useUIStore } from '@/store/useUIStore';
 import { allAdminPages } from '@/config/adminNav';
 import { useClickOutside } from '@/hooks/useClickOutside';
-
-// Pages whose own table is filtered by this search instead of jumping between pages.
-const PAGE_SEARCH: Record<string, string> = {
-  '/admin/partners': 'Search name, email, phone or city…',
-  '/admin/manage-partners': 'Search name, designation, email or phone…',
-  '/admin/categories': 'Search name, slug or description…',
-  '/admin/services': 'Search name, slug or category…',
-};
 
 /** Search bar shown in the row below the header. */
 export const AdminSearch: React.FC = () => {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const pageSearch = useUIStore((s) => s.pageSearch);
-  const setPageSearch = useUIStore((s) => s.setPageSearch);
-
-  const pagePlaceholder = PAGE_SEARCH[pathname.replace(/\/+$/, '')];
-  const isPageSearch = Boolean(pagePlaceholder);
-
-  // Start every page with an empty search box.
-  useEffect(() => {
-    setPageSearch('');
-  }, [pathname, setPageSearch]);
-
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const searchRef = useClickOutside<HTMLDivElement>(query !== '', () => setQuery(''));
 
-  const needle = isPageSearch ? '' : query.trim().toLowerCase();
+  const needle = query.trim().toLowerCase();
   const results = needle
     ? allAdminPages
         .filter((p) => p.label.toLowerCase().includes(needle) || p.groupName.toLowerCase().includes(needle))
@@ -64,19 +43,15 @@ export const AdminSearch: React.FC = () => {
       <Search className="topbar-search__icon" aria-hidden />
       <input
         type="search"
-        value={isPageSearch ? pageSearch : query}
+        value={query}
         onChange={(e) => {
-          if (isPageSearch) {
-            setPageSearch(e.target.value);
-            return;
-          }
           setQuery(e.target.value);
           setActive(0);
         }}
         onKeyDown={onSearchKey}
-        placeholder={pagePlaceholder ?? 'Search pages…'}
+        placeholder="Search pages…"
         className="topbar-search__input"
-        aria-label={isPageSearch ? 'Search this page' : 'Search admin pages'}
+        aria-label="Search admin pages"
         role="combobox"
         aria-expanded={results.length > 0}
         aria-controls="admin-search-results"

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 vi.mock('@/lib/http', () => ({ default: h }));
@@ -19,6 +19,8 @@ const BACKEND_ROWS = [
 const ok = (data: unknown) => Promise.resolve({ data: { success: true, data } });
 
 const renderPage = () => render(<MemoryRouter><AdminCategoriesPage /></MemoryRouter>);
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 beforeEach(() => {
   localStorage.clear();
@@ -50,11 +52,20 @@ describe('Admin categories page', () => {
     expect(screen.queryByText('Washing Machine')).toBeNull(); // demo seed row must not appear
   });
 
-  it('falls back to demo data only when the list endpoint is unreachable', async () => {
+  it('shows an error, not demo data, when the list endpoint is unreachable', async () => {
     h.get.mockRejectedValue({ message: 'Unable to reach the server.', status: undefined });
+    renderPage();
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(getApiMode()).toBe('unknown');
+    expect(screen.queryByText('Home Cleaning')).toBeNull();
+  });
+
+  it('uses the local demo store only when VITE_MOCK_CATALOG=true', async () => {
+    vi.stubEnv('VITE_MOCK_CATALOG', 'true');
     renderPage();
     expect(await screen.findByText('Home Cleaning')).toBeTruthy();
     expect(getApiMode()).toBe('demo');
+    expect(h.get).not.toHaveBeenCalled();
     expect(screen.getByText(/showing local demo data/i)).toBeTruthy();
   });
 
@@ -65,7 +76,7 @@ describe('Admin categories page', () => {
     expect(getApiMode()).toBe('unknown');
   });
 
-  it('creating a category sends only fields the backend accepts', async () => {
+  it('creating a category sends the tree and image fields the backend now stores', async () => {
     const created = { id: 'n1', name: 'Gardening', slug: 'gardening', description: '', icon: '', sortOrder: 2, active: true, services: 0 };
     // First load returns the two existing rows; the reload after creating includes the new one.
     h.get.mockReturnValueOnce(ok(BACKEND_ROWS)).mockReturnValue(ok([...BACKEND_ROWS, created]));
@@ -80,14 +91,13 @@ describe('Admin categories page', () => {
     const [url, body] = h.post.mock.calls[0];
     expect(url).toBe('/admin/categories');
     expect(body).toMatchObject({ name: 'Gardening', active: true });
-    expect(body).not.toHaveProperty('slug');
-    expect(body).not.toHaveProperty('images');
-    expect(body).not.toHaveProperty('parentId');
+    expect(body).not.toHaveProperty('slug'); // the backend builds a unique slug itself
+    expect(body).toMatchObject({ parentId: null, images: [] });
     expect(await screen.findByText('Gardening')).toBeTruthy();
   });
 
   it('drills from a parent category to its sub-categories and then to their services', async () => {
-    h.get.mockRejectedValue({ message: 'Unable to reach the server.', status: undefined }); // demo seed has parents, subs and services
+    vi.stubEnv('VITE_MOCK_CATALOG', 'true'); // demo seed has parents, subs and services
     renderPage();
     await screen.findByText('Home Cleaning');
     expect(screen.queryByText('Bathroom Cleaning')).toBeNull(); // sub-categories stay hidden until the parent is opened
@@ -103,7 +113,7 @@ describe('Admin categories page', () => {
   });
 
   it('uses the search bar under the navbar to find sub-categories across levels', async () => {
-    h.get.mockRejectedValue({ message: 'Unable to reach the server.', status: undefined });
+    vi.stubEnv('VITE_MOCK_CATALOG', 'true');
     renderPage();
     await screen.findByText('Home Cleaning');
     useUIStore.setState({ pageSearch: 'ac serv' });

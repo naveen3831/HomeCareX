@@ -119,7 +119,7 @@ export const settingsService = {
 
     if (changes.length) {
       await SettingModel.bulkWrite(
-        changes.map(([key, value]) => ({
+        changes.map<any>(([key, value]) => ({
           updateOne: {
             filter: { key },
             update: { $set: { value, description: SETTING_DEFAULTS[key].description, updatedBy: Types.ObjectId.isValid(actor.id) ? new Types.ObjectId(actor.id) : undefined } },

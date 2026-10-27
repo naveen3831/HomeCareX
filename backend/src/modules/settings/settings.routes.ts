@@ -29,7 +29,7 @@ settingsRoutes.put(
   '/:key',
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-    sendSuccess(res, await settingsService.update(req.params.key, req.body?.value, { id, ip: req.ip ?? 'unknown' }));
+    sendSuccess(res, await settingsService.update(String(req.params.key), req.body?.value, { id, ip: req.ip ?? 'unknown' }));
   }),
 );
 

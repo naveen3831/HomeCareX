@@ -86,6 +86,7 @@ const startServer = async (): Promise<void> => {
       ]);
     });
 
+    // Start listening exactly once.
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
         server.removeListener('listening', onListening);
@@ -102,7 +103,21 @@ const startServer = async (): Promise<void> => {
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
+    // Time since the node process started, including loading all modules.
     console.log(
+      `[timing] total startup: ${Math.round(process.uptime() * 1000)} ms`,
+    );
+
+    stopReferralWorker = startReferralWorker((error) =>
+      console.error(
+        '[referral-worker] Background referral processing failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      ),
+    );
+    registerEarningsListeners();
+    stopSlaSweep = startSlaSweep();
+
+    // Seed default data after the server starts; failures are logged only.
       `[timing] process uptime at listen: ${Math.round(
         process.uptime() * 1000,
       )} ms`,
@@ -121,6 +136,9 @@ const startServer = async (): Promise<void> => {
     stopReferralWorker?.();
     stopSlaSweep?.();
 
+    if (server.listening) {
+      server.close();
+    }
     if (mongoose.connection.readyState !== 0) {
       try {
         await mongoose.connection.close();
@@ -131,6 +149,7 @@ const startServer = async (): Promise<void> => {
   }
 };
 
+// Graceful shutdown
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -142,13 +161,7 @@ const shutdown = async (): Promise<void> => {
   try {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => {
-          if (error) {
-            reject(error);
-          } else {
-            resolve();
-          }
-        });
+        server.close((error) => (error ? reject(error) : resolve()));
       });
     }
     await mongoose.connection.close();

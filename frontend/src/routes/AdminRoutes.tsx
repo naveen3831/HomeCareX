@@ -25,7 +25,6 @@ const AdminMarketingPage = lazy(() => import('@/pages/admin/Marketing'));
 const AdminPaymentsPage = lazy(() => import('@/pages/admin/Payments'));
 const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
 const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
-const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
 const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
 
 const AdminRolesPage = lazy(() => import('@/pages/admin/Roles'));
@@ -47,7 +46,7 @@ interface AdminRoute {
   /** Relative to /admin. Empty string is the index route. */
   path: string;
   element: React.ReactElement;
-  /** Permission key. Leave out until RBAC is wired; the route then stays open. */
+  /** Permission key. Leave out and the route stays open to every admin. */
   permission?: string;
 }
 
@@ -65,17 +64,9 @@ const adminRoutes: AdminRoute[] = [
   { path: 'support', element: <AdminSupportPage /> },
 
   // Catalog
-  {
-    path: 'categories',
-    element: <AdminCategoriesPage />,
-    permission: 'catalog:manage',
-  },
-  {
-    path: 'services',
-    element: <AdminServicesPage />,
-    permission: 'catalog:manage',
-  },
-  { path: 'pricing', element: <AdminPricingPage /> },
+  { path: 'categories', element: <AdminCategoriesPage />, permission: 'catalog:manage' },
+  { path: 'services', element: <AdminServicesPage />, permission: 'catalog:manage' },
+  { path: 'pricing', element: <AdminPricingPage />, permission: 'pricing:view' },
 
   // Coupons
   { path: 'coupons', element: <AdminCouponsPage /> },
@@ -90,66 +81,29 @@ const adminRoutes: AdminRoute[] = [
   // Finance
   { path: 'payments', element: <AdminPaymentsPage /> },
   { path: 'refunds', element: <AdminRefundsPage /> },
-
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
   { path: 'refunds/:id', element: <AdminRefundsPage /> },
-
   { path: 'payouts', element: <AdminPayoutsPage /> },
 
-  // Quality and reporting
-  { path: 'reviews', element: <AdminReviewsPage /> },
+  // Reporting
   { path: 'reports', element: <AdminReportsPage /> },
 
   // System
-  {
-    path: 'roles',
-    element: <AdminRolesPage />,
-    permission: 'roles:view',
-  },
-  {
-    path: 'staff',
-    element: <AdminStaffPage />,
-    permission: 'staff:view',
-  },
-  // Full pages (sidebar stays visible): create / invite / edit.
-  {
-    path: 'roles/new',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:create',
-  },
-  {
-    path: 'staff/new',
-    element: <AdminInviteStaffPage />,
-    permission: 'staff:create',
-  },
-  {
-    path: 'roles/:id',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:view',
-  },
+  { path: 'roles', element: <AdminRolesPage />, permission: 'roles:view' },
+  { path: 'roles/new', element: <AdminRoleFormPage />, permission: 'roles:create' },
+  { path: 'roles/:id', element: <AdminRoleFormPage />, permission: 'roles:view' },
+  { path: 'staff', element: <AdminStaffPage />, permission: 'staff:view' },
+  { path: 'staff/new', element: <AdminInviteStaffPage />, permission: 'staff:create' },
+  { path: 'audit-logs', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'audit-logs/:id', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'settings', element: <AdminSettingsPage />, permission: 'settings:manage' },
+
   // Old URLs keep working.
-  {
-    path: 'roles-permissions',
-    element: <Navigate to="/admin/roles" replace />,
-  },
-  {
-    path: 'roles/staff/new',
-    element: <Navigate to="/admin/staff/new" replace />,
-  },
-  {
-    path: 'audit-logs',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'audit-logs/:id',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'settings',
-    element: <AdminSettingsPage />,
-    permission: 'settings:manage',
-  },
+  { path: 'roles-permissions', element: <Navigate to="/admin/roles" replace /> },
+  { path: 'roles/staff/new', element: <Navigate to="/admin/staff/new" replace /> },
+
+  // Account security
   { path: 'security', element: <AccountSecurityPage /> },
   { path: 'account/security', element: <AccountSecurityPage /> },
   { path: 'settings/security', element: <AccountSecurityPage /> },
@@ -162,9 +116,7 @@ const adminRoutes: AdminRoute[] = [
 const NotFound: React.FC = () => (
   <div className="admin-page-container">
     <h1 className="hcx-page-header__title">Page not found</h1>
-    <p className="hcx-page-header__desc">
-      That admin page doesn&apos;t exist.
-    </p>
+    <p className="hcx-page-header__desc">That admin page doesn&apos;t exist.</p>
   </div>
 );
 
@@ -174,9 +126,7 @@ export const AdminRoutes: React.FC = () => (
       <Route element={<AdminLayout />}>
         {adminRoutes.map(({ path, element, permission }) => {
           const guarded = permission ? (
-            <RequirePermission permission={permission}>
-              {element}
-            </RequirePermission>
+            <RequirePermission permission={permission}>{element}</RequirePermission>
           ) : (
             element
           );

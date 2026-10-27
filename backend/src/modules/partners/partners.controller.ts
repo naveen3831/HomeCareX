@@ -116,6 +116,13 @@ export class PartnersController {
   });
 
   /**
+   * GET PARTNERS & KYC DIRECTORY
+   */
+  getDirectory = wrap(async (_req, res) => {
+    res.json({ success: true, data: await partnersService.directory() });
+  });
+
+  /**
    * GET PARTNER STATISTICS
    */
   getStats = wrap(async (_req, res) => {

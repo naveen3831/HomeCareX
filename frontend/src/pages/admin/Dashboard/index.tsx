@@ -30,6 +30,7 @@ import {
   type Point,
   type SnapshotItem,
 } from '@/services/dashboardApi';
+import { BookingsChart, CategoryChart, FunnelChart, RevenueChart } from './charts';
 import './dashboard.css';
 
 // ---------- formatting ----------
@@ -168,201 +169,6 @@ function KpiCard({
     <Link to={to} className={`${cls} dash-stat--link`} aria-label={`${label}: open page`}>
       {body}
     </Link>
-  );
-}
-
-// ---------- chart sizing: measure the container so text stays readable on phones ----------
-function useWidth<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    setWidth(Math.round(el.getBoundingClientRect().width));
-    const ro = new ResizeObserver(([entry]) => setWidth(Math.round(entry.contentRect.width)));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, width] as const;
-}
-
-function niceMax(v: number) {
-  const p = 10 ** Math.floor(Math.log10(v));
-  const m = v / p;
-  return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p;
-}
-
-/**
- * Line / bar trend chart. Tap or drag on it (or hover with a mouse) to read a value —
- * SVG <title> tooltips don't exist on touch screens, so the value shows in a readout above the plot.
- */
-function TrendChart({
-  points,
-  fmt,
-  axisFmt,
-  kind,
-  noun,
-}: {
-  points: Point[];
-  fmt: (n: number) => string;
-  axisFmt: (n: number) => string;
-  kind: 'line' | 'bar';
-  noun: string;
-}) {
-  const [ref, width] = useWidth<HTMLDivElement>();
-  const [active, setActive] = useState<number | null>(null);
-  const w = width || 320;
-  const compact = w < 480;
-  const h = compact ? 188 : 220;
-  const pad = { l: compact ? 42 : 54, r: 10, t: 10, b: 24 };
-  const iw = w - pad.l - pad.r;
-  const ih = h - pad.t - pad.b;
-  const n = points.length;
-  const max = niceMax(Math.max(...points.map((p) => p.value), 1));
-  const total = points.reduce((s, p) => s + p.value, 0);
-
-  const x = (i: number) =>
-    kind === 'bar' ? pad.l + ((i + 0.5) * iw) / n : pad.l + (n === 1 ? iw / 2 : (i * iw) / (n - 1));
-  const y = (v: number) => pad.t + (1 - v / max) * ih;
-
-  const ticks = compact ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
-  const labelCount = Math.min(compact ? 3 : 5, n);
-  const labelIdx = [...new Set(Array.from({ length: labelCount }, (_, k) => Math.round((k * (n - 1)) / Math.max(labelCount - 1, 1))))];
-
-  const pick = (e: React.PointerEvent<SVGSVGElement>) => {
-    const px = e.clientX - e.currentTarget.getBoundingClientRect().left;
-    const i = kind === 'bar' ? Math.floor(((px - pad.l) / iw) * n) : Math.round(((px - pad.l) / iw) * (n - 1));
-    setActive(Math.min(Math.max(i, 0), n - 1));
-  };
-
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i)},${y(p.value)}`).join(' ');
-  const area = `${line} L${x(n - 1)},${pad.t + ih} L${x(0)},${pad.t + ih} Z`;
-  const bw = Math.max((iw / n) * 0.66, 2);
-  const sel = active !== null ? points[active] : null;
-
-  return (
-    <div ref={ref}>
-      <div className="dash-readout" aria-live="polite">
-        {sel ? (
-          <>
-            <strong>{fmt(sel.value)}</strong>
-            <span>{sel.label}</span>
-          </>
-        ) : (
-          <>
-            <strong>{fmt(total)}</strong>
-            <span>total {noun} · tap the chart for detail</span>
-          </>
-        )}
-      </div>
-      <svg
-        width={w}
-        height={h}
-        viewBox={`0 0 ${w} ${h}`}
-        className="dash-svg"
-        role="img"
-        aria-label={`${noun} ${kind} chart, ${n} points`}
-        onPointerDown={pick}
-        onPointerMove={pick}
-        onPointerLeave={(e) => e.pointerType === 'mouse' && setActive(null)}
-      >
-        {ticks.map((t) => (
-          <g key={t}>
-            <line x1={pad.l} x2={w - pad.r} y1={y(max * t)} y2={y(max * t)} className="dash-grid" />
-            <text x={pad.l - 6} y={y(max * t) + 4} textAnchor="end" className="dash-axis">
-              {axisFmt(max * t)}
-            </text>
-          </g>
-        ))}
-        {labelIdx.map((i, k) => (
-          <text
-            key={i}
-            x={x(i)}
-            y={h - 6}
-            textAnchor={k === 0 && labelIdx.length > 1 ? 'start' : k === labelIdx.length - 1 && labelIdx.length > 1 ? 'end' : 'middle'}
-            className="dash-axis"
-          >
-            {points[i].label}
-          </text>
-        ))}
-        {kind === 'line' ? (
-          <>
-            <path d={area} className="dash-area" />
-            <path d={line} className="dash-line" />
-            {active !== null && (
-              <>
-                <line x1={x(active)} x2={x(active)} y1={pad.t} y2={pad.t + ih} className="dash-guide" />
-                <circle cx={x(active)} cy={y(points[active].value)} r={5} className="dash-dot" />
-              </>
-            )}
-          </>
-        ) : (
-          points.map((p, i) => (
-            <rect
-              key={i}
-              x={x(i) - bw / 2}
-              y={y(p.value)}
-              width={bw}
-              height={Math.max(pad.t + ih - y(p.value), 0)}
-              rx={2}
-              className={`dash-bar${active === i ? ' is-active' : ''}${active !== null && active !== i ? ' is-dim' : ''}`}
-            />
-          ))
-        )}
-      </svg>
-    </div>
-  );
-}
-
-// ---------- category + funnel ----------
-function CategoryBars({ rows }: { rows: Point[] }) {
-  const total = rows.reduce((s, r) => s + r.value, 0) || 1;
-  const max = Math.max(...rows.map((r) => r.value), 1);
-  return (
-    <ul className="dash-hbars">
-      {rows.map((r) => (
-        <li key={r.label}>
-          <span className="dash-hbars__label">{r.label}</span>
-          <span className="dash-hbars__value">
-            {num(r.value)} <small>{((r.value / total) * 100).toFixed(0)}%</small>
-          </span>
-          <span className="dash-hbars__track">
-            <span style={{ width: `${(r.value / max) * 100}%` }} />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function Funnel({ steps }: { steps: FunnelStep[] }) {
-  const top = steps[0]?.value || 1;
-  const conv = (i: number) => (steps[i - 1].value ? (steps[i].value / steps[i - 1].value) * 100 : 0);
-  // Biggest step-to-step drop is the most useful thing to see at a glance.
-  let worst = -1;
-  for (let i = 1; i < steps.length; i++) if (worst < 0 || conv(i) < conv(worst)) worst = i;
-  return (
-    <>
-      <ul className="dash-funnel">
-        {steps.map((s, i) => (
-          <li key={s.label}>
-            <span className="dash-funnel__label">{s.label}</span>
-            <span className="dash-funnel__num">
-              {num(s.value)}
-              {i > 0 && <small className={i === worst ? 'is-worst' : ''}>{conv(i).toFixed(0)}%</small>}
-            </span>
-            <span className="dash-funnel__track">
-              <span style={{ width: `${Math.max((s.value / top) * 100, 2)}%` }} />
-            </span>
-          </li>
-        ))}
-      </ul>
-      {worst > 0 && (
-        <p className="dash-funnel__note">
-          Biggest drop: {steps[worst - 1].label} → {steps[worst].label} ({(100 - conv(worst)).toFixed(0)}% lost)
-        </p>
-      )}
-    </>
   );
 }
 
@@ -590,9 +396,9 @@ export const AdminDashboardPage: React.FC = () => {
   const gmv = useWidget(() => dashboardApi.gmv(filters, fail), deps);
   const bookings = useWidget(() => dashboardApi.bookings(filters, fail), deps);
   const cancellation = useWidget(() => dashboardApi.cancellation(filters, fail), deps);
-  const customers = useWidget(() => dashboardApi.customers(fail), [failKey]);
-  const partners = useWidget(() => dashboardApi.partners(fail), [failKey]);
-  const snapshot = useWidget(() => dashboardApi.snapshot(filters, fail), [filters.city, failKey]);
+  const customers = useWidget(() => dashboardApi.customers(filters, fail), deps);
+  const partners = useWidget(() => dashboardApi.partners(filters, fail), deps);
+  const snapshot = useWidget(() => dashboardApi.snapshot(filters, fail), deps);
   const revenue = useWidget(() => dashboardApi.revenueSeries(filters, fail), deps);
   const bookingChart = useWidget(() => dashboardApi.bookingSeries(filters, fail), deps);
   const category = useWidget(() => dashboardApi.categories(filters, fail), deps);
@@ -747,16 +553,16 @@ export const AdminDashboardPage: React.FC = () => {
 
       <div className="dash-charts">
         <Widget title="Revenue" state={revenue}>
-          {(pts: Point[]) => <TrendChart points={pts} fmt={inr} axisFmt={inrAxis} kind="line" noun="revenue" />}
+          {(pts: Point[]) => <RevenueChart points={pts} fmt={inr} axisFmt={inrAxis} />}
         </Widget>
         <Widget title="Bookings" state={bookingChart}>
-          {(pts: Point[]) => <TrendChart points={pts} fmt={num} axisFmt={numAxis} kind="bar" noun="bookings" />}
+          {(pts: Point[]) => <BookingsChart points={pts} fmt={num} axisFmt={numAxis} />}
         </Widget>
         <Widget title="Bookings by category" state={category}>
-          {(rows: Point[]) => <CategoryBars rows={rows} />}
+          {(rows: Point[]) => <CategoryChart rows={rows} fmt={num} />}
         </Widget>
         <Widget title="Booking funnel" state={funnel}>
-          {(steps: FunnelStep[]) => <Funnel steps={steps} />}
+          {(steps: FunnelStep[]) => <FunnelChart steps={steps} fmt={num} />}
         </Widget>
       </div>
 

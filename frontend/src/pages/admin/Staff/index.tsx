@@ -14,7 +14,10 @@ export const AdminStaffPage: React.FC = () => {
 
   return (
     <div className="admin-page-container rbac-page">
-      <PageHeader title="Staff" description="Manage admin staff accounts and their roles." />
+      <PageHeader
+        title="Staff"
+        description="Invite teammates, change their role, deactivate them or sign them out."
+      />
       {can(RBAC_PERMISSIONS.staffView) ? (
         <StaffTab notify={toast.show} />
       ) : (
