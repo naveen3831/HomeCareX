@@ -574,20 +574,7 @@ function PartnerSidebar({
                               to={to}
                               end={end || hasChildren}
                               title={collapsed ? label : undefined}
-                              style={{
-                                background: "none",
-                                border: 0,
-                                padding: "0.5rem",
-                                color: "inherit",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                minWidth: 40,
-                                minHeight: 40,
-                                flex: 1,
-                                minWidth: 0,
-                              }}
+                              style={{ flex: 1, minWidth: 0 }}
                               onClick={() => {
                                 if (hasChildren) {
                                   openItem(key);
@@ -633,6 +620,10 @@ function PartnerSidebar({
                                   color: "inherit",
                                   cursor: "pointer",
                                   display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minWidth: 40,
+                                  minHeight: 40,
                                 }}
                               >
                                 <ChevronDown
@@ -649,69 +640,6 @@ function PartnerSidebar({
                           </div>
 
                           {/* Sub-links open under the parent */}
-                          {expanded && children && (
-                            <ul
-                              className="nav-list"
-                              style={{
-                                marginLeft: "1.6rem",
-                                paddingLeft: "0.25rem",
-                                borderLeft: "1px solid rgba(148,163,184,0.35)",
-                              style={{
-                                flex: 1,
-                                minWidth: 0,
-                              }}
-                              onClick={() => {
-                                if (hasChildren) openItem(key);
-                              }}
-                              className={({ isActive }) =>
-                                `nav-link${isActive ? " is-active" : ""}`
-                              }
-                            >
-                              <Icon
-                                className="nav-link__icon"
-                                size={20}
-                                aria-hidden="true"
-                              />
-
-                              {!collapsed && (
-                                <span className="nav-link__label">
-                                  {label}
-                                </span>
-                              )}
-
-                              {collapsed && (
-                                <span className="sr-only">{label}</span>
-                              )}
-                            </NavLink>
-
-                            {hasChildren && (
-                              <button
-                                type="button"
-                                aria-label={`${expanded ? "Collapse" : "Expand"} ${label}`}
-                                aria-expanded={expanded}
-                                onClick={() => toggleItem(key)}
-                                style={{
-                                  background: "none",
-                                  border: 0,
-                                  padding: "0.5rem",
-                                  color: "inherit",
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                }}
-                              >
-                                <ChevronDown
-                                  size={14}
-                                  style={{
-                                    transition: "transform 150ms",
-                                    transform: expanded
-                                      ? "rotate(180deg)"
-                                      : "none",
-                                  }}
-                                />
-                              </button>
-                            )}
-                          </div>
-
                           {expanded && children && (
                             <ul
                               className="nav-list"
