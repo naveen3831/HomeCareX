@@ -41,6 +41,15 @@ export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
   'offer.new',
 ]);
 
+/** Type prefixes per group; 'system' is whatever matches none of these. Mirrors groupOf(). */
+export const GROUP_PREFIXES: Record<Exclude<NotificationGroup, 'system'>, readonly string[]> = {
+  booking: ['booking.'],
+  payment: ['payment.', 'payout.', 'refund.'],
+  partner: ['partner.'],
+  offers: ['offer.'],
+  support: ['ticket.'],
+};
+
 export function groupOf(type: string): NotificationGroup {
   if (type.startsWith('booking.')) return 'booking';
   if (

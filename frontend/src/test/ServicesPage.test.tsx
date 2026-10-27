@@ -88,7 +88,7 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
         }
       />,
     );
@@ -104,7 +104,7 @@ describe("ServicesPage URL synchronization", () => {
     await waitFor(() => {
       expect(
         (screen.getByLabelText("Category") as HTMLSelectElement).value,
-      ).toBe("Cleaning");
+      ).toBe("home-cleaning");
       expect(
         (screen.getByLabelText("Sort By") as HTMLSelectElement).value,
       ).toBe("price-low");
@@ -121,11 +121,14 @@ describe("ServicesPage URL synchronization", () => {
 
     await openFilters(user);
 
-    await user.selectOptions(screen.getByLabelText("Category"), "Cleaning");
+    await user.selectOptions(
+      screen.getByLabelText("Category"),
+      "home-cleaning",
+    );
 
     await waitFor(() => {
       const params = getParams();
-      expect(params.get("category")).toBe("Cleaning");
+      expect(params.get("category")).toBe("home-cleaning");
       expectPageReset(params);
     });
   });
@@ -191,7 +194,7 @@ describe("ServicesPage URL synchronization", () => {
     render(
       <TestWrapper
         initialEntry={
-          "/services?q=Cleaning&category=Cleaning&sort=price-low&pincode=517501&page=2"
+          "/services?q=Cleaning&category=home-cleaning&sort=price-low&pincode=517501&page=2"
         }
       />,
     );

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ListChecks, Pencil, Plus, Trash2 } from 'lucide-react';
+import { PageSearch } from '@/components/admin/PageSearch';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { StatusBadge } from '@/components/admin/StatusBadge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
@@ -104,6 +105,8 @@ export const AdminManagePartnersPage: React.FC = () => {
           </div>
         }
       />
+
+      <PageSearch placeholder="Search name, designation, email or phone…" />
 
       {notice && (
         <div role="status" className={`mb-4 rounded-lg border px-3 py-2 text-sm ${NOTICE_CLASS[notice.tone]}`}>

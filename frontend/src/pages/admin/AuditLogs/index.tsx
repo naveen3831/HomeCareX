@@ -97,7 +97,15 @@ const showValue = (value: unknown): string => {
     return "—";
   }
 
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
 };
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
@@ -175,7 +183,7 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 
 const AdminAuditLogsPage: React.FC = () => {
   // Optional route param: /admin/audit-logs/:auditId opens the full-page details view
-  const { auditId } = useParams<{ auditId: string }>();
+  const { id: auditId } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   // Mouse drag-scroll for the table (swipe already works on phones)
@@ -377,7 +385,7 @@ const AdminAuditLogsPage: React.FC = () => {
   ];
 
   return (
-    <div className="admin-auditlogs-container" ref={scrollRootRef}>
+    <main className="admin-auditlogs-container" ref={scrollRootRef}>
       <div className="auditlogs-header">
         <div className="auditlogs-heading-content">
           <h1 className="auditlogs-title">Audit Logs</h1>
@@ -448,7 +456,7 @@ const AdminAuditLogsPage: React.FC = () => {
       >
         {selectedLog && <AuditDetails log={selectedLog} />}
       </FullScreenPanel>
-    </div>
+    </main>
   );
 };
 

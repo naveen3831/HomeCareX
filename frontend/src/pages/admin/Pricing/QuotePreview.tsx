@@ -106,7 +106,7 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
 
   return (
     // Enter inside the preview must not submit the pricing form it sits in.
-    <section className="cat-form__sec prc-vcard prc-quote" aria-labelledby="qp-title" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
+    <section className="cat-form__sec prc-vcard prc-quote prc-card" aria-labelledby="qp-title" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}>
       <div className="prc-vcard__head">
         <h3 id="qp-title">Quote preview</h3>
         <p>{view === 'estimate' ? 'Instant estimate from the values you are editing.' : 'What a customer is charged right now, from the saved rules.'}</p>
@@ -115,6 +115,12 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
       <div role="tablist" aria-label="Quote source" className="prc-seg prc-seg--full">
         <button type="button" role="tab" aria-selected={view === 'estimate'} className={clsx(view === 'estimate' && 'is-on')} onClick={() => setView('estimate')}><Sparkles size={13} aria-hidden /> Estimate</button>
         <button type="button" role="tab" aria-selected={view === 'server'} className={clsx(view === 'server' && 'is-on')} onClick={() => setView('server')}><Timer size={13} aria-hidden /> Server quote</button>
+      </div>
+
+      <div className="prc-hero" aria-live="polite">
+        <small>{view === 'estimate' ? 'Estimated total' : quote ? 'Customer pays' : 'Server total'}</small>
+        <b>{view === 'estimate' ? rupees(q.total) : quote ? rupees(quote.total) : '—'}</b>
+        <em>{view === 'estimate' ? 'incl. convenience fee + 18% GST' : quote ? 'incl. coupon, fee and GST' : 'Press “Get server quote”'}</em>
       </div>
 
       <div className="prc-item__row prc-item__row--2">
@@ -206,6 +212,12 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
                 {couponEndAt && (
                   <span className={clsx('prc-expiry', couponExpired && 'is-expired')}>
                     <Timer size={12} aria-hidden /> {couponExpired ? 'Coupon expired' : `Coupon valid till ${fmtDateTime(couponEndAt)}`}
+                  </span>
+                )}
+                {quote.quoteId && <code title={quote.quoteId}>#{quote.quoteId.slice(0, 8)}</code>}
+                {quote.expiresAt && (
+                  <span className="prc-expiry">
+                    <Timer size={12} aria-hidden /> Quote valid for {Math.max(0, Math.ceil((new Date(quote.expiresAt).getTime() - Date.now()) / 60000))} min
                   </span>
                 )}
                 <span className={clsx('prc-mode', quote.mode === 'HOURLY' && 'is-hourly')}>{quote.mode === 'HOURLY' ? 'per hour' : 'fixed'}</span>

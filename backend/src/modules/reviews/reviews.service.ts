@@ -528,16 +528,6 @@ export class ReviewsService {
         ReviewModel.countDocuments(),
       ]);
 
-    // DEMO ONLY: mock names are displayed only when real names are unavailable.
-    // These names are not real partner assignments and are never saved to MongoDB.
-    const mockPartnerNames = [
-      'Rahul Sharma',
-      'Priya Reddy',
-      'Amit Kumar',
-      'Sneha Patel',
-      'Arjun Rao',
-    ];
-
     // Collect booking IDs for reviews without a stored partner ID.
     const bookingIds = [
       ...new Set(
@@ -602,20 +592,17 @@ export class ReviewsService {
       partnerIds.map((id) => new Types.ObjectId(id)),
     );
 
-    // Return real partner names when available; otherwise use demo labels.
-    const enrichedReviews = reviews.map((review, index) => {
+    // Use real partner names only; unassigned reviews have no partner name.
+    const enrichedReviews = reviews.map((review) => {
       const partnerId =
         (review.partnerId ? String(review.partnerId) : undefined) ??
         (review.bookingId
           ? bookingPartnerMap.get(String(review.bookingId))
           : undefined);
 
-      const realPartnerName = partnerId
+      const partnerName = partnerId
         ? partnerNames.get(partnerId) ?? null
         : null;
-
-      const partnerName =
-        realPartnerName ?? mockPartnerNames[index % mockPartnerNames.length];
 
       return {
         ...review,

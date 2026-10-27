@@ -105,3 +105,6 @@ app.zip
 
 
 package-lock.json
+
+# Ignore root package lock file
+/package-lock.json

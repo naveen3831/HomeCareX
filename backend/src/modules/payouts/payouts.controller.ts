@@ -3,9 +3,14 @@ import { getAuthUser } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
 import { payoutsService } from './payouts.service';
 
-const getIp = (req: Request): string => req.ip || req.socket.remoteAddress || 'unknown';
-const num = (v: unknown): number | undefined => (v === undefined || v === '' ? undefined : Number(v));
-const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+const getIp = (req: Request): string =>
+  req.ip || req.socket.remoteAddress || 'unknown';
+
+const num = (value: unknown): number | undefined =>
+  value === undefined || value === '' ? undefined : Number(value);
+
+const str = (value: unknown): string | undefined =>
+  typeof value === 'string' && value ? value : undefined;
 
 export const payoutsController = {
   /** POST /admin/payout-batches or /admin/payouts  { periodStart, periodEnd } */
@@ -60,7 +65,10 @@ export const payoutsController = {
 
   /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */
   async exportCsv(req: Request, res: Response) {
-    const { csv, filename } = await payoutsService.exportCsv(String(req.params.id));
+    const result = await payoutsService.exportCsv(str(req.params.id));
+    const csv = typeof result === 'string' ? result : result.csv;
+    const filename =
+      typeof result === 'string' ? 'payouts.csv' : result.filename;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);

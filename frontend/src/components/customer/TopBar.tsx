@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -7,6 +7,7 @@ import LocationPicker from "./LocationPicker";
 import NotificationBell from "./NotificationBell";
 import { CUSTOMER_SIDEBAR_ID } from "./Sidebar";
 import { FOCUS_RING } from "./focusRing";
+import { getCustomerPageMeta } from "./pageTitles";
 
 interface TopBarProps {
   /** Desktop: is the sidebar expanded? */
@@ -21,7 +22,7 @@ const BAR =
   "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
 
 const BACK_LINK =
-  "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70 md:hidden";
+  "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70";
 
 /**
  * Top bar.
@@ -32,12 +33,20 @@ const BACK_LINK =
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const navigate = useNavigate();
+  const meta = getCustomerPageMeta(pathname);
   // On the notifications page the address picker gives way to a back button that returns to the home page.
   const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
   const onNotifications = normalizedPath === customerPath("/notifications");
   // On the referrals page (mobile) the address picker and bell give way to a back button that returns to Profile.
   const onReferrals = normalizedPath === customerPath("/referrals");
+  const innerPage = meta !== null && !onNotifications && !onReferrals;
+  const goBack = () => {
+    if (!meta) return;
+    if (key !== "default") navigate(-1);
+    else navigate(meta.parent, { replace: true });
+  };
 
   return (
     <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3 bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
@@ -62,17 +71,19 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
 
         {/* Brand: desktop only, and only while the sidebar is collapsed (the sidebar has its own brand). */}
-        <Link
-          to={customerPath()}
-          className={clsx(
-            "rounded-lg text-lg font-bold tracking-tight",
-            sidebarOpen ? "hidden" : "ml-2 hidden md:inline-flex",
-            FOCUS_RING,
-          )}
-        >
-          <span className="text-accent">Home</span>
-          <span className="text-brand">CareX</span>
-        </Link>
+        {!meta && (
+          <Link
+            to={customerPath()}
+            className={clsx(
+              "rounded-lg text-lg font-bold tracking-tight",
+              sidebarOpen ? "hidden" : "ml-2 hidden md:inline-flex",
+              FOCUS_RING,
+            )}
+          >
+            <span className="text-accent">Home</span>
+            <span className="text-brand">CareX</span>
+          </Link>
+        )}
 
         <span
           aria-hidden="true"
@@ -82,11 +93,21 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
           )}
         />
 
-        {onNotifications ? (
+        {innerPage && meta ? (
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label={`Back from ${meta.title}`}
+            className={clsx(BACK_LINK, FOCUS_RING)}
+          >
+            <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{meta.title}</span>
+          </button>
+        ) : onNotifications ? (
           <Link
             to={customerPath()}
             aria-label="Back to home"
-            className={clsx(BACK_LINK, FOCUS_RING)}
+            className={clsx(BACK_LINK, "md:hidden", FOCUS_RING)}
           >
             <ArrowLeft className="h-5 w-5" aria-hidden="true" />
             <span>Back</span>
@@ -97,7 +118,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
               <Link
                 to={customerPath("/profile")}
                 aria-label="Back to profile"
-                className={clsx(BACK_LINK, FOCUS_RING)}
+                className={clsx(BACK_LINK, "md:hidden", FOCUS_RING)}
               >
                 <ArrowLeft className="h-5 w-5" aria-hidden="true" />
                 <span>Back</span>
@@ -116,7 +137,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
       </div>
 
-      <div className={clsx(onReferrals && "hidden md:block")}>
+      <div className={clsx((innerPage || onReferrals) && "hidden md:block")}>
         <NotificationBell count={unread} />
       </div>
     </header>

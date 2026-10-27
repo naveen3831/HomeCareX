@@ -119,8 +119,14 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
       <form id="pricing-form" ref={formRef} className="cat-form prc-form" onSubmit={submit} noValidate>
         {serverError && <div role="alert" className="cat-alert">{serverError}</div>}
 
-        <section className="cat-form__sec">
-          <h3>Service &amp; scope <small>who this rule applies to</small></h3>
+    <div className="prc-split">
+      <div className="prc-main">
+        {/* One card for the rule itself: who it applies to, then the price. */}
+        <section className="cat-form__sec prc-card" aria-labelledby="pf-scope">
+          <header className="prc-card__head">
+            <span className="prc-step">1</span>
+            <div><h3 id="pf-scope">Service &amp; scope</h3><p>Who this rule applies to</p></div>
+          </header>
           <div className="prc-grid2">
             <label className="cat-field">
               <span>Category *</span>
@@ -148,18 +154,19 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
             {err('city')}
           </label>
           {errors.scope && <small className="cat-err" role="alert">{errors.scope}</small>}
-        </section>
 
-        <section className="cat-form__sec">
-          <div className="prc-sechead">
-            <h3>Pricing</h3>
-            <div role="radiogroup" aria-label="Pricing mode" className="prc-seg">
+          <hr className="prc-divider" />
+
+          <header className="prc-card__head">
+            <span className="prc-step">2</span>
+            <div><h3>Pricing</h3><p>What the customer pays before extras</p></div>
+            <div role="radiogroup" aria-label="Pricing mode" className="prc-seg prc-card__aside">
               {MODES.map((m) => (
                 <button key={m.value} type="button" role="radio" aria-checked={values.mode === m.value} disabled={locked}
                   className={clsx(values.mode === m.value && 'is-on')} onClick={() => set('mode', m.value)}>{m.label}</button>
               ))}
             </div>
-          </div>
+          </header>
           <div className="prc-grid3">
             <label className="cat-field">
               <span>{priceLabel}</span>
@@ -183,8 +190,9 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
           </div>
         </section>
 
+        {/* Add-ons | Surge windows | Quote preview: three equal cards in one row. */}
         <div className="prc-cols">
-          <section className="cat-form__sec prc-vcard" aria-labelledby="pf-addons">
+          <section className="cat-form__sec prc-card prc-vcard" aria-labelledby="pf-addons">
             <div className="prc-vcard__head">
               <h3 id="pf-addons">Add-ons <small>{values.addOns.length}/{MAX_ADDONS}</small></h3>
               <p>Optional extras with their own price.</p>
@@ -192,7 +200,7 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
             <AddOnEditor addOns={values.addOns} errors={errors} disabled={locked} onChange={(a) => set('addOns', a)} />
           </section>
 
-          <section className="cat-form__sec prc-vcard" aria-labelledby="pf-surge">
+          <section className="cat-form__sec prc-card prc-vcard" aria-labelledby="pf-surge">
             <div className="prc-vcard__head">
               <h3 id="pf-surge">Surge windows <small>{values.surgeWindows.length}/{MAX_SURGE}</small></h3>
               <p>Slots starting inside a window cost the chosen % more.</p>
@@ -202,6 +210,8 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
 
           <QuotePreview values={values} scope={scope} services={services} saved={editing} />
         </div>
+      </div>
+    </div>
       </form>
     </FullScreenPanel>
   );

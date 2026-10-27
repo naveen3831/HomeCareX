@@ -337,14 +337,20 @@ export const BookingService = {
     try {
       const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
         await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
-        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
+        const seat = await bookingsRepository.findFreeSeat(
+          input.serviceId,
+          input.date,
+          input.slot,
+          capacity,
+          now,
+        );
         if (seat === null) {
           throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
         }
         const createdBooking = await bookingsRepository.create({
           customerId: new Types.ObjectId(customerId),
           serviceId: new Types.ObjectId(input.serviceId),
-          categoryId: service.categoryId,
+          ...(service.categoryId ? { categoryId: service.categoryId } : {}),
           quantity: input.quantity,
           addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
           addressSnapshot: {
@@ -394,7 +400,11 @@ export const BookingService = {
         } as never);
 
         if (coupon) {
-          await couponsService.recordUsage(coupon.code, customerId, (createdBooking as { _id?: unknown })._id?.toString());
+          await couponsService.recordUsage(
+            coupon.code,
+            customerId,
+            String((createdBooking as { _id?: unknown })._id ?? ''),
+          );
         }
         return createdBooking;
       });
