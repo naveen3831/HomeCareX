@@ -19,9 +19,9 @@ export const publicStyles = `
   letter-spacing: -0.02em;
 }
 
-@keyframes hcx-fade {
-  from { transform: translateY(10px); }
-  to   { transform: none; }
+@keyframes hcx-word {
+  from { opacity: 0; transform: translateY(0.5em); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
 }
 @keyframes hcx-fade {
   from { opacity: 0; transform: translateY(14px); }
@@ -42,7 +42,8 @@ export const publicStyles = `
   animation: hcx-word .8s cubic-bezier(.2,.7,.2,1) forwards;
 }
 .hcx-in {
-  animation: hcx-fade .5s cubic-bezier(.2,.7,.2,1) both;
+  opacity: 0;
+  animation: hcx-fade .8s cubic-bezier(.2,.7,.2,1) forwards;
 }
 .hcx-float {
   animation: hcx-float 6s ease-in-out infinite;

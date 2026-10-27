@@ -145,8 +145,7 @@ const StatsStrip: React.FC = () => {
             "opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1)",
         }}
       >
-        {/* CHANGED: was <dl>/<dt>/<dd>, which failed the accessibility audit. Now a plain list. */}
-        <ul
+        <dl
           className="
             grid
             grid-cols-1
@@ -165,7 +164,7 @@ const StatsStrip: React.FC = () => {
           "
         >
           {stats.map((stat, index) => (
-            <li
+            <div
               key={stat.id}
               className="
                 group
@@ -214,17 +213,17 @@ const StatsStrip: React.FC = () => {
 
               {/* Content */}
               <div>
-                <p className="display text-lg font-extrabold text-[#4338ca]">
+                <dt className="display text-lg font-extrabold text-[#4338ca]">
                   {stat.title}
-                </p>
+                </dt>
 
-                <p className="mt-1 text-sm leading-6 text-[#5b5b7a]">
+                <dd className="mt-1 text-sm leading-6 text-[#5b5b7a]">
                   {stat.description}
-                </p>
+                </dd>
               </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </dl>
       </div>
     </div>
   );

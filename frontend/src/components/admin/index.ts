@@ -30,3 +30,5 @@ export { ExportButton } from './ExportButton';
 export type { ExportFormat } from './ExportButton';
 export { BulkActionBar } from './BulkActionBar';
 export type { BulkAction } from './BulkActionBar';
+
+export { PageSearch } from './PageSearch';

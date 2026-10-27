@@ -24,7 +24,6 @@ import {
 
 import type { LeadSource, LeadStatus } from '@/features/public/leads';
 import { fetchLead, fetchLeads, updateLeadStatus, type AdminLead } from '@/services/leadsApi';
-import { InboxTabs } from '@/components/admin/InboxTabs';
 import { Link } from 'react-router-dom';
 import './Leads.css';
 
@@ -181,7 +180,6 @@ const AdminLeadsPage: React.FC = () => {
         </p>
       </header>
 
-      <InboxTabs />
 
       {notice && (
         <div role="status" className="leads-notice">

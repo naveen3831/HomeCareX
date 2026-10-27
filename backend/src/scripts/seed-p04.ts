@@ -51,7 +51,7 @@ async function main() {
   // The Partner profile (Partner._id) is what Booking.partnerId points to, not the User id.
   await PartnerModel.updateOne(
     { userId: partnerUser._id },
-    { $set: { status: "active" } },
+    { $set: { status: "active", "kyc.status": "approved", trainingCompleted: true } },
     { upsert: true },
   );
   const partner = await PartnerModel.findOne({ userId: partnerUser._id })

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import {
   Search,
@@ -52,13 +53,13 @@ const labelClass =
   "mb-2 block text-[11px] font-bold uppercase tracking-wider text-[#6b6b8a]";
 
 const selectClass =
-  "h-12 w-full cursor-pointer appearance-none rounded-xl border border-[#e0e7ff] bg-white pl-4 pr-10 text-sm font-semibold text-[#11104f] shadow-sm outline-none transition hover:border-[#c7d2fe] focus:border-[#4f46e5] focus:ring-4 focus:ring-[#4f46e5]/10";
+  "h-12 w-full cursor-pointer appearance-none rounded-xl border border-[#e0e7ff] bg-white pl-4 pr-10 text-sm font-semibold text-[#11104f] shadow-sm outline-none transition hover:border-[#c7d2fe] focus:border-[#6366f1] focus:ring-4 focus:ring-[#6366f1]/10";
 
 const inputClass =
-  "h-12 w-full rounded-xl border border-[#e0e7ff] bg-white text-sm font-semibold text-[#11104f] shadow-sm outline-none transition placeholder:font-normal placeholder:text-[#9999b0] hover:border-[#c7d2fe] focus:border-[#4f46e5] focus:ring-4 focus:ring-[#4f46e5]/10";
+  "h-12 w-full rounded-xl border border-[#e0e7ff] bg-white text-sm font-semibold text-[#11104f] shadow-sm outline-none transition placeholder:font-normal placeholder:text-[#9999b0] hover:border-[#c7d2fe] focus:border-[#6366f1] focus:ring-4 focus:ring-[#6366f1]/10";
 
 const buttonFocusClass =
-  "focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4f46e5]/25 focus-visible:ring-offset-2";
+  "focus:outline-none focus-visible:ring-4 focus-visible:ring-[#6366f1]/25 focus-visible:ring-offset-2";
 
 const chevronStyle: React.CSSProperties = {
   backgroundImage:
@@ -91,7 +92,7 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
   const [open, setOpen] = useState(false);
 
   // Supports old URLs such as ?category=Painting.
-
+ 
 const normalizedCategory =
   CATEGORIES.find(
     (item) =>
@@ -168,13 +169,11 @@ const normalizedCategory =
             )}
           </div>
 
-          {/* CHANGED: added aria-label so the button has a name on phones, where the "Filters" text is hidden */}
           <button
             type="button"
             onClick={() => setOpen((previous) => !previous)}
             aria-expanded={open}
             aria-controls="service-filter-panel"
-            aria-label={panelFilterCount > 0 ? `Filters (${panelFilterCount} active)` : "Filters"}
             className={`relative flex h-14 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-bold shadow-sm transition ${buttonFocusClass} sm:px-5 ${
               open
                 ? "border-[#4338ca] bg-[#4338ca] text-white"
@@ -264,7 +263,7 @@ const normalizedCategory =
                 <MapPin
                   size={18}
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#4f46e5]"
+                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#6366f1]"
                 />
 
                 <input

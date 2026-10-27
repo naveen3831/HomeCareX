@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import { HttpError } from '../auth/auth.types';
@@ -22,7 +23,28 @@ const toDto = (
   sortOrder: c.sortOrder ?? 0,
   active: c.active,
   services,
+  iconUrl: c.iconUrl ?? '',
+  parentId: c.parentId ? String(c.parentId) : null,
+  images: (c.images ?? []).map((i) => ({ url: i.url, alt: i.alt ?? '', isPrimary: !!i.isPrimary })),
+  createdAt: (c as unknown as { createdAt?: Date }).createdAt?.toISOString() ?? '',
+  updatedAt: (c as unknown as { updatedAt?: Date }).updatedAt?.toISOString() ?? '',
 });
+
+/** Only two levels: a parent must be top-level, and a category with children cannot become a child. */
+async function assertParent(parentId: string | null | undefined, selfId?: string) {
+  if (!parentId) return;
+  if (selfId && parentId === selfId) throw new HttpError(400, 'A category cannot be its own parent', 'DEPTH');
+  const parent = await CategoryModel.findById(parentId, 'parentId');
+  if (!parent) throw new HttpError(404, 'Parent category not found', 'NOT_FOUND');
+  if (parent.parentId) throw new HttpError(400, 'Only two levels are supported: a sub-category cannot have children', 'DEPTH');
+  if (selfId && (await CategoryModel.exists({ parentId: selfId }))) {
+    throw new HttpError(400, 'This category has sub-categories, so it cannot become one', 'DEPTH');
+  }
+}
+
+/** Exactly one primary image (the first when none is flagged). */
+const normaliseImages = <T extends { isPrimary: boolean }>(images?: T[]) =>
+  images?.map((img, i) => ({ ...img, isPrimary: images.some((x) => x.isPrimary) ? img.isPrimary && images.findIndex((x) => x.isPrimary) === i : i === 0 }));
 
 /**
  * Inserts missing default categories.
@@ -130,9 +152,12 @@ export const categoriesService = {
         }).then(Boolean),
     );
 
+    await assertParent(data.parentId);
+
     return toDto(
       await CategoryModel.create({
         ...data,
+        images: normaliseImages(data.images),
         slug,
       }),
     );
@@ -169,8 +194,10 @@ export const categoriesService = {
       }
     }
 
+    if (data.parentId !== undefined) await assertParent(data.parentId, id);
+
     // Keep the existing slug stable so existing links continue working.
-    existing.set(data);
+    existing.set({ ...data, ...(data.images ? { images: normaliseImages(data.images) } : {}) });
 
     await existing.save();
 
@@ -208,6 +235,7 @@ export const categoriesService = {
           update: {
             $set: {
               sortOrder: i.sortOrder,
+              ...(i.parentId !== undefined ? { parentId: i.parentId ? new Types.ObjectId(i.parentId) : null } : {}),
             },
           },
         },

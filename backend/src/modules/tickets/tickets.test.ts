@@ -46,7 +46,7 @@ const input = {
 } as const;
 const png = Buffer.from("89504e470d0a1a0a00000000", "hex");
 const matches = (filter: object) =>
-  rows.filter((row) => new Query(filter).test(row as never));
+  rows.filter((row) => new Query(filter as Record<string, unknown>).test(row as never));
 const fake: TicketsRepository = {
   list: async (filter, skip, limit) =>
     matches(filter).slice(skip, skip + limit),

@@ -29,10 +29,6 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
 }) => {
   const webpImage = image.replace(/\.(png|jpe?g)$/i, ".webp");
 
-  // CHANGED: use the small 640px card version (made by scripts/make-card-images.mjs).
-  // If that file is missing, the onError below falls back to the original image.
-  const cardImage = webpImage.replace(/^\/images\//, "/images/card/");
-
   // If the .webp file is missing, drop the <source> so the browser uses the <img> file.
   const [webpFailed, setWebpFailed] = useState(false);
   const canUseWebp = webpImage !== image && !webpFailed;
@@ -42,7 +38,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       {/* Image */}
       <div className="relative aspect-[4/3] overflow-hidden bg-[#eef2ff]">
         <picture>
-          {canUseWebp && <source srcSet={cardImage} type="image/webp" />}
+          {canUseWebp && <source srcSet={webpImage} type="image/webp" />}
 
           <img
             src={fallbackImage || image}

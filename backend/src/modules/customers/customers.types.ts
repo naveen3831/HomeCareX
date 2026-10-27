@@ -1,1 +1,1 @@
-export interface CustomersTypes {}
+export type CustomersTypes = Record<string, unknown>;

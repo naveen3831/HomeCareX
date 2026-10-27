@@ -214,6 +214,7 @@ export class BookingsRepository {
     fromStatus: IBooking['status'],
     entry: StatusHistoryEntry,
     reason?: string,
+    refundStatus?: string,
   ): Promise<IBooking | null> {
     if (![bookingId, customerId].every((v) => Types.ObjectId.isValid(v)))
       return Promise.resolve(null);
@@ -224,7 +225,11 @@ export class BookingsRepository {
         status: fromStatus,
       },
       {
-        $set: { status: entry.to, ...(reason ? { cancellationReason: reason } : {}) },
+        $set: {
+          status: entry.to,
+          ...(reason ? { cancellationReason: reason } : {}),
+          ...(refundStatus ? { refundStatus } : {}),
+        },
         $unset: { slotSeat: '' },
         $push: { statusHistory: entry },
       },
@@ -233,7 +238,7 @@ export class BookingsRepository {
   }
 
   /**
-   * Files the refund for a cancelled booking: one Refund request (status "requested", picked up by the
+   * Files the refund for a cancelled booking: one Refund request (status "PENDING_APPROVAL", picked up by the
    * admin refund queue) and the matching marker on the Payment. Idempotent per booking, so a retry never
    * creates a second refund for the same cancellation.
    */
@@ -244,11 +249,11 @@ export class BookingsRepository {
     amount: number;
     reason?: string;
     now?: Date;
-  }): Promise<IRefund | unknown> {
+  }): Promise<IRefund> {
     const bookingId = new Types.ObjectId(input.bookingId);
     const existing = await RefundModel.findOne({
       bookingId,
-      status: { $in: ['requested', 'approved', 'processed'] },
+      status: { $in: ['requested', 'PENDING_APPROVAL', 'approved', 'APPROVED', 'processed', 'CREDITED'] },
     }).exec();
     if (existing) return existing;
 
@@ -261,22 +266,40 @@ export class BookingsRepository {
       ...(customerId ? { customerId, requestedBy: customerId } : {}),
       amount: input.amount,
       reason: `Booking cancelled: ${input.reason ?? ''}`.slice(0, 500),
-      method: 'RAZORPAY',
-      status: 'requested',
+      method: 'WALLET',
+      status: 'PENDING_APPROVAL',
       requestedAt: now,
     });
+
     if (paymentId) {
       await PaymentModel.updateOne(
         { _id: paymentId },
         {
           $set: {
-            'refund.status': 'requested',
+            'refund.status': 'PENDING_APPROVAL',
             'refund.amount': input.amount,
             'refund.requestedAt': now,
           },
         },
       ).exec();
     }
+
+    await BookingModel.updateOne(
+      { _id: bookingId },
+      {
+        $set: {
+          refundStatus: 'PENDING_APPROVAL',
+          refundDetails: {
+            refundId: refund._id,
+            amount: input.amount,
+            status: 'PENDING_APPROVAL',
+            destination: 'HomeCareX Wallet',
+            requestedAt: now,
+          },
+        },
+      },
+    ).exec();
+
     return refund;
   }
 
@@ -285,10 +308,20 @@ export class BookingsRepository {
    * decision was made from; returns null when either changed in the meantime.
    */
   reschedule(
-    bookingIdOrArgs: any,
+    bookingIdOrArgs:
+      | string
+      | {
+          bookingId: string;
+          customerId: string;
+          to?: { date: string; slot: string; seat: number; scheduledAt?: Date };
+          entry?: unknown;
+          fromStatus?: string;
+          fromDate?: string;
+          fromSlot?: string;
+        },
     customerId?: string,
     to?: { date: string; slot: string; seat: number; scheduledAt?: Date },
-    historyEntry?: any
+    historyEntry?: unknown
   ): Promise<IBooking | null> {
     const isObj = typeof bookingIdOrArgs === 'object' && bookingIdOrArgs !== null;
     const bId = isObj ? bookingIdOrArgs.bookingId : bookingIdOrArgs;
@@ -296,7 +329,7 @@ export class BookingsRepository {
     const target = isObj ? bookingIdOrArgs.to : to;
     const entry = isObj ? bookingIdOrArgs.entry : historyEntry;
 
-    if (![bId, cId].every((v) => Types.ObjectId.isValid(v)))
+    if (!target || !bId || !cId || !Types.ObjectId.isValid(String(bId)) || !Types.ObjectId.isValid(String(cId)))
       return Promise.resolve(null);
 
     const filter: Record<string, unknown> = {
