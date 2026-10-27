@@ -146,7 +146,6 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
-rootRouter.use('/partner/kyc', partnerKycRoutes);
 
 // ---- Notifications ----
 rootRouter.use("/notifications", notificationsRoutes);
@@ -188,7 +187,6 @@ rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
 rootRouter.use("/partner/jobs", maskedCallRoutes);
 rootRouter.use("/partner/jobs", partnerLocationRoutes);
 
-// ---- Bookings, chat & reviews ----
 rootRouter.use(bookingsRoutes);
 rootRouter.use("/bookings", bookingStatusRoutes);
 rootRouter.use("/bookings", chatRoutes);

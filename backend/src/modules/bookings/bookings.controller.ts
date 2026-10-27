@@ -37,7 +37,7 @@ function requireUserId(req: Request): string {
 
 export const bookingsController = {
   async getSlots(req: Request, res: Response) {
-    const serviceId = req.params.id;
+    const serviceId = req.params.id || req.params.serviceId;
     const date = req.query.date as string;
 
     const result = await BookingService.getAvailableSlots(
@@ -182,7 +182,7 @@ export const bookingsController = {
 
   /** Alias retained for routes that still call previewCancel. */
   async previewCancel(req: Request, res: Response) {
-    return this.previewCancellation(req, res);
+    return bookingsController.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {

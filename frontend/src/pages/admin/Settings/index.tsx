@@ -18,24 +18,11 @@ import {
 } from "@/services/adminSettingsApi";
 import { SettingField } from "./SettingField";
 
-<<<<<<< HEAD
 const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 
 export const AdminSettingsPage: React.FC = () => {
   const isMobile = useMediaQuery("(max-width: 767px)");
-=======
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-<<<<<<< HEAD
-=======
-
-
->>>>>>> origin/develop
-
-export const AdminSettingsPage: React.FC = () => {
-  // Web keeps the original tab-strip design; phones use the filter dropdown below.
-  const isMobile = useMediaQuery('(max-width: 767px)');
->>>>>>> origin/develop
   const pageRef = useDragScroll<HTMLDivElement>('[role="tablist"]');
 
   const [sections, setSections] = useState<SettingsSection[]>([]);

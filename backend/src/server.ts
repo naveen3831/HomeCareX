@@ -42,7 +42,7 @@ const timed = async <T>(
     console.log(`[timing] ${label}: ${Date.now() - start} ms`);
   }
 };
-
+ 
 const server = http.createServer(app);
 // Attach Socket.IO to the same HTTP server, otherwise /socket.io/ requests fall through to Express and return 404.
 
@@ -112,7 +112,7 @@ const seedDefaults = async (): Promise<void> => {
         upsertCatalogSeed,
       );
     }
-
+ 
     console.log('[startup] Default seeding completed.');
   } catch (error) {
     console.error(
@@ -162,7 +162,7 @@ const startServer = async (): Promise<void> => {
         server.removeListener('error', onError);
         resolve();
       };
-
+ 
       server.once('error', onError);
       server.once('listening', onListening);
       server.listen(PORT);
@@ -239,7 +239,7 @@ const shutdown = async (): Promise<void> => {
   }
 
   shuttingDown = true;
-
+ 
   console.log('Stopping server gracefully...');
 
   stopReferralWorker?.();
@@ -275,17 +275,13 @@ const shutdown = async (): Promise<void> => {
     console.log('Database connection closed.');
     process.exitCode = 0;
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    console.error('Error during graceful shutdown:', error);
     process.exitCode = 1;
   }
 };
 
-process.on('SIGTERM', () => {
-  void shutdown();
-});
+process.on('SIGTERM', () => void shutdown());
 
-process.on('SIGINT', () => {
-  void shutdown();
-});
+process.on('SIGINT', () => void shutdown());
 
 void startServer();

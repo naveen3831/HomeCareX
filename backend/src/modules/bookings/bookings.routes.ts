@@ -36,6 +36,12 @@ export const bookingsRoutes = Router();
 bookingsRoutes.get(
   "/services/:id/slots",
   ['/services/:id/slots', '/services/:serviceId/slots'],
+  (req, _res, next) => {
+    if (!req.params.id) {
+      req.params.id = req.params.serviceId;
+    }
+    next();
+  },
   validationMiddleware({
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
@@ -128,6 +134,7 @@ bookingsRoutes.get(
     '/bookings/:id/cancel-preview',
     '/bookings/:id/preview-cancellation',
     '/bookings/:id/cancel-quote',
+    '/bookings/:id/cancellation-preview',
   ],
   authMiddleware,
   roleMiddleware('customer'),
@@ -181,6 +188,11 @@ bookingsRoutes.post(
   ),
 );
 
+// Backward-compatible PATCH form for extra-charge decisions.
+bookingsRoutes.patch(
+  '/bookings/:id/extra-charges/:chargeId',
+  authMiddleware,
+  roleMiddleware('customer'),
 // GET /bookings/:id/invoice — HTML invoice for own, paid booking (404 for someone else's, 409 until paid)
 bookingsRoutes.get(
   "/bookings/:id/invoice",
@@ -204,6 +216,7 @@ bookingsRoutes.post(
   ),
 );
 
+export default bookingsRoutes;
 // GET /bookings/:id/cancel-preview — the exact fee and refund if the customer cancelled right now
 bookingsRoutes.get(
   "/bookings/:id/cancel-preview",

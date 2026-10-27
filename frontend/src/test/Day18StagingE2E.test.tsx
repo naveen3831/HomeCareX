@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -60,7 +59,7 @@ const renderWithProviders = (initialRoute = '/') => {
               <Route path="/verify-otp" element={<VerifyOtpPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/unauthorized" element={<div data-testid="unauthorized-page">Unauthorized Access</div>} />
-              
+
               {/* Protected Dashboards */}
               <Route
                 path="/customer"
@@ -116,6 +115,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           email: 'priya.sharma@example.com',
           phone: '9876543210',
           role: 'customer',
+          permissions: [],
           home: '/customer',
         },
         accessToken: 'access-token-test-123',
@@ -129,7 +129,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       await user.type(screen.getByLabelText(/phone number/i), '9876543210');
       await user.type(screen.getByLabelText(/^password/i), 'SecurePass@123');
       await user.type(screen.getByLabelText(/confirm password/i), 'SecurePass@123');
-      
+
       // Accept terms
       await user.click(screen.getByRole('checkbox', { name: /terms/i }));
 
@@ -217,6 +217,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Customer',
           email: 'customer@homecarex.com',
           role: 'customer',
+          permissions: [],
           home: '/customer',
         },
         accessToken: 'access-customer-token',
@@ -246,6 +247,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Partner',
           email: 'partner@homecarex.com',
           role: 'partner',
+          permissions: [],
           home: '/partner',
         },
         accessToken: 'access-partner-token',
@@ -315,6 +317,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           name: 'Test Customer',
           email: 'customer@homecarex.com',
           role: 'customer',
+          permissions: [],
           home: '/customer',
         },
         accessToken: 'super-secret-jwt-token-xyz',
@@ -364,7 +367,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       // 1. Forgot Password Step
       vi.mocked(authApi.forgotPassword).mockResolvedValueOnce({
         success: true,
-        message: 'If an account exists, a verification code has been sent.',
+        data: { message: 'If an account exists, a verification code has been sent.' },
       });
 
       renderWithProviders('/forgot-password');
@@ -403,7 +406,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       // 3. Reset Password Step
       vi.mocked(authApi.resetPassword).mockResolvedValueOnce({
         success: true,
-        message: 'Your password has been reset successfully.',
+        data: { message: 'Your password has been reset successfully.' },
       });
 
       await user.type(screen.getByLabelText(/^new password/i), 'BrandNewPass@999');

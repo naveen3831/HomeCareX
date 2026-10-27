@@ -10,7 +10,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { notificationsService } from "./notifications.service";
 
-/** Mounted at /api/v1/notifications. */
+/** Mounted at /api/v1/notifications. Any signed-in user can access their own notifications only. */
 export const notificationsRoutes = Router();
 
 notificationsRoutes.use(authenticate);

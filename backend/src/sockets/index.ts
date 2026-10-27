@@ -12,6 +12,16 @@ import type { AccessTokenPayload } from '../modules/auth/auth.types';
 import { registerTicketSocket } from './ticket.socket';
 import { registerTrackingSocket } from './tracking.socket';
 
+/**
+ * Room names.
+ *
+ * A socket joins:
+ * - user:<id>
+ * - role:<role>
+ * - booking:<id> after successful booking:join authorization
+ * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
+ * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
+ */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
   role: (role: string) => `role:${role}`,

@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 
 import jwt from "jsonwebtoken";
 
-import { authRepository } from "./auth.repository";
+import { authRepository } from "../auth/auth.repository";
 import { ensurePartnerProfile } from "../partners/partners.service";
 
 import {
@@ -16,14 +16,14 @@ import {
   REFRESH_TOKEN_TTL_DAYS,
   ROLE_HOME,
   ROLE_PERMISSIONS,
-} from "./auth.constants";
+} from "../auth/auth.constants";
 
 import {
   HttpError,
   type AccessTokenPayload,
   type AuthUserDto,
   type RefreshTokenPayload,
-} from "./auth.types";
+} from "../auth/auth.types";
 
 import type {
   AcceptInviteInput,
@@ -36,7 +36,7 @@ import type {
   ResetPasswordInput,
   VerifyInviteInput,
   VerifyOtpInput,
-} from "./auth.validation";
+} from "../auth/auth.validation";
 
 import type { UserRole } from "../../models/User";
 import { StaffModel } from "../../models/Staff";
@@ -346,64 +346,35 @@ export const authService = {
               upiId: input.upiId,
             };
           }
-          if (input.dob) {
-            partner.dob = new Date(input.dob);
-          }
-          if (input.gender) {
-            (partner as any).gender = input.gender;
-          }
-          if (input.idProofType || input.idProofNumber) {
-            partner.idProof = {
-              type: input.idProofType,
-              number: input.idProofNumber,
-            };
-          }
-          if (input.address || input.city || input.state || input.pincode) {
-            partner.address = {
-              line: input.address,
-              city: input.city,
-              state: input.state,
-              pincode: input.pincode,
-            };
-          }
-          if (input.experienceYears !== undefined) {
-            partner.experienceYears = input.experienceYears;
-          }
-          if (
-            input.workingDays ||
-            input.workingHoursStart ||
-            input.workingHoursEnd
-          ) {
-            partner.workingHours = {
-              days: input.workingDays ?? [],
-              start: input.workingHoursStart,
-              end: input.workingHoursEnd,
-            };
-          }
           const docs: Array<{
             type: "id_proof" | "address_proof";
             url: string;
-            status: "approved";
+            status: "pending";
+            uploadedAt: Date;
           }> = [];
           if (input.idProofDocument) {
             docs.push({
               type: "id_proof",
               url: input.idProofDocument,
-              status: "approved",
+              status: "pending",
+              uploadedAt: new Date(),
             });
           }
           if (input.addressProofDocument) {
             docs.push({
               type: "address_proof",
               url: input.addressProofDocument,
-              status: "approved",
+              status: "pending",
+              uploadedAt: new Date(),
             });
           }
-          (partner as any).kyc = {
-            ...(partner.kyc ?? {}),
-            status: "approved",
-            ...(docs.length > 0 ? { documents: docs } : {}),
-          };
+          if (docs.length > 0) {
+            partner.set("kyc", {
+              status: "submitted",
+              submittedAt: new Date(),
+              documents: [...(partner.kyc?.documents ?? []), ...docs],
+            });
+          }
           await partner.save();
         }
       } catch (err) {

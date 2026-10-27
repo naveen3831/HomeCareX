@@ -1,10 +1,10 @@
-import * as AuthContextModule from '@/context/AuthContext';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
+import * as AuthContextModule from '@/hooks/useAuth';
 import NotFound from '@/pages/public/NotFound';
 import UnauthorizedPage from '@/pages/public/Unauthorized';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
@@ -14,8 +14,8 @@ describe('Frontend 404 Page Not Found', () => {
     render(
       <HelmetProvider>
         <MemoryRouter>
-        <NotFound />
-      </MemoryRouter>
+          <NotFound />
+        </MemoryRouter>
       </HelmetProvider>
     );
 
@@ -37,8 +37,8 @@ describe('Frontend 403 Unauthorized Page', () => {
     render(
       <HelmetProvider>
         <MemoryRouter>
-        <UnauthorizedPage />
-      </MemoryRouter>
+          <UnauthorizedPage />
+        </MemoryRouter>
       </HelmetProvider>
     );
 
@@ -77,8 +77,8 @@ describe('Frontend 403 Unauthorized Page', () => {
     render(
       <HelmetProvider>
         <MemoryRouter>
-        <UnauthorizedPage />
-      </MemoryRouter>
+          <UnauthorizedPage />
+        </MemoryRouter>
       </HelmetProvider>
     );
 
@@ -107,8 +107,8 @@ describe('Frontend 403 Unauthorized Page', () => {
     render(
       <HelmetProvider>
         <MemoryRouter>
-        <UnauthorizedPage />
-      </MemoryRouter>
+          <UnauthorizedPage />
+        </MemoryRouter>
       </HelmetProvider>
     );
 
@@ -137,8 +137,8 @@ describe('Frontend 403 Unauthorized Page', () => {
     render(
       <HelmetProvider>
         <MemoryRouter>
-        <UnauthorizedPage />
-      </MemoryRouter>
+          <UnauthorizedPage />
+        </MemoryRouter>
       </HelmetProvider>
     );
 
