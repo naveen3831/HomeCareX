@@ -1,5 +1,4 @@
-import multer from "multer";
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { HttpError } from "../auth/auth.types";
 
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -21,7 +20,7 @@ export interface EvidenceFile {
 /** Verify the file signature as well as the declared MIME type. */
 export function validateEvidence(
   file: Pick<
-    Express.Multer.File,
+    UploadedFile,
     "originalname" | "mimetype" | "buffer" | "size"
   >,
 ): EvidenceFile {
@@ -81,7 +80,7 @@ interface ParsedForm {
 }
 
 async function readMultipart(req: Request): Promise<ParsedForm> {
-  const contentType = req.headers["content-type"] ?? "";
+  const contentType = req.get("content-type") ?? "";
   const boundaryMatch = /^multipart\/form-data\s*;.*?boundary=(?:"([^"]+)"|([^;\s]+))/i.exec(
     contentType,
   );
@@ -158,51 +157,7 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
       res.locals.ticketFiles = files.map(validateEvidence);
       // Validation runs on req.body next, so the form fields must be there.
       req.body = fields;
-const receive = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: MAX_ATTACHMENT_BYTES,
-    files: MAX_ATTACHMENTS,
-    fields: 8,
-    fieldSize: 20_000,
-    parts: 12,
-  },
-  fileFilter: (_req, file, cb) => {
-    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype))
-      cb(null, true);
-    else
-      cb(
-        new HttpError(
-          400,
-          "Use JPG, PNG, GIF, WebP or PDF files only.",
-          "INVALID_ATTACHMENT",
-        ),
-      );
-  },
-}).array("attachments", MAX_ATTACHMENTS);
-
-/** Applied only to authenticated ticket mutations. */
-export const receiveTicketFiles: RequestHandler = (req, res, next) => {
-  receive(req, res, (error: unknown) => {
-    if (error instanceof multer.MulterError) {
-      return next(
-        new HttpError(
-          400,
-          error.code === "LIMIT_FILE_SIZE"
-            ? "Each attachment must be 5 MB or smaller."
-            : "Upload up to 3 files and check the form fields.",
-          "INVALID_ATTACHMENT",
-        ),
-      );
-    }
-    if (error) return next(error);
-    try {
-      res.locals.ticketFiles = (Array.isArray(req.files) ? req.files : []).map(
-        validateEvidence,
-      );
       next();
-    } catch (err) {
-      next(err);
-    }
-  });
+    })
+    .catch(next);
 };

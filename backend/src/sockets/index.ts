@@ -59,11 +59,7 @@ export const getIOIfReady = (): Server | null => io;
 export const emitToUser = (userId: string, event: string, payload: unknown) =>
   getIO().to(rooms.user(userId)).emit(event, payload);
 
-export const emitToBooking = (
-  bookingId: string,
-  event: string,
-  payload: unknown,
-) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
+
 
 /**
  * Decides whether an authenticated user may join a booking room.
@@ -83,9 +79,7 @@ async function canJoinBooking(
     return !!(await BookingModel.exists({ _id: bookingId }));
   }
 
-  if (auth.role === 'customer') {
-  if (auth.role === 'admin')
-    return !!(await BookingModel.exists({ _id: bookingId }));
+ 
   if (auth.role === 'customer')
     return !!(await BookingModel.exists({
       _id: bookingId,
@@ -272,12 +266,6 @@ export const initSockets = (server: HttpServer): Server => {
     // --------------------------------------------------
     // TRACKING + TICKET SOCKET EVENTS
     // --------------------------------------------------
-
-        void socket.leave(
-          rooms.booking(parsed.data.bookingId),
-        );
-      }
-    });
 
     registerTrackingSocket(socket);
     registerTicketSocket(socket);

@@ -21,14 +21,8 @@ import {
   customerProfileRoutes,
 } from '../modules/customer-profile/customer-profile.routes';
 import { designationsRoutes } from '../modules/designations/designations.routes';
-import { reportsRoutes } from '../modules/reports/reports.routes';
-import { servicesRoutes } from '../modules/services/services.routes';
-import { settingsRoutes } from '../modules/settings/settings.routes';
-import { partnersRoutes } from '../modules/partners/partners.routes';
-import { payoutsRoutes } from '../modules/payouts/payouts.routes';
-import refundsRoutes from '../modules/refunds/refunds.routes';
-import { couponsRoutes, couponCustomerRoutes } from '../modules/coupons/coupons.routes';
-import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
+import { earningsRoutes } from '../modules/earnings/earnings.routes';
+
 import { incentivesRoutes } from '../modules/incentives/incentives.routes';
 import leadsRoutes from '../modules/leads/leads.routes';
 import { marketingRoutes, publicMarketingRoutes } from '../modules/marketing/marketing.routes';
@@ -42,7 +36,6 @@ import {
 import { maskedCallRoutes } from '../modules/masked-call/masked-call.routes';
 import { partnerLocationRoutes } from '../modules/partner-location/partner-location.routes';
 import { partnerDashboardRoutes } from '../modules/partners/partner-dashboard.routes';
-import { partnerKycRoutes } from '../modules/partners/partner-kyc.routes';
 import { partnersRoutes } from '../modules/partners/partners.routes';
 import { partnerPerformanceRoutes } from '../modules/partner-performance/partner-performance.routes';
 import { partnerReviewsRoutes } from '../modules/partner-reviews/partner-reviews.routes';

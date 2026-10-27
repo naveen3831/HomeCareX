@@ -2,7 +2,6 @@ import mongoose, { Types } from 'mongoose';
 import { NotificationModel } from '../../models/Notification';
 import { UserModel } from '../../models/User';
 import { getSetting } from '../settings';
-import { HttpError } from '../auth/auth.types';
 import { emitToUser } from '../../sockets';
 import { Errors } from '../../utils/errors';
 import {

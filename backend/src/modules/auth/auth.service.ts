@@ -22,7 +22,6 @@ import type {
   VerifyInviteInput,
   AcceptInviteInput,
 } from './auth.validation';
-import type { UserRole } from '../../models/User';
 import mongoose, { Types } from 'mongoose';
 import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';

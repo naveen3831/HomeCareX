@@ -1,5 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
@@ -39,9 +38,6 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const { pathname, key } = useLocation();
   const navigate = useNavigate();
 
-  // null on Home, which keeps the address picker + bell instead of a back bar.
-  const meta = getCustomerPageMeta(pathname);
-
   // React Router gives the first entry of a session the key "default": nothing to go back to.
   // null on Home. Everywhere else the bar becomes "← Page name".
   const meta = getCustomerPageMeta(pathname);
@@ -78,39 +74,26 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         inner ? "border-b border-line bg-canvas" : "bg-white/85 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl",
       )}
     >
-      {meta ? (
-        /* Inner pages, every width: [☰ on md+] ← Page name */
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {hamburger}
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            aria-label="Open sidebar"
-            aria-expanded={false}
-            aria-controls={CUSTOMER_SIDEBAR_ID}
-            className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
-          >
-            <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-            <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
-            <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
-          </button>
-        )}
-
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         {meta ? (
-          <button
-            type="button"
-            onClick={goBack}
-            aria-label={`Back from ${meta.title}`}
-            className={clsx(
-              "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
-              FOCUS_RING,
-            )}
-          >
-            <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{meta.title}</span>
-          </button>
+          <>
+            {hamburger}
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label={`Back from ${meta.title}`}
+              className={clsx(
+                "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                FOCUS_RING,
+              )}
+            >
+              <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{meta.title}</span>
+            </button>
+          </>
         ) : (
           <>
+            {hamburger}
             <Link
               to={customerPath()}
               className={clsx(
@@ -129,44 +112,12 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
               className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
             />
 
-            {/* One picker at every width (a single instance keeps DOM ids unique). */}
             <div className="min-w-0 flex-1 md:flex-none">
               <LocationPicker />
             </div>
           </>
         )}
       </div>
-
-      <div className={clsx(meta && "hidden md:block")}>
-            onClick={goBack}
-            aria-label={`Back from ${meta.title}`}
-            className={clsx(
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink transition-colors hover:bg-brand-soft active:scale-95 motion-reduce:transition-none",
-              FOCUS_RING,
-            )}
-          >
-            <ArrowLeft className="h-6 w-6" strokeWidth={2.2} aria-hidden="true" />
-          </button>
-          <p className="min-w-0 truncate text-[22px] font-semibold leading-none tracking-tight text-ink">{meta.title}</p>
-        </div>
-      ) : (
-        /* Home: picker on phones; ☰ | brand | picker on md+. */
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {hamburger}
-
-          <Link to={customerPath()} className={clsx("rounded-lg text-lg font-bold tracking-tight", sidebarOpen ? "md:hidden" : "ml-2", "hidden md:inline-flex", FOCUS_RING)}>
-            <span className="text-accent">Home</span>
-            <span className="text-brand">CareX</span>
-          </Link>
-
-          <span aria-hidden="true" className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")} />
-
-          {/* One picker at every width (a single instance keeps DOM ids unique). */}
-          <div className="min-w-0 flex-1 md:flex-none">
-            <LocationPicker />
-          </div>
-        </div>
-      )}
 
       {/* Phones: bell on Home only. md+: always. */}
       <div className={clsx(inner && "hidden md:block")}>

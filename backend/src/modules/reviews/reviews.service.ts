@@ -36,11 +36,6 @@ import {
   type ReviewStatus,
 } from './reviews.validation';
 
-/** "Ravi Kumar" -> "Ravi K."; customer email is never exposed publicly. */
-interface ReviewAuditActor {
-  id: string;
-  ip: string;
-}
 
 /** "Ravi Kumar" -> "Ravi K."; a single name stays as is. The customer's email never leaves the server. */
 export function maskAuthor(fullName: string): string {
@@ -123,14 +118,8 @@ export interface ReviewAuditActor {
   ip?: string;
 }
 
-export class ReviewsService {
-  private escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-interface ReviewAuditActor {
-  id: string;
-  ip?: string;
-}
+
+
 
 export class ReviewsService {
   /**
@@ -789,13 +778,10 @@ export class ReviewsService {
 
     return review;
   }
-}
 
-  async updateReviewStatus(
-    id: string,
-    status: unknown,
-    actor: ReviewAuditActor,
-  ) {
+
+  async updateReviewStatus( id: string,    status: unknown,    actor: ReviewAuditActor,  )
+   {
     if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
     const parsedStatus = reviewStatusSchema.safeParse(status);
     if (!parsedStatus.success) throw new HttpError(400, 'Invalid review status', 'VALIDATION_ERROR');
