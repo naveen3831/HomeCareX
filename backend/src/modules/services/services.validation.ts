@@ -9,6 +9,11 @@ const addOnSchema = z.object({
   price: z.number().min(0).max(1_000_000),
 });
 
+const mediaSchema = z.object({ url: z.string().trim().min(1).max(300_000), alt: z.string().trim().max(160).default('') });
+const faqSchema = z.object({ question: z.string().trim().min(1).max(200), answer: z.string().trim().min(1).max(1000) });
+const checklistSchema = z.object({ label: z.string().trim().min(1).max(200), required: z.boolean().default(false) });
+const lineSchema = z.string().trim().min(1).max(200);
+
 export const serviceCreateSchema = z.object({
   categoryId: objectId,
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80),
@@ -17,6 +22,11 @@ export const serviceCreateSchema = z.object({
   durationMinutes: z.number().int().min(5).max(1440).optional(),
   addOns: z.array(addOnSchema).max(20).optional(),
   active: z.boolean().optional(),
+  media: z.array(mediaSchema).max(10).optional(),
+  inclusions: z.array(lineSchema).max(30).optional(),
+  exclusions: z.array(lineSchema).max(30).optional(),
+  faqs: z.array(faqSchema).max(30).optional(),
+  checklist: z.array(checklistSchema).max(50).optional(),
 });
 
 export const serviceUpdateSchema = serviceCreateSchema.partial().refine((v) => Object.keys(v).length > 0, {

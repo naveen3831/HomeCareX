@@ -1,3 +1,4 @@
+
 import { Types } from 'mongoose';
 import { SettingModel } from '../../models/Settings';
 import { Errors } from '../../utils/errors';
@@ -15,41 +16,70 @@ import {
 import { checkSetting, sameValue } from './settings.validation';
 
 const CACHE_TTL_MS = 30_000;
+
 const cache = new Map<string, { value: unknown; at: number }>();
 
-const isKey = (k: string): k is SettingKey => (SETTING_KEYS as string[]).includes(k);
+const isKey = (key: string): key is SettingKey =>
+  (SETTING_KEYS as readonly string[]).includes(key);
 
-/** Inserts any missing defaults. Never overwrites values an admin already changed. Safe to run on every boot. */
+/**
+ * Inserts missing defaults without overwriting existing administrator values.
+ */
 export async function seedDefaultSettings(): Promise<number> {
-  const existing = new Set((await SettingModel.find({}, 'key').lean()).map((s) => s.key));
-  const missing = SETTING_KEYS.filter((k) => !existing.has(k));
-  if (missing.length) {
+  const existingRows = await SettingModel.find({}, 'key').lean();
+  const existing = new Set(existingRows.map((setting) => setting.key));
+  const missing = SETTING_KEYS.filter((key) => !existing.has(key));
+
+  if (missing.length > 0) {
     await SettingModel.insertMany(
-      missing.map((key) => ({ key, value: SETTING_DEFAULTS[key].value, description: SETTING_DEFAULTS[key].description })),
+      missing.map((key) => ({
+        key,
+        value: SETTING_DEFAULTS[key].value,
+        description: SETTING_DEFAULTS[key].description,
+      })),
     );
   }
+
   return missing.length;
 }
 
-/** Read one setting. Falls back to the built-in default if the DB has no row (or is unreachable). */
-export async function getSetting<K extends SettingKey>(key: K): Promise<SettingValue<K>> {
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value as SettingValue<K>;
+/**
+ * Reads a setting, using its cached value or its built-in default.
+ */
+export async function getSetting<K extends SettingKey>(
+  key: K,
+): Promise<SettingValue<K>> {
+  const cached = cache.get(key);
+
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
+    return cached.value as SettingValue<K>;
+  }
+
   let value: unknown = SETTING_DEFAULTS[key].value;
+
   try {
     const row = await SettingModel.findOne({ key }).lean();
-    if (row) value = row.value;
+
+    if (row) {
+      value = row.value;
+    }
   } catch {
-    /* use default */
+    // Fall back to the built-in default if the database is unavailable.
   }
+
   cache.set(key, { value, at: Date.now() });
+
   return value as SettingValue<K>;
 }
 
-/** Drops the cached value so the next getSetting() reads the database (all keys when none is given). */
+/** Clears one cached setting or the entire cache. */
 export function clearSettingsCache(key?: string): void {
-  if (key) cache.delete(key);
-  else cache.clear();
+  if (key) {
+    cache.delete(key);
+    return;
+  }
+
+  cache.clear();
 }
 
 export interface SettingActor {
@@ -57,34 +87,49 @@ export interface SettingActor {
   ip: string;
 }
 
-async function currentValues(): Promise<Map<SettingKey, { value: unknown; updatedAt?: Date }>> {
+async function currentValues(): Promise<
+  Map<SettingKey, { value: unknown; updatedAt?: Date }>
+> {
   const rows = await SettingModel.find().lean();
-  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+
   return new Map(
-    SETTING_KEYS.map((key) => [
-      key,
-      { value: byKey.get(key)?.value ?? SETTING_DEFAULTS[key].value, updatedAt: (byKey.get(key) as { updatedAt?: Date } | undefined)?.updatedAt },
-    ]),
+    SETTING_KEYS.map((key) => {
+      const row = byKey.get(key);
+
+      return [
+        key,
+        {
+          value: row?.value ?? SETTING_DEFAULTS[key].value,
+          updatedAt: row?.updatedAt,
+        },
+      ];
+    }),
   );
 }
 
 export const settingsService = {
-  /** Settings grouped by section, each with label / value / description / validation, ready for the admin page. */
+  /** Lists settings grouped by section for the admin settings page. */
   async list() {
     const values = await currentValues();
+
     return {
       sections: SETTING_SECTION_IDS.map((id) => ({
         id,
         ...SETTING_SECTION_LABELS[id],
-        settings: SETTING_KEYS.filter((k) => SETTING_META[k].section === id).map((key) => {
+        settings: SETTING_KEYS.filter(
+          (key) => SETTING_META[key].section === id,
+        ).map((key) => {
           const { section: _section, ...meta } = SETTING_META[key];
+          const current = values.get(key)!;
+
           return {
             key,
             ...meta,
             description: SETTING_DEFAULTS[key].description,
             default: SETTING_DEFAULTS[key].value,
-            value: values.get(key)!.value,
-            updatedAt: values.get(key)!.updatedAt ?? null,
+            value: current.value,
+            updatedAt: current.updatedAt ?? null,
           };
         }),
       })),
@@ -92,43 +137,85 @@ export const settingsService = {
   },
 
   /**
-   * Saves several settings at once. Every value is validated first; if ANY is invalid nothing is written and the
-   * response lists each bad field. Only values that really changed are written, and each one gets an audit row
-   * (before / after, who, from which IP).
+   * Validates and updates multiple settings.
+   * Invalid input is rejected before any writes occur.
    */
   async updateMany(input: unknown, actor: SettingActor) {
-    if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length === 0) {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.keys(input).length === 0
+    ) {
       throw Errors.badRequest('Send at least one setting to update');
     }
 
     const cleaned = new Map<SettingKey, unknown>();
     const problems: { field: string; message: string }[] = [];
-    for (const [key, raw] of Object.entries(input as Record<string, unknown>)) {
+
+    for (const [key, rawValue] of Object.entries(
+      input as Record<string, unknown>,
+    )) {
       if (!isKey(key)) {
-        problems.push({ field: key, message: `Unknown setting: ${key}` });
+        problems.push({
+          field: key,
+          message: `Unknown setting: ${key}`,
+        });
         continue;
       }
-      const checked = checkSetting(key, raw);
-      if (checked.ok) cleaned.set(key, checked.value);
-      else problems.push({ field: key, message: checked.message });
+
+      const checked = checkSetting(key, rawValue);
+
+      if (checked.ok) {
+        cleaned.set(key, checked.value);
+      } else {
+        problems.push({
+          field: key,
+          message: checked.message,
+        });
+      }
     }
-    if (problems.length) throw Errors.validation(problems);
+
+    if (problems.length > 0) {
+      throw Errors.validation(problems);
+    }
 
     const before = await currentValues();
-    const changes = [...cleaned].filter(([key, value]) => !sameValue(before.get(key)!.value, value));
 
-    if (changes.length) {
+    const changes = [...cleaned].filter(([key, value]) =>
+      !sameValue(before.get(key)!.value, value),
+    );
+
+    if (changes.length > 0) {
+      // SettingModel.updatedBy expects a valid MongoDB ObjectId.
+      if (!Types.ObjectId.isValid(actor.id)) {
+        throw Errors.badRequest('Invalid setting actor ID');
+      }
+
+      const updatedBy = new Types.ObjectId(actor.id);
+
       await SettingModel.bulkWrite(
-        changes.map(([key, value]) => ({
+        changes.map<any>(([key, value]) => ({
           updateOne: {
             filter: { key },
-            update: { $set: { value, description: SETTING_DEFAULTS[key].description, updatedBy: Types.ObjectId.isValid(actor.id) ? new Types.ObjectId(actor.id) : undefined } },
+            update: {
+              $set: {
+                value,
+                description: SETTING_DEFAULTS[key].description,
+                updatedBy,
+              },
+            },
             upsert: true,
           },
         })),
       );
-      for (const [key] of changes) cache.delete(key);
 
+      // Invalidate cache only after a successful database write.
+      for (const [key] of changes) {
+        cache.delete(key);
+      }
+
+      // Audit each changed setting independently.
       for (const [key, value] of changes) {
         try {
           await auditService.recordAudit({
@@ -136,25 +223,41 @@ export const settingsService = {
             action: SETTINGS_AUDIT.action,
             entity: SETTINGS_AUDIT.entity,
             entityId: key,
-            before: { value: before.get(key)!.value },
+            before: {
+              value: before.get(key)!.value,
+            },
             after: { value },
             ip: actor.ip,
             result: 'Success',
           });
-        } catch (err) {
-          console.error(`[settings] audit write failed for ${key} (by ${actor.id})`, err);
+        } catch (error) {
+          console.error(
+            `[settings] Audit write failed for ${key} (by ${actor.id})`,
+            error,
+          );
         }
       }
     }
 
-    return { changed: changes.map(([key]) => key), ...(await this.list()) };
+    return {
+      changed: changes.map(([key]) => key),
+      ...(await this.list()),
+    };
   },
 
-  /** Single-key update (kept for older callers). Same validation and audit as updateMany. */
+  /** Updates one setting using the same validation and audit logic. */
   async update(key: string, value: unknown, actor: SettingActor) {
-    if (!isKey(key)) throw Errors.badRequest(`Unknown setting: ${key}`);
+    if (!isKey(key)) {
+      throw Errors.badRequest(`Unknown setting: ${key}`);
+    }
+
     await this.updateMany({ [key]: value }, actor);
-    const saved = checkSetting(key, value);
-    return { key, value: saved.ok ? saved.value : value };
+
+    const checked = checkSetting(key, value);
+
+    return {
+      key,
+      value: checked.ok ? checked.value : value,
+    };
   },
 };

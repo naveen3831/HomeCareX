@@ -1,3 +1,4 @@
+
 import { Types } from 'mongoose';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
@@ -6,22 +7,46 @@ import UserModel from '../../models/User';
 import { AppError } from '../../utils/AppError';
 import EarningModel from '../earnings/Earning';
 import { partnerWalletLedger } from '../partner-wallet/partner-wallet.ledger';
-import { computeBatchStatus, groupEarningsByPartner, round2, type PayoutStatus } from './payouts.calc';
-import type { BatchRecord, PayoutRecord, PayoutsRepository } from './payouts.types';
+import {
+  computeBatchStatus,
+  groupEarningsByPartner,
+  round2,
+  type PayoutStatus,
+} from './payouts.calc';
+import type {
+  BatchRecord,
+  PayoutRecord,
+  PayoutsRepository,
+} from './payouts.types';
 
-const isDuplicateKeyError = (e: unknown): boolean => typeof e === 'object' && e !== null && (e as { code?: number }).code === 11000;
+const isDuplicateKeyError = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  (error as { code?: number }).code === 11000;
 
-const noEarnings = () => new AppError(400, 'NO_EARNINGS_TO_PAY', 'There are no pending earnings in this period');
-const alreadyExists = () => new AppError(409, 'PAYOUT_BATCH_ALREADY_EXISTS', 'A payout batch already exists for this period');
+const noEarnings = () =>
+  new AppError(
+    400,
+    'NO_EARNINGS_TO_PAY',
+    'There are no pending earnings in this period',
+  );
+
+const alreadyExists = () =>
+  new AppError(
+    409,
+    'PAYOUT_BATCH_ALREADY_EXISTS',
+    'A payout batch already exists for this period',
+  );
 
 export const payoutsRepository: PayoutsRepository = {
   /**
-   * Turns every pending earning with earnedAt in [periodStart, periodEnd) into one payout per partner.
-   * Earnings are claimed with a conditional update stamped with the new batch id, so two batches
-   * (or two clicks) can never pay the same earning twice.
+   * Generates a batch from pending earnings in [periodStart, periodEnd).
+   * Each partner receives one payout for the batch.
    */
   async generateBatch({ periodStart, periodEnd, adminId }) {
-    if (await PayoutBatchModel.exists({ periodStart, periodEnd })) throw alreadyExists();
+    if (await PayoutBatchModel.exists({ periodStart, periodEnd })) {
+      throw alreadyExists();
+    }
 
     const batchId = new Types.ObjectId();
     const now = new Date();
@@ -29,155 +54,338 @@ export const payoutsRepository: PayoutsRepository = {
     const candidates = await EarningModel.find({
       status: 'pending',
       payoutBatchId: null,
-      earnedAt: { $gte: periodStart, $lt: periodEnd },
+      earnedAt: {
+        $gte: periodStart,
+        $lt: periodEnd,
+      },
     })
       .select('_id')
       .lean();
-    if (!candidates.length) throw noEarnings();
 
+    if (!candidates.length) {
+      throw noEarnings();
+    }
+
+    // Claim eligible earnings so they cannot be included in another batch.
     await EarningModel.updateMany(
-      { _id: { $in: candidates.map((c) => c._id) }, status: 'pending', payoutBatchId: null },
-      { $set: { status: 'settled', settledAt: now, payoutBatchId: batchId } },
+      {
+        _id: { $in: candidates.map((candidate) => candidate._id) },
+        status: 'pending',
+        payoutBatchId: null,
+      },
+      {
+        $set: {
+          status: 'settled',
+          settledAt: now,
+          payoutBatchId: batchId,
+        },
+      },
     );
-    const claimed = await EarningModel.find({ payoutBatchId: batchId }).select('partnerId gross commission net').lean();
-    if (!claimed.length) throw noEarnings();
 
-    const earningIds = claimed.map((e) => String(e._id));
+    const claimed = await EarningModel.find({
+      payoutBatchId: batchId,
+    })
+      .select('partnerId gross commission net')
+      .lean();
+
+    if (!claimed.length) {
+      throw noEarnings();
+    }
+
+    const earningIds = claimed.map((earning) => String(earning._id));
+
     try {
       const groups = groupEarningsByPartner(
-        claimed.map((e) => ({ partnerId: String(e.partnerId), gross: e.gross, commission: e.commission, net: e.net })),
+        claimed.map((earning) => ({
+          partnerId: String(earning.partnerId),
+          gross: earning.gross,
+          commission: earning.commission,
+          net: earning.net,
+        })),
       );
 
-      const partners = await PartnerModel.find({ _id: { $in: groups.map((g) => g.partnerId) } })
+      const partners = await PartnerModel.find({
+        _id: { $in: groups.map((group) => group.partnerId) },
+      })
         .select('bankDetails')
         .lean();
-      const methodOf = (partnerId: string): 'upi' | 'bank_transfer' | undefined => {
-        const b = partners.find((p) => String(p._id) === partnerId)?.bankDetails;
-        return b?.upiId ? 'upi' : b?.accountLast4 ? 'bank_transfer' : undefined;
+
+      const methodOf = (
+        partnerId: string,
+      ): 'upi' | 'bank_transfer' | undefined => {
+        const bankDetails = partners.find(
+          (partner) => String(partner._id) === partnerId,
+        )?.bankDetails;
+
+        if (bankDetails?.upiId) {
+          return 'upi';
+        }
+
+        if (bankDetails?.accountLast4) {
+          return 'bank_transfer';
+        }
+
+        return undefined;
       };
 
       const payoutDocs = groups
-        .filter((g) => g.net > 0)
-        .map((g) => ({
+        .filter((group) => group.net > 0)
+        .map((group) => ({
           _id: new Types.ObjectId(),
-          partnerId: new Types.ObjectId(g.partnerId),
-          amount: g.net,
+          partnerId: new Types.ObjectId(group.partnerId),
+          amount: round2(group.net),
           status: 'pending' as const,
-          method: methodOf(g.partnerId),
+          method: methodOf(group.partnerId),
           batchId,
         }));
-      if (payoutDocs.length) await PayoutModel.insertMany(payoutDocs);
+
+      if (payoutDocs.length) {
+        await PayoutModel.insertMany(payoutDocs);
+      }
 
       const batch = await PayoutBatchModel.create({
         _id: batchId,
         periodStart,
         periodEnd,
-        gross: round2(groups.reduce((s, g) => s + g.gross, 0)),
-        commission: round2(groups.reduce((s, g) => s + g.commission, 0)),
-        net: round2(groups.reduce((s, g) => s + g.net, 0)),
-        earningIds: claimed.map((e) => e._id),
-        payoutIds: payoutDocs.map((p) => p._id),
+        gross: round2(
+          groups.reduce((sum, group) => sum + group.gross, 0),
+        ),
+        commission: round2(
+          groups.reduce((sum, group) => sum + group.commission, 0),
+        ),
+        net: round2(
+          groups.reduce((sum, group) => sum + group.net, 0),
+        ),
+        earningIds: claimed.map((earning) => earning._id),
+        payoutIds: payoutDocs.map((payout) => payout._id),
         status: 'pending',
         createdBy: new Types.ObjectId(adminId),
       });
 
-      // Cleared earnings now count in the partner's available balance.
+      // Update wallet accounting after earnings have been settled.
       await partnerWalletLedger.settleEarnings(earningIds);
+
       return batch.toObject() as unknown as BatchRecord;
-    } catch (err) {
-      // Best-effort undo so the earnings go back into the pool for the next attempt.
+    } catch (error) {
+      // Best-effort rollback of the batch, payouts, wallet and earnings.
       await PayoutModel.deleteMany({ batchId }).catch(() => undefined);
-      await PayoutBatchModel.deleteOne({ _id: batchId }).catch(() => undefined);
-      await partnerWalletLedger.unsettleEarnings(earningIds).catch(() => undefined);
+
+      await PayoutBatchModel.deleteOne({
+        _id: batchId,
+      }).catch(() => undefined);
+
+      await partnerWalletLedger
+        .unsettleEarnings(earningIds)
+        .catch(() => undefined);
+
       await EarningModel.updateMany(
         { payoutBatchId: batchId },
-        { $set: { status: 'pending', settledAt: null, payoutBatchId: null } },
+        {
+          $set: {
+            status: 'pending',
+            settledAt: null,
+            payoutBatchId: null,
+          },
+        },
       ).catch(() => undefined);
-      if (isDuplicateKeyError(err)) throw alreadyExists();
-      throw err;
+
+      if (isDuplicateKeyError(error)) {
+        throw alreadyExists();
+      }
+
+      throw error;
     }
   },
 
-  async listBatches({ page, limit, status }) {
+  /**
+   * Lists payout batches with pagination and an optional status filter.
+   */
+  async listBatches({ page = 1, limit = 20, status }) {
+    const safePage =
+      Number.isInteger(page) && page > 0 ? page : 1;
+    const safeLimit =
+      Number.isInteger(limit) && limit > 0 ? limit : 20;
+
     const match = status ? { status } : {};
+
     const [items, total] = await Promise.all([
       PayoutBatchModel.find(match)
         .sort({ createdAt: -1, _id: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .skip((safePage - 1) * safeLimit)
+        .limit(safeLimit)
         .lean(),
+
       PayoutBatchModel.countDocuments(match),
     ]);
+
     return {
       items: items as unknown as BatchRecord[],
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        pages: Math.ceil(total / safeLimit),
+      },
     };
   },
 
+  /**
+   * Finds a batch by ID.
+   */
   async findBatchById(batchId) {
-    return (await PayoutBatchModel.findById(batchId).lean()) as unknown as BatchRecord | null;
+    const batch = await PayoutBatchModel.findById(batchId).lean();
+
+    return batch as unknown as BatchRecord | null;
   },
 
-  /** Payouts of one batch with the partner's name and email attached. */
+  /**
+   * Lists payouts in a batch and attaches the partner's name and email.
+   */
   async listPayouts(batchId) {
-    const payouts = await PayoutModel.find({ batchId: new Types.ObjectId(batchId) })
+    if (!Types.ObjectId.isValid(batchId)) {
+      throw new AppError(
+        400,
+        'INVALID_BATCH_ID',
+        'Invalid payout batch ID',
+      );
+    }
+
+    const payouts = await PayoutModel.find({
+      batchId: new Types.ObjectId(batchId),
+    })
       .sort({ createdAt: 1, _id: 1 })
       .lean();
-    const partners = await PartnerModel.find({ _id: { $in: payouts.map((p) => p.partnerId) } })
+
+    const partners = await PartnerModel.find({
+      _id: { $in: payouts.map((payout) => payout.partnerId) },
+    })
       .select('userId')
       .lean();
-    const users = await UserModel.find({ _id: { $in: partners.map((p) => p.userId) } })
+
+    const users = await UserModel.find({
+      _id: { $in: partners.map((partner) => partner.userId) },
+    })
       .select('name email')
       .lean();
 
-    return payouts.map((p) => {
-      const partner = partners.find((x) => String(x._id) === String(p.partnerId));
-      const user = users.find((u) => String(u._id) === String(partner?.userId));
+    return payouts.map((payout) => {
+      const partner = partners.find(
+        (item) => String(item._id) === String(payout.partnerId),
+      );
+
+      const user = users.find(
+        (item) => String(item._id) === String(partner?.userId),
+      );
+
       return {
-        _id: p._id,
-        partnerId: { _id: p.partnerId, name: user?.name ?? 'Unknown partner', email: user?.email ?? '' },
-        batchId: p.batchId,
-        amount: p.amount,
-        status: p.status as PayoutStatus,
-        method: p.method ?? null,
-        transactionId: p.transactionId ?? null,
-        paidAt: p.paidAt ?? null,
-        createdAt: (p as unknown as { createdAt: Date }).createdAt,
+        _id: payout._id,
+        partnerId: {
+          _id: payout.partnerId,
+          name: user?.name ?? 'Unknown partner',
+          email: user?.email ?? '',
+        },
+        batchId: payout.batchId,
+        amount: payout.amount,
+        status: payout.status as PayoutStatus,
+        method: payout.method ?? null,
+        transactionId: payout.transactionId ?? null,
+        paidAt: payout.paidAt ?? null,
+        createdAt: (
+          payout as unknown as { createdAt: Date }
+        ).createdAt,
       } satisfies PayoutRecord;
     });
   },
 
-  /** pending/processing -> paid, then the matching debit in the partner wallet, then the batch status. */
+  /**
+   * Marks a payout as paid, records the wallet debit,
+   * and recalculates its batch status.
+   */
   async markPaid({ payoutId, transactionId }) {
+    if (!Types.ObjectId.isValid(payoutId)) {
+      throw new AppError(
+        400,
+        'INVALID_PAYOUT_ID',
+        'Invalid payout ID',
+      );
+    }
+
     const existing = await PayoutModel.findById(payoutId).lean();
-    if (!existing) throw new AppError(404, 'PAYOUT_NOT_FOUND', 'Payout not found');
+
+    if (!existing) {
+      throw new AppError(
+        404,
+        'PAYOUT_NOT_FOUND',
+        'Payout not found',
+      );
+    }
 
     if (existing.status === 'paid') {
-      // Heals a previous run that marked it paid but failed before writing the wallet line.
+      // Reconcile the wallet ledger if a previous operation was interrupted.
       if (existing.partnerId) {
-        await partnerWalletLedger.debitPayout({ partnerId: String(existing.partnerId), payoutId, amount: existing.amount });
+        await partnerWalletLedger.debitPayout({
+          partnerId: String(existing.partnerId),
+          payoutId,
+          amount: existing.amount,
+        });
       }
-      throw new AppError(409, 'PAYOUT_ALREADY_PAID', 'Payout is already in paid status');
+
+      throw new AppError(
+        409,
+        'PAYOUT_ALREADY_PAID',
+        'Payout is already in paid status',
+      );
     }
 
     const updated = await PayoutModel.findOneAndUpdate(
-      { _id: payoutId, status: { $in: ['pending', 'processing'] } },
-      { $set: { status: 'paid', paidAt: new Date(), ...(transactionId ? { transactionId } : {}) } },
+      {
+        _id: payoutId,
+        status: { $in: ['pending', 'processing'] },
+      },
+      {
+        $set: {
+          status: 'paid',
+          paidAt: new Date(),
+          ...(transactionId ? { transactionId } : {}),
+        },
+      },
       { new: true },
     ).lean();
+
     if (!updated) {
-      throw new AppError(409, 'PAYOUT_STATUS_CONFLICT', `Cannot change payout status from ${existing.status} to paid`);
+      throw new AppError(
+        409,
+        'PAYOUT_STATUS_CONFLICT',
+        `Cannot change payout status from ${existing.status} to paid`,
+      );
     }
 
     if (updated.partnerId) {
-      await partnerWalletLedger.debitPayout({ partnerId: String(updated.partnerId), payoutId, amount: updated.amount });
+      await partnerWalletLedger.debitPayout({
+        partnerId: String(updated.partnerId),
+        payoutId,
+        amount: updated.amount,
+      });
     }
 
     if (updated.batchId) {
-      const siblings = await PayoutModel.find({ batchId: updated.batchId }).select('status').lean();
+      const siblings = await PayoutModel.find({
+        batchId: updated.batchId,
+      })
+        .select('status')
+        .lean();
+
       await PayoutBatchModel.updateOne(
         { _id: updated.batchId },
-        { $set: { status: computeBatchStatus(siblings.map((s) => s.status as PayoutStatus)) } },
+        {
+          $set: {
+            status: computeBatchStatus(
+              siblings.map(
+                (sibling) => sibling.status as PayoutStatus,
+              ),
+            ),
+          },
+        },
       );
     }
 
@@ -190,7 +398,9 @@ export const payoutsRepository: PayoutsRepository = {
       method: updated.method ?? null,
       transactionId: updated.transactionId ?? null,
       paidAt: updated.paidAt ?? null,
-      createdAt: (updated as unknown as { createdAt: Date }).createdAt,
+      createdAt: (
+        updated as unknown as { createdAt: Date }
+      ).createdAt,
     };
   },
 };

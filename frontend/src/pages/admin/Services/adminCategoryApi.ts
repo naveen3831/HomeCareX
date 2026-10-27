@@ -24,6 +24,9 @@ const fail = (message: string, code?: string, status = 400): never => {
 /** What the backend (or the demo store) may return. Extended fields are optional on purpose. */
 type RawCategory = Pick<AdminCategory, 'id' | 'name' | 'slug'> & Partial<Omit<AdminCategory, 'id' | 'name' | 'slug'>>;
 
+/** Local demo store only when VITE_MOCK_CATALOG=true (read on each call so tests can toggle it). A failing backend is shown as an error, never hidden. */
+export const catalogDemo = () => import.meta.env.VITE_MOCK_CATALOG === 'true';
+
 export type ApiMode = 'unknown' | 'live' | 'demo';
 let mode: ApiMode = 'unknown';
 let modeReason = '';
@@ -161,6 +164,7 @@ const live = {
     validate(cache, input, undefined, false);
     const dto = await unwrap(http.post<ApiResponse<RawCategory>>('/admin/categories', {
       name: input.name.trim(), description: input.description.trim(), icon: input.icon, active: input.active,
+      iconUrl: input.iconUrl ?? '', parentId: input.parentId, images: input.images,
       sortOrder: nextPublicOrder(cache),
     }));
     const extras = readExtras();
@@ -178,6 +182,7 @@ const live = {
     const moved = !!prev && prev.parentId !== input.parentId;
     const dto = await unwrap(http.patch<ApiResponse<RawCategory>>(`/admin/categories/${id}`, {
       name: input.name.trim(), description: input.description.trim(), icon: input.icon, active: input.active,
+      iconUrl: input.iconUrl ?? '', parentId: input.parentId, images: input.images,
       ...(moved ? { sortOrder: nextPublicOrder(cache) } : {}),
     }));
     const extras = readExtras();
@@ -223,8 +228,11 @@ const live = {
     });
     const global = flattenOrder(applied);
     const toSave = applied
-      .map((c) => ({ id: c.id, sortOrder: global.get(c.id) ?? c.sortOrder }))
-      .filter((n) => n.sortOrder !== cache.find((c) => c.id === n.id)?.sortOrder);
+      .map((c) => ({ id: c.id, sortOrder: global.get(c.id) ?? c.sortOrder, parentId: c.parentId }))
+      .filter((n) => {
+        const old = cache.find((c) => c.id === n.id);
+        return n.sortOrder !== old?.sortOrder || n.parentId !== old?.parentId;
+      });
     if (toSave.length) await http.put('/admin/categories/reorder', { items: toSave }); // one request, applied together
     const extras = readExtras();
     const before = cache;
@@ -340,9 +348,6 @@ const demo = {
 };
 
 // ====================== public client ======================
-/** No HTTP response at all (network down, proxy refused, timeout) or the endpoint is missing / the server is down. */
-const backendUnavailable = (e: CategoryApiError) =>
-  e.status === undefined || e.status === 404 || e.status === 501 || e.status >= 500;
 
 const impl = () => (mode === 'demo' ? demo : live);
 async function run<T>(fn: () => Promise<T>): Promise<T> {
@@ -352,21 +357,12 @@ async function run<T>(fn: () => Promise<T>): Promise<T> {
 export const adminCategoryApi = {
   /** Decides live vs demo. Auth errors (401/403) are real errors and are shown, not hidden by demo data. */
   async list(): Promise<AdminCategory[]> {
+    if (mode === 'unknown' && catalogDemo()) { mode = 'demo'; modeReason = 'VITE_MOCK_CATALOG=true'; }
     if (mode === 'demo') return demo.list();
-    try {
-      const rows = await live.list();
-      mode = 'live';
-      modeReason = '';
-      return rows;
-    } catch (e) {
-      const err = toErr(e);
-      if (mode === 'unknown' && backendUnavailable(err)) {
-        mode = 'demo';
-        modeReason = err.status ? `server answered ${err.status}` : 'no response';
-        return demo.list();
-      }
-      throw err;
-    }
+    const rows = await run(() => live.list());
+    mode = 'live';
+    modeReason = '';
+    return rows;
   },
   create: (input: CategoryInput) => run(() => impl().create(input)),
   update: (id: string, input: CategoryInput) => run(() => impl().update(id, input)),

@@ -45,7 +45,7 @@ const ContactForm: React.FC = () => {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaResetKey, setCaptchaResetKey] = useState(0);
   const handleCaptchaToken = useCallback((token: string | null) => setCaptchaToken(token), []);
-  const captchaMissing = !isRecaptchaConfigured || !captchaToken;
+  const captchaMissing = isRecaptchaConfigured ? !captchaToken : import.meta.env.PROD;
 
   const defaultValues = useMemo<ContactLeadFormValues>(() => ({
     name: '',
@@ -84,8 +84,12 @@ const ContactForm: React.FC = () => {
       return;
     }
 
-    if (!isRecaptchaConfigured || !captchaToken) {
+    if (isRecaptchaConfigured && !captchaToken) {
       setFeedback({ type: 'error', text: 'Please complete the security check before submitting.' });
+      return;
+    }
+    if (!isRecaptchaConfigured && import.meta.env.PROD) {
+      setFeedback({ type: 'error', text: 'Security check is not configured. Please contact support.' });
       return;
     }
 
@@ -97,7 +101,7 @@ const ContactForm: React.FC = () => {
         city: values.city,
         message: values.message,
         source: 'contact',
-        recaptchaToken: captchaToken,
+        recaptchaToken: captchaToken || undefined,
       });
 
       setFeedback({
