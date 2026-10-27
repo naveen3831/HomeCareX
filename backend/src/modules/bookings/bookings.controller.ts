@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 
 import { BookingService } from './bookings.service';
@@ -110,6 +111,7 @@ export const bookingsController = {
         'Content-Disposition': `inline; filename="${invoiceNo}.html"`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
+        'X-Invoice-Number': invoiceNo,
       })
       .send(html);
   },
@@ -155,7 +157,7 @@ export const bookingsController = {
 
   /** Alias retained for routes that still call previewCancel. */
   async previewCancel(req: Request, res: Response) {
-    return bookingsController.previewCancellation(req, res);
+    return this.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {
@@ -177,7 +179,6 @@ export const bookingsController = {
 
   async rescheduleBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-
     const { date, slot } = req.body as {
       date: string;
       slot: string;

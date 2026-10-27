@@ -1,6 +1,6 @@
 /**
  * In-memory mock of the RBAC API (no backend module exists yet).
- * Enabled by default; set VITE_MOCK_RBAC=false once backend/src/modules/rbac is merged.
+ * Tests only: enabled with VITE_MOCK_RBAC=true. The app uses the real /admin/roles and /admin/staff by default.
  *
  * It enforces the same rules the real API must:
  *  - system roles can't be edited or deleted            -> 403 SYSTEM_ROLE_PROTECTED

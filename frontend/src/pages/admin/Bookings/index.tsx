@@ -55,6 +55,8 @@ const PAYMENT_STATUS_OPTIONS: PaymentStatus[] = [
   "Refunded",
 ];
 
+<<<<<<< HEAD
+=======
 /*
  * Frontend fallback partner.
  *
@@ -77,6 +79,7 @@ const MOCK_ELIGIBLE_PARTNERS: BookingPartnerCandidate[] = [
   },
 ];
 
+>>>>>>> origin/develop
 function filtersAreEqual(
   first: BookingFilters,
   second: BookingFilters,
@@ -569,8 +572,8 @@ export default function Bookings() {
   /*
    * Load eligible partners.
    *
-   * Backend partners are used when available.
-   * Otherwise the frontend test partner is shown.
+   * Only real partners from the backend are shown. A failed call shows an error
+   * instead of a made-up partner.
    */
   const handleLoadEligiblePartners =
     async (
@@ -586,29 +589,19 @@ export default function Bookings() {
             booking.id,
           );
 
-        if (partners.length > 0) {
-          setEligiblePartners(
-            partners,
-          );
-        } else {
-          setEligiblePartners(
-            MOCK_ELIGIBLE_PARTNERS,
-          );
-        }
+        setEligiblePartners(
+          partners,
+        );
       } catch (err) {
         const normalized =
           err as {
             message?: string;
           };
 
-        console.warn(
-          "Eligible partner API unavailable:",
+        setEligiblePartners([]);
+        setError(
           normalized?.message ||
-            "Unknown error",
-        );
-
-        setEligiblePartners(
-          MOCK_ELIGIBLE_PARTNERS,
+            "Could not load eligible partners. Please try again.",
         );
       } finally {
         setEligiblePartnersLoading(

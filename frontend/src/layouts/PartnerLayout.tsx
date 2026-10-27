@@ -5,7 +5,6 @@ import {
   useCallback,
   createContext,
   useContext,
-  useRef,
 } from "react";
 import {
   NavLink,
@@ -403,9 +402,7 @@ function BottomNav({
                   aria-label={label}
                   aria-current={active ? "page" : undefined}
                   className={`flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
-                    active
-                      ? "text-[#4338ca]"
-                      : "text-slate-500"
+                    active ? "text-[#4338ca]" : "text-slate-500"
                   }`}
                 >
                   <Icon
@@ -516,6 +513,7 @@ function PartnerSidebar({
     setOpenGroup(groupOf(currentKey));
 
     const top = topKeyOf(currentKey);
+
     if (top) {
       setOpenItems((current) =>
         current.includes(top) ? current : [...current, top],
@@ -561,9 +559,7 @@ function PartnerSidebar({
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: collapsed
-              ? "center"
-              : "space-between",
+            justifyContent: collapsed ? "center" : "space-between",
             flexDirection: collapsed ? "column" : "row",
             gap: collapsed ? 8 : 0,
           }}
@@ -675,7 +671,9 @@ function PartnerSidebar({
                                 minWidth: 0,
                               }}
                               onClick={() => {
-                                if (hasChildren) openItem(key);
+                                if (hasChildren) {
+                                  openItem(key);
+                                }
                               }}
                               className={({ isActive }) =>
                                 `nav-link${
@@ -754,9 +752,7 @@ function PartnerSidebar({
                                       to={childTo}
                                       className={({ isActive }) =>
                                         `nav-link${
-                                          isActive
-                                            ? " is-active"
-                                            : ""
+                                          isActive ? " is-active" : ""
                                         }`
                                       }
                                     >
@@ -795,6 +791,7 @@ function PartnerSidebar({
           <span className="avatar">
             {displayName.charAt(0).toUpperCase()}
           </span>
+
           {!collapsed && (
             <span className="profile-name">{displayName}</span>
           )}
@@ -824,13 +821,14 @@ export default function PartnerLayout() {
     () => readStoredOnlineStatus() ?? false,
   );
 
-  const onlineRef = useRef(online);
-
-  const applyOnline = useCallback((next: boolean) => {
-    onlineRef.current = next;
+  const setOnline = useCallback((next: boolean) => {
     setOnlineState(next);
     writeStoredOnlineStatus(next);
-    void setOnlineApi(next).catch(() => {});
+
+    void setOnlineApi(next).catch(() => {
+      // Keep the UI responsive if the API request fails.
+      // A later availability fetch can synchronize the state again.
+    });
   }, []);
 
   useEffect(() => {
@@ -839,13 +837,14 @@ export default function PartnerLayout() {
     void getAvailability()
       .then((res) => {
         if (mounted && typeof res?.isOnline === "boolean") {
-          // Update local state without writing back to the API.
-          onlineRef.current = res.isOnline;
+          // Synchronize local state without writing back to the API.
           setOnlineState(res.isOnline);
           writeStoredOnlineStatus(res.isOnline);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Stored status remains available if the request fails.
+      });
 
     return () => {
       mounted = false;
@@ -858,14 +857,16 @@ export default function PartnerLayout() {
         const next = readStoredOnlineStatus();
 
         if (next !== null) {
-          onlineRef.current = next;
           setOnlineState(next);
         }
       }
     };
 
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
@@ -879,13 +880,16 @@ export default function PartnerLayout() {
 
   useEffect(() => {
     setNavVisible(true);
+
     let last = window.scrollY;
 
     const onScroll = () => {
       const currentY = window.scrollY;
       const delta = currentY - last;
 
-      if (Math.abs(delta) < 8) return;
+      if (Math.abs(delta) < 8) {
+        return;
+      }
 
       setNavVisible(currentY <= 24 ? true : delta < 0);
       last = currentY;
@@ -969,7 +973,7 @@ export default function PartnerLayout() {
 
   return (
     <PartnerStatusContext.Provider
-      value={{ online, setOnline: applyOnline }}
+      value={{ online, setOnline }}
     >
       <div
         className={`flex bg-slate-50 text-slate-900 ${
@@ -1021,15 +1025,9 @@ export default function PartnerLayout() {
                 className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
               >
                 {collapsed ? (
-                  <PanelLeftOpen
-                    size={20}
-                    aria-hidden="true"
-                  />
+                  <PanelLeftOpen size={20} aria-hidden="true" />
                 ) : (
-                  <PanelLeftClose
-                    size={20}
-                    aria-hidden="true"
-                  />
+                  <PanelLeftClose size={20} aria-hidden="true" />
                 )}
               </button>
 
@@ -1048,13 +1046,13 @@ export default function PartnerLayout() {
                   <div className="hidden lg:block">
                     <OnlineIndicator
                       online={online}
-                      onChange={applyOnline}
+                      onChange={setOnline}
                     />
                   </div>
                 ) : (
                   <OnlineIndicator
                     online={online}
-                    onChange={applyOnline}
+                    onChange={setOnline}
                   />
                 ))}
 

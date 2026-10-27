@@ -1,14 +1,33 @@
-import React, { useMemo, useState } from "react";
+import { PageSearch } from '@/components/admin/PageSearch';
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
 import DataTable, {
   Column,
 } from "../../../components/tables/DataTable";
 
-import {
-  PARTNERS,
-  MockPartner,
-} from "../../../mocks/partners";
+import { adminApi, type PartnerDirectoryRow } from "@/services/adminApi";
+
+const KYC_LABEL: Record<PartnerDirectoryRow["kycStatus"], string> = {
+  not_started: "Not started",
+  submitted: "Submitted",
+  in_review: "In review",
+  approved: "Approved",
+  rejected: "Rejected",
+  suspended: "Suspended",
+};
+
+const ACCOUNT_LABEL: Record<PartnerDirectoryRow["accountStatus"], string> = {
+  active: "Active",
+  blocked: "Blocked",
+  invited: "Invited",
+};
+
+// Table rows carry display labels so filters, sorting and badges keep working.
+type PartnerRow = Omit<PartnerDirectoryRow, "kycStatus" | "accountStatus"> & {
+  kycStatus: string;
+  accountStatus: string;
+};
 
 import "./index.css";
 
@@ -23,59 +42,89 @@ const AdminPartnersPage: React.FC = () => {
   const [rating, setRating] = useState("");
   const [acceptance, setAcceptance] = useState("");
   const [completion, setCompletion] = useState("");
+  const [rows, setRows] = useState<PartnerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let live = true;
+    setLoading(true);
+    adminApi
+      .partnerDirectory()
+      .then((list) => {
+        if (!live) return;
+        setRows(
+          list.map((p) => ({
+            ...p,
+            kycStatus: KYC_LABEL[p.kycStatus] ?? p.kycStatus,
+            accountStatus: ACCOUNT_LABEL[p.accountStatus] ?? p.accountStatus,
+          })),
+        );
+        setLoadError("");
+      })
+      .catch((e: { message?: string }) => {
+        if (live) setLoadError(e?.message || "Could not load partners.");
+      })
+      .finally(() => {
+        if (live) setLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const kycOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          PARTNERS.map(
+          rows.map(
             (partner) => partner.kycStatus
           )
         )
       ),
-    []
+    [rows]
   );
 
   const accountOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          PARTNERS.map(
+          rows.map(
             (partner) => partner.accountStatus
           )
         )
       ),
-    []
+    [rows]
   );
 
   const categoryOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          PARTNERS.map(
+          rows.map(
             (partner) => partner.category
           )
         )
       ),
-    []
+    [rows]
   );
 
   const cityOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          PARTNERS.map(
+          rows.map(
             (partner) => partner.city
           )
         )
       ),
-    []
+    [rows]
   );
 
   const filteredPartners = useMemo(() => {
     const searchValue = search.trim().toLowerCase();
 
-    return PARTNERS.filter((partner) => {
+    return rows.filter((partner) => {
       const matchesSearch =
         !searchValue ||
         partner.name
@@ -131,6 +180,7 @@ const AdminPartnersPage: React.FC = () => {
       );
     });
   }, [
+    rows,
     search,
     kycStatus,
     accountStatus,
@@ -141,7 +191,7 @@ const AdminPartnersPage: React.FC = () => {
     completion,
   ]);
 
-  const columns: Column<MockPartner>[] = [
+  const columns: Column<PartnerRow>[] = [
     {
       key: "name",
       header: "Partner",
@@ -160,7 +210,7 @@ const AdminPartnersPage: React.FC = () => {
       sortValue: (row) => row.kycStatus,
       cell: (row) => (
         <span
-          className={`partner-status ${row.kycStatus.toLowerCase()}`}
+          className={`partner-status ${row.kycStatus.toLowerCase().replace(/\s+/g, "_")}`}
         >
           {row.kycStatus}
         </span>
@@ -173,7 +223,7 @@ const AdminPartnersPage: React.FC = () => {
       sortValue: (row) => row.accountStatus,
       cell: (row) => (
         <span
-          className={`partner-status ${row.accountStatus.toLowerCase()}`}
+          className={`partner-status ${row.accountStatus.toLowerCase().replace(/\s+/g, "_")}`}
         >
           {row.accountStatus}
         </span>
@@ -269,6 +319,8 @@ const AdminPartnersPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <PageSearch placeholder="Search name, email, phone or city…" />
 
       <section
         className="partners-filters"
@@ -451,6 +503,13 @@ const AdminPartnersPage: React.FC = () => {
         </div>
       </section>
 
+      {loadError && (
+        <p role="alert" className="partners-error">
+          {loadError}
+        </p>
+      )}
+      {loading && <p role="status">Loading partners…</p>}
+
       <div className="partners-table-wrapper">
         <DataTable
           columns={columns}
@@ -461,7 +520,9 @@ const AdminPartnersPage: React.FC = () => {
           pageSizeOptions={[5, 10, 20, 50]}
           emptyTitle="No partners found"
           emptyMessage={
-            hasActiveFilters
+            loadError
+              ? "Partners could not be loaded."
+              : hasActiveFilters
               ? "No partners match the selected filters."
               : "There are no partners to display."
           }
@@ -470,7 +531,7 @@ const AdminPartnersPage: React.FC = () => {
 
       <div className="partners-count">
         Showing {filteredPartners.length} of{" "}
-        {PARTNERS.length} partners
+        {rows.length} partners
       </div>
     </div>
   );

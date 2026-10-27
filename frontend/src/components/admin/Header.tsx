@@ -1,4 +1,12 @@
 import React from 'react';
+<<<<<<< HEAD
+import { Link, useLocation } from 'react-router-dom';
+import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useUIStore } from '@/store/useUIStore';
+import { NotificationBell } from '@/components/admin/NotificationBell';
+import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
+import { ProfileMenu } from '@/components/admin/ProfileMenu';
+=======
 import { useLocation } from 'react-router-dom';
 import { Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
@@ -40,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
 =======
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { NotificationBell } from '@/components/admin/NotificationBell';
+>>>>>>> origin/develop
 
 export interface HeaderNotification {
   id: string;
@@ -52,8 +61,13 @@ interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
+<<<<<<< HEAD
+/** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
+export const Header: React.FC<HeaderProps> = () => {
+=======
 /** Sticky admin header: menu/collapse, breadcrumbs and notifications. */
 export const Header: React.FC<HeaderProps> = ({ notifications: _notifications = [] }) => {
+>>>>>>> origin/develop
   const { pathname } = useLocation();
   const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
   const isCollapsed = useUIStore((s) => s.isSidebarCollapsed);
@@ -96,7 +110,11 @@ export const Header: React.FC<HeaderProps> = ({ notifications: _notifications = 
       </div>
 
       <div className="topbar-right">
+        <Link to="/admin/support" className="icon-btn" aria-label="Help and support" title="Help and support">
+          <HelpCircle size={20} />
+        </Link>
         <NotificationBell />
+        <ProfileMenu />
       </div>
     </header>
   );

@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -20,8 +21,6 @@ import {
   ReferralCodeModel,
   ReferralModel,
 } from './modules/referrals/referrals.model';
-import { WalletLedgerModel, WalletModel } from './models/Wallet';
-
 import {
   WalletLedgerModel,
   WalletModel,
@@ -52,8 +51,8 @@ let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
 /**
- * Non-critical default data.
- * A seeding failure should not prevent the server from running.
+ * Seeds default data without preventing the server from running
+ * if a non-critical seeding operation fails.
  */
 const seedDefaults = async (): Promise<void> => {
   try {
@@ -121,7 +120,7 @@ const startServer = async (): Promise<void> => {
 
     console.log('Connected to MongoDB');
 
-    // Create required indexes before the server accepts requests that
+    // Initialize critical indexes before accepting requests that
     // could award referral rewards or modify wallet balances.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
@@ -149,9 +148,7 @@ const startServer = async (): Promise<void> => {
       server.listen(PORT);
     });
 
-    console.log(
-      `HomeCareX server running on port ${PORT}`,
-    );
+    console.log(`HomeCareX server running on port ${PORT}`);
 
     console.log(
       `[timing] process uptime at listen: ${Math.round(
@@ -168,11 +165,12 @@ const startServer = async (): Promise<void> => {
       );
     });
 
-    stopSlaSweep = startSlaSweep();
-
     registerEarningsListeners();
 
-    // Seed defaults without blocking the running server.
+    stopSlaSweep = startSlaSweep();
+
+    // Seed default data after the server starts.
+    // Seeding failures are logged and do not stop the server.
     void seedDefaults();
   } catch (error) {
     console.error(
@@ -192,19 +190,25 @@ const startServer = async (): Promise<void> => {
     }
 
     if (mongoose.connection.readyState !== 0) {
-      await mongoose.connection.close().catch(() => {});
+      try {
+        await mongoose.connection.close();
+      } catch (closeError) {
+        console.error(
+          '[startup] Failed to close MongoDB connection:',
+          closeError,
+        );
+      }
     }
   }
 };
 
-// Graceful shutdown
-    if (mongoose.connection.readyState !== 0) {
-      try {
-        await mongoose.connection.close();
-      } catch (closeError) {
-        console.error('[startup] Failed to close MongoDB connection:', closeError);
-      }
-    }
+/**
+ * Gracefully stops background workers, the HTTP server,
+ * and the MongoDB connection.
+ */
+const shutdown = async (): Promise<void> => {
+  if (shuttingDown) {
+    return;
   }
 
   shuttingDown = true;

@@ -9,13 +9,16 @@ import type {
 import { authService } from './auth.service';
 
 import {
+  acceptInviteSchema,
   changePasswordSchema,
   forgotPasswordSchema,
+  inviteStaffSchema,
   loginSchema,
   parseBody,
   registerSchema,
   resendOtpSchema,
   resetPasswordSchema,
+  verifyInviteSchema,
   verifyOtpSchema,
 } from './auth.validation';
 
@@ -219,8 +222,7 @@ export const authController = {
 
     res.status(501).json({
       success: false,
-      message:
-        'Individual session listing is not implemented yet.',
+      message: 'Individual session listing is not implemented yet.',
     });
   }),
 
@@ -230,8 +232,7 @@ export const authController = {
   revokeSession: wrap(async (_req, res) => {
     res.status(501).json({
       success: false,
-      message:
-        'Individual session revocation is not implemented yet.',
+      message: 'Individual session revocation is not implemented yet.',
     });
   }),
 
@@ -258,7 +259,7 @@ export const authController = {
    * Protect this route with admin authorization middleware.
    */
   revokeUserSessions: wrap(async (req, res) => {
-    const userId = req.params.userId;
+    const userId = req.params.userId ?? req.params.id;
 
     if (!userId) {
       res.status(400).json({
@@ -276,6 +277,55 @@ export const authController = {
         revokedSessionsCount: result.revokedSessionsCount,
       },
       message: result.message,
+    });
+  }),
+
+  /**
+   * POST /api/v1/admin/staff
+   * Admin authorization must be applied by the route.
+   */
+  inviteStaff: wrap(async (req, res) => {
+    const invitedBy =
+      String(
+        (res.locals.auth as { sub?: string } | undefined)?.sub ?? '',
+      ) || undefined;
+
+    const data = await authService.inviteStaff(
+      parseBody(inviteStaffSchema, req.body),
+      invitedBy,
+    );
+
+    res.status(201).json({
+      success: true,
+      data,
+    });
+  }),
+
+  /**
+   * POST /api/v1/auth/verify-invite
+   */
+  verifyInvite: wrap(async (req, res) => {
+    const data = await authService.verifyInvite(
+      parseBody(verifyInviteSchema, req.body),
+    );
+
+    res.json({
+      success: true,
+      data,
+    });
+  }),
+
+  /**
+   * POST /api/v1/auth/accept-invite
+   */
+  acceptInvite: wrap(async (req, res) => {
+    await authService.acceptInvite(
+      parseBody(acceptInviteSchema, req.body),
+    );
+
+    res.json({
+      success: true,
+      data: { ok: true },
     });
   }),
 };

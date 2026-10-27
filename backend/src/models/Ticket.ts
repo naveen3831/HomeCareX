@@ -6,6 +6,10 @@ import {
   TICKET_STATUSES,
 } from "../modules/tickets/tickets.constants";
 
+/**
+ * Support ticket, one queue for customers and partners (contract: modules/tickets/tickets.constants.ts).
+ * SLA is deliberately NOT stored: admin-tickets derives it from `priority` + `createdAt`.
+ */
 const TicketSchema = new Schema(
   {
     createdBy: {

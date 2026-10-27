@@ -1,181 +1,399 @@
 
-import type { Request, Response } from 'express';
-import { getAuthUser } from '../../middleware/auth.middleware';
-import { sendSuccess } from '../../utils/response';
-import { PayoutsService } from './payouts.service';
+import mongoose, { Types } from "mongoose";
+import { NotificationModel } from "../../models/Notification";
+import { UserModel } from "../../models/User";
+import { getSetting } from "../settings";
+import { HttpError } from "../auth/auth.types";
+import { emitToUser } from "../../sockets";
+import {
+  ADMIN_ALERT_SETTING,
+  GROUP_PREFIXES,
+  NOTIFICATION_GROUPS,
+  NOTIFICATION_SOCKET_EVENT,
+  NOTIFICATION_TYPES,
+  groupOf,
+  type NotificationGroup,
+  type NotificationType,
+} from "./notifications.constants";
 
-type CsvExportResult = {
-  csv: string;
-  filename?: string;
-};
+export interface NotificationDto {
+  id: string;
+  userId: string;
+  type: string;
+  payload: unknown;
+  readAt: Date | null;
+  createdAt: Date;
+}
 
-const getIp = (req: Request): string =>
-  req.ip || req.socket.remoteAddress || 'unknown';
+export interface CustomerNotificationDto extends NotificationDto {
+  group: NotificationGroup;
+}
 
-const num = (value: unknown): number | undefined => {
-  if (value === undefined || value === '') {
-    return undefined;
+export interface CustomerNotificationsResult {
+  items: CustomerNotificationDto[];
+  unread: number;
+  groups: Record<NotificationGroup, { total: number; unread: number }>;
+}
+
+export interface CustomerNotificationQuery {
+  group?: NotificationGroup;
+  unreadOnly?: boolean;
+  limit: number;
+}
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const prefixRegex = (prefixes: readonly string[]): RegExp =>
+  new RegExp(
+    `^(?:${prefixes.map(escapeRegex).join("|")})`,
+  );
+
+const ALL_PREFIXES = Object.values(GROUP_PREFIXES).flat() as string[];
+
+/**
+ * Creates a MongoDB filter for a notification group.
+ * The system group contains notification types that do not match
+ * any of the other configured group prefixes.
+ */
+export function groupFilter(
+  group: NotificationGroup,
+): Record<string, unknown> {
+  if (group === "system") {
+    return { type: { $not: prefixRegex(ALL_PREFIXES) } };
   }
 
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-};
+  return { type: prefixRegex(GROUP_PREFIXES[group]) };
+}
 
-const str = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.trim()
-    ? value.trim()
-    : undefined;
+function toDto(
+  notification: InstanceType<typeof NotificationModel>,
+): NotificationDto {
+  return {
+    id: String(notification._id),
+    userId: String(notification.userId),
+    type: notification.type,
+    payload: notification.payload,
+    readAt: notification.readAt ?? null,
+    createdAt: notification.createdAt,
+  };
+}
 
-export class PayoutsController {
-  constructor(
-    private readonly service = new PayoutsService(),
-  ) {}
+/**
+ * Saves a notification and then pushes it to the user's socket room.
+ */
+export async function notify(
+  userId: string,
+  type: NotificationType,
+  payload: Record<string, unknown> = {},
+): Promise<NotificationDto> {
+  const doc = await NotificationModel.create({
+    userId,
+    type,
+    payload,
+  });
+
+  const dto = toDto(doc);
+
+  try {
+    emitToUser(userId, NOTIFICATION_SOCKET_EVENT, dto);
+  } catch {
+    // Sockets may not be initialized in scripts or tests.
+  }
+
+  return dto;
+}
+
+/**
+ * Notifies active administrators unless the relevant alert is disabled.
+ */
+export async function notifyAdmins(
+  type: NotificationType,
+  payload: Record<string, unknown> = {},
+): Promise<number> {
+  if (mongoose.connection.readyState !== 1) {
+    return 0;
+  }
+
+  const settingKey = ADMIN_ALERT_SETTING[type];
+
+  if (settingKey) {
+    const settingValue: unknown = await getSetting(settingKey);
+
+    if (settingValue === false) {
+      return 0;
+    }
+  }
+
+  const admins = await UserModel.find({
+    role: "admin",
+    status: "active",
+  })
+    .select("_id")
+    .lean();
+
+  await Promise.all(
+    admins.map((admin) =>
+      notify(String(admin._id), type, payload),
+    ),
+  );
+
+  return admins.length;
+}
+
+export class NotificationsService {
+  notify = notify;
 
   /**
-   * GET /admin/payouts?page=1&limit=20&status=pending
+   * Lists notifications for a user, optionally filtering to unread items.
    */
-  async list(req: Request, res: Response): Promise<void> {
-    const result = await this.service.listBatches({
-      page: num(req.query.page),
-      limit: num(req.query.limit),
-      status: str(req.query.status),
-    });
+  async listForUser(
+    userId: string,
+    limit = 30,
+    unreadOnly = false,
+  ): Promise<NotificationDto[]> {
+    const rows = await NotificationModel.find({
+      userId,
+      ...(unreadOnly ? { readAt: null } : {}),
+    })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit);
 
-    // Support both service result shapes:
-    // { items, pagination } and a direct result object.
-    if (
-      result &&
-      typeof result === 'object' &&
-      'items' in result &&
-      'pagination' in result
-    ) {
-      const paginated = result as {
-        items: unknown;
-        pagination: unknown;
-      };
+    return rows.map((row) => toDto(row));
+  }
 
-      sendSuccess(res, paginated.items, {
-        meta: { pagination: paginated.pagination },
-      });
-      return;
+  /**
+   * Lists customer notifications and returns unread counts by group.
+   */
+  async listForCustomer(
+    userId: string,
+    query: CustomerNotificationQuery,
+  ): Promise<CustomerNotificationsResult> {
+    const filter: Record<string, unknown> = { userId };
+
+    if (query.group) {
+      Object.assign(filter, groupFilter(query.group));
     }
 
-    sendSuccess(res, result);
-  }
+    if (query.unreadOnly) {
+      filter.readAt = null;
+    }
 
-  /**
-   * POST /admin/payouts
-   */
-  async generate(req: Request, res: Response): Promise<void> {
-    const admin = getAuthUser(req);
+    const [rows, byType] = await Promise.all([
+      NotificationModel.find(filter)
+        .sort({ createdAt: -1, _id: -1 })
+        .limit(query.limit),
 
-    const result = await this.service.generateBatch({
-      periodStart: req.body?.periodStart,
-      periodEnd: req.body?.periodEnd,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
+      Types.ObjectId.isValid(userId)
+        ? NotificationModel.aggregate<{
+            _id: string;
+            total: number;
+            unread: number;
+          }>([
+            {
+              $match: {
+                userId: new Types.ObjectId(userId),
+              },
+            },
+            {
+              $group: {
+                _id: "$type",
+                total: { $sum: 1 },
+                unread: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$readAt", null] },
+                      1,
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+          ])
+        : Promise.resolve([]),
+    ]);
 
-    sendSuccess(res, result, { status: 201 });
-  }
+    const groups = Object.fromEntries(
+      NOTIFICATION_GROUPS.map((group) => [
+        group,
+        { total: 0, unread: 0 },
+      ]),
+    ) as CustomerNotificationsResult["groups"];
 
-  /**
-   * GET /admin/payouts/:id
-   */
-  async get(req: Request, res: Response): Promise<void> {
-    const result = await this.service.getBatch(
-      String(req.params.id),
+    for (const row of byType) {
+      const group = groupOf(row._id);
+      groups[group].total += row.total;
+      groups[group].unread += row.unread;
+    }
+
+    const unread = NOTIFICATION_GROUPS.reduce(
+      (total, group) => total + groups[group].unread,
+      0,
     );
 
-    sendSuccess(res, result);
+    const items: CustomerNotificationDto[] = rows.map(
+      (row) => ({
+        ...toDto(row),
+        group: groupOf(row.type),
+      }),
+    );
+
+    return {
+      items,
+      unread,
+      groups,
+    };
   }
 
   /**
-   * Backward-compatible alias for routes using getBatch.
+   * Marks one of the caller's notifications as read.
+   * A notification belonging to another user is not accessible.
    */
-  async getBatch(req: Request, res: Response): Promise<void> {
-    await this.get(req, res);
+  async markReadForCustomer(
+    userId: string,
+    id: string,
+  ): Promise<CustomerNotificationDto> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
+    }
+
+    const notification = await NotificationModel.findOne({
+      _id: id,
+      userId,
+    });
+
+    if (!notification) {
+      throw new HttpError(
+        404,
+        "Notification not found",
+        "NOT_FOUND",
+      );
+    }
+
+    if (!notification.readAt) {
+      notification.readAt = new Date();
+      await notification.save();
+    }
+
+    return {
+      ...toDto(notification),
+      group: groupOf(notification.type),
+    };
   }
 
   /**
-   * GET /admin/payouts/:id/payouts
+   * Marks all unread notifications belonging to the customer as read.
    */
-  async listPayouts(
-    req: Request,
-    res: Response,
+  async markAllReadForCustomer(
+    userId: string,
+  ): Promise<number> {
+    const result = await NotificationModel.updateMany(
+      {
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
+    );
+
+    return result.modifiedCount;
+  }
+
+  /**
+   * Deletes one notification belonging to the customer.
+   */
+  async deleteForCustomer(
+    userId: string,
+    id: string,
   ): Promise<void> {
-    const result = await this.service.listPayouts(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, result);
-  }
-
-  /**
-   * PATCH /admin/payouts/:id/mark-paid
-   */
-  async markPaid(req: Request, res: Response): Promise<void> {
-    const admin = getAuthUser(req);
-
-    const result = await this.service.markPaid({
-      payoutId: String(req.params.id),
-      adminId: admin.id,
-      ip: getIp(req),
-      transactionId: str(req.body?.transactionId),
-    });
-
-    sendSuccess(res, result);
-  }
-
-  /**
-   * GET /admin/payouts/:id/export
-   */
-  async exportCsv(req: Request, res: Response): Promise<void> {
-    const batchId = String(req.params.id);
-    const result = await this.service.exportCsv(batchId);
-
-    let csv: string;
-    let filename: string;
-
-    if (typeof result === 'string') {
-      csv = result;
-      filename = `payouts-${batchId}.csv`;
-    } else {
-      const exportResult = result as CsvExportResult;
-      csv = exportResult.csv;
-      filename =
-        typeof exportResult.filename === 'string' &&
-        exportResult.filename.trim()
-          ? exportResult.filename.trim()
-          : `payouts-${batchId}.csv`;
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
     }
 
-    if (typeof csv !== 'string' || csv.trim().length === 0) {
-      res.status(404).json({
-        success: false,
-        message: 'No payout data available to export.',
-      });
+    const result = await NotificationModel.deleteOne({
+      _id: id,
+      userId,
+    });
+
+    if (result.deletedCount === 0) {
+      throw new HttpError(
+        404,
+        "Notification not found",
+        "NOT_FOUND",
+      );
+    }
+  }
+
+  /**
+   * Deletes every notification belonging to the customer.
+   */
+  async deleteAllForCustomer(
+    userId: string,
+  ): Promise<number> {
+    const result = await NotificationModel.deleteMany({
+      userId,
+    });
+
+    return result.deletedCount;
+  }
+
+  /**
+   * Returns the unread notification count for a user.
+   */
+  unreadCount(userId: string) {
+    return NotificationModel.countDocuments({
+      userId,
+      readAt: null,
+    });
+  }
+
+  /**
+   * Marks one notification as read for a user.
+   */
+  async markRead(
+    userId: string,
+    id: string,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) {
       return;
     }
 
-    // Keep the downloaded filename safe.
-    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-
-    if (!filename.toLowerCase().endsWith('.csv')) {
-      filename += '.csv';
-    }
-
-    res.status(200);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"`,
+    await NotificationModel.updateOne(
+      {
+        _id: id,
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
     );
-    res.setHeader('Cache-Control', 'no-store');
-    res.send(csv);
+  }
+
+  /**
+   * Marks all unread notifications for a user as read.
+   */
+  async markAllRead(userId: string): Promise<void> {
+    await NotificationModel.updateMany(
+      {
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
+    );
   }
 }
 
-export const payoutsController = new PayoutsController();
-
-export default payoutsController;
+export const notificationsService = new NotificationsService();

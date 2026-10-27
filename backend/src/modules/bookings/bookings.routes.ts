@@ -1,3 +1,4 @@
+
 import { Router } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
@@ -23,9 +24,9 @@ import { listBookingsQuerySchema } from './bookings.query';
 
 export const bookingsRoutes = Router();
 
-// GET /services/:id/slots?date=YYYY-MM-DD
+// GET /services/:id/slots or /services/:serviceId/slots
 bookingsRoutes.get(
-  '/services/:id/slots',
+  ['/services/:id/slots', '/services/:serviceId/slots'],
   validationMiddleware({
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
@@ -36,7 +37,7 @@ bookingsRoutes.get(
 );
 
 // POST /bookings/check-slot
-// Real-time slot verification before confirming a booking.
+// Verify slot availability before creating a booking.
 bookingsRoutes.post(
   '/bookings/check-slot',
   validationMiddleware({
@@ -48,7 +49,6 @@ bookingsRoutes.post(
 );
 
 // POST /bookings
-// Create a booking for the authenticated customer.
 bookingsRoutes.post(
   '/bookings',
   authMiddleware,
@@ -62,7 +62,6 @@ bookingsRoutes.post(
 );
 
 // GET /bookings
-// List the authenticated customer's bookings with pagination and filters.
 bookingsRoutes.get(
   '/bookings',
   authMiddleware,
@@ -76,7 +75,6 @@ bookingsRoutes.get(
 );
 
 // GET /bookings/:id
-// Retrieve a single booking belonging to the authenticated customer.
 bookingsRoutes.get(
   '/bookings/:id',
   authMiddleware,
@@ -86,6 +84,78 @@ bookingsRoutes.get(
   }),
   asyncHandler(async (req, res) =>
     bookingsController.getBooking(req, res),
+  ),
+);
+
+// GET /bookings/:id/invoice
+bookingsRoutes.get(
+  '/bookings/:id/invoice',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.getInvoice(req, res),
+  ),
+);
+
+// GET cancellation preview using supported URL aliases
+bookingsRoutes.get(
+  [
+    '/bookings/:id/cancel-preview',
+    '/bookings/:id/preview-cancellation',
+    '/bookings/:id/cancel-quote',
+  ],
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.previewCancellation(req, res),
+  ),
+);
+
+// POST /bookings/:id/cancel
+bookingsRoutes.post(
+  '/bookings/:id/cancel',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: cancelBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.cancelBooking(req, res),
+  ),
+);
+
+// POST /bookings/:id/reschedule
+bookingsRoutes.post(
+  '/bookings/:id/reschedule',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: getBookingParamsSchema,
+    body: rescheduleBookingBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.rescheduleBooking(req, res),
+  ),
+);
+
+// POST /bookings/:id/extra-charges/:chargeId/decision
+bookingsRoutes.post(
+  '/bookings/:id/extra-charges/:chargeId/decision',
+  authMiddleware,
+  roleMiddleware('customer'),
+  validationMiddleware({
+    params: extraChargeDecisionParamsSchema,
+    body: extraChargeDecisionBodySchema,
+  }),
+  asyncHandler(async (req, res) =>
+    bookingsController.decideExtraCharge(req, res),
   ),
 );
 

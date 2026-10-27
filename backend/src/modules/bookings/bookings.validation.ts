@@ -90,11 +90,7 @@ export const extraChargeDecisionBodySchema = z.object({
 });
 
 export const cancelBookingBodySchema = z.object({
-  reason: z
-    .string()
-    .trim()
-    .min(3, 'Please tell us why you are cancelling')
-    .max(500),
+  reason: z.string().trim().min(3, 'Please tell us why you are cancelling').max(500),
 });
 
 export const rescheduleBookingBodySchema = z.object({

@@ -5,7 +5,6 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
 import axe from "axe-core";
-import { HelmetProvider } from "react-helmet-async";
 
 import PublicLayout from "../layouts/PublicLayout";
 import AuthLayout from "../layouts/AuthLayout";
@@ -105,13 +104,6 @@ describe("Public Routes WCAG 2.1 AA Accessibility Audit with axe-core", () => {
           </AuthProvider>
         </QueryClientProvider>
       </HelmetProvider>,
-      <QueryClientProvider client={queryClient}>
-      <HelmetProvider>
-        <AuthProvider>
-          <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>
-        </AuthProvider>
-      </HelmetProvider>
-      </QueryClientProvider>,
     );
   };
 

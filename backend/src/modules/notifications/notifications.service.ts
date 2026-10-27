@@ -3,10 +3,11 @@ import mongoose, { Types } from "mongoose";
 import { NotificationModel } from "../../models/Notification";
 import { UserModel } from "../../models/User";
 import { getSetting } from "../settings";
-import { Errors } from "../../utils/errors";
+import { HttpError } from "../auth/auth.types";
 import { emitToUser } from "../../sockets";
 import {
   ADMIN_ALERT_SETTING,
+  GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
   NOTIFICATION_TYPES,
@@ -22,26 +23,59 @@ export interface NotificationDto {
   payload: unknown;
   readAt: Date | null;
   createdAt: Date;
-  group?: NotificationGroup;
 }
 
-function toDto(n: {
-  _id?: unknown;
-  id?: string;
-  userId: unknown;
-  type: string;
-  payload: unknown;
-  readAt?: Date | null;
-  createdAt: Date;
-}): NotificationDto {
+export interface CustomerNotificationDto extends NotificationDto {
+  group: NotificationGroup;
+}
+
+export interface CustomerNotificationsResult {
+  items: CustomerNotificationDto[];
+  unread: number;
+  groups: Record<NotificationGroup, { total: number; unread: number }>;
+}
+
+export interface CustomerNotificationQuery {
+  group?: NotificationGroup;
+  unreadOnly?: boolean;
+  limit: number;
+}
+
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const prefixRegex = (prefixes: readonly string[]): RegExp =>
+  new RegExp(
+    `^(?:${prefixes.map(escapeRegex).join("|")})`,
+  );
+
+const ALL_PREFIXES = Object.values(GROUP_PREFIXES).flat() as string[];
+
+/**
+ * Creates a MongoDB filter for a notification group.
+ * The system group contains notification types that do not match
+ * any of the other configured group prefixes.
+ */
+export function groupFilter(
+  group: NotificationGroup,
+): Record<string, unknown> {
+  if (group === "system") {
+    return { type: { $not: prefixRegex(ALL_PREFIXES) } };
+  }
+
+  return { type: prefixRegex(GROUP_PREFIXES[group]) };
+}
+
+function toDto(
+  notification: InstanceType<typeof NotificationModel>,
+): NotificationDto {
   return {
-    id: String(n.id || n._id),
-    userId: String(n.userId),
-    type: n.type,
-    payload: n.payload,
-    readAt: n.readAt ?? null,
-    createdAt: n.createdAt,
-    group: groupOf(n.type),
+    id: String(notification._id),
+    userId: String(notification.userId),
+    type: notification.type,
+    payload: notification.payload,
+    readAt: notification.readAt ?? null,
+    createdAt: notification.createdAt,
   };
 }
 
@@ -59,7 +93,7 @@ export async function notify(
     payload,
   });
 
-  const dto = toDto(doc as never);
+  const dto = toDto(doc);
 
   try {
     emitToUser(userId, NOTIFICATION_SOCKET_EVENT, dto);
@@ -117,7 +151,7 @@ export class NotificationsService {
     userId: string,
     limit = 30,
     unreadOnly = false,
-  ) {
+  ): Promise<NotificationDto[]> {
     const rows = await NotificationModel.find({
       userId,
       ...(unreadOnly ? { readAt: null } : {}),
@@ -125,7 +159,7 @@ export class NotificationsService {
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit);
 
-    return rows.map((row) => toDto(row as never));
+    return rows.map((row) => toDto(row));
   }
 
   /**
@@ -133,86 +167,33 @@ export class NotificationsService {
    */
   async listForCustomer(
     userId: string,
-    options: {
-      group?: NotificationGroup;
-      unreadOnly?: boolean;
-      limit?: number;
-    } = {},
-  ) {
-    const limit = options.limit ?? 50;
+    query: CustomerNotificationQuery,
+  ): Promise<CustomerNotificationsResult> {
+    const filter: Record<string, unknown> = { userId };
 
-    const objectId = Types.ObjectId.isValid(userId)
-      ? new Types.ObjectId(userId)
-      : null;
-
-    const groupTypes: Record<
-      Exclude<NotificationGroup, "system">,
-      RegExp | { $in: string[] }
-    > = {
-      booking: /^booking\./,
-      payment: {
-        $in: ["payout.processed", "refund.updated"],
-      },
-      partner: /^partner\./,
-      offers: /^offer\./,
-      support: /^ticket\./,
-    };
-
-    const knownTypes = [
-      ...NOTIFICATION_TYPES.filter(
-        (type) => groupOf(type) !== "system",
-      ),
-      "payment.succeeded",
-      "payment.failed",
-      "offer.new",
-    ];
-
-    const filters: Record<string, unknown>[] = [{ userId }];
-
-    if (options.group && options.group !== "system") {
-      if (options.group === "payment") {
-        filters.push({
-          $or: [
-            { type: /^payment\./ },
-            {
-              type: {
-                $in: ["payout.processed", "refund.updated"],
-              },
-            },
-          ],
-        });
-      } else {
-        filters.push({
-          type: groupTypes[options.group],
-        });
-      }
-    } else if (options.group === "system") {
-      filters.push({
-        type: { $nin: knownTypes },
-      });
+    if (query.group) {
+      Object.assign(filter, groupFilter(query.group));
     }
 
-    if (options.unreadOnly) {
-      filters.push({ readAt: null });
+    if (query.unreadOnly) {
+      filter.readAt = null;
     }
 
-    const [rows, grouped] = await Promise.all([
-      NotificationModel.find(
-        filters.length === 1
-          ? filters[0]
-          : { $and: filters },
-      )
+    const [rows, byType] = await Promise.all([
+      NotificationModel.find(filter)
         .sort({ createdAt: -1, _id: -1 })
-        .limit(limit),
+        .limit(query.limit),
 
-      objectId
+      Types.ObjectId.isValid(userId)
         ? NotificationModel.aggregate<{
             _id: string;
             total: number;
             unread: number;
           }>([
             {
-              $match: { userId: objectId },
+              $match: {
+                userId: new Types.ObjectId(userId),
+              },
             },
             {
               $group: {
@@ -238,46 +219,47 @@ export class NotificationsService {
         group,
         { total: 0, unread: 0 },
       ]),
-    ) as Record<
-      NotificationGroup,
-      { total: number; unread: number }
-    >;
+    ) as CustomerNotificationsResult["groups"];
 
-    for (const row of grouped) {
+    for (const row of byType) {
       const group = groupOf(row._id);
       groups[group].total += row.total;
       groups[group].unread += row.unread;
     }
 
-    const items = rows.map((row) => ({
-      ...toDto(row as never),
-      readAt: row.readAt
-        ? row.readAt.toISOString()
-        : null,
-      group: groupOf(row.type),
-    }));
+    const unread = NOTIFICATION_GROUPS.reduce(
+      (total, group) => total + groups[group].unread,
+      0,
+    );
+
+    const items: CustomerNotificationDto[] = rows.map(
+      (row) => ({
+        ...toDto(row),
+        group: groupOf(row.type),
+      }),
+    );
 
     return {
       items,
-      unread: Object.values(groups).reduce(
-        (total, group) => total + group.unread,
-        0,
-      ),
+      unread,
       groups,
     };
   }
 
+  /**
+   * Marks one of the caller's notifications as read.
+   * A notification belonging to another user is not accessible.
+   */
   async markReadForCustomer(
     userId: string,
     id: string,
-  ) {
+  ): Promise<CustomerNotificationDto> {
     if (!Types.ObjectId.isValid(id)) {
-      throw Errors.validation([
-        {
-          field: "id",
-          message: "Invalid notification id",
-        },
-      ]);
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
     }
 
     const notification = await NotificationModel.findOne({
@@ -286,9 +268,10 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw Errors.notFound(
-        "NOT_FOUND",
+      throw new HttpError(
+        404,
         "Notification not found",
+        "NOT_FOUND",
       );
     }
 
@@ -298,34 +281,43 @@ export class NotificationsService {
     }
 
     return {
-      ...toDto(notification as never),
-      readAt: notification.readAt
-        ? notification.readAt.toISOString()
-        : null,
+      ...toDto(notification),
       group: groupOf(notification.type),
     };
   }
 
-  async markAllReadForCustomer(userId: string) {
+  /**
+   * Marks all unread notifications belonging to the customer as read.
+   */
+  async markAllReadForCustomer(
+    userId: string,
+  ): Promise<number> {
     const result = await NotificationModel.updateMany(
-      { userId, readAt: null },
-      { $set: { readAt: new Date() } },
+      {
+        userId,
+        readAt: null,
+      },
+      {
+        $set: { readAt: new Date() },
+      },
     );
 
     return result.modifiedCount;
   }
 
+  /**
+   * Deletes one notification belonging to the customer.
+   */
   async deleteForCustomer(
     userId: string,
     id: string,
-  ) {
+  ): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
-      throw Errors.validation([
-        {
-          field: "id",
-          message: "Invalid notification id",
-        },
-      ]);
+      throw new HttpError(
+        400,
+        "Invalid notification id",
+        "VALIDATION_ERROR",
+      );
     }
 
     const result = await NotificationModel.deleteOne({
@@ -333,15 +325,21 @@ export class NotificationsService {
       userId,
     });
 
-    if (!result.deletedCount) {
-      throw Errors.notFound(
-        "NOT_FOUND",
+    if (result.deletedCount === 0) {
+      throw new HttpError(
+        404,
         "Notification not found",
+        "NOT_FOUND",
       );
     }
   }
 
-  async deleteAllForCustomer(userId: string) {
+  /**
+   * Deletes every notification belonging to the customer.
+   */
+  async deleteAllForCustomer(
+    userId: string,
+  ): Promise<number> {
     const result = await NotificationModel.deleteMany({
       userId,
     });
@@ -349,6 +347,9 @@ export class NotificationsService {
     return result.deletedCount;
   }
 
+  /**
+   * Returns the unread notification count for a user.
+   */
   unreadCount(userId: string) {
     return NotificationModel.countDocuments({
       userId,
@@ -356,7 +357,17 @@ export class NotificationsService {
     });
   }
 
-  async markRead(userId: string, id: string) {
+  /**
+   * Marks one notification as read for a user.
+   */
+  async markRead(
+    userId: string,
+    id: string,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(id)) {
+      return;
+    }
+
     await NotificationModel.updateOne(
       {
         _id: id,
@@ -369,9 +380,15 @@ export class NotificationsService {
     );
   }
 
-  async markAllRead(userId: string) {
+  /**
+   * Marks all unread notifications for a user as read.
+   */
+  async markAllRead(userId: string): Promise<void> {
     await NotificationModel.updateMany(
-      { userId, readAt: null },
+      {
+        userId,
+        readAt: null,
+      },
       {
         $set: { readAt: new Date() },
       },
@@ -379,5 +396,4 @@ export class NotificationsService {
   }
 }
 
-export const notificationsService =
-  new NotificationsService();
+export const notificationsService = new NotificationsService();

@@ -195,7 +195,7 @@ export const settingsService = {
       const updatedBy = new Types.ObjectId(actor.id);
 
       await SettingModel.bulkWrite(
-        changes.map(([key, value]) => ({
+        changes.map<any>(([key, value]) => ({
           updateOne: {
             filter: { key },
             update: {

@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
 import BookingModel from '../models/Booking';
 import PartnerModel from '../models/Partner';
-import PartnerLocationModel from '../models/PartnerLocation';
 import { authService } from '../modules/auth/auth.service';
 import type { AccessTokenPayload } from '../modules/auth/auth.types';
 
@@ -70,7 +69,9 @@ async function canJoinBooking(
   bookingId: string,
 ): Promise<boolean> {
   if (auth.role === 'admin') {
-    return Boolean(await BookingModel.exists({ _id: bookingId }));
+    return Boolean(
+      await BookingModel.exists({ _id: bookingId }),
+    );
   }
 
   if (auth.role === 'customer') {
@@ -129,7 +130,10 @@ const reject = (code: ErrorCode) => {
   return err;
 };
 
-/** Initializes Socket.IO authentication and event handlers. */
+/**
+ * Initializes Socket.IO, configures JWT authentication,
+ * and registers booking, tracking and ticket socket events.
+ */
 export const initSockets = (server: HttpServer): Server => {
   const origins = (
     process.env.CORS_ORIGINS ||
@@ -164,7 +168,7 @@ export const initSockets = (server: HttpServer): Server => {
   io.on('connection', (socket) => {
     const auth = socket.data.auth as AccessTokenPayload;
 
-    // Join the authenticated user's and role's rooms once.
+    // Automatically join the authenticated user's and role's rooms.
     void socket.join([
       rooms.user(auth.sub),
       rooms.role(auth.role),
@@ -202,6 +206,7 @@ export const initSockets = (server: HttpServer): Server => {
           }
 
           await socket.join(rooms.booking(parsed.data.bookingId));
+
           return reply({ ok: true });
         } catch {
           return reply({

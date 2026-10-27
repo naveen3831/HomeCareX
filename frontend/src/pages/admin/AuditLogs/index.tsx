@@ -27,28 +27,73 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-  actor: string;
+  actor?: string | null;
   actorName?: string | null;
-  action: string;
-  entity: string;
-  entityId: string;
+  action?: string | null;
+  entity?: string | null;
+  entityId?: string | null;
   before?: unknown;
   after?: unknown;
-  ip: string;
-  result: "Success" | "Failed";
+  ip?: string | null;
+  result?: string | null;
   timestamp?: string;
   createdAt?: string;
 }
 
 interface AuditLogsResponse {
   success: boolean;
-  data: {
-    items: AuditLogApi[];
-    total: number;
-    page: number;
-    limit: number;
+  data?: {
+    items?: AuditLogApi[];
+    total?: number;
+    page?: number;
+    limit?: number;
   };
 }
+
+const formatJson = (value: unknown): string => {
+  if (value === undefined || value === null) {
+    return "{}";
+  }
+
+  if (typeof value === "string") {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      return value;
+    }
+  }
+
+  try {
+    return JSON.stringify(value, null, 2) ?? "{}";
+  } catch {
+    return String(value);
+  }
+};
+
+const formatTimestamp = (
+  timestamp?: string,
+  createdAt?: string,
+): string => {
+  const raw = timestamp || createdAt;
+
+  if (!raw) {
+    return "—";
+  }
+
+  const date = new Date(raw);
+
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleString();
+};
+
+const normalizeResult = (
+  result?: string | null,
+): "Success" | "Failed" => {
+  return result?.toLowerCase() === "success"
+    ? "Success"
+    : "Failed";
+};
 
 const parseJson = (
   raw: string,
@@ -72,26 +117,14 @@ const showValue = (value: unknown): string => {
   }
 
   if (typeof value === "object") {
-    return JSON.stringify(value);
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
   }
 
   return String(value);
-};
-
-const serializeSnapshot = (value: unknown): string => {
-  if (value === undefined || value === null) {
-    return "{}";
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
 };
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
@@ -205,17 +238,16 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
+  const scrollRootRef =
+    useDragScroll<HTMLDivElement>(".datatable-wrapper");
+
   const [search, setSearch] = useState("");
   const [selectedLog, setSelectedLog] =
     useState<AuditLog | null>(null);
-
   const [auditLogsData, setAuditLogsData] =
     useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const scrollRootRef =
-    useDragScroll<HTMLDivElement>(".datatable-wrapper");
 
   useEffect(() => {
     let cancelled = false;
@@ -225,7 +257,7 @@ const AdminAuditLogsPage: React.FC = () => {
         setLoading(true);
         setError("");
 
-        const response =
+        const { data: response } =
           await http.get<AuditLogsResponse>(
             "/admin/audit-logs",
             {
@@ -235,33 +267,35 @@ const AdminAuditLogsPage: React.FC = () => {
             },
           );
 
-        const result = response.data;
-
-        if (!result?.success || !result.data) {
-          throw new Error("Failed to load audit logs");
+        if (
+          !response?.success ||
+          !response.data ||
+          !Array.isArray(response.data.items)
+        ) {
+          throw new Error("Invalid audit logs response.");
         }
 
-        const logs: AuditLog[] = (
-          result.data.items ?? []
-        ).map((log) => ({
-          id: log.id || log._id || "",
-          timestamp: log.timestamp || log.createdAt
-            ? new Date(
-                log.timestamp || log.createdAt || "",
-              ).toLocaleString()
-            : "—",
-          actor: log.actor || "",
-          actorName: log.actorName || log.actor || "Unknown",
-          action: log.action || "—",
-          entity: log.entity || "—",
-          entityId: log.entityId || "",
-          ip: log.ip || "—",
-          result: log.result === "Failed"
-            ? "Failed"
-            : "Success",
-          before: serializeSnapshot(log.before),
-          after: serializeSnapshot(log.after),
-        }));
+        const logs: AuditLog[] =
+          response.data.items.map((log) => {
+            const actor = log.actor || "—";
+
+            return {
+              id: String(log.id || log._id || ""),
+              timestamp: formatTimestamp(
+                log.timestamp,
+                log.createdAt,
+              ),
+              actor,
+              actorName: log.actorName || actor,
+              action: log.action || "—",
+              entity: log.entity || "—",
+              entityId: log.entityId || "—",
+              ip: log.ip || "—",
+              result: normalizeResult(log.result),
+              before: formatJson(log.before),
+              after: formatJson(log.after),
+            };
+          });
 
         if (!cancelled) {
           setAuditLogsData(logs);
@@ -269,11 +303,15 @@ const AdminAuditLogsPage: React.FC = () => {
       } catch (err) {
         console.error("Failed to fetch audit logs:", err);
 
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         const status = (
           err as {
-            response?: { status?: number };
+            response?: {
+              status?: number;
+            };
           }
         )?.response?.status;
 
@@ -299,23 +337,25 @@ const AdminAuditLogsPage: React.FC = () => {
   }, []);
 
   const filteredLogs = useMemo(() => {
-    const searchValue = search.toLowerCase().trim();
+    const query = search.toLowerCase().trim();
 
-    if (!searchValue) {
+    if (!query) {
       return auditLogsData;
     }
 
     return auditLogsData.filter((log) =>
       [
-        log.actorName,
+        log.id,
+        log.timestamp,
         log.actor,
+        log.actorName,
         log.action,
         log.entity,
         log.entityId,
         log.ip,
         log.result,
       ].some((value) =>
-        value.toLowerCase().includes(searchValue),
+        value.toLowerCase().includes(query),
       ),
     );
   }, [auditLogsData, search]);
@@ -375,7 +415,10 @@ const AdminAuditLogsPage: React.FC = () => {
         <button
           type="button"
           className="view-btn"
-          onClick={() => setSelectedLog(row)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setSelectedLog(row);
+          }}
         >
           View Audit
         </button>
@@ -456,7 +499,7 @@ const AdminAuditLogsPage: React.FC = () => {
               pageSizeOptions={[5, 10, 20, 50]}
               emptyTitle="No audit logs found"
               emptyMessage={
-                search
+                search.trim()
                   ? "No audit logs match your search."
                   : "There are no audit logs to display."
               }

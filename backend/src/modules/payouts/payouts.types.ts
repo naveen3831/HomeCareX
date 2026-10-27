@@ -1,9 +1,20 @@
 
-import type { PayoutStatus } from './payouts.calc';
+import type { PayoutStatus } from "./payouts.calc";
 
 export type { PayoutStatus };
 
-// Generate a payout batch
+/**
+ * Status of a payout batch.
+ */
+export type PayoutBatchStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed";
+
+/**
+ * Input for generating a payout batch.
+ */
 export interface GeneratePayoutBatchInput {
   periodStart: string | Date;
   periodEnd: string | Date;
@@ -11,10 +22,14 @@ export interface GeneratePayoutBatchInput {
   ip: string;
 }
 
-// Backward-compatible name used by payouts.service.ts
+/**
+ * Backward-compatible alias used by payouts.service.ts.
+ */
 export type GenerateBatchInput = GeneratePayoutBatchInput;
 
-// Pagination details
+/**
+ * Pagination details.
+ */
 export interface Pagination {
   page: number;
   limit: number;
@@ -22,7 +37,9 @@ export interface Pagination {
   pages: number;
 }
 
-// Payout batch record
+/**
+ * Payout batch record.
+ */
 export interface BatchRecord {
   _id: unknown;
   periodStart: Date;
@@ -30,10 +47,12 @@ export interface BatchRecord {
   gross: number;
   commission: number;
   net: number;
-  status: string;
+  status: PayoutBatchStatus | string;
 }
 
-// Individual payout record
+/**
+ * Individual payout record.
+ */
 export interface PayoutRecord {
   _id: unknown;
   partnerId:
@@ -52,17 +71,32 @@ export interface PayoutRecord {
   createdAt: Date;
 }
 
-// List payout batches
+/**
+ * Query parameters for listing payout batches.
+ */
+export interface PayoutBatchQuery {
+  page?: number;
+  limit?: number;
+  status?: PayoutBatchStatus;
+}
+
+/**
+ * Input for listing payout batches.
+ */
 export interface ListBatchesInput {
   page?: number;
   limit?: number;
   status?: string;
 }
 
-// Backward-compatible alias
+/**
+ * Backward-compatible alias.
+ */
 export type ListPayoutBatchesInput = ListBatchesInput;
 
-// Mark an individual payout as paid
+/**
+ * Input for marking an individual payout as paid.
+ */
 export interface MarkPaidInput {
   payoutId: string;
   adminId: string;
@@ -70,10 +104,39 @@ export interface MarkPaidInput {
   transactionId?: string;
 }
 
-// Backward-compatible alias
+/**
+ * Backward-compatible alias.
+ */
 export type MarkPayoutPaidInput = MarkPaidInput;
 
-// CSV export row
+/**
+ * Aggregated payout batch totals.
+ */
+export interface PayoutBatchTotals {
+  gross: number;
+  commission: number;
+  net: number;
+}
+
+/**
+ * Payout batch response returned to callers.
+ */
+export interface PayoutBatchResponse {
+  id: string;
+  periodStart: Date;
+  periodEnd: Date;
+  gross: number;
+  commission: number;
+  net: number;
+  status: PayoutBatchStatus;
+  earningCount: number;
+  payoutCount: number;
+  createdAt: Date;
+}
+
+/**
+ * CSV export row.
+ */
 export interface PayoutCsvRow {
   payoutId: string;
   partner: string;
@@ -85,7 +148,9 @@ export interface PayoutCsvRow {
   paidAt: string;
 }
 
-// Repository contract
+/**
+ * Repository contract.
+ */
 export interface PayoutsRepository {
   generateBatch(input: {
     periodStart: Date;

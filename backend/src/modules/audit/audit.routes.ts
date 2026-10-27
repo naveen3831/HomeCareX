@@ -15,6 +15,8 @@ import { auditController } from './audit.controller';
  */
 export const auditRoutes = Router();
 
+// Protect all audit routes with authentication, admin role,
+// and the required audit-read permission.
 auditRoutes.use(
   authenticate,
   requireAdmin,

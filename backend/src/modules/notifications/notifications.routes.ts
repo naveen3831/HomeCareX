@@ -15,6 +15,7 @@ export const notificationsRoutes = Router();
 
 notificationsRoutes.use(authenticate);
 
+// `.strict()` rejects unknown query keys, so every supported key (limit, unread) must be listed here.
 const listQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(30),
@@ -28,8 +29,8 @@ notificationsRoutes.get(
   validate(listQuerySchema, "query"),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
-    const { limit, unread } = listQuerySchema.parse(req.query);
-
+    // validate() has already replaced req.query with the parsed value.
+    const { limit, unread } = req.query as unknown as z.infer<typeof listQuerySchema>;
     const [items, unreadCount] = await Promise.all([
       notificationsService.listForUser(id, limit, unread === "true"),
       notificationsService.unreadCount(id),
@@ -51,10 +52,7 @@ notificationsRoutes.patch(
   "/:id/read",
   validate(idParamsSchema, "params"),
   asyncHandler(async (req, res) => {
-    await notificationsService.markRead(
-      getAuthUser(req).id,
-      req.params.id,
-    );
+    await notificationsService.markRead(getAuthUser(req).id, req.params.id as string);
     sendSuccess(res, { ok: true });
   }),
 );
