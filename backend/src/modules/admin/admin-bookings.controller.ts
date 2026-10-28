@@ -739,6 +739,7 @@ export class AdminBookingsController {
     };
   }
 
+  
   /**
    * ---------------------------------------------------------
    * GET BOOKINGS
@@ -749,6 +750,8 @@ export class AdminBookingsController {
     req: Request,
     res: Response,
   ): Promise<void> {
+    console.log('[AdminBookings] Request received');
+
     this.assertAdmin(req);
 
     const {
@@ -759,24 +762,17 @@ export class AdminBookingsController {
       customer,
       partner,
       date,
-    } =
-      req.query as Record<
-        string,
-        string | undefined
-      >;
+    } = req.query as Record<string, string | undefined>;
 
-    const query: Record<
-      string,
-      unknown
-    > = {};
+    const query: Record<string, unknown> = {};
 
     if (status) {
       query.status = status;
     }
 
-    if (city) {
+    if (city?.trim()) {
       query['address.city'] = {
-        $regex: city,
+        $regex: city.trim(),
         $options: 'i',
       };
     }
@@ -785,9 +781,9 @@ export class AdminBookingsController {
       query.categoryId = category;
     }
 
-    if (customer) {
+    if (customer?.trim()) {
       query.customerName = {
-        $regex: customer,
+        $regex: customer.trim(),
         $options: 'i',
       };
     }
@@ -797,71 +793,90 @@ export class AdminBookingsController {
     }
 
     if (date) {
-      const start =
-        new Date(
-          `${date}T00:00:00.000Z`,
-        );
+      const start = new Date(`${date}T00:00:00.000Z`);
+      const end = new Date(`${date}T23:59:59.999Z`);
 
-      const end =
-        new Date(
-          `${date}T23:59:59.999Z`,
-        );
-
-      query.scheduledAt = {
-        $gte: start,
-        $lte: end,
-      };
+      if (
+        !Number.isNaN(start.getTime()) &&
+        !Number.isNaN(end.getTime())
+      ) {
+        query.scheduledAt = {
+          $gte: start,
+          $lte: end,
+        };
+      }
     }
 
-    if (search) {
+    if (search?.trim()) {
+      const escapedSearch = search.trim().replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&',
+      );
+
       query.$or = [
         {
           customerName: {
-            $regex: search,
+            $regex: escapedSearch,
             $options: 'i',
           },
         },
         {
           serviceName: {
-            $regex: search,
+            $regex: escapedSearch,
             $options: 'i',
           },
         },
       ];
     }
 
-    const bookings =
-      await BookingModel.find(query)
-        .sort({
-          createdAt: -1,
-        })
+    console.log(
+      '[AdminBookings] Executing query:',
+      JSON.stringify(query),
+    );
+
+    try {
+      const bookings = await BookingModel.find(query)
+        .sort({ createdAt: -1 })
+        .limit(100)
         .lean()
         .exec();
 
-    const data = [];
+      console.log(
+        `[AdminBookings] Found ${bookings.length} bookings`,
+      );
 
-    for (const rawBooking of bookings) {
-      const booking =
-        rawBooking as unknown as AdminBookingSource;
+      const data = await Promise.all(
+        bookings.map(async (rawBooking) => {
+          const booking =
+            rawBooking as unknown as AdminBookingSource;
 
-      const payment =
-        await this.getPaymentForBooking(
-          booking._id.toString(),
-        );
+          const payment = await this.getPaymentForBooking(
+            booking._id.toString(),
+          );
 
-      const response =
-        await this.buildBookingResponse(
-          booking,
-          payment,
-        );
+          return this.buildBookingResponse(
+            booking,
+            payment,
+          );
+        }),
+      );
 
-      data.push(response);
+      console.log(
+        `[AdminBookings] Returning ${data.length} bookings`,
+      );
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error) {
+      console.error(
+        '[AdminBookings] Failed to load bookings:',
+        error,
+      );
+
+      throw error;
     }
-
-    res.status(200).json({
-      success: true,
-      data,
-    });
   }
 
   /**

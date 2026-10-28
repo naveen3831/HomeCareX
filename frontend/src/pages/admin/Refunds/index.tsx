@@ -260,9 +260,6 @@ const PAGE_SIZE = 20;
 const LABEL: Record<RefundStatus, string> = { requested: 'Requested', approved: 'Approved', processed: 'Processed', rejected: 'Rejected' };
 const errText = (e: unknown) => (e as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (e as { message?: string })?.message || 'Something went wrong. Please try again.';
 
-type Pending = { refund: AdminRefund; action: 'approve' | 'reject' } | null;
-
-/** /admin/refunds: review refund requests (GET /admin/refunds) and approve or reject them (PATCH /admin/refunds/:id). */
 export const AdminRefundsPage: React.FC = () => {
   const { can } = usePermissions();
   const canDecide = can(PAYMENTS_REFUND);

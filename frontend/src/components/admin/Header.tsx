@@ -6,16 +6,14 @@ import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
-export interface HeaderNotification {
-  id: string;
-  title: string;
-  time: string;
-  href?: string;
-}
+  const toggleMobileMenu = useUIStore(
+    (state) => state.toggleMobileMenu,
+  );
 
-interface HeaderProps {
-  notifications?: HeaderNotification[];
-}
+  // Hide customer-detail breadcrumbs on mobile.
+  // The corresponding CSS class controls the breakpoint.
+  const isCustomerDetails =
+    /^\/admin\/customers\/[^/]+/.test(pathname);
 
 /** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
 export const Header: React.FC<HeaderProps> = () => {
@@ -45,7 +43,9 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         type="button"
         onClick={toggleSidebar}
         className="icon-btn desktop-only"
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={
+          isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+        }
       >
         {isCollapsed ? (
           <PanelLeftOpen size={20} aria-hidden="true" />
@@ -71,7 +71,9 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         >
           <HelpCircle size={20} />
         </Link>
+
         <NotificationBell />
+
         <ProfileMenu />
       </div>
     </header>
