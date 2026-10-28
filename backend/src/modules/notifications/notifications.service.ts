@@ -10,7 +10,6 @@ import {
   GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
-  NOTIFICATION_TYPES,
   groupOf,
   type NotificationGroup,
   type NotificationType,

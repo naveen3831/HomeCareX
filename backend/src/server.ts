@@ -1,6 +1,8 @@
+
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
+
 import app from './app';
 import { initSockets } from './sockets';
 import { registerEarningsListeners } from './modules/earnings/earnings.listener';
@@ -16,7 +18,10 @@ import {
   ReferralCodeModel,
   ReferralModel,
 } from './modules/referrals/referrals.model';
-import { WalletLedgerModel, WalletModel } from './models/Wallet';
+import {
+  WalletLedgerModel,
+  WalletModel,
+} from './models/Wallet';
 
 const timed = async <T>(
   label: string,
@@ -32,6 +37,8 @@ const timed = async <T>(
 };
 
 const server = http.createServer(app);
+
+// Attach Socket.IO to the same HTTP server before it starts listening.
 initSockets(server);
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -41,22 +48,30 @@ let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
 /**
- * Non-critical default data.
- * A failure here is logged but does not stop the server.
+ * Seed default data without preventing the server from running
+ * if a non-critical seeding operation fails.
  */
 const seedDefaults = async (): Promise<void> => {
   try {
-    const added = await timed('seed settings', seedDefaultSettings);
+    const added = await timed(
+      'seed settings',
+      seedDefaultSettings,
+    );
 
-    if (added) {
+    if (added > 0) {
       console.log(`Seeded ${added} default setting(s)`);
     }
 
-    await timed('seed designations', seedDefaultDesignations);
+    await timed(
+      'seed designations',
+      seedDefaultDesignations,
+    );
 
-    const freshCatalog = await timed('count services', async () => {
-      return (await ServiceModel.estimatedDocumentCount()) === 0;
-    });
+    const freshCatalog = await timed(
+      'count services',
+      async () =>
+        (await ServiceModel.estimatedDocumentCount()) === 0,
+    );
 
     await timed('seed categories', seedDefaultCategories);
     await timed('seed services', seedDefaultServices);
@@ -71,19 +86,26 @@ const seedDefaults = async (): Promise<void> => {
   }
 };
 
+/**
+ * Connect to MongoDB, initialize critical indexes, start the HTTP
+ * server once, and then start background workers and listeners.
+ */
 const startServer = async (): Promise<void> => {
   try {
-    await timed('mongo connect', async () => {
-      if (!process.env.DATABASE_URL) {
-        throw new Error('DATABASE_URL is missing from your environment.');
-      }
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        'DATABASE_URL is missing from your environment.',
+      );
+    }
 
-      await mongoose.connect(process.env.DATABASE_URL);
+    await timed('mongo connect', async () => {
+      await mongoose.connect(process.env.DATABASE_URL as string);
     });
 
     console.log('Connected to MongoDB');
 
-    // Initialize critical indexes before accepting requests.
+    // Initialize critical indexes before accepting requests that
+    // can modify referral rewards or wallet balances.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
         ReferralCodeModel.init(),
@@ -128,15 +150,14 @@ const startServer = async (): Promise<void> => {
     stopReferralWorker = startReferralWorker((error) =>
       console.error(
         '[referral-worker] Background referral processing failed:',
-        error instanceof Error ? error.message : 'Unknown error',
+        error instanceof Error ? error.message : String(error),
       ),
     );
 
     registerEarningsListeners();
     stopSlaSweep = startSlaSweep();
 
-    // Seed default data without blocking incoming requests.
-    // Seed default data after the server starts; failures are logged only.
+    // Seeding is non-critical and can complete after the server starts.
     void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);
@@ -164,7 +185,9 @@ const startServer = async (): Promise<void> => {
   }
 };
 
-// Graceful shutdown.
+/**
+ * Gracefully stop background workers, the HTTP server, and MongoDB.
+ */
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
@@ -187,17 +210,24 @@ const shutdown = async (): Promise<void> => {
       });
     }
 
-    await mongoose.connection.close();
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.connection.close();
+    }
 
     console.log('Database connection closed.');
     process.exitCode = 0;
   } catch (error) {
-    console.error('Error during shutdown:', error);
+    console.error('Error during graceful shutdown:', error);
     process.exitCode = 1;
   }
 };
 
-process.on('SIGTERM', () => void shutdown());
-process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => {
+  void shutdown();
+});
+
+process.on('SIGINT', () => {
+  void shutdown();
+});
 
 void startServer();

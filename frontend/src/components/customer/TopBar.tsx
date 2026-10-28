@@ -102,9 +102,13 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             {/* One picker at every width (a single instance keeps DOM ids unique). Hidden on mobile for referrals. */}
             <div
               className={clsx(
-                "min-w-0 flex-1 md:flex-none",
-                onReferrals && "hidden md:block",
+                "rounded-lg text-lg font-bold tracking-tight",
+                sidebarOpen
+                  ? "hidden"
+                  : "ml-2 hidden md:inline-flex",
+                FOCUS_RING,
               )}
+              aria-label="HomeCareX home"
             >
               <LocationPicker />
             </div>
