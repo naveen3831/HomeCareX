@@ -31,8 +31,17 @@ export function classifyApiError(
     };
   }
 
-  const apiErr = err as ApiError | undefined;
-  if (!apiErr) {
+  const apiErr = err as (ApiError & { response?: { status?: number; data?: { message?: string; code?: string; details?: ApiError['details'] } } }) | undefined;
+  const responseData = apiErr?.response?.data;
+  const normalized: ApiError = {
+    message: apiErr?.message || responseData?.message || defaultHttpMsg,
+    status: apiErr?.status ?? apiErr?.response?.status,
+    code: apiErr?.code || responseData?.code,
+    isTimeout: apiErr?.isTimeout,
+    details: apiErr?.details ?? responseData?.details,
+  };
+
+  if (!apiErr && !responseData) {
     return {
       kind: 'unknown',
       message: 'Something went wrong. Please try again.',
@@ -41,33 +50,33 @@ export function classifyApiError(
 
   // 2. Request Timeout
   if (
-    apiErr.isTimeout ||
-    apiErr.code === 'ECONNABORTED' ||
-    apiErr.code === 'ETIMEDOUT' ||
-    (typeof apiErr.message === 'string' && /taking too long|timeout/i.test(apiErr.message))
+    normalized.isTimeout ||
+    normalized.code === 'ECONNABORTED' ||
+    normalized.code === 'ETIMEDOUT' ||
+    (typeof normalized.message === 'string' && /taking too long|timeout/i.test(normalized.message))
   ) {
     return {
       kind: 'timeout',
-      code: apiErr.code,
+      code: normalized.code,
       message: 'The server is taking too long to respond. Please check your connection and try again.',
     };
   }
 
   // 3. HTTP status response received
-  if (typeof apiErr.status === 'number' && apiErr.status > 0) {
+  if (typeof normalized.status === 'number' && normalized.status > 0) {
     return {
       kind: 'http',
-      status: apiErr.status,
-      code: apiErr.code,
-      message: apiErr.message || defaultHttpMsg,
-      details: apiErr.details,
+      status: normalized.status,
+      code: normalized.code,
+      message: normalized.message || defaultHttpMsg,
+      details: normalized.details,
     };
   }
 
   // 4. Network error without HTTP status (server stopped, connection refused)
   return {
     kind: 'network',
-    code: apiErr.code,
+    code: normalized.code,
     message: 'Unable to connect to the server. Please check your connection and try again.',
   };
 }

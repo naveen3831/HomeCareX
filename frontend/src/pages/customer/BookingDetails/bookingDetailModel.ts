@@ -174,13 +174,14 @@ export function buildTimeline(
   booking: Pick<BookingDetailView, "status" | "statusHistory"> & {
     createdAt?: string;
     holdExpiresAt?: string;
+    history?: BookingDetailView["statusHistory"];
   },
   now: number = Date.now(),
 ): TimelineItem[] {
   const history = Array.isArray(booking?.statusHistory)
     ? booking.statusHistory
-    : Array.isArray((booking as any)?.history)
-    ? (booking as any).history
+    : Array.isArray(booking?.history)
+    ? booking.history
     : [];
   const status = normalizeStatus(booking?.status);
   const expired = isExpiredHold(booking, now);

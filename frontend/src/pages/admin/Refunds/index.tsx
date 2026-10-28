@@ -29,14 +29,14 @@ interface Refund {
   razorpayRefundId: string;
   createdAt: string;
   updatedAt: string;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 const PAGE_SIZE = 10;
 
-const asObject = (value: unknown): Record<string, any> =>
+const asObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object"
-    ? (value as Record<string, any>)
+    ? (value as Record<string, unknown>)
     : {};
 
 const firstValue = (...values: unknown[]): string => {
@@ -78,6 +78,7 @@ const normalizeRefund = (item: unknown): Refund => {
   const customer = asObject(
     raw.customer ?? raw.user ?? booking.customer ?? booking.user,
   );
+  const refundDetails = asObject(raw.refundDetails);
 
   const id = firstValue(
     raw._id,
@@ -157,7 +158,7 @@ const normalizeRefund = (item: unknown): Refund => {
     ),
     razorpayRefundId: firstValue(
       raw.razorpayRefundId,
-      raw.refundDetails?.razorpayRefundId,
+      refundDetails.razorpayRefundId,
       payment.razorpayRefundId,
     ),
     createdAt: firstValue(raw.createdAt, raw.requestedAt, raw.date),
@@ -166,13 +167,12 @@ const normalizeRefund = (item: unknown): Refund => {
   };
 };
 
-const getErrorMessage = (error: any): string =>
-  firstValue(
-    error?.response?.data?.message,
-    error?.response?.data?.error,
-    error?.message,
-    "Something went wrong. Please try again.",
-  );
+const getErrorMessage = (error: unknown): string => {
+  const root = asObject(error);
+  const response = asObject(root.response);
+  const data = asObject(response.data);
+  return firstValue(data.message, data.error, root.message, "Something went wrong. Please try again.");
+};
 
 const formatCurrency = (amount: number): string =>
   new Intl.NumberFormat("en-IN", {
@@ -211,27 +211,32 @@ const getInitials = (name: string): string =>
 const statusClass = (status: RefundStatus): string =>
   `refund-status refund-status--${status.toLowerCase()}`;
 
-const extractRefunds = (response: any): Refund[] => {
-  const body = response?.data ?? response;
-  const payload = body?.data ?? body;
+const extractRefunds = (response: unknown): Refund[] => {
+  const root = asObject(response);
+  const body = asObject(root.data ?? response);
+  const payloadValue = body.data ?? body;
+  const payload = asObject(payloadValue);
   const rows =
-    payload?.refunds ??
-    payload?.items ??
-    payload?.results ??
-    payload?.requests ??
-    (Array.isArray(payload) ? payload : []);
+    payload.refunds ??
+    payload.items ??
+    payload.results ??
+    payload.requests ??
+    (Array.isArray(payloadValue) ? payloadValue : []);
 
   return Array.isArray(rows) ? rows.map(normalizeRefund) : [];
 };
 
-const extractTotal = (response: any, fallback: number): number => {
-  const body = response?.data ?? response;
-  const payload = body?.data ?? body;
+const extractTotal = (response: unknown, fallback: number): number => {
+  const root = asObject(response);
+  const body = asObject(root.data ?? response);
+  const payload = asObject(body.data ?? body);
+  const pagination = asObject(payload.pagination);
+  const meta = asObject(payload.meta);
   const total = Number(
-    payload?.total ??
-      payload?.totalCount ??
-      payload?.pagination?.total ??
-      payload?.meta?.total,
+    payload.total ??
+      payload.totalCount ??
+      pagination.total ??
+      meta.total,
   );
 
   return Number.isFinite(total) && total >= 0 ? total : fallback;

@@ -18,8 +18,9 @@ export const rbacKeys = {
   staff: ['admin', 'rbac', 'staff'] as const,
 };
 
-/** No backend rbac module yet, so mocks are on unless VITE_MOCK_RBAC=false. */
-export const USE_RBAC_MOCK = import.meta.env.VITE_MOCK_RBAC !== 'false';
+/** No backend RBAC module yet, so mocks are on outside Vitest unless VITE_MOCK_RBAC=false. */
+export const USE_RBAC_MOCK =
+  import.meta.env.MODE !== 'test' && import.meta.env.VITE_MOCK_RBAC !== 'false';
 
 
 const unwrap = <T>(res: { data: ApiResponse<T> }): T => res.data.data;

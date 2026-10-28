@@ -114,6 +114,8 @@ type CompactCoupon = {
   maxDiscount?: number;
   minOrder?: number;
   serviceName?: string;
+  eligible?: boolean;
+  reason?: { code: string; minOrder?: number };
 };
 
 function compactCouponDescription(coupon: CompactCoupon): string {
@@ -456,16 +458,14 @@ export default function StepReview() {
 
   const quoteReady = Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
   const payDisabled = !quoteReady || !online;
-  const compactCoupons = (Array.isArray(availableCoupons) ? availableCoupons : []) as unknown as CompactCoupon[];
-  const sortedCoupons = useMemo(() => {
-    return [...compactCoupons].sort((a, b) => {
-      const aEligible = (a as any).eligible !== false;
-      const bEligible = (b as any).eligible !== false;
-      if (aEligible && !bEligible) return -1;
-      if (!aEligible && bEligible) return 1;
-      return 0;
-    });
-  }, [compactCoupons]);
+  const compactCoupons: CompactCoupon[] = Array.isArray(availableCoupons) ? availableCoupons : [];
+  const sortedCoupons = [...compactCoupons].sort((a, b) => {
+    const aEligible = a.eligible !== false;
+    const bEligible = b.eligible !== false;
+    if (aEligible && !bEligible) return -1;
+    if (!aEligible && bEligible) return 1;
+    return 0;
+  });
   const INITIAL_COUPON_LIMIT = 6;
   const visibleCoupons = showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT ? sortedCoupons : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
   const hiddenCouponCount = Math.max(sortedCoupons.length - INITIAL_COUPON_LIMIT, 0);
@@ -732,8 +732,8 @@ export default function StepReview() {
                   {visibleCoupons.map((coupon, index) => {
                     const code = coupon.code ?? `COUPON-${index + 1}`;
                     const selected = Boolean(coupon.code) && draft.couponCode === coupon.code;
-                    const eligible = (coupon as any).eligible !== false;
-                    const reason = (coupon as any).reason;
+                    const eligible = coupon.eligible !== false;
+                    const reason = coupon.reason;
                     return (
                       <li key={`${code}-${index}`}>
                         <button

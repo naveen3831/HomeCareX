@@ -84,8 +84,8 @@ export default function JobDetailsPage() {
   const online = useOnline();
 
   const authCtx = useContext(AuthContext);
-  const storeUser = useAuthStore((s) => s.user) as any;
-  const user = authCtx?.user ?? storeUser;
+  const storeUserId = useAuthStore((s) => s.user?.id);
+  const user = authCtx?.user ?? (typeof storeUserId === 'string' ? { id: storeUserId } : null);
   const [partnerAssignedServices, setPartnerAssignedServices] = useState<
     Array<{ id: string; name: string; slug: string }>
   >([]);

@@ -241,7 +241,7 @@ function DetailsBody({
   const [imgFailed, setImgFailed] = useState(false);
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
 
-  const bookingId = String(booking._id || (booking as any).id || "");
+  const bookingId = String(booking._id || booking.id || "");
   const normalizedStatus = String(booking.status || "").toLowerCase();
   const pill = statusPill(booking);
   const code =
@@ -276,13 +276,13 @@ function DetailsBody({
   const dateFormatted = formatPlainDate(booking.date);
   const slotFormatted = formatSlot(booking.slot);
   const bookedOn = formatBookedOn(booking.createdAt);
-  const duration = formatDuration(service?.durationMinutes || (booking as any).durationMinutes);
+  const duration = formatDuration(service?.durationMinutes || booking.durationMinutes);
   const maps = mapsUrl(address);
   const paidOn = formatMoment(pay?.paidAt);
   const methodText = paymentMethodLabel(pay?.method);
   const txn = pay?.transactionId || pay?.paymentId;
   const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(bookingId)}`;
-  const scheduledAt = (booking as any).scheduledAt;
+  const scheduledAt = booking.scheduledAt;
   const slotHours = (() => {
     const m = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
       booking.slot || "",
@@ -482,7 +482,7 @@ function DetailsBody({
               partner={
                 booking.partner ||
                 (typeof booking.partnerId === "object" && booking.partnerId !== null
-                  ? (booking.partnerId as any)
+                  ? booking.partnerId
                   : null)
               }
               hasPartner={Boolean(booking.partnerId)}

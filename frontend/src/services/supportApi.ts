@@ -17,34 +17,75 @@ function cleanParams(obj: object): Record<string, string | number> {
   return out;
 }
 
+const asObject = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === "object" ? value as Record<string, unknown> : {};
+
+const asTickets = (value: unknown): CustomerTicket[] =>
+  Array.isArray(value) ? value as CustomerTicket[] : [];
+
+const ticketMeta = (
+  value: unknown,
+  fallback: TicketPage["meta"],
+): TicketPage["meta"] => {
+  const meta = asObject(value);
+  return {
+    page: Number(meta.page) || fallback.page,
+    limit: Number(meta.limit) || fallback.limit,
+    total: Number(meta.total) || fallback.total,
+    pages: Number(meta.pages) || fallback.pages,
+  };
+};
+
 export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
-    const response = await http.get<any>("/support/tickets", {
+    const response = await http.get<unknown>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
     const body = response.data;
-    if (Array.isArray(body?.data)) {
+    const record = asObject(body);
+    const data = record.data;
+    if (Array.isArray(data)) {
+      const items = asTickets(data);
       return {
-        items: body.data,
-        meta: body.meta ?? {
+        items,
+        meta: ticketMeta(record.meta, {
           page: Number(filters.page) || 1,
           limit: 10,
-          total: body.data.length,
+          total: items.length,
           pages: 1,
-        },
+        }),
       };
     }
-    if (body?.data?.items && Array.isArray(body.data.items)) {
-      return body.data;
+    const nested = asObject(data);
+    if (Array.isArray(nested.items)) {
+      const items = asTickets(nested.items);
+      return {
+        items,
+        meta: ticketMeta(nested.meta, {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: items.length,
+          pages: 1,
+        }),
+      };
     }
-    if (body?.items && Array.isArray(body.items)) {
-      return body;
+    if (Array.isArray(record.items)) {
+      const items = asTickets(record.items);
+      return {
+        items,
+        meta: ticketMeta(record.meta, {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: items.length,
+          pages: 1,
+        }),
+      };
     }
     if (Array.isArray(body)) {
       return {
-        items: body,
+        items: asTickets(body),
         meta: {
           page: Number(filters.page) || 1,
           limit: 10,

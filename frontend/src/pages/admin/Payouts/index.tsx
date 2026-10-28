@@ -17,7 +17,7 @@ interface PayoutBatch {
   createdAt: string;
   updatedAt: string;
   payoutIds: string[];
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface IndividualPayout {
@@ -31,7 +31,7 @@ interface IndividualPayout {
   status: PayoutStatus;
   paidAt: string;
   createdAt: string;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface Pagination {
@@ -43,9 +43,9 @@ interface Pagination {
 
 const PAGE_SIZE = 20;
 
-const asObject = (value: unknown): Record<string, any> =>
+const asObject = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object"
-    ? (value as Record<string, any>)
+    ? (value as Record<string, unknown>)
     : {};
 
 const firstValue = (...values: unknown[]): string => {
@@ -57,17 +57,17 @@ const firstValue = (...values: unknown[]): string => {
   return "";
 };
 
-const getErrorMessage = (error: any): string =>
-  firstValue(
-    error?.response?.data?.message,
-    error?.response?.data?.error,
-    error?.message,
-    "Something went wrong. Please try again."
-  );
+const getErrorMessage = (error: unknown): string => {
+  const root = asObject(error);
+  const response = asObject(root.response);
+  const data = asObject(response.data);
+  return firstValue(data.message, data.error, root.message, "Something went wrong. Please try again.");
+};
 
-const getPayload = (response: any): any => {
-  const body = response?.data ?? response;
-  return body?.data ?? body;
+const getPayload = (response: unknown): unknown => {
+  const root = asObject(response);
+  const body = asObject(root.data ?? response);
+  return body.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {
@@ -123,8 +123,8 @@ const normalizeBatch = (item: unknown): PayoutBatch => {
 
   return {
     id: firstValue(raw._id, raw.id, raw.batchId),
-    periodStart: firstValue(raw.periodStart, raw.startDate, raw.period?.from),
-    periodEnd: firstValue(raw.periodEnd, raw.endDate, raw.period?.to),
+    periodStart: firstValue(raw.periodStart, raw.startDate, asObject(raw.period).from),
+    periodEnd: firstValue(raw.periodEnd, raw.endDate, asObject(raw.period).to),
     gross: Number(raw.gross ?? 0),
     commission: Number(raw.commission ?? 0),
     net: Number(raw.net ?? 0),
@@ -263,7 +263,7 @@ export const AdminPayoutsPage: React.FC = () => {
 
       setBatches(rows);
 
-      const serverPagination = asObject(payload?.pagination);
+      const serverPagination = asObject(asObject(payload).pagination);
       setPagination({
         page: Number(serverPagination.page ?? page),
         limit: Number(serverPagination.limit ?? PAGE_SIZE),
@@ -301,11 +301,12 @@ export const AdminPayoutsPage: React.FC = () => {
       const batchPayload = getPayload(batchResponse);
       const payoutPayload = getPayload(payoutsResponse);
 
+      const batchRecord = asObject(batchPayload);
       const batchData =
-        batchPayload?.batch ??
-        batchPayload?.item ??
-        batchPayload?.data ??
-        batchPayload;
+        batchRecord.batch ??
+        batchRecord.item ??
+        batchRecord.data ??
+        batchRecord;
 
       const normalizedBatch = normalizeBatch(batchData);
 

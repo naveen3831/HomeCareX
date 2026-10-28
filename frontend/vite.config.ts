@@ -40,7 +40,7 @@ export default defineConfig({
 
   server: {
     port: 3000,
-    open: true,
+    open: false,
 
     proxy: {
       '/api': {
@@ -65,6 +65,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     // jsdom page tests (typing into forms, waiting for lists) are slow under parallel load; the 5 s default
     // caused false failures that pass when the file is run alone.
     testTimeout: 20000,
