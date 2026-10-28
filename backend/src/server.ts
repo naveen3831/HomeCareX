@@ -18,8 +18,12 @@ import {
 } from './modules/referrals/referrals.model';
 import { WalletLedgerModel, WalletModel } from './models/Wallet';
 
-const timed = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
+const timed = async <T>(
+  label: string,
+  fn: () => Promise<T>,
+): Promise<T> => {
   const start = Date.now();
+
   try {
     return await fn();
   } finally {
@@ -31,6 +35,7 @@ const server = http.createServer(app);
 initSockets(server);
 
 const PORT = Number(process.env.PORT) || 5000;
+
 let stopReferralWorker: (() => void) | undefined;
 let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
@@ -42,6 +47,7 @@ let shuttingDown = false;
 const seedDefaults = async (): Promise<void> => {
   try {
     const added = await timed('seed settings', seedDefaultSettings);
+
     if (added) {
       console.log(`Seeded ${added} default setting(s)`);
     }
@@ -71,12 +77,13 @@ const startServer = async (): Promise<void> => {
       if (!process.env.DATABASE_URL) {
         throw new Error('DATABASE_URL is missing from your environment.');
       }
+
       await mongoose.connect(process.env.DATABASE_URL);
     });
+
     console.log('Connected to MongoDB');
 
-    // Create required indexes before the server accepts requests that
-    // could award referral rewards or modify wallet balances.
+    // Initialize critical indexes before accepting requests.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
         ReferralCodeModel.init(),
@@ -92,6 +99,7 @@ const startServer = async (): Promise<void> => {
         server.removeListener('listening', onListening);
         reject(error);
       };
+
       const onListening = (): void => {
         server.removeListener('error', onError);
         resolve();
@@ -103,20 +111,31 @@ const startServer = async (): Promise<void> => {
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
-    // Time since the node process started, including loading all modules.
+
     console.log(
-      `[timing] total startup: ${Math.round(process.uptime() * 1000)} ms`,
+      `[timing] total startup: ${Math.round(
+        process.uptime() * 1000,
+      )} ms`,
     );
 
+    console.log(
+      `[timing] process uptime at listen: ${Math.round(
+        process.uptime() * 1000,
+      )} ms`,
+    );
+
+    // Start background workers and listeners exactly once.
     stopReferralWorker = startReferralWorker((error) =>
       console.error(
         '[referral-worker] Background referral processing failed:',
         error instanceof Error ? error.message : 'Unknown error',
       ),
     );
+
     registerEarningsListeners();
     stopSlaSweep = startSlaSweep();
 
+    // Seed default data without blocking incoming requests.
     // Seed default data after the server starts; failures are logged only.
     void seedDefaults();
   } catch (error) {
@@ -127,34 +146,49 @@ const startServer = async (): Promise<void> => {
     stopSlaSweep?.();
 
     if (server.listening) {
-      server.close();
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
     }
+
     if (mongoose.connection.readyState !== 0) {
       try {
         await mongoose.connection.close();
       } catch (closeError) {
-        console.error('[startup] Failed to close MongoDB connection:', closeError);
+        console.error(
+          '[startup] Failed to close MongoDB connection:',
+          closeError,
+        );
       }
     }
   }
 };
 
-// Graceful shutdown
+// Graceful shutdown.
 const shutdown = async (): Promise<void> => {
   if (shuttingDown) return;
   shuttingDown = true;
 
   console.log('Stopping server gracefully...');
+
   stopReferralWorker?.();
   stopSlaSweep?.();
 
   try {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
       });
     }
+
     await mongoose.connection.close();
+
     console.log('Database connection closed.');
     process.exitCode = 0;
   } catch (error) {

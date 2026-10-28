@@ -625,6 +625,9 @@ overscroll-behavior: contain;}
 /* hide scrollbar but keep scrolling */
 .hcx-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .hcx-no-scrollbar::-webkit-scrollbar { display: none; }
+   .hcx-notif-panel { display: flex; flex-direction: column; padding: 0; overflow: hidden; max-height: min(70vh, 480px); }
+   .hcx-notif-panel__head, .hcx-notif-panel__all { flex: none; }
+   .hcx-notif-panel ul { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .hcx-notif-panel { scrollbar-width: none; -ms-overflow-style: none; }
 .hcx-notif-panel::-webkit-scrollbar { display: none; }
 /* Tap targets: mobile partner menu */

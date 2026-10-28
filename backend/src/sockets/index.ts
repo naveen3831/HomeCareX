@@ -1,11 +1,14 @@
+
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
+
 import { authService } from '../modules/auth/auth.service';
 import type { AccessTokenPayload } from '../modules/auth/auth.types';
 import BookingModel from '../models/Booking';
 import PartnerModel from '../models/Partner';
 import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
+
 import { registerTrackingSocket } from './tracking.socket';
 import { registerTicketSocket } from './ticket.socket';
 
@@ -16,6 +19,8 @@ import { registerTicketSocket } from './ticket.socket';
  * - user:<id>
  * - role:<role>
  * - booking:<id> after successful booking:join authorization
+ *
+ * Tracking and ticket rooms are managed by their respective socket modules.
  * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
  * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
  */
@@ -48,15 +53,28 @@ export const getIO = (): Server => {
       'Socket.IO has not been initialised. Call initSockets(server) first.',
     );
   }
+
   return io;
 };
 
-/** Null before initSockets() (unit tests, scripts). Emitters use this so a missing server never fails a request. */
+/**
+ * Returns the Socket.IO server if initialized.
+ * Useful in tests and scripts where sockets may not be started.
+ */
 export const getIOIfReady = (): Server | null => io;
 
-export const emitToUser = (userId: string, event: string, payload: unknown) =>
-  getIO().to(rooms.user(userId)).emit(event, payload);
+/**
+ * Emits an event to a user's room.
+ */
+export const emitToUser = (
+  userId: string,
+  event: string,
+  payload: unknown,
+) => getIO().to(rooms.user(userId)).emit(event, payload);
 
+/**
+ * Emits an event to a booking's room.
+ */
 export const emitToBooking = (
   bookingId: string,
   event: string,
@@ -64,6 +82,11 @@ export const emitToBooking = (
 ) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
 /**
+ * Determines whether an authenticated user can join a booking room.
+ *
+ * - Admin: any existing booking
+ * - Customer: only their own booking
+ * - Partner: only a booking assigned to them
  * Admins can join existing bookings.
  * Customers can join only their own bookings.
  * Partners can join only bookings assigned to them.
@@ -86,10 +109,21 @@ async function canJoinBooking(
   }
 
   if (auth.role === 'partner') {
-    const partner = await PartnerModel.findOne({ userId: auth.sub })
+    const partner = await PartnerModel.findOne({
+      userId: auth.sub,
+    })
       .select('_id')
       .lean();
 
+    if (!partner) {
+      return false;
+    }
+
+    return Boolean(
+      await BookingModel.exists({
+        _id: bookingId,
+        partnerId: partner._id,
+      }),
     return (
       Boolean(partner) &&
       Boolean(
@@ -109,9 +143,16 @@ async function canJoinBooking(
  */
 const tokenFrom = (socket: Socket): string | undefined => {
   const fromAuth: unknown = socket.handshake.auth?.token;
-  if (typeof fromAuth === 'string' && fromAuth) return fromAuth;
+
+  if (typeof fromAuth === 'string' && fromAuth) {
+    return fromAuth;
+  }
+
   const header = socket.handshake.headers.authorization;
-  return header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+
+  return header?.startsWith('Bearer ')
+    ? header.slice(7)
+    : undefined;
 };
 
 /**
@@ -121,13 +162,15 @@ const reject = (code: ErrorCode) => {
   const err = new Error(code) as Error & {
     data?: { code: ErrorCode };
   };
+
   err.data = { code };
+
   return err;
 };
 
 /**
  * Initializes Socket.IO, configures JWT authentication,
- * and registers booking, tracking and ticket socket events.
+ * and registers booking, tracking, and ticket socket events.
  */
 export const initSockets = (server: HttpServer): Server => {
   const origins = (
@@ -145,7 +188,7 @@ export const initSockets = (server: HttpServer): Server => {
     },
   });
 
-  // Authenticate each socket using an access token.
+  // Authenticate every socket using an access token.
   io.use((socket, next) => {
     const token = tokenFrom(socket);
 
@@ -165,17 +208,54 @@ export const initSockets = (server: HttpServer): Server => {
     const auth = socket.data.auth as AccessTokenPayload;
 
     // Automatically join the user's room and role room.
-    void socket.join([rooms.user(auth.sub), rooms.role(auth.role)]);
+    void socket.join([
+      rooms.user(auth.sub),
+      rooms.role(auth.role),
+    ]);
 
-    // --------------------------------------------------
-    // BOOKING SOCKET EVENTS
-    // --------------------------------------------------
+    // Join a booking room only after authorization.
+    socket.on(
+      'booking:join',
+      async (payload: unknown, ack?: AckFn) => {
+        const reply: AckFn =
+          typeof ack === 'function' ? ack : () => undefined;
 
-    socket.on('booking:join', async (payload: unknown, ack?: AckFn) => {
-      const reply: AckFn = typeof ack === 'function' ? ack : () => undefined;
+        const parsed = bookingPayload.safeParse(payload);
 
-      const parsed = bookingPayload.safeParse(payload);
+        if (!parsed.success) {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.VALIDATION_ERROR,
+            message: 'bookingId is required',
+          });
+        }
 
+        try {
+          const allowed = await canJoinBooking(
+            auth,
+            parsed.data.bookingId,
+          );
+
+          if (!allowed) {
+            return reply({
+              ok: false,
+              code: ERROR_CODES.RESOURCE_FORBIDDEN,
+              message: 'You cannot join this booking',
+            });
+          }
+
+          await socket.join(rooms.booking(parsed.data.bookingId));
+
+          return reply({ ok: true });
+        } catch {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.INTERNAL_ERROR,
+            message: 'Could not join booking',
+          });
+        }
+      },
+    );
       if (!parsed.success) {
         return reply({
           ok: false,
@@ -207,6 +287,7 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
+    // Leave a booking room.
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
 
@@ -215,6 +296,7 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
+    // Register tracking and support-ticket socket events.
     // --------------------------------------------------
     // TRACKING + TICKET SOCKET EVENTS
     // --------------------------------------------------
