@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
@@ -98,6 +98,27 @@ export default function TrackingPage() {
   const [focusedOnPartner, setFocusedOnPartner] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFocusKey, setChatFocusKey] = useState(0);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleBack = () => {
+    if (location.state?.from) {
+      if (location.state.from === customerPath("/tracking") || location.state.from.includes("/payments")) {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate(location.state.from, { replace: true });
+        }
+      } else {
+        navigate(location.state.from);
+      }
+    } else if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(customerPath("/tracking"));
+    }
+  };
 
   // Reset chat visibility when switching bookings
   useEffect(() => {
@@ -392,7 +413,7 @@ export default function TrackingPage() {
     <div
       ref={pageShellRef}
       className={clsx(
-        "tk-page-shell mx-auto w-full max-w-6xl px-3 py-1 sm:px-5",
+        "tk-page-shell mx-auto w-full max-w-6xl px-3.5 py-1 min-[360px]:px-4 md:px-6",
         trackable && "tk-page-shell--fit",
       )}
     >
@@ -408,55 +429,57 @@ export default function TrackingPage() {
         )}
       >
         {/* ---------- header ---------- */}
-        <header className="tk-header !grid w-full min-w-0 grid-cols-1 items-start gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-4 md:gap-y-1">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <Link
-                to={detailsHref}
-                className={clsx(BACK_LINK, "shrink-0 whitespace-nowrap", FOCUS_RING)}
-              >
-                <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Back to booking
-              </Link>
-              <span aria-hidden="true" className="text-xs text-slate-300">
-                |
+        <header className="tk-header w-full min-w-0 space-y-1.5 pb-1">
+          {/* Top Row: Back button (left) + Live Tracking badge (right) */}
+          <div className="flex w-full items-center justify-between">
+            <button
+              type="button"
+              onClick={handleBack}
+              className={clsx(
+                "inline-flex items-center gap-1.5 text-xs font-semibold text-[#4338ca] transition-colors hover:underline sm:text-sm",
+                FOCUS_RING,
+              )}
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {location.state?.from === customerPath("/bookings")
+                  ? "Back to My Bookings"
+                  : location.state?.from && location.state.from.includes("/bookings/")
+                    ? "Back to booking"
+                    : "Back to Active Bookings"}
               </span>
-              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                <Radio className="h-3 w-3 shrink-0" aria-hidden="true" />
-                Live Tracking
-              </span>
-            </div>
+            </button>
 
-            <div className="mt-1 min-w-0">
-              <h1 className="min-w-0 break-words text-lg font-bold leading-snug tracking-tight text-ink sm:text-xl">
-                {serviceName || "Track your service"}
-              </h1>
-              <p className="mt-1 flex min-w-0 flex-col items-start gap-y-0.5 text-xs leading-relaxed text-muted sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
-                  Booking ID {bookingCode}
-                </span>
-                {bookedOn && (
-                  <>
-                    <span aria-hidden="true" className="hidden sm:inline">•</span>
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
-                      Booked on {bookedOn}
-                    </span>
-                  </>
-                )}
-              </p>
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#eeebf9] px-3 py-1 text-xs font-semibold text-[#4338ca]">
+              <Radio className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Live Tracking</span>
+            </span>
+          </div>
+
+          {/* Service Title */}
+          <div>
+            <h1 className="text-[17px] font-bold tracking-tight text-slate-900 leading-snug min-[360px]:text-[18px] sm:text-[20px] md:text-[22px]">
+              {serviceName || "Track your service"}
+            </h1>
+
+            {/* Booking ID and Booked On */}
+            <div className="mt-0.5 space-y-0.5 text-[11px] font-normal text-slate-500 min-[360px]:text-xs md:text-[13px]">
+              <div>Booking ID {bookingCode}</div>
+              {bookedOn && <div>Booked on {bookedOn}</div>}
             </div>
           </div>
 
+          {/* Status Row: Primary badge + Secondary slot/ETA message */}
           {!cancelled && (
-            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 md:flex-col md:items-end md:gap-0.5">
+            <div className="flex flex-wrap items-center gap-2.5 pt-1 sm:gap-3">
               <span
                 className={clsx(
-                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold sm:text-[13px]",
-                  BADGE_STYLE[status] ?? "bg-slate-100 text-slate-700",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors sm:text-[13px]",
+                  BADGE_STYLE[status] ?? "bg-[#eeebf9] text-[#4338ca]",
                 )}
               >
                 <StatusIcon status={status} />
-                {statusLabel(status)}
+                <span>{statusLabel(status)}</span>
               </span>
               <EtaBadge status={status} minutes={eta} />
             </div>

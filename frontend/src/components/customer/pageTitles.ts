@@ -22,7 +22,7 @@ const PAGES: Array<[RegExp, CustomerPageMeta]> = [
   [/^\/bookings$/, { title: "My Bookings", parent: HOME }],
   [/^\/bookings\/[^/]+\/track$/, { title: "Track booking", parent: BOOKINGS }],
   [/^\/bookings\/[^/]+$/, { title: "Booking details", parent: BOOKINGS }],
-  [/^\/tracking$/, { title: "Track booking", parent: BOOKINGS }],
+  [/^\/tracking$/, { title: "Active Bookings", parent: PROFILE }],
   [/^\/booking\/success\/[^/]+$/, { title: "Booking confirmed", parent: BOOKINGS }],
   [/^\/booking\/booked\/[^/]+$/, { title: "Booking confirmed", parent: BOOKINGS }],
   [/^\/booking\/failed\/[^/]+$/, { title: "Payment failed", parent: BOOKINGS }],

@@ -40,14 +40,11 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 border-b border-line">
+    <div className="flex items-center gap-2 border-b-0 md:border-b md:border-line">
       <div
         role="tablist"
         aria-label="Booking status"
-        className="grid min-w-0 flex-1"
-        style={{
-          gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`,
-        }}
+        className="grid min-w-0 flex-1 grid-cols-4 rounded-xl bg-[#f1f3f7] p-1 md:rounded-none md:bg-transparent md:p-0"
       >
         {TABS.map((tab, i) => {
           const selected = tab.id === active;
@@ -66,10 +63,16 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => move(e, i)}
               className={clsx(
-                "-mb-px flex min-h-[44px] w-full min-w-0 items-center justify-center whitespace-nowrap border-b-2 px-0.5 text-center text-[11px] font-medium transition-colors sm:px-1 sm:text-sm",
+                "flex min-h-[40px] w-full min-w-0 items-center justify-center whitespace-nowrap text-center text-xs transition-all sm:text-sm md:min-h-[44px]",
+                // Mobile segmented control styling (matching Image 2)
                 selected
-                  ? "border-brand text-brand"
-                  : "border-transparent text-muted hover:text-ink",
+                  ? "rounded-lg bg-[#eeebf9] text-[#4338ca] font-semibold border-b-2 border-[#4338ca]"
+                  : "rounded-lg border-b-2 border-transparent text-slate-600 font-medium hover:text-slate-900",
+                // Desktop override (matching original desktop tablist)
+                "-mb-px md:rounded-none md:bg-transparent md:border-b-2",
+                selected
+                  ? "md:border-brand md:text-brand"
+                  : "md:border-transparent md:text-muted md:hover:text-ink",
                 FOCUS_RING,
               )}
             >

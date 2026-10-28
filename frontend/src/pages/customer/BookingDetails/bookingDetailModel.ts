@@ -323,7 +323,7 @@ export function formatBookedOn(iso?: string): string {
       minute: "2-digit",
       hour12: true,
     })
-    .toUpperCase();
+    .toUpperCase().replace(/\s+(AM|PM)/, "\u00A0$1");
   return `${date}, ${time}`;
 }
 
