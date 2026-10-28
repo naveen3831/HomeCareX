@@ -23,7 +23,7 @@ interface PayoutBatch {
   createdAt: string;
   updatedAt: string;
   payoutIds: string[];
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface IndividualPayout {
@@ -37,7 +37,7 @@ interface IndividualPayout {
   status: PayoutStatus;
   paidAt: string;
   createdAt: string;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface Pagination {
@@ -49,9 +49,9 @@ interface Pagination {
 
 const PAGE_SIZE = 20;
 
-const asObject = (value: unknown): Record<string, any> =>
+const asObject = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object"
-    ? (value as Record<string, any>)
+    ? (value as Record<string, unknown>)
     : {};
 
 const firstValue = (...values: unknown[]): string => {
@@ -64,26 +64,47 @@ const firstValue = (...values: unknown[]): string => {
   return "";
 };
 
-const getErrorMessage = (error: any): string =>
-  firstValue(
-    error?.response?.data?.message,
-    error?.response?.data?.error,
-    error?.message,
+const getErrorMessage = (error: unknown): string => {
+  const root = asObject(error);
+  const response = asObject(root.response);
+  const data = asObject(response.data);
+
+  return firstValue(
+    data.message,
+    data.error,
+    root.message,
     "Something went wrong. Please try again."
   );
+};
 
-const getPayload = (response: any): any => {
-  const body = response?.data ?? response;
-  return body?.data ?? body;
+/**
+ * Supports Axios responses and APIs that return a nested data object.
+ */
+const getPayload = (response: unknown): unknown => {
+  const root = asObject(response);
+  const body = root.data ?? response;
+  const bodyObject = asObject(body);
+
+  return bodyObject.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) {
+    return value;
+  }
 
   const payload = asObject(value);
 
-  for (const key of ["items", "payouts", "batches", "results", "records"]) {
-    if (Array.isArray(payload[key])) return payload[key];
+  for (const key of [
+    "items",
+    "payouts",
+    "batches",
+    "results",
+    "records",
+  ]) {
+    if (Array.isArray(payload[key])) {
+      return payload[key] as unknown[];
+    }
   }
 
   return [];
@@ -93,12 +114,16 @@ const normalizeBatchStatus = (value: unknown): BatchStatus => {
   const status = String(value ?? "").toLowerCase();
 
   if (
-    ["completed", "complete", "paid", "success", "successful"].includes(status)
+    ["completed", "complete", "paid", "success", "successful"].includes(
+      status
+    )
   ) {
     return "Completed";
   }
 
-  if (["processing", "in_progress", "initiated"].includes(status)) {
+  if (
+    ["processing", "in_progress", "initiated"].includes(status)
+  ) {
     return "Processing";
   }
 
@@ -118,7 +143,9 @@ const normalizePayoutStatus = (value: unknown): PayoutStatus => {
     return "Paid";
   }
 
-  if (["processing", "in_progress", "initiated"].includes(status)) {
+  if (
+    ["processing", "in_progress", "initiated"].includes(status)
+  ) {
     return "Processing";
   }
 
@@ -148,7 +175,9 @@ const normalizeBatch = (item: unknown): PayoutBatch => {
       period.end
     ),
     gross: Number(raw.gross ?? raw.grossAmount ?? 0),
-    commission: Number(raw.commission ?? raw.commissionAmount ?? 0),
+    commission: Number(
+      raw.commission ?? raw.commissionAmount ?? 0
+    ),
     net: Number(raw.net ?? raw.netAmount ?? 0),
     status: normalizeBatchStatus(raw.status),
     createdAt: firstValue(raw.createdAt),
@@ -209,8 +238,12 @@ const normalizePayout = (item: unknown): IndividualPayout => {
     partnerEmail: firstValue(raw.partnerEmail, partner.email),
     amount: Number.isFinite(amount) ? amount : 0,
     gross: Number(raw.gross ?? raw.grossAmount ?? 0),
-    commission: Number(raw.commission ?? raw.commissionAmount ?? 0),
-    status: normalizePayoutStatus(raw.status ?? raw.payoutStatus),
+    commission: Number(
+      raw.commission ?? raw.commissionAmount ?? 0
+    ),
+    status: normalizePayoutStatus(
+      raw.status ?? raw.payoutStatus
+    ),
     paidAt: firstValue(raw.paidAt),
     createdAt: firstValue(raw.createdAt),
     raw,
@@ -298,6 +331,7 @@ export const AdminPayoutsPage: React.FC = () => {
       );
 
       const payload = getPayload(response);
+      const payloadObject = asObject(payload);
 
       const rows = extractArray(payload)
         .map(normalizeBatch)
@@ -305,20 +339,29 @@ export const AdminPayoutsPage: React.FC = () => {
 
       setBatches(rows);
 
-      const serverPagination = asObject(payload?.pagination);
+      const serverPagination = asObject(
+        payloadObject.pagination ?? payloadObject.meta
+      );
+
       const total = Number(serverPagination.total ?? rows.length);
+      const serverPage = Number(serverPagination.page ?? page);
+      const limit = Number(
+        serverPagination.limit ?? PAGE_SIZE
+      );
 
       setPagination({
-        page: Number(serverPagination.page ?? page),
-        limit: Number(serverPagination.limit ?? PAGE_SIZE),
+        page: serverPage,
+        limit,
         total,
         pages: Number(
-          serverPagination.pages ?? Math.ceil(total / PAGE_SIZE)
+          serverPagination.pages ??
+            Math.ceil(total / Math.max(1, limit))
         ),
       });
     } catch (error) {
       setLoadError(getErrorMessage(error));
       setBatches([]);
+
       setPagination({
         page,
         limit: PAGE_SIZE,
@@ -335,18 +378,21 @@ export const AdminPayoutsPage: React.FC = () => {
     setLoadError("");
     setIndividualPayouts([]);
 
-    let normalizedBatch: PayoutBatch;
-
     try {
       const response = await http.get(
         `/admin/payouts/${encodeURIComponent(batchId)}`
       );
 
       const payload = getPayload(response);
+      const payloadObject = asObject(payload);
 
-      normalizedBatch = normalizeBatch(
-        payload?.batch ?? payload?.item ?? payload
-      );
+      const batchData =
+        payloadObject.batch ??
+        payloadObject.item ??
+        payloadObject.data ??
+        payload;
+
+      const normalizedBatch = normalizeBatch(batchData);
 
       if (!normalizedBatch.id) {
         throw new Error(
@@ -479,12 +525,16 @@ export const AdminPayoutsPage: React.FC = () => {
         responseType: "blob",
       });
 
+      const responseData = asObject(response);
+      const responseBlob = responseData.data;
+
       const blob =
-        response.data instanceof Blob
-          ? response.data
-          : new Blob([response.data], {
-              type: "text/csv;charset=utf-8;",
-            });
+        responseBlob instanceof Blob
+          ? responseBlob
+          : new Blob(
+              [responseBlob as BlobPart],
+              { type: "text/csv;charset=utf-8;" }
+            );
 
       objectUrl = URL.createObjectURL(blob);
 
@@ -497,11 +547,16 @@ export const AdminPayoutsPage: React.FC = () => {
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
+
+      setActionSuccess("CSV export started.");
     } catch (error) {
       setActionError(getErrorMessage(error));
     } finally {
       if (objectUrl) {
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        window.setTimeout(
+          () => URL.revokeObjectURL(objectUrl),
+          1000
+        );
       }
     }
   };
@@ -537,7 +592,6 @@ export const AdminPayoutsPage: React.FC = () => {
     }
   };
 
-  // Batch details view
   if (routeId) {
     const batch = batches.find((item) => item.id === routeId);
 
@@ -556,7 +610,6 @@ export const AdminPayoutsPage: React.FC = () => {
           <header className="payout-details-page-header">
             <div className="payout-details-heading">
               <h1>Payout batch details</h1>
-
               <p className="payout-subtitle">
                 Review batch totals, settlement status, and the payouts
                 included in this batch.
@@ -576,7 +629,6 @@ export const AdminPayoutsPage: React.FC = () => {
               role="alert"
             >
               <span>{loadError}</span>
-
               <button
                 type="button"
                 className="payout-text-button"
@@ -622,7 +674,6 @@ export const AdminPayoutsPage: React.FC = () => {
                 This payout batch could not be found. It may have been
                 removed or the ID may be invalid.
               </p>
-
               <button
                 type="button"
                 className="payout-button payout-button-secondary"
@@ -749,9 +800,10 @@ export const AdminPayoutsPage: React.FC = () => {
                             <span className="payout-partner-name">
                               {payout.partnerName}
                             </span>
-
                             <span className="payout-id">
-                              {payout.partnerEmail || payout.partnerId || "—"}
+                              {payout.partnerEmail ||
+                                payout.partnerId ||
+                                "—"}
                             </span>
                           </td>
 
@@ -801,19 +853,20 @@ export const AdminPayoutsPage: React.FC = () => {
                         </tr>
                       ))}
 
-                      {!detailLoading && individualPayouts.length === 0 && (
-                        <tr>
-                          <td colSpan={8}>
-                            <div className="payout-state payout-empty-table">
-                              <h2>No payouts in this batch</h2>
-                              <p>
-                                No individual payout records were returned
-                                for this batch.
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
+                      {!detailLoading &&
+                        individualPayouts.length === 0 && (
+                          <tr>
+                            <td colSpan={8}>
+                              <div className="payout-state payout-empty-table">
+                                <h2>No payouts in this batch</h2>
+                                <p>
+                                  No individual payout records were returned
+                                  for this batch.
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -825,14 +878,11 @@ export const AdminPayoutsPage: React.FC = () => {
     );
   }
 
-  // Batch list view
   return (
     <main className="admin-page-container payout-page">
       <header className="payout-page-header">
         <div className="payout-heading">
-          {/* Intentionally omitted: the global admin layout renders the breadcrumb. */}
           <h1>Payouts</h1>
-
           <p className="payout-subtitle">
             Review payout batches, track settlement progress, and inspect
             individual payout records.

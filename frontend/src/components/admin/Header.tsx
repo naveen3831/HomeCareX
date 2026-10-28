@@ -15,6 +15,8 @@ import { ProfileMenu } from '@/components/admin/ProfileMenu';
   const isCustomerDetails =
     /^\/admin\/customers\/[^/]+/.test(pathname);
 
+/** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
+export const Header: React.FC<HeaderProps> = () => {
 /** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
 export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
   const { pathname } = useLocation();

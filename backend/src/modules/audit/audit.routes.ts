@@ -15,6 +15,13 @@ import { auditController } from './audit.controller';
  */
 export const auditRoutes = Router();
 
+// GET /api/v1/admin/audit-logs
+auditRoutes.get(
+  '/audit-logs',
+  authenticate,
+  requireAdmin,
+  requirePermission(AUDIT_CONSTANTS.PERMISSION),
+  asyncHandler((req, res) => auditController.getAuditLogs(req, res)),
 // Protect all audit routes with authentication, admin role,
 // and the required audit-read permission.
 auditRoutes.use(

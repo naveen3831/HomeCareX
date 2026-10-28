@@ -79,8 +79,13 @@ export interface BookingRefundInfo {
 
 export interface BookingDetailView extends Omit<
   BookingView,
-  "paymentDetails" | "otp"
+  "paymentDetails" | "otp" | "partnerId"
 > {
+  id?: string;
+  scheduledAt?: string;
+  durationMinutes?: number;
+  history?: BookingView["statusHistory"];
+  partnerId?: string | BookingDetailPartner;
   /** Human-friendly reference when available. */
   bookingNumber?: string;
   serviceName?: string;

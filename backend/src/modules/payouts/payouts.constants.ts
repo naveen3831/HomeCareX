@@ -1,4 +1,3 @@
-
 export const PAYOUTS_CONSTANTS = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,
@@ -20,4 +19,5 @@ export const DEFAULT_PAGE = PAYOUTS_CONSTANTS.DEFAULT_PAGE;
 export const DEFAULT_LIMIT = PAYOUTS_CONSTANTS.DEFAULT_LIMIT;
 export const MAX_LIMIT = PAYOUTS_CONSTANTS.MAX_LIMIT;
 export const PAYOUTS_APPROVE = 'payouts:approve';
+export const PAYOUTS_EXPORT = 'payouts:export';
 export const PAYOUTS_EXPORT = 'payouts:export';

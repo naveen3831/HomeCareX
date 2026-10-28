@@ -1,3 +1,247 @@
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { http } from "@/lib/http";
+import "./index.css";
+
+type RefundStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Processing"
+  | "Completed"
+  | "Failed";
+
+interface Refund {
+  id: string;
+  refundId: string;
+  paymentId: string;
+  bookingId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  amount: number;
+  status: RefundStatus;
+  method: string;
+  reason: string;
+  rejectionReason: string;
+  failureMessage: string;
+  razorpayRefundId: string;
+  createdAt: string;
+  updatedAt: string;
+  raw: Record<string, unknown>;
+}
+
+const PAGE_SIZE = 10;
+
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+
+const firstValue = (...values: unknown[]): string => {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value);
+    }
+  }
+  return "";
+};
+
+const normalizeStatus = (value: unknown): RefundStatus => {
+  const status = String(value ?? "").toLowerCase();
+
+  if (["requested", "pending", "initiated"].includes(status)) {
+    return "Pending";
+  }
+  if (["approved", "accepted"].includes(status)) return "Approved";
+  if (["rejected", "declined", "cancelled", "canceled"].includes(status)) {
+    return "Rejected";
+  }
+  if (["processing", "in_progress", "created"].includes(status)) {
+    return "Processing";
+  }
+  if (
+    ["processed", "completed", "success", "successful"].includes(status)
+  ) {
+    return "Completed";
+  }
+  if (["failed", "failure", "error"].includes(status)) return "Failed";
+
+  return "Pending";
+};
+
+const normalizeRefund = (item: unknown): Refund => {
+  const raw = asObject(item);
+  const payment = asObject(raw.payment ?? raw.paymentDetails);
+  const booking = asObject(raw.booking);
+  const customer = asObject(
+    raw.customer ?? raw.user ?? booking.customer ?? booking.user,
+  );
+  const refundDetails = asObject(raw.refundDetails);
+
+  const id = firstValue(
+    raw._id,
+    raw.id,
+    raw.refundRequestId,
+    raw.refund_id,
+  );
+
+  const amountValue =
+    raw.refundAmount ??
+    raw.amount ??
+    raw.amountInPaise ??
+    payment.refundAmount ??
+    payment.amount ??
+    0;
+
+  const numericAmount = Number(amountValue);
+  const amount =
+    Number.isFinite(numericAmount) && numericAmount >= 0
+      ? numericAmount
+      : 0;
+
+  return {
+    id,
+    refundId: firstValue(raw.refundId, raw.refund_id, raw._id, raw.id, id),
+    paymentId: firstValue(
+      raw.paymentId,
+      payment._id,
+      payment.id,
+      payment.razorpayPaymentId,
+      raw.razorpayPaymentId,
+    ),
+    bookingId: firstValue(
+      raw.bookingId,
+      booking.bookingId,
+      booking._id,
+      booking.id,
+    ),
+    customerName: firstValue(
+      raw.customerName,
+      customer.name,
+      customer.fullName,
+      raw.userName,
+      "Customer",
+    ),
+    customerEmail: firstValue(raw.customerEmail, customer.email),
+    customerPhone: firstValue(
+      raw.customerPhone,
+      customer.phone,
+      customer.mobile,
+    ),
+    amount,
+    status: normalizeStatus(
+      raw.status ?? raw.refundStatus ?? payment.refundStatus,
+    ),
+    method: firstValue(
+      raw.method,
+      raw.paymentMethod,
+      payment.method,
+      payment.paymentMethod,
+      payment.razorpayPaymentId ? "Razorpay" : "",
+      "Wallet",
+    ),
+    reason: firstValue(
+      raw.reason,
+      raw.refundReason,
+      raw.description,
+      raw.customerReason,
+      "No reason provided",
+    ),
+    rejectionReason: firstValue(raw.rejectionReason, raw.reviewNote),
+    failureMessage: firstValue(
+      raw.failureMessage,
+      raw.errorMessage,
+      raw.failureReason,
+      payment.failureMessage,
+    ),
+    razorpayRefundId: firstValue(
+      raw.razorpayRefundId,
+      refundDetails.razorpayRefundId,
+      payment.razorpayRefundId,
+    ),
+    createdAt: firstValue(raw.createdAt, raw.requestedAt, raw.date),
+    updatedAt: firstValue(raw.updatedAt, raw.processedAt),
+    raw,
+  };
+};
+
+const getErrorMessage = (error: unknown): string => {
+  const root = asObject(error);
+  const response = asObject(root.response);
+  const data = asObject(response.data);
+  return firstValue(data.message, data.error, root.message, "Something went wrong. Please try again.");
+};
+
+const formatCurrency = (amount: number): string =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+const formatDate = (value: string): string => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const shortId = (value: string, length = 15): string => {
+  if (!value || value.length <= length) return value || "—";
+  return `${value.slice(0, 7)}…${value.slice(-5)}`;
+};
+
+const getInitials = (name: string): string =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "C";
+
+const statusClass = (status: RefundStatus): string =>
+  `refund-status refund-status--${status.toLowerCase()}`;
+
+const extractRefunds = (response: unknown): Refund[] => {
+  const root = asObject(response);
+  const body = asObject(root.data ?? response);
+  const payloadValue = body.data ?? body;
+  const payload = asObject(payloadValue);
+  const rows =
+    payload.refunds ??
+    payload.items ??
+    payload.results ??
+    payload.requests ??
+    (Array.isArray(payloadValue) ? payloadValue : []);
+
+  return Array.isArray(rows) ? rows.map(normalizeRefund) : [];
+};
+
+const extractTotal = (response: unknown, fallback: number): number => {
+  const root = asObject(response);
+  const body = asObject(root.data ?? response);
+  const payload = asObject(body.data ?? body);
+  const pagination = asObject(payload.pagination);
+  const meta = asObject(payload.meta);
+  const total = Number(
+    payload.total ??
+      payload.totalCount ??
+      pagination.total ??
+      meta.total,
+  );
+
+  return Number.isFinite(total) && total >= 0 ? total : fallback;
+};
+
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, Check, X, XCircle } from 'lucide-react';
 import clsx from 'clsx';
