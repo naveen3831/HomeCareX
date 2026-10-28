@@ -1,30 +1,16 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { validate } from '../../middleware/validation.middleware';
+import { authenticate, getAuthUser } from '../../middleware/auth.middleware';
+import { asyncHandler } from '../../utils/asyncHandler';
+import { sendSuccess } from '../../utils/response';
+import { notificationsService } from './notifications.service';
 
-import { Router } from "express";
-import { z } from "zod";
-import { validate } from "../../middleware/validation.middleware";
-import {
-  authenticate,
-  getAuthUser,
-} from "../../middleware/auth.middleware";
-import { asyncHandler } from "../../utils/asyncHandler";
-import { sendSuccess } from "../../utils/response";
-import { notificationsService } from "./notifications.service";
-
-/**
- * Mounted at /api/v1/notifications.
- * Signed-in users can access their own notifications only.
- */
+/** Mounted at /api/v1/notifications. Any signed-in user, own notifications only. */
 export const notificationsRoutes = Router();
-
 notificationsRoutes.use(authenticate);
 
-/**
- * Supported query parameters:
- * - limit: Number of notifications to return (1–100, default 30)
- * - unread: Optionally filter unread notifications
- *
- * Strict validation rejects unsupported query parameters.
- */
+// `.strict()` rejects unknown query keys, so every supported key (limit, unread) must be listed here.
 const listQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(30),
@@ -41,8 +27,8 @@ const idParamsSchema = z.object({
  * List notifications belonging to the authenticated user.
  */
 notificationsRoutes.get(
-  "/",
-  validate(listQuerySchema, "query"),
+  '/',
+  validate(listQuerySchema, 'query'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
 
@@ -52,15 +38,10 @@ notificationsRoutes.get(
     >;
 
     const [items, unreadCount] = await Promise.all([
-      notificationsService.listForUser(id, limit, unread === "true"),
+      notificationsService.listForUser(id, limit, unread === 'true'),
       notificationsService.unreadCount(id),
     ]);
-
-    sendSuccess(res, items, {
-      meta: {
-        unread: unreadCount,
-      },
-    });
+    sendSuccess(res, items, { meta: { unread: unreadCount } });
   }),
 );
 
@@ -69,7 +50,7 @@ notificationsRoutes.get(
  * Mark all notifications belonging to the authenticated user as read.
  */
 notificationsRoutes.patch(
-  "/read-all",
+  '/read-all',
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
 
@@ -84,8 +65,8 @@ notificationsRoutes.patch(
  * Mark one of the authenticated user's notifications as read.
  */
 notificationsRoutes.patch(
-  "/:id/read",
-  validate(idParamsSchema, "params"),
+  '/:id/read',
+  validate(idParamsSchema, 'params'),
   asyncHandler(async (req, res) => {
     const { id } = getAuthUser(req);
     const notificationId = req.params.id as string;

@@ -1,17 +1,16 @@
+
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
 
 import app from './app';
 import { initSockets } from './sockets';
-
 import { registerEarningsListeners } from './modules/earnings/earnings.listener';
 import { seedDefaultSettings } from './modules/settings/settings.service';
 import { seedDefaultDesignations } from './modules/designations/designations.service';
 import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
-
 import { ServiceModel } from './models/Service';
 import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
@@ -19,7 +18,10 @@ import {
   ReferralCodeModel,
   ReferralModel,
 } from './modules/referrals/referrals.model';
-import { WalletLedgerModel, WalletModel } from './models/Wallet';
+import {
+  WalletLedgerModel,
+  WalletModel,
+} from './models/Wallet';
 
 const timed = async <T>(
   label: string,
@@ -51,17 +53,24 @@ let shuttingDown = false;
  */
 const seedDefaults = async (): Promise<void> => {
   try {
-    const added = await timed('seed settings', seedDefaultSettings);
+    const added = await timed(
+      'seed settings',
+      seedDefaultSettings,
+    );
 
     if (added > 0) {
       console.log(`Seeded ${added} default setting(s)`);
     }
 
-    await timed('seed designations', seedDefaultDesignations);
+    await timed(
+      'seed designations',
+      seedDefaultDesignations,
+    );
 
     const freshCatalog = await timed(
       'count services',
-      async () => (await ServiceModel.estimatedDocumentCount()) === 0,
+      async () =>
+        (await ServiceModel.estimatedDocumentCount()) === 0,
     );
 
     await timed('seed categories', seedDefaultCategories);
@@ -78,13 +87,15 @@ const seedDefaults = async (): Promise<void> => {
 };
 
 /**
- * Connect to MongoDB, initialize critical indexes, start the HTTP server
- * once, and then start background workers/listeners.
+ * Connect to MongoDB, initialize critical indexes, start the HTTP
+ * server once, and then start background workers and listeners.
  */
 const startServer = async (): Promise<void> => {
   try {
     if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL is missing from your environment.');
+      throw new Error(
+        'DATABASE_URL is missing from your environment.',
+      );
     }
 
     await timed('mongo connect', async () => {
@@ -93,8 +104,8 @@ const startServer = async (): Promise<void> => {
 
     console.log('Connected to MongoDB');
 
-    // Initialize indexes before accepting requests that can modify
-    // referral rewards or wallet balances.
+    // Initialize critical indexes before accepting requests that
+    // can modify referral rewards or wallet balances.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
         ReferralCodeModel.init(),
@@ -122,18 +133,26 @@ const startServer = async (): Promise<void> => {
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
+
+    console.log(
+      `[timing] total startup: ${Math.round(
+        process.uptime() * 1000,
+      )} ms`,
+    );
+
     console.log(
       `[timing] process uptime at listen: ${Math.round(
         process.uptime() * 1000,
       )} ms`,
     );
 
-    stopReferralWorker = startReferralWorker((error) => {
+    // Start background workers and listeners exactly once.
+    stopReferralWorker = startReferralWorker((error) =>
       console.error(
         '[referral-worker] Background referral processing failed:',
         error instanceof Error ? error.message : String(error),
-      );
-    });
+      ),
+    );
 
     registerEarningsListeners();
     stopSlaSweep = startSlaSweep();
@@ -170,11 +189,9 @@ const startServer = async (): Promise<void> => {
  * Gracefully stop background workers, the HTTP server, and MongoDB.
  */
 const shutdown = async (): Promise<void> => {
-  if (shuttingDown) {
-    return;
-  }
-
+  if (shuttingDown) return;
   shuttingDown = true;
+
   console.log('Stopping server gracefully...');
 
   stopReferralWorker?.();

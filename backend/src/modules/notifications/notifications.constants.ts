@@ -40,23 +40,6 @@ export const NOTIFICATION_GROUPS = [
 
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
-/**
- * Prefixes used to classify notification types.
- * The system group contains notification types that match none of
- * the non-system prefixes.
- */
-export const GROUP_PREFIXES: Record<
-  NotificationGroup,
-  readonly string[]
-> = {
-  booking: ["booking."],
-  offers: ["offer."],
-  partner: ["partner.", "kyc."],
-  payment: ["payment.", "payout.", "refund."],
-  support: ["ticket.", "sla."],
-  system: [],
-};
-
 export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
   ...NOTIFICATION_TYPES,
 ]);
@@ -84,12 +67,10 @@ export function groupOf(type: string): NotificationGroup {
   if (type.startsWith("offer.")) {
     return "offers";
   }
-
-  if (type.startsWith("ticket.") || type.startsWith("sla.")) {
-    return "support";
-  }
-
-  return "system";
+  if (type.startsWith('partner.')) return 'partner';
+  if (type.startsWith('offer.')) return 'offers';
+  if (type.startsWith('ticket.')) return 'support';
+  return 'system';
 }
 
 /** Types that must stand out in the admin bell. */

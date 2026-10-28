@@ -7,12 +7,16 @@ import {
   ArrowLeft,
   CalendarDays,
   CalendarClock,
+  CircleAlert,
   Clock,
+  Compass,
   CreditCard,
   Headset,
   Layers,
   MapPin,
   Navigation,
+  RotateCcw,
+  Wallet,
   Trash2,
   Users,
   Wrench,
@@ -32,7 +36,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useBooking, useDecideExtraCharge } from "@/hooks/useBooking";
 import { customerPath } from "@/routes/customerPath";
 import type { BookingDetailView } from "@/types/bookingDetail";
-import { PILL_CLASS, formatSlot } from "../Bookings/bookingModel";
+import { PILL_CLASS, formatSlot, rupees } from "../Bookings/bookingModel";
 
 import {
   buildPriceBreakdown,
@@ -43,13 +47,14 @@ import {
   formatBookedOn,
   formatDuration,
   formatPlainDate,
-  isCancelledStatus,
+  isCancelledBooking,
   mapsUrl,
   formatMoment,
   paymentMethodLabel,
   paymentSummary,
   statusPill,
   weekdayOf,
+  refundBadge,
 } from "./bookingDetailModel";
 
 import CancelDialog from "./components/CancelDialog";
@@ -64,7 +69,7 @@ import RescheduleDialog from "./components/RescheduleDialog";
 import StatusTimeline from "./components/StatusTimeline";
 
 const LINK_BUTTON =
-  "inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition hover:opacity-90";
+  "inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold transition hover:opacity-95";
 
 const TRACKABLE = new Set([
   "assigned",
@@ -72,6 +77,8 @@ const TRACKABLE = new Set([
   "arrived",
   "in_progress",
 ]);
+
+type DecideMutation = ReturnType<typeof useDecideExtraCharge>;
 
 function Section({
   id,
@@ -90,13 +97,13 @@ function Section({
     <section
       aria-labelledby={id}
       className={clsx(
-        "min-w-0 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6",
+        "min-w-0 rounded-2xl border border-line/80 bg-panel p-5 shadow-[0_2px_8px_rgba(30,27,46,0.03)] sm:p-6",
         className,
       )}
     >
       <h2
         id={id}
-        className="mb-5 flex items-center gap-2.5 text-[15px] font-bold text-ink"
+        className="mb-4 flex items-center gap-2.5 text-[15px] font-bold text-ink sm:text-base"
       >
         {Icon && (
           <span
@@ -122,7 +129,7 @@ function Row({
   children: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 text-sm">
+    <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
       <dt className="text-muted">{label}</dt>
       <dd className="min-w-0 break-all text-right font-medium text-ink">
         {children}
@@ -143,18 +150,23 @@ function Tile({
   hint?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-xl bg-canvas p-3.5 ring-1 ring-line">
-      <Icon
-        className="h-5 w-5 shrink-0 text-brand"
-        aria-hidden="true"
-      />
+    <div className="flex min-w-0 items-center gap-3.5 rounded-xl bg-canvas/80 p-4 ring-1 ring-line/80">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-panel text-brand shadow-xs ring-1 ring-line/60">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
 
       <div className="min-w-0">
-        <p className="text-xs text-muted">{label}</p>
-        <p className="break-words text-sm font-semibold text-ink">
-          {value}
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted">
+          {label}
         </p>
-        {hint && <p className="text-xs text-muted">{hint}</p>}
+        <p className="mt-0.5 break-words text-sm font-bold text-ink">
+          {value}
+          {hint && (
+            <span className="ml-1.5 text-xs font-normal text-muted">
+              {hint}
+            </span>
+          )}
+        </p>
       </div>
     </div>
   );
@@ -167,23 +179,18 @@ function DetailsSkeleton() {
       aria-label="Loading booking details"
       className="space-y-4"
     >
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-12 w-12 rounded-2xl" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-5 w-2/3" />
-          <Skeleton className="h-3 w-1/3" />
-        </div>
-      </div>
+      <Skeleton className="h-14 w-full rounded-2xl" />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
+          <Skeleton className="h-48 w-full rounded-2xl" />
           <Skeleton className="h-56 w-full rounded-2xl" />
           <Skeleton className="h-32 w-full rounded-2xl" />
         </div>
 
         <div className="space-y-4">
-          <Skeleton className="h-56 w-full rounded-2xl" />
-          <Skeleton className="h-48 w-full rounded-2xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+          <Skeleton className="h-44 w-full rounded-2xl" />
         </div>
       </div>
     </div>
@@ -205,14 +212,11 @@ export default function BookingDetails() {
   const query = useBooking(id);
   const decide = useDecideExtraCharge(id ?? "");
 
-  // CustomerLayout's main element already adds top spacing.
+  // CustomerLayout already provides the main page spacing.
   const shell = (children: ReactNode) => (
-    <main
-      tabIndex={-1}
-      className="mx-auto w-full max-w-6xl min-w-0 px-3.5 pb-4 outline-none sm:px-6 sm:pb-8"
-    >
+    <div className="mx-auto w-full max-w-6xl min-w-0 px-3.5 py-4 outline-none sm:px-6 sm:py-6">
       {children}
-    </main>
+    </div>
   );
 
   if (!id) {
@@ -262,8 +266,6 @@ export default function BookingDetails() {
   );
 }
 
-type DecideMutation = ReturnType<typeof useDecideExtraCharge>;
-
 function DetailsBody({
   booking,
   online,
@@ -280,11 +282,18 @@ function DetailsBody({
     null,
   );
 
-  const pill = statusPill(booking.status);
+  const bookingId = String(
+    booking._id || (booking as { id?: string }).id || "",
+  );
+
+  const normalizedStatus = String(booking.status || "").toLowerCase();
+  const pill = statusPill(booking);
 
   const code =
     booking.bookingNumber ||
-    `BK-${booking._id.slice(-5).toUpperCase()}`;
+    (bookingId
+      ? `BK-${bookingId.slice(-5).toUpperCase()}`
+      : "BK-BOOKING");
 
   const name = serviceNameOf(booking);
   const timeline = buildTimeline(booking);
@@ -294,15 +303,12 @@ function DetailsBody({
   const pay = booking.paymentDetails;
   const address = booking.addressSnapshot;
 
-  const cancelled = isCancelledStatus(booking.status);
-
+  const cancelled = isCancelledBooking(booking);
   const finished =
-    booking.status === "completed" || booking.status === "rated";
+    normalizedStatus === "completed" || normalizedStatus === "rated";
 
   const active =
-    !finished &&
-    !cancelled &&
-    booking.status !== "disputed";
+    !finished && !cancelled && normalizedStatus !== "disputed";
 
   // The backend remains the final authority for state changes.
   const canCancel = active && canCancelBooking(booking.status);
@@ -314,37 +320,54 @@ function DetailsBody({
 
   const showOtp =
     Boolean(booking.partnerId) &&
-    (active || Boolean(booking.startOtp));
+    (normalizedStatus === "arrived" || Boolean(booking.startOtp));
 
-  const isPaid = booking.paymentStatus === "PAID";
+  const hasPendingExtraCharges = (booking.extraCharges ?? []).some(
+    (charge) => String(charge.status).toLowerCase() === "pending",
+  );
+
+  const isPaid =
+    String(booking.paymentStatus || "").toUpperCase() === "PAID";
+
+  const refund = booking.refund;
+  const refundPill = refundBadge(refund, booking.refundStatus);
+
+  const showRefundCard =
+    cancelled &&
+    Boolean(refund) &&
+    refund?.status !== "NOT_REQUIRED";
 
   const addOnLines = (booking.priceSnapshot?.lines ?? []).filter(
     (line) => line.kind === "ADDON",
   );
 
   const service = booking.service;
-  const duration = formatDuration(service?.durationMinutes);
+  const day = weekdayOf(booking.date);
+  const dateFormatted = booking.date
+    ? formatPlainDate(booking.date)
+    : "Not scheduled";
+  const slotFormatted = booking.slot ? formatSlot(booking.slot) : "Not scheduled";
   const bookedOn = formatBookedOn(booking.createdAt);
-  const weekday = weekdayOf(booking.date);
 
-  // Some bookings have a bare start time instead of a time range.
-  const slotText = (() => {
-    try {
-      return booking.slot ? formatSlot(booking.slot) : "";
-    } catch {
-      return booking.slot || "";
-    }
-  })();
+  const duration = formatDuration(
+    service?.durationMinutes ||
+      (booking as { durationMinutes?: number }).durationMinutes,
+  );
 
-  const map = mapsUrl(address);
+  const maps = mapsUrl(address);
   const paidOn = formatMoment(pay?.paidAt);
   const methodText = paymentMethodLabel(pay?.method);
   const txn = pay?.transactionId || pay?.paymentId;
 
   const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(
-    booking._id,
+    bookingId,
   )}`;
 
+  const scheduledAt = (
+    booking as { scheduledAt?: string | Date }
+  ).scheduledAt;
+
+  // Some bookings store a start time without a time range.
   const slotHours = (() => {
     const match =
       /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
@@ -355,18 +378,17 @@ function DetailsBody({
       return "";
     }
 
+    const [startH, startM, endH, endM] = [
+      match[1],
+      match[2],
+      match[3],
+      match[4],
+    ].map(Number);
+
     const minutes =
-      Number(match[3]) * 60 +
-      Number(match[4]) -
-      (Number(match[1]) * 60 + Number(match[2]));
+      endH * 60 + endM - (startH * 60 + startM);
 
-    if (minutes <= 0) {
-      return "";
-    }
-
-    return formatDuration(minutes)
-      .replace("Hours", "hours")
-      .replace("Hour", "hour");
+    return minutes > 0 ? formatDuration(minutes) : "";
   })();
 
   return (
@@ -376,33 +398,52 @@ function DetailsBody({
         <Link
           to={customerPath("/bookings")}
           className={clsx(
-            "inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink",
+            "inline-flex items-center gap-1.5 text-xs font-semibold text-muted transition hover:text-ink",
             FOCUS_RING,
           )}
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>Back to all bookings</span>
+          <span>Back to My Bookings</span>
         </Link>
       </div>
 
-      {/* Single booking header */}
+      {/* Booking header */}
       <header className="mb-5 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:mb-6 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <span
-              className={clsx(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                PILL_CLASS[pill.tone],
-              )}
-            >
-              {pill.dot && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={clsx(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold",
+                  PILL_CLASS[pill.tone],
+                )}
+              >
+                {pill.dot && (
+                  <span
+                    aria-hidden="true"
+                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+                  />
+                )}
+                {pill.label}
+              </span>
+
+              {refundPill && (
                 <span
-                  aria-hidden="true"
-                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
-                />
+                  className={clsx(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold",
+                    PILL_CLASS[refundPill.tone],
+                  )}
+                >
+                  {refundPill.dot && (
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+                    />
+                  )}
+                  {refundPill.label}
+                </span>
               )}
-              {pill.label}
-            </span>
+            </div>
 
             <h1 className="mt-2 break-words text-xl font-bold tracking-tight text-ink sm:text-2xl">
               {name}
@@ -426,18 +467,43 @@ function DetailsBody({
       {refetchFailed && (
         <p
           role="status"
-          className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          className="mb-4 rounded-xl bg-amber-500/10 px-3.5 py-2 text-xs font-medium text-amber-700"
         >
           {online
-            ? "We couldn't refresh this booking just now. Showing the last version we have."
-            : "You're offline. Showing the last version we have."}
+            ? "We couldn't refresh the latest status. Showing saved details."
+            : "You're offline. Showing the latest details we saved."}
         </p>
       )}
 
-      {cancelled && booking.cancellationReason && (
-        <p className="mb-4 rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-          Reason: {booking.cancellationReason}
-        </p>
+      {hasPendingExtraCharges && (
+        <div
+          role="region"
+          aria-label="Pending Extra Charge Approval"
+          className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+              <CircleAlert className="h-5 w-5" aria-hidden="true" />
+            </span>
+
+            <div>
+              <p className="font-bold text-amber-900">
+                Action Required: Your partner requested extra charges
+              </p>
+              <p className="text-xs text-amber-800">
+                Review and approve or reject the additional on-site items
+                requested by your service partner.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="#extra-charges-heading"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            Review Charges
+          </a>
+        </div>
       )}
 
       {/* Main two-column layout */}
@@ -452,6 +518,150 @@ function DetailsBody({
             <StatusTimeline items={timeline} />
           </Section>
 
+          {showRefundCard && refund && (
+            <Section
+              id="refund-details-heading"
+              title="Refund Details"
+              icon={RotateCcw}
+            >
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-3">
+                  <span
+                    className={clsx(
+                      "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                      refundPill
+                        ? PILL_CLASS[refundPill.tone]
+                        : "bg-muted/10 text-muted",
+                    )}
+                  >
+                    {refundPill?.dot && (
+                      <span
+                        aria-hidden="true"
+                        className="h-1.5 w-1.5 animate-pulse rounded-full bg-current"
+                      />
+                    )}
+                    {refund.statusLabel || refundPill?.label || "Refund"}
+                  </span>
+
+                  {typeof refund.amount === "number" &&
+                    refund.amount > 0 && (
+                      <span className="text-base font-bold text-ink">
+                        {rupees(refund.amount)}
+                      </span>
+                    )}
+                </div>
+
+                <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 sm:text-sm">
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-muted">Refund Destination</dt>
+                    <dd className="flex items-center gap-1.5 font-semibold text-ink">
+                      <Wallet className="h-4 w-4 text-brand" />
+                      {refund.destination || "HomeCareX Wallet"}
+                    </dd>
+                  </div>
+
+                  {refund.originalPaidAmount !== undefined &&
+                    refund.originalPaidAmount > 0 && (
+                      <div className="flex flex-col gap-0.5">
+                        <dt className="text-muted">
+                          Original Amount Paid
+                        </dt>
+                        <dd className="font-semibold text-ink">
+                          {rupees(refund.originalPaidAmount)}
+                        </dd>
+                      </div>
+                    )}
+
+                  {refund.requestedAt && (
+                    <div className="flex flex-col gap-0.5">
+                      <dt className="text-muted">Request Date</dt>
+                      <dd className="font-semibold text-ink">
+                        {formatMoment(refund.requestedAt)}
+                      </dd>
+                    </div>
+                  )}
+
+                  {refund.status === "CREDITED" && refund.creditedAt && (
+                    <div className="flex flex-col gap-0.5">
+                      <dt className="text-muted">Credited Date</dt>
+                      <dd className="font-semibold text-green-700">
+                        {formatMoment(refund.creditedAt)}
+                      </dd>
+                    </div>
+                  )}
+
+                  {refund.status === "CREDITED" &&
+                    refund.walletTransactionRef && (
+                      <div className="flex flex-col gap-0.5 sm:col-span-2">
+                        <dt className="text-muted">
+                          Wallet Transaction Reference
+                        </dt>
+                        <dd className="break-all rounded-md border border-line bg-canvas px-2.5 py-1 font-mono text-xs font-bold text-ink">
+                          {refund.walletTransactionRef}
+                        </dd>
+                      </div>
+                    )}
+
+                  {refund.status === "REJECTED" && (
+                    <div className="flex flex-col gap-0.5 rounded-xl border border-danger/20 bg-danger-soft/60 p-3 sm:col-span-2">
+                      <dt className="font-semibold text-danger">
+                        Rejection Reason
+                      </dt>
+                      <dd className="mt-0.5 text-xs text-ink">
+                        {refund.rejectionReason ||
+                          "No explicit reason was provided."}
+                      </dd>
+
+                      {refund.rejectedAt && (
+                        <p className="mt-1.5 text-[11px] text-muted">
+                          Decision date: {formatMoment(refund.rejectedAt)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </dl>
+
+                {refund.status === "CREDITED" && (
+                  <Link
+                    to={customerPath("/wallet")}
+                    className={clsx(
+                      LINK_BUTTON,
+                      "w-full bg-brand text-white shadow-sm hover:opacity-90",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Wallet className="h-4 w-4" />
+                    <span>View in Wallet</span>
+                  </Link>
+                )}
+
+                {refund.status === "REJECTED" && (
+                  <Link
+                    to={supportHref}
+                    className={clsx(
+                      LINK_BUTTON,
+                      "w-full border border-line bg-canvas text-ink hover:bg-panel",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <Headset className="h-4 w-4 text-brand" />
+                    <span>Contact Support / Appeal</span>
+                  </Link>
+                )}
+              </div>
+            </Section>
+          )}
+
+          {(booking.extraCharges?.length ?? 0) > 0 && (
+            <ExtraChargeApproval
+              charges={booking.extraCharges}
+              canDecide={canDecideExtraCharges(booking.status)}
+              onDecide={(chargeId, decision) =>
+                decide.mutateAsync({ chargeId, decision })
+              }
+            />
+          )}
+
           <Section
             id="service-heading"
             title="Service Details"
@@ -461,21 +671,20 @@ function DetailsBody({
               {service?.image && !imgFailed ? (
                 <img
                   src={service.image}
-                  alt=""
-                  loading="lazy"
+                  alt={name}
                   onError={() => setImgFailed(true)}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line object-cover sm:w-40"
+                  className="h-28 w-full shrink-0 rounded-xl object-cover ring-1 ring-line sm:h-24 sm:w-24"
                 />
               ) : (
                 <BookingThumb
                   serviceName={name}
-                  className="h-28 w-full shrink-0 rounded-xl border border-line sm:w-40"
+                  className="h-28 w-full shrink-0 rounded-xl sm:h-24 sm:w-24"
                 />
               )}
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="break-words text-lg font-bold text-ink">
+                  <h3 className="break-words text-base font-bold text-ink">
                     {name}
                   </h3>
 
@@ -487,34 +696,32 @@ function DetailsBody({
                 </div>
 
                 {service?.description && (
-                  <p className="mt-1 text-sm text-muted">
+                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-muted">
                     {service.description}
                   </p>
                 )}
 
-                {(duration || service?.categoryName) && (
-                  <ul className="mt-3 flex flex-wrap items-center gap-y-2 text-sm text-muted [&>li+li]:ml-4 [&>li+li]:border-l [&>li+li]:border-line [&>li+li]:pl-4">
-                    {duration && (
-                      <li className="flex items-center gap-1.5">
-                        <Clock
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {duration}
-                      </li>
-                    )}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {duration && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-canvas px-2.5 py-1 text-xs font-medium text-ink ring-1 ring-line">
+                      <Clock className="h-3.5 w-3.5 text-muted" />
+                      {duration}
+                    </span>
+                  )}
 
-                    {service?.categoryName && (
-                      <li className="flex items-center gap-1.5">
-                        <Layers
-                          className="h-4 w-4 text-brand"
-                          aria-hidden="true"
-                        />
-                        {service.categoryName}
-                      </li>
-                    )}
-                  </ul>
-                )}
+                  {service?.categoryName && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+                      <Layers className="h-3.5 w-3.5" />
+                      {service.categoryName}
+                    </span>
+                  )}
+
+                  {booking.quantity > 1 && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-canvas px-2.5 py-1 text-xs font-medium text-ink ring-1 ring-line">
+                      Qty: {booking.quantity}
+                    </span>
+                  )}
+                </div>
 
                 {addOnLines.length > 0 && (
                   <p className="mt-2 break-words text-sm text-muted">
@@ -531,6 +738,37 @@ function DetailsBody({
                 )}
               </div>
             </div>
+
+            {addOnLines.length > 0 && (
+              <div className="mt-5 border-t border-line/80 pt-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Add-ons included
+                </p>
+
+                <ul className="mt-2 divide-y divide-line/60">
+                  {addOnLines.map((addon) => (
+                    <li
+                      key={String(addon.refId ?? addon.name)}
+                      className="flex items-center justify-between gap-3 py-2 text-xs"
+                    >
+                      <span className="text-ink">
+                        {addon.name}
+                        {addon.quantity > 1 && (
+                          <span className="text-muted">
+                            {" "}
+                            × {addon.quantity}
+                          </span>
+                        )}
+                      </span>
+
+                      <span className="shrink-0 font-semibold text-ink">
+                        {rupees(addon.amount)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Section>
 
           <Section
@@ -539,8 +777,15 @@ function DetailsBody({
             icon={Users}
           >
             <PartnerCard
-              partner={booking.partner}
+              partner={
+                booking.partner ||
+                (typeof booking.partnerId === "object" &&
+                booking.partnerId !== null
+                  ? (booking.partnerId as typeof booking.partner)
+                  : null)
+              }
               hasPartner={Boolean(booking.partnerId)}
+              isCancelled={cancelled}
             />
           </Section>
 
@@ -553,21 +798,23 @@ function DetailsBody({
               <Tile
                 icon={CalendarDays}
                 label="Service Date"
-                value={
-                  booking.date
-                    ? formatPlainDate(booking.date)
-                    : "Not scheduled"
-                }
-                hint={weekday ? `(${weekday})` : undefined}
+                value={dateFormatted}
+                hint={day ? `(${day})` : undefined}
               />
 
               <Tile
                 icon={Clock}
                 label="Time Slot"
-                value={slotText || "To be confirmed"}
+                value={slotFormatted}
                 hint={slotHours ? `(${slotHours})` : undefined}
               />
             </div>
+
+            {scheduledAt && (
+              <p className="mt-3 text-xs text-muted">
+                Scheduled instant: {formatMoment(scheduledAt)}
+              </p>
+            )}
           </Section>
 
           <Section
@@ -606,46 +853,38 @@ function DetailsBody({
                   )}
                 </address>
 
-                {map && (
+                {maps && (
                   <a
-                    href={map}
+                    href={maps}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={clsx(
-                      "inline-flex h-10 items-center gap-2 rounded-xl border border-brand/30 px-4 text-sm font-semibold text-brand transition hover:bg-brand-soft",
+                      LINK_BUTTON,
+                      "self-start border border-line bg-canvas text-xs text-ink shadow-2xs hover:bg-panel",
                       FOCUS_RING,
                     )}
                   >
-                    <MapPin
-                      className="h-4 w-4"
+                    <Navigation
+                      className="h-4 w-4 text-brand"
                       aria-hidden="true"
                     />
-                    View on Maps
+                    <span>View on Maps</span>
                   </a>
                 )}
               </div>
             ) : (
               <p className="text-sm text-muted">
-                No address on this booking.
+                Address details unavailable for this booking.
               </p>
             )}
           </Section>
 
-          {booking.extraCharges.length > 0 && (
-            <ExtraChargeApproval
-              charges={booking.extraCharges}
-              canDecide={canDecideExtraCharges(booking.status)}
-              onDecide={(chargeId, decision) =>
-                decide.mutateAsync({ chargeId, decision })
-              }
-            />
-          )}
-
+          {/* Start OTP */}
           {showOtp && <OtpDisplay code={booking.startOtp} />}
         </div>
 
         {/* Right column */}
-        <div className="flex min-w-0 flex-col gap-4 sm:gap-6">
+        <div className="flex min-w-0 flex-col gap-4 sm:gap-6 lg:sticky lg:top-6">
           <Section
             id="price-heading"
             title="Price Breakdown"
@@ -663,7 +902,7 @@ function DetailsBody({
               <Row label="Payment Status">
                 <span
                   className={clsx(
-                    "rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
                     PILL_CLASS[payment.tone],
                   )}
                 >
@@ -675,7 +914,11 @@ function DetailsBody({
                 <Row label="Payment Method">{methodText}</Row>
               )}
 
-              {txn && <Row label="Transaction ID">{txn}</Row>}
+              {txn && (
+                <Row label="Transaction ID">
+                  <span className="font-mono text-xs">{txn}</span>
+                </Row>
+              )}
 
               {paidOn && payment.label === "Paid" && (
                 <Row label="Paid On">{paidOn}</Row>
@@ -689,28 +932,112 @@ function DetailsBody({
             icon={Zap}
           >
             <div className="flex flex-col gap-2.5">
+              {showRefundCard && refund && (
+                <div className="space-y-2.5 rounded-xl border border-line bg-canvas/70 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Refund Status
+                    </span>
+
+                    <span
+                      className={clsx(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        refundPill
+                          ? PILL_CLASS[refundPill.tone]
+                          : "bg-muted/10 text-muted",
+                      )}
+                    >
+                      {refundPill?.dot && (
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                      )}
+                      {refund.statusLabel || refundPill?.label || "Refund"}
+                    </span>
+                  </div>
+
+                  {typeof refund.amount === "number" &&
+                    refund.amount > 0 && (
+                      <div className="flex items-baseline justify-between text-xs">
+                        <span className="text-muted">
+                          {refund.status === "CREDITED"
+                            ? "Credited Amount"
+                            : "Refund Amount"}
+                        </span>
+                        <span className="font-bold text-ink">
+                          {rupees(refund.amount)}
+                        </span>
+                      </div>
+                    )}
+
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted">Destination</span>
+                    <span className="flex items-center gap-1 font-medium text-ink">
+                      <Wallet className="h-3.5 w-3.5 text-brand" />
+                      {refund.destination || "HomeCareX Wallet"}
+                    </span>
+                  </div>
+
+                  {refund.status === "CREDITED" &&
+                    refund.walletTransactionRef && (
+                      <div className="break-all text-[11px] text-muted">
+                        <span>Ref: </span>
+                        <span className="font-mono font-medium text-ink">
+                          {refund.walletTransactionRef}
+                        </span>
+                      </div>
+                    )}
+
+                  {refund.status === "CREDITED" && (
+                    <Link
+                      to={customerPath("/wallet")}
+                      className={clsx(
+                        LINK_BUTTON,
+                        "mt-1 w-full bg-brand text-white hover:opacity-90",
+                        FOCUS_RING,
+                      )}
+                    >
+                      <Wallet className="h-3.5 w-3.5" />
+                      <span>Check Wallet Balance</span>
+                    </Link>
+                  )}
+
+                  {refund.status === "REJECTED" && (
+                    <div className="mt-1 border-t border-line pt-1.5 text-[11px]">
+                      <p className="font-medium text-danger">
+                        Reason: {refund.rejectionReason || "Rejected by admin"}
+                      </p>
+
+                      <Link
+                        to={supportHref}
+                        className="mt-1.5 inline-flex items-center gap-1 font-semibold text-brand hover:underline"
+                      >
+                        <Headset className="h-3 w-3" />
+                        <span>Appeal Decision</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <InvoiceCard
-                bookingId={booking._id}
+                bookingId={bookingId}
                 bookingCode={code}
                 enabled={isPaid}
+                isCancelled={cancelled}
               />
 
-              {TRACKABLE.has(booking.status) && (
+              {TRACKABLE.has(normalizedStatus) && (
                 <Link
                   to={customerPath(
-                    `/bookings/${encodeURIComponent(booking._id)}/track`,
+                    `/bookings/${encodeURIComponent(bookingId)}/track`,
                   )}
                   className={clsx(
                     LINK_BUTTON,
-                    "border border-brand/30 bg-panel text-brand",
+                    "border border-brand/30 bg-panel text-brand hover:border-brand hover:bg-brand-soft hover:text-ink",
                     FOCUS_RING,
                   )}
                 >
-                  <Navigation
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
-                  Live Tracking
+                  <Compass className="h-4 w-4" aria-hidden="true" />
+                  <span>Track Partner</span>
                 </Link>
               )}
 
@@ -720,15 +1047,15 @@ function DetailsBody({
                   onClick={() => setDialog("reschedule")}
                   className={clsx(
                     LINK_BUTTON,
-                    "border border-brand/30 bg-panel text-brand",
+                    "border border-line bg-panel text-ink hover:border-brand/40 hover:bg-canvas",
                     FOCUS_RING,
                   )}
                 >
                   <CalendarClock
-                    className="h-4 w-4"
+                    className="h-4 w-4 text-muted"
                     aria-hidden="true"
                   />
-                  Reschedule Booking
+                  <span>Reschedule Booking</span>
                 </button>
               )}
 
@@ -738,21 +1065,18 @@ function DetailsBody({
                   onClick={() => setDialog("cancel")}
                   className={clsx(
                     LINK_BUTTON,
-                    "border border-danger/40 bg-panel text-danger",
+                    "border border-danger/30 bg-panel text-danger hover:bg-danger-soft/50",
                     FOCUS_RING,
                   )}
                 >
-                  <Trash2
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
-                  Cancel Booking
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  <span>Cancel Booking</span>
                 </button>
               )}
 
               {!cancelled && (
                 <RateExperience
-                  bookingId={booking._id}
+                  bookingId={bookingId}
                   status={booking.status}
                 />
               )}
@@ -761,7 +1085,7 @@ function DetailsBody({
             </div>
           </Section>
 
-          <section className="rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:p-6">
+          <section className="rounded-2xl border border-line/80 bg-panel p-5 shadow-[0_2px_8px_rgba(30,27,46,0.03)] sm:p-6">
             <h2 className="flex items-center gap-2 text-sm font-bold text-ink">
               <Headset
                 className="h-5 w-5 text-brand"
@@ -779,7 +1103,7 @@ function DetailsBody({
               to={supportHref}
               className={clsx(
                 LINK_BUTTON,
-                "mt-3 w-full border border-brand/30 bg-panel text-brand",
+                "mt-3.5 w-full border border-line bg-canvas text-xs font-semibold text-ink hover:border-brand/40 hover:bg-panel",
                 FOCUS_RING,
               )}
             >
@@ -792,14 +1116,14 @@ function DetailsBody({
       {/* Booking dialogs */}
       {dialog === "cancel" && (
         <CancelDialog
-          bookingId={booking._id}
+          bookingId={bookingId}
           onClose={() => setDialog(null)}
         />
       )}
 
       {dialog === "reschedule" && (
         <RescheduleDialog
-          bookingId={booking._id}
+          bookingId={bookingId}
           serviceId={booking.serviceId}
           date={booking.date}
           slot={booking.slot}

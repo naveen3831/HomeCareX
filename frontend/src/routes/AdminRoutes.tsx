@@ -85,6 +85,14 @@ const adminRoutes: AdminRoute[] = [
   { path: "", element: <AdminDashboardPage /> },
 
   // Operations
+  { path: 'leads', element: <AdminLeadsPage />, permission: 'leads:view' },
+  { path: 'bookings', element: <AdminBookingsPage />, permission: 'bookings:view' },
+  { path: 'customers', element: <AdminCustomersPage />, permission: 'customers:view' },
+  { path: 'customers/:id', element: <AdminCustomerDetailsPage />, permission: 'customers:view' },
+  { path: 'partners', element: <AdminPartnersPage />, permission: 'partners:view' },
+  { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
+  { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
+  { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
   { path: "leads", element: <AdminLeadsPage /> },
   { path: "bookings", element: <AdminBookingsPage /> },
   { path: "customers", element: <AdminCustomersPage /> },
@@ -112,6 +120,39 @@ const adminRoutes: AdminRoute[] = [
   },
 
   // Coupons
+  { path: 'coupons', element: <AdminCouponsPage />, permission: 'coupons:view' },
+  { path: 'coupons/create', element: <AdminCouponsPage />, permission: 'coupons:create' },
+  { path: 'coupons/:id/edit', element: <AdminCouponsPage />, permission: 'coupons:update' },
+
+  // Marketing
+  { path: 'marketing', element: <AdminMarketingPage />, permission: 'marketing:view' },
+  { path: 'marketing/create', element: <AdminMarketingPage />, permission: 'marketing:manage' },
+  { path: 'marketing/:id/edit', element: <AdminMarketingPage />, permission: 'marketing:manage' },
+
+  // Finance
+  { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
+  // Refund details: required for the Review button.
+  // Keep this route after the base refunds route.
+  { path: 'refunds/:id', element: <AdminRefundsPage />, permission: 'refunds:view' },
+  { path: 'payouts', element: <AdminPayoutsPage />, permission: 'payouts:view' },
+
+  // Reporting
+  { path: 'reports', element: <AdminReportsPage />, permission: 'reports:view' },
+
+  // System
+  { path: 'roles', element: <AdminRolesPage />, permission: 'roles:view' },
+  { path: 'roles/new', element: <AdminRoleFormPage />, permission: 'roles:create' },
+  { path: 'roles/:id', element: <AdminRoleFormPage />, permission: 'roles:view' },
+  { path: 'staff', element: <AdminStaffPage />, permission: 'staff:view' },
+  { path: 'staff/new', element: <AdminInviteStaffPage />, permission: 'staff:create' },
+  { path: 'audit-logs', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'audit-logs/:id', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'settings', element: <AdminSettingsPage />, permission: 'settings:manage' },
+
+  // Old URLs keep working.
+  { path: 'roles-permissions', element: <Navigate to="/admin/roles" replace /> },
+  { path: 'roles/staff/new', element: <Navigate to="/admin/staff/new" replace /> },
   { path: "coupons", element: <AdminCouponsPage /> },
   { path: "coupons/create", element: <AdminCouponsPage /> },
   { path: "coupons/:id/edit", element: <AdminCouponsPage /> },

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
-import { requirePermission } from "../middleware/permission.middleware";
 import { requireResourceAccess } from "../middleware/permission.middleware";
 
 // Core & Auth
@@ -42,6 +41,7 @@ import { settingsRoutes } from "../modules/settings/settings.routes";
 // Catalog & Public
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
+import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
 
 // Bookings & Payments
 import {
@@ -105,28 +105,10 @@ rootRouter.use("/auth", authRoutes);
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
-
-rootRouter.use(
-  "/admin/categories",
-  authMiddleware,
-  requireAdmin,
-  requirePermission("catalog"),
-  categoriesRoutes,
-);
-rootRouter.use(
-  "/admin/services",
-  authMiddleware,
-  requireAdmin,
-  requirePermission("catalog"),
-  servicesRoutes,
-);
-rootRouter.use(
-  "/admin/customers",
-  authMiddleware,
-  requireAdmin,
-  requirePermission("customers"),
-  adminCustomersRoutes,
-);
+rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requireResourceAccess("catalog"), categoriesRoutes);
+rootRouter.use("/admin/services", authMiddleware, requireAdmin, requireResourceAccess("catalog"), servicesRoutes);
+rootRouter.use("/admin/leads", authMiddleware, requireAdmin, requireResourceAccess("leads"), adminLeadsRoutes);
+rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResourceAccess("customers"), adminCustomersRoutes);
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
@@ -177,7 +159,6 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);
-rootRouter.use("/partner/kyc", partnerKycRoutes);
 
 // ---- Notifications ----
 rootRouter.use("/notifications", notificationsRoutes);

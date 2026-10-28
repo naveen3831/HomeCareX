@@ -1,11 +1,11 @@
-﻿
+
 import {
   useState,
   useEffect,
   useCallback,
-  useRef,
   createContext,
   useContext,
+  useRef,
 } from "react";
 import {
   NavLink,
@@ -259,20 +259,22 @@ export const NAV: NavItem[] = [
   },
 ];
 
-const FLAT_NAV: (NavChild & { parent?: string; end?: boolean })[] =
-  NAV.flatMap((item) => [
-    {
-      key: item.key,
-      label: item.label,
-      to: item.to,
-      icon: item.icon,
-      end: item.end,
-    },
-    ...(item.children ?? []).map((child) => ({
-      ...child,
-      parent: item.key,
-    })),
-  ]);
+const FLAT_NAV: (NavChild & {
+  parent?: string;
+  end?: boolean;
+})[] = NAV.flatMap((item) => [
+  {
+    key: item.key,
+    label: item.label,
+    to: item.to,
+    icon: item.icon,
+    end: item.end,
+  },
+  ...(item.children ?? []).map((child) => ({
+    ...child,
+    parent: item.key,
+  })),
+]);
 
 const PAGE_TITLES: Record<string, string> = {
   "/partner/availability": "Availability",
@@ -449,7 +451,10 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
       "service-area",
     ],
   },
-  { groupName: "Finance", keys: ["earnings", "performance"] },
+  {
+    groupName: "Finance",
+    keys: ["earnings", "performance"],
+  },
   {
     groupName: "Account",
     keys: [
@@ -587,9 +592,7 @@ function PartnerSidebar({
 
         {!collapsed && (
           <p className="sidebar-brand__guide">
-            {currentLabel
-              ? `Partner / ${currentLabel}`
-              : "Partner Console"}
+            {currentLabel ? `Partner / ${currentLabel}` : "Partner Console"}
           </p>
         )}
       </div>
@@ -599,9 +602,7 @@ function PartnerSidebar({
           const items = NAV.filter((item) =>
             group.keys.includes(item.key),
           );
-
-          const isOpen =
-            collapsed || openGroup === group.groupName;
+          const isOpen = collapsed || openGroup === group.groupName;
 
           return (
             <div key={group.groupName} className="nav-group">
@@ -631,17 +632,9 @@ function PartnerSidebar({
               {isOpen && (
                 <ul className="nav-list">
                   {items.map(
-                    ({
-                      key,
-                      label,
-                      to,
-                      icon: Icon,
-                      end,
-                      children,
-                    }) => {
+                    ({ key, label, to, icon: Icon, end, children }) => {
                       const hasChildren =
                         Boolean(children?.length) && !collapsed;
-
                       const expanded =
                         hasChildren && openItems.includes(key);
 
@@ -657,14 +650,17 @@ function PartnerSidebar({
                               to={to}
                               end={end || hasChildren}
                               title={collapsed ? label : undefined}
+                              style={{ flex: 1, minWidth: 0 }}
+                              onClick={() => {
+                                if (hasChildren) {
+                                  openItem(key);
+                                }
+                              }}
                               className={({ isActive }) =>
                                 `nav-link${
                                   isActive ? " is-active" : ""
                                 }`
                               }
-                              onClick={() => {
-                                if (hasChildren) openItem(key);
-                              }}
                             >
                               <Icon
                                 className="nav-link__icon"
@@ -679,9 +675,7 @@ function PartnerSidebar({
                               )}
 
                               {collapsed && (
-                                <span className="sr-only">
-                                  {label}
-                                </span>
+                                <span className="sr-only">{label}</span>
                               )}
                             </NavLink>
 
@@ -700,6 +694,10 @@ function PartnerSidebar({
                                   color: "inherit",
                                   cursor: "pointer",
                                   display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minWidth: 40,
+                                  minHeight: 40,
                                 }}
                               >
                                 <ChevronDown
@@ -715,6 +713,7 @@ function PartnerSidebar({
                             )}
                           </div>
 
+                          {/* Sub-links open under the parent. */}
                           {expanded && children && (
                             <ul
                               className="nav-list"
@@ -776,10 +775,7 @@ function PartnerSidebar({
           <span className="avatar">
             {displayName.charAt(0).toUpperCase()}
           </span>
-
-          {!collapsed && (
-            <span className="profile-name">{displayName}</span>
-          )}
+          {!collapsed && <span className="profile-name">{displayName}</span>}
         </button>
 
         <button
@@ -817,7 +813,7 @@ export default function PartnerLayout() {
     (next: boolean) => {
       const previous = onlineRef.current;
 
-      // Update immediately; restore the previous value if the request fails.
+      // Update immediately and roll back if the API request fails.
       applyOnline(next);
 
       void setOnlineApi(next)
@@ -828,10 +824,7 @@ export default function PartnerLayout() {
         })
         .catch((error: unknown) => {
           applyOnline(previous);
-          console.error(
-            "Failed to update partner online status",
-            error,
-          );
+          console.error("Failed to update partner online status", error);
         });
     },
     [applyOnline],
@@ -859,7 +852,9 @@ export default function PartnerLayout() {
   // Synchronize online status across browser tabs.
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
-      if (event.key !== PARTNER_ONLINE_STORAGE_KEY) return;
+      if (event.key !== PARTNER_ONLINE_STORAGE_KEY) {
+        return;
+      }
 
       const next = readStoredOnlineStatus();
 
@@ -871,9 +866,7 @@ export default function PartnerLayout() {
 
     window.addEventListener("storage", onStorage);
 
-    return () => {
-      window.removeEventListener("storage", onStorage);
-    };
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
@@ -895,24 +888,22 @@ export default function PartnerLayout() {
       const currentY = window.scrollY;
       const delta = currentY - lastScrollY;
 
-      if (Math.abs(delta) < 8) return;
+      if (Math.abs(delta) < 8) {
+        return;
+      }
 
       setNavVisible(currentY <= 24 ? true : delta < 0);
       lastScrollY = currentY;
     };
 
-    window.addEventListener("scroll", onScroll, {
-      passive: true,
-    });
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
+    return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
-  // The longest matching route wins so child pages receive the correct title.
+  // The longest matching route wins so child pages receive the right title.
   const current = FLAT_NAV.filter((item) =>
     item.to === "/partner"
       ? cleanPath === "/partner"
@@ -963,10 +954,7 @@ export default function PartnerLayout() {
       window.history.state as { idx?: number } | null
     )?.idx;
 
-    if (
-      typeof historyIndex === "number" &&
-      historyIndex > 0
-    ) {
+    if (typeof historyIndex === "number" && historyIndex > 0) {
       navigate(-1);
       return;
     }
@@ -981,14 +969,10 @@ export default function PartnerLayout() {
   };
 
   return (
-    <PartnerStatusContext.Provider
-      value={{ online, setOnline }}
-    >
+    <PartnerStatusContext.Provider value={{ online, setOnline }}>
       <div
         className={`flex bg-slate-50 text-slate-900 ${
-          fullBleed
-            ? "h-dvh overflow-hidden"
-            : "min-h-screen"
+          fullBleed ? "h-dvh overflow-hidden" : "min-h-screen"
         }`}
       >
         <PartnerSidebar
@@ -1007,9 +991,7 @@ export default function PartnerLayout() {
         >
           <header
             className={`sticky top-0 z-20 h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-2 sm:h-16 sm:px-6 ${
-              isTicketThread
-                ? "hidden lg:flex"
-                : "flex"
+              isTicketThread ? "hidden lg:flex" : "flex"
             }`}
           >
             <div className="flex min-w-0 items-center gap-0.5 sm:gap-3">
@@ -1021,10 +1003,7 @@ export default function PartnerLayout() {
                   title="Back"
                   className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
                 >
-                  <ArrowLeft
-                    size={20}
-                    aria-hidden="true"
-                  />
+                  <ArrowLeft size={20} aria-hidden="true" />
                 </button>
               )}
 
@@ -1034,22 +1013,14 @@ export default function PartnerLayout() {
                   setCollapsedPref((value) => !value)
                 }
                 aria-label={
-                  collapsed
-                    ? "Expand sidebar"
-                    : "Collapse sidebar"
+                  collapsed ? "Expand sidebar" : "Collapse sidebar"
                 }
                 className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
               >
                 {collapsed ? (
-                  <PanelLeftOpen
-                    size={20}
-                    aria-hidden="true"
-                  />
+                  <PanelLeftOpen size={20} aria-hidden="true" />
                 ) : (
-                  <PanelLeftClose
-                    size={20}
-                    aria-hidden="true"
-                  />
+                  <PanelLeftClose size={20} aria-hidden="true" />
                 )}
               </button>
 
@@ -1060,9 +1031,7 @@ export default function PartnerLayout() {
 
             <div
               className={`shrink-0 items-center gap-0.5 sm:gap-3 ${
-                minimalHeader
-                  ? "hidden lg:flex"
-                  : "flex"
+                minimalHeader ? "hidden lg:flex" : "flex"
               }`}
             >
               {!hideStatusPill &&
@@ -1099,9 +1068,7 @@ export default function PartnerLayout() {
                       : "pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
                   }`
                 : `px-4 py-6 sm:px-6 lg:pb-8 ${
-                    hideBottomNav
-                      ? "pb-8"
-                      : "pb-24"
+                    hideBottomNav ? "pb-8" : "pb-24"
                   }`
             }
           >
@@ -1112,10 +1079,7 @@ export default function PartnerLayout() {
         </div>
 
         {!hideBottomNav && (
-          <BottomNav
-            visible={navVisible}
-            path={cleanPath}
-          />
+          <BottomNav visible={navVisible} path={cleanPath} />
         )}
       </div>
     </PartnerStatusContext.Provider>

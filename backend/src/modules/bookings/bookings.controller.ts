@@ -1,13 +1,14 @@
-import { Request, Response } from "express";
 
-import { BookingService } from "./bookings.service";
-import type { CreateBookingInput } from "./bookings.types";
-import type { ListBookingsQuery } from "./bookings.query";
-import { AppError } from "../../utils/AppError";
+import type { Request, Response } from 'express';
+
+import { BookingService } from './bookings.service';
+import type { CreateBookingInput } from './bookings.types';
+import type { ListBookingsQuery } from './bookings.query';
+import { AppError } from '../../utils/AppError';
 
 /**
- * The signed-in user's ID comes from the verified authentication token,
- * never from the request body or query parameters.
+ * Gets the signed-in user's ID from the verified authentication token.
+ * Never trust a user ID supplied through the request body or query.
  */
 function requireUserId(req: Request): string {
   const id = req.user?.id;
@@ -15,8 +16,8 @@ function requireUserId(req: Request): string {
   if (!id) {
     throw new AppError(
       401,
-      "UNAUTHENTICATED",
-      "Authentication token is missing",
+      'UNAUTHENTICATED',
+      'Authentication token is missing',
     );
   }
 
@@ -25,10 +26,13 @@ function requireUserId(req: Request): string {
 
 export const bookingsController = {
   async getSlots(req: Request, res: Response) {
-    const serviceId = req.params.id || req.params.serviceId;
+    const serviceId = req.params.id;
     const date = req.query.date as string;
 
-    const result = await BookingService.getAvailableSlots(serviceId, date);
+    const result = await BookingService.getAvailableSlots(
+      serviceId,
+      date,
+    );
 
     res.json({
       success: true,
@@ -54,14 +58,14 @@ export const bookingsController = {
 
     res.status(200).json({
       success: true,
-      message: "Slot is available",
+      message: 'Slot is available',
       data: result,
     });
   },
 
   async createBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-    const idempotencyKey = req.header("Idempotency-Key");
+    const idempotencyKey = req.header('Idempotency-Key');
 
     const result = await BookingService.createBooking(
       customerId,
@@ -71,7 +75,7 @@ export const bookingsController = {
 
     res.status(result.replayed ? 200 : 201).json({
       success: true,
-      message: "Booking confirmed successfully",
+      message: 'Booking confirmed successfully',
       data: result.booking,
       replayed: result.replayed,
     });
@@ -103,11 +107,11 @@ export const bookingsController = {
     res
       .status(200)
       .set({
-        "Content-Type": "text/html; charset=utf-8",
-        "Content-Disposition": `inline; filename="${invoiceNo}.html"`,
-        "Cache-Control": "private, no-store",
-        "X-Content-Type-Options": "nosniff",
-        "X-Invoice-Number": invoiceNo,
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `inline; filename="${invoiceNo}.html"`,
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Invoice-Number': invoiceNo,
       })
       .send(html);
   },
@@ -117,7 +121,7 @@ export const bookingsController = {
     const { id, chargeId } = req.params;
 
     const { decision } = req.body as {
-      decision: "approve" | "reject";
+      decision: 'approve' | 'reject';
     };
 
     const booking = await BookingService.decideExtraCharge(
@@ -130,9 +134,9 @@ export const bookingsController = {
     res.json({
       success: true,
       message:
-        decision === "approve"
-          ? "Extra charge approved"
-          : "Extra charge rejected",
+        decision === 'approve'
+          ? 'Extra charge approved'
+          : 'Extra charge rejected',
       data: booking,
     });
   },
@@ -151,9 +155,11 @@ export const bookingsController = {
     });
   },
 
-  /** Alias retained for routes that still call previewCancel. */
+  /**
+   * Backward-compatible alias for routes using previewCancel.
+   */
   async previewCancel(req: Request, res: Response) {
-    return bookingsController.previewCancellation(req, res);
+    return this.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {
@@ -168,13 +174,14 @@ export const bookingsController = {
 
     res.json({
       success: true,
-      message: "Booking cancelled successfully",
+      message: 'Booking cancelled successfully',
       data: result,
     });
   },
 
   async rescheduleBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
+
     const { date, slot } = req.body as {
       date: string;
       slot: string;
@@ -188,16 +195,16 @@ export const bookingsController = {
 
     res.json({
       success: true,
-      message: "Booking rescheduled successfully",
+      message: 'Booking rescheduled successfully',
       data: result,
     });
   },
 
   async listBookings(req: Request, res: Response) {
-    // The customer ID comes from the verified token.
+    // The customer ID always comes from the verified authentication token.
     const customerId = requireUserId(req);
 
-    // validationMiddleware should already have parsed the query.
+    // Validation middleware should supply parsed, defaulted query values.
     const query = req.query as unknown as ListBookingsQuery;
 
     const { items, meta } = await BookingService.listBookings(
