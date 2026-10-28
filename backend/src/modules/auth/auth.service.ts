@@ -33,7 +33,6 @@ import type {
   AcceptInviteInput,
   ChangePasswordInput,
 } from './auth.validation';
-import mongoose, { Types } from 'mongoose';
 
 import type { UserRole } from '../../models/User';
 import { CategoryModel } from '../../models/Category';

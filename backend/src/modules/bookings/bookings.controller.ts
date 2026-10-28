@@ -1,10 +1,9 @@
+import { Request, Response } from "express";
 
-import { Request, Response } from 'express';
-
-import { BookingService } from './bookings.service';
-import type { CreateBookingInput } from './bookings.types';
-import type { ListBookingsQuery } from './bookings.query';
-import { AppError } from '../../utils/AppError';
+import { BookingService } from "./bookings.service";
+import type { CreateBookingInput } from "./bookings.types";
+import type { ListBookingsQuery } from "./bookings.query";
+import { AppError } from "../../utils/AppError";
 
 /**
  * The signed-in user's ID comes from the verified authentication token,
@@ -16,15 +15,8 @@ function requireUserId(req: Request): string {
   if (!id) {
     throw new AppError(
       401,
-      'UNAUTHENTICATED',
-      'Authentication token is missing',
-    );
-
-  if (!id) {
-    throw new AppError(
-      401,
-      'UNAUTHENTICATED',
-      'Authentication token is missing',
+      "UNAUTHENTICATED",
+      "Authentication token is missing",
     );
   }
 
@@ -36,10 +28,7 @@ export const bookingsController = {
     const serviceId = req.params.id || req.params.serviceId;
     const date = req.query.date as string;
 
-    const result = await BookingService.getAvailableSlots(
-      serviceId,
-      date,
-    );
+    const result = await BookingService.getAvailableSlots(serviceId, date);
 
     res.json({
       success: true,
@@ -48,14 +37,6 @@ export const bookingsController = {
   },
 
   async checkSlot(req: Request, res: Response) {
-    const serviceId = (
-      req.params.id ||
-      req.body.serviceId ||
-      req.query.serviceId
-    ) as string;
-
-    const date = (req.query.date || req.body.date) as string;
-    const slot = (req.query.slot || req.body.slot) as string;
     const serviceId = (
       req.params.id ||
       req.body.serviceId ||
@@ -73,7 +54,7 @@ export const bookingsController = {
 
     res.status(200).json({
       success: true,
-      message: 'Slot is available',
+      message: "Slot is available",
       data: result,
     });
   },
@@ -81,7 +62,6 @@ export const bookingsController = {
   async createBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
     const idempotencyKey = req.header("Idempotency-Key");
-    const idempotencyKey = req.header('Idempotency-Key');
 
     const result = await BookingService.createBooking(
       customerId,
@@ -91,7 +71,7 @@ export const bookingsController = {
 
     res.status(result.replayed ? 200 : 201).json({
       success: true,
-      message: 'Booking confirmed successfully',
+      message: "Booking confirmed successfully",
       data: result.booking,
       replayed: result.replayed,
     });
@@ -123,11 +103,11 @@ export const bookingsController = {
     res
       .status(200)
       .set({
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': `inline; filename="${invoiceNo}.html"`,
-        'Cache-Control': 'private, no-store',
-        'X-Content-Type-Options': 'nosniff',
-        'X-Invoice-Number': invoiceNo,
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Disposition": `inline; filename="${invoiceNo}.html"`,
+        "Cache-Control": "private, no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-Invoice-Number": invoiceNo,
       })
       .send(html);
   },
@@ -137,7 +117,7 @@ export const bookingsController = {
     const { id, chargeId } = req.params;
 
     const { decision } = req.body as {
-      decision: 'approve' | 'reject';
+      decision: "approve" | "reject";
     };
 
     const booking = await BookingService.decideExtraCharge(
@@ -153,22 +133,12 @@ export const bookingsController = {
         decision === "approve"
           ? "Extra charge approved"
           : "Extra charge rejected",
-        decision === 'approve'
-          ? 'Extra charge approved'
-          : 'Extra charge rejected',
       data: booking,
     });
   },
 
   async previewCancellation(req: Request, res: Response) {
     const customerId = requireUserId(req);
-
-    const result = await BookingService.previewCancellation(
-      customerId,
-      req.params.id,
-    );
-
-    res.json({ success: true, data: preview });
 
     const result = await BookingService.previewCancellation(
       customerId,
@@ -195,19 +165,16 @@ export const bookingsController = {
       req.params.id,
       reason,
     );
-    res.json({ success: true, message: "Booking cancelled", data: result });
 
     res.json({
       success: true,
-      message: 'Booking cancelled successfully',
+      message: "Booking cancelled successfully",
       data: result,
     });
   },
 
   async rescheduleBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-    const { date, slot } = req.body as { date: string; slot: string };
-    const booking = await BookingService.rescheduleBooking(
     const { date, slot } = req.body as {
       date: string;
       slot: string;
@@ -218,11 +185,10 @@ export const bookingsController = {
       req.params.id,
       { date, slot },
     );
-    res.json({ success: true, message: "Booking rescheduled", data: booking });
 
     res.json({
       success: true,
-      message: 'Booking rescheduled successfully',
+      message: "Booking rescheduled successfully",
       data: result,
     });
   },
@@ -238,7 +204,6 @@ export const bookingsController = {
       customerId,
       query,
     );
-    res.json({ success: true, count: items.length, data: items, meta });
 
     res.json({
       success: true,

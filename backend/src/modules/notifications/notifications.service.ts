@@ -1,22 +1,16 @@
-import mongoose, { Types } from 'mongoose';
-import { NotificationModel } from '../../models/Notification';
-import { UserModel } from '../../models/User';
-import { getSetting } from '../settings';
-import { emitToUser } from '../../sockets';
-import { Errors } from '../../utils/errors';
 
 import mongoose, { Types } from "mongoose";
 import { NotificationModel } from "../../models/Notification";
 import { UserModel } from "../../models/User";
 import { getSetting } from "../settings";
-import { HttpError } from "../auth/auth.types";
 import { emitToUser } from "../../sockets";
+import { httpError } from "../../utils/errors";
+import { ERROR_CODES } from "../../constants/errorCodes";
 import {
   ADMIN_ALERT_SETTING,
   GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
-  NOTIFICATION_TYPES,
   groupOf,
   type NotificationGroup,
   type NotificationType,
@@ -51,16 +45,13 @@ const escapeRegex = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const prefixRegex = (prefixes: readonly string[]): RegExp =>
-  new RegExp(
-    `^(?:${prefixes.map(escapeRegex).join("|")})`,
-  );
+  new RegExp(`^(?:${prefixes.map(escapeRegex).join("|")})`);
 
 const ALL_PREFIXES = Object.values(GROUP_PREFIXES).flat() as string[];
 
 /**
  * Creates a MongoDB filter for a notification group.
- * The system group contains notification types that do not match
- * any of the other configured group prefixes.
+ * The system group contains types that do not match other group prefixes.
  */
 export function groupFilter(
   group: NotificationGroup,
@@ -86,7 +77,7 @@ function toDto(
 }
 
 /**
- * Saves a notification and then pushes it to the user's socket room.
+ * Saves a notification and pushes it to the user's socket room.
  */
 export async function notify(
   userId: string,
@@ -151,7 +142,7 @@ export class NotificationsService {
   notify = notify;
 
   /**
-   * Lists notifications for a user, optionally filtering to unread items.
+   * Lists notifications for a user, optionally filtering unread items.
    */
   async listForUser(
     userId: string,
@@ -169,7 +160,7 @@ export class NotificationsService {
   }
 
   /**
-   * Lists customer notifications and returns unread counts by group.
+   * Lists customer notifications and unread counts by group.
    */
   async listForCustomer(
     userId: string,
@@ -238,12 +229,10 @@ export class NotificationsService {
       0,
     );
 
-    const items: CustomerNotificationDto[] = rows.map(
-      (row) => ({
-        ...toDto(row),
-        group: groupOf(row.type),
-      }),
-    );
+    const items: CustomerNotificationDto[] = rows.map((row) => ({
+      ...toDto(row),
+      group: groupOf(row.type),
+    }));
 
     return {
       items,
@@ -254,17 +243,16 @@ export class NotificationsService {
 
   /**
    * Marks one of the caller's notifications as read.
-   * A notification belonging to another user is not accessible.
    */
   async markReadForCustomer(
     userId: string,
     id: string,
   ): Promise<CustomerNotificationDto> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(
+      throw httpError(
         400,
+        ERROR_CODES.VALIDATION_ERROR,
         "Invalid notification id",
-        "VALIDATION_ERROR",
       );
     }
 
@@ -274,10 +262,10 @@ export class NotificationsService {
     });
 
     if (!notification) {
-      throw new HttpError(
+      throw httpError(
         404,
+        ERROR_CODES.NOT_FOUND,
         "Notification not found",
-        "NOT_FOUND",
       );
     }
 
@@ -295,9 +283,7 @@ export class NotificationsService {
   /**
    * Marks all unread notifications belonging to the customer as read.
    */
-  async markAllReadForCustomer(
-    userId: string,
-  ): Promise<number> {
+  async markAllReadForCustomer(userId: string): Promise<number> {
     const result = await NotificationModel.updateMany(
       {
         userId,
@@ -319,10 +305,10 @@ export class NotificationsService {
     id: string,
   ): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new HttpError(
+      throw httpError(
         400,
+        ERROR_CODES.VALIDATION_ERROR,
         "Invalid notification id",
-        "VALIDATION_ERROR",
       );
     }
 
@@ -332,10 +318,10 @@ export class NotificationsService {
     });
 
     if (result.deletedCount === 0) {
-      throw new HttpError(
+      throw httpError(
         404,
+        ERROR_CODES.NOT_FOUND,
         "Notification not found",
-        "NOT_FOUND",
       );
     }
   }
@@ -343,9 +329,7 @@ export class NotificationsService {
   /**
    * Deletes every notification belonging to the customer.
    */
-  async deleteAllForCustomer(
-    userId: string,
-  ): Promise<number> {
+  async deleteAllForCustomer(userId: string): Promise<number> {
     const result = await NotificationModel.deleteMany({
       userId,
     });
@@ -366,10 +350,7 @@ export class NotificationsService {
   /**
    * Marks one notification as read for a user.
    */
-  async markRead(
-    userId: string,
-    id: string,
-  ): Promise<void> {
+  async markRead(userId: string, id: string): Promise<void> {
     if (!Types.ObjectId.isValid(id)) {
       return;
     }

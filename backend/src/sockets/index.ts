@@ -19,8 +19,8 @@ import { registerTrackingSocket } from './tracking.socket';
  * - user:<id>
  * - role:<role>
  * - booking:<id> after successful booking:join authorization
- * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
- * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
+ * - tracking:<id> after successful tracking:join authorization
+ * - ticket:admin:<id> after successful ticket:join authorization
  */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -62,7 +62,6 @@ export const emitToUser = (
   payload: unknown,
 ) => getIO().to(rooms.user(userId)).emit(event, payload);
 
-
 /** Emits an event to all sockets in a booking room. */
 export const emitToBooking = (
   bookingId: string,
@@ -71,9 +70,10 @@ export const emitToBooking = (
 ) => getIO().to(rooms.booking(bookingId)).emit(event, payload);
 
 /**
- * Admins can join existing bookings.
- * Customers can join only their own bookings.
- * Partners can join only bookings assigned to them.
+ * Authorization rules:
+ * - Admins can join an existing booking.
+ * - Customers can join only their own bookings.
+ * - Partners can join only bookings assigned to their partner profile.
  */
 async function canJoinBooking(
   auth: AccessTokenPayload,
@@ -85,13 +85,6 @@ async function canJoinBooking(
     );
   }
 
-
- 
-  if (auth.role === 'customer')
-    return !!(await BookingModel.exists({
-      _id: bookingId,
-      customerId: auth.sub,
-    }));
   if (auth.role === 'customer') {
     return Boolean(
       await BookingModel.exists({
@@ -168,6 +161,7 @@ export const initSockets = (server: HttpServer): Server => {
     },
   });
 
+  // Authenticate every socket connection using an access token.
   io.use((socket, next) => {
     const token = tokenFrom(socket);
 
@@ -192,7 +186,7 @@ export const initSockets = (server: HttpServer): Server => {
       rooms.role(auth.role),
     ]);
 
-    // Booking room access is checked for every join request.
+    // Authorize every booking-room join request.
     socket.on(
       'booking:join',
       async (payload: unknown, ack?: AckFn) => {
@@ -236,6 +230,7 @@ export const initSockets = (server: HttpServer): Server => {
       },
     );
 
+    // Leave a booking room when a valid booking ID is provided.
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
 
@@ -243,10 +238,6 @@ export const initSockets = (server: HttpServer): Server => {
         void socket.leave(rooms.booking(parsed.data.bookingId));
       }
     });
-
-    // --------------------------------------------------
-    // TRACKING + TICKET SOCKET EVENTS
-    // --------------------------------------------------
 
     // Preserve the existing tracking and ticket event implementations.
     registerTrackingSocket(socket);

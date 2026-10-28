@@ -1,16 +1,17 @@
-import { z } from 'zod';
-import { SERVICE_SLOTS } from './bookings.constants';
+
+import { z } from "zod";
+import { SERVICE_SLOTS } from "./bookings.constants";
 
 const objectIdString = z
   .string()
-  .regex(/^[0-9a-fA-F]{24}$/, 'Must be a valid id');
+  .regex(/^[0-9a-fA-F]{24}$/, "Must be a valid id");
 
 const dateString = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD');
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD");
 
 const slotString = z.enum(SERVICE_SLOTS, {
-  message: 'Unrecognized slot',
+  message: "Unrecognized slot",
 });
 
 const addOnInputSchema = z.object({
@@ -29,7 +30,7 @@ const addressSnapshotSchema = z.object({
   state: z.string().min(1).max(100),
   pincode: z
     .string()
-    .regex(/^\d{4,10}$/, 'Invalid pincode'),
+    .regex(/^\d{4,10}$/, "Invalid pincode"),
   location: z.object({
     lat: z.number().gte(-90).lte(90),
     lng: z.number().gte(-180).lte(180),
@@ -52,8 +53,8 @@ export const createBookingBodySchema = z
     (value) =>
       Boolean(value.addressId) !== Boolean(value.newAddress),
     {
-      message: 'Provide exactly one of addressId or newAddress',
-      path: ['newAddress'],
+      message: "Provide exactly one of addressId or newAddress",
+      path: ["newAddress"],
     },
   );
 
@@ -70,14 +71,14 @@ export const getBookingParamsSchema = z.object({
 });
 
 export const checkSlotBodySchema = z.object({
-  serviceId: z.string().min(1, 'Service ID is required'),
+  serviceId: z.string().min(1, "Service ID is required"),
   date: z
     .string()
     .regex(
       /^\d{4}-\d{2}-\d{2}$/,
-      'Date must be in YYYY-MM-DD format',
+      "Date must be in YYYY-MM-DD format",
     ),
-  slot: z.string().min(1, 'Slot is required'),
+  slot: z.string().min(1, "Slot is required"),
 });
 
 export const extraChargeDecisionParamsSchema = z.object({
@@ -86,12 +87,15 @@ export const extraChargeDecisionParamsSchema = z.object({
 });
 
 export const extraChargeDecisionBodySchema = z.object({
-  decision: z.enum(['approve', 'reject']),
+  decision: z.enum(["approve", "reject"]),
 });
 
 export const cancelBookingBodySchema = z.object({
-  reason: z.string().trim().min(3, 'Please tell us why you are cancelling').max(300),
-  reason: z.string().trim().min(3, 'Please tell us why you are cancelling').max(500),
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Please tell us why you are cancelling")
+    .max(500),
 });
 
 export const rescheduleBookingBodySchema = z.object({
