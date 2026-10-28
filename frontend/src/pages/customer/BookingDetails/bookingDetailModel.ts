@@ -205,11 +205,14 @@ export function buildTimeline(
   booking: Pick<BookingDetailView, "status" | "statusHistory"> & {
     createdAt?: string;
     holdExpiresAt?: string;
+    history?: BookingDetailView["statusHistory"];
   },
   now: number = Date.now(),
 ): TimelineItem[] {
   const history = Array.isArray(booking?.statusHistory)
     ? booking.statusHistory
+    : Array.isArray(booking?.history)
+    ? booking.history
     : Array.isArray((booking as { history?: unknown[] })?.history)
     ? ((booking as { history?: BookingDetailView['statusHistory'] }).history ?? [])
     : [];
