@@ -24,6 +24,7 @@ import VerifyOtpPage from "../pages/public/VerifyOtp";
 import ResetPasswordPage from "../pages/public/ResetPassword";
 import UnauthorizedPage from "../pages/public/Unauthorized";
 import { resetStateStore } from "../features/auth/resetStateStore";
+import { AuthProvider } from "../context/AuthContext";
 
 // Mock Leaflet
 vi.mock("leaflet", () => ({
@@ -45,8 +46,6 @@ vi.mock("leaflet", () => ({
     icon: () => ({}),
   },
 }));
-
-import { AuthProvider } from "../context/AuthContext";
 
 const createTestQueryClient = () =>
   new QueryClient({

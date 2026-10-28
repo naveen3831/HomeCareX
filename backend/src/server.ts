@@ -136,6 +136,7 @@ const startServer = async (): Promise<void> => {
     stopSlaSweep = startSlaSweep();
 
     // Seed default data without blocking incoming requests.
+    // Seed default data after the server starts; failures are logged only.
     void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);

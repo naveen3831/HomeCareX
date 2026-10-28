@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getAvailability,
@@ -81,7 +81,9 @@ export const PartnerWorkingHoursPage: React.FC = () => {
   const [openDay, setOpenDay] = useState<string | null>(null); // mobile: which day's times are open
   const [flash, setFlash] = useState(0); // bumps on "Copy Monday to all" to replay the pulse
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     getAvailability()
       .then((a) => {
         setHours(a.workingHours);
@@ -90,6 +92,10 @@ export const PartnerWorkingHoursPage: React.FC = () => {
       .catch((e) => setError(e instanceof Error ? e.message : 'Something went wrong'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // "Saved" feedback fades after a moment.
   useEffect(() => {
@@ -152,6 +158,7 @@ export const PartnerWorkingHoursPage: React.FC = () => {
       <div className="pa-page wh-page">
         <h1 className="pa-title wh-h1">Working Hours</h1>
         <p className="pa-error" role="alert">{error ?? 'No working hours found.'}</p>
+        <button type="button" className="pa-btn" onClick={load}>Try again</button>
       </div>
     );
   }

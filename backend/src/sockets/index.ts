@@ -21,6 +21,8 @@ import { registerTicketSocket } from './ticket.socket';
  * - booking:<id> after successful booking:join authorization
  *
  * Tracking and ticket rooms are managed by their respective socket modules.
+ * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
+ * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
  */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -85,6 +87,9 @@ export const emitToBooking = (
  * - Admin: any existing booking
  * - Customer: only their own booking
  * - Partner: only a booking assigned to them
+ * Admins can join existing bookings.
+ * Customers can join only their own bookings.
+ * Partners can join only bookings assigned to them.
  */
 async function canJoinBooking(
   auth: AccessTokenPayload,
@@ -119,6 +124,14 @@ async function canJoinBooking(
         _id: bookingId,
         partnerId: partner._id,
       }),
+    return (
+      Boolean(partner) &&
+      Boolean(
+        await BookingModel.exists({
+          _id: bookingId,
+          partnerId: partner?._id,
+        }),
+      )
     );
   }
 
@@ -243,6 +256,36 @@ export const initSockets = (server: HttpServer): Server => {
         }
       },
     );
+      if (!parsed.success) {
+        return reply({
+          ok: false,
+          code: ERROR_CODES.VALIDATION_ERROR,
+          message: 'bookingId is required',
+        });
+      }
+
+      try {
+        const allowed = await canJoinBooking(auth, parsed.data.bookingId);
+
+        if (!allowed) {
+          return reply({
+            ok: false,
+            code: ERROR_CODES.RESOURCE_FORBIDDEN,
+            message: 'You cannot join this booking',
+          });
+        }
+
+        await socket.join(rooms.booking(parsed.data.bookingId));
+
+        return reply({ ok: true });
+      } catch {
+        return reply({
+          ok: false,
+          code: ERROR_CODES.INTERNAL_ERROR,
+          message: 'Could not join booking',
+        });
+      }
+    });
 
     // Leave a booking room.
     socket.on('booking:leave', (payload: unknown) => {
@@ -254,6 +297,10 @@ export const initSockets = (server: HttpServer): Server => {
     });
 
     // Register tracking and support-ticket socket events.
+    // --------------------------------------------------
+    // TRACKING + TICKET SOCKET EVENTS
+    // --------------------------------------------------
+
     registerTrackingSocket(socket);
     registerTicketSocket(socket);
   });

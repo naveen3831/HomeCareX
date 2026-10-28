@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import DataTable, { Column } from "../../../components/tables/DataTable";
 import "./index.css";
@@ -29,21 +30,34 @@ interface AuditLogApi {
   action?: string;
   entity?: string;
   entityId?: string;
+  actor?: string | null;
+  actorName?: string | null;
+  action?: string | null;
+  entity?: string | null;
+  entityId?: string | null;
   before?: unknown;
   after?: unknown;
-  ip: string;
-  result: "Success" | "Failed";
+  ip?: string | null;
+  result?: string | null;
   timestamp?: string;
   createdAt?: string;
 }
 
 interface AuditLogsResponse {
   success: boolean;
-  data: { items: AuditLogApi[]; total: number; page: number; limit: number };
+  data?: {
+    items?: AuditLogApi[];
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
 }
 
 const formatJson = (value: unknown): string => {
-  if (value === undefined || value === null) return "{}";
+  if (value === undefined || value === null) {
+    return "{}";
+  }
+
   if (typeof value === "string") {
     try {
       return JSON.stringify(JSON.parse(value), null, 2);
@@ -51,6 +65,7 @@ const formatJson = (value: unknown): string => {
       return value;
     }
   }
+
   try {
     return JSON.stringify(value, null, 2) ?? "{}";
   } catch {
@@ -65,20 +80,38 @@ const formatTimestamp = (timestamp?: string, createdAt?: string): string => {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
 };
 
-const normalizeResult = (result?: string): "Success" | "Failed" =>
+const normalizeResult = (result?: string | null): "Success" | "Failed" =>
   result?.toLowerCase() === "success" ? "Success" : "Failed";
 
 const parseJson = (raw: string): Record<string, unknown> | null => {
   try {
-    const v = JSON.parse(raw);
-    return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+    const value: unknown = JSON.parse(raw);
+
+    return value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
   } catch {
     return null;
   }
 };
 
-const showValue = (v: unknown) =>
-  v === undefined ? "—" : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+const showValue = (value: unknown): string => {
+  if (value === undefined || value === null) {
+    return "—";
+  }
+
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value) ?? String(value);
+    } catch {
+      return String(value);
+    }
+  }
+
+  return String(value);
+};
 
 const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
   const changes = diffRecords(parseJson(log.before), parseJson(log.after));
@@ -103,14 +136,16 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
             {log.entityId ? ` · ${log.entityId}` : ""}
           </span>
         </div>
-        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>{log.result}</span>
+        <span className={log.result === "Success" ? "success-badge" : "failed-badge"}>
+          {log.result}
+        </span>
       </section>
 
       <dl className="audit-detail__facts">
-        {facts.map((f) => (
-          <div key={f.label} className="audit-detail__fact">
-            <dt>{f.label}</dt>
-            <dd>{f.value || "—"}</dd>
+        {facts.map((fact) => (
+          <div key={fact.label} className="audit-detail__fact">
+            <dt>{fact.label}</dt>
+            <dd>{fact.value || "—"}</dd>
           </div>
         ))}
       </dl>
@@ -121,13 +156,15 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
           <p className="audit-detail__empty">No field-level changes were recorded.</p>
         ) : (
           <ul className="audit-detail__changes">
-            {changes.map((c) => (
-              <li key={c.field}>
-                <code>{c.field}</code>
+            {changes.map((change) => (
+              <li key={change.field}>
+                <code>{change.field}</code>
                 <div className="audit-detail__change-vals">
-                  <span className="audit-detail__before">{showValue(c.before)}</span>
-                  <span aria-hidden="true" className="audit-detail__arrow">→</span>
-                  <span className="audit-detail__after">{showValue(c.after)}</span>
+                  <span className="audit-detail__before">{showValue(change.before)}</span>
+                  <span aria-hidden="true" className="audit-detail__arrow">
+                    →
+                  </span>
+                  <span className="audit-detail__after">{showValue(change.after)}</span>
                 </div>
               </li>
             ))}
@@ -150,6 +187,10 @@ const AuditDetails: React.FC<{ log: AuditLog }> = ({ log }) => {
 };
 
 const AdminAuditLogsPage: React.FC = () => {
+  // Optional route param: /admin/audit-logs/:auditId opens the full-page details view
+  const { id: auditId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
   // Mouse drag-scroll for the table (swipe already works on phones)
   const scrollRootRef = useDragScroll<HTMLDivElement>(".datatable-wrapper");
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -160,13 +201,17 @@ const AdminAuditLogsPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+
     const fetchAuditLogs = async () => {
       try {
         setLoading(true);
         setError("");
 
         // Shared axios client: sends the admin Bearer token + cookies, same base URL as every admin page.
-        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", { params: { limit: 100 } });
+        const { data: result } = await http.get<AuditLogsResponse>("/admin/audit-logs", {
+          params: { limit: 100 },
+        });
+
         if (!result?.success || !result.data || !Array.isArray(result.data.items)) {
           throw new Error("Invalid audit logs response.");
         }
@@ -204,19 +249,112 @@ const AdminAuditLogsPage: React.FC = () => {
     };
 
     void fetchAuditLogs();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
   const query = searchValue.toLowerCase().trim();
-  const filteredLogs = auditLogsData.filter((log) =>
-    !query
-      ? true
-      : [log.id, log.timestamp, log.actor, log.actorName, log.action, log.entity, log.entityId, log.ip, log.result].some((v) =>
-          v.toLowerCase().includes(query),
-        ),
+  const totalLogs = auditLogsData.length;
+
+  const filteredLogs = useMemo(
+    () =>
+      auditLogsData.filter((log) =>
+        !query
+          ? true
+          : [
+              log.id,
+              log.timestamp,
+              log.actor,
+              log.actorName,
+              log.action,
+              log.entity,
+              log.entityId,
+              log.ip,
+              log.result,
+            ].some((value) => value.toLowerCase().includes(query)),
+      ),
+    [auditLogsData, query],
   );
+
+  // Full-page details view (only when the URL has an :auditId)
+  const selectedAuditLog = auditLogsData.find((log) => log.id === auditId);
+  if (auditId) {
+    if (loading) {
+      return (
+        <main className="admin-auditlogs-container audit-details-fullpage">
+          <p className="audit-details-status">Loading audit details...</p>
+        </main>
+      );
+    }
+
+    if (error || !selectedAuditLog) {
+      return (
+        <main className="admin-auditlogs-container audit-details-fullpage">
+          <button type="button" className="view-btn audit-back-btn" onClick={() => navigate("/admin/audit-logs")}>
+            ← Back to Audit Logs
+          </button>
+          <div className="audit-details-error" role="alert">
+            {error || "Audit log not found in the loaded records. Return to the list and try again."}
+          </div>
+        </main>
+      );
+    }
+
+    return (
+      <main className="admin-auditlogs-container audit-details-fullpage">
+        <header className="audit-details-page-header">
+          <div>
+            <button type="button" className="view-btn audit-back-btn" onClick={() => navigate("/admin/audit-logs")}>
+              ← Back to Audit Logs
+            </button>
+            <h1 className="auditlogs-title audit-details-heading">Audit Log Details</h1>
+            <p className="audit-details-subtitle">
+              Review the recorded action, its outcome, and the changes associated with this audit entry.
+            </p>
+          </div>
+          <span className={selectedAuditLog.result === "Success" ? "success-badge" : "failed-badge"}>
+            {selectedAuditLog.result}
+          </span>
+        </header>
+
+        <section className="audit-details-card">
+          <h2>Audit Information</h2>
+          <div className="audit-details-grid">
+            {[
+              ["Audit ID", selectedAuditLog.id],
+              ["Timestamp", selectedAuditLog.timestamp],
+              ["Actor", selectedAuditLog.actor],
+              ["Action", selectedAuditLog.action],
+              ["Entity", selectedAuditLog.entity],
+              ["Entity ID", selectedAuditLog.entityId],
+              ["IP Address", selectedAuditLog.ip],
+              ["Result", selectedAuditLog.result],
+            ].map(([label, value]) => (
+              <div key={label} className="audit-details-field">
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="audit-details-json-grid">
+          <section className="audit-details-card audit-details-json-card">
+            <h2>Before Changes</h2>
+            <p className="audit-details-json-description">Recorded data before the action was performed.</p>
+            <pre className="audit-details-json">{selectedAuditLog.before}</pre>
+          </section>
+          <section className="audit-details-card audit-details-json-card">
+            <h2>After Changes</h2>
+            <p className="audit-details-json-description">Recorded data after the action was performed.</p>
+            <pre className="audit-details-json">{selectedAuditLog.after}</pre>
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   const auditColumns: Column<AuditLog>[] = [
     { key: "timestamp", header: "Timestamp", sortValue: (row) => row.timestamp },
@@ -229,7 +367,9 @@ const AdminAuditLogsPage: React.FC = () => {
       key: "result",
       header: "Result",
       sortValue: (row) => row.result,
-      cell: (row) => <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>,
+      cell: (row) => (
+        <span className={row.result === "Success" ? "success-badge" : "failed-badge"}>{row.result}</span>
+      ),
     },
     {
       key: "details",
@@ -272,7 +412,13 @@ const AdminAuditLogsPage: React.FC = () => {
           aria-label="Search audit logs"
         />
         {searchValue && (
-          <button type="button" className="auditlogs-search-clear" onClick={() => setSearchValue("")} aria-label="Clear search" title="Clear search">
+          <button
+            type="button"
+            className="auditlogs-search-clear"
+            onClick={() => setSearchValue("")}
+            aria-label="Clear search"
+            title="Clear search"
+          >
             ×
           </button>
         )}
@@ -281,7 +427,7 @@ const AdminAuditLogsPage: React.FC = () => {
       {loading && <div className="auditlogs-count">Loading audit logs...</div>}
 
       {!loading && error && (
-        <div className="auditlogs-count">
+        <div className="auditlogs-count" role="alert">
           {error}
         </div>
       )}
@@ -301,7 +447,9 @@ const AdminAuditLogsPage: React.FC = () => {
               emptyMessage={query ? "No audit logs match your search." : "There are no audit logs to display."}
             />
           </div>
-          <div className="auditlogs-count">Total Logs: {filteredLogs.length}</div>
+          <div className="auditlogs-count">
+            {query ? `Showing ${filteredLogs.length} of ${totalLogs} logs` : `Total Logs: ${totalLogs}`}
+          </div>
         </>
       )}
 
