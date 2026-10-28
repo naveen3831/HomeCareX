@@ -47,6 +47,14 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   // Back navigation: Active Bookings retains its entry point (Profile/Dashboard) and avoids looping
   const goBack = () => {
     if (!meta) return;
+    if (normalizedPath === customerPath("/notifications").toLowerCase()) {
+      navigate(customerPath());
+      return;
+    }
+    if (normalizedPath === customerPath("/referrals").toLowerCase()) {
+      navigate(customerPath("/profile"));
+      return;
+    }
     if (normalizedPath === customerPath("/tracking").toLowerCase()) {
       const fromCandidate =
         (location.state as { origin?: string; from?: string })?.origin ||
@@ -140,53 +148,65 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
 
         {meta ? (
-          normalizedPath === customerPath("/tracking").toLowerCase() ? (
-            <div className="flex w-full items-center justify-between min-w-0 pr-1">
-              <button
-                type="button"
-                onClick={goBack}
-                aria-label={`Back from ${meta.title}`}
-                className={clsx(
-                  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand active:opacity-70",
-                  FOCUS_RING,
-                )}
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                <span className="sr-only">Back from {meta.title}</span>
-              </button>
-
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                {meta.title}
-              </h1>
-
-              {activeBookingsCount !== null && activeBookingsCount > 0 ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ecfdf5] px-2.5 py-1 text-xs font-semibold text-[#059669] shrink-0 border border-[#a7f3d0]/60">
-                  <span className="relative flex h-2 w-2" aria-hidden="true">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
-                  </span>
-                  <span>{activeBookingsCount} Live</span>
-                </span>
-              ) : (
-                <div className="w-10 shrink-0" aria-hidden="true" />
+          <>
+            <Link
+              to={customerPath()}
+              className={clsx(
+                "hidden rounded-lg text-lg font-bold tracking-tight md:inline-flex",
+                FOCUS_RING,
               )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 min-w-0">
-              <button
-                type="button"
-                onClick={goBack}
-                aria-label={`Back from ${meta.title}`}
-                className={clsx(
-                  "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
-                  FOCUS_RING,
+            >
+              <span className="text-accent">Home</span>
+              <span className="text-brand">CareX</span>
+            </Link>
+            {normalizedPath === customerPath("/tracking").toLowerCase() ? (
+              <div className="flex w-full min-w-0 items-center justify-between pr-1">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  aria-label={`Back from ${meta.title}`}
+                  className={clsx(
+                    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand active:opacity-70",
+                    FOCUS_RING,
+                  )}
+                >
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">Back from {meta.title}</span>
+                </button>
+
+                <h1 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                  {meta.title}
+                </h1>
+
+                {activeBookingsCount !== null && activeBookingsCount > 0 ? (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#a7f3d0]/60 bg-[#ecfdf5] px-2.5 py-1 text-xs font-semibold text-[#059669]">
+                    <span className="relative flex h-2 w-2" aria-hidden="true">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
+                    </span>
+                    <span>{activeBookingsCount} Live</span>
+                  </span>
+                ) : (
+                  <div className="w-10 shrink-0" aria-hidden="true" />
                 )}
-              >
-                <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{meta.title}</span>
-              </button>
-            </div>
-          )
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  aria-label={`Back from ${meta.title}`}
+                  className={clsx(
+                    "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                    FOCUS_RING,
+                  )}
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{meta.title}</span>
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <>
             <Link

@@ -1,169 +1,258 @@
-import React, { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import React, { lazy, Suspense } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 
-import AdminLayout from '@/layouts/AdminLayout';
-import { RequirePermission } from '@/components/admin/PermissionGate';
-import PageLoader from '@/components/common/PageLoader';
+import AdminLayout from "@/layouts/AdminLayout";
+import { RequirePermission } from "@/components/admin/PermissionGate";
+import PageLoader from "@/components/common/PageLoader";
 
-const AdminDashboardPage = lazy(() => import('@/pages/admin/Dashboard'));
-const AdminLeadsPage = lazy(() => import('@/pages/admin/Leads'));
-const AdminBookingsPage = lazy(() => import('@/pages/admin/Bookings'));
-const AdminCustomersPage = lazy(() => import('@/pages/admin/Customers'));
+// Dashboard
+const AdminDashboardPage = lazy(
+  () => import("@/pages/admin/Dashboard"),
+);
+
+// Operations
+const AdminLeadsPage = lazy(() => import("@/pages/admin/Leads"));
+const AdminBookingsPage = lazy(() => import("@/pages/admin/Bookings"));
+const AdminCustomersPage = lazy(() => import("@/pages/admin/Customers"));
 const AdminCustomerDetailsPage = lazy(
-  () => import('@/pages/admin/CustomerDetails')
+  () => import("@/pages/admin/CustomerDetails"),
 );
-const AdminPartnersPage = lazy(() => import('@/pages/admin/Partners'));
+const AdminPartnersPage = lazy(() => import("@/pages/admin/Partners"));
 const AdminManagePartnersPage = lazy(
-  () => import('@/pages/admin/ManagePartners')
-);
-const AdminSupportPage = lazy(() => import('@/pages/admin/Support'));
-const AdminCategoriesPage = lazy(() => import('@/pages/admin/Categories'));
-const AdminServicesPage = lazy(() => import('@/pages/admin/Services'));
-const AdminPricingPage = lazy(() => import('@/pages/admin/Pricing'));
-const AdminCouponsPage = lazy(() => import('@/pages/admin/Coupons'));
-const AdminMarketingPage = lazy(() => import('@/pages/admin/Marketing'));
-const AdminPaymentsPage = lazy(() => import('@/pages/admin/Payments'));
-const AdminRefundsPage = lazy(() => import('@/pages/admin/Refunds'));
-const AdminPayoutsPage = lazy(() => import('@/pages/admin/Payouts'));
-const AdminReviewsPage = lazy(() => import('@/pages/admin/Reviews'));
-const AdminReportsPage = lazy(() => import('@/pages/admin/Reports'));
-
-const AdminRolesPage = lazy(() => import('@/pages/admin/Roles'));
-const AdminRoleFormPage = lazy(() => import('@/pages/admin/Roles/RoleFormPage'));
-const AdminInviteStaffPage = lazy(() => import('@/pages/admin/Roles/InviteStaffPage'));
-const AdminStaffPage = lazy(() => import('@/pages/admin/Staff'));
-const AdminAuditLogsPage = lazy(() => import('@/pages/admin/AuditLogs'));
-const AdminSettingsPage = lazy(() => import('@/pages/admin/Settings'));
-const AdminProfilePage = lazy(() => import('@/pages/admin/Profile'));
-const AdminNotificationsPage = lazy(
-  () => import('@/pages/admin/Notifications')
+  () => import("@/pages/admin/ManagePartners"),
 );
 const AdminPartnerDetailsPage = lazy(
-  () => import('@/pages/admin/PartnerDetails')
+  () => import("@/pages/admin/PartnerDetails"),
 );
-const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
+const AdminSupportPage = lazy(() => import("@/pages/admin/Support"));
+
+// Catalog
+const AdminCategoriesPage = lazy(
+  () => import("@/pages/admin/Categories"),
+);
+const AdminServicesPage = lazy(() => import("@/pages/admin/Services"));
+const AdminPricingPage = lazy(() => import("@/pages/admin/Pricing"));
+
+// Coupons and marketing
+const AdminCouponsPage = lazy(() => import("@/pages/admin/Coupons"));
+const AdminMarketingPage = lazy(() => import("@/pages/admin/Marketing"));
+
+// Finance
+const AdminPaymentsPage = lazy(() => import("@/pages/admin/Payments"));
+const AdminRefundsPage = lazy(() => import("@/pages/admin/Refunds"));
+const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
+
+// Quality and reporting
+const AdminReviewsPage = lazy(() => import("@/pages/admin/Reviews"));
+const AdminReportsPage = lazy(() => import("@/pages/admin/Reports"));
+
+// Roles and staff
+const AdminRolesPage = lazy(() => import("@/pages/admin/Roles"));
+const AdminRoleFormPage = lazy(
+  () => import("@/pages/admin/Roles/RoleFormPage"),
+);
+const AdminInviteStaffPage = lazy(
+  () => import("@/pages/admin/Roles/InviteStaffPage"),
+);
+const AdminStaffPage = lazy(() => import("@/pages/admin/Staff"));
+
+// Audit logs
+const AdminAuditLogsPage = lazy(
+  () => import("@/pages/admin/AuditLogs"),
+);
+
+// Settings and account pages
+const AdminSettingsPage = lazy(() => import("@/pages/admin/Settings"));
+const AdminProfilePage = lazy(() => import("@/pages/admin/Profile"));
+const AdminNotificationsPage = lazy(
+  () => import("@/pages/admin/Notifications"),
+);
+const AccountSecurityPage = lazy(
+  () => import("@/pages/shared/AccountSecurity"),
+);
 
 interface AdminRoute {
-  /** Relative to /admin. Empty string is the index route. */
+  /** Relative to /admin. An empty path is the index route. */
   path: string;
   element: React.ReactElement;
-  /** Permission key. Leave out until RBAC is wired; the route then stays open. */
+  /** Permission key. Routes without a permission remain unguarded. */
   permission?: string;
 }
 
 const adminRoutes: AdminRoute[] = [
-  { path: '', element: <AdminDashboardPage /> },
+  // Dashboard
+  { path: "", element: <AdminDashboardPage /> },
 
   // Operations
-  { path: 'leads', element: <AdminLeadsPage /> },
-  { path: 'bookings', element: <AdminBookingsPage /> },
-  { path: 'customers', element: <AdminCustomersPage /> },
-  { path: 'customers/:id', element: <AdminCustomerDetailsPage /> },
-  { path: 'partners', element: <AdminPartnersPage /> },
-  { path: 'manage-partners', element: <AdminManagePartnersPage /> },
-  { path: 'partners/:id', element: <AdminPartnerDetailsPage /> },
-  { path: 'support', element: <AdminSupportPage /> },
+  { path: 'leads', element: <AdminLeadsPage />, permission: 'leads:view' },
+  { path: 'bookings', element: <AdminBookingsPage />, permission: 'bookings:view' },
+  { path: 'customers', element: <AdminCustomersPage />, permission: 'customers:view' },
+  { path: 'customers/:id', element: <AdminCustomerDetailsPage />, permission: 'customers:view' },
+  { path: 'partners', element: <AdminPartnersPage />, permission: 'partners:view' },
+  { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
+  { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
+  { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
+  { path: "leads", element: <AdminLeadsPage /> },
+  { path: "bookings", element: <AdminBookingsPage /> },
+  { path: "customers", element: <AdminCustomersPage /> },
+  { path: "customers/:id", element: <AdminCustomerDetailsPage /> },
+  { path: "partners", element: <AdminPartnersPage /> },
+  { path: "partners/:id", element: <AdminPartnerDetailsPage /> },
+  { path: "manage-partners", element: <AdminManagePartnersPage /> },
+  { path: "support", element: <AdminSupportPage /> },
 
   // Catalog
   {
-    path: 'categories',
+    path: "categories",
     element: <AdminCategoriesPage />,
-    permission: 'catalog:manage',
+    permission: "catalog:manage",
   },
   {
-    path: 'services',
+    path: "services",
     element: <AdminServicesPage />,
-    permission: 'catalog:manage',
+    permission: "catalog:manage",
   },
-  { path: 'pricing', element: <AdminPricingPage /> },
+  {
+    path: "pricing",
+    element: <AdminPricingPage />,
+    permission: "pricing:view",
+  },
 
   // Coupons
-  { path: 'coupons', element: <AdminCouponsPage /> },
-  { path: 'coupons/create', element: <AdminCouponsPage /> },
-  { path: 'coupons/:id/edit', element: <AdminCouponsPage /> },
+  { path: 'coupons', element: <AdminCouponsPage />, permission: 'coupons:view' },
+  { path: 'coupons/create', element: <AdminCouponsPage />, permission: 'coupons:create' },
+  { path: 'coupons/:id/edit', element: <AdminCouponsPage />, permission: 'coupons:update' },
 
   // Marketing
-  { path: 'marketing', element: <AdminMarketingPage /> },
-  { path: 'marketing/create', element: <AdminMarketingPage /> },
-  { path: 'marketing/:id/edit', element: <AdminMarketingPage /> },
+  { path: 'marketing', element: <AdminMarketingPage />, permission: 'marketing:view' },
+  { path: 'marketing/create', element: <AdminMarketingPage />, permission: 'marketing:manage' },
+  { path: 'marketing/:id/edit', element: <AdminMarketingPage />, permission: 'marketing:manage' },
 
   // Finance
-  { path: 'payments', element: <AdminPaymentsPage /> },
-  { path: 'refunds', element: <AdminRefundsPage /> },
-
+  { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
-  { path: 'refunds/:id', element: <AdminRefundsPage /> },
+  { path: 'refunds/:id', element: <AdminRefundsPage />, permission: 'refunds:view' },
+  { path: 'payouts', element: <AdminPayoutsPage />, permission: 'payouts:view' },
 
-  { path: 'payouts', element: <AdminPayoutsPage /> },
-
-  // Quality and reporting
-  { path: 'reviews', element: <AdminReviewsPage /> },
-  { path: 'reports', element: <AdminReportsPage /> },
+  // Reporting
+  { path: 'reports', element: <AdminReportsPage />, permission: 'reports:view' },
 
   // System
-  {
-    path: 'roles',
-    element: <AdminRolesPage />,
-    permission: 'roles:view',
-  },
-  {
-    path: 'staff',
-    element: <AdminStaffPage />,
-    permission: 'staff:view',
-  },
-  // Full pages (sidebar stays visible): create / invite / edit.
-  {
-    path: 'roles/new',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:create',
-  },
-  {
-    path: 'staff/new',
-    element: <AdminInviteStaffPage />,
-    permission: 'staff:create',
-  },
-  {
-    path: 'roles/:id',
-    element: <AdminRoleFormPage />,
-    permission: 'roles:view',
-  },
+  { path: 'roles', element: <AdminRolesPage />, permission: 'roles:view' },
+  { path: 'roles/new', element: <AdminRoleFormPage />, permission: 'roles:create' },
+  { path: 'roles/:id', element: <AdminRoleFormPage />, permission: 'roles:view' },
+  { path: 'staff', element: <AdminStaffPage />, permission: 'staff:view' },
+  { path: 'staff/new', element: <AdminInviteStaffPage />, permission: 'staff:create' },
+  { path: 'audit-logs', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'audit-logs/:id', element: <AdminAuditLogsPage />, permission: 'audit:view' },
+  { path: 'settings', element: <AdminSettingsPage />, permission: 'settings:manage' },
+
   // Old URLs keep working.
+  { path: 'roles-permissions', element: <Navigate to="/admin/roles" replace /> },
+  { path: 'roles/staff/new', element: <Navigate to="/admin/staff/new" replace /> },
+  { path: "coupons", element: <AdminCouponsPage /> },
+  { path: "coupons/create", element: <AdminCouponsPage /> },
+  { path: "coupons/:id/edit", element: <AdminCouponsPage /> },
+
+  // Marketing
+  { path: "marketing", element: <AdminMarketingPage /> },
+  { path: "marketing/create", element: <AdminMarketingPage /> },
+  { path: "marketing/:id/edit", element: <AdminMarketingPage /> },
+
+  // Finance
+  { path: "payments", element: <AdminPaymentsPage /> },
+  { path: "refunds", element: <AdminRefundsPage /> },
+
+  // Refund details
+  { path: "refunds/:id", element: <AdminRefundsPage /> },
+
+  // Payouts list
+  { path: "payouts", element: <AdminPayoutsPage /> },
+
+  // Payout details — added to fix View Details navigation
+  { path: "payouts/:id", element: <AdminPayoutsPage /> },
+
+  // Quality and reporting
+  { path: "reviews", element: <AdminReviewsPage /> },
+  { path: "reports", element: <AdminReportsPage /> },
+
+  // Roles
   {
-    path: 'roles-permissions',
+    path: "roles",
+    element: <AdminRolesPage />,
+    permission: "roles:view",
+  },
+  {
+    path: "roles/new",
+    element: <AdminRoleFormPage />,
+    permission: "roles:create",
+  },
+  {
+    path: "roles/:id",
+    element: <AdminRoleFormPage />,
+    permission: "roles:view",
+  },
+
+  // Staff
+  {
+    path: "staff",
+    element: <AdminStaffPage />,
+    permission: "staff:view",
+  },
+  {
+    path: "staff/new",
+    element: <AdminInviteStaffPage />,
+    permission: "staff:create",
+  },
+
+  // Audit logs
+  {
+    path: "audit-logs",
+    element: <AdminAuditLogsPage />,
+    permission: "audit:view",
+  },
+  {
+    path: "audit-logs/:id",
+    element: <AdminAuditLogsPage />,
+    permission: "audit:view",
+  },
+
+  // Settings
+  {
+    path: "settings",
+    element: <AdminSettingsPage />,
+    permission: "settings:manage",
+  },
+
+  // Account security
+  { path: "security", element: <AccountSecurityPage /> },
+  { path: "account/security", element: <AccountSecurityPage /> },
+  { path: "settings/security", element: <AccountSecurityPage /> },
+
+  // Header pages
+  { path: "profile", element: <AdminProfilePage /> },
+  { path: "notifications", element: <AdminNotificationsPage /> },
+
+  // Legacy URLs
+  {
+    path: "roles-permissions",
     element: <Navigate to="/admin/roles" replace />,
   },
   {
-    path: 'roles/staff/new',
+    path: "roles/staff/new",
     element: <Navigate to="/admin/staff/new" replace />,
   },
-  {
-    path: 'audit-logs',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'audit-logs/:id',
-    element: <AdminAuditLogsPage />,
-  },
-  {
-    path: 'settings',
-    element: <AdminSettingsPage />,
-    permission: 'settings:manage',
-  },
-  { path: 'security', element: <AccountSecurityPage /> },
-  { path: 'account/security', element: <AccountSecurityPage /> },
-  { path: 'settings/security', element: <AccountSecurityPage /> },
-
-  // Header-only pages
-  { path: 'profile', element: <AdminProfilePage /> },
-  { path: 'notifications', element: <AdminNotificationsPage /> },
 ];
 
 const NotFound: React.FC = () => (
   <div className="admin-page-container">
-    <h1 className="hcx-page-header__title">Page not found</h1>
+    <h1 className="hcx-page-header__title">
+      Page not found
+    </h1>
     <p className="hcx-page-header__desc">
-      That admin page doesn&apos;t exist.
+      That admin page doesn't exist.
     </p>
   </div>
 );
@@ -173,7 +262,7 @@ export const AdminRoutes: React.FC = () => (
     <Routes>
       <Route element={<AdminLayout />}>
         {adminRoutes.map(({ path, element, permission }) => {
-          const guarded = permission ? (
+          const guardedElement = permission ? (
             <RequirePermission permission={permission}>
               {element}
             </RequirePermission>
@@ -181,10 +270,22 @@ export const AdminRoutes: React.FC = () => (
             element
           );
 
-          return path === '' ? (
-            <Route key="index" index element={guarded} />
-          ) : (
-            <Route key={path} path={path} element={guarded} />
+          if (path === "") {
+            return (
+              <Route
+                key="admin-index"
+                index
+                element={guardedElement}
+              />
+            );
+          }
+
+          return (
+            <Route
+              key={path}
+              path={path}
+              element={guardedElement}
+            />
           );
         })}
 

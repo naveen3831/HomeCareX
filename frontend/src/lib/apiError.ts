@@ -16,8 +16,8 @@ export interface ClassifiedApiError {
  */
 function normalizeRaw(err: unknown): ApiError | undefined {
   if (!err || typeof err !== 'object') return err as ApiError | undefined;
-  const e = err as Record<string, any>;
-  const res = e.response as { status?: unknown; data?: Record<string, any> } | undefined;
+  const e = err as Record<string, unknown>;
+  const res = e.response as { status?: unknown; data?: Record<string, unknown> } | undefined;
   if (typeof e.status !== 'number' && res && typeof res.status === 'number') {
     const data = res.data ?? {};
     return {

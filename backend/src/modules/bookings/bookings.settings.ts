@@ -1,6 +1,7 @@
+import { getSetting } from '../settings';
 
 import { SLOT_CAPACITY } from './bookings.constants';
-import { getSetting } from '../settings';
+
 
 export interface CancellationPolicy {
   windowHours: number;

@@ -95,7 +95,15 @@ describe("sitemap.xml", () => {
 
 describe("robots.txt", () => {
   it("blocks every private path", () => {
-    for (const path of [...EXCLUDED_ROUTES, "/admin", "/partner", "/customer", "/api/"]) {
+    const blockedRoutes = [
+      ...EXCLUDED_ROUTES.filter((r) => r !== "/login"),
+      "/admin",
+      "/partner",
+      "/customer",
+      "/api/",
+    ];
+    expect(robotsTxt).not.toMatch(/^Disallow: \/login\s*$/m);
+    for (const path of blockedRoutes) {
       expect(robotsTxt).toMatch(new RegExp(`^Disallow: ${path}\\s*$`, "m"));
     }
   });

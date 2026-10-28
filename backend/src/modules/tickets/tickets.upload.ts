@@ -1,9 +1,11 @@
-import multer from 'multer';
 import type { RequestHandler } from 'express';
+import multer from 'multer';
+
 import { HttpError } from '../auth/auth.types';
 
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 export const MAX_ATTACHMENTS = 3;
+
 export const ATTACHMENT_TYPES = [
   'image/jpeg',
   'image/png',
@@ -12,6 +14,8 @@ export const ATTACHMENT_TYPES = [
   'application/pdf',
 ] as const;
 
+type UploadedFile = Express.Multer.File;
+
 export interface EvidenceFile {
   name: string;
   mimeType: string;
@@ -19,10 +23,14 @@ export interface EvidenceFile {
   data: Buffer;
 }
 
+const invalidUpload = (
+  message = 'Upload up to 3 files and check the form fields.',
+) => new HttpError(400, message, 'INVALID_ATTACHMENT');
+
 /** Verify the file signature as well as the declared MIME type. */
 export function validateEvidence(
   file: Pick<
-    Express.Multer.File,
+    UploadedFile,
     'originalname' | 'mimetype' | 'buffer' | 'size'
   >,
 ): EvidenceFile {
@@ -39,20 +47,25 @@ export function validateEvidence(
   }
 
   const buffer = file.buffer;
+
   const matches =
     (file.mimetype === 'image/png' &&
-      buffer.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
+      buffer
+        .subarray(0, 8)
+        .equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
     (file.mimetype === 'image/jpeg' &&
       buffer[0] === 0xff &&
       buffer[1] === 0xd8 &&
       buffer[2] === 0xff) ||
     (file.mimetype === 'image/gif' &&
-      /^GIF8[79]a$/.test(buffer.subarray(0, 6).toString('ascii'))) ||
+      /^GIF8[79]a$/.test(
+        buffer.subarray(0, 6).toString('ascii'),
+      )) ||
     (file.mimetype === 'image/webp' &&
-      buffer.subarray(0, 4).toString() === 'RIFF' &&
-      buffer.subarray(8, 12).toString() === 'WEBP') ||
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP') ||
     (file.mimetype === 'application/pdf' &&
-      buffer.subarray(0, 5).toString() === '%PDF-');
+      buffer.subarray(0, 5).toString('ascii') === '%PDF-');
 
   if (!matches) {
     throw new HttpError(
@@ -62,12 +75,23 @@ export function validateEvidence(
     );
   }
 
+  // Remove directory components, control characters and excessively long names.
   const name =
     Array.from(file.originalname.replace(/.*[/\\]/, ''))
-      .filter((character) => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127)
+      .filter(
+        (character) =>
+          character.charCodeAt(0) >= 32 &&
+          character.charCodeAt(0) !== 127,
+      )
       .slice(0, 180)
       .join('') || 'attachment';
-  return { name, mimeType: file.mimetype, sizeBytes: file.size, data: buffer };
+
+  return {
+    name,
+    mimeType: file.mimetype,
+    sizeBytes: file.size,
+    data: buffer,
+  };
 }
 
 const receive = multer({
@@ -80,26 +104,35 @@ const receive = multer({
     parts: 12,
   },
   fileFilter: (_req, file, callback) => {
-    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype)) {
+    if (
+      (ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype)
+    ) {
       callback(null, true);
-      return;
+    } else {
+      callback(
+        new HttpError(
+          400,
+          'Use JPG, PNG, GIF, WebP or PDF files only.',
+          'INVALID_ATTACHMENT',
+        ),
+      );
     }
-    callback(
-      new HttpError(
-        400,
-        'Use JPG, PNG, GIF, WebP or PDF files only.',
-        'INVALID_ATTACHMENT',
-      ),
-    );
   },
 }).array('attachments', MAX_ATTACHMENTS);
 
-/** Applied only to authenticated ticket mutations. */
-export const receiveTicketFiles: RequestHandler = (req, res, next) => {
+/**
+ * Applied only to authenticated ticket mutations.
+ * Supports JSON requests without files and multipart requests with files.
+ * Uploaded files are kept in memory and validated before reaching the controller.
+ */
+export const receiveTicketFiles: RequestHandler = (
+  req,
+  res,
+  next,
+) => {
   if (req.is('application/json')) {
     res.locals.ticketFiles = [];
-    next();
-    return;
+    return next();
   }
 
   receive(req, res, (error: unknown) => {
@@ -115,18 +148,21 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
       );
       return;
     }
+
     if (error) {
-      next(error);
-      return;
+      return next(error);
     }
 
     try {
-      res.locals.ticketFiles = (Array.isArray(req.files) ? req.files : []).map(
-        (file) => validateEvidence(file as Express.Multer.File),
+      const files = Array.isArray(req.files) ? req.files : [];
+
+      res.locals.ticketFiles = files.map((file) =>
+        validateEvidence(file as UploadedFile),
       );
-      next();
-    } catch (validationError) {
-      next(validationError);
+
+      return next();
+    } catch (error) {
+      return next(error);
     }
   });
 };

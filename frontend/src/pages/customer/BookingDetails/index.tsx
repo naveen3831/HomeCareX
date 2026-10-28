@@ -303,19 +303,24 @@ function DetailsBody({
     Boolean(booking.partnerId) &&
     (normalizedStatus === "arrived" || Boolean(booking.startOtp));
   const hasPendingExtraCharges = (booking.extraCharges ?? []).some(
-    (c) => c.status === "pending",
+    (charge) => String(charge.status).toLowerCase() === "pending",
   );
   const isPaid = String(booking.paymentStatus || "").toUpperCase() === "PAID";
   const refund = booking.refund;
   const refundPill = refundBadge(refund, booking.refundStatus);
-  const showRefundCard = cancelled && refund && refund.status !== "NOT_REQUIRED";
+  const showRefundCard =
+    cancelled && Boolean(refund) && refund?.status !== "NOT_REQUIRED";
   const addOnLines = (booking.priceSnapshot?.lines ?? []).filter(
     (l) => l.kind === "ADDON",
   );
   const service = booking.service;
   const day = weekdayOf(booking.date);
-  const dateFormatted = formatPlainDate(booking.date);
-  const slotFormatted = formatSlot(booking.slot);
+  const dateFormatted = booking.date
+    ? formatPlainDate(booking.date)
+    : "Not scheduled";
+  const slotFormatted = booking.slot
+    ? formatSlot(booking.slot)
+    : "Not scheduled";
   const bookedOn = formatBookedOn(booking.createdAt);
   const duration = formatDuration(
     service?.durationMinutes || (booking as { durationMinutes?: number }).durationMinutes,
@@ -357,7 +362,7 @@ function DetailsBody({
   const partner =
     booking.partner ||
     (typeof booking.partnerId === "object" && booking.partnerId !== null
-      ? (booking.partnerId as typeof booking.partner)
+      ? (booking.partnerId as unknown as NonNullable<typeof booking.partner>)
       : null);
 
   return (

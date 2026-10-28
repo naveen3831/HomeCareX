@@ -5,6 +5,9 @@ import { requireAdmin } from '../../middleware/role.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { PAYMENTS_REFUND } from '../admin-payments/admin-payments.constants';
+
+/** Viewing the refund queue needs refunds:view (Finance / Admin). Support Agent does not have it. */
+const REFUNDS_VIEW = 'refunds:view';
 import { refundsController } from './refunds.controller';
 
 export const refundsRoutes = Router();
@@ -16,6 +19,7 @@ refundsRoutes.use(authenticate, requireAdmin);
 // View refund list with filters and summary counts.
 refundsRoutes.get(
   '/refunds',
+  requirePermission(REFUNDS_VIEW),
   asyncHandler((req, res) =>
     refundsController.list(req, res),
   ),
@@ -25,6 +29,7 @@ refundsRoutes.get(
 // Get single refund request details with full populated data.
 refundsRoutes.get(
   '/refunds/:id',
+  requirePermission(REFUNDS_VIEW),
   asyncHandler((req, res) =>
     refundsController.getById(req, res),
   ),

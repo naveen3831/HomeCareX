@@ -3,6 +3,7 @@ import {
   CheckCircle2, Eye, EyeOff, FolderTree, Layers, Plus, X, XCircle, History, WifiOff,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { PageSearch } from '@/components/admin/PageSearch';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { FullScreenPanel } from '@/components/admin/FullScreenPanel';
@@ -29,6 +30,7 @@ export const AdminCategoriesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  useEffect(() => { setPageSearch(''); }, [setPageSearch]);
   const [services, setServices] = useState<AdminService[]>([]);
   const [servicesStatus, setServicesStatus] = useState<'idle' | 'loading' | 'ready'>('idle');
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -168,6 +170,8 @@ export const AdminCategoriesPage: React.FC = () => {
           </div>
         }
       />
+
+      <PageSearch placeholder="Search name, slug or description…" />
 
       {getApiMode() === 'demo' && (
         <div className="cat-banner" role="status"><WifiOff size={15} /> Backend not reachable ({getApiModeReason()}): showing local demo data. Changes are saved in this browser only.</div>

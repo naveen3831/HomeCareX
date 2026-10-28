@@ -145,7 +145,7 @@ function MobileHelpCenter() {
                 <div className="mt-2.5 border-t border-slate-100 pt-2.5 text-xs text-slate-600 leading-relaxed">
                   <p>{article.answer}</p>
                   <Link
-                    to={`/customer/support?view=new&category=${section.category}`}
+                    to={`/customer/support?view=new&category=${encodeURIComponent(section.category)}`}
                     className="mt-2 inline-flex items-center gap-1 font-semibold text-[#ea580c] hover:underline"
                   >
                     Get help with {section.title.toLowerCase()} →
@@ -227,7 +227,7 @@ function DesktopHelpCenter() {
                 <div className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600 leading-relaxed">
                   <p>{article.answer}</p>
                   <Link
-                    to={`/customer/support?view=new&category=${section.category}`}
+                    to={`/customer/support?view=new&category=${encodeURIComponent(section.category)}`}
                     className="mt-2.5 inline-flex items-center gap-1 font-semibold text-[#ea580c] hover:underline"
                   >
                     Get help with {section.title.toLowerCase()} →
@@ -255,24 +255,52 @@ function DesktopHelpCenter() {
   );
 }
 
+function getTicketPageData(raw: unknown): {
+  items: CustomerTicket[];
+  page: number;
+  pages: number;
+  total: number;
+} {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw as CustomerTicket[],
+      page: 1,
+      pages: 1,
+      total: raw.length,
+    };
+  }
+
+  if (raw && typeof raw === "object") {
+    const data = raw as {
+      items?: CustomerTicket[];
+      meta?: {
+        page?: number;
+        pages?: number;
+        total?: number;
+      };
+    };
+    const items = Array.isArray(data.items) ? data.items : [];
+    const meta = data.meta;
+
+    return {
+      items,
+      page: meta?.page ?? 1,
+      pages: Math.max(1, meta?.pages ?? 1),
+      total: meta?.total ?? items.length,
+    };
+  }
+
+  return { items: [], page: 1, pages: 1, total: 0 };
+}
+
 function TicketList() {
   const online = useOnlineStatus();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TicketStatus | "">("");
   const tickets = useTickets({ page, status: status || undefined });
 
-  const raw = tickets.data as unknown;
-  const items: CustomerTicket[] = Array.isArray(raw)
-    ? (raw as CustomerTicket[])
-    : Array.isArray((raw as { items?: CustomerTicket[] })?.items)
-    ? ((raw as { items: CustomerTicket[] }).items)
-    : [];
-
-  const meta = (raw as { meta?: { pages?: number; page?: number; total?: number } })?.meta ?? {
-    pages: 1,
-    page: 1,
-    total: items.length,
-  };
+  const pageData = getTicketPageData(tickets.data);
+  const { items, pages } = pageData;
 
   return (
     <section aria-label="Ticket list">
@@ -326,24 +354,26 @@ function TicketList() {
             <Link to="/customer/support?view=new">Create a ticket</Link>
           </div>
         ))}
-      {tickets.data && (meta.pages ?? 1) > 1 && (
+      {tickets.data && pages > 1 && (
         <nav className="hcx-support-pagination" aria-label="Ticket pages">
           <button
             type="button"
-            disabled={page === 1 || tickets.isFetching || !online}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={page <= 1 || tickets.isFetching || !online}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
             Previous
           </button>
           <span>
-            Page {page} of {meta.pages}
+            Page {page} of {pages}
           </span>
           <button
             type="button"
             disabled={
-              page >= (meta.pages ?? 1) || tickets.isFetching || !online
+              page >= pages || tickets.isFetching || !online
             }
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() =>
+              setPage((current) => Math.min(pages, current + 1))
+            }
           >
             Next
           </button>
