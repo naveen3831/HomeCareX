@@ -367,6 +367,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       // 1. Forgot Password Step
       vi.mocked(authApi.forgotPassword).mockResolvedValueOnce({
         success: true,
+        message: 'If an account exists, a verification code has been sent.',
         data: { message: 'If an account exists, a verification code has been sent.' },
       });
 
@@ -406,6 +407,7 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       // 3. Reset Password Step
       vi.mocked(authApi.resetPassword).mockResolvedValueOnce({
         success: true,
+        message: 'Your password has been reset successfully.',
         data: { message: 'Your password has been reset successfully.' },
       });
 

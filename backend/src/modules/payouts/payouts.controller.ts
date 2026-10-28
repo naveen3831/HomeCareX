@@ -49,6 +49,10 @@ export const payoutsController = {
     sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
   },
 
+  async listBatchPayouts(req: Request, res: Response) {
+    return this.listPayouts(req, res);
+  },
+
   /** PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id  { transactionId? } */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
@@ -61,6 +65,10 @@ export const payoutsController = {
         transactionId: str(req.body?.transactionId),
       }),
     );
+  },
+
+  async updateStatus(req: Request, res: Response) {
+    return this.markPaid(req, res);
   },
 
   /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */

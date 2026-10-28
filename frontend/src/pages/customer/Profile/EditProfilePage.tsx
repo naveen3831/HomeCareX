@@ -14,7 +14,7 @@ export default function EditProfilePage() {
   const p = profile.data;
 
   return (
-    <SettingsPageShell title="Edit profile" subtitle="Update your photo, name, email and phone." icon={User} tone="indigo" hideIcon>
+    <SettingsPageShell title="Edit profile" subtitle="Update your photo, name, email and phone." icon={User} tone="indigo">
       {p ? (
         <ProfileForm
           profile={p}

@@ -17,7 +17,7 @@ interface PayoutBatch {
   createdAt: string;
   updatedAt: string;
   payoutIds: string[];
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface IndividualPayout {
@@ -31,7 +31,7 @@ interface IndividualPayout {
   status: PayoutStatus;
   paidAt: string;
   createdAt: string;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 interface Pagination {
@@ -43,9 +43,9 @@ interface Pagination {
 
 const PAGE_SIZE = 20;
 
-const asObject = (value: unknown): Record<string, any> =>
+const asObject = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === "object"
-    ? (value as Record<string, any>)
+    ? (value as Record<string, unknown>)
     : {};
 
 const firstValue = (...values: unknown[]): string => {
@@ -57,17 +57,17 @@ const firstValue = (...values: unknown[]): string => {
   return "";
 };
 
-const getErrorMessage = (error: any): string =>
+const getErrorMessage = (error: unknown): string =>
   firstValue(
-    error?.response?.data?.message,
-    error?.response?.data?.error,
-    error?.message,
+    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.message,
+    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.error,
+    (error as { message?: string })?.message,
     "Something went wrong. Please try again."
   );
 
-const getPayload = (response: any): any => {
-  const body = response?.data ?? response;
-  return body?.data ?? body;
+const getPayload = (response: unknown): unknown => {
+  const body = (response as { data?: unknown })?.data ?? response;
+  return (body as { data?: unknown })?.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {

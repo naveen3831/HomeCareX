@@ -1,4 +1,3 @@
-
 import { Router } from "express";
 import { authenticate } from "../../middleware/auth.middleware";
 import { requireAdmin } from "../../middleware/role.middleware";

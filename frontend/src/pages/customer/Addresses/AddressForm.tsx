@@ -71,6 +71,7 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
 
   const serviceability = useServiceability(pincode);
   const unavailable = serviceability.status === "unserviceable";
+  const checking = serviceability.status === "checking";
 
   function applyPick(p: PickedLocation) {
     setLocation({ lat: p.lat, lng: p.lng });
@@ -84,7 +85,7 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    // An address outside our service area can still be saved (like Swiggy / Zomato); it just cannot be used to book.
+    if (unavailable || checking) return;
     const found = validate({ house, street, city, state, pincode }, !legacy);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
@@ -225,8 +226,8 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
 
           {serverError && <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">{serverError}</p>}
           {unavailable && (
-            <p id="addr-save-hint" role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-ink">
-              We don&apos;t serve this pincode yet. You can still save this address, but you won&apos;t be able to book a service with it until we reach your area.
+            <p id="addr-save-hint" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              We can&apos;t save this address because we don&apos;t serve this pincode yet. Change the pincode or move the pin on the map.
             </p>
           )}
 
@@ -238,11 +239,11 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || unavailable || checking}
                 aria-describedby={unavailable ? "addr-save-hint" : undefined}
                 className={clsx("min-h-[44px] rounded-full bg-brand px-8 sm:min-h-[48px] text-sm font-bold text-white shadow-sm transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-[11rem]", FOCUS_RING)}
               >
-                {saving ? "Saving…" : initial ? "Save changes" : "Save address"}
+                {saving ? "Saving…" : checking ? "Checking area…" : initial ? "Save changes" : "Save address"}
               </button>
             </div>
           </div>
