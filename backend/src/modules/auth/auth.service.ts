@@ -12,7 +12,6 @@ import {
 } from './auth.constants';
 import { HttpError, type AccessTokenPayload, type AuthUserDto, type RefreshTokenPayload } from './auth.types';
 import type {
-  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterInput,
@@ -23,12 +22,12 @@ import type {
   VerifyInviteInput,
   AcceptInviteInput,
 } from './auth.validation';
+import type { UserRole } from '../../models/User';
 import mongoose, { Types } from 'mongoose';
 import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { ensurePartnerProfile } from '../partners/partners.service';
-import UserModel, { type UserRole } from '../../models/User';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
 
@@ -827,17 +826,17 @@ export const authService = {
     const inviteTokenHash = hashSecret(rawToken);
     const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 3_600_000);
 
-    let userId: string;
+    let user: { id: string; name: string; email: string };
     if (existing) {
       existing.name = name;
       existing.inviteTokenHash = inviteTokenHash;
       existing.inviteExpiresAt = inviteExpiresAt;
       await existing.save();
-      userId = existing._id.toString();
+      user = { id: String(existing._id), name: existing.name, email: existing.email };
     } else {
       // Random, never-disclosed password: nobody can log in until the invite is accepted.
       const unusable = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
-      const user = await authRepository.create({
+      const created = await authRepository.create({
         name,
         email,
         passwordHash: unusable,
@@ -846,12 +845,12 @@ export const authService = {
         inviteTokenHash,
         inviteExpiresAt,
       });
-      userId = user._id.toString();
+      user = { id: String(created._id), name: created.name, email: created.email };
     }
 
     // The team record (role, status, who invited) lives in the `staff` collection; `users` only holds the login.
     await StaffModel.findOneAndUpdate(
-      { userId },
+      { userId: user.id },
       { $set: { name, email, roleId, status: 'invited', ...(invitedBy ? { invitedBy } : {}) } },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
@@ -865,16 +864,16 @@ export const authService = {
       await mailService.sendStaffInviteEmail({ name, email, inviteUrl, invitedBy: inviter?.name });
     } catch (err) {
       emailSent = false;
-      console.error('Staff invite email failed for user', userId, err);
+      console.error('Staff invite email failed for user', user.id, err);
     }
     if (process.env.NODE_ENV !== 'production') {
       console.info(`[DEV ONLY] Staff invite link for ${maskEmail(email)}: ${inviteUrl}`);
     }
 
     return {
-      id: userId,
-      name,
-      email,
+      id: user.id,
+      name: user.name,
+      email: user.email,
       roleId,
       roleName: 'Admin',
       status: 'invited' as const,

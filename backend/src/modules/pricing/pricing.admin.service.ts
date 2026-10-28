@@ -40,7 +40,7 @@ export const pricingAdminService = {
   /** GET /admin/pricing?categoryId&serviceId&city */
   async list(query: GetPricingQuery) {
     const rows = await pricingRepository.list(query);
-    return { items: rows.map((r: any) => view(r as unknown as Record<string, unknown>)) };
+    return { items: rows.map((r: unknown) => view(r as Record<string, unknown>)) };
   },
 
   /** PUT /admin/pricing: validates the scope, upserts, writes an audit row with before/after. */

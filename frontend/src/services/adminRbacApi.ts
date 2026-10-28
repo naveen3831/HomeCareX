@@ -21,6 +21,8 @@ export const rbacKeys = {
 /** No backend RBAC module yet, so mocks are on outside Vitest unless VITE_MOCK_RBAC=false. */
 export const USE_RBAC_MOCK =
   import.meta.env.MODE !== 'test' && import.meta.env.VITE_MOCK_RBAC !== 'false';
+/** The backend rbac module is live, so real data is the default. Mocks only when VITE_MOCK_RBAC=true. */
+export const USE_RBAC_MOCK = import.meta.env.VITE_MOCK_RBAC === 'true';
 
 
 const unwrap = <T>(res: { data: ApiResponse<T> }): T => res.data.data;
@@ -80,7 +82,7 @@ export async function fetchStaff(): Promise<StaffMember[]> {
 /**
  * POST /admin/staff: sends an invite.
  * The invite ALWAYS goes to the real backend (it creates the account and emails the accept-invite link).
- * Only the Staff table row is mocked until GET /admin/staff exists (VITE_MOCK_RBAC).
+ * In mock mode only (VITE_MOCK_RBAC=true) the Staff table row comes from the local mock list.
  */
 export async function inviteStaff(input: InviteStaffInput): Promise<StaffMember> {
   const sent = unwrap(await http.post<ApiResponse<StaffMember>>('/admin/staff', input));
@@ -99,10 +101,7 @@ export async function changeStaffRole(userId: string, roleId: string): Promise<v
   await http.patch(`/admin/users/${userId}/role`, { roleId });
 }
 
-/*
- * ASSUMED endpoint (not in the module contract yet; confirm with backend):
- *   PATCH /admin/staff/:id            { status: 'active' | 'deactivated' }
- */
+/** PATCH /admin/staff/:id  { status: 'active' | 'deactivated' } */
 export async function setStaffStatus(userId: string, status: 'active' | 'deactivated'): Promise<void> {
   if (USE_RBAC_MOCK) return rbacMock.setStatus(userId, status);
   await http.patch(`/admin/staff/${userId}`, { status });

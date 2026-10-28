@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import React from "react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { HelmetProvider } from "react-helmet-async";
 import axe from "axe-core";
 import { HelmetProvider } from "react-helmet-async";
 
@@ -24,6 +25,7 @@ import VerifyOtpPage from "../pages/public/VerifyOtp";
 import ResetPasswordPage from "../pages/public/ResetPassword";
 import UnauthorizedPage from "../pages/public/Unauthorized";
 import { resetStateStore } from "../features/auth/resetStateStore";
+import { AuthProvider } from "../context/AuthContext";
 
 // Mock Leaflet
 vi.mock("leaflet", () => ({
@@ -45,8 +47,6 @@ vi.mock("leaflet", () => ({
     icon: () => ({}),
   },
 }));
-
-import { AuthProvider } from "../context/AuthContext";
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -103,6 +103,11 @@ describe("Public Routes WCAG 2.1 AA Accessibility Audit with axe-core", () => {
           <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>
         </AuthProvider>
       </QueryClientProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>
+          </AuthProvider>
+        </QueryClientProvider>
       </HelmetProvider>,
     );
   };

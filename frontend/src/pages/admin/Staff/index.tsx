@@ -5,6 +5,12 @@ import { StaffTab } from '@/pages/admin/Roles/StaffTab';
 import { RBAC_PERMISSIONS } from '@/pages/admin/Roles/rbacPermissions';
 import { useFlashToast, useToast } from '@/pages/admin/Roles/useToast';
 
+import { StaffTab } from '../Roles/StaffTab';
+import { RBAC_PERMISSIONS } from '../Roles/rbacPermissions';
+import { useFlashToast, useToast } from '../Roles/useToast';
+import '../Roles/index.css';
+
+/** /admin/staff: staff list, role changes, deactivation and invites. Lives on its own page (no tabs). */
 export const AdminStaffPage: React.FC = () => {
   const { can } = usePermissions();
   const toast = useToast();
@@ -15,6 +21,22 @@ export const AdminStaffPage: React.FC = () => {
       <PageHeader
         title="Staff"
         description="Manage admin staff accounts and their roles."
+      />
+      {can(RBAC_PERMISSIONS.staffView) ? (
+        <StaffTab notify={toast.show} />
+      ) : (
+        <p className="rbac-muted">You don’t have access to staff.</p>
+      )}
+      {toast.node}
+    </div>
+  );
+};
+
+  return (
+    <div className="admin-page-container rbac-page">
+      <PageHeader
+        title="Staff"
+        description="Invite teammates, change their role, deactivate them or sign them out."
       />
       {can(RBAC_PERMISSIONS.staffView) ? (
         <StaffTab notify={toast.show} />

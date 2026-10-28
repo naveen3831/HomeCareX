@@ -1,8 +1,8 @@
-import { notifyAdmins } from "../notifications";
-import { alertRefundRequested } from "../notifications/admin-alerts";
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
+import { notifyAdmins } from '../notifications';
+import { alertRefundRequested } from '../notifications/admin-alerts';
 import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
 import { bookingsRepository } from './bookings.repository';
 import type { ListBookingsQuery } from './bookings.query';
@@ -11,6 +11,7 @@ import { withSlotLock } from './bookings.lock';
 import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
 import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
 import { PaymentModel } from '../../models/Payment';
+import { RefundModel } from '../../models/Refund';
 
 import {
   BOOKING_HOLD_MS,
@@ -22,11 +23,8 @@ import {
   START_OTP_STATUS,
   type BookingStatus,
 } from './bookings.constants';
-import {
+import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
 
-  canTransition,
-  type StatusHistoryEntry,
-} from "./bookings.stateMachine";
 import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
@@ -123,6 +121,20 @@ async function loadPaymentInfo(bookingId: string): Promise<PaymentInfo | null> {
   }
 }
 
+/** The latest refund request for the booking. Best effort. */
+async function loadRefundInfo(bookingId: string): Promise<Record<string, unknown> | null> {
+  try {
+    if (!Types.ObjectId.isValid(bookingId)) return null;
+    const row = await RefundModel.findOne({ bookingId: new Types.ObjectId(bookingId) })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return row as Record<string, unknown> | null;
+  } catch {
+    return null;
+  }
+}
+
 function toView(doc: { toObject?: () => Record<string, unknown> } | Record<string, unknown>): Record<string, unknown> {
   const obj =
     typeof (doc as { toObject?: unknown }).toObject === 'function'
@@ -176,7 +188,7 @@ export const BookingService = {
         const taken = await bookingsRepository.countActiveForSlot(serviceId, date, slot);
         const remaining = Math.max(capacity - taken, 0);
         return { slot, available: remaining > 0, remaining };
-      })
+      }),
     );
 
     return { serviceId, date, slots };
@@ -219,13 +231,16 @@ export const BookingService = {
     const replayed = await replay();
     if (replayed) return replayed;
 
+    // categoryId is selected too: it is stored on the booking below.
     const row = await ServiceModel.findOne(
       { _id: input.serviceId, active: { $ne: false } },
       'name basePrice addOns categoryId',
     ).lean();
     if (!row) throw new AppError(404, 'SERVICE_NOT_FOUND', 'That service was not found');
     const service = {
-      id: String(row._id), name: row.name, basePrice: row.basePrice,
+      id: String(row._id),
+      name: row.name,
+      basePrice: row.basePrice,
       categoryId: (row as { categoryId?: Types.ObjectId }).categoryId,
       addOns: (row.addOns ?? []).map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
     };
@@ -332,7 +347,7 @@ export const BookingService = {
         const createdBooking = await bookingsRepository.create({
           customerId: new Types.ObjectId(customerId),
           serviceId: new Types.ObjectId(input.serviceId),
-          categoryId: service.categoryId,
+          ...(service.categoryId ? { categoryId: service.categoryId } : {}),
           quantity: input.quantity,
           addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
           addressSnapshot: {
@@ -387,11 +402,13 @@ export const BookingService = {
         return createdBooking;
       });
 
-      // Alerts are best effort and must not change the outcome of a successful booking.
-      void notifyAdmins('booking.created', {
-        bookingId: String((created as { _id?: unknown })._id ?? ''),
-        serviceId: input.serviceId,
-      }).catch(() => undefined);
+      // Tell the admins (bell, live). Fire-and-forget: a failed alert must never fail the booking.
+      void Promise.resolve(
+        notifyAdmins('booking.created', {
+          bookingId: String((created as { _id?: unknown })._id ?? ''),
+          serviceId: input.serviceId,
+        }),
+      ).catch(() => undefined);
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
@@ -439,11 +456,12 @@ export const BookingService = {
       ? await bookingsRepository.getOrCreateStartOtp(String((booking as { _id?: unknown })._id || bookingId))
       : null;
     const raw = rawObject(booking);
-    const [service, payment] = await Promise.all([
+    const [service, payment, refundDoc] = await Promise.all([
       loadServiceInfo(raw.serviceId, raw.serviceName),
       loadPaymentInfo(bookingId),
+      loadRefundInfo(bookingId),
     ]);
-    return buildDetailView(raw, startOtp, { service, payment });
+    return buildDetailView(raw, startOtp, { service, payment, refund: refundDoc as Record<string, unknown> | null });
   },
 
   /** Approve or reject one pending extra charge, then return the refreshed booking. */
@@ -481,29 +499,16 @@ export const BookingService = {
    * 404 for someone else's booking (same answer as GET /bookings/:id, so ids can't be probed);
    * 409 until the booking is paid or settled, because there is nothing to invoice before that.
    */
-  async getInvoice(
-    customerId: string,
-    bookingId: string,
-  ): Promise<{ html: string; invoiceNo: string }> {
+  async getInvoice(customerId: string, bookingId: string): Promise<{ html: string; invoiceNo: string }> {
     const view = await BookingService.getBooking(customerId, bookingId);
     if (view.paymentStatus !== 'PAID') {
-      throw new AppError(
-        409,
-        'INVOICE_NOT_AVAILABLE',
-        'The invoice is available once the booking is paid',
-      );
+      throw new AppError(409, 'INVOICE_NOT_AVAILABLE', 'The invoice is available once the booking is paid');
     }
-    const customer =
-      (await bookingsRepository.findCustomerContact(customerId)) ?? {};
+    const customer = (await bookingsRepository.findCustomerContact(customerId)) ?? {};
     // The booking view's payment lookup is best-effort; read the paid Payment record directly so the
     // method, transaction ID and payment date on the receipt are always filled when they exist.
-    const paidRecord = await bookingsRepository
-      .findPaidPayment(bookingId)
-      .catch(() => null);
-    const data = buildInvoiceData(
-      withPaymentRecord(view, paidRecord as never),
-      customer,
-    );
+    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
+    const data = buildInvoiceData(withPaymentRecord(view, paidRecord as never), customer);
     return { html: renderInvoiceHtml(data), invoiceNo: data.invoiceNo };
   },
 
@@ -578,6 +583,7 @@ export const BookingService = {
       booking.status as BookingStatus,
       historyEntry,
       reason,
+      isPaid && quote.refundAmount > 0 ? 'PENDING_APPROVAL' : 'NOT_REQUIRED',
     );
 
     if (!cancelled) {
@@ -586,34 +592,32 @@ export const BookingService = {
 
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && isPaid) {
+      let refund: { _id?: unknown } | null = null;
       try {
-        const refund = (await bookingsRepository.createRefundRequest({
+        refund = (await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
           customerId,
           amount: quote.refundAmount,
           reason,
           now,
-        })) as any;
+        })) as { _id?: unknown } | null;
         refundStatus = 'requested';
-        if (refund && refund._id) {
-          alertRefundRequested({
-            refundId: String(refund._id),
-            bookingId,
-            amount: quote.refundAmount,
-          });
-        }
-        alertRefundRequested({
-          refundId: String(refund._id),
-          bookingId,
-          amount: quote.refundAmount,
-        });
       } catch {
         throw new AppError(
           500,
           'REFUND_REQUEST_FAILED',
           'Your booking is cancelled, but we could not file the refund request. Please contact support.',
         );
+      }
+
+      // Admin alert is fire-and-forget (alertRefundRequested never throws): it must never fail the cancellation.
+      if (refund?._id) {
+        alertRefundRequested({
+          refundId: String(refund._id),
+          bookingId,
+          amount: quote.refundAmount,
+        });
       }
     }
 
@@ -637,11 +641,7 @@ export const BookingService = {
    * and a history entry is written. 404 for someone else's booking, 409 when the status doesn't allow it
    * or the slot is gone.
    */
-  async rescheduleBooking(
-    customerId: string,
-    bookingId: string,
-    input: { date: string; slot: string },
-  ) {
+  async rescheduleBooking(customerId: string, bookingId: string, input: { date: string; slot: string }) {
     const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');

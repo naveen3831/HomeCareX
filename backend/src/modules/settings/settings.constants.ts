@@ -28,8 +28,8 @@ export const SETTING_DEFAULTS = {
   'support.phone': { value: '', description: 'Support phone number shown to customers and partners' },
   'support.hours': { value: '9 AM - 8 PM, all days', description: 'Support hours shown to customers' },
   /** Admin bell alerts. SOS alerts are never switched off. */
-  'notifications.adminBookingAlerts': { value: true as boolean, description: 'Notify admins when a booking is created' },
-  'notifications.adminTicketAlerts': { value: true as boolean, description: 'Notify admins when a support ticket gets a reply' },
+  'notifications.adminBookingAlerts': { value: true, description: 'Notify admins when a booking is created' },
+  'notifications.adminTicketAlerts': { value: true, description: 'Notify admins when a support ticket gets a reply' },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

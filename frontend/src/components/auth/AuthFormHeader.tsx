@@ -20,14 +20,11 @@ export const AuthFormHeader: React.FC<AuthFormHeaderProps> = ({
         className="inline-block transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded-xl"
         aria-label="HomeCareX Home"
       >
-       <img
-  src="/logo.webp"
-  alt="HomeCareX"
-  width={326}
-  height={128}
-  decoding="async"
-  className="h-10 sm:h-12 w-auto mx-auto object-contain mix-blend-multiply"
-/>
+        <img
+          src="/logo.png"
+          alt="HomeCareX"
+          className="h-10 sm:h-12 w-auto mx-auto object-contain mix-blend-multiply"
+        />
       </Link>
 
       <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-4 tracking-tight">

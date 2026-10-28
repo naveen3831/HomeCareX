@@ -1,4 +1,5 @@
 import type { ApiJob, JobDetails } from './jobDetails.types';
+import type { JobStatus } from './jobStatus';
 
 const ACTOR_LABEL: Record<string, string> = {
   partner: 'Partner',
@@ -198,6 +199,43 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown>): JobDe
   const addressText = typeof addr === 'string'
     ? addr
     : [location.line1, location.area].filter((part): part is string => typeof part === 'string' && part.length > 0).join(', ') || 'Customer address';
+export interface JobListItemLike {
+  id?: string | number;
+  service?: string | { name?: string };
+  serviceDescription?: string;
+  durationMinutes?: number;
+  status?: JobStatus | string;
+  customer?: string | { name?: string; phone?: string };
+  customerName?: string;
+  customerPhone?: string;
+  location?: string | { line1?: string; area?: string; city?: string; pincode?: string | null };
+  address?: string | { line1?: string; area?: string };
+  scheduledAt?: string;
+  slot?: string;
+  partnerEarning?: number;
+  amount?: number;
+  total?: number;
+  instructions?: string;
+  [key: string]: unknown;
+}
+
+export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails {
+  if (item.location && typeof item.location === 'object' && item.customer && typeof item.customer === 'object') {
+    return mapJob(item as unknown as ApiJob);
+  }
+
+  const serviceName =
+    (typeof item.service === 'object' && item.service !== null
+      ? item.service.name
+      : typeof item.service === 'string'
+        ? item.service
+        : null) || 'Service';
+  const cleanId = String(item.id || '');
+  const addr = item.address || item.location || 'Location';
+  const customerObj = typeof item.customer === 'object' && item.customer !== null ? item.customer : null;
+  const customerName = item.customerName || customerObj?.name || (typeof item.customer === 'string' ? item.customer : 'Customer');
+  const customerPhone = item.customerPhone || customerObj?.phone || '+91 ••••• ••' + cleanId.slice(-3);
+  const status = (item.status as JobStatus) || 'assigned';
 
   return {
     id: cleanId,
@@ -206,6 +244,10 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown>): JobDe
     customer: {
       name: String(item.customerName || customer.name || item.customer || 'Customer'),
       phoneMasked: String(item.customerPhone || customer.phone || '+91 ••••• ••' + cleanId.slice(-3)),
+    status,
+    customer: {
+      name: customerName,
+      phoneMasked: customerPhone,
     },
     service: {
       name: serviceName,
@@ -246,6 +288,8 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown>): JobDe
       {
         status: status as JobDetails['status'],
         at: String(item.scheduledAt || new Date().toISOString()),
+        status,
+        at: item.scheduledAt || new Date().toISOString(),
         actor: 'System',
       },
     ],

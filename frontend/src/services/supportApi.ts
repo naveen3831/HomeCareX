@@ -40,6 +40,11 @@ export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
     const response = await http.get<unknown>("/support/tickets", {
+    const response = await http.get<{
+      data?: TicketPage | CustomerTicket[];
+      items?: CustomerTicket[];
+      meta?: TicketPage["meta"];
+    } | CustomerTicket[]>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
@@ -48,6 +53,18 @@ export const supportApi = {
     const data = record.data;
     if (Array.isArray(data)) {
       const items = asTickets(data);
+    if (Array.isArray(body)) {
+      return {
+        items: body,
+        meta: {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.length,
+          pages: 1,
+        },
+      };
+    }
+    if (Array.isArray(body?.data)) {
       return {
         items,
         meta: ticketMeta(record.meta, {
@@ -87,9 +104,24 @@ export const supportApi = {
       return {
         items: asTickets(body),
         meta: {
+    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
+      return {
+        items: body.data.items,
+        meta: body.data.meta ?? {
           page: Number(filters.page) || 1,
           limit: 10,
-          total: body.length,
+          total: body.data.items.length,
+          pages: 1,
+        },
+      };
+    }
+    if (body?.items && Array.isArray(body.items)) {
+      return {
+        items: body.items,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.items.length,
           pages: 1,
         },
       };

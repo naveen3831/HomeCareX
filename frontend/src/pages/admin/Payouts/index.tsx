@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { http } from "@/lib/http";
+import { http } from "@/lib/http"; // if @/lib/http has only a default export, use: import http from "@/lib/http";
 import "./index.css";
 
 type BatchStatus = "Pending" | "Processing" | "Completed" | "Failed";
@@ -68,6 +68,17 @@ const getPayload = (response: unknown): unknown => {
   const root = asObject(response);
   const body = asObject(root.data ?? response);
   return body.data ?? body;
+const getErrorMessage = (error: unknown): string =>
+  firstValue(
+    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.message,
+    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.error,
+    (error as { message?: string })?.message,
+    "Something went wrong. Please try again."
+  );
+
+const getPayload = (response: unknown): unknown => {
+  const body = (response as { data?: unknown })?.data ?? response;
+  return (body as { data?: unknown })?.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {
@@ -88,15 +99,12 @@ const normalizeBatchStatus = (value: unknown): BatchStatus => {
   if (["completed", "complete", "paid", "success", "successful"].includes(status)) {
     return "Completed";
   }
-
   if (["processing", "in_progress", "initiated"].includes(status)) {
     return "Processing";
   }
-
   if (["failed", "failure", "error"].includes(status)) {
     return "Failed";
   }
-
   return "Pending";
 };
 
@@ -106,15 +114,12 @@ const normalizePayoutStatus = (value: unknown): PayoutStatus => {
   if (["paid", "completed", "success", "successful"].includes(status)) {
     return "Paid";
   }
-
   if (["processing", "in_progress", "initiated"].includes(status)) {
     return "Processing";
   }
-
   if (["failed", "failure", "error"].includes(status)) {
     return "Failed";
   }
-
   return "Pending";
 };
 
@@ -133,7 +138,9 @@ const normalizeBatch = (item: unknown): PayoutBatch => {
     updatedAt: firstValue(raw.updatedAt),
     payoutIds: Array.isArray(raw.payoutIds)
       ? raw.payoutIds.map((id: unknown) =>
-          typeof id === "object" ? firstValue(asObject(id)._id, asObject(id).id) : String(id)
+          typeof id === "object" && id !== null
+            ? firstValue(asObject(id)._id, asObject(id).id)
+            : String(id)
         )
       : [],
     raw,
@@ -264,24 +271,18 @@ export const AdminPayoutsPage: React.FC = () => {
       setBatches(rows);
 
       const serverPagination = asObject(asObject(payload).pagination);
+      const serverPagination = asObject(payload?.pagination);
+      const total = Number(serverPagination.total ?? rows.length);
       setPagination({
         page: Number(serverPagination.page ?? page),
         limit: Number(serverPagination.limit ?? PAGE_SIZE),
-        total: Number(serverPagination.total ?? rows.length),
-        pages: Number(
-          serverPagination.pages ??
-            Math.ceil(Number(serverPagination.total ?? rows.length) / PAGE_SIZE)
-        ),
+        total,
+        pages: Number(serverPagination.pages ?? Math.ceil(total / PAGE_SIZE)),
       });
     } catch (error) {
       setLoadError(getErrorMessage(error));
       setBatches([]);
-      setPagination({
-        page,
-        limit: PAGE_SIZE,
-        total: 0,
-        pages: 0,
-      });
+      setPagination({ page, limit: PAGE_SIZE, total: 0, pages: 0 });
     } finally {
       setLoading(false);
     }
@@ -319,9 +320,7 @@ export const AdminPayoutsPage: React.FC = () => {
           : [normalizedBatch, ...current];
       });
 
-      setIndividualPayouts(
-        extractArray(payoutPayload).map(normalizePayout)
-      );
+      setIndividualPayouts(extractArray(payoutPayload).map(normalizePayout));
     } catch (error) {
       setLoadError(getErrorMessage(error));
     } finally {
@@ -345,6 +344,7 @@ export const AdminPayoutsPage: React.FC = () => {
     setPage(1);
   }, [statusFilter]);
 
+  // Note: search and status filters apply to the batches on the current page only.
   const filteredBatches = useMemo(() => {
     const query = search.trim().toLowerCase();
 
@@ -369,12 +369,8 @@ export const AdminPayoutsPage: React.FC = () => {
   }, [batches, search, statusFilter]);
 
   const pendingBatches = batches.filter((batch) => batch.status === "Pending");
-  const processingBatches = batches.filter(
-    (batch) => batch.status === "Processing"
-  );
-  const completedBatches = batches.filter(
-    (batch) => batch.status === "Completed"
-  );
+  const processingBatches = batches.filter((batch) => batch.status === "Processing");
+  const completedBatches = batches.filter((batch) => batch.status === "Completed");
   const failedBatches = batches.filter((batch) => batch.status === "Failed");
 
   const goBack = () => navigate("/admin/payouts");
@@ -397,9 +393,7 @@ export const AdminPayoutsPage: React.FC = () => {
         ? `/admin/payouts/${encodeURIComponent(batchId)}/export`
         : "/admin/payouts/export";
 
-      const response = await http.get(endpoint, {
-        responseType: "blob",
-      });
+      const response = await http.get(endpoint, { responseType: "blob" });
 
       const blob =
         response.data instanceof Blob
@@ -437,10 +431,9 @@ export const AdminPayoutsPage: React.FC = () => {
     setActionSuccess("");
 
     try {
-      await http.patch(
-        `/admin/payouts/${encodeURIComponent(payout.id)}`,
-        {}
-      );
+      // Confirm your backend treats an empty PATCH body as "mark paid".
+      // If it expects a status, send { status: "paid" } instead.
+      await http.patch(`/admin/payouts/${encodeURIComponent(payout.id)}`, {});
 
       setActionSuccess("Payout marked as paid.");
       if (routeId) {
@@ -453,17 +446,16 @@ export const AdminPayoutsPage: React.FC = () => {
     }
   };
 
+  // ------------------------------------------------------------
+  // Batch details view
+  // ------------------------------------------------------------
   if (routeId) {
     const batch = batches.find((item) => item.id === routeId);
 
     return (
       <main className="admin-page-container payout-page">
         <div className="payout-details-page">
-          <button
-            type="button"
-            className="payout-back-link"
-            onClick={goBack}
-          >
+          <button type="button" className="payout-back-link" onClick={goBack}>
             ← Back to payout batches
           </button>
 
@@ -479,9 +471,7 @@ export const AdminPayoutsPage: React.FC = () => {
               </p>
             </div>
             {batch && (
-              <span className={statusClass(batch.status)}>
-                {batch.status}
-              </span>
+              <span className={statusClass(batch.status)}>{batch.status}</span>
             )}
           </header>
 
@@ -514,6 +504,23 @@ export const AdminPayoutsPage: React.FC = () => {
             <section className="payout-state" aria-live="polite">
               <span className="payout-spinner" />
               <h2>Loading batch details</h2>
+            </section>
+          )}
+
+          {!detailLoading && !batch && !loadError && (
+            <section className="payout-state">
+              <h2>Batch not found</h2>
+              <p>
+                This payout batch could not be found. It may have been removed or
+                the ID may be invalid.
+              </p>
+              <button
+                type="button"
+                className="payout-button payout-button-secondary"
+                onClick={goBack}
+              >
+                Back to payout batches
+              </button>
             </section>
           )}
 
@@ -620,8 +627,7 @@ export const AdminPayoutsPage: React.FC = () => {
                               type="button"
                               className="payout-button payout-button-primary"
                               disabled={
-                                payout.status === "Paid" ||
-                                Boolean(updatingId)
+                                payout.status === "Paid" || Boolean(updatingId)
                               }
                               onClick={() => void markPayoutPaid(payout)}
                             >
@@ -658,6 +664,9 @@ export const AdminPayoutsPage: React.FC = () => {
     );
   }
 
+  // ------------------------------------------------------------
+  // Batch list view
+  // ------------------------------------------------------------
   return (
     <main className="admin-page-container payout-page">
       <header className="payout-page-header">
@@ -730,7 +739,9 @@ export const AdminPayoutsPage: React.FC = () => {
         </article>
         <article className="payout-summary-card">
           <p>Completed / Failed</p>
-          <strong>{completedBatches.length} / {failedBatches.length}</strong>
+          <strong>
+            {completedBatches.length} / {failedBatches.length}
+          </strong>
         </article>
       </section>
 
@@ -800,9 +811,7 @@ export const AdminPayoutsPage: React.FC = () => {
                     </td>
                     <td>{formatCurrency(batch.gross)}</td>
                     <td>{formatCurrency(batch.commission)}</td>
-                    <td className="payout-amount">
-                      {formatCurrency(batch.net)}
-                    </td>
+                    <td className="payout-amount">{formatCurrency(batch.net)}</td>
                     <td>
                       <span className={statusClass(batch.status)}>
                         {batch.status}
@@ -833,7 +842,7 @@ export const AdminPayoutsPage: React.FC = () => {
                         </h2>
                         <p>
                           {batches.length === 0
-                            ? "The API is responding, but it has not returned any payout batches. Create a demo batch only if this environment is intended for testing."
+                            ? "The API is responding, but it has not returned any payout batches."
                             : "Try changing the search text or selecting All statuses."}
                         </p>
                         {batches.length > 0 && (
@@ -885,9 +894,7 @@ export const AdminPayoutsPage: React.FC = () => {
                 )
               }
               disabled={
-                loading ||
-                pagination.pages === 0 ||
-                page >= pagination.pages
+                loading || pagination.pages === 0 || page >= pagination.pages
               }
             >
               Next

@@ -625,5 +625,40 @@ overscroll-behavior: contain;}
 /* hide scrollbar but keep scrolling */
 .hcx-no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .hcx-no-scrollbar::-webkit-scrollbar { display: none; }
+   .hcx-notif-panel { display: flex; flex-direction: column; padding: 0; overflow: hidden; max-height: min(70vh, 480px); }
+   .hcx-notif-panel__head, .hcx-notif-panel__all { flex: none; }
+   .hcx-notif-panel ul { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .hcx-notif-panel { scrollbar-width: none; -ms-overflow-style: none; }
 .hcx-notif-panel::-webkit-scrollbar { display: none; }
+/* Tap targets: mobile partner menu */
+@media (max-width: 1023px) {
+  .nav-group__toggle { min-height: 40px; display: flex; align-items: center; justify-content: space-between; }
+}
+
+
+/* Tap targets: mobile sidebar footer */
+@media (max-width: 1023px) {
+  .sidebar-footer__user-btn, .sidebar-signout-btn { min-height: 40px; display: flex; align-items: center; }
+}
+
+
+/* Tap targets: page controls on phones */
+@media (max-width: 767px) {
+  main button:not([role="switch"]),
+  main [role="tab"],
+  header button { min-height: 40px; min-width: 40px; }
+}
+/* Switches kept in their own rule so it is easy to remove if they look wrong */
+@media (max-width: 767px) {
+  main [role="switch"] { min-height: 40px; }
+}
+/* Header right side: help, bell, avatar */
+.admin-topbar .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+/* In-page search (PageSearch): used by pages that filter their own list. */
+.hcx-pagesearch { position: relative; display: flex; align-items: center; width: 100%; max-width: 520px; margin: 0 0 14px; }
+.hcx-pagesearch__icon { position: absolute; left: 12px; color: var(--hcx-faint, #94a3b8); pointer-events: none; }
+.hcx-pagesearch__input { width: 100%; height: 40px; padding: 0 36px 0 36px; font: inherit; font-size: 14px; color: #0f172a; background: #fff; border: 1px solid var(--hcx-line, #e2e8f0); border-radius: 12px; }
+.hcx-pagesearch__input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); outline: 0; }
+.hcx-pagesearch__clear { position: absolute; right: 8px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #64748b; background: none; border: 0; border-radius: 6px; cursor: pointer; }
+.hcx-pagesearch__clear:hover { background: #f1f5f9; }

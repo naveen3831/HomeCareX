@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
@@ -28,12 +28,16 @@ export default function EditProfile() {
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
+      <Link to={customerPath("/profile")} className={`inline-flex items-center gap-1.5 rounded text-sm font-medium text-muted hover:text-ink ${FOCUS_RING}`}>
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to profile
+      </Link>
+
       <div className="flex items-center gap-4">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand to-[#7C6CF6] text-xl font-bold text-white shadow-lg" aria-hidden="true">
           {initialsOf(name)}
         </span>
         <div>
-          <h1 className="sr-only">Edit profile</h1>
+          <h1 className="text-xl font-bold text-ink">Edit profile</h1>
           <p className="text-sm text-muted">Update your personal details.</p>
         </div>
       </div>

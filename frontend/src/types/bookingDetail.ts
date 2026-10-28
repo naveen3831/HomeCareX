@@ -50,6 +50,33 @@ export interface BookingDetailPayment {
   transactionId?: string;
 }
 
+export type BookingRefundStatus =
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "CREDITED"
+  | "REJECTED"
+  | "NOT_REQUIRED"
+  | "PROCESSING"
+  | "CREDIT_FAILED"
+  | "requested"
+  | "processed"
+  | "rejected"
+  | "none";
+
+export interface BookingRefundInfo {
+  refundId?: string;
+  status: BookingRefundStatus;
+  statusLabel?: string;
+  amount?: number;
+  originalPaidAmount?: number;
+  destination?: string;
+  requestedAt?: string;
+  creditedAt?: string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  walletTransactionRef?: string;
+}
+
 export interface BookingDetailView extends Omit<
   BookingView,
   "paymentDetails" | "otp" | "partnerId"
@@ -63,6 +90,10 @@ export interface BookingDetailView extends Omit<
   bookingNumber?: string;
   serviceName?: string;
   cancellationReason?: string;
+
+  /** Refund details when booking is cancelled or refund exists */
+  refundStatus?: BookingRefundStatus;
+  refund?: BookingRefundInfo | null;
 
   /** Only set while the partner has arrived; otherwise null. */
   startOtp: string | null;
@@ -106,9 +137,9 @@ export interface CancellationSummary {
   /** Amount eligible for refund. */
   refundAmount: number;
 
-  refundMethod: "RAZORPAY" | null;
+  refundMethod: "RAZORPAY" | "WALLET" | null;
 
-  refundStatus: "requested" | "none";
+  refundStatus: "requested" | "PENDING_APPROVAL" | "none" | "NOT_REQUIRED";
 }
 
 /** POST /bookings/:id/cancel */

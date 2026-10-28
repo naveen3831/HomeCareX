@@ -24,7 +24,7 @@ export interface ServiceFaq {
 
 const MediaSchema = new Schema(
   {
-    url: { type: String, required: true, trim: true, maxlength: 500 },
+    url: { type: String, required: true, trim: true, maxlength: 300_000 }, // https URL or a resized data: URL
     alt: { type: String, trim: true, default: '', maxlength: 160 },
   },
   { _id: false },
@@ -34,6 +34,14 @@ const FaqSchema = new Schema(
   {
     question: { type: String, required: true, trim: true, maxlength: 200 },
     answer: { type: String, required: true, trim: true, maxlength: 1000 },
+  },
+  { _id: true },
+);
+
+const ChecklistSchema = new Schema(
+  {
+    label: { type: String, required: true, trim: true, maxlength: 200 },
+    required: { type: Boolean, default: false },
   },
   { _id: true },
 );
@@ -70,6 +78,8 @@ const ServiceSchema = new Schema(
     inclusions: { type: [{ type: String, trim: true, maxlength: 200 }], default: [] },
     exclusions: { type: [{ type: String, trim: true, maxlength: 200 }], default: [] },
     faqs: { type: [FaqSchema], default: [] },
+    /** Checklist template a partner ticks off on site. */
+    checklist: { type: [ChecklistSchema], default: [] },
   },
   { timestamps: true },
 );

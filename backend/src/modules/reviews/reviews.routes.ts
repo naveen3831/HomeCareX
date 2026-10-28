@@ -25,7 +25,7 @@ const ownListQuery = validate(
 // Public: visible reviews and star distribution for a service.
 reviewsRoutes.get(
   '/services/:id/reviews',
-  (_req, res) => res.status(501).json({ message: 'Service reviews are not implemented' }),
+  controller.listServiceReviews,
 );
 
 // Customer: review their own completed booking.
@@ -74,7 +74,7 @@ reviewsRoutes.get(
   '/admin/reviews',
   authenticate,
   requireAdmin,
-  (_req, res) => res.status(501).json({ message: 'Admin review listing is not implemented' }),
+  controller.listAdminReviews,
 );
 
 // Admin: change moderation status (pending, approved, rejected).
@@ -82,7 +82,7 @@ reviewsRoutes.patch(
   '/admin/reviews/:id/status',
   authenticate,
   requireAdmin,
-  (_req, res) => res.status(501).json({ message: 'Review status updates are not implemented' }),
+  controller.updateReviewStatus,
 );
 
 // Admin: hide or restore a review.
@@ -92,7 +92,7 @@ reviewsRoutes.patch(
   authenticate,
   requireAdmin,
   requirePermission('reviews:moderate'),
-  (_req, res) => res.status(501).json({ message: 'Review visibility updates are not implemented' }),
+  controller.updateReviewVisibility,
 );
 
 export default reviewsRoutes;

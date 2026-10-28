@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { roleMiddleware } from '../../middleware/role.middleware';
+import { requireResourceAccess } from '../../middleware/permission.middleware';
 import { validationMiddleware } from '../../middleware/validation.middleware';
 import { pricingController } from './pricing.controller';
 import { getPricingQuerySchema, putPricingBodySchema, quoteBodySchema } from './pricing.validation';
@@ -19,7 +20,8 @@ pricingRoutes.post(
   asyncHandler(async (req, res) => pricingController.quote(req, res)),
 );
 
-adminPricingRoutes.use(authMiddleware, roleMiddleware('admin'));
+// GET needs pricing:view; PUT / DELETE need pricing:manage (see actionFor in rbac.constants).
+adminPricingRoutes.use(authMiddleware, roleMiddleware('admin'), requireResourceAccess('pricing'));
 adminPricingRoutes.get(
   '/',
   validationMiddleware({ query: getPricingQuerySchema }),

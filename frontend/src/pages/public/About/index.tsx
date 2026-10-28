@@ -355,15 +355,12 @@ const AboutPage: React.FC = () => {
                 >
                   {/* Service Image with Category & Icon Overlays */}
                   <div className="relative h-28 xs:h-32 sm:h-40 w-full overflow-hidden bg-[#eef0ff]">
-                   <img
-  src={service.image}
-  alt={service.name}
-  width={400}
-  height={160}
-  decoding="async"
-  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-  loading="lazy"
-/>
+                    <img
+                      src={service.image}
+                      alt={service.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
                     <div
                       className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60"
                       aria-hidden="true"

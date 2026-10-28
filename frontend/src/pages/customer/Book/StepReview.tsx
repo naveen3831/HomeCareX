@@ -116,6 +116,7 @@ type CompactCoupon = {
   serviceName?: string;
   eligible?: boolean;
   reason?: { code: string; minOrder?: number };
+  reason?: string | { code: string; minOrder?: number };
 };
 
 function compactCouponDescription(coupon: CompactCoupon): string {
@@ -448,6 +449,20 @@ export default function StepReview() {
       setError(apiErr.message ? apiErr : { message: "An unexpected error occurred." });
     }
   };
+  const compactCoupons = useMemo(
+    () => (Array.isArray(availableCoupons) ? availableCoupons : []) as unknown as CompactCoupon[],
+    [availableCoupons]
+  );
+  const sortedCoupons = useMemo(() => {
+    return [...compactCoupons].sort((a, b) => {
+      const aEligible = a.eligible !== false;
+      const bEligible = b.eligible !== false;
+      if (aEligible && !bEligible) return -1;
+      if (!aEligible && bEligible) return 1;
+      return 0;
+    });
+  }, [compactCoupons]);
+
   if (!canSubmit) {
     return (
       <div className="py-8 text-center text-sm text-muted">
@@ -767,7 +782,7 @@ export default function StepReview() {
                             <span className="mt-0.5 block text-xs leading-4 text-muted">{coupon.description || compactCouponDescription(coupon)}</span>
                             {!eligible && reason && (
                               <span className="mt-1 block text-[11px] font-medium text-danger">
-                                {couponErrorText(reason.code, reason.minOrder)}
+                                {typeof reason === "string" ? reason : couponErrorText(reason.code, reason.minOrder)}
                               </span>
                             )}
                           </span>
