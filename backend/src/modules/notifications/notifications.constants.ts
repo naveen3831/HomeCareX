@@ -3,6 +3,11 @@ export const NOTIFICATION_TYPES = [
   'booking.assigned',
   'booking.cancelled',
   'booking.completed',
+  /** Customer-facing booking updates. Raised by the helpers in customer-alerts.ts. */
+  'booking.confirmed',
+  'booking.rescheduled',
+  'booking.partner_arrived',
+  'booking.started',
   'partner.approved',
   'partner.rejected',
   'payout.processed',

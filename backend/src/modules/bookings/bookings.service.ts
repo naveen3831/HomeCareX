@@ -1,6 +1,11 @@
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { notifyAdmins } from '../notifications';
+import {
+  alertCustomerBookingCancelled,
+  alertCustomerBookingCreated,
+  alertCustomerBookingRescheduled,
+} from '../notifications/customer-alerts';
 import { alertRefundRequested } from '../notifications/admin-alerts';
 import { AppError } from '../../utils/AppError';
 import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
@@ -407,6 +412,10 @@ export const BookingService = {
         bookingId: String((created as { _id?: unknown })._id ?? ''),
         serviceId: input.serviceId,
       }).catch(() => undefined);
+      alertCustomerBookingCreated({
+        customerId,
+        bookingId: String((created as { _id?: unknown })._id ?? ''),
+      });
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
@@ -629,6 +638,8 @@ export const BookingService = {
       }
     }
 
+    alertCustomerBookingCancelled({ customerId, bookingId, refundAmount: isPaid ? quote.refundAmount : 0 });
+
     const updatedBooking = await BookingService.getBooking(customerId, bookingId);
     const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
 
@@ -723,6 +734,8 @@ export const BookingService = {
         if (!updated) {
           throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
         }
+
+        alertCustomerBookingRescheduled({ customerId, bookingId, date: input.date, slot: input.slot });
 
         return BookingService.getBooking(customerId, bookingId);
       });
