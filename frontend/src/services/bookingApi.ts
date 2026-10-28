@@ -72,6 +72,21 @@ export function normalizeApiError(
  */
 export const normalizeError = normalizeApiError;
 
+/**
+ * The server splits pre-service bookings in two: `upcoming` (slot still to come) and `overdue` (slot has
+ * passed but the booking was never started or completed). The page has no Overdue tab; it shows those
+ * bookings inside Upcoming with an "Overdue" pill. So Upcoming must ask for both, otherwise every old
+ * booking that was left Confirmed / Assigned silently disappears from My Bookings.
+ *
+ * Sending `tab=upcoming` would AND with the schedule filter and drop them, so for this tab we send a
+ * status list instead (the server ORs the tokens). A status the customer picked narrows it as before.
+ */
+export function withOverdueInUpcoming(params: BookingListParams): BookingListParams {
+  if (params.tab !== "upcoming") return params;
+
+  return { ...params, tab: undefined, status: params.status?.trim() || "upcoming,overdue" };
+}
+
 /** Drops undefined and blank values so the URL only carries filters the customer actually set. */
 function toQuery(params: BookingListParams): Record<string, string | number> {
   const query: Record<string, string | number> = {};
@@ -205,7 +220,7 @@ export const bookingApi = {
         await http.get<
           ApiResponse<BookingListItem[]> & { meta?: PageMeta }
         >("/bookings", {
-          params: toQuery(params),
+          params: toQuery(withOverdueInUpcoming(params)),
           signal,
         });
 

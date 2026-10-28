@@ -21,35 +21,35 @@ const HAMBURGER =
 const BAR =
   "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
 
-const BACK_LINK =
-  "inline-flex min-h-[44px] items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70";
-
 /**
  * Top bar.
- *  - mobile: delivery-location picker (Zomato-style) … bell. No hamburger: the bottom nav and the
- *            Profile tab carry all navigation.
- *  - md+   : ☰ (collapses the sidebar) | brand | location picker … bell
+ *  - Home (all widths): phones show the delivery-location picker and the bell. md+ shows
+ *    ☰ (only while the sidebar is collapsed) | brand | location picker … bell.
+ *  - Every other page, at every width: ← back arrow + the page name (see pageTitles.ts), with ☰ in front
+ *    of it on md+ while the sidebar is collapsed. The bell shows at the right on md+ only. No picker, no brand.
+ *    The arrow returns to the previous in-app page, or to the page's parent when the page was opened
+ *    directly (deep link / refresh) so it never leaves the app. Notifications returns to Home and
+ *    Referrals returns to Profile this way.
+ * CustomerLayout pins the bar to the top of the screen on every page, so it never scrolls away.
  * The account avatar/menu lives at the bottom of the sidebar (SidebarAccount) and on the Profile page.
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
   const { pathname, key } = useLocation();
   const navigate = useNavigate();
-  const meta = getCustomerPageMeta(pathname);
 
-  // React Router gives the first entry of a session the key "default": nothing to go back to.
   // null on Home. Everywhere else the bar becomes "← Page name".
   const meta = getCustomerPageMeta(pathname);
   const inner = meta !== null;
 
-  // key === "default" means this is the first entry of the session, so there is nothing to go back to.
+  // React Router gives the first entry of a session the key "default": nothing to go back to.
   const goBack = () => {
     if (!meta) return;
     if (key !== "default") navigate(-1);
     else navigate(meta.parent, { replace: true });
   };
 
-  // Desktop only: only shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar.
+  // Desktop only: shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar.
   const hamburger = !sidebarOpen && (
     <button
       type="button"
@@ -93,102 +93,14 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         ) : (
           <>
             {hamburger}
+            {/* Brand: desktop only, and only while the sidebar is collapsed (the sidebar has its own brand). */}
             <Link
               to={customerPath()}
-  const { pathname } = useLocation();
-  // On the notifications page the address picker gives way to a back button that returns to the home page.
-  const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
-  const onNotifications = normalizedPath === customerPath("/notifications");
-  // On the referrals page (mobile) the address picker and bell give way to a back button that returns to Profile.
-  const onReferrals = normalizedPath === customerPath("/referrals");
-  const innerPage = meta !== null && !onNotifications && !onReferrals;
-  const goBack = () => {
-    if (!meta) return;
-    if (key !== "default") navigate(-1);
-    else navigate(meta.parent, { replace: true });
-  };
-
-  return (
-    <header className="customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3 bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8">
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        {/* Only shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar. */}
-        {!sidebarOpen && (
-          <button
-            type="button"
-            onClick={onToggleSidebar}
-            aria-label="Open sidebar"
-            aria-expanded={false}
-            aria-controls={CUSTOMER_SIDEBAR_ID}
-            className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
-          >
-            <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-            <span
-              aria-hidden="true"
-              className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")}
-            />
-            <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
-          </button>
-        )}
-
-        {/* Brand: desktop only, and only while the sidebar is collapsed (the sidebar has its own brand). */}
-        {!meta && (
-          <Link
-            to={customerPath()}
-            className={clsx(
-              "rounded-lg text-lg font-bold tracking-tight",
-              sidebarOpen ? "hidden" : "ml-2 hidden md:inline-flex",
-              FOCUS_RING,
-            )}
-          >
-            <span className="text-accent">Home</span>
-            <span className="text-brand">CareX</span>
-          </Link>
-        )}
-
-        <span
-          aria-hidden="true"
-          className={clsx(
-            "mx-3 hidden h-8 w-px bg-line",
-            !sidebarOpen && "md:block",
-          )}
-        />
-
-        {innerPage && meta ? (
-          <button
-            type="button"
-            onClick={goBack}
-            aria-label={`Back from ${meta.title}`}
-            className={clsx(BACK_LINK, FOCUS_RING)}
-          >
-            <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{meta.title}</span>
-          </button>
-        ) : onNotifications ? (
-          <Link
-            to={customerPath()}
-            aria-label="Back to home"
-            className={clsx(BACK_LINK, "md:hidden", FOCUS_RING)}
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-            <span>Back</span>
-          </Link>
-        ) : (
-          <>
-            {onReferrals && (
-              <Link
-                to={customerPath("/profile")}
-                aria-label="Back to profile"
-                className={clsx(BACK_LINK, "md:hidden", FOCUS_RING)}
-              >
-                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
-                <span>Back</span>
-              </Link>
-            )}
-            {/* One picker at every width (a single instance keeps DOM ids unique). Hidden on mobile for referrals. */}
-            <div
               className={clsx(
-                "min-w-0 flex-1 md:flex-none",
-                onReferrals && "hidden md:block",
+                "rounded-lg text-lg font-bold tracking-tight",
+                sidebarOpen ? "md:hidden" : "ml-2",
+                "hidden md:inline-flex",
+                FOCUS_RING,
               )}
             >
               <span className="text-accent">Home</span>
@@ -200,6 +112,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
               className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
             />
 
+            {/* One picker at every width (a single instance keeps DOM ids unique). */}
             <div className="min-w-0 flex-1 md:flex-none">
               <LocationPicker />
             </div>
@@ -207,10 +120,8 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
       </div>
 
-      <div className={clsx((innerPage || onReferrals) && "hidden md:block")}>
       {/* Phones: bell on Home only. md+: always. */}
       <div className={clsx(inner && "hidden md:block")}>
-      <div className={clsx(onReferrals && "hidden md:block")}>
         <NotificationBell count={unread} />
       </div>
     </header>

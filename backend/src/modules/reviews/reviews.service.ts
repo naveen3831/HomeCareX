@@ -126,12 +126,6 @@ export interface ReviewAuditActor {
 }
 
 
-
-interface ReviewAuditActor {
-  id: string;
-  ip?: string;
-}
-
 export class ReviewsService {
   /**
    * Fail-safe audit helper. A logging failure must not make a successful review
@@ -690,9 +684,7 @@ export class ReviewsService {
 
   /** PATCH /admin/reviews/:id/status — approve or reject a review. */
 
-  async updateReviewStatus( id: string,    status: unknown,    actor: ReviewAuditActor,  )
-   {
-    if (!Types.ObjectId.isValid(id)) throw new HttpError(400, 'Invalid review ID', 'INVALID_ID');
+ 
   /** PATCH /admin/reviews/:id/status */
   async updateReviewStatus(
     id: string,

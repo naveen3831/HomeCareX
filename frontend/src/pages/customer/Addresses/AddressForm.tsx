@@ -78,7 +78,7 @@ export default function AddressForm({ initial, isFirst, saving, serverError, onS
     setArea(p.area);
     if (p.city) setCity(p.city);
     if (p.state) setState(p.state);
-    if (p.pincode) setPincode(p.pincode.slice(0, 6));
+    if (p.pincode) setPincode(p.pincode.replace(/\D/g, "").slice(0, 6));
     setErrors({});
   }
 

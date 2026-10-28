@@ -46,7 +46,7 @@ export default function RateExperience({ bookingId, status }: { bookingId: strin
         <>
           <p className="mt-1.5 text-sm text-muted">{finished ? "How was your service?" : "You can review once the service is completed."}</p>
           {finished ? (
-            <Link to={customerPath("/reviews")} className={clsx(BUTTON, "mt-3", FOCUS_RING)}>
+            <Link to={customerPath(`/reviews?booking=${encodeURIComponent(bookingId)}`)} className={clsx(BUTTON, "mt-3", FOCUS_RING)}>
               Write a Review
             </Link>
           ) : (

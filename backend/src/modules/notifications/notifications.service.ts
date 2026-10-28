@@ -3,20 +3,14 @@ import { NotificationModel } from '../../models/Notification';
 import { UserModel } from '../../models/User';
 import { getSetting } from '../settings';
 import { emitToUser } from '../../sockets';
-import { Errors } from '../../utils/errors';
 
-import mongoose, { Types } from "mongoose";
-import { NotificationModel } from "../../models/Notification";
-import { UserModel } from "../../models/User";
-import { getSetting } from "../settings";
+
 import { HttpError } from "../auth/auth.types";
-import { emitToUser } from "../../sockets";
 import {
   ADMIN_ALERT_SETTING,
   GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
   NOTIFICATION_SOCKET_EVENT,
-  NOTIFICATION_TYPES,
   groupOf,
   type NotificationGroup,
   type NotificationType,
