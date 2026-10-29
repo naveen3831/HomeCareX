@@ -116,21 +116,21 @@ rootRouter.use(
   "/admin/partners",
   authMiddleware,
   requireAdmin,
-  requirePermission("partners"),
+  requireResourceAccess("partners"),
   partnersRoutes,
 );
 rootRouter.use(
   "/admin/coupons",
   authMiddleware,
   requireAdmin,
-  requirePermission("coupons"),
+  requireResourceAccess("coupons"),
   couponsRoutes,
 );
 rootRouter.use(
   "/admin/banners",
   authMiddleware,
   requireAdmin,
-  requirePermission("marketing"),
+  requireResourceAccess("marketing"),
   marketingRoutes,
 );
 rootRouter.use("/admin/pricing", adminPricingRoutes);
@@ -141,7 +141,7 @@ rootRouter.use(
   "/admin/reports",
   authMiddleware,
   requireAdmin,
-  requirePermission("reports"),
+  requireResourceAccess("reports"),
   reportsRoutes,
 );
 

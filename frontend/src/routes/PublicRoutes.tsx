@@ -29,6 +29,10 @@ const Contact = lazy(
   () => import("../pages/public/Contact/Contact")
 );
 
+const Reviews = lazy(
+  () => import("../pages/public/Reviews")
+);
+
 const Terms = lazy(
   () => import("../pages/public/Terms")
 );
@@ -61,13 +65,10 @@ const PublicRoutes: React.FC = () => {
           />
 
           {/* Service Details */}
-         
-{/* Service Details */}
-<Route
-  path="/services/:slug"
-  element={<ServiceDetails />}
-/>
-
+          <Route
+            path="/services/:slug"
+            element={<ServiceDetails />}
+          />
 
           {/* About */}
           <Route
@@ -85,6 +86,12 @@ const PublicRoutes: React.FC = () => {
           <Route
             path={ROUTES.CONTACT}
             element={<Contact />}
+          />
+
+          {/* Customer Reviews & Stories (Full Page) */}
+          <Route
+            path={ROUTES.REVIEWS}
+            element={<Reviews />}
           />
 
           {/* Terms */}

@@ -1,4 +1,4 @@
-
+﻿
 import { useState, type ComponentType, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
@@ -781,7 +781,7 @@ function DetailsBody({
                 booking.partner ||
                 (typeof booking.partnerId === "object" &&
                 booking.partnerId !== null
-                  ? (booking.partnerId as typeof booking.partner)
+                  ? (booking.partnerId as unknown as typeof booking.partner)
                   : null)
               }
               hasPartner={Boolean(booking.partnerId)}

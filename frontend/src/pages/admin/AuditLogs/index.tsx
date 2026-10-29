@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import DataTable, { Column } from "../../../components/tables/DataTable";
@@ -25,11 +25,6 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-  actor?: string;
-  actorName?: string | null;
-  action?: string;
-  entity?: string;
-  entityId?: string;
   actor?: string | null;
   actorName?: string | null;
   action?: string | null;

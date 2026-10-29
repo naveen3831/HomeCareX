@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+﻿import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   DEMO_START_OTP,
@@ -78,13 +78,6 @@ export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const online = useOnline();
-
-  const authCtx = useContext(AuthContext);
-  const storeUserId = useAuthStore((s) => s.user?.id);
-  const user = authCtx?.user ?? (typeof storeUserId === 'string' ? { id: storeUserId } : null);
-  const [partnerAssignedServices, setPartnerAssignedServices] = useState<
-    Array<{ id: string; name: string; slug: string }>
-  >([]);
 
   // /partner/jobs/:id  -> that job's details.
   // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.

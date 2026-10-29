@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
@@ -6,17 +6,17 @@ import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
-  const toggleMobileMenu = useUIStore(
-    (state) => state.toggleMobileMenu,
-  );
+export interface HeaderNotification {
+  id: string;
+  title: string;
+  time: string;
+  href?: string;
+}
 
-  // Hide customer-detail breadcrumbs on mobile.
-  // The corresponding CSS class controls the breakpoint.
-  const isCustomerDetails =
-    /^\/admin\/customers\/[^/]+/.test(pathname);
+interface HeaderProps {
+  notifications?: HeaderNotification[];
+}
 
-/** Sticky admin header: menu/collapse, breadcrumbs, help, the live notification bell and the avatar menu. (Search sits in the bar under it.) */
-export const Header: React.FC<HeaderProps> = () => {
 /** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
 export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
   const { pathname } = useLocation();
@@ -43,9 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         type="button"
         onClick={toggleSidebar}
         className="icon-btn desktop-only"
-        aria-label={
-          isCollapsed ? "Expand sidebar" : "Collapse sidebar"
-        }
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {isCollapsed ? (
           <PanelLeftOpen size={20} aria-hidden="true" />
@@ -71,9 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         >
           <HelpCircle size={20} />
         </Link>
-
         <NotificationBell />
-
         <ProfileMenu />
       </div>
     </header>

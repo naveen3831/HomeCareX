@@ -6,17 +6,9 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
- 
-import {
 
 import {
   acceptInviteSchema,
- 
-  inviteStaffSchema,
-  verifyInviteSchema,
-
-  changePasswordSchema,
-  forgotPasswordSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   inviteStaffSchema,
@@ -250,40 +242,6 @@ export const authController = {
     const userId = getAuthenticatedUserId(res);
     const result = await authService.revokeUserSessions(userId);
 
-        parseBody(
-          resetPasswordSchema,
-          req.body,
-        ),
-      );
-    res.json(result);
-  }),
-  /** POST /api/v1/auth/verify-invite */
-  verifyInvite: wrap(async (req, res) => {
-    const payload = parseBody(verifyInviteSchema, req.body);
-    const result = await authService.verifyInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-
-  /** POST /api/v1/auth/accept-invite */
-  acceptInvite: wrap(async (req, res) => {
-    const payload = parseBody(acceptInviteSchema, req.body);
-    const result = await authService.acceptInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-  /** POST /api/v1/auth/change-password */
-  changePassword: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
-    const { currentPassword, newPassword } = parseBody(changePasswordSchema, req.body);
-    const data = await authService.changePassword(userId, { currentPassword, newPassword });
-    res.json({ success: true, data, message: 'Password updated' });
     clearRefreshCookies(res);
 
     res.json({
@@ -321,22 +279,6 @@ export const authController = {
     });
   }),
 
-
-  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
-  revokeUserSessions: wrap(async (req, res) => {
-    const { userId } = req.params;
-
-    const result = await authService.revokeUserSessions(userId);
-
-    res.json({
-      success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
-    });
-  }),
-};
   /**
    * POST /api/v1/admin/staff
    * Admin authorization must be applied by the route.

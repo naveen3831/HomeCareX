@@ -1,4 +1,4 @@
-import type { ApiError } from './http';
+﻿import type { ApiError } from './http';
 
 export type ApiErrorKind = 'offline' | 'network' | 'timeout' | 'http' | 'unknown';
 
@@ -52,17 +52,6 @@ export function classifyApiError(
     };
   }
 
-  const apiErr = err as (ApiError & { response?: { status?: number; data?: { message?: string; code?: string; details?: ApiError['details'] } } }) | undefined;
-  const responseData = apiErr?.response?.data;
-  const normalized: ApiError = {
-    message: apiErr?.message || responseData?.message || defaultHttpMsg,
-    status: apiErr?.status ?? apiErr?.response?.status,
-    code: apiErr?.code || responseData?.code,
-    isTimeout: apiErr?.isTimeout,
-    details: apiErr?.details ?? responseData?.details,
-  };
-
-  if (!apiErr && !responseData) {
   const apiErr = normalizeRaw(err);
   if (!apiErr) {
     return {
@@ -73,33 +62,33 @@ export function classifyApiError(
 
   // 2. Request Timeout
   if (
-    normalized.isTimeout ||
-    normalized.code === 'ECONNABORTED' ||
-    normalized.code === 'ETIMEDOUT' ||
-    (typeof normalized.message === 'string' && /taking too long|timeout/i.test(normalized.message))
+    apiErr.isTimeout ||
+    apiErr.code === 'ECONNABORTED' ||
+    apiErr.code === 'ETIMEDOUT' ||
+    (typeof apiErr.message === 'string' && /taking too long|timeout/i.test(apiErr.message))
   ) {
     return {
       kind: 'timeout',
-      code: normalized.code,
+      code: apiErr.code,
       message: 'The server is taking too long to respond. Please check your connection and try again.',
     };
   }
 
   // 3. HTTP status response received
-  if (typeof normalized.status === 'number' && normalized.status > 0) {
+  if (typeof apiErr.status === 'number' && apiErr.status > 0) {
     return {
       kind: 'http',
-      status: normalized.status,
-      code: normalized.code,
-      message: normalized.message || defaultHttpMsg,
-      details: normalized.details,
+      status: apiErr.status,
+      code: apiErr.code,
+      message: apiErr.message || defaultHttpMsg,
+      details: apiErr.details,
     };
   }
 
   // 4. Network error without HTTP status (server stopped, connection refused)
   return {
     kind: 'network',
-    code: normalized.code,
+    code: apiErr.code,
     message: 'Unable to connect to the server. Please check your connection and try again.',
   };
 }

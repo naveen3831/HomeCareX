@@ -1,4 +1,4 @@
-import http, { type ApiResponse } from '@/lib/http';
+﻿import http, { type ApiResponse } from '@/lib/http';
 import { useAuthStore } from '@/store/useAuthStore';
 import { authApi } from '@/services/authApi';
 import { rbacMock } from '@/services/adminRbacMock';
@@ -18,9 +18,6 @@ export const rbacKeys = {
   staff: ['admin', 'rbac', 'staff'] as const,
 };
 
-/** No backend RBAC module yet, so mocks are on outside Vitest unless VITE_MOCK_RBAC=false. */
-export const USE_RBAC_MOCK =
-  import.meta.env.MODE !== 'test' && import.meta.env.VITE_MOCK_RBAC !== 'false';
 /** The backend rbac module is live, so real data is the default. Mocks only when VITE_MOCK_RBAC=true. */
 export const USE_RBAC_MOCK = import.meta.env.VITE_MOCK_RBAC === 'true';
 
