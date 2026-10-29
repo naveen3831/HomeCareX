@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import clsx from "clsx";
+
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { FullScreenPanel } from "@/components/admin/FullScreenPanel";
@@ -53,29 +54,43 @@ import type {
   ServiceOption,
 } from "@/types/adminPricing";
 import PricingRuleForm from "./PricingRuleForm";
+
 import "../Categories/index.css";
 import "./index.css";
 
 export const PRICING_MANAGE = "pricing:manage";
 
-type Toast = { text: string; tone: "success" | "error" } | null;
-const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
-const duration = (m: number) =>
-  m < 60
-    ? `${m} min`
-    : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
+type Toast = {
+  text: string;
+  tone: "success" | "error";
+} | null;
 
-/** "Parent › Child" labels so sub-categories are recognisable in a flat list. */
-function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
-  const byId = new Map(cats.map((c) => [c.id, c]));
-  return cats
-    .map((c) => ({
-      id: c.id,
+type StatusFilter = "all" | "active" | "inactive";
+type ModeFilter = "FIXED" | "HOURLY" | null;
+
+const rupees = (amount: number) =>
+  `₹${Number(amount || 0).toLocaleString("en-IN")}`;
+
+const duration = (minutes: number) =>
+  minutes < 60
+    ? `${minutes} min`
+    : `${Math.floor(minutes / 60)} hr${
+        minutes % 60 ? ` ${minutes % 60} min` : ""
+      }`;
+
+function toCategoryOptions(
+  categories: AdminCategory[],
+): CategoryOption[] {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+
+  return categories
+    .map((category) => ({
+      id: category.id,
       name:
-        c.parentId && byId.get(c.parentId)
-          ? `${byId.get(c.parentId)!.name} › ${c.name}`
-          : c.name,
-      active: c.active,
+        category.parentId && byId.has(category.parentId)
+          ? `${byId.get(category.parentId)!.name} › ${category.name}`
+          : category.name,
+      active: category.active,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -84,6 +99,9 @@ export const AdminPricingPage: React.FC = () => {
   const online = useOnlineStatus();
   const { can } = usePermissions();
   const canManage = can(PRICING_MANAGE);
+
+  const search = useUIStore((state) => state.pageSearch);
+  const setPageSearch = useUIStore((state) => state.setPageSearch);
 
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
@@ -96,13 +114,14 @@ export const AdminPricingPage: React.FC = () => {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
 
   const [toast, setToast] = useState<Toast>(null);
-  const toastTimer = useRef<number>();
+  const toastTimer = useRef<number | undefined>(undefined);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PricingRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [formFields, setFormFields] = useState<PricingFormErrors | undefined>();
+  const [formFields, setFormFields] =
+    useState<PricingFormErrors | undefined>();
 
   const [toDelete, setToDelete] = useState<PricingRule | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -114,58 +133,91 @@ export const AdminPricingPage: React.FC = () => {
   const flash = useCallback(
     (text: string, tone: "success" | "error" = "success") => {
       setToast({ text, tone });
-      window.clearTimeout(toastTimer.current);
-      toastTimer.current = window.setTimeout(() => setToast(null), 5500);
+
+      if (toastTimer.current !== undefined) {
+        window.clearTimeout(toastTimer.current);
+      }
+
+      toastTimer.current = window.setTimeout(() => {
+        setToast(null);
+      }, 5500);
     },
     [],
   );
-  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current !== undefined) {
+        window.clearTimeout(toastTimer.current);
+      }
+    };
+  }, []);
 
   const load = useCallback(async () => {
+    setLoading(true);
+
     try {
-      // Categories, then services (each decides its own live/demo mode), then the rules.
-      const cats = await adminCategoryApi
-        .list()
-        .catch(() => [] as AdminCategory[]);
-      const svcs = await adminServiceApi.list().catch(() => []);
-      setCategories(toCategoryOptions(cats));
+      const [categoryResult, serviceResult] = await Promise.all([
+        adminCategoryApi.list().catch(() => [] as AdminCategory[]),
+        adminServiceApi.list().catch(() => []),
+      ]);
+
+      setCategories(toCategoryOptions(categoryResult));
+
       setServices(
-        svcs.map((s) => ({
-          id: s.id,
-          name: s.name,
-          categoryId: s.categoryId,
-          basePrice: s.basePrice,
-          durationMinutes: s.durationMinutes,
+        serviceResult.map((service) => ({
+          id: service.id,
+          name: service.name,
+          categoryId: service.categoryId,
+          basePrice: service.basePrice,
+          durationMinutes: service.durationMinutes,
         })),
       );
+
       setRules(await adminPricingApi.list());
       setLoadError("");
-    } catch (e) {
-      setLoadError((e as PricingApiError).message);
+    } catch (error) {
+      setLoadError(
+        (error as PricingApiError).message ||
+          "Could not load pricing rules.",
+      );
     } finally {
       setLoading(false);
     }
   }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
 
-  // ---- names for the table ----
   const categoryName = useCallback(
     (id: string) =>
-      categories.find((c) => c.id === id)?.name ?? "Unknown category",
+      categories.find((category) => category.id === id)?.name ??
+      "Unknown category",
     [categories],
   );
+
   const serviceName = useCallback(
     (id: string | null) =>
       id === null
         ? "All services"
-        : (services.find((s) => s.id === id)?.name ?? "Unknown service"),
+        : services.find((service) => service.id === id)?.name ??
+          "Unknown service",
     [services],
   );
+
   const labelFor = useCallback(
-    (r: { categoryId: string; serviceId: string | null; city: string }) =>
-      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} · ${r.city || "All cities"}`,
+    (rule: {
+      categoryId: string;
+      serviceId: string | null;
+      city: string;
+    }) => {
+      const scope = rule.serviceId
+        ? serviceName(rule.serviceId)
+        : `${categoryName(rule.categoryId)} (all services)`;
+
+      return `${scope} · ${rule.city || "All cities"}`;
+    },
     [categoryName, serviceName],
   );
 
@@ -176,11 +228,11 @@ export const AdminPricingPage: React.FC = () => {
       if (!needle) return true;
 
       return [
-        serviceName(r.serviceId),
-        categoryName(r.categoryId),
-        r.city || "all cities",
-        r.mode,
-      ].some((v) => v.toLowerCase().includes(needle));
+        serviceName(rule.serviceId),
+        categoryName(rule.categoryId),
+        rule.city || "all cities",
+        rule.mode,
+      ].some((value) => value.toLowerCase().includes(needle));
     });
   }, [rules, search, serviceName, categoryName]);
 
@@ -189,29 +241,48 @@ export const AdminPricingPage: React.FC = () => {
   const stats = useMemo(
     () => ({
       total: rules.length,
-      active: rules.filter((r) => r.active).length,
-      inactive: rules.filter((r) => !r.active).length,
+      active: rules.filter((rule) => rule.active).length,
+      inactive: rules.filter((rule) => !rule.active).length,
     }),
     [rules],
   );
+
   const cities = useMemo(() => {
-    const byKey = new Map<string, string>();
-    rules.forEach((r) => {
-      if (r.city && !byKey.has(cityKey(r.city)))
-        byKey.set(cityKey(r.city), r.city);
+    const cityMap = new Map<string, string>();
+
+    rules.forEach((rule) => {
+      if (rule.city && !cityMap.has(cityKey(rule.city))) {
+        cityMap.set(cityKey(rule.city), rule.city);
+      }
     });
-    return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+
+    return Array.from(cityMap.values()).sort((a, b) =>
+      a.localeCompare(b),
+    );
   }, [rules]);
 
-  // ---- actions ----
+  const filtersActive =
+    statusFilter !== "all" ||
+    modeFilter !== null ||
+    cityFilter !== "" ||
+    search.trim() !== "";
+
+  const clearFilters = () => {
+    setPageSearch("");
+    setStatusFilter("all");
+    setModeFilter(null);
+    setCityFilter("");
+  };
+
   const openCreate = () => {
     setEditing(null);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
   };
-  const openEdit = (r: PricingRule) => {
-    setEditing(r);
+
+  const openEdit = (rule: PricingRule) => {
+    setEditing(rule);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
@@ -221,55 +292,95 @@ export const AdminPricingPage: React.FC = () => {
     setSaving(true);
     setFormError("");
     setFormFields(undefined);
+
     try {
       const saved = await adminPricingApi.save(input, labelFor(input));
+
       setFormOpen(false);
+      setEditing(null);
+
       await load();
+
       flash(
-        `Pricing rule for “${labelFor(saved)}” ${editing ? "updated" : "created"}`,
+        `Pricing rule for “${labelFor(saved)}” ${
+          editing ? "updated" : "created"
+        }`,
       );
-    } catch (e) {
-      const err = e as PricingApiError;
-      setFormError(err.message);
-      setFormFields(err.fields);
+    } catch (error) {
+      const apiError = error as PricingApiError;
+      setFormError(apiError.message || "Could not save pricing rule.");
+      setFormFields(apiError.fields);
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggle(r: PricingRule) {
-    const next = !r.active;
-    setRules((prev) =>
-      prev.map((x) => (x.id === r.id ? { ...x, active: next } : x)),
+  async function toggle(rule: PricingRule) {
+    const nextActive = !rule.active;
+
+    setRules((previous) =>
+      previous.map((item) =>
+        item.id === rule.id
+          ? { ...item, active: nextActive }
+          : item,
+      ),
     );
-    setBusyIds((b) => new Set(b).add(r.id));
+
+    setBusyIds((previous) => new Set(previous).add(rule.id));
+
     try {
-      await adminPricingApi.setActive(r, next, labelFor(r));
-      flash(`Rule for “${labelFor(r)}” ${next ? "activated" : "deactivated"}`);
-    } catch (e) {
-      setRules((prev) =>
-        prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)),
+      await adminPricingApi.setActive(
+        rule,
+        nextActive,
+        labelFor(rule),
       );
-      flash((e as PricingApiError).message, "error");
+
+      flash(
+        `Rule for “${labelFor(rule)}” ${
+          nextActive ? "activated" : "deactivated"
+        }`,
+      );
+    } catch (error) {
+      setRules((previous) =>
+        previous.map((item) =>
+          item.id === rule.id
+            ? { ...item, active: rule.active }
+            : item,
+        ),
+      );
+
+      flash(
+        (error as PricingApiError).message ||
+          "Could not update pricing rule.",
+        "error",
+      );
     } finally {
-      setBusyIds((b) => {
-        const n = new Set(b);
-        n.delete(r.id);
-        return n;
+      setBusyIds((previous) => {
+        const next = new Set(previous);
+        next.delete(rule.id);
+        return next;
       });
     }
   }
 
   async function confirmDelete() {
     if (!toDelete) return;
+
     setDeleting(true);
+
     try {
       await adminPricingApi.remove(toDelete, labelFor(toDelete));
+
       flash(`Rule for “${labelFor(toDelete)}” removed`);
       setToDelete(null);
+
       await load();
-    } catch (e) {
-      flash((e as PricingApiError).message, "error");
+    } catch (error) {
+      flash(
+        (error as PricingApiError).message ||
+          "Could not remove pricing rule.",
+        "error",
+      );
       setToDelete(null);
     } finally {
       setDeleting(false);
@@ -278,10 +389,12 @@ export const AdminPricingPage: React.FC = () => {
 
   async function openAudit() {
     setAuditOpen(true);
+
     try {
       setAudit(await adminPricingApi.auditLog());
     } catch {
       setAudit([]);
+      flash("Could not load the pricing audit log.", "error");
     }
   }
 
@@ -302,6 +415,7 @@ export const AdminPricingPage: React.FC = () => {
             >
               <History size={16} /> Audit log
             </button>
+
             <PermissionGate permission={PRICING_MANAGE}>
               <button
                 type="button"
@@ -318,40 +432,49 @@ export const AdminPricingPage: React.FC = () => {
 
       {!online && (
         <div className="cat-banner" role="status">
-          <WifiOff size={15} /> You are offline. You can browse what has loaded,
-          but changes are disabled until the connection returns.
+          <WifiOff size={15} /> You are offline. You can browse what has
+          loaded, but changes are disabled until the connection returns.
         </div>
       )}
+
       {mode === "demo" && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} /> Backend not reachable (
-          {getPricingApiModeReason()}): showing local demo data. Changes are
-          saved in this browser only.
+          {getPricingApiModeReason()}): showing local demo data. Changes
+          are saved in this browser only.
         </div>
       )}
+
       {!canManage && (
         <div className="cat-banner cat-banner--info" role="status">
-          You can view pricing but need the “{PRICING_MANAGE}” permission to
-          change it.
+          You can view pricing but need the “{PRICING_MANAGE}” permission
+          to change it.
         </div>
       )}
+
       {noCatalog && !loadError && (
         <div className="cat-banner cat-banner--info" role="status">
-          Create a category and a service first, then come back to set pricing.
+          Create a category and a service first, then come back to set
+          pricing.
         </div>
       )}
 
       {toast && (
         <div
           role="status"
-          className={clsx("cat-toast", toast.tone === "error" && "is-error")}
+          className={clsx(
+            "cat-toast",
+            toast.tone === "error" && "is-error",
+          )}
         >
           {toast.tone === "error" ? (
             <XCircle size={16} />
           ) : (
             <CheckCircle2 size={16} />
           )}
+
           <span>{toast.text}</span>
+
           <button
             type="button"
             aria-label="Dismiss"
@@ -372,6 +495,7 @@ export const AdminPricingPage: React.FC = () => {
             <small>Total rules</small>
           </div>
         </div>
+
         <div className="cat-stat">
           <span className="cat-stat__i is-ok">
             <Eye size={18} />
@@ -381,6 +505,7 @@ export const AdminPricingPage: React.FC = () => {
             <small>Active</small>
           </div>
         </div>
+
         <div className="cat-stat">
           <span className="cat-stat__i is-off">
             <EyeOff size={18} />
@@ -402,10 +527,7 @@ export const AdminPricingPage: React.FC = () => {
           <button
             type="button"
             className="hcx-btn"
-            onClick={() => {
-              setLoading(true);
-              void load();
-            }}
+            onClick={() => void load()}
           >
             Retry
           </button>
@@ -414,9 +536,9 @@ export const AdminPricingPage: React.FC = () => {
 
       {loading ? (
         <div className="cat-skel" aria-label="Loading pricing rules">
-          {[0, 1, 2, 3].map((n) => (
+          {[0, 1, 2, 3].map((number) => (
             <span
-              key={n}
+              key={number}
               className="hcx-skeleton hcx-skeleton--block"
               style={{ height: 56 }}
             />
@@ -424,17 +546,20 @@ export const AdminPricingPage: React.FC = () => {
         </div>
       ) : visible.length === 0 ? (
         <div className="cat-empty">
-          <Tag size={34} aria-hidden />
+          <Tag size={34} aria-hidden="true" />
+
           <h3>
             {rules.length === 0
               ? "No pricing rules yet"
               : "No rules match your filters"}
           </h3>
+
           <p>
             {rules.length === 0
               ? "Create a rule to set the price, add-ons and surge windows for a category or service."
               : "Try a different search or clear the filters."}
           </p>
+
           {rules.length === 0 ? (
             <PermissionGate permission={PRICING_MANAGE}>
               <button
@@ -447,7 +572,11 @@ export const AdminPricingPage: React.FC = () => {
               </button>
             </PermissionGate>
           ) : (
-            <button type="button" className="hcx-btn" onClick={clearFilters}>
+            <button
+              type="button"
+              className="hcx-btn"
+              onClick={clearFilters}
+            >
               Clear filters
             </button>
           )}
@@ -455,7 +584,10 @@ export const AdminPricingPage: React.FC = () => {
       ) : (
         <div className="hcx-table-card">
           <div className="hcx-table-scroll">
-            <table className="hcx-table prc-table" aria-label="Pricing rules">
+            <table
+              className="hcx-table prc-table"
+              aria-label="Pricing rules"
+            >
               <thead>
                 <tr>
                   <th scope="col">Service / category</th>
@@ -479,95 +611,117 @@ export const AdminPricingPage: React.FC = () => {
                   </th>
                 </tr>
               </thead>
+
               <tbody>
-                {visible.map((r) => {
-                  const busy = busyIds.has(r.id);
-                  const name = labelFor(r);
+                {visible.map((rule) => {
+                  const busy = busyIds.has(rule.id);
+                  const name = labelFor(rule);
+
                   return (
                     <tr
-                      key={r.id}
+                      key={rule.id}
                       className={clsx(
-                        !r.active && "is-inactive",
+                        !rule.active && "is-inactive",
                         busy && "is-busy",
                       )}
                     >
                       <td className="prc-td-scope">
                         <div className="prc-scope">
-                          <strong>{serviceName(r.serviceId)}</strong>
-                          <small>{categoryName(r.categoryId)}</small>
+                          <strong>{serviceName(rule.serviceId)}</strong>
+                          <small>{categoryName(rule.categoryId)}</small>
                         </div>
                       </td>
+
                       <td data-label="City">
-                        {r.city || (
+                        {rule.city || (
                           <span className="prc-muted">All cities</span>
                         )}
                       </td>
+
                       <td data-label="Price">
-                        <b className="prc-price">{rupees(r.basePrice)}</b>
+                        <b className="prc-price">
+                          {rupees(rule.basePrice)}
+                        </b>
                         <span
                           className={clsx(
                             "prc-mode",
-                            r.mode === "HOURLY" && "is-hourly",
+                            rule.mode === "HOURLY" && "is-hourly",
                           )}
                         >
-                          {r.mode === "HOURLY" ? "per hour" : "fixed"}
+                          {rule.mode === "HOURLY" ? "per hour" : "fixed"}
                         </span>
                       </td>
+
                       <td className="hcx-hide-sm" data-label="Duration">
                         <span className="prc-dur">
-                          <Clock size={12} aria-hidden />{" "}
-                          {duration(r.durationMinutes)}
+                          <Clock size={12} aria-hidden="true" />{" "}
+                          {duration(rule.durationMinutes)}
                         </span>
                       </td>
+
                       <td className="hcx-hide-sm" data-label="Add-ons">
-                        {r.addOns.length || (
+                        {rule.addOns.length || (
                           <span className="prc-muted">—</span>
                         )}
                       </td>
+
                       <td className="hcx-hide-sm" data-label="Surge windows">
-                        {r.surgeWindows.length || (
+                        {rule.surgeWindows.length || (
                           <span className="prc-muted">—</span>
                         )}
                       </td>
-                      <td className="hcx-hide-sm" data-label="Cancellation fee">
-                        {rupees(r.cancellationFee)}
+
+                      <td
+                        className="hcx-hide-sm"
+                        data-label="Cancellation fee"
+                      >
+                        {rupees(rule.cancellationFee)}
                       </td>
+
                       <td data-label="Status">
                         <div className="prc-status">
                           <button
                             type="button"
                             role="switch"
-                            aria-checked={r.active}
-                            aria-label={`Rule for ${name} is ${r.active ? "active" : "inactive"}`}
-                            className={clsx("cat-switch", r.active && "is-on")}
+                            aria-checked={rule.active}
+                            aria-label={`Rule for ${name} is ${
+                              rule.active ? "active" : "inactive"
+                            }`}
+                            className={clsx(
+                              "cat-switch",
+                              rule.active && "is-on",
+                            )}
                             disabled={!canManage || !online || busy}
-                            onClick={() => void toggle(r)}
+                            onClick={() => void toggle(rule)}
                           >
                             <span />
                           </button>
+
                           <StatusBadge
-                            status={r.active ? "Active" : "Inactive"}
-                            tone={r.active ? "success" : "neutral"}
+                            status={rule.active ? "Active" : "Inactive"}
+                            tone={rule.active ? "success" : "neutral"}
                           />
                         </div>
                       </td>
+
                       <td className="prc-td-actions">
                         <div className="prc-actions">
                           <PermissionGate permission={PRICING_MANAGE}>
                             <button
                               type="button"
                               className="cat-iconbtn"
-                              onClick={() => openEdit(r)}
+                              onClick={() => openEdit(rule)}
                               disabled={!online}
                               aria-label={`Edit rule for ${name}`}
                               title="Edit"
                             >
                               <Pencil size={16} />
                             </button>
+
                             <button
                               type="button"
                               className="cat-iconbtn cat-iconbtn--danger"
-                              onClick={() => setToDelete(r)}
+                              onClick={() => setToDelete(rule)}
                               disabled={!online}
                               aria-label={`Remove rule for ${name}`}
                               title="Remove"
@@ -596,8 +750,13 @@ export const AdminPricingPage: React.FC = () => {
         saving={saving}
         serverError={formError}
         serverFields={formFields}
-        onClose={() => setFormOpen(false)}
-        onSubmit={(i) => void save(i)}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+          setFormError("");
+          setFormFields(undefined);
+        }}
+        onSubmit={(input) => void save(input)}
       />
 
       <ConfirmDialog
@@ -608,9 +767,10 @@ export const AdminPricingPage: React.FC = () => {
         confirmLabel="Remove"
         message={
           <>
-            The rule for “{toDelete ? labelFor(toDelete) : ""}” will be removed
-            and recorded in the audit log. Customers will then be quoted by the
-            next most specific rule, or the service’s own price.
+            The rule for “{toDelete ? labelFor(toDelete) : ""}” will be
+            removed and recorded in the audit log. Customers will then be
+            quoted by the next most specific rule, or the service’s own
+            price.
           </>
         }
         onCancel={() => setToDelete(null)}
@@ -627,43 +787,53 @@ export const AdminPricingPage: React.FC = () => {
           <p className="cat-note">No activity yet.</p>
         ) : (
           <ul className="cat-audit">
-            {audit.map((a) => (
-              <li key={a.id}>
+            {audit.map((entry) => (
+              <li key={entry.id}>
                 <button
                   type="button"
                   onClick={() =>
                     setAuditEntry({
-                      id: a.id,
-                      actor: a.actor,
-                      action: a.action,
-                      entity: `Pricing rule · ${a.entityName}`,
-                      entityId: a.entityId,
-                      time: new Date(a.time).toLocaleString(),
-                      before: a.before,
-                      after: a.after,
+                      id: entry.id,
+                      actor: entry.actor,
+                      action: entry.action,
+                      entity: `Pricing rule · ${entry.entityName}`,
+                      entityId: entry.entityId,
+                      time: new Date(entry.time).toLocaleString(),
+                      before: entry.before,
+                      after: entry.after,
                     })
                   }
                 >
                   <StatusBadge
-                    status={a.action}
+                    status={entry.action}
                     tone={
-                      a.action === "delete"
+                      entry.action === "delete"
                         ? "danger"
-                        : a.action === "create"
+                        : entry.action === "create"
                           ? "success"
                           : "info"
                     }
                     dot={false}
                   />
-                  <span className="cat-audit__n">{a.entityName}</span>
-                  <small>{new Date(a.time).toLocaleString()}</small>
+
+                  <span className="cat-audit__n">
+                    {entry.entityName}
+                  </span>
+
+                  <small>
+                    {new Date(entry.time).toLocaleString()}
+                  </small>
                 </button>
               </li>
             ))}
           </ul>
         )}
       </FullScreenPanel>
-      <AuditDiffDrawer entry={auditEntry} onClose={() => setAuditEntry(null)} />
+
+      <AuditDiffDrawer
+        entry={auditEntry}
+        onClose={() => setAuditEntry(null)}
+      />
     </div>
   );
 };

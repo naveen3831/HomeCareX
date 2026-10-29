@@ -1,75 +1,165 @@
-
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { http } from "@/lib/http";
+import {
+  Search,
+  Clock3,
+  CheckCircle2,
+  XCircle,
+  ReceiptText,
+  Eye,
+  RefreshCw,
+  Wallet,
+  CreditCard,
+  ArrowUpRight,
+  ArrowLeft,
+  CalendarDays,
+  UserRound,
+  ClipboardList,
+  CircleDollarSign,
+  Check,
+  Ban,
+  Copy,
+} from "lucide-react";
+import clsx from "clsx";
+
+import { PageHeader } from "@/components/admin/PageHeader";
+import {
+  fetchAdminRefundList,
+  fetchAdminRefund,
+  approveAdminRefund,
+  rejectAdminRefund,
+  type AdminRefundItem,
+  type AdminRefundSummaryCounts,
+} from "@/services/adminRefundApi";
+
 import "./index.css";
 
-type RefundStatus =
-  | "Pending"
-  | "Approved"
-  | "Rejected"
-  | "Processing"
-  | "Completed"
-  | "Failed";
+type FilterStatus =
+  | "all"
+  | "PENDING_APPROVAL"
+  | "CREDITED"
+  | "REJECTED";
 
-interface Refund {
-  id: string;
-  refundId: string;
-  paymentId: string;
-  bookingId: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  amount: number;
-  status: RefundStatus;
-  method: string;
-  reason: string;
-  rejectionReason: string;
-  failureMessage: string;
-  razorpayRefundId: string;
-  createdAt: string;
-  updatedAt: string;
-  raw: Record<string, unknown>;
+const EMPTY_COUNTS: AdminRefundSummaryCounts = {
+  pendingApproval: 0,
+  credited: 0,
+  rejected: 0,
+  total: 0,
+};
+
+function getCustomer(refund: AdminRefundItem) {
+  const customer = refund.customerId;
+
+  if (typeof customer === "object" && customer !== null) {
+    return {
+      id: customer._id || "",
+      name: customer.name || "Unknown customer",
+      email: customer.email || "",
+      phone: customer.phone || "",
+    };
+  }
+
+  return {
+    id: "",
+    name: "Unknown customer",
+    email: "",
+    phone: "",
+  };
 }
 
-const PAGE_SIZE = 10;
+function getBooking(refund: AdminRefundItem) {
+  const booking = refund.bookingId;
 
 const asObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
 
-const firstValue = (...values: unknown[]): string => {
-  for (const value of values) {
-    if (value !== undefined && value !== null && String(value).trim()) {
-      return String(value);
-    }
-  }
-  return "";
-};
+  return {
+    id: typeof booking === "string" ? booking : "",
+    number: typeof booking === "string" ? booking : "—",
+    service: "Home service",
+    status: "—",
+    paymentStatus: "—",
+    cancellationReason: "",
+    scheduledAt: undefined,
+  };
+}
 
-const normalizeStatus = (value: unknown): RefundStatus => {
-  const status = String(value ?? "").toLowerCase();
+function getPayment(refund: AdminRefundItem) {
+  const payment = refund.paymentId;
 
-  if (["requested", "pending", "initiated"].includes(status)) {
-    return "Pending";
+  if (typeof payment === "object" && payment !== null) {
+    return {
+      id: payment._id || "",
+      reference: payment.razorpayPaymentId || payment._id || "—",
+      orderId: payment.razorpayOrderId || "",
+      amount: payment.amount,
+      currency: payment.currency || refund.currency || "INR",
+      status: payment.status || "—",
+      method: payment.method || refund.method || "",
+      paidAt: payment.paidAt,
+    };
   }
-  if (["approved", "accepted"].includes(status)) return "Approved";
-  if (["rejected", "declined", "cancelled", "canceled"].includes(status)) {
-    return "Rejected";
-  }
-  if (["processing", "in_progress", "created"].includes(status)) {
-    return "Processing";
-  }
-  if (
-    ["processed", "completed", "success", "successful"].includes(status)
-  ) {
-    return "Completed";
-  }
-  if (["failed", "failure", "error"].includes(status)) return "Failed";
 
-  return "Pending";
-};
+  return {
+    id: typeof payment === "string" ? payment : "",
+    reference: typeof payment === "string" ? payment : "—",
+    orderId: "",
+    amount: undefined,
+    currency: refund.currency || "INR",
+    status: "—",
+    method: refund.method || "",
+    paidAt: undefined,
+  };
+}
+
+function getPersonName(
+  person:
+    | AdminRefundItem["requestedBy"]
+    | AdminRefundItem["approvedBy"]
+    | AdminRefundItem["rejectedBy"],
+) {
+  if (typeof person === "object" && person !== null) {
+    return person.name || person.email || "—";
+  }
+
+  return "—";
+}
+
+function getStatus(refund: AdminRefundItem): {
+  label: string;
+  className: string;
+} {
+  const status = String(refund.status).toUpperCase();
+
+  if (["CREDITED", "PROCESSED"].includes(status)) {
+    return {
+      label: "Credited",
+      className: "refund-status--credited",
+    };
+  }
+
+  if (status === "REJECTED") {
+    return {
+      label: "Rejected",
+      className: "refund-status--rejected",
+    };
+  }
+
+  if (status === "PROCESSING") {
+    return {
+      label: "Processing",
+      className: "refund-status--processing",
+    };
+  }
+
+  if (status === "CREDIT_FAILED") {
+    return {
+      label: "Credit failed",
+      className: "refund-status--failed",
+    };
+  }
 
 const normalizeRefund = (item: unknown): Refund => {
   const raw = asObject(item);
@@ -79,26 +169,26 @@ const normalizeRefund = (item: unknown): Refund => {
     raw.customer ?? raw.user ?? booking.customer ?? booking.user,
   );
 
-  const id = firstValue(
-    raw._id,
-    raw.id,
-    raw.refundRequestId,
-    raw.refund_id,
+function canReviewRefund(refund: AdminRefundItem) {
+  return ["PENDING_APPROVAL", "REQUESTED"].includes(
+    String(refund.status).toUpperCase(),
   );
+}
 
-  const amountValue =
-    raw.refundAmount ??
-    raw.amount ??
-    raw.amountInPaise ??
-    payment.refundAmount ??
-    payment.amount ??
-    0;
+function formatAmount(amount: number, currency = "INR") {
+  try {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: currency || "INR",
+      maximumFractionDigits: 2,
+    }).format(Number(amount) || 0);
+  } catch {
+    return `₹${(Number(amount) || 0).toLocaleString("en-IN")}`;
+  }
+}
 
-  const numericAmount = Number(amountValue);
-  const amount =
-    Number.isFinite(numericAmount) && numericAmount >= 0
-      ? numericAmount
-      : 0;
+function formatDate(value?: string) {
+  if (!value) return "—";
 
   return {
     id,
@@ -178,31 +268,31 @@ const getErrorMessage = (error: unknown): string => {
   );
 };
 
-const formatCurrency = (amount: number): string =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
 
-const formatDate = (value: string): string => {
+function formatDateTime(value?: string) {
   if (!value) return "—";
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "—";
 
-  return date.toLocaleString("en-IN", {
+  return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
-};
+  }).format(date);
+}
 
-const shortId = (value: string, length = 15): string => {
-  if (!value || value.length <= length) return value || "—";
-  return `${value.slice(0, 7)}…${value.slice(-5)}`;
-};
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
 
 const getInitials = (name: string): string =>
   name
@@ -244,8 +334,9 @@ const extractTotal = (response: unknown, fallback: number): number => {
       meta.total,
   );
 
-  return Number.isFinite(total) && total >= 0 ? total : fallback;
-};
+  return (
+    <div className="refunds-detail-field">
+      <span className="refunds-detail-field__label">{label}</span>
 
 export const AdminRefundsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -728,6 +819,322 @@ export const AdminRefundsPage: React.FC = () => {
     );
   }
 
+                  <div>
+                    <h2>Booking details</h2>
+                    <p>Original booking and cancellation information</p>
+                  </div>
+                </div>
+
+                <div className="refunds-detail-fields">
+                  <DetailField
+                    label="Booking reference"
+                    value={booking.number}
+                    copyable
+                  />
+                  <DetailField
+                    label="Service"
+                    value={booking.service}
+                  />
+                  <DetailField
+                    label="Booking status"
+                    value={booking.status}
+                  />
+                  <DetailField
+                    label="Payment status"
+                    value={booking.paymentStatus}
+                  />
+                  <DetailField
+                    label="Scheduled date"
+                    value={formatDateTime(booking.scheduledAt)}
+                  />
+                  <DetailField
+                    label="Cancellation reason"
+                    value={booking.cancellationReason || "Not provided"}
+                  />
+                </div>
+              </section>
+
+              <section className="refunds-detail-card">
+                <div className="refunds-detail-card__heading">
+                  <span className="refunds-detail-card__heading-icon">
+                    <CreditCard size={18} />
+                  </span>
+
+                  <div>
+                    <h2>Payment details</h2>
+                    <p>Payment transaction associated with the refund</p>
+                  </div>
+                </div>
+
+                <div className="refunds-detail-fields">
+                  <DetailField
+                    label="Payment reference"
+                    value={payment.reference}
+                    copyable
+                  />
+                  <DetailField
+                    label="Payment order ID"
+                    value={payment.orderId}
+                    copyable
+                  />
+                  <DetailField
+                    label="Original payment amount"
+                    value={
+                      payment.amount !== undefined
+                        ? formatAmount(
+                            payment.amount,
+                            payment.currency,
+                          )
+                        : undefined
+                    }
+                  />
+                  <DetailField
+                    label="Payment method"
+                    value={payment.method}
+                  />
+                  <DetailField
+                    label="Payment status"
+                    value={payment.status}
+                  />
+                  <DetailField
+                    label="Payment date"
+                    value={formatDateTime(payment.paidAt)}
+                  />
+                </div>
+              </section>
+
+              <section className="refunds-detail-card">
+                <div className="refunds-detail-card__heading">
+                  <span className="refunds-detail-card__heading-icon">
+                    <CalendarDays size={18} />
+                  </span>
+
+                  <div>
+                    <h2>Refund timeline</h2>
+                    <p>Request and processing activity</p>
+                  </div>
+                </div>
+
+                <div className="refunds-timeline">
+                  <div className="refunds-timeline__item">
+                    <span className="refunds-timeline__marker refunds-timeline__marker--blue" />
+
+                    <div>
+                      <strong>Refund requested</strong>
+                      <p>
+                        {formatDateTime(
+                          refund.requestedAt || refund.createdAt,
+                        )}
+                      </p>
+                      <span>
+                        Requested by{" "}
+                        {getPersonName(refund.requestedBy)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {refund.approvedAt && (
+                    <div className="refunds-timeline__item">
+                      <span className="refunds-timeline__marker refunds-timeline__marker--green" />
+
+                      <div>
+                        <strong>Refund approved</strong>
+                        <p>{formatDateTime(refund.approvedAt)}</p>
+                        <span>
+                          Approved by{" "}
+                          {getPersonName(refund.approvedBy)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {refund.processedAt && (
+                    <div className="refunds-timeline__item">
+                      <span className="refunds-timeline__marker refunds-timeline__marker--green" />
+
+                      <div>
+                        <strong>Refund processed</strong>
+                        <p>{formatDateTime(refund.processedAt)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {refund.rejectedAt && (
+                    <div className="refunds-timeline__item">
+                      <span className="refunds-timeline__marker refunds-timeline__marker--red" />
+
+                      <div>
+                        <strong>Refund rejected</strong>
+                        <p>{formatDateTime(refund.rejectedAt)}</p>
+                        <span>
+                          Rejected by{" "}
+                          {getPersonName(refund.rejectedBy)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="refunds-detail-card refunds-detail-card--full">
+                <div className="refunds-detail-card__heading">
+                  <span className="refunds-detail-card__heading-icon">
+                    <ReceiptText size={18} />
+                  </span>
+
+                  <div>
+                    <h2>Refund information</h2>
+                    <p>
+                      Request reason and refund transaction identifiers
+                    </p>
+                  </div>
+                </div>
+
+                <div className="refunds-detail-fields refunds-detail-fields--two">
+                  <DetailField
+                    label="Refund ID"
+                    value={refund._id}
+                    copyable
+                  />
+                  <DetailField
+                    label="Refund status"
+                    value={refundStatus.label}
+                  />
+                  <DetailField
+                    label="Refund method"
+                    value={refund.method}
+                  />
+                  <DetailField
+                    label="Razorpay refund ID"
+                    value={refund.id || undefined}
+                    copyable
+                  />
+                  <DetailField
+                    label="Wallet transaction ID"
+                    value={refund.walletTransactionId}
+                    copyable
+                  />
+                  <DetailField
+                    label="Created date"
+                    value={formatDateTime(refund.createdAt)}
+                  />
+                  <DetailField
+                    label="Last updated"
+                    value={formatDateTime(refund.updatedAt)}
+                  />
+                </div>
+
+                <div className="refunds-detail-reason">
+                  <span className="refunds-detail-field__label">
+                    Customer refund reason
+                  </span>
+                  <p>{refund.reason || "No reason was provided."}</p>
+                </div>
+
+                {refund.rejectionReason && (
+                  <div className="refunds-detail-reason refunds-detail-reason--rejected">
+                    <span className="refunds-detail-field__label">
+                      Rejection reason
+                    </span>
+                    <p>{refund.rejectionReason}</p>
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {canReviewRefund(refund) && (
+              <section className="refunds-detail-actions">
+                <div>
+                  <h2>Review refund request</h2>
+                  <p>
+                    Approving initiates the refund workflow. Rejection
+                    requires a reason.
+                  </p>
+                </div>
+
+                {!showRejectForm ? (
+                  <div className="refunds-detail-actions__buttons">
+                    <button
+                      type="button"
+                      className="refunds-button refunds-button--danger"
+                      onClick={() => {
+                        setShowRejectForm(true);
+                        setActionError("");
+                      }}
+                      disabled={actionLoading}
+                    >
+                      <Ban size={16} />
+                      Reject refund
+                    </button>
+
+                    <button
+                      type="button"
+                      className="refunds-button refunds-button--primary"
+                      onClick={() => void handleApprove()}
+                      disabled={actionLoading}
+                    >
+                      <Check size={16} />
+                      {actionLoading
+                        ? "Processing..."
+                        : "Approve refund"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="refunds-reject-form">
+                    <label htmlFor="refund-rejection-reason">
+                      Reason for rejection
+                    </label>
+
+                    <textarea
+                      id="refund-rejection-reason"
+                      value={rejectionReason}
+                      onChange={(event) =>
+                        setRejectionReason(event.target.value)
+                      }
+                      placeholder="Enter the reason visible to the customer..."
+                      rows={3}
+                      maxLength={1000}
+                    />
+
+                    <div className="refunds-reject-form__actions">
+                      <button
+                        type="button"
+                        className="refunds-button refunds-button--secondary"
+                        onClick={() => {
+                          setShowRejectForm(false);
+                          setRejectionReason("");
+                          setActionError("");
+                        }}
+                        disabled={actionLoading}
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        className="refunds-button refunds-button--danger"
+                        onClick={() => void handleReject()}
+                        disabled={
+                          actionLoading || !rejectionReason.trim()
+                        }
+                      >
+                        <XCircle size={16} />
+                        {actionLoading
+                          ? "Rejecting..."
+                          : "Confirm rejection"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
+          </>
+        )}
+      </main>
+    );
+  }
+
+  // -------------------------- REFUND LIST --------------------------
   return (
     <main className="refunds-page">
       {renderHeader()}
@@ -1014,4 +1421,16 @@ export const AdminRefundsPage: React.FC = () => {
   );
 };
 
+function paymentReference(refund: AdminRefundItem) {
+  const payment = refund.paymentId;
+
+  if (typeof payment === "object" && payment !== null) {
+    return payment.razorpayPaymentId || payment._id || "—";
+  }
+
+  return payment || "—";
+}
+
 export default AdminRefundsPage;
+
+

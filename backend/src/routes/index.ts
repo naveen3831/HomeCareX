@@ -1,4 +1,6 @@
+
 import { Router } from "express";
+
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
 import { requirePermission, requireResourceAccess } from "../middleware/permission.middleware";
@@ -91,13 +93,43 @@ rootRouter.use("/auth", authRoutes);
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
-rootRouter.use("/admin/categories", authMiddleware, requireAdmin, requireResourceAccess("catalog"), categoriesRoutes);
-rootRouter.use("/admin/services", authMiddleware, requireAdmin, requireResourceAccess("catalog"), servicesRoutes);
-rootRouter.use("/admin/leads", authMiddleware, requireAdmin, requireResourceAccess("leads"), adminLeadsRoutes);
-rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResourceAccess("customers"), adminCustomersRoutes);
+
+rootRouter.use(
+  "/admin/categories",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("catalog"),
+  categoriesRoutes,
+);
+
+rootRouter.use(
+  "/admin/services",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("catalog"),
+  servicesRoutes,
+);
+
+rootRouter.use(
+  "/admin/leads",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("leads"),
+  adminLeadsRoutes,
+);
+
+rootRouter.use(
+  "/admin/customers",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("customers"),
+  adminCustomersRoutes,
+);
+
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
+
 rootRouter.use(
   "/admin/partners",
   authMiddleware,
@@ -105,6 +137,7 @@ rootRouter.use(
   requirePermission("partners"),
   partnersRoutes,
 );
+
 rootRouter.use(
   "/admin/coupons",
   authMiddleware,
@@ -112,6 +145,7 @@ rootRouter.use(
   requirePermission("coupons"),
   couponsRoutes,
 );
+
 rootRouter.use(
   "/admin/banners",
   authMiddleware,
@@ -119,6 +153,7 @@ rootRouter.use(
   requirePermission("marketing"),
   marketingRoutes,
 );
+
 rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/incentives", incentivesRoutes);
 
@@ -131,7 +166,7 @@ rootRouter.use(
   reportsRoutes,
 );
 
-// B05: Refunds; B09: read-only audit logs.
+// B05: Refunds and payouts; B09: read-only audit logs.
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);

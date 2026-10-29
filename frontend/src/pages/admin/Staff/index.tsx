@@ -10,7 +10,6 @@ import '../Roles/index.css';
 export const AdminStaffPage: React.FC = () => {
   const { can } = usePermissions();
   const toast = useToast();
-  useFlashToast(toast.show);
 
   return (
     <div className="admin-page-container rbac-page">
@@ -18,11 +17,15 @@ export const AdminStaffPage: React.FC = () => {
         title="Staff"
         description="Invite teammates, change their role, deactivate them or sign them out."
       />
+
       {can(RBAC_PERMISSIONS.staffView) ? (
         <StaffTab notify={toast.show} />
       ) : (
-        <p className="rbac-muted">You don’t have access to staff.</p>
+        <p className="rbac-muted">
+          You don’t have access to staff.
+        </p>
       )}
+
       {toast.node}
     </div>
   );

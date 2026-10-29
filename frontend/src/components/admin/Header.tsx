@@ -46,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
           aria-label="Help and support"
           title="Help and support"
         >
-          <HelpCircle size={20} />
+          <HelpCircle size={20} aria-hidden="true" />
         </Link>
 
         <NotificationBell />
