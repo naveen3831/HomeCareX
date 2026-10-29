@@ -1,4 +1,3 @@
-
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
 import PayoutModel from '../../models/Payout';
@@ -141,18 +140,37 @@ function buildCsv(rows: unknown[][]): string {
     .join('\r\n');
 }
 
-function payoutToCsvRow(payout: PayoutDocument): unknown[] {
+/**
+ * Converts a payout into a CSV row.
+ *
+ * Batch dates are taken from the populated batch reference first,
+ * then from the separately loaded batch-date map.
+ */
+function payoutToCsvRow(
+  payout: PayoutDocument,
+  batchDates: Map<string, BatchInfo> = new Map(),
+): unknown[] {
   const partner = getPartner(payout.partnerId);
-  const batch = getBatchInfo(payout.batchId);
+  const populatedBatch = getBatchInfo(payout.batchId);
+  const batchId = idToString(payout.batchId);
+  const fallbackBatch = batchDates.get(batchId);
+
+  // Fall back per field in case only one date is populated.
+  const batch: BatchInfo = {
+    periodStart:
+      populatedBatch?.periodStart ?? fallbackBatch?.periodStart,
+    periodEnd:
+      populatedBatch?.periodEnd ?? fallbackBatch?.periodEnd,
+  };
 
   return [
     idToString(payout._id),
     idToString(payout.partnerId),
     partner?.name ?? '',
     partner?.email ?? '',
-    idToString(payout.batchId),
-    toIsoString(batch?.periodStart),
-    toIsoString(batch?.periodEnd),
+    batchId,
+    toIsoString(batch.periodStart),
+    toIsoString(batch.periodEnd),
     Number(payout.amount).toFixed(2),
     payout.status,
     toIsoString(payout.paidAt),
@@ -306,6 +324,52 @@ export class PayoutsService {
       // Audit failure should not mask a completed payout operation.
       console.error('[payouts] Audit log failed', error);
     }
+  }
+
+  /**
+   * Loads batch period dates from MongoDB for payout references
+   * that are not populated or do not contain period dates.
+   */
+  private async loadBatchDates(
+    payouts: PayoutDocument[],
+  ): Promise<Map<string, BatchInfo>> {
+    const batchIds = [
+      ...new Set(
+        payouts
+          .map((payout) => idToString(payout.batchId))
+          .filter(
+            (id) =>
+              id.length > 0 &&
+              Types.ObjectId.isValid(id),
+          ),
+      ),
+    ];
+
+    const batchDates = new Map<string, BatchInfo>();
+
+    if (batchIds.length === 0) {
+      return batchDates;
+    }
+
+    const objectIds = batchIds.map(
+      (id) => new Types.ObjectId(id),
+    );
+
+    const batches = await PayoutBatchModel.find({
+      _id: { $in: objectIds },
+    })
+      .select('_id periodStart periodEnd')
+      .lean()
+      .exec();
+
+    for (const batch of batches) {
+      batchDates.set(String(batch._id), {
+        periodStart: batch.periodStart,
+        periodEnd: batch.periodEnd,
+      });
+    }
+
+    return batchDates;
   }
 
   async generateBatch(input: GenerateBatchInput) {
@@ -722,10 +786,36 @@ export class PayoutsService {
         payouts.push(...(result as unknown as PayoutDocument[]));
       }
 
+      /*
+       * Demo batches may be stored by the demo repository rather than
+       * PayoutBatchModel. Load their dates from the repository results.
+       */
+      const batchDates = new Map<string, BatchInfo>();
+
+      if (batchId) {
+        const batch = await this.repository.findBatchById(batchId);
+
+        if (batch) {
+          batchDates.set(String(batch._id), {
+            periodStart: batch.periodStart,
+            periodEnd: batch.periodEnd,
+          });
+        }
+      } else {
+        for (const batch of batchesResult?.items ?? []) {
+          batchDates.set(String(batch._id), {
+            periodStart: batch.periodStart,
+            periodEnd: batch.periodEnd,
+          });
+        }
+      }
+
       return {
         csv: buildCsv([
           CSV_HEADERS,
-          ...payouts.map(payoutToCsvRow),
+          ...payouts.map((payout) =>
+            payoutToCsvRow(payout, batchDates),
+          ),
         ]),
         filename: batchId
           ? `payouts-${batchId}.csv`
@@ -748,10 +838,15 @@ export class PayoutsService {
 
     const payouts = results as unknown as PayoutDocument[];
 
+    // Load batch dates as a fallback if population is incomplete.
+    const batchDates = await this.loadBatchDates(payouts);
+
     return {
       csv: buildCsv([
         CSV_HEADERS,
-        ...payouts.map(payoutToCsvRow),
+        ...payouts.map((payout) =>
+          payoutToCsvRow(payout, batchDates),
+        ),
       ]),
       filename: batchId ? `payouts-${batchId}.csv` : 'payouts.csv',
     };

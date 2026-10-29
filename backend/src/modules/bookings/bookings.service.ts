@@ -1,18 +1,31 @@
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
+import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
+import { PaymentModel } from '../../models/Payment';
+import { RefundModel } from '../../models/Refund';
+import { ServiceModel } from '../../models/Service';
 import { notifyAdmins } from '../notifications';
+import {
+  alertCustomerBookingCancelled,
+  alertCustomerBookingConfirmed,
+  alertCustomerBookingCreated,
+  alertCustomerBookingRescheduled,
+} from '../notifications/customer-alerts';
 import { alertRefundRequested } from '../notifications/admin-alerts';
-import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
+import {
+  addressesService,
+  type ResolvedAddress,
+} from '../addresses/addresses.service';
+import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
+import { couponsService } from '../coupons/coupons.service';
+import { HttpError } from '../auth/auth.types';
 import { bookingsRepository } from './bookings.repository';
 import type { ListBookingsQuery } from './bookings.query';
 import { bookingSettings } from './bookings.settings';
 import { withSlotLock } from './bookings.lock';
 import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
 import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
-import { PaymentModel } from '../../models/Payment';
-import { RefundModel } from '../../models/Refund';
-
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
@@ -23,16 +36,13 @@ import {
   START_OTP_STATUS,
   type BookingStatus,
 } from './bookings.constants';
-import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine';
-
-import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
+import {
+  canTransition,
+  type StatusHistoryEntry,
+} from './bookings.stateMachine';
+import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
-import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
-import { ServiceModel } from '../../models/Service';
-import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
-import { couponsService } from '../coupons/coupons.service';
-import { HttpError } from '../auth/auth.types';
 
 export interface SlotAvailability {
   slot: string;
@@ -188,7 +198,7 @@ export const BookingService = {
         const taken = await bookingsRepository.countActiveForSlot(serviceId, date, slot);
         const remaining = Math.max(capacity - taken, 0);
         return { slot, available: remaining > 0, remaining };
-      }),
+      })
     );
 
     return { serviceId, date, slots };
@@ -231,16 +241,13 @@ export const BookingService = {
     const replayed = await replay();
     if (replayed) return replayed;
 
-    // categoryId is selected too: it is stored on the booking below.
     const row = await ServiceModel.findOne(
       { _id: input.serviceId, active: { $ne: false } },
       'name basePrice addOns categoryId',
     ).lean();
     if (!row) throw new AppError(404, 'SERVICE_NOT_FOUND', 'That service was not found');
     const service = {
-      id: String(row._id),
-      name: row.name,
-      basePrice: row.basePrice,
+      id: String(row._id), name: row.name, basePrice: row.basePrice,
       categoryId: (row as { categoryId?: Types.ObjectId }).categoryId,
       addOns: (row.addOns ?? []).map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
     };
@@ -340,7 +347,7 @@ export const BookingService = {
     try {
       const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
         await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
-        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
+        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity, now);
         if (seat === null) {
           throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
         }
@@ -397,18 +404,33 @@ export const BookingService = {
         } as never);
 
         if (coupon) {
-          await couponsService.recordUsage(coupon.code, customerId, (createdBooking as { _id?: unknown })._id?.toString());
+          await couponsService.recordUsage(
+            coupon.code,
+            customerId,
+            String((createdBooking as { _id?: unknown })._id ?? ''),
+          );
         }
         return createdBooking;
       });
 
-      // Tell the admins (bell, live). Fire-and-forget: a failed alert must never fail the booking.
-      void Promise.resolve(
-        notifyAdmins('booking.created', {
+      // Alerts are best effort and must not change the outcome of a successful booking.
+      void notifyAdmins('booking.created', {
+        bookingId: String((created as { _id?: unknown })._id ?? ''),
+        serviceId: input.serviceId,
+      }).catch(() => undefined);
+      alertCustomerBookingCreated({
+        customerId,
+        bookingId: String((created as { _id?: unknown })._id ?? ''),
+      });
+      // Pay later (cash on service): the booking is confirmed at once, so tell the customer what is due.
+      // With upfront payment the customer instead gets 'payment.succeeded' when the money arrives.
+      if (!requirePayment) {
+        alertCustomerBookingConfirmed({
+          customerId,
           bookingId: String((created as { _id?: unknown })._id ?? ''),
-          serviceId: input.serviceId,
-        }),
-      ).catch(() => undefined);
+          amountDue: priceSnapshot.total,
+        });
+      }
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
@@ -499,16 +521,29 @@ export const BookingService = {
    * 404 for someone else's booking (same answer as GET /bookings/:id, so ids can't be probed);
    * 409 until the booking is paid or settled, because there is nothing to invoice before that.
    */
-  async getInvoice(customerId: string, bookingId: string): Promise<{ html: string; invoiceNo: string }> {
+  async getInvoice(
+    customerId: string,
+    bookingId: string,
+  ): Promise<{ html: string; invoiceNo: string }> {
     const view = await BookingService.getBooking(customerId, bookingId);
     if (view.paymentStatus !== 'PAID') {
-      throw new AppError(409, 'INVOICE_NOT_AVAILABLE', 'The invoice is available once the booking is paid');
+      throw new AppError(
+        409,
+        'INVOICE_NOT_AVAILABLE',
+        'The invoice is available once the booking is paid',
+      );
     }
-    const customer = (await bookingsRepository.findCustomerContact(customerId)) ?? {};
+    const customer =
+      (await bookingsRepository.findCustomerContact(customerId)) ?? {};
     // The booking view's payment lookup is best-effort; read the paid Payment record directly so the
     // method, transaction ID and payment date on the receipt are always filled when they exist.
-    const paidRecord = await bookingsRepository.findPaidPayment(bookingId).catch(() => null);
-    const data = buildInvoiceData(withPaymentRecord(view, paidRecord as never), customer);
+    const paidRecord = await bookingsRepository
+      .findPaidPayment(bookingId)
+      .catch(() => null);
+    const data = buildInvoiceData(
+      withPaymentRecord(view, paidRecord as never),
+      customer,
+    );
     return { html: renderInvoiceHtml(data), invoiceNo: data.invoiceNo };
   },
 
@@ -592,17 +627,23 @@ export const BookingService = {
 
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && isPaid) {
-      let refund: { _id?: unknown } | null = null;
       try {
-        refund = (await bookingsRepository.createRefundRequest({
+        const refund = await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
           customerId,
           amount: quote.refundAmount,
           reason,
           now,
-        })) as { _id?: unknown } | null;
+        });
         refundStatus = 'requested';
+        if (refund && refund._id) {
+          alertRefundRequested({
+            refundId: String(refund._id),
+            bookingId,
+            amount: quote.refundAmount,
+          });
+        }
       } catch {
         throw new AppError(
           500,
@@ -610,16 +651,13 @@ export const BookingService = {
           'Your booking is cancelled, but we could not file the refund request. Please contact support.',
         );
       }
-
-      // Admin alert is fire-and-forget (alertRefundRequested never throws): it must never fail the cancellation.
-      if (refund?._id) {
-        alertRefundRequested({
-          refundId: String(refund._id),
-          bookingId,
-          amount: quote.refundAmount,
-        });
-      }
     }
+
+    alertCustomerBookingCancelled({
+      customerId,
+      bookingId,
+      refundAmount: isPaid ? quote.refundAmount : 0,
+    });
 
     const updatedBooking = await BookingService.getBooking(customerId, bookingId);
     const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
@@ -641,7 +679,11 @@ export const BookingService = {
    * and a history entry is written. 404 for someone else's booking, 409 when the status doesn't allow it
    * or the slot is gone.
    */
-  async rescheduleBooking(customerId: string, bookingId: string, input: { date: string; slot: string }) {
+  async rescheduleBooking(
+    customerId: string,
+    bookingId: string,
+    input: { date: string; slot: string },
+  ) {
     const booking = await bookingsRepository.findByIdForCustomer(bookingId, customerId);
     if (!booking) {
       throw new AppError(404, 'BOOKING_NOT_FOUND', 'Booking not found');
@@ -711,6 +753,8 @@ export const BookingService = {
         if (!updated) {
           throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
         }
+
+        alertCustomerBookingRescheduled({ customerId, bookingId, date: input.date, slot: input.slot });
 
         return BookingService.getBooking(customerId, bookingId);
       });

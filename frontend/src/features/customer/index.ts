@@ -31,3 +31,5 @@ export type {
   PreferencesPatch,
   ChangePasswordInput,
 } from "./profile";
+
+export type { NormalizedApiError } from "@/services/bookingApi";

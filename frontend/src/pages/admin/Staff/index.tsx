@@ -1,9 +1,9 @@
 import React from 'react';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { usePermissions } from '@/hooks/usePermissions';
-import { StaffTab } from '../Roles/StaffTab';
-import { RBAC_PERMISSIONS } from '../Roles/rbacPermissions';
-import { useFlashToast, useToast } from '../Roles/useToast';
+import { StaffTab } from '@/pages/admin/Roles/StaffTab';
+import { RBAC_PERMISSIONS } from '@/pages/admin/Roles/rbacPermissions';
+import { useFlashToast, useToast } from '@/pages/admin/Roles/useToast';
 import '../Roles/index.css';
 
 /** /admin/staff: staff list, role changes, deactivation and invites. Lives on its own page (no tabs). */

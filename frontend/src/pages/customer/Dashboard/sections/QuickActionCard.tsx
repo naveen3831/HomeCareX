@@ -19,10 +19,11 @@ interface QuickActionCardProps {
   icon: LucideIcon;
   tone: QuickActionTone;
   disabled?: boolean;
+  state?: unknown;
 }
 
 /** One round glossy icon with its label underneath (a cell of the QuickActions row). */
-export default function QuickActionCard({ label, to, icon: Icon, tone, disabled = false }: QuickActionCardProps) {
+export default function QuickActionCard({ label, to, icon: Icon, tone, disabled = false, state }: QuickActionCardProps) {
   const disc = (
     <span
       aria-hidden="true"
@@ -46,7 +47,7 @@ export default function QuickActionCard({ label, to, icon: Icon, tone, disabled 
     );
   }
   return (
-    <Link to={to} className={clsx("group flex flex-col items-center gap-2 rounded-2xl px-1 py-1", FOCUS_RING)}>
+    <Link to={to} state={state} className={clsx("group flex flex-col items-center gap-2 rounded-2xl px-1 py-1", FOCUS_RING)}>
       {disc}
       <span className={clsx(text, "text-ink")}>{label}</span>
     </Link>

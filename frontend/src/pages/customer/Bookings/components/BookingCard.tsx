@@ -1,6 +1,15 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, CheckCircle2, Clock, User, Wallet } from "lucide-react";
+import {
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  CreditCard,
+  Eye,
+  MapPin,
+  User,
+  Wallet,
+} from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import BookingThumb from "@/pages/customer/Dashboard/sections/BookingThumb";
@@ -96,22 +105,30 @@ export function BookingCard({
               <BookingThumb
                 serviceName={name}
                 index={index}
-                className="h-11 w-11 shrink-0 rounded-xl border border-slate-100 object-cover shadow-sm"
+                className="h-14 w-14 shrink-0 rounded-xl border border-slate-100 object-cover shadow-sm md:h-11 md:w-11"
               />
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-start justify-between gap-1.5 md:items-center">
                   <BookingStatusBadge booking={booking} now={now} />
-                  <span className="text-[11px] font-semibold tracking-wide text-slate-400 uppercase">
-                    {getBookingCode(booking)}
-                  </span>
+                  <div className="text-right">
+                    <span className="block text-[10px] font-medium leading-none text-slate-400 md:hidden">
+                      Booking ID
+                    </span>
+                    <span className="mt-0.5 block text-xs font-bold leading-tight text-slate-700 md:mt-0 md:inline md:text-[11px] md:font-semibold md:tracking-wide md:text-slate-400 md:uppercase">
+                      {getBookingCode(booking)}
+                    </span>
+                  </div>
                 </div>
                 <h3
                   id={headingId}
-                  className="mt-1 break-words text-sm sm:text-base font-bold leading-snug text-slate-900"
+                  className="mt-1.5 break-words text-base font-bold leading-snug text-slate-900 md:mt-1 md:text-sm md:font-bold"
                 >
                   <Link
                     to={detailsHref}
-                    className={clsx("rounded-sm hover:text-[#5247d2] hover:underline", FOCUS_RING)}
+                    className={clsx(
+                      "rounded-sm hover:text-brand hover:underline md:hover:text-[#5247d2]",
+                      FOCUS_RING,
+                    )}
                   >
                     {name}
                   </Link>
@@ -131,7 +148,15 @@ export function BookingCard({
               <Detail label="Time" icon={<Clock className="h-3.5 w-3.5" />}>
                 {slot || <span className={MISSING}>Not set</span>}
               </Detail>
-              <Detail label="Amount" icon={<Wallet className="h-3.5 w-3.5" />}>
+              <Detail
+                label="Amount"
+                icon={
+                  <>
+                    <CreditCard className="h-3.5 w-3.5 md:hidden" />
+                    <Wallet className="hidden h-3.5 w-3.5 md:inline-block" />
+                  </>
+                }
+              >
                 {hasTotal ? (
                   rupees(total)
                 ) : (
@@ -160,17 +185,19 @@ export function BookingCard({
                 to={detailsHref}
                 className={clsx(
                   BTN_OUTLINE,
-                  "inline-flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50",
+                  "inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-[#4338ca] shadow-sm transition hover:bg-slate-50 md:h-9 md:rounded-lg md:text-slate-700",
                 )}
               >
+                <Eye className="h-4 w-4 stroke-[2] md:hidden" aria-hidden="true" />
                 View Details
               </Link>
 
               {showTrack && (
                 <Link
                   to={trackHref}
-                  className="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-[#eeebf9] text-xs font-semibold text-[#5247d2] transition hover:bg-[#e3dff7]"
+                  className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#eeebf9] text-xs font-semibold text-[#4338ca] transition hover:bg-[#e4dff7] md:h-9 md:rounded-lg md:text-[#5247d2]"
                 >
+                  <MapPin className="h-4 w-4 stroke-[2] md:hidden" aria-hidden="true" />
                   Track
                 </Link>
               )}
@@ -178,7 +205,7 @@ export function BookingCard({
               {showRebook && (
                 <Link
                   to={customerPath("/services")}
-                  className="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-[#eeebf9] text-xs font-semibold text-[#5247d2] transition hover:bg-[#e3dff7]"
+                  className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-[#eeebf9] text-xs font-semibold text-[#4338ca] transition hover:bg-[#e4dff7] md:h-9 md:rounded-lg md:text-[#5247d2]"
                 >
                   {tab === "completed" ? "Book again" : "Rebook"}
                 </Link>
@@ -186,9 +213,13 @@ export function BookingCard({
             </div>
           </div>
 
-          {/* Footer ribbon: always present, so every card has the same height */}
-          <div className="min-h-[68px] border-t border-slate-100 bg-white">
-            {footer ?? (
+          {/* Footer ribbon: only shown on mobile when footer exists, always preserved on desktop */}
+          {footer ? (
+            <div className="border-t border-slate-100 bg-white">
+              {footer}
+            </div>
+          ) : (
+            <div className="hidden md:block min-h-[68px] border-t border-slate-100 bg-white">
               <div className="flex min-h-[68px] items-center gap-2 px-4 py-3 text-sm text-slate-500">
                 <CheckCircle2
                   className="h-4 w-4 shrink-0 text-slate-400"
@@ -196,8 +227,8 @@ export function BookingCard({
                 />
                 No payment due
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </article>
     </li>

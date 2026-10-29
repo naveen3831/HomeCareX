@@ -7,10 +7,9 @@ import { emitToUser } from '../../sockets';
 
 import {
   ADMIN_ALERT_SETTING,
-  GROUP_PREFIXES,
   NOTIFICATION_GROUPS,
+  GROUP_PREFIXES,
   NOTIFICATION_SOCKET_EVENT,
-  NOTIFICATION_TYPES,
   groupOf,
   type NotificationGroup,
   type NotificationType,

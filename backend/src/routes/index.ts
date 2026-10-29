@@ -1,12 +1,9 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
-import { requireResourceAccess } from "../middleware/permission.middleware";
+import { requirePermission, requireResourceAccess } from "../middleware/permission.middleware";
 
-// Core & Auth
 import { authRoutes } from "../modules/auth/auth.routes";
-
-// Admin
 import { adminRoutes } from "../modules/admin/admin.routes";
 import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
 import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.routes";
@@ -37,13 +34,9 @@ import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
-
-// Catalog & Public
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
 import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
-
-// Bookings & Payments
 import {
   addressesRoutes,
   serviceabilityRoutes,
@@ -53,12 +46,8 @@ import { chatRoutes } from "../modules/chat/chat.routes";
 import paymentRoutes from "../modules/payments/payments.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
-
-// Notifications
 import customerNotificationsRoutes from "../modules/notifications/customer-notifications.routes";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes";
-
-// Customer
 import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
 import {
   customerPreferencesRoutes,
@@ -66,13 +55,17 @@ import {
 } from "../modules/customer-profile/customer-profile.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
-
-// Partner
 import { availabilityRoutes } from "../modules/availability/availability.routes";
 import { blackoutRoutes } from "../modules/availability/blackout.routes";
 import { scheduleRoutes } from "../modules/availability/schedule.routes";
 import { earningsRoutes } from "../modules/earnings/earnings.routes";
 import { maskedCallRoutes } from "../modules/masked-call/masked-call.routes";
+import {
+  bookingStatusRoutes,
+  partnerJobRequestsRoutes,
+  partnerJobsRoutes,
+} from "../modules/partner-jobs/partner-jobs.routes";
+import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
@@ -84,13 +77,6 @@ import {
 import { partnerSettingsRoutes } from "../modules/partner-settings/partner-settings.routes";
 import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
 import {
-  bookingStatusRoutes,
-  partnerJobRequestsRoutes,
-  partnerJobsRoutes,
-} from "../modules/partner-jobs/partner-jobs.routes";
-import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
-import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
-import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
@@ -100,7 +86,8 @@ export const rootRouter = Router();
 
 rootRouter.use("/auth", authRoutes);
 
-// ---- Admin (specific mounts first, the bare "/admin" catch-alls last) ----
+// ---- Admin ----
+// Keep specific admin mounts before the general /admin router.
 rootRouter.use("/admin/dashboard", adminDashboardRoutes);
 rootRouter.use("/admin/settings", settingsRoutes);
 rootRouter.use("/admin/designations", designationsRoutes);
@@ -111,20 +98,48 @@ rootRouter.use("/admin/customers", authMiddleware, requireAdmin, requireResource
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
-rootRouter.use("/admin/partners", authMiddleware, requireAdmin, requireResourceAccess("partners"), partnersRoutes);
-rootRouter.use("/admin/coupons", authMiddleware, requireAdmin, requireResourceAccess("coupons"), couponsRoutes);
-rootRouter.use("/admin/banners", authMiddleware, requireAdmin, requireResourceAccess("marketing"), marketingRoutes);
+rootRouter.use(
+  "/admin/partners",
+  authMiddleware,
+  requireAdmin,
+  requirePermission("partners"),
+  partnersRoutes,
+);
+rootRouter.use(
+  "/admin/coupons",
+  authMiddleware,
+  requireAdmin,
+  requirePermission("coupons"),
+  couponsRoutes,
+);
+rootRouter.use(
+  "/admin/banners",
+  authMiddleware,
+  requireAdmin,
+  requirePermission("marketing"),
+  marketingRoutes,
+);
 rootRouter.use("/admin/pricing", adminPricingRoutes);
 rootRouter.use("/admin/incentives", incentivesRoutes);
-// Admin reports and CSV exports.
-rootRouter.use("/admin/reports", authMiddleware, requireAdmin, requireResourceAccess("reports"), reportsRoutes);
 
+// B08: Reports & CSV exports.
+rootRouter.use(
+  "/admin/reports",
+  authMiddleware,
+  requireAdmin,
+  requirePermission("reports"),
+  reportsRoutes,
+);
+
+// B05: Refunds; B09: read-only audit logs.
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);
+
+// General admin routes should be mounted after specific /admin routes.
 rootRouter.use("/admin", adminRoutes);
 
-// ---- Catalog & public ----
+// ---- Catalog & Public ----
 rootRouter.use(catalogRoutes);
 rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
@@ -149,7 +164,6 @@ rootRouter.use("/referrals", referralsRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
 
 // ---- Partner ----
-rootRouter.use("/partner/kyc", partnerKycRoutes);
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);

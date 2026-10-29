@@ -90,19 +90,10 @@ export const AdminPricingPage: React.FC = () => {
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  // Search text comes from the PageSearch box under the title.
+  // Search text comes from the search bar below the navbar (same as Services and Manage Partners).
   const search = useUIStore((s) => s.pageSearch);
   const setPageSearch = useUIStore((s) => s.setPageSearch);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  // In-page filters (the navbar search above still works too).
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
-  const [modeFilter, setModeFilter] = useState<"FIXED" | "HOURLY" | null>(null);
-  const [cityFilter, setCityFilter] = useState("");
-  // Filter panel (Apply / Clear like the Bookings page): edits are drafts until Apply.
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [draftStatus, setDraftStatus] = useState<"all" | "active" | "inactive">("all");
-  const [draftMode, setDraftMode] = useState<"FIXED" | "HOURLY" | null>(null);
-  const [draftCity, setDraftCity] = useState("");
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -182,9 +173,6 @@ export const AdminPricingPage: React.FC = () => {
     const needle = search.trim().toLowerCase();
 
     return rules.filter((r) => {
-      if (statusFilter !== "all" && (statusFilter === "active") !== r.active) return false;
-      if (modeFilter && r.mode !== modeFilter) return false;
-      if (cityFilter && cityKey(r.city || "") !== cityKey(cityFilter)) return false;
       if (!needle) return true;
 
       return [
@@ -194,42 +182,9 @@ export const AdminPricingPage: React.FC = () => {
         r.mode,
       ].some((v) => v.toLowerCase().includes(needle));
     });
-  }, [rules, search, statusFilter, modeFilter, cityFilter, serviceName, categoryName]);
+  }, [rules, search, serviceName, categoryName]);
 
-  const filtersActive = statusFilter !== "all" || modeFilter !== null || cityFilter !== "" || search.trim() !== "";
-  const clearFilters = () => {
-    setPageSearch("");
-    setStatusFilter("all");
-    setModeFilter(null);
-    setCityFilter("");
-    setDraftStatus("all");
-    setDraftMode(null);
-    setDraftCity("");
-  };
-  const activeFilterCount = (statusFilter !== "all" ? 1 : 0) + (modeFilter !== null ? 1 : 0) + (cityFilter !== "" ? 1 : 0);
-  const toggleFilterPanel = () => {
-    if (!filterOpen) {
-      setDraftStatus(statusFilter);
-      setDraftMode(modeFilter);
-      setDraftCity(cityFilter);
-    }
-    setFilterOpen((o) => !o);
-  };
-  const applyFilters = () => {
-    setStatusFilter(draftStatus);
-    setModeFilter(draftMode);
-    setCityFilter(draftCity);
-  };
-  const clearDraft = () => {
-    setDraftStatus("all");
-    setDraftMode(null);
-    setDraftCity("");
-    setStatusFilter("all");
-    setModeFilter(null);
-    setCityFilter("");
-  };
-  const draftDirty = draftStatus !== statusFilter || draftMode !== modeFilter || draftCity !== cityFilter;
-  const draftHasAny = draftStatus !== "all" || draftMode !== null || draftCity !== "";
+  const clearFilters = () => setPageSearch("");
 
   const stats = useMemo(
     () => ({
@@ -360,77 +315,6 @@ export const AdminPricingPage: React.FC = () => {
           </div>
         }
       />
-
-      <div className="prc-f-toolbar">
-        <div className="prc-f-search">
-          <Search size={16} aria-hidden />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setPageSearch(e.target.value)}
-            placeholder="Search service, category, city or mode…"
-            aria-label="Search pricing rules"
-          />
-        </div>
-        <button
-          type="button"
-          className={clsx("prc-f-filter-button", activeFilterCount > 0 && "prc-f-filter-button--active")}
-          onClick={toggleFilterPanel}
-          aria-expanded={filterOpen}
-        >
-          <SlidersHorizontal size={16} aria-hidden />
-          <span>Filter</span>
-          {activeFilterCount > 0 && <span className="prc-f-filter-count">{activeFilterCount}</span>}
-        </button>
-      </div>
-
-      {filterOpen && (
-        <div className="prc-f-filter-section">
-          <div className="prc-f-filter-header">
-            <h3>Filters</h3>
-            <button type="button" className="prc-f-filter-close" onClick={() => setFilterOpen(false)} aria-label="Close filters">
-              ×
-            </button>
-          </div>
-          <div className="prc-f-filter-body">
-            <div className="prc-f-filter-grid">
-              <label className="prc-f-filter-field">
-                <span>Status</span>
-                <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value as "all" | "active" | "inactive")}>
-                  <option value="all">All ({stats.total})</option>
-                  <option value="active">Active ({stats.active})</option>
-                  <option value="inactive">Inactive ({stats.inactive})</option>
-                </select>
-              </label>
-              <label className="prc-f-filter-field">
-                <span>Pricing mode</span>
-                <select value={draftMode ?? ""} onChange={(e) => setDraftMode(e.target.value === "" ? null : (e.target.value as "FIXED" | "HOURLY"))}>
-                  <option value="">All modes</option>
-                  <option value="FIXED">Fixed</option>
-                  <option value="HOURLY">Hourly</option>
-                </select>
-              </label>
-              <label className="prc-f-filter-field">
-                <span>City</span>
-                <select value={draftCity} onChange={(e) => setDraftCity(e.target.value)}>
-                  <option value="">All cities</option>
-                  {cities.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-          <div className="prc-f-filter-footer">
-            <button type="button" className="prc-f-filter-clear" onClick={clearDraft} disabled={!draftHasAny && !activeFilterCount}>
-              Clear
-            </button>
-            <button type="button" className="prc-f-filter-apply" onClick={applyFilters} disabled={!draftDirty}>
-              Apply Filters
-            </button>
-          </div>
-        </div>
-      )}
 
       {!online && (
         <div className="cat-banner" role="status">

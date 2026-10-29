@@ -19,7 +19,6 @@ import {
   verifyInviteSchema,
   verifyOtpSchema,
 } from './auth.validation';
-
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
@@ -92,9 +91,11 @@ const getAuthenticatedUserId = (res: Response): string => {
 
 export const authController = {
   login: wrap(async (req, res) => {
-    const { user, accessToken, refreshToken } =
-      await authService.login(parseBody(loginSchema, req.body));
 
+     const { user, accessToken, refreshToken } = await authService.login(
+        parseBody(loginSchema, req.body),
+        { ip: req.ip, userAgent: req.headers['user-agent'] },
+      );
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
 
@@ -213,24 +214,55 @@ export const authController = {
   }),
 
   /**
-   * Individual session records are not implemented yet.
+   * Returns active sessions for the authenticated user.
    */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const userAgent = req.headers['user-agent'];
+    const ip =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const currentSid = (res.locals.auth as any)?.sid;
 
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
+    const data = await authService.getSessions(userId, {
+      userAgent,
+      ip,
+      currentSid,
+    });
+
+    res.json({
+      success: true,
+      data,
     });
   }),
 
   /**
-   * Individual session revocation requires persistent session records.
+   * Revokes an individual session.
    */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const sessionId = req.params.id;
+    const currentSid = (res.locals.auth as any)?.sid;
+
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        revoked: true,
+        isCurrent: result.isCurrent,
+        message: result.message,
+      },
     });
   }),
 
@@ -252,11 +284,29 @@ export const authController = {
     });
   }),
 
-  /**
-   * Admin endpoint: revoke refresh tokens for a specified user.
-   * Protect this route with admin authorization middleware.
-   * POST /api/v1/auth/revoke-user-sessions/:userId
-   */
+  /** POST /api/v1/auth/verify-invite */
+  verifyInvite: wrap(async (req, res) => {
+    const payload = parseBody(verifyInviteSchema, req.body);
+    const result = await authService.verifyInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
+  /** POST /api/v1/auth/accept-invite */
+  acceptInvite: wrap(async (req, res) => {
+    const payload = parseBody(acceptInviteSchema, req.body);
+    const result = await authService.acceptInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
+  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
   revokeUserSessions: wrap(async (req, res) => {
     const userId = req.params.userId ?? req.params.id;
 
@@ -300,29 +350,6 @@ export const authController = {
     });
   }),
 
-  /** POST /api/v1/auth/verify-invite */
-  verifyInvite: wrap(async (req, res) => {
-    const data = await authService.verifyInvite(
-      parseBody(verifyInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data,
-    });
-  }),
-
-  /** POST /api/v1/auth/accept-invite */
-  acceptInvite: wrap(async (req, res) => {
-    await authService.acceptInvite(
-      parseBody(acceptInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data: { ok: true },
-    });
-  }),
 };
 
 export default authController;

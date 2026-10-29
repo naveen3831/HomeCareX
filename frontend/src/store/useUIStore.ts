@@ -4,6 +4,10 @@ interface UIState {
   pageSearch: string;
   setPageSearch: (value: string) => void;
 
+  // Active bookings count for customer TopBar
+  activeBookingsCount: number | null;
+  setActiveBookingsCount: (count: number | null) => void;
+
   // Desktop: true = full sidebar with labels, false = icon-only strip
   isSidebarCollapsed: boolean;
   // Mobile: true = the sidebar drawer is slid open over the page
@@ -18,6 +22,8 @@ interface UIState {
 export const useUIStore = create<UIState>((set) => ({
   pageSearch: '',
   setPageSearch: (value) => set({ pageSearch: value }),
+  activeBookingsCount: null,
+  setActiveBookingsCount: (count) => set({ activeBookingsCount: count }),
   isSidebarCollapsed: false,
   isMobileMenuOpen: false,
   theme: 'light',

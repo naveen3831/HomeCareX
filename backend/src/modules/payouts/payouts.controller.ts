@@ -21,10 +21,9 @@ const str = (value: unknown): string | undefined =>
     : undefined;
 
 export const payoutsController = {
-  /** POST /admin/payouts or /admin/payout-batches  { periodStart, periodEnd } */
+  /** POST /admin/payout-batches or /admin/payouts { periodStart, periodEnd } */
   async generate(req: Request, res: Response) {
     const admin = getAuthUser(req);
-
     const batch = await payoutsService.generateBatch({
       periodStart: String(req.body?.periodStart ?? ''),
       periodEnd: String(req.body?.periodEnd ?? ''),
@@ -35,7 +34,7 @@ export const payoutsController = {
     sendSuccess(res, batch, { status: 201 });
   },
 
-  /** GET /admin/payouts or /admin/payout-batches ?page&limit&status */
+  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
   async list(req: Request, res: Response) {
     const result = await payoutsService.listBatches({
       page: num(req.query.page),
@@ -49,48 +48,46 @@ export const payoutsController = {
   },
 
   /** GET /admin/payouts/:id or /admin/payout-batches/:id */
-  async getBatch(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, batch);
+  async get(req: Request, res: Response) {
+    sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
   },
 
-  /** Alias of getBatch. */
-  async get(req: Request, res: Response) {
-    return payoutsController.getBatch(req, res);
+  /** Compatibility alias for existing routes */
+  async getBatch(req: Request, res: Response) {
+    return this.get(req, res);
   },
 
   /** GET /admin/payouts/:id/payouts or /admin/payout-batches/:id/payouts */
   async listPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, payouts);
+    sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
   },
 
   /** Alias of listPayouts. */
   async listBatchPayouts(req: Request, res: Response) {
-    return payoutsController.listPayouts(req, res);
+    return this.listPayouts(req, res);
   },
 
   /**
-   * PATCH /admin/payouts/:id or /admin/payouts/:id/mark-paid
-   * Body: { transactionId? }
+   * Mark an individual payout as paid.
+   * PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id { transactionId? }
    */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
 
-    const payout = await payoutsService.markPaid({
-      payoutId: String(req.params.id),
-      adminId: admin.id,
-      ip: getIp(req),
-      transactionId: str(req.body?.transactionId),
-    });
+    sendSuccess(
+      res,
+      await payoutsService.markPaid({
+        payoutId: String(req.params.id),
+        adminId: admin.id,
+        ip: getIp(req),
+        transactionId: str(req.body?.transactionId),
+      }),
+    );
+  },
 
-    sendSuccess(res, payout);
+  /** Compatibility alias for routes that use a status update endpoint. */
+  async updateStatus(req: Request, res: Response) {
+    return this.markPaid(req, res);
   },
 
   /** Alias of markPaid. */
@@ -103,15 +100,24 @@ export const payoutsController = {
    * GET /admin/payouts/export?batchId=<batchId>
    * GET /admin/payouts/:id/export
    * GET /admin/payout-batches/:id/export
-   * Without a batch ID, all batches are exported.
    */
   async exportCsv(req: Request, res: Response) {
     const batchId = str(req.params.id) ?? str(req.query.batchId);
 
-    const result = await payoutsService.exportCsv(batchId);
-    const csv = typeof result === 'string' ? result : result.csv;
+    if (!batchId) {
+      res.status(400).json({
+        success: false,
+        message: 'batchId is required to export payouts',
+      });
+      return;
+    }
+
+    const exported = await payoutsService.exportCsv(batchId);
+    const csv = typeof exported === 'string' ? exported : exported.csv;
     const filename =
-      typeof result === 'string' ? 'payouts.csv' : result.filename;
+      typeof exported === 'string'
+        ? `payouts-${batchId}.csv`
+        : exported.filename;
 
     res.status(200);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
