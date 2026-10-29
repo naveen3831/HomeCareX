@@ -15,9 +15,26 @@ const send = (customerId: unknown, type: NotificationType, payload: Record<strin
 export const alertCustomerBookingCreated = (i: { customerId: unknown; bookingId: string }): void =>
   send(i.customerId, 'booking.created', { message: 'Your booking has been created', bookingId: i.bookingId });
 
+/**
+ * Booking confirmed straight away because nothing is paid upfront (cash on service).
+ * Online payments get 'payment.succeeded' instead, once the money is received.
+ */
+export const alertCustomerBookingConfirmed = (i: { customerId: unknown; bookingId: string; amountDue?: number }): void =>
+  send(i.customerId, 'booking.confirmed', {
+    message:
+      typeof i.amountDue === 'number' && i.amountDue > 0
+        ? `Booking confirmed. Pay \u20B9${i.amountDue.toLocaleString('en-IN', { maximumFractionDigits: 2 })} in cash after the service`
+        : 'Your booking is confirmed',
+    bookingId: i.bookingId,
+    ...(typeof i.amountDue === 'number' ? { amount: i.amountDue } : {}),
+  });
+
 /** Payment captured and the booking is now confirmed. */
-export const alertCustomerPaymentSucceeded = (i: { customerId: unknown; bookingId: string }): void =>
-  send(i.customerId, 'payment.succeeded', { message: 'Payment received. Your booking is confirmed', bookingId: i.bookingId });
+export const alertCustomerPaymentSucceeded = (i: { customerId: unknown; bookingId: string; message?: string }): void =>
+  send(i.customerId, 'payment.succeeded', {
+    message: i.message ?? 'Payment received. Your booking is confirmed',
+    bookingId: i.bookingId,
+  });
 
 /** A partner accepted the job. */
 export const alertCustomerPartnerAssigned = (i: { customerId: unknown; bookingId: string }): void =>

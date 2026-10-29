@@ -1,4 +1,3 @@
-
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
 
@@ -11,6 +10,7 @@ import { ServiceModel } from '../../models/Service';
 import { notifyAdmins } from '../notifications';
 import {
   alertCustomerBookingCancelled,
+  alertCustomerBookingConfirmed,
   alertCustomerBookingCreated,
   alertCustomerBookingRescheduled,
 } from '../notifications/customer-alerts';
@@ -432,6 +432,15 @@ export const BookingService = {
         customerId,
         bookingId: String((created as { _id?: unknown })._id ?? ''),
       });
+      // Pay later (cash on service): the booking is confirmed at once, so tell the customer what is due.
+      // With upfront payment the customer instead gets 'payment.succeeded' when the money arrives.
+      if (!requirePayment) {
+        alertCustomerBookingConfirmed({
+          customerId,
+          bookingId: String((created as { _id?: unknown })._id ?? ''),
+          amountDue: priceSnapshot.total,
+        });
+      }
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {

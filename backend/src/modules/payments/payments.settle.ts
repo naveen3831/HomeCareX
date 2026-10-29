@@ -175,6 +175,12 @@ export async function settleCapturedPayment(
         );
         await markPaymentPaid();
         rewardReferrer(upgraded);
+        // "Pay now" on a Cash-on-Service booking lands here, not in the branch above.
+        alertCustomerPaymentSucceeded({
+          customerId: upgraded.customerId,
+          bookingId: String(upgraded._id),
+          message: "Payment received. Your booking is now paid",
+        });
         return { kind: "confirmed", booking: upgraded };
       }
     }
