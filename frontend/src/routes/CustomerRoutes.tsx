@@ -29,7 +29,7 @@ const TrackingRedirect = lazy(
 const Wallet = lazy(() => import('../pages/customer/Wallet'));
 
 const BookServiceShell = lazy(() => import('../pages/customer/Book'));
-const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
+const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfilePage'));
 const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 const BookingSuccess = lazy(() => import('../pages/customer/BookingSuccess'));
