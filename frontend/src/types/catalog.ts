@@ -1,6 +1,6 @@
 /** Mirrors backend/src/modules/catalog/catalog.types.ts (public fields only). */
 
-export type ServiceSort = "popular" | "rating" | "price-asc" | "price-desc" | "newest" | "relevance";
+export type ServiceSort = "order" | "popular" | "rating" | "price-asc" | "price-desc" | "newest" | "relevance";
 export type AvailabilityFilter = "today" | "tomorrow";
 export type ServiceAvailability = AvailabilityFilter | "scheduled";
 

@@ -6,11 +6,7 @@ export type { PayoutStatus };
 /**
  * Status of a payout batch.
  */
-export type PayoutBatchStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+export type { PayoutBatchStatus };
 
 /**
  * Input for generating a payout batch.
@@ -25,7 +21,6 @@ export interface GeneratePayoutBatchInput {
 /**
  * Backward-compatible alias used by payouts.service.ts.
  */
-export type GenerateBatchInput = GeneratePayoutBatchInput;
 
 /**
  * Pagination details.
@@ -65,6 +60,7 @@ export interface PayoutRecord {
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
+  notes?: string;
   method?: string | null;
   transactionId?: string | null;
   paidAt: Date | null;
@@ -142,9 +138,9 @@ export interface PayoutCsvRow {
   partner: string;
   email: string;
   amount: number;
-  gross: number;
-  commission: number;
   status: string;
+  method: string;
+  transactionId: string;
   paidAt: string;
 }
 

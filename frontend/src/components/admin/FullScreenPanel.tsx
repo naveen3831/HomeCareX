@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -113,7 +112,7 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
         </div>
       </header>
 
-      <div className="hcx-fs__body">
+      <div className="hcx-fs__body" tabIndex={-1}>
         <div className="hcx-fs__inner">{children}</div>
       </div>
 

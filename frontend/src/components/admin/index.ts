@@ -1,6 +1,5 @@
 export { Sidebar } from './Sidebar';
 export { Header } from './Header';
-export type { HeaderNotification } from './Header';
 export { ProfileMenu } from './ProfileMenu';
 export { Breadcrumbs } from './Breadcrumbs';
 export { PageHeader } from './PageHeader';

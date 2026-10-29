@@ -13,6 +13,8 @@ export interface BuiltServiceQuery {
 
 /** `_id` is always the last key so pages never overlap or skip when values tie. */
 const SORTS: Record<Exclude<ServiceSort, 'relevance'>, SortSpec> = {
+  /** The order the admin set in Admin > Services (default for browsing). */
+  order: { sortOrder: 1, createdAt: 1, _id: 1 },
   popular: { bookingsCount: -1, ratingAvg: -1, _id: 1 },
   rating: { ratingAvg: -1, ratingCount: -1, _id: 1 },
   'price-asc': { basePrice: 1, _id: 1 },
@@ -36,9 +38,9 @@ export function buildServiceQuery(query: ServiceQuery, categoryIds: Types.Object
   if (query.availability === 'today') filter.availability = 'today';
   if (query.availability === 'tomorrow') filter.availability = { $in: ['today', 'tomorrow'] };
 
-  const wanted = query.sort ?? (query.q ? 'relevance' : 'popular');
+  const wanted = query.sort ?? (query.q ? 'relevance' : 'order');
   if (wanted === 'relevance' && query.q) {
     return { filter, sort: { bookingsCount: -1, _id: 1 }, textScore: true };
   }
-  return { filter, sort: SORTS[wanted === 'relevance' ? 'popular' : wanted], textScore: false };
+  return { filter, sort: SORTS[wanted === 'relevance' ? 'order' : wanted], textScore: false };
 }

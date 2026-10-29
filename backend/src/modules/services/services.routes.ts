@@ -14,6 +14,7 @@ servicesPublicRoutes.get('/:idOrSlug', asyncHandler(async (req, res) => sendSucc
 export const servicesRoutes = Router();
 servicesRoutes.use(authenticate, requireAdmin);
 servicesRoutes.get('/', asyncHandler(async (req, res) => sendSuccess(res, await servicesService.list(req.query, { admin: true }))));
+servicesRoutes.put('/reorder', asyncHandler(async (req, res) => sendSuccess(res, await servicesService.reorder(req.body))));
 servicesRoutes.get('/:id', asyncHandler(async (req, res) => sendSuccess(res, await servicesService.get(req.params.id, { admin: true }))));
 servicesRoutes.post('/', asyncHandler(async (req, res) => sendSuccess(res, await servicesService.create(req.body), { status: 201 })));
 servicesRoutes.patch('/:id', asyncHandler(async (req, res) => sendSuccess(res, await servicesService.update(req.params.id, req.body))));

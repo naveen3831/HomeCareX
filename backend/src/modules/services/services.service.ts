@@ -5,7 +5,7 @@ import { ServiceModel } from '../../models/Service';
 import { HttpError } from '../auth/auth.types';
 import { slugify, uniqueSlug } from '../../utils/slug';
 import { SEED_SERVICES } from './services.constants';
-import { serviceCreateSchema, serviceQuerySchema, serviceUpdateSchema } from './services.validation';
+import { serviceCreateSchema, serviceQuerySchema, serviceReorderSchema, serviceUpdateSchema } from './services.validation';
 import type { ServiceDto } from './services.types';
 
 type ServiceDoc = InstanceType<typeof ServiceModel>;
@@ -22,6 +22,7 @@ const toDto = (s: ServiceDoc, cat: CategoryLite | null): ServiceDto => ({
   durationMinutes: s.durationMinutes,
   addOns: s.addOns.map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
   active: s.active,
+  sortOrder: s.sortOrder ?? 0,
   media: (s.media ?? []).map((m) => ({ url: m.url, alt: m.alt ?? '' })),
   inclusions: s.inclusions ?? [],
   exclusions: s.exclusions ?? [],
@@ -45,7 +46,10 @@ async function assertCategory(id: string) {
 
 /** Inserts the default services the first time (empty collection only). Run after seedDefaultCategories. */
 export async function seedDefaultServices() {
-  if ((await ServiceModel.estimatedDocumentCount()) > 0) return;
+  if ((await ServiceModel.estimatedDocumentCount()) > 0) {
+    await backfillServiceOrder();
+    return;
+  }
   await ServiceModel.insertMany(
     SEED_SERVICES.map((s) => ({
       _id: s.id,
@@ -59,6 +63,18 @@ export async function seedDefaultServices() {
     })),
     { ordered: false },
   ).catch(() => undefined);
+  await backfillServiceOrder();
+}
+
+/**
+ * One-time fix for services created before sortOrder existed (all 0): number them 0..n-1 in
+ * oldest-first order so the admin sees a stable list. Does nothing once any service has a non-zero order.
+ */
+export async function backfillServiceOrder() {
+  if ((await ServiceModel.estimatedDocumentCount()) < 2) return;
+  if (await ServiceModel.exists({ sortOrder: { $gt: 0 } })) return;
+  const rows = await ServiceModel.find({}, '_id').sort({ createdAt: 1, _id: 1 }).lean();
+  await ServiceModel.bulkWrite(rows.map((r, i) => ({ updateOne: { filter: { _id: r._id }, update: { $set: { sortOrder: i } } } })));
 }
 
 export const servicesService = {
@@ -77,7 +93,8 @@ export const servicesService = {
     }
     if (q) filter.name = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
 
-    const rows = await ServiceModel.find(filter).sort({ name: 1 }).collation({ locale: 'en' });
+    // Admin-defined order first; name only breaks ties (e.g. services that were never placed).
+    const rows = await ServiceModel.find(filter).sort({ sortOrder: 1, name: 1 }).collation({ locale: 'en' });
     const cats = await categoryMap([...new Set(rows.map((r) => String(r.categoryId)))]);
     const dtos = rows.map((r) => toDto(r, cats.get(String(r.categoryId)) ?? null));
     if (admin) return dtos;
@@ -97,7 +114,9 @@ export const servicesService = {
     const data = serviceCreateSchema.parse(input);
     await assertCategory(data.categoryId);
     const slug = await uniqueSlug(slugify(data.name), (s) => ServiceModel.exists({ slug: s }).then(Boolean));
-    const created = await ServiceModel.create({ ...data, slug, addOns: toAddOns(data.addOns) });
+    const last = await ServiceModel.findOne({}, 'sortOrder').sort({ sortOrder: -1 }).lean();
+    const sortOrder = last ? (last.sortOrder ?? 0) + 1 : 0; // new services go to the end of the list
+    const created = await ServiceModel.create({ ...data, slug, sortOrder, addOns: toAddOns(data.addOns) });
     return this.get(created.id, { admin: true });
   },
 
@@ -111,6 +130,20 @@ export const servicesService = {
     if (addOns) existing.set('addOns', toAddOns(addOns));
     await existing.save();
     return this.get(id, { admin: true });
+  },
+
+  /**
+   * Saves a whole new display order in one bulk write, so customers never see a half-applied order.
+   * Returns the full admin list in the new order.
+   */
+  async reorder(input: unknown): Promise<ServiceDto[]> {
+    const { items } = serviceReorderSchema.parse(input);
+    const found = await ServiceModel.countDocuments({ _id: { $in: items.map((i) => i.id) } });
+    if (found !== items.length) throw new HttpError(404, 'One or more services were not found', 'NOT_FOUND');
+    await ServiceModel.bulkWrite(
+      items.map((i) => ({ updateOne: { filter: { _id: i.id }, update: { $set: { sortOrder: i.sortOrder } } } })),
+    );
+    return this.list({}, { admin: true });
   },
 
   /** Services with booking history can't be deleted (would orphan bookings); deactivate them instead. */

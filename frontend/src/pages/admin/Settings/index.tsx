@@ -53,6 +53,12 @@ export const AdminSettingsPage: React.FC = () => {
         )
       )
     );
+
+    setActiveId((current) =>
+      next.some((section) => section.id === current)
+        ? current
+        : next[0]?.id ?? "business",
+    );
   }, []);
 
   useEffect(() => {

@@ -14,6 +14,7 @@
     "seed:dashboard": "ts-node --transpile-only src/scripts/seed-dashboard.ts",
     "seed:customers": "ts-node --transpile-only src/scripts/seed-admin-customers.ts",
     "seed:catalog": "ts-node --transpile-only src/scripts/seed-catalog.ts",
+    "clean:demo-reviews": "ts-node --transpile-only src/scripts/clean-demo-reviews.ts",
     "seed:service-reviews": "ts-node --transpile-only src/scripts/seed-service-reviews.ts",
     "seed:wallet": "ts-node --transpile-only src/scripts/seed-wallet-transactions.ts",
     "create:admin": "ts-node --transpile-only src/scripts/create-admin.ts",

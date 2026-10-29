@@ -36,7 +36,7 @@ export default function LogoutCard() {
   }
 
   return (
-    <section className="profile-rise md:hidden" style={{ ["--d" as string]: "360ms" }} aria-label="Sign out">
+    <section className="profile-rise md:hidden" style={{ ["--d" as string]: "320ms" }} aria-label="Sign out">
       <div className="overflow-hidden rounded-[22px] border border-line/70 bg-panel shadow-[0_10px_28px_-12px_rgba(30,27,46,.14)]">
         <button
           ref={triggerRef}

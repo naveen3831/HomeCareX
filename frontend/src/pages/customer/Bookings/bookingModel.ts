@@ -251,7 +251,7 @@ export function pillFor(b: BookingListItem, now: number): Pill {
   if (s === "en_route") return { label: "En Route", tone: "amber", dot: true };
   if (s === "arrived") return { label: "Arrived", tone: "amber", dot: true };
   if (s === "in_progress" || s === "in-progress" || s === "started") {
-    return { label: "In Progress", tone: "sky", dot: true };
+    return { label: "In Progress", tone: "green", dot: true };
   }
   if (s === "assigned") return { label: "Partner Assigned", tone: "brand" };
   if (s === "completed" || s === "rated") return { label: "Completed", tone: "green" };

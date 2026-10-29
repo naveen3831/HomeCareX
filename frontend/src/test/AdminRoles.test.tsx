@@ -239,7 +239,7 @@ describe('Staff page', () => {
       expect(h.post).toHaveBeenCalledWith('/admin/staff', { name: 'New Person', email: 'new@x.com', roleId: 'r2' }),
     );
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(/^\/admin\/staff$/));
-    expect(await screen.findByRole('status')).toHaveTextContent(/invited new@x\.com/i);
+    expect(await screen.findByRole('status')).toHaveTextContent(/invite sent to new@x\.com/i);
   });
 
   it('hides write actions without staff:update', async () => {

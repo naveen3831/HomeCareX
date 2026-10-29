@@ -29,7 +29,7 @@ const TrackingRedirect = lazy(
 const Wallet = lazy(() => import('../pages/customer/Wallet'));
 
 const BookServiceShell = lazy(() => import('../pages/customer/Book'));
-const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
+const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfilePage'));
 const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 const BookingSuccess = lazy(() => import('../pages/customer/BookingSuccess'));
@@ -62,6 +62,9 @@ export default function CustomerRoutes() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/account/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/delete-account" element={<Profile defaultDeleteOpen />} />
           <Route path="/profile/edit" element={<EditProfile />} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile/security" element={<AccountSecurityPage />} />

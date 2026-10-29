@@ -26,6 +26,7 @@ for (let i = 1; i <= 30; i++) {
     categoryId: i <= 12 ? CLEAN : i <= 28 ? REPAIR : HIDDEN, basePrice: 100 * i, durationMinutes: 30 + (i % 4) * 30,
     ratingAvg: 3 + (i % 5) / 2, ratingCount: 10 * i, bookingsCount: i * 3, active: i !== 7, availability: i % 3 === 0 ? 'today' : i % 3 === 1 ? 'tomorrow' : 'scheduled',
     createdAt: new Date(2026, 0, i), __v: 0,
+    sortOrder: 31 - i, // admin order is the reverse of creation order, so a default-sort bug cannot pass by luck
   });
 }
 
@@ -199,11 +200,25 @@ test('q searches name and description; sort variants all work', async () => {
   const q = await get('/services?q=ac+repair');
   assert.equal(q.status, 200);
   assert.ok(q.body.data.some((s: { slug: string }) => s.slug === 'svc-5'));
-  for (const sort of ['popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance']) {
+  for (const sort of ['order', 'popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance']) {
     assert.equal((await get(`/services?sort=${sort}`)).status, 200, sort);
   }
   const desc = await get('/services?sort=price-desc&limit=3');
   assert.deepEqual(desc.body.data.map((s: { basePrice: number }) => s.basePrice), [2800, 2700, 2600]);
+});
+
+test('default listing follows the admin-defined service order (lowest sortOrder first)', async () => {
+  const r = await get('/services?limit=3');
+  assert.equal(r.status, 200);
+  // svc-28 has the lowest sortOrder among visible services (svc-29/30 are in an inactive category, svc-7 is inactive)
+  assert.deepEqual(r.body.data.map((s: { slug: string }) => s.slug), ['svc-28', 'svc-27', 'svc-26']);
+  const popular = await get('/services?sort=popular&limit=1');
+  assert.equal(popular.body.data[0].slug, 'svc-28'); // explicit sorts still work (highest bookings is also svc-28 here)
+});
+
+test('buildServiceQuery: no search and no sort uses the admin order', () => {
+  const built = buildServiceQuery(serviceQuerySchema.parse({}), [CLEAN]);
+  assert.deepEqual(Object.keys(built.sort), ['sortOrder', 'createdAt', '_id']);
 });
 
 test('buildServiceQuery: text search switches default sort to relevance; explicit sort wins', () => {

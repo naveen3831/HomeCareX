@@ -62,7 +62,7 @@ export default function SidebarNav({ idPrefix, onNavigate }: SidebarNavProps) {
               aria-controls={listId}
               onClick={() => toggle(group.heading)}
               className={clsx(
-                "flex min-h-[40px] w-full items-center justify-between rounded px-3 text-[11px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-canvas hover:text-ink",
+                "flex min-h-[44px] w-full items-center justify-between rounded px-3 text-[11px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-canvas hover:text-ink",
                 FOCUS_RING,
               )}
             >

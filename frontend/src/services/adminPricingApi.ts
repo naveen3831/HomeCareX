@@ -91,7 +91,7 @@ function toErr(e: unknown): PricingApiError {
   for (const d of body?.details ?? []) if (!fields[d.field]) fields[d.field] = d.message;
   const status = x.response?.status ?? x.status;
   return {
-    message: status === 403 ? 'You need the pricing:manage permission to do this.' : body?.message ?? x.message ?? 'Something went wrong',
+    message: body?.message ?? (status === 403 ? 'You do not have permission to do this.' : x.message) ?? 'Something went wrong',
     code: body?.code ?? x.code,
     status,
     fields: Object.keys(fields).length ? fields : undefined,

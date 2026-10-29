@@ -58,7 +58,7 @@ const isDuplicateKey = (error: unknown): boolean =>
 const idOrNull = (value: unknown): string | null =>
   value ? String(value) : null;
 
-/** "Ravi Kumar" -> "Ravi K."; a single name stays as is. */
+/** Mask the customer's name without exposing their email address. */
 export function maskAuthor(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
 

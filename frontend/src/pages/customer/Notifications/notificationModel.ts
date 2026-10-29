@@ -21,6 +21,7 @@ const rupees = (n: number): string => `₹${new Intl.NumberFormat("en-IN", { max
 
 const TEXT: Record<string, { title: string; message: string }> = {
   "booking.created": { title: "Booking placed", message: "We've received your booking and are finding the right partner." },
+  "booking.confirmed": { title: "Booking confirmed", message: "Your booking is confirmed." },
   "booking.assigned": { title: "Partner assigned", message: "A partner has been assigned to your booking." },
   "booking.cancelled": { title: "Booking cancelled", message: "Your booking was cancelled." },
   "booking.completed": { title: "Service completed", message: "How did it go? Rate your service to help others." },

@@ -122,15 +122,93 @@ const getCurrentPartner = (id: string): PartnerDetails | null =>
    Partner details APIs
    ========================================================= */
 
+
 export async function getPartnerById(
   id: string,
 ): Promise<PartnerDetails | null> {
-  await delay(500);
+  if (!id?.trim()) {
+    return null;
+  }
 
-  const partner = getCurrentPartner(id);
+  // In mock mode, preserve existing mock behavior when a matching
+  // local or mock partner exists.
+  const localPartner = getCurrentPartner(id);
 
-  return partner ? structuredClone(partner) : null;
+  if (USE_MOCKS && localPartner) {
+    return structuredClone(localPartner);
+  }
+
+  try {
+    // Fetch the actual partner from the backend.
+    const response = await http.get<ApiResponse<Record<string, unknown>>>(
+      `/admin/partners/${encodeURIComponent(id)}`,
+    );
+
+    const raw = response.data?.data;
+
+    if (!raw || typeof raw !== "object") {
+      throw new Error("The partner API returned an empty response.");
+    }
+
+    const apiId = String(raw.id ?? raw._id ?? id);
+
+    // Prefer an existing template to preserve the complete details-page
+    // structure. Use the first template if the live partner has no mock.
+    const template =
+      localPartner ??
+      getMockPartner(apiId) ??
+      getMockPartner(id) ??
+      PARTNER_DETAILS[0];
+
+    if (!template) {
+      throw new Error(
+        "No PartnerDetails template exists. Check mocks/partnerDetails.ts.",
+      );
+    }
+
+    const partner = structuredClone(template);
+
+    // Replace template values with actual backend values.
+    partner.id = apiId;
+
+    if (typeof raw.name === "string") {
+      partner.name = raw.name;
+    }
+
+    if (typeof raw.email === "string") {
+      partner.email = raw.email;
+    }
+
+    if (typeof raw.phone === "string") {
+      partner.phone = raw.phone;
+    }
+
+    if (typeof raw.category === "string") {
+      partner.category = raw.category;
+    }
+
+    if (typeof raw.city === "string") {
+      partner.city = raw.city;
+    }
+
+    if (typeof raw.rating === "number") {
+      partner.rating = raw.rating;
+    }
+
+    if (typeof raw.kycStatus === "string") {
+      partner.kycStatus = raw.kycStatus as PartnerDetails["kycStatus"];
+    }
+
+    // Cache using the actual backend user ID.
+    savePartner(partner);
+
+    return structuredClone(partner);
+  } catch (error) {
+    console.error("Failed to load partner details:", error);
+    throw error;
+  }
 }
+
 
 export async function updatePartnerKyc(
   id: string,
