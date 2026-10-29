@@ -43,7 +43,7 @@ describe('ServicesPage with a tampered URL', () => {
     await waitFor(() => expect(fetchServicesMock).toHaveBeenCalled());
     const params = fetchServicesMock.mock.calls[0][0];
     expect(params.page).toBe(1);
-    expect(params.sort).toBe('popular');
+    expect(params.sort).toBe('order');
     expect(params.q).toHaveLength(100);
     expect(screen.getByRole('main')).toBeInTheDocument();
   });

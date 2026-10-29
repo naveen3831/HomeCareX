@@ -11,18 +11,6 @@ interface BookingTableProps {
   onBookingSelect?: (booking: AdminBooking) => void;
 }
 
-function formatBookingId(id: string): string {
-  if (!id) {
-    return "-";
-  }
-
-  if (id.length <= 16) {
-    return id;
-  }
-
-  return `${id.slice(0, 8)}...${id.slice(-7)}`;
-}
-
 function formatDate(value: string): string {
   if (!value) {
     return "-";
@@ -390,16 +378,30 @@ export const BookingTable: React.FC<BookingTableProps> = ({
           font-size: 14px;
         }
 
-        @media (max-width: 768px) {
-          .booking-table__wrapper {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
+        /* Phones and small tablets: one card per booking instead of a 1100px-wide table (nothing to swipe sideways) */
+        .booking-cards { display: none; margin: 0; padding: 0; list-style: none; }
 
-          .booking-table {
-            min-width: 1100px;
-          }
+        @media (max-width: 768px) {
+          .booking-table__wrapper { display: none; }
+
+          .booking-cards { display: flex; flex-direction: column; gap: 10px; }
+          .booking-card { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid #e8ebf3; border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+          .booking-card:active { background: #f8fafc; }
+          .booking-card:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+          .booking-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+          .booking-card__who { min-width: 0; }
+          .booking-card__name { display: block; overflow: hidden; font-size: 15px; font-weight: 700; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
+          .booking-card__sub { display: block; margin-top: 1px; font-size: 12px; color: #64748b; }
+          .booking-card__top .booking-table__status { flex: none; }
+          .booking-card__service { padding: 8px 10px; font-size: 13px; font-weight: 600; color: #0f172a; background: #f8fafc; border-radius: 10px; }
+          .booking-card__service small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: #64748b; }
+          .booking-card__meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+          .booking-card__meta div { min-width: 0; }
+          .booking-card__meta dt { font-size: 11px; color: #94a3b8; }
+          .booking-card__meta dd { margin: 1px 0 0; overflow: hidden; font-size: 13px; font-weight: 600; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
+          .booking-card__meta dd.is-unassigned { font-weight: 500; color: #b45309; }
+          .booking-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+          .booking-card__created { font-size: 11px; color: #94a3b8; }
         }
 
         @media (max-width: 360px) {
@@ -414,7 +416,6 @@ export const BookingTable: React.FC<BookingTableProps> = ({
         <table className="booking-table">
           <thead>
             <tr>
-              <th scope="col">Booking ID</th>
               <th scope="col">Customer</th>
               <th scope="col">Service</th>
               <th scope="col">Partner</th>
@@ -438,31 +439,26 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                 }
                 onClick={() => onBookingSelect?.(booking)}
               >
-                {/* BOOKING ID */}
-                <td className="booking-table__booking-id">
-                  {onBookingSelect ? (
-                    <button
-                      type="button"
-                      className="booking-table__booking-button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onBookingSelect(booking);
-                      }}
-                      aria-label={`Open booking ${formatBookingId(
-                        booking.id,
-                      )}`}
-                    >
-                      {formatBookingId(booking.id)}
-                    </button>
-                  ) : (
-                    formatBookingId(booking.id)
-                  )}
-                </td>
-
-                {/* CUSTOMER */}
+                {/* CUSTOMER (first column; opens the booking) */}
                 <td>
                   <div className="booking-table__primary">
-                    {booking.customer?.name || "-"}
+                    {onBookingSelect ? (
+                      <button
+                        type="button"
+                        className="booking-table__booking-button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onBookingSelect(booking);
+                        }}
+                        aria-label={`Open booking for ${
+                          booking.customer?.name || "customer"
+                        }`}
+                      >
+                        {booking.customer?.name || "-"}
+                      </button>
+                    ) : (
+                      booking.customer?.name || "-"
+                    )}
                   </div>
 
                   {booking.customer?.phone && (
@@ -588,6 +584,85 @@ export const BookingTable: React.FC<BookingTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      <ul className="booking-cards" aria-label="Bookings">
+        {bookings.map((booking) => (
+          <li key={booking.id}>
+            <div
+              className="booking-card"
+              role={onBookingSelect ? "button" : undefined}
+              tabIndex={onBookingSelect ? 0 : undefined}
+              onClick={() => onBookingSelect?.(booking)}
+              onKeyDown={(event) => {
+                if (onBookingSelect && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  onBookingSelect(booking);
+                }
+              }}
+            >
+              <div className="booking-card__top">
+                <div className="booking-card__who">
+                  <span className="booking-card__name">
+                    {booking.customer?.name || "-"}
+                  </span>
+                  {booking.customer?.phone && (
+                    <span className="booking-card__sub">{booking.customer.phone}</span>
+                  )}
+                </div>
+                <span className={getStatusClass(booking.status)}>
+                  {getStatusLabel(booking.status)}
+                </span>
+              </div>
+
+              <div className="booking-card__service">
+                {booking.service?.name || "-"}
+                <small>
+                  {booking.service?.category || "-"}
+                  {booking.service?.durationMinutes
+                    ? ` · ${booking.service.durationMinutes} min`
+                    : ""}
+                </small>
+              </div>
+
+              <dl className="booking-card__meta">
+                <div>
+                  <dt>Scheduled</dt>
+                  <dd>
+                    {formatDate(booking.slot?.date || "")}
+                    {booking.slot?.startTime ? `, ${booking.slot.startTime}` : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Amount</dt>
+                  <dd>{formatAmount(Number(booking.pricing?.totalAmount ?? 0))}</dd>
+                </div>
+                <div>
+                  <dt>City</dt>
+                  <dd>
+                    {booking.city || booking.address?.city || "-"}
+                    {booking.address?.area ? `, ${booking.address.area}` : ""}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Partner</dt>
+                  <dd className={booking.partner ? undefined : "is-unassigned"}>
+                    {booking.partner ? booking.partner.name || "-" : "Unassigned"}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="booking-card__foot">
+                <span className={getPaymentClass(booking.payment?.status || "Pending")}>
+                  {booking.payment?.status || "Pending"}
+                </span>
+                <span className="booking-card__created">
+                  {formatDateTime(booking.createdAt)}
+                </span>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
     </>
   );
 };

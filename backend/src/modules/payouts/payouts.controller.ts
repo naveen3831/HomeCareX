@@ -62,7 +62,7 @@ export const payoutsController = {
     sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
   },
 
-  /** Compatibility alias for existing routes */
+  /** Alias of listPayouts. */
   async listBatchPayouts(req: Request, res: Response) {
     return this.listPayouts(req, res);
   },
@@ -90,7 +90,13 @@ export const payoutsController = {
     return this.markPaid(req, res);
   },
 
+  /** Alias of markPaid. */
+  async updateStatus(req: Request, res: Response) {
+    return payoutsController.markPaid(req, res);
+  },
+
   /**
+   * CSV download.
    * GET /admin/payouts/export?batchId=<batchId>
    * GET /admin/payouts/:id/export
    * GET /admin/payout-batches/:id/export

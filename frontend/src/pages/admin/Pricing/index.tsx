@@ -13,6 +13,8 @@ import {
   History,
   Pencil,
   Plus,
+  Search,
+  SlidersHorizontal,
   Tag,
   Trash2,
   WifiOff,

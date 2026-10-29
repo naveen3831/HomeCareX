@@ -7,21 +7,21 @@ import { SORT_OPTIONS } from "@/pages/customer/Services/serviceParams";
 import { FOCUS_RING } from "../focusRing";
 
 interface Props {
-  /** Undefined means "the default for this view" (Popular, or Best match while searching). */
+  /** Undefined means "the default for this view" (Featured = the admin's order, or Best match while searching). */
   value: Sort | undefined;
   hasQuery: boolean;
   onChange: (sort: Sort) => void;
   className?: string;
 }
 
-/** "Sort: Popular" dropdown that sits next to the Filters button. */
+/** "Sort: Featured" dropdown that sits next to the Filters button. */
 export function SortMenu({ value, hasQuery, onChange, className }: Props) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const wrapRef = useClickOutside<HTMLDivElement>(open, () => setOpen(false));
-  const current = value ?? (hasQuery ? "relevance" : "popular");
+  const current = value ?? (hasQuery ? "relevance" : "order");
   const options = SORT_OPTIONS.filter((o) => o.id !== "relevance" || hasQuery);
-  const currentLabel = options.find((o) => o.id === current)?.label ?? "Popular";
+  const currentLabel = options.find((o) => o.id === current)?.label ?? "Featured";
 
   return (
     <div ref={wrapRef} className={clsx("relative", className)}>

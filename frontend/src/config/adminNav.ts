@@ -10,7 +10,7 @@ import {
   FileClock,
   HardHat,
   Headset,
-  Inbox,
+  ClipboardList,
   Lock,
   UserCog,
   UserPlus,
@@ -35,6 +35,8 @@ export interface AdminNavItem {
   icon: LucideIcon;
   /** Optional permission key. When set, PermissionGate / RequirePermission use it. */
   permission?: string;
+  /** Extra paths that keep this item highlighted in the sidebar (Help stays lit on Leads). */
+  also?: string[];
 }
 
 export interface AdminNavGroup {
@@ -42,6 +44,8 @@ export interface AdminNavGroup {
   items: AdminNavItem[];
   /** `hidden` groups are not drawn in the sidebar but still feed breadcrumbs + search. */
   hidden?: boolean;
+  /** Left out of the phone Profile menu too. */
+  hiddenInMenu?: boolean;
 }
 
 export const adminNavGroups: AdminNavGroup[] = [
@@ -52,12 +56,10 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: 'Operations',
     items: [
-      { label: 'Inbox', path: '/admin/leads', icon: Inbox, permission: 'leads:view' },
       { label: 'Bookings', path: '/admin/bookings', icon: CalendarCheck, permission: 'bookings:view' },
       { label: 'Customers', path: '/admin/customers', icon: Users, permission: 'customers:view' },
       { label: 'Manage Partners', path: '/admin/manage-partners', icon: UserPlus, permission: 'partners:view' },
       { label: 'Partners & KYC', path: '/admin/partners', icon: HardHat, permission: 'partners:view' },
-      { label: 'Support', path: '/admin/support', icon: Headset, permission: 'tickets:view' },
     ],
   },
   {
@@ -81,6 +83,26 @@ export const adminNavGroups: AdminNavGroup[] = [
   {
     groupName: 'Reporting',
     items: [{ label: 'Reports', path: '/admin/reports', icon: BarChart3, permission: 'reports:view' }],
+  },
+  {
+    // Collapsible like the other groups; Leads is reached from the Support / Leads tabs on those pages.
+    groupName: 'Help',
+    items: [
+      {
+        label: 'Support',
+        path: '/admin/support',
+        icon: Headset,
+        permission: 'tickets:view',
+        also: ['/admin/leads'],
+      },
+    ],
+  },
+  {
+    // Not in the sidebar, but still found by search. Same group name, so Help opens when you are on Leads.
+    groupName: 'Help',
+    hidden: true,
+    hiddenInMenu: true,
+    items: [{ label: 'Leads', path: '/admin/leads', icon: ClipboardList, permission: 'leads:view' }],
   },
   {
     groupName: 'System',

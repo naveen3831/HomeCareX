@@ -17,19 +17,13 @@
 .prc-actions { display: flex; justify-content: flex-end; gap: 2px; }
 .prc-table .cat-iconbtn:focus-visible, .prc-table .cat-switch:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
 
-/* Phones: each rule becomes a card so Status, Edit and Remove stay on screen (no sideways scrolling). */
-@media (max-width: 640px) {
-  .prc-table.hcx-table, .prc-table.hcx-table tbody, .prc-table.hcx-table tr, .prc-table.hcx-table td { display: block; width: 100%; }
-  .prc-table.hcx-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .prc-table.hcx-table tbody tr { padding: 14px; border-bottom: 1px solid #e2e8f0; }
-  .prc-table.hcx-table tbody tr:last-child { border-bottom: 0; }
-  .prc-table.hcx-table td, .prc-table.hcx-table td.hcx-hide-sm { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 5px 0; border: 0; font-size: 13.5px; }
-  .prc-table.hcx-table td[data-label]::before { content: attr(data-label); flex-shrink: 0; font-size: 12px; font-weight: 600; color: #64748b; }
-  .prc-table.hcx-table td.prc-td-scope { display: block; padding-bottom: 8px; }
-  .prc-table.hcx-table td.prc-td-actions { justify-content: flex-end; margin-top: 6px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
-  .prc-table tbody tr.is-inactive td:not(.prc-td-actions):not([data-label='Status']) { opacity: .6; }
-  .prc-actions { gap: 8px; }
-  .prc-actions .cat-iconbtn { width: 38px; height: 38px; background: #f8fafc; border: 1px solid #e2e8f0; }
+/* Phones: keep the normal table and scroll it sideways (no cards). All columns stay visible. */
+@media (max-width: 767px) {
+  .prc-table .hcx-hide-sm { display: table-cell; }
+  .prc-table.hcx-table { min-width: 860px; }
+  .prc-table.hcx-table th, .prc-table.hcx-table td { white-space: nowrap; }
+  .prc-table.hcx-table td.prc-td-scope { white-space: normal; min-width: 190px; }
+  .prc-page .hcx-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
 }
 
 /* ---- form ---- */
@@ -188,3 +182,403 @@
 .prc-main .prc-cols > .prc-card { height: 100%; }
 @media (max-width: 1180px) { .prc-main .prc-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } .prc-main .prc-cols > :last-child { grid-column: 1 / -1; } }
 @media (max-width: 720px) { .prc-main .prc-cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* Create / edit rule screen: hide the scrollbar (wheel, touch and keyboard scrolling still work). Scoped to this form only. */
+.hcx-fs__body:has(.prc-main) { scrollbar-width: none; -ms-overflow-style: none; }
+.hcx-fs__body:has(.prc-main)::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* ---- Status toggle (Pricing table only) ---- */
+.prc-table .cat-switch {
+  flex: 0 0 44px; width: 44px; min-width: 44px; height: 24px;
+  background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .08);
+  cursor: pointer; transition: background .2s, border-color .2s, box-shadow .2s;
+}
+.prc-table .cat-switch span {
+  top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .3);
+  transition: transform .2s cubic-bezier(.4, 0, .2, 1);
+}
+/* small tick on the knob when ON */
+.prc-table .cat-switch span::after {
+  content: ""; position: absolute; left: 6px; top: 3px; width: 4px; height: 8px;
+  border: solid #059669; border-width: 0 2px 2px 0; transform: rotate(45deg); opacity: 0; transition: opacity .2s;
+}
+.prc-table .cat-switch:hover:not(:disabled) { border-color: #94a3b8; }
+.prc-table .cat-switch.is-on { background: linear-gradient(135deg, #10b981, #059669); border-color: #059669; }
+.prc-table .cat-switch.is-on:hover:not(:disabled) { border-color: #047857; }
+.prc-table .cat-switch.is-on span { transform: translateX(20px); }
+.prc-table .cat-switch.is-on span::after { opacity: 1; }
+.prc-table .cat-switch:disabled { opacity: .55; cursor: not-allowed; }
+.prc-table .cat-switch:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+.prc-status { flex-wrap: nowrap; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .prc-table .cat-switch, .prc-table .cat-switch span, .prc-table .cat-switch span::after { transition: none; } }
+
+/* ---- Search + Filter (same look as Bookings) ---- */
+.prc-f-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 16px 21px;
+
+  border-bottom: 1px solid #e8edf4;
+
+  background: #fff;
+}
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.prc-f-search {
+  position: relative;
+
+  width: 100%;
+  max-width: 430px;
+  height: 42px;
+}
+
+.prc-f-search svg {
+  position: absolute;
+
+  top: 50%;
+  left: 13px;
+
+  width: 17px;
+  height: 17px;
+
+  color: #71839d;
+
+  transform: translateY(-50%);
+
+  pointer-events: none;
+}
+
+.prc-f-search input {
+  width: 100%;
+  height: 100%;
+
+  box-sizing: border-box;
+
+  padding: 0 13px 0 40px;
+
+  border: 1px solid #d9e2ec;
+  border-radius: 7px;
+
+  outline: none;
+
+  background: #fff;
+  color: #344866;
+
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.prc-f-search input::placeholder {
+  color: #9aaabd;
+}
+
+.prc-f-search input:hover {
+  border-color: #c5d2e1;
+}
+
+.prc-f-search input:focus {
+  border-color: #7da9e6;
+
+  box-shadow:
+    0 0 0 3px rgba(23, 105, 224, 0.07);
+}
+
+/* =========================================================
+   FILTER BUTTON
+========================================================= */
+
+.prc-f-filter-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-width: 94px;
+  height: 42px;
+
+  padding: 0 14px;
+
+  margin-left: auto;
+
+  border: 1px solid #d9e2ec;
+  border-radius: 7px;
+
+  background: #fff;
+  color: #405472;
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.prc-f-filter-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.prc-f-filter-button:hover {
+  border-color: #b9c9dc;
+  background: #f8fafc;
+}
+
+.prc-f-filter-button--active {
+  border-color: #1769e0;
+  background: #f4f8ff;
+  color: #1769e0;
+}
+
+.prc-f-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 19px;
+  height: 19px;
+
+  padding: 0 5px;
+
+  border-radius: 50%;
+
+  background: #1769e0;
+  color: #fff;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   FILTER PANEL
+========================================================= */
+
+.prc-f-filter-section {
+  border-bottom: 1px solid #e3e9f1;
+
+  background: #fafbfd;
+
+  animation: prcFilterOpen 0.15s ease-out;
+}
+
+@keyframes prcFilterOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   FILTER HEADER
+========================================================= */
+
+.prc-f-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 50px;
+
+  padding: 0 21px;
+
+  border-bottom: 1px solid #e7edf4;
+
+  background: #fff;
+}
+
+.prc-f-filter-header h3 {
+  margin: 0;
+
+  color: #263b5b;
+
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.prc-f-filter-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 28px;
+  height: 28px;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 5px;
+
+  background: transparent;
+  color: #7b899c;
+
+  font-size: 22px;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.prc-f-filter-close:hover {
+  background: #f1f4f8;
+  color: #34435a;
+}
+
+/* =========================================================
+   FILTER BODY
+========================================================= */
+
+.prc-f-filter-body {
+  padding: 20px 21px;
+}
+
+.prc-f-filter-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 16px;
+}
+
+.prc-f-filter-field {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+
+  min-width: 0;
+}
+
+.prc-f-filter-field span {
+  color: #53657e;
+
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.prc-f-filter-field input,
+.prc-f-filter-field select {
+  width: 100%;
+  height: 40px;
+
+  box-sizing: border-box;
+
+  padding: 0 11px;
+
+  border: 1px solid #d8e1eb;
+  border-radius: 6px;
+
+  outline: none;
+
+  background: #fff;
+  color: #405472;
+
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.prc-f-filter-field input::placeholder {
+  color: #a0adbc;
+}
+
+.prc-f-filter-field input:hover,
+.prc-f-filter-field select:hover {
+  border-color: #c5d1df;
+}
+
+.prc-f-filter-field input:focus,
+.prc-f-filter-field select:focus {
+  border-color: #7da9e6;
+
+  box-shadow:
+    0 0 0 2px rgba(23, 105, 224, 0.06);
+}
+
+/* =========================================================
+   FILTER FOOTER
+========================================================= */
+
+.prc-f-filter-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+
+  padding: 12px 21px;
+
+  border-top: 1px solid #e7edf4;
+
+  background: #fff;
+}
+
+.prc-f-filter-clear,
+.prc-f-filter-apply {
+  height: 36px;
+
+  padding: 0 15px;
+
+  border-radius: 6px;
+
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.prc-f-filter-clear {
+  border: 1px solid #d9e1eb;
+
+  background: #fff;
+  color: #64748b;
+}
+
+.prc-f-filter-clear:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #c6d1df;
+}
+
+.prc-f-filter-clear:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.prc-f-filter-apply {
+  border: 1px solid #1769e0;
+
+  background: #1769e0;
+  color: #fff;
+}
+
+.prc-f-filter-apply:hover:not(:disabled) {
+  background: #0f5ccc;
+  border-color: #0f5ccc;
+}
+
+.prc-f-filter-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* Pricing: standalone search + filter (not inside a card) */
+.prc-f-toolbar { padding: 0; border-bottom: 0; background: transparent; margin-bottom: 12px; }
+.prc-f-filter-section { margin-bottom: 14px; border: 1px solid #e3e9f1; border-radius: 14px; overflow: hidden; }
+.prc-f-filter-section .prc-f-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.prc-f-search { max-width: none; flex: 1 1 auto; }
+@media (max-width: 720px) { .prc-f-filter-section .prc-f-filter-grid { grid-template-columns: 1fr; } }

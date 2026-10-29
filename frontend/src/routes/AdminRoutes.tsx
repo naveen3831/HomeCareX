@@ -25,6 +25,7 @@ const AdminPartnerDetailsPage = lazy(
   () => import("@/pages/admin/PartnerDetails"),
 );
 const AdminSupportPage = lazy(() => import("@/pages/admin/Support"));
+const AdminSupportTicketPage = lazy(() => import("@/pages/admin/Support/Ticketdetail"));
 
 // Catalog
 const AdminCategoriesPage = lazy(
@@ -39,6 +40,9 @@ const AdminMarketingPage = lazy(() => import("@/pages/admin/Marketing"));
 
 // Finance
 const AdminPaymentsPage = lazy(() => import("@/pages/admin/Payments"));
+const AdminPaymentDetailsPage = lazy(
+  () => import("@/pages/admin/Payments/PaymentDetails"),
+);
 const AdminRefundsPage = lazy(() => import("@/pages/admin/Refunds"));
 const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
 
@@ -92,6 +96,7 @@ const adminRoutes: AdminRoute[] = [
   { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
   { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
   { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
+  { path: 'support/:id', element: <AdminSupportTicketPage />, permission: 'tickets:view' },
   { path: "leads", element: <AdminLeadsPage /> },
   { path: "bookings", element: <AdminBookingsPage /> },
   { path: "customers", element: <AdminCustomersPage /> },
@@ -130,6 +135,8 @@ const adminRoutes: AdminRoute[] = [
 
   // Finance
   { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  // Payment details: opened from a row in the payments list.
+  { path: 'payments/:id', element: <AdminPaymentDetailsPage />, permission: 'payments:read' },
   { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
