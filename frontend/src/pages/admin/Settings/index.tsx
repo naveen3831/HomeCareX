@@ -11,6 +11,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
 } from "lucide-react";
+
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
@@ -19,10 +20,6 @@ import {
   type SettingsApiError,
   type SettingsSection,
   type SettingValue,
-} from '@/services/adminSettingsApi';
-import { SettingField } from './SettingField';
-
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 } from "@/services/adminSettingsApi";
 import { SettingField } from "./SettingField";
 
@@ -30,7 +27,6 @@ const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 
 export const AdminSettingsPage: React.FC = () => {
-  // Keep desktop tabs and use a dropdown on mobile.
   const isMobile = useMediaQuery("(max-width: 767px)");
   const pageRef = useDragScroll<HTMLDivElement>('[role="tablist"]');
 
@@ -62,6 +58,12 @@ export const AdminSettingsPage: React.FC = () => {
           ]),
         ),
       ),
+    );
+
+    setActiveId((current) =>
+      next.some((section) => section.id === current)
+        ? current
+        : next[0]?.id ?? "business",
     );
   }, []);
 
@@ -126,14 +128,8 @@ export const AdminSettingsPage: React.FC = () => {
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick,
-      );
-      document.removeEventListener(
-        "touchstart",
-        handleOutsideClick,
-      );
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [filterOpen]);

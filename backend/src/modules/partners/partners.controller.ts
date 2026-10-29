@@ -1,3 +1,4 @@
+
 import type { NextFunction, Request, Response } from 'express';
 
 import { parseBody } from '../auth/auth.validation';
@@ -62,6 +63,21 @@ export class PartnersController {
   });
 
   /**
+   * GET PARTNER BY ID
+   * Used by the Admin Partner Details page.
+   */
+  getById = wrap(async (req, res) => {
+    const data = await partnersService.getById(
+      req.params.id,
+    );
+
+    res.json({
+      success: true,
+      data,
+    });
+  });
+
+  /**
    * UPDATE PARTNER
    */
   update = wrap(async (req, res) => {
@@ -119,7 +135,12 @@ export class PartnersController {
    * GET PARTNERS & KYC DIRECTORY
    */
   getDirectory = wrap(async (_req, res) => {
-    res.json({ success: true, data: await partnersService.directory() });
+    const data = await partnersService.directory();
+
+    res.json({
+      success: true,
+      data,
+    });
   });
 
   /**

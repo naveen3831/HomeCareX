@@ -1,18 +1,21 @@
 
 import type { Request, Response } from 'express';
+
 import { getAuthUser } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
+
 import { payoutsService } from './payouts.service';
 
 const getIp = (req: Request): string =>
   req.ip || req.socket.remoteAddress || 'unknown';
 
 const num = (value: unknown): number | undefined => {
-  if (value === undefined || value === '') {
+  if (value === undefined || value === null || value === '') {
     return undefined;
   }
 
   const parsed = Number(value);
+
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
@@ -22,7 +25,10 @@ const str = (value: unknown): string | undefined =>
     : undefined;
 
 export const payoutsController = {
-  /** POST /admin/payouts */
+  /**
+   * POST /admin/payouts
+   * Generate a payout batch.
+   */
   async generate(req: Request, res: Response) {
     const admin = getAuthUser(req);
 
@@ -36,28 +42,10 @@ export const payoutsController = {
     sendSuccess(res, batch, { status: 201 });
   },
 
-  /** GET /admin/payouts?page&limit&status */
-
-const num = (value: unknown): number | undefined =>
-  value === undefined || value === '' ? undefined : Number(value);
-
-const str = (value: unknown): string | undefined =>
-  typeof value === 'string' && value ? value : undefined;
-
-export const payoutsController = {
-  /** POST /admin/payout-batches or /admin/payouts  { periodStart, periodEnd } */
-  async generate(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-    const batch = await payoutsService.generateBatch({
-      periodStart: req.body?.periodStart,
-      periodEnd: req.body?.periodEnd,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
-    sendSuccess(res, batch, { status: 201 });
-  },
-
-  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
+  /**
+   * GET /admin/payouts?page&limit&status
+   * List payout batches.
+   */
   async list(req: Request, res: Response) {
     const result = await payoutsService.listBatches({
       page: num(req.query.page),
@@ -66,11 +54,15 @@ export const payoutsController = {
     });
 
     sendSuccess(res, result.items, {
-      meta: { pagination: result.pagination },
+      meta: {
+        pagination: result.pagination,
+      },
     });
   },
 
-  /** GET /admin/payouts/:id */
+  /**
+   * GET /admin/payouts/:id
+   */
   async get(req: Request, res: Response) {
     const batch = await payoutsService.getBatch(
       String(req.params.id),
@@ -79,7 +71,9 @@ export const payoutsController = {
     sendSuccess(res, batch);
   },
 
-  /** Compatibility alias for existing routes */
+  /**
+   * Compatibility alias for existing routes.
+   */
   async getBatch(req: Request, res: Response) {
     const batch = await payoutsService.getBatch(
       String(req.params.id),
@@ -88,7 +82,9 @@ export const payoutsController = {
     sendSuccess(res, batch);
   },
 
-  /** GET /admin/payouts/:id/payouts */
+  /**
+   * GET /admin/payouts/:id/payouts
+   */
   async listPayouts(req: Request, res: Response) {
     const payouts = await payoutsService.listPayouts(
       String(req.params.id),
@@ -97,7 +93,9 @@ export const payoutsController = {
     sendSuccess(res, payouts);
   },
 
-  /** Compatibility alias for existing routes */
+  /**
+   * Compatibility alias for existing routes.
+   */
   async listBatchPayouts(req: Request, res: Response) {
     const payouts = await payoutsService.listPayouts(
       String(req.params.id),
@@ -107,8 +105,8 @@ export const payoutsController = {
   },
 
   /**
+   * PATCH /admin/payouts/:id/mark-paid
    * Mark an individual payout as paid.
-   * The current service supports markPaid(), not general status transitions.
    */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
@@ -124,8 +122,26 @@ export const payoutsController = {
   },
 
   /**
+   * Compatibility alias for routes that update payout status.
+   */
+  async updateStatus(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+
+    const payout = await payoutsService.markPaid({
+      payoutId: String(req.params.id),
+      adminId: admin.id,
+      ip: getIp(req),
+      transactionId: str(req.body?.transactionId),
+    });
+
+    sendSuccess(res, payout);
+  },
+
+  /**
    * GET /admin/payouts/export?batchId=<batchId>
    * GET /admin/payouts/:id/export
+   *
+   * Export a batch's payouts as CSV.
    */
   async exportCsv(req: Request, res: Response) {
     const batchId =
@@ -139,8 +155,15 @@ export const payoutsController = {
       return;
     }
 
-    const { csv, filename } =
-      await payoutsService.exportCsv(batchId);
+    const result = await payoutsService.exportCsv(batchId);
+
+    const csv =
+      typeof result === 'string' ? result : result.csv;
+
+    const filename =
+      typeof result === 'string'
+        ? 'payouts.csv'
+        : result.filename;
 
     res.status(200);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -148,53 +171,7 @@ export const payoutsController = {
       'Content-Disposition',
       `attachment; filename="${filename}"`,
     );
-    sendSuccess(res, result.items, { meta: { pagination: result.pagination } });
-  },
 
-  /** GET /admin/payout-batches/:id or /admin/payouts/:id */
-  async get(req: Request, res: Response) {
-    sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
-  },
-
-  async getBatch(req: Request, res: Response) {
-    return this.get(req, res);
-  },
-
-  /** GET /admin/payout-batches/:id/payouts or /admin/payouts/:id/payouts */
-  async listPayouts(req: Request, res: Response) {
-    sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
-  },
-
-  async listBatchPayouts(req: Request, res: Response) {
-    return this.listPayouts(req, res);
-  },
-
-  /** PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id  { transactionId? } */
-  async markPaid(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-    sendSuccess(
-      res,
-      await payoutsService.markPaid({
-        payoutId: String(req.params.id),
-        adminId: admin.id,
-        ip: getIp(req),
-        transactionId: str(req.body?.transactionId),
-      }),
-    );
-  },
-
-  async updateStatus(req: Request, res: Response) {
-    return this.markPaid(req, res);
-  },
-
-  /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */
-  async exportCsv(req: Request, res: Response) {
-    const result = await payoutsService.exportCsv(str(req.params.id));
-    const csv = typeof result === 'string' ? result : result.csv;
-    const filename =
-      typeof result === 'string' ? 'payouts.csv' : result.filename;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
   },
 };
