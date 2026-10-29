@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { PROFILE_ITEM_META, PROFILE_MENU_GROUPS, type ProfileTint } from "@/components/customer/customerNav";
+import { customerPath } from "@/routes/customerPath";
 
 const TINTS: Record<ProfileTint, string> = {
   indigo: "bg-indigo-50 text-indigo-600",
@@ -40,6 +41,7 @@ export default function AccountMenu({ badges = {} }: { badges?: RowBadges }) {
                   <li key={to}>
                     <Link
                       to={to}
+                      state={{ from: customerPath("/profile") }}
                       className={clsx(
                         "group flex min-h-[64px] items-center gap-3.5 px-4 py-3 transition-colors active:bg-canvas",
                         FOCUS_RING,

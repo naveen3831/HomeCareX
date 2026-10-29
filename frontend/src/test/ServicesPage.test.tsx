@@ -1,4 +1,3 @@
-import ServicesPage from '@/pages/public/Services';
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -6,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
+import ServicesPage from "@/pages/public/Services";
 
 vi.mock("@/services/catalogApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/services/catalogApi")>();

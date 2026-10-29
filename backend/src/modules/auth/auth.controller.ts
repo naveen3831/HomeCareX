@@ -7,7 +7,6 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
-
 import {
   acceptInviteSchema,
   changePasswordSchema,
@@ -21,7 +20,6 @@ import {
   verifyInviteSchema,
   verifyOtpSchema,
 } from './auth.validation';
-
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
@@ -112,6 +110,10 @@ export const authController = {
     const { user, accessToken, refreshToken } =
       await authService.login(
         parseBody(loginSchema, req.body),
+        {
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
       );
 
     clearRefreshCookies(res);
@@ -266,29 +268,61 @@ export const authController = {
 
   /**
    * GET /api/v1/auth/sessions
-   *
-   * Individual session listing is not implemented in this
-   * controller version.
    */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const userAgent = req.headers['user-agent'];
 
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
+    const ip =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string)
+        ?.split(',')[0]
+        ?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+
+    const currentSid = (res.locals.auth as { sid?: string } | undefined)
+      ?.sid;
+
+    const data = await authService.getSessions(userId, {
+      userAgent,
+      ip,
+      currentSid,
+    });
+
+    res.json({
+      success: true,
+      data,
     });
   }),
 
   /**
    * DELETE /api/v1/auth/sessions/:id
-   *
-   * Individual session revocation is not implemented in this
-   * controller version.
    */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const sessionId = req.params.id;
+
+    const currentSid = (res.locals.auth as { sid?: string } | undefined)
+      ?.sid;
+
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        revoked: true,
+        isCurrent: result.isCurrent,
+        message: result.message,
+      },
     });
   }),
 
@@ -298,7 +332,7 @@ export const authController = {
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
 
-    const result = await authService.revokeUserSessions(userId);
+    const result = await authService.logoutAll(userId);
 
     clearRefreshCookies(res);
 

@@ -36,25 +36,6 @@ export const UnauthorizedPage: React.FC = () => {
   const dashboardRoute = isAuthenticated && user ? getRoleDashboard(user.role) : null;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md text-center">
-        <ShieldAlert size={40} className="mx-auto text-brand-600" aria-hidden="true" />
-        <p className="mt-4 text-sm font-semibold text-gray-500">403 Status</p>
-        <h1 className="mt-1 text-2xl font-bold text-accent-700">Access Denied</h1>
-        <p className="mt-2 text-gray-600">You don&apos;t have permission to view this page.</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link to="/" className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-white">
-            Go Home
-          </Link>
-          {user ? (
-            <>
-              <Link to={user.home} className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">
-                Go Dashboard
-              </Link>
-              <button type="button" onClick={() => void logout()} className="rounded-lg px-4 py-2.5 text-sm font-medium text-brand-600 hover:underline">
-                Switch account
-              </button>
-            </>
     <main
       className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12"
       role="alert"
@@ -74,7 +55,7 @@ export const UnauthorizedPage: React.FC = () => {
           id="unauthorized-heading"
           className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
         >
-          Access Denied — You don't have access to this page
+          Access Denied — You don&apos;t have access to this page
         </h1>
 
         <p className="mt-3 text-base leading-6 text-gray-600">

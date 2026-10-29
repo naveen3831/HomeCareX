@@ -128,7 +128,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           role: 'customer',
           permissions: [],
           home: '/customer',
-          permissions: [],
         },
         accessToken: 'access-token-test-123',
       });
@@ -300,7 +299,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           role: 'customer',
           permissions: [],
           home: '/customer',
-          permissions: [],
         },
         accessToken: 'access-customer-token',
       });
@@ -343,7 +341,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           role: 'partner',
           permissions: [],
           home: '/partner',
-          permissions: [],
         },
         accessToken: 'access-partner-token',
       });
@@ -451,7 +448,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
           role: 'customer',
           permissions: [],
           home: '/customer',
-          permissions: [],
         },
         accessToken: 'super-secret-jwt-token-xyz',
       });
@@ -519,9 +515,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       const user = userEvent.setup();
 
       // 1. Forgot Password Step
-      const forgotPasswordMessage =
-        'If an account exists, a verification code has been sent.';
-
       vi.mocked(authApi.forgotPassword).mockResolvedValueOnce({
         success: true,
         message: 'If an account exists, a verification code has been sent.',
@@ -577,9 +570,6 @@ describe('Day 18 Staging E2E — Visitor Journey, Authentication & Security', ()
       });
 
       // 3. Reset Password Step
-      const resetPasswordMessage =
-        'Your password has been reset successfully.';
-
       vi.mocked(authApi.resetPassword).mockResolvedValueOnce({
         success: true,
         message: 'Your password has been reset successfully.',

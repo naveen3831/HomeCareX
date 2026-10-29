@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -12,8 +11,8 @@ import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
-import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import {
   ReferralCodeModel,
   ReferralModel,
@@ -38,7 +37,8 @@ const timed = async <T>(
 
 const server = http.createServer(app);
 
-// Attach Socket.IO to the same HTTP server before it starts listening.
+// Attach Socket.IO to the same HTTP server, otherwise /socket.io/ requests
+// fall through to Express and return 404. Must happen once, before listen().
 initSockets(server);
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -53,32 +53,22 @@ let shuttingDown = false;
  */
 const seedDefaults = async (): Promise<void> => {
   try {
-    const added = await timed(
-      'seed settings',
-      seedDefaultSettings,
-    );
+    const added = await timed('seed settings', seedDefaultSettings);
 
     if (added > 0) {
       console.log(`Seeded ${added} default setting(s)`);
     }
 
-    await timed(
-      'seed designations',
-      seedDefaultDesignations,
-    );
+    await timed('seed designations', seedDefaultDesignations);
 
     const freshCatalog = await timed(
       'count services',
-      async () =>
-        (await ServiceModel.estimatedDocumentCount()) === 0,
+      async () => (await ServiceModel.estimatedDocumentCount()) === 0,
     );
 
     await timed('seed categories', seedDefaultCategories);
     await timed('seed services', seedDefaultServices);
-
-    if (freshCatalog) {
-      await timed('catalog seed', upsertCatalogSeed);
-    }
+    if (freshCatalog) await timed('catalog seed', upsertCatalogSeed);
 
     console.log('[startup] Default seeding completed.');
   } catch (error) {
@@ -115,7 +105,6 @@ const startServer = async (): Promise<void> => {
       ]);
     });
 
-    // Start listening exactly once.
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
         server.removeListener('listening', onListening);
@@ -133,13 +122,6 @@ const startServer = async (): Promise<void> => {
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
-
-    console.log(
-      `[timing] total startup: ${Math.round(
-        process.uptime() * 1000,
-      )} ms`,
-    );
-
     console.log(
       `[timing] process uptime at listen: ${Math.round(
         process.uptime() * 1000,

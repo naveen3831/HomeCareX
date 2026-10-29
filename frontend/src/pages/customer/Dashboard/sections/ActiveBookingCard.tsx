@@ -46,6 +46,7 @@ export default function ActiveBookingCard({ bookings }: { bookings: DashboardBoo
             <li key={b.id}>
               <Link
                 to={`${customerPath("/tracking")}?booking=${encodeURIComponent(b.id)}`}
+                state={{ from: customerPath() }}
                 className={clsx("flex items-center gap-3 px-3 py-3.5 transition-colors hover:bg-canvas sm:px-5 sm:py-4", FOCUS_RING)}
               >
                 <BookingThumb serviceName={b.serviceName} index={bi} className="h-12 w-12 rounded-2xl sm:h-14 sm:w-14" />

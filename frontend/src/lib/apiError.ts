@@ -74,7 +74,6 @@ export function classifyApiError(
     };
   }
 
-  // Normalize raw Axios errors before classifying them.
   const apiErr = normalizeRaw(err);
 
   if (!apiErr) {
@@ -84,15 +83,18 @@ export function classifyApiError(
     };
   }
 
+  const responseData = (apiErr as ApiError & {
+    response?: { data?: { message?: string; code?: string; details?: ApiError['details'] } };
+  }).response?.data;
   const normalized: ApiError = {
-    message: apiErr.message || defaultHttpMsg,
-    status: apiErr.status,
-    code: apiErr.code,
-    isTimeout: apiErr.isTimeout,
-    details: apiErr.details,
+    message: apiErr?.message || responseData?.message || defaultHttpMsg,
+    status: apiErr?.status,
+    code: apiErr?.code || responseData?.code,
+    isTimeout: apiErr?.isTimeout,
+    details: apiErr?.details ?? responseData?.details,
   };
 
-  // 2. Request timeout
+  // 2. Request Timeout
   if (
     normalized.isTimeout ||
     normalized.code === 'ECONNABORTED' ||

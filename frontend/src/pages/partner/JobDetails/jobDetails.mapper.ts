@@ -241,44 +241,33 @@ export function mapJob(api: ApiJob): JobDetails {
   };
 }
 
-function isApiJob(
-  item: Record<string, unknown>,
-): item is Record<string, unknown> & ApiJob {
-  const customer =
-    item.customer && typeof item.customer === "object"
-      ? (item.customer as Record<string, unknown>)
-      : {};
+/** Converts a live job / list item (e.g. from GET /partner/jobs) into JobDetails format */
+function isApiJob(item: Record<string, unknown>): item is Record<string, unknown> & ApiJob {
+  const customer = item.customer && typeof item.customer === 'object'
+    ? item.customer as Record<string, unknown>
+    : {};
+  const service = item.service && typeof item.service === 'object'
+    ? item.service as Record<string, unknown>
+    : {};
+  const location = item.location && typeof item.location === 'object'
+    ? item.location as Record<string, unknown>
+    : {};
+  const schedule = item.schedule && typeof item.schedule === 'object'
+    ? item.schedule as Record<string, unknown>
+    : {};
+  const price = item.price && typeof item.price === 'object'
+    ? item.price as Record<string, unknown>
+    : {};
 
-  const service =
-    item.service && typeof item.service === "object"
-      ? (item.service as Record<string, unknown>)
-      : {};
-
-  const location =
-    item.location && typeof item.location === "object"
-      ? (item.location as Record<string, unknown>)
-      : {};
-
-  const schedule =
-    item.schedule && typeof item.schedule === "object"
-      ? (item.schedule as Record<string, unknown>)
-      : {};
-
-  const price =
-    item.price && typeof item.price === "object"
-      ? (item.price as Record<string, unknown>)
-      : {};
-
-  return (
-    typeof item.id === "string" &&
-    typeof item.status === "string" &&
-    typeof customer.name === "string" &&
-    typeof service.name === "string" &&
-    typeof location.line1 === "string" &&
-    typeof location.city === "string" &&
-    typeof schedule.scheduledAt === "string" &&
-    typeof price.total === "number" &&
-    typeof price.partnerEarning === "number" &&
+  return typeof item.id === 'string' &&
+    typeof item.status === 'string' &&
+    typeof customer.name === 'string' &&
+    typeof service.name === 'string' &&
+    typeof location.line1 === 'string' &&
+    typeof location.city === 'string' &&
+    typeof schedule.scheduledAt === 'string' &&
+    typeof price.total === 'number' &&
+    typeof price.partnerEarning === 'number' &&
     Array.isArray(item.addOns) &&
     Array.isArray(item.checklist) &&
     Array.isArray(item.actions) &&
@@ -286,130 +275,109 @@ function isApiJob(
   );
 }
 
-/** Converts a live API job or a list item into JobDetails format. */
-export function mapJobListItemToJobDetails(
-  item: JobListItemLike | Record<string, unknown>,
-): JobDetails {
-  const raw = item as Record<string, unknown>;
+export interface JobListItemLike {
+  id?: string | number;
+  service?: string | { name?: string };
+  serviceDescription?: string;
+  durationMinutes?: number;
+  status?: JobStatus | string;
+  customer?: string | { name?: string; phone?: string | null };
+  customerName?: string;
+  customerPhone?: string;
+  location?: string | { line1?: string; area?: string; city?: string; pincode?: string | null };
+  address?: string | { line1?: string; area?: string; city?: string; pincode?: string | null };
+  scheduledAt?: string;
+  slot?: string;
+  partnerEarning?: number;
+  amount?: number;
+  total?: number;
+  instructions?: string;
+  [key: string]: unknown;
+}
 
-  if (isApiJob(raw)) {
-    return mapJob(raw);
+export function mapJobListItemToJobDetails(item: Record<string, unknown>): JobDetails;
+export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails;
+export function mapJobListItemToJobDetails(item: Record<string, unknown> | JobListItemLike): JobDetails {
+  if (isApiJob(item as Record<string, unknown>)) {
+    return mapJob(item as unknown as ApiJob);
   }
 
-  const service =
-    raw.service && typeof raw.service === "object"
-      ? (raw.service as Record<string, unknown>)
-      : {};
-
-  const customer =
-    raw.customer && typeof raw.customer === "object"
-      ? (raw.customer as Record<string, unknown>)
-      : {};
-
-  const locationSource = raw.address ?? raw.location;
-
-  const location =
-    locationSource && typeof locationSource === "object"
-      ? (locationSource as Record<string, unknown>)
+  const customerObj = item.customer && typeof item.customer === 'object'
+    ? item.customer as Record<string, unknown>
+    : {};
+  const locationObj = item.address && typeof item.address === 'object'
+    ? item.address as Record<string, unknown>
+    : item.location && typeof item.location === 'object'
+      ? item.location as Record<string, unknown>
       : {};
 
   const serviceName =
-    String(service.name ?? raw.service ?? "Service");
-
-  const cleanId = String(raw.id ?? "");
-  const status = String(raw.status ?? "assigned") as JobStatus;
-
-  const addressText =
-    typeof locationSource === "string"
-      ? locationSource
-      : [
-          location.line1,
-          location.area,
-        ]
-          .filter(
-            (part): part is string =>
-              typeof part === "string" && part.length > 0,
-          )
-          .join(", ") || "Customer address";
-
-  const customerName = String(
-    raw.customerName ??
-      customer.name ??
-      (typeof raw.customer === "string" ? raw.customer : "Customer"),
-  );
-
-  const customerPhone = String(
-    raw.customerPhone ??
-      customer.phone ??
-      `+91 ••••• ••${cleanId.slice(-3)}`,
-  );
-
-  const scheduledAt = String(
-    raw.scheduledAt ?? new Date().toISOString(),
-  );
-
-  const amount = Number(raw.amount ?? raw.total) || 1348;
-  const partnerEarning =
-    Number(raw.partnerEarning ?? raw.amount) || 1299;
-
-  const actions: JobDetails["actions"] =
-    status === "assigned" || status === "confirmed"
-      ? [{ status: "en_route", label: "On the way" }]
-      : status === "en_route"
-        ? [{ status: "arrived", label: "Arrived at location" }]
-        : [];
+    (typeof item.service === 'object' && item.service !== null && typeof (item.service as { name?: string }).name === 'string'
+      ? (item.service as { name: string }).name
+      : typeof item.service === 'string'
+        ? item.service
+        : 'Service');
+  const cleanId = String(item.id ?? '');
+  const addr = item.address ?? item.location ?? 'Location';
+  const customerName = String(item.customerName ?? customerObj.name ?? (typeof item.customer === 'string' ? item.customer : 'Customer'));
+  const customerPhone = String(item.customerPhone ?? customerObj.phone ?? '+91 ••••• ••' + cleanId.slice(-3));
+  const status = (typeof item.status === 'string' ? item.status : 'assigned') as JobStatus | string;
+  const addressText = typeof addr === 'string'
+    ? addr
+    : [locationObj.line1, locationObj.area].filter((part): part is string => typeof part === 'string' && part.length > 0).join(', ') || 'Customer address';
 
   return {
     id: cleanId,
     bookingCode: bookingCode(cleanId),
-    status: status as JobDetails["status"],
+    status: status as JobDetails['status'],
     customer: {
       name: customerName,
       phoneMasked: customerPhone,
     },
     service: {
       name: serviceName,
-      description: String(
-        raw.serviceDescription ??
-          `${serviceName} professional service`,
-      ),
+      description: typeof item.serviceDescription === 'string'
+        ? item.serviceDescription
+        : `${serviceName} professional service`,
       quantity: 1,
-      durationMinutes: Number(raw.durationMinutes) || 90,
+      durationMinutes: typeof item.durationMinutes === 'number'
+        ? item.durationMinutes
+        : 90,
     },
     location: {
       address: addressText,
-      city: String(location.city ?? "Hyderabad"),
-      pincode:
-        typeof location.pincode === "string"
-          ? location.pincode
-          : null,
+      city: typeof locationObj.city === 'string' ? locationObj.city : 'Hyderabad',
+      pincode: typeof locationObj.pincode === 'string' ? locationObj.pincode : null,
     },
     schedule: {
-      scheduledAt,
-      slot: String(raw.slot ?? "10:00 – 12:00"),
+      scheduledAt: String(item.scheduledAt || new Date().toISOString()),
+      slot: typeof item.slot === 'string' ? item.slot : '10:00 – 12:00',
       startedAt: null,
     },
     price: {
-      basePrice: partnerEarning,
-      total: amount,
-      partnerEarning,
+      basePrice: Number(item.partnerEarning || item.amount || item.total || 1299) || 1299,
+      total: Number(item.amount || item.total || item.partnerEarning || 1348) || 1348,
+      partnerEarning: Number(item.partnerEarning || item.amount || 1299) || 1299,
     },
     addOns: [],
-    instructions: String(raw.instructions ?? ""),
+    instructions: typeof item.instructions === 'string' ? item.instructions : '',
     checklist: getDefaultChecklistForService(serviceName),
     extraCharges: [],
     payment: {
-      status: "PENDING",
-      amount,
+      status: 'PENDING',
+      amount: Number(item.amount || item.total || item.partnerEarning || 1348) || 1348,
     },
-    actions,
-    otpRequired: status === "arrived",
-    startVerification: null,
+    actions: status === 'assigned' || status === 'confirmed'
+      ? [{ status: 'en_route', label: 'On the way' }]
+      : item.status === 'en_route'
+        ? [{ status: 'arrived', label: 'Arrived at location' }]
+        : [],
+    otpRequired: status === 'arrived',
     history: [
       {
-        status: status as JobDetails["status"],
-        at: scheduledAt,
-        actor: "System",
+        status: status as JobDetails['status'],
+        at: String(item.scheduledAt || new Date().toISOString()),
+        actor: 'System',
       },
     ],
   };

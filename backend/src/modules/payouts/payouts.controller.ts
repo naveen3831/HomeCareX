@@ -27,6 +27,8 @@ const str = (value: unknown): string | undefined =>
 export const payoutsController = {
   /**
    * POST /admin/payouts
+   * POST /admin/payout-batches
+   *
    * Generate a payout batch.
    */
   async generate(req: Request, res: Response) {
@@ -44,6 +46,8 @@ export const payoutsController = {
 
   /**
    * GET /admin/payouts?page&limit&status
+   * GET /admin/payout-batches?page&limit&status
+   *
    * List payout batches.
    */
   async list(req: Request, res: Response) {
@@ -62,50 +66,48 @@ export const payoutsController = {
 
   /**
    * GET /admin/payouts/:id
+   * GET /admin/payout-batches/:id
+   *
+   * Get a payout batch.
    */
   async get(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(
-      String(req.params.id),
+    sendSuccess(
+      res,
+      await payoutsService.getBatch(String(req.params.id)),
     );
-
-    sendSuccess(res, batch);
   },
 
   /**
-   * Compatibility alias for existing routes.
+   * Compatibility alias for routes using getBatch.
    */
   async getBatch(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, batch);
+    return payoutsController.get(req, res);
   },
 
   /**
    * GET /admin/payouts/:id/payouts
+   * GET /admin/payout-batches/:id/payouts
+   *
+   * List payouts belonging to a batch.
    */
   async listPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(
-      String(req.params.id),
+    sendSuccess(
+      res,
+      await payoutsService.listPayouts(String(req.params.id)),
     );
-
-    sendSuccess(res, payouts);
   },
 
   /**
-   * Compatibility alias for existing routes.
+   * Compatibility alias for routes using listBatchPayouts.
    */
   async listBatchPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, payouts);
+    return payoutsController.listPayouts(req, res);
   },
 
   /**
    * PATCH /admin/payouts/:id/mark-paid
+   * PATCH /admin/payouts/:id
+   *
    * Mark an individual payout as paid.
    */
   async markPaid(req: Request, res: Response) {
@@ -122,24 +124,16 @@ export const payoutsController = {
   },
 
   /**
-   * Compatibility alias for routes that update payout status.
+   * Compatibility alias for routes using updateStatus.
    */
   async updateStatus(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-
-    const payout = await payoutsService.markPaid({
-      payoutId: String(req.params.id),
-      adminId: admin.id,
-      ip: getIp(req),
-      transactionId: str(req.body?.transactionId),
-    });
-
-    sendSuccess(res, payout);
+    return payoutsController.markPaid(req, res);
   },
 
   /**
    * GET /admin/payouts/export?batchId=<batchId>
    * GET /admin/payouts/:id/export
+   * GET /admin/payout-batches/:id/export
    *
    * Export a batch's payouts as CSV.
    */
@@ -155,18 +149,23 @@ export const payoutsController = {
       return;
     }
 
-    const result = await payoutsService.exportCsv(batchId);
+    const exported = await payoutsService.exportCsv(batchId);
 
     const csv =
-      typeof result === 'string' ? result : result.csv;
+      typeof exported === 'string'
+        ? exported
+        : exported.csv;
 
     const filename =
-      typeof result === 'string'
-        ? 'payouts.csv'
-        : result.filename;
+      typeof exported === 'string'
+        ? `payouts-${batchId}.csv`
+        : exported.filename;
 
     res.status(200);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Type',
+      'text/csv; charset=utf-8',
+    );
     res.setHeader(
       'Content-Disposition',
       `attachment; filename="${filename}"`,

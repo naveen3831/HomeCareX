@@ -70,17 +70,10 @@ function getCustomer(refund: AdminRefundItem) {
 function getBooking(refund: AdminRefundItem) {
   const booking = refund.bookingId;
 
-  if (typeof booking === "object" && booking !== null) {
-    return {
-      id: booking._id || "",
-      number: booking.bookingNumber || booking._id || "—",
-      service: booking.serviceName || "Home service",
-      status: booking.status || "—",
-      paymentStatus: booking.paymentStatus || "—",
-      cancellationReason: booking.cancellationReason || "",
-      scheduledAt: booking.scheduledAt,
-    };
-  }
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
   return {
     id: typeof booking === "string" ? booking : "",
@@ -168,18 +161,13 @@ function getStatus(refund: AdminRefundItem): {
     };
   }
 
-  if (status === "APPROVED") {
-    return {
-      label: "Approved",
-      className: "refund-status--approved",
-    };
-  }
-
-  return {
-    label: "Pending approval",
-    className: "refund-status--pending",
-  };
-}
+const normalizeRefund = (item: unknown): Refund => {
+  const raw = asObject(item);
+  const payment = asObject(raw.payment ?? raw.paymentDetails);
+  const booking = asObject(raw.booking);
+  const customer = asObject(
+    raw.customer ?? raw.user ?? booking.customer ?? booking.user,
+  );
 
 function canReviewRefund(refund: AdminRefundItem) {
   return ["PENDING_APPROVAL", "REQUESTED"].includes(
@@ -202,9 +190,83 @@ function formatAmount(amount: number, currency = "INR") {
 function formatDate(value?: string) {
   if (!value) return "—";
 
-  const date = new Date(value);
+  return {
+    id,
+    refundId: firstValue(raw.refundId, raw.refund_id, raw._id, raw.id, id),
+    paymentId: firstValue(
+      raw.paymentId,
+      payment._id,
+      payment.id,
+      payment.razorpayPaymentId,
+      raw.razorpayPaymentId,
+    ),
+    bookingId: firstValue(
+      raw.bookingId,
+      booking.bookingId,
+      booking._id,
+      booking.id,
+    ),
+    customerName: firstValue(
+      raw.customerName,
+      customer.name,
+      customer.fullName,
+      raw.userName,
+      "Customer",
+    ),
+    customerEmail: firstValue(raw.customerEmail, customer.email),
+    customerPhone: firstValue(
+      raw.customerPhone,
+      customer.phone,
+      customer.mobile,
+    ),
+    amount,
+    status: normalizeStatus(
+      raw.status ?? raw.refundStatus ?? payment.refundStatus,
+    ),
+    method: firstValue(
+      raw.method,
+      raw.paymentMethod,
+      payment.method,
+      payment.paymentMethod,
+      payment.razorpayPaymentId ? "Razorpay" : "",
+      "Wallet",
+    ),
+    reason: firstValue(
+      raw.reason,
+      raw.refundReason,
+      raw.description,
+      raw.customerReason,
+      "No reason provided",
+    ),
+    rejectionReason: firstValue(raw.rejectionReason, raw.reviewNote),
+    failureMessage: firstValue(
+      raw.failureMessage,
+      raw.errorMessage,
+      raw.failureReason,
+      payment.failureMessage,
+    ),
+    razorpayRefundId: firstValue(
+      raw.razorpayRefundId,
+      asObject(raw.refundDetails).razorpayRefundId,
+      payment.razorpayRefundId,
+    ),
+    createdAt: firstValue(raw.createdAt, raw.requestedAt, raw.date),
+    updatedAt: firstValue(raw.updatedAt, raw.processedAt),
+    raw,
+  };
+};
 
-  if (Number.isNaN(date.getTime())) return "—";
+const getErrorMessage = (error: unknown): string => {
+  const errorObject = asObject(error);
+  const response = asObject(errorObject.response);
+  const data = asObject(response.data);
+  return firstValue(
+    data.message,
+    data.error,
+    errorObject.message,
+    "Something went wrong. Please try again.",
+  );
+};
 
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -232,440 +294,530 @@ function formatDateTime(value?: string) {
 function getErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message;
 
-  return "Unable to complete the request. Please try again.";
-}
+const getInitials = (name: string): string =>
+  name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "C";
 
-function DetailField({
-  label,
-  value,
-  copyable = false,
-}: {
-  label: string;
-  value?: string | number | null;
-  copyable?: boolean;
-}) {
-  const displayValue =
-    value === undefined || value === null || value === ""
-      ? "—"
-      : String(value);
+const statusClass = (status: RefundStatus): string =>
+  `refund-status refund-status--${status.toLowerCase()}`;
+
+const extractRefunds = (response: unknown): Refund[] => {
+  const responseObject = asObject(response);
+  const body = responseObject.data ?? response;
+  const payload = asObject(body).data ?? body;
+  if (Array.isArray(payload)) return payload.map(normalizeRefund);
+  const payloadObject = asObject(payload);
+  const rows =
+    payloadObject.refunds ??
+    payloadObject.items ??
+    payloadObject.results ??
+    payloadObject.requests;
+
+  return Array.isArray(rows) ? rows.map(normalizeRefund) : [];
+};
+
+const extractTotal = (response: unknown, fallback: number): number => {
+  const responseObject = asObject(response);
+  const body = responseObject.data ?? response;
+  const payload = asObject(body).data ?? body;
+  const payloadObject = asObject(payload);
+  const pagination = asObject(payloadObject.pagination);
+  const meta = asObject(payloadObject.meta);
+  const total = Number(
+    payloadObject.total ??
+      payloadObject.totalCount ??
+      pagination.total ??
+      meta.total,
+  );
 
   return (
     <div className="refunds-detail-field">
       <span className="refunds-detail-field__label">{label}</span>
 
-      <div className="refunds-detail-field__value">
-        <span>{displayValue}</span>
-
-        {copyable && displayValue !== "—" && (
-          <button
-            type="button"
-            className="refunds-copy-button"
-            title={`Copy ${label}`}
-            aria-label={`Copy ${label}`}
-            onClick={() => {
-              void navigator.clipboard
-                ?.writeText(displayValue)
-                .catch(() => {
-                  // Clipboard access may be unavailable in some browsers.
-                });
-            }}
-          >
-            <Copy size={13} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export const AdminRefundsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
 
-  // Safely decode the selected refund ID from the URL.
-  let refundId = "";
-
-  if (routeId) {
-    try {
-      refundId = decodeURIComponent(routeId);
-    } catch {
-      refundId = routeId;
-    }
-  }
-
-  const [items, setItems] = useState<AdminRefundItem[]>([]);
-  const [counts, setCounts] =
-    useState<AdminRefundSummaryCounts>(EMPTY_COUNTS);
-
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<FilterStatus>("all");
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(1);
-  const [total, setTotal] = useState(0);
-
+  const [refunds, setRefunds] = useState<Refund[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [selectedRefund, setSelectedRefund] =
-    useState<AdminRefundItem | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState("");
-
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [noticeType, setNoticeType] = useState<"success" | "error">("success");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [methodFilter, setMethodFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [serverTotal, setServerTotal] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState("");
-  const [actionError, setActionError] = useState("");
-  const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
   const loadRefunds = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadError("");
 
     try {
-      const result = await fetchAdminRefundList({
-        status,
-        search,
-        page,
-        limit: 10,
-      });
-
-      setItems(result.items);
-      setCounts(result.summaryCounts);
-      setTotal(result.pagination?.total ?? result.items.length);
-      setPages(Math.max(1, result.pagination?.pages ?? 1));
-    } catch (err) {
-      setError(getErrorMessage(err));
+      const response = await http.get("/admin/refunds?page=1&limit=100");
+      const items = extractRefunds(response);
+      setRefunds(items);
+      setServerTotal(extractTotal(response, items.length));
+    } catch (error) {
+      setLoadError(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
-  }, [status, search, page]);
+  }, []);
 
-  const loadRefundDetails = useCallback(async () => {
-    if (!refundId) return;
+  useEffect(() => {
+    void loadRefunds();
+  }, [loadRefunds]);
 
-    setDetailLoading(true);
-    setDetailError("");
-    setActionError("");
-    setActionMessage("");
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, methodFilter]);
 
+  const selectedRefund = useMemo(() => {
+    if (!routeId) return undefined;
+
+    let decodedId = routeId;
     try {
-      const result = await fetchAdminRefund(refundId);
-      setSelectedRefund(result);
-    } catch (err) {
-      setSelectedRefund(null);
-      setDetailError(getErrorMessage(err));
-    } finally {
-      setDetailLoading(false);
+      decodedId = decodeURIComponent(routeId);
+    } catch {
+      // Keep the original route parameter if decoding fails.
     }
-  }, [refundId]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-
-    return () => window.clearTimeout(timer);
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (!refundId) {
-      void loadRefunds();
-    }
-  }, [refundId, loadRefunds]);
-
-  useEffect(() => {
-    if (refundId) {
-      setSelectedRefund(null);
-      setShowRejectForm(false);
-      setRejectionReason("");
-      void loadRefundDetails();
-    }
-  }, [refundId, loadRefundDetails]);
-
-  const handleApprove = async () => {
-    if (!selectedRefund || !canReviewRefund(selectedRefund)) return;
-
-    const confirmed = window.confirm(
-      "Approve this refund request? This will initiate the refund workflow.",
+    return refunds.find(
+      (refund) =>
+        refund.id === decodedId ||
+        refund.refundId === decodedId ||
+        refund.razorpayRefundId === decodedId,
     );
+  }, [refunds, routeId]);
 
-    if (!confirmed) return;
+  const filteredRefunds = useMemo(() => {
+    const query = search.trim().toLowerCase();
 
-    setActionLoading(true);
-    setActionError("");
-    setActionMessage("");
+    return refunds.filter((refund) => {
+      const matchesSearch =
+        !query ||
+        [
+          refund.refundId,
+          refund.id,
+          refund.paymentId,
+          refund.bookingId,
+          refund.customerName,
+          refund.customerEmail,
+          refund.customerPhone,
+          refund.razorpayRefundId,
+        ].some((value) => value.toLowerCase().includes(query));
 
-    try {
-      const updated = await approveAdminRefund(selectedRefund._id);
+      const matchesStatus =
+        statusFilter === "All" || refund.status === statusFilter;
 
-      setSelectedRefund(updated);
-      setActionMessage("Refund approved successfully.");
-      setShowRejectForm(false);
-    } catch (err) {
-      setActionError(getErrorMessage(err));
-    } finally {
-      setActionLoading(false);
-    }
+      const matchesMethod =
+        methodFilter === "All" ||
+        refund.method.toLowerCase() === methodFilter.toLowerCase();
+
+      return matchesSearch && matchesStatus && matchesMethod;
+    });
+  }, [refunds, search, statusFilter, methodFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRefunds.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+
+  const visibleRefunds = filteredRefunds.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
+
+  const pendingCount = refunds.filter((r) => r.status === "Pending").length;
+  const completedCount = refunds.filter(
+    (r) => r.status === "Completed",
+  ).length;
+  const failedCount = refunds.filter((r) => r.status === "Failed").length;
+  const pendingAmount = refunds
+    .filter((r) => r.status === "Pending")
+    .reduce((sum, r) => sum + r.amount, 0);
+  const completedAmount = refunds
+    .filter((r) => r.status === "Completed")
+    .reduce((sum, r) => sum + r.amount, 0);
+
+  const showNotice = (
+    message: string,
+    type: "success" | "error" = "success",
+  ) => {
+    setNotice(message);
+    setNoticeType(type);
   };
 
-  const handleReject = async () => {
-    if (!selectedRefund || !canReviewRefund(selectedRefund)) return;
-
-    const reason = rejectionReason.trim();
-
-    if (!reason) {
-      setActionError("Please enter a reason for rejecting this refund.");
+  const openDetails = (refund: Refund) => {
+    if (!refund.id) {
+      showNotice("This refund does not have a valid ID.", "error");
       return;
     }
 
+    navigate(`/admin/refunds/${encodeURIComponent(refund.id)}`);
+  };
+
+  const performAction = async (action: "approve" | "reject") => {
+    if (!selectedRefund?.id || actionLoading) return;
+
+    if (
+      action === "reject" &&
+      !rejectionReason.trim()
+    ) {
+      showNotice("Please enter a reason before rejecting this refund.", "error");
+      return;
+    }
+
+    const message =
+      action === "approve"
+        ? "Approve this refund? If it uses Razorpay, this may initiate a real refund."
+        : "Reject this refund request?";
+
+    if (!window.confirm(message)) return;
+
     setActionLoading(true);
-    setActionError("");
-    setActionMessage("");
+    setNotice("");
 
     try {
-      const updated = await rejectAdminRefund(
-        selectedRefund._id,
-        reason,
+      await http.patch(
+        `/admin/refunds/${encodeURIComponent(selectedRefund.id)}`,
+        {
+          action,
+          ...(action === "reject"
+            ? { rejectionReason: rejectionReason.trim() }
+            : {}),
+        },
       );
 
-      setSelectedRefund(updated);
-      setActionMessage("Refund rejected successfully.");
-      setShowRejectForm(false);
+      showNotice(
+        action === "approve"
+          ? "Refund approval submitted successfully."
+          : "Refund request rejected successfully.",
+      );
       setRejectionReason("");
-    } catch (err) {
-      setActionError(getErrorMessage(err));
+      await loadRefunds();
+    } catch (error) {
+      showNotice(getErrorMessage(error), "error");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const filterOptions: {
-    value: FilterStatus;
-    label: string;
-  }[] = [
-    { value: "all", label: "All statuses" },
-    { value: "PENDING_APPROVAL", label: "Pending approval" },
-    { value: "CREDITED", label: "Credited" },
-    { value: "REJECTED", label: "Rejected" },
-  ];
+  const goBack = () => navigate("/admin/refunds");
 
-  // ------------------------ REFUND DETAILS ------------------------
-  if (refundId) {
-    const refund = selectedRefund;
-    const customer = refund ? getCustomer(refund) : null;
-    const booking = refund ? getBooking(refund) : null;
-    const payment = refund ? getPayment(refund) : null;
-    const refundStatus = refund ? getStatus(refund) : null;
+  const renderStatus = (status: RefundStatus) => (
+    <span className={statusClass(status)}>
+      <span className="refund-status__dot" />
+      {status}
+    </span>
+  );
 
-    return (
-      <main className="refunds-page refunds-detail-page">
-        <div className="refunds-page__header">
-          <div>
-            <PageHeader
-              title="Refund Details"
-              description="Review the refund request, booking, customer, payment, and processing history."
-            />
-          </div>
+  const renderHeader = (detail = false) => (
+    <>
+      {detail && (
+        <button className="refunds-back-link" onClick={goBack} type="button">
+          <span aria-hidden="true">←</span> Back to refunds
+        </button>
+      )}
 
-          <div className="refunds-detail-header-actions">
-            <button
-              type="button"
-              className="refunds-button refunds-button--secondary"
-              onClick={() => navigate("/admin/refunds")}
-            >
-              <ArrowLeft size={15} />
-              Back to refunds
-            </button>
-
-            <button
-              type="button"
-              className="refunds-button refunds-button--secondary"
-              onClick={() => void loadRefundDetails()}
-              disabled={detailLoading}
-            >
-              <RefreshCw
-                size={15}
-                className={detailLoading ? "refunds-spin" : ""}
-              />
-              Refresh
-            </button>
-          </div>
+      <header className="refunds-page__header">
+        <div className="refunds-page__heading-copy">
+          <h1 className="refunds-page__title">
+            {detail ? "Refund details" : "Refunds"}
+          </h1>
+          <p className="refunds-page__subtitle">
+            {detail
+              ? "Review the refund request, payment information, and processing status."
+              : "Review customer refund requests and track their payment status."}
+          </p>
         </div>
+      </header>
+    </>
+  );
 
-        {detailLoading && (
-          <div className="refunds-inline-loading" role="status">
-            <span className="refunds-loading__spinner" />
-            Loading refund details...
-          </div>
-        )}
+  if (loading && refunds.length === 0) {
+    return (
+      <main className="refunds-page">
+        {renderHeader()}
+        <section className="refunds-panel refunds-loading" aria-live="polite">
+          <span className="refunds-loading__spinner" />
+          <span>Loading refund requests…</span>
+        </section>
+      </main>
+    );
+  }
 
-        {detailError && (
-          <div className="refunds-alert refunds-alert--error" role="alert">
-            <span>{detailError}</span>
+  if (routeId) {
+    if (loadError && refunds.length === 0) {
+      return (
+        <main className="refunds-page refunds-page--detail">
+          {renderHeader(true)}
+          <section className="refunds-panel refunds-error-state">
+            <strong>Unable to load refund details</strong>
+            <p>{loadError}</p>
             <button
+              className="refunds-button refunds-button--primary"
+              onClick={() => void loadRefunds()}
               type="button"
-              className="refunds-button refunds-button--secondary"
-              onClick={() => void loadRefundDetails()}
-              disabled={detailLoading}
             >
               Try again
             </button>
+          </section>
+        </main>
+      );
+    }
+
+    if (!selectedRefund && !loading) {
+      return (
+        <main className="refunds-page refunds-page--detail">
+          {renderHeader(true)}
+          <section className="refunds-panel refunds-not-found">
+            <div className="refunds-empty-icon">?</div>
+            <h1>Refund not found</h1>
+            <p>
+              This refund may have been removed or its identifier may be
+              invalid. Return to the refunds list to select another request.
+            </p>
+            <button
+              className="refunds-button refunds-button--primary"
+              onClick={goBack}
+              type="button"
+            >
+              Back to refunds
+            </button>
+          </section>
+        </main>
+      );
+    }
+
+    if (!selectedRefund) {
+      return (
+        <main className="refunds-page refunds-page--detail">
+          {renderHeader(true)}
+          <section className="refunds-panel refunds-loading">
+            <span className="refunds-loading__spinner" />
+            <span>Loading refund details…</span>
+          </section>
+        </main>
+      );
+    }
+
+    const refund = selectedRefund;
+    const canReview = refund.status === "Pending";
+
+    return (
+      <main className="refunds-page refunds-page--detail">
+        {renderHeader(true)}
+
+        {notice && (
+          <div
+            className={`refunds-alert refunds-alert--${noticeType}`}
+            role="status"
+          >
+            <span>{notice}</span>
+            <button
+              type="button"
+              className="refunds-button refunds-button--text"
+              onClick={() => setNotice("")}
+              aria-label="Dismiss notification"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
-        {refund && customer && booking && payment && refundStatus && (
-          <>
-            <section className="refunds-detail-hero">
-              <div className="refunds-detail-hero__main">
-                <span className="refunds-detail-hero__icon">
-                  <ReceiptText size={23} />
+        {loadError && (
+          <div className="refunds-alert refunds-alert--error" role="alert">
+            {loadError}
+          </div>
+        )}
+
+        <section className="refunds-detail-summary">
+          <article className="refunds-detail-amount-card refunds-detail-amount-card--highlight">
+            <span>Refund amount</span>
+            <strong>{formatCurrency(refund.amount)}</strong>
+            <small>Requested refund value</small>
+          </article>
+          <article className="refunds-detail-amount-card">
+            <span>Request status</span>
+            <strong>{renderStatus(refund.status)}</strong>
+            <small>Last updated {formatDate(refund.updatedAt || refund.createdAt)}</small>
+          </article>
+          <article className="refunds-detail-amount-card">
+            <span>Refund reference</span>
+            <strong className="refunds-mono refunds-reference" title={refund.refundId}>
+              {shortId(refund.refundId, 22)}
+            </strong>
+            <small>Request identifier</small>
+          </article>
+        </section>
+
+        <section className="refunds-detail-grid">
+          <article className="refunds-panel refunds-detail-panel">
+            <div className="refunds-panel__heading">
+              <div>
+                <h2>Customer information</h2>
+                <p>Customer and booking details for this request.</p>
+              </div>
+            </div>
+            <div className="refunds-detail-body">
+              <div className="refunds-detail-customer">
+                <span className="refunds-avatar refunds-avatar--large">
+                  {getInitials(refund.customerName)}
                 </span>
-
-                <div className="refunds-detail-hero__content">
-                  <span className="refunds-detail-eyebrow">
-                    Refund request
-                  </span>
-
-                  <h2
-                    className="refunds-detail-id"
-                    title={refund._id}
-                  >
-                    {refund._id}
-                  </h2>
-
-                  <p>
-                    Requested on{" "}
-                    {formatDateTime(
-                      refund.requestedAt || refund.createdAt,
-                    )}
-                  </p>
+                <div>
+                  <strong>{refund.customerName}</strong>
+                  <p>{refund.customerEmail || "No email provided"}</p>
                 </div>
               </div>
-
-              <span
-                className={clsx(
-                  "refund-status",
-                  refundStatus.className,
-                )}
-              >
-                <span className="refund-status__dot" />
-                {refundStatus.label}
-              </span>
-            </section>
-
-            {actionMessage && (
-              <div
-                className="refunds-alert refunds-alert--success"
-                role="status"
-              >
-                <Check size={17} />
-                {actionMessage}
+              <div className="refunds-detail-row">
+                <span>Phone</span>
+                <strong>{refund.customerPhone || "—"}</strong>
               </div>
-            )}
-
-            {actionError && (
-              <div
-                className="refunds-alert refunds-alert--error"
-                role="alert"
-              >
-                {actionError}
+              <div className="refunds-detail-row">
+                <span>Booking ID</span>
+                <strong className="refunds-mono" title={refund.bookingId}>
+                  {shortId(refund.bookingId, 22)}
+                </strong>
               </div>
-            )}
+              <div className="refunds-detail-row">
+                <span>Requested on</span>
+                <strong>{formatDate(refund.createdAt)}</strong>
+              </div>
+              <div className="refunds-detail-row">
+                <span>Payment method</span>
+                <strong>{refund.method}</strong>
+              </div>
+            </div>
+          </article>
 
-            <section className="refunds-detail-summary">
-              <article className="refunds-detail-amount-card">
-                <span className="refunds-detail-amount-card__icon">
-                  <CircleDollarSign size={21} />
-                </span>
-
-                <span className="refunds-detail-eyebrow">
-                  Refund amount
-                </span>
-
-                <strong>
-                  {formatAmount(refund.amount, refund.currency)}
+          <article className="refunds-panel refunds-detail-panel">
+            <div className="refunds-panel__heading">
+              <div>
+                <h2>Payment information</h2>
+                <p>References and gateway processing details.</p>
+              </div>
+            </div>
+            <div className="refunds-detail-body">
+              <div className="refunds-detail-row">
+                <span>Payment ID</span>
+                <strong className="refunds-mono" title={refund.paymentId}>
+                  {shortId(refund.paymentId, 22)}
                 </strong>
-
-                <span className="refunds-detail-muted">
-                  {String(refund.method || "").toUpperCase() === "WALLET"
-                    ? "Wallet credit"
-                    : "Original payment method"}
-                </span>
-              </article>
-
-              <article className="refunds-detail-summary-card">
-                <span className="refunds-detail-eyebrow">
-                  Booking reference
-                </span>
-
-                <strong className="refunds-detail-summary-card__value">
-                  {booking.number}
+              </div>
+              <div className="refunds-detail-row">
+                <span>Razorpay refund ID</span>
+                <strong className="refunds-mono" title={refund.razorpayRefundId}>
+                  {shortId(refund.razorpayRefundId, 22) || "—"}
                 </strong>
+              </div>
+              <div className="refunds-detail-row">
+                <span>Created</span>
+                <strong>{formatDate(refund.createdAt)}</strong>
+              </div>
+              <div className="refunds-detail-row">
+                <span>Updated</span>
+                <strong>{formatDate(refund.updatedAt)}</strong>
+              </div>
 
-                <span className="refunds-detail-muted">
-                  {booking.service}
-                </span>
-              </article>
+              {refund.failureMessage && (
+                <div className="refunds-review-note refunds-review-note--error">
+                  <strong>Refund processing issue</strong>
+                  <p>{refund.failureMessage}</p>
+                </div>
+              )}
+              {refund.rejectionReason && (
+                <div className="refunds-review-note">
+                  <strong>Review note</strong>
+                  <p>{refund.rejectionReason}</p>
+                </div>
+              )}
+            </div>
+          </article>
 
-              <article className="refunds-detail-summary-card">
-                <span className="refunds-detail-eyebrow">
-                  Payment reference
-                </span>
+          <article className="refunds-panel refunds-detail-panel">
+            <div className="refunds-panel__heading">
+              <div>
+                <h2>Reason for refund</h2>
+                <p>Reason supplied with the customer request.</p>
+              </div>
+            </div>
+            <div className="refunds-detail-body">
+              <p className="refunds-reason">{refund.reason}</p>
+            </div>
+          </article>
 
-                <strong
-                  className="refunds-detail-summary-card__value"
-                  title={payment.reference}
-                >
-                  {payment.reference}
-                </strong>
+          <article className="refunds-panel refunds-detail-panel">
+            <div className="refunds-panel__heading">
+              <div>
+                <h2>Review request</h2>
+                <p>
+                  {canReview
+                    ? "Approve the request or reject it with a reason."
+                    : "This request is no longer awaiting review."}
+                </p>
+              </div>
+            </div>
+            <div className="refunds-detail-body">
+              {canReview ? (
+                <div className="refunds-review-form">
+                  <label htmlFor="refund-rejection-reason">
+                    Rejection reason
+                  </label>
+                  <textarea
+                    id="refund-rejection-reason"
+                    value={rejectionReason}
+                    onChange={(event) => setRejectionReason(event.target.value)}
+                    placeholder="Explain why this refund request should be rejected…"
+                    maxLength={1000}
+                    disabled={actionLoading}
+                  />
+                  <small>{rejectionReason.length}/1000 characters</small>
 
-                <span className="refunds-detail-muted">
-                  {payment.status}
-                </span>
-              </article>
-            </section>
+                  <p className="refunds-action-warning">
+                    Approving a Razorpay refund may initiate a real payment
+                    refund. Confirm the request before proceeding.
+                  </p>
 
-            <div className="refunds-detail-grid">
-              <section className="refunds-detail-card">
-                <div className="refunds-detail-card__heading">
-                  <span className="refunds-detail-card__heading-icon">
-                    <UserRound size={18} />
-                  </span>
-
-                  <div>
-                    <h2>Customer details</h2>
-                    <p>Customer associated with this refund</p>
+                  <div className="refunds-detail-actions">
+                    <button
+                      type="button"
+                      className="refunds-button refunds-button--primary"
+                      onClick={() => void performAction("approve")}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? "Processing…" : "Approve refund"}
+                    </button>
+                    <button
+                      type="button"
+                      className="refunds-button refunds-button--danger"
+                      onClick={() => void performAction("reject")}
+                      disabled={actionLoading || !rejectionReason.trim()}
+                    >
+                      {actionLoading ? "Processing…" : "Reject request"}
+                    </button>
                   </div>
                 </div>
-
-                <div className="refunds-detail-fields">
-                  <DetailField
-                    label="Customer name"
-                    value={customer.name}
-                  />
-                  <DetailField
-                    label="Email address"
-                    value={customer.email}
-                  />
-                  <DetailField
-                    label="Phone number"
-                    value={customer.phone}
-                  />
-                  <DetailField
-                    label="Customer ID"
-                    value={customer.id}
-                    copyable
-                  />
+              ) : (
+                <div className="refunds-review-note">
+                  <strong>Current status: {refund.status}</strong>
+                  <p>
+                    Approve and reject actions are available only for pending
+                    requests.
+                  </p>
                 </div>
-              </section>
-
-              <section className="refunds-detail-card">
-                <div className="refunds-detail-card__heading">
-                  <span className="refunds-detail-card__heading-icon">
-                    <ClipboardList size={18} />
-                  </span>
+              )}
+            </div>
+          </article>
+        </section>
+      </main>
+    );
+  }
 
                   <div>
                     <h2>Booking details</h2>
@@ -985,34 +1137,32 @@ export const AdminRefundsPage: React.FC = () => {
   // -------------------------- REFUND LIST --------------------------
   return (
     <main className="refunds-page">
-      <div className="refunds-page__header">
-        <PageHeader
-          title="Refund Requests"
-          description="Review cancelled-booking refund requests, track their progress, and inspect individual refund details."
-        />
+      {renderHeader()}
 
-        <button
-          type="button"
-          className="refunds-button refunds-button--secondary"
-          onClick={() => void loadRefunds()}
-          disabled={loading}
+      {notice && (
+        <div
+          className={`refunds-alert refunds-alert--${noticeType}`}
+          role="status"
         >
-          <RefreshCw
-            size={15}
-            className={loading ? "refunds-spin" : ""}
-          />
-          Refresh
-        </button>
-      </div>
+          <span>{notice}</span>
+          <button
+            type="button"
+            className="refunds-button refunds-button--text"
+            onClick={() => setNotice("")}
+            aria-label="Dismiss notification"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
-      {error && (
+      {loadError && (
         <div className="refunds-alert refunds-alert--error" role="alert">
-          <span>{error}</span>
+          <span>{loadError}</span>
           <button
             type="button"
             className="refunds-button refunds-button--secondary"
             onClick={() => void loadRefunds()}
-            disabled={loading}
           >
             Try again
           </button>
@@ -1020,349 +1170,252 @@ export const AdminRefundsPage: React.FC = () => {
       )}
 
       <section className="refunds-stats" aria-label="Refund summary">
+        <article className="refunds-stat-card">
+          <div className="refunds-stat-card__top">
+            <span className="refunds-stat-card__label">Total requests</span>
+            <span className="refunds-stat-card__icon">↗</span>
+          </div>
+          <div className="refunds-stat-card__value">{serverTotal}</div>
+          <div className="refunds-stat-card__hint">Refund requests returned by the API</div>
+        </article>
+
         <article className="refunds-stat-card refunds-stat-card--pending">
           <div className="refunds-stat-card__top">
-            <span className="refunds-stat-card__label">
-              Pending approval
-            </span>
-            <span className="refunds-stat-card__icon">
-              <Clock3 size={19} />
-            </span>
+            <span className="refunds-stat-card__label">Pending review</span>
+            <span className="refunds-stat-card__icon">◷</span>
           </div>
-
-          <div className="refunds-stat-card__value">
-            {counts.pendingApproval}
+          <div className="refunds-stat-card__value">{pendingCount}</div>
+          <div className="refunds-stat-card__hint">
+            {formatCurrency(pendingAmount)} awaiting review
           </div>
-          <p className="refunds-stat-card__hint">
-            Requests awaiting review
-          </p>
         </article>
 
         <article className="refunds-stat-card refunds-stat-card--completed">
           <div className="refunds-stat-card__top">
-            <span className="refunds-stat-card__label">
-              Wallet credited
-            </span>
-            <span className="refunds-stat-card__icon">
-              <CheckCircle2 size={19} />
-            </span>
+            <span className="refunds-stat-card__label">Completed</span>
+            <span className="refunds-stat-card__icon">✓</span>
           </div>
-
-          <div className="refunds-stat-card__value">
-            {counts.credited}
+          <div className="refunds-stat-card__value">{completedCount}</div>
+          <div className="refunds-stat-card__hint">
+            {formatCurrency(completedAmount)} completed
           </div>
-          <p className="refunds-stat-card__hint">
-            Refunds successfully credited
-          </p>
         </article>
 
         <article className="refunds-stat-card refunds-stat-card--failed">
           <div className="refunds-stat-card__top">
-            <span className="refunds-stat-card__label">Rejected</span>
-            <span className="refunds-stat-card__icon">
-              <XCircle size={19} />
-            </span>
+            <span className="refunds-stat-card__label">Failed</span>
+            <span className="refunds-stat-card__icon">!</span>
           </div>
-
-          <div className="refunds-stat-card__value">
-            {counts.rejected}
-          </div>
-          <p className="refunds-stat-card__hint">
-            Requests declined with a reason
-          </p>
-        </article>
-
-        <article className="refunds-stat-card">
-          <div className="refunds-stat-card__top">
-            <span className="refunds-stat-card__label">
-              Total requests
-            </span>
-            <span className="refunds-stat-card__icon">
-              <ReceiptText size={19} />
-            </span>
-          </div>
-
-          <div className="refunds-stat-card__value">
-            {counts.total}
-          </div>
-          <p className="refunds-stat-card__hint">
-            Refund requests recorded
-          </p>
+          <div className="refunds-stat-card__value">{failedCount}</div>
+          <div className="refunds-stat-card__hint">Requests with processing failures</div>
         </article>
       </section>
 
       <section className="refunds-panel">
         <div className="refunds-panel__heading">
           <div>
-            <h2>Refund history &amp; queue</h2>
-            <p>
-              Search requests and open a refund to review its full details.
-            </p>
+            <h2>Refund requests</h2>
+            <p>Search, filter, and review refund activity.</p>
           </div>
-
           <span className="refunds-result-count">
-            {total} {total === 1 ? "request" : "requests"}
+            {filteredRefunds.length} result{filteredRefunds.length === 1 ? "" : "s"}
           </span>
         </div>
 
         <div className="refunds-filters">
           <label className="refunds-search">
-            <Search size={18} aria-hidden="true" />
-            <span className="sr-only">Search refund requests</span>
+            <span aria-hidden="true">⌕</span>
             <input
               type="search"
-              placeholder="Search booking, customer, payment ID..."
-              value={searchInput}
-              onChange={(event) =>
-                setSearchInput(event.target.value)
-              }
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search refund, booking, payment or customer"
+              aria-label="Search refund requests"
             />
           </label>
 
           <label className="refunds-filter">
             <span>Status</span>
             <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value as FilterStatus);
-                setPage(1);
-              }}
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label="Filter by status"
             >
-              {filterOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <option value="All">All statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+              <option value="Processing">Processing</option>
+              <option value="Completed">Completed</option>
+              <option value="Failed">Failed</option>
             </select>
           </label>
+
+          <label className="refunds-filter">
+            <span>Method</span>
+            <select
+              value={methodFilter}
+              onChange={(event) => setMethodFilter(event.target.value)}
+              aria-label="Filter by payment method"
+            >
+              <option value="All">All methods</option>
+              <option value="Razorpay">Razorpay</option>
+              <option value="Wallet">Wallet</option>
+            </select>
+          </label>
+
+          {(search || statusFilter !== "All" || methodFilter !== "All") && (
+            <button
+              type="button"
+              className="refunds-button refunds-button--text"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("All");
+                setMethodFilter("All");
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
-        {loading && (
-          <div className="refunds-inline-loading" role="status">
-            <span className="refunds-loading__spinner" />
-            Loading refund requests...
+        {loading && refunds.length > 0 && (
+          <div className="refunds-inline-loading" aria-live="polite">
+            Updating refund requests…
           </div>
         )}
 
-        {!loading && !error && items.length === 0 && (
-          <div className="refunds-empty">
-            <span className="refunds-empty-icon">
-              <ReceiptText size={23} />
+        <div className="refunds-table-wrap">
+          <table className="refunds-table">
+            <thead>
+              <tr>
+                <th>Refund ID</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Requested</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRefunds.map((refund) => (
+                <tr key={refund.id || refund.refundId}>
+                  <td>
+                    <span
+                      className="refunds-id"
+                      title={refund.refundId}
+                    >
+                      {shortId(refund.refundId)}
+                    </span>
+                    <span className="refunds-secondary-text" title={refund.bookingId}>
+                      Booking: {shortId(refund.bookingId, 18)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="refunds-customer">
+                      <span className="refunds-avatar">
+                        {getInitials(refund.customerName)}
+                      </span>
+                      <span className="refunds-customer__info">
+                        <strong>{refund.customerName}</strong>
+                        <span className="refunds-secondary-text">
+                          {refund.customerEmail || refund.customerPhone || "Customer"}
+                        </span>
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <strong className="refunds-amount">
+                      {formatCurrency(refund.amount)}
+                    </strong>
+                  </td>
+                  <td>{refund.method}</td>
+                  <td className="refunds-date">{formatDate(refund.createdAt)}</td>
+                  <td>{renderStatus(refund.status)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="refunds-review-button"
+                      onClick={() => openDetails(refund)}
+                      disabled={!refund.id}
+                    >
+                      Review <span aria-hidden="true">→</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+
+              {!loading && visibleRefunds.length === 0 && (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="refunds-empty">
+                      <div className="refunds-empty-icon">⌕</div>
+                      <h3>
+                        {refunds.length === 0
+                          ? "No refund requests yet"
+                          : "No matching refunds"}
+                      </h3>
+                      <p>
+                        {refunds.length === 0
+                          ? "Refund requests will appear here when available from the backend."
+                          : "Try changing your search text or clearing one or more filters."}
+                      </p>
+                      {refunds.length > 0 && (
+                        <button
+                          type="button"
+                          className="refunds-button refunds-button--secondary"
+                          onClick={() => {
+                            setSearch("");
+                            setStatusFilter("All");
+                            setMethodFilter("All");
+                          }}
+                        >
+                          Clear filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <footer className="refunds-pagination">
+          <span>
+            {filteredRefunds.length === 0
+              ? "Showing 0 results"
+              : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(
+                  currentPage * PAGE_SIZE,
+                  filteredRefunds.length,
+                )} of ${filteredRefunds.length}`}
+          </span>
+
+          <div className="refunds-pagination__actions">
+            <button
+              type="button"
+              className="refunds-button refunds-button--secondary"
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              disabled={currentPage <= 1}
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentPage} of {totalPages}
             </span>
-
-            <h3>No refund requests found</h3>
-            <p>
-              Try another search term or change the status filter.
-            </p>
-
-            {(search || status !== "all") && (
-              <button
-                type="button"
-                className="refunds-button refunds-button--secondary"
-                onClick={() => {
-                  setSearchInput("");
-                  setSearch("");
-                  setStatus("all");
-                  setPage(1);
-                }}
-              >
-                Clear filters
-              </button>
-            )}
+            <button
+              type="button"
+              className="refunds-button refunds-button--secondary"
+              onClick={() =>
+                setPage((current) => Math.min(totalPages, current + 1))
+              }
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </button>
           </div>
-        )}
-
-        {!loading && items.length > 0 && (
-          <>
-            <div className="refunds-table-wrap">
-              <table className="refunds-table">
-                <thead>
-                  <tr>
-                    <th>Booking / Refund ID</th>
-                    <th>Customer</th>
-                    <th>Service</th>
-                    <th>Payment reference</th>
-                    <th>Refund amount</th>
-                    <th>Method</th>
-                    <th>Status</th>
-                    <th>Request date</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {items.map((refund) => {
-                    const customer = getCustomer(refund);
-                    const booking = getBooking(refund);
-                    const refundStatus = getStatus(refund);
-
-                    return (
-                      <tr key={refund._id}>
-                        <td className="refunds-id-cell">
-                          <button
-                            type="button"
-                            className="refunds-id-link"
-                            title={`View refund ${refund._id}`}
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
-                          >
-                            <span>{booking.number}</span>
-                            <ArrowUpRight size={12} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="refunds-secondary-text refunds-id-secondary-link"
-                            title={`Open refund ${refund._id}`}
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
-                          >
-                            Refund: {refund._id}
-                          </button>
-                        </td>
-
-                        <td>
-                          <div className="refunds-customer">
-                            <span className="refunds-avatar">
-                              {customer.name
-                                .split(/\s+/)
-                                .filter(Boolean)
-                                .slice(0, 2)
-                                .map((part) => part[0])
-                                .join("")
-                                .toUpperCase() || "?"}
-                            </span>
-
-                            <div className="refunds-customer__info">
-                              <strong>{customer.name}</strong>
-
-                              {customer.email && (
-                                <span className="refunds-secondary-text">
-                                  {customer.email}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        <td>{booking.service}</td>
-
-                        <td>
-                          <span
-                            className="refunds-id"
-                            title={paymentReference(refund)}
-                          >
-                            {paymentReference(refund)}
-                          </span>
-                        </td>
-
-                        <td>
-                          <strong className="refunds-amount">
-                            {formatAmount(
-                              refund.amount,
-                              refund.currency,
-                            )}
-                          </strong>
-                        </td>
-
-                        <td>
-                          <span className="refunds-method">
-                            {String(refund.method).toUpperCase() ===
-                            "WALLET" ? (
-                              <Wallet size={15} />
-                            ) : (
-                              <CreditCard size={15} />
-                            )}
-
-                            {String(refund.method).toUpperCase() ===
-                            "WALLET"
-                              ? "Wallet credit"
-                              : "Original payment"}
-                          </span>
-                        </td>
-
-                        <td>
-                          <span
-                            className={clsx(
-                              "refund-status",
-                              refundStatus.className,
-                            )}
-                          >
-                            <span className="refund-status__dot" />
-                            {refundStatus.label}
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="refunds-date">
-                            {formatDate(
-                              refund.requestedAt || refund.createdAt,
-                            )}
-                          </span>
-                        </td>
-
-                        <td>
-                          <button
-                            type="button"
-                            className="refunds-review-button"
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
-                          >
-                            <Eye size={14} />
-                            View refund
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="refunds-pagination">
-              <span>
-                Page {page} of {pages} · {total} total requests
-              </span>
-
-              <div className="refunds-pagination__actions">
-                <button
-                  type="button"
-                  className="refunds-button refunds-button--secondary"
-                  disabled={page <= 1 || loading}
-                  onClick={() =>
-                    setPage((current) => current - 1)
-                  }
-                >
-                  Previous
-                </button>
-
-                <span className="refunds-pagination__current">
-                  {page}
-                </span>
-
-                <button
-                  type="button"
-                  className="refunds-button refunds-button--secondary"
-                  disabled={page >= pages || loading}
-                  onClick={() =>
-                    setPage((current) => current + 1)
-                  }
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        </footer>
       </section>
     </main>
   );

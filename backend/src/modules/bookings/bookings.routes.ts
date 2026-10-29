@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 
 import { asyncHandler } from '../../utils/asyncHandler';
@@ -9,14 +8,14 @@ import { validationMiddleware } from '../../middleware/validation.middleware';
 import { bookingsController } from './bookings.controller';
 
 import {
+  cancelBookingBodySchema,
+  checkSlotBodySchema,
   createBookingBodySchema,
-  getBookingParamsSchema,
-  extraChargeDecisionParamsSchema,
   extraChargeDecisionBodySchema,
+  extraChargeDecisionParamsSchema,
+  getBookingParamsSchema,
   getSlotsParamsSchema,
   getSlotsQuerySchema,
-  checkSlotBodySchema,
-  cancelBookingBodySchema,
   rescheduleBookingBodySchema,
 } from './bookings.validation';
 
@@ -24,8 +23,7 @@ import { listBookingsQuerySchema } from './bookings.query';
 
 export const bookingsRoutes = Router();
 
-// GET /services/:id/slots?date=YYYY-MM-DD
-// Supports both :id and :serviceId route parameter names.
+// GET /services/:id/slots or /services/:serviceId/slots?date=YYYY-MM-DD
 bookingsRoutes.get(
   ['/services/:id/slots', '/services/:serviceId/slots'],
   (req, _res, next) => {
@@ -51,9 +49,7 @@ bookingsRoutes.post(
   validationMiddleware({
     body: checkSlotBodySchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.checkSlot(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.checkSlot(req, res)),
 );
 
 // POST /bookings
@@ -65,9 +61,7 @@ bookingsRoutes.post(
   validationMiddleware({
     body: createBookingBodySchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.createBooking(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.createBooking(req, res)),
 );
 
 // GET /bookings
@@ -79,9 +73,7 @@ bookingsRoutes.get(
   validationMiddleware({
     query: listBookingsQuerySchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.listBookings(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.listBookings(req, res)),
 );
 
 // GET /bookings/:id
@@ -93,13 +85,11 @@ bookingsRoutes.get(
   validationMiddleware({
     params: getBookingParamsSchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.getBooking(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.getBooking(req, res)),
 );
 
 // GET /bookings/:id/invoice
-// Printable HTML invoice for a booking.
+// HTML invoice for own, paid booking (404 for someone else's, 409 until paid).
 bookingsRoutes.get(
   '/bookings/:id/invoice',
   authMiddleware,
@@ -107,13 +97,11 @@ bookingsRoutes.get(
   validationMiddleware({
     params: getBookingParamsSchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.getInvoice(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.getInvoice(req, res)),
 );
 
-// GET cancellation preview.
-// Keep aliases for backward compatibility with existing clients.
+// GET cancellation preview (the exact fee and refund if the customer cancelled right now),
+// using the supported URL aliases.
 bookingsRoutes.get(
   [
     '/bookings/:id/cancel-preview',
@@ -132,7 +120,7 @@ bookingsRoutes.get(
 );
 
 // POST /bookings/:id/cancel
-// Cancel a booking belonging to the authenticated customer.
+// Cancel own booking: policy fee, refund request, reason (409 once in_progress).
 bookingsRoutes.post(
   '/bookings/:id/cancel',
   authMiddleware,
@@ -141,13 +129,11 @@ bookingsRoutes.post(
     params: getBookingParamsSchema,
     body: cancelBookingBodySchema,
   }),
-  asyncHandler(async (req, res) =>
-    bookingsController.cancelBooking(req, res),
-  ),
+  asyncHandler(async (req, res) => bookingsController.cancelBooking(req, res)),
 );
 
 // POST /bookings/:id/reschedule
-// Reschedule a booking.
+// Move own booking to another slot (slot re-checked under a lock; 409 if taken).
 bookingsRoutes.post(
   '/bookings/:id/reschedule',
   authMiddleware,
@@ -162,7 +148,7 @@ bookingsRoutes.post(
 );
 
 // POST /bookings/:id/extra-charges/:chargeId/decision
-// Approve or reject a pending extra charge.
+// Approve or reject one pending extra charge (own booking only).
 bookingsRoutes.post(
   '/bookings/:id/extra-charges/:chargeId/decision',
   authMiddleware,

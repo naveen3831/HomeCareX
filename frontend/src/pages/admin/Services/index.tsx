@@ -6,19 +6,46 @@ import React, {
   useRef,
   useState,
 } from "react";
+import clsx from "clsx";
+import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
+  GripVertical,
   History,
+  ImageIcon,
   Package,
+  Pencil,
   Plus,
+  Trash2,
   WifiOff,
   X,
   XCircle,
 } from "lucide-react";
-import clsx from "clsx";
-import { useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
@@ -31,13 +58,15 @@ import {
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { CategoryFilterMenu } from "@/components/admin/CategoryFilterMenu";
 import { PermissionGate } from "@/components/admin/PermissionGate";
-import { ServiceForm, type CategoryOption } from "@/components/admin/ServiceForm";
+import {
+  ServiceForm,
+  type CategoryOption,
+} from "@/components/admin/ServiceForm";
 import { ServicePreview } from "@/components/admin/ServicePreview";
 
 import { usePermissions } from "@/hooks/usePermissions";
 import { useUIStore } from "@/store/useUIStore";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-
 import {
   adminServiceApi,
   getServiceApiMode,
@@ -65,11 +94,22 @@ type Toast = {
   tone: "success" | "error";
 } | null;
 
+type StatusFilter = "all" | "active" | "inactive";
+
 const rupees = (amount: number) =>
   `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
+const duration = (minutes: number) =>
+  minutes < 60
+    ? `${minutes} min`
+    : `${Math.floor(minutes / 60)} hr${
+        minutes % 60 ? ` ${minutes % 60} min` : ""
+      }`;
+
 function toOptions(categories: AdminCategory[]): CategoryOption[] {
-  const byId = new Map(categories.map((category) => [category.id, category]));
+  const byId = new Map(
+    categories.map((category) => [category.id, category]),
+  );
 
   return categories
     .map((category) => ({
@@ -83,22 +123,227 @@ function toOptions(categories: AdminCategory[]): CategoryOption[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function toInput(service: AdminService): ServiceInput {
-  return {
-    name: service.name,
-    categoryId: service.categoryId,
-    description: service.description,
-    basePrice: service.basePrice,
-    durationMinutes: service.durationMinutes,
-    images: service.images,
-    inclusions: service.inclusions,
-    exclusions: service.exclusions,
-    faqs: service.faqs,
-    addOns: service.addOns,
-    checklist: service.checklist,
-    active: service.active,
-  };
+const toInput = (service: AdminService): ServiceInput => ({
+  name: service.name,
+  categoryId: service.categoryId,
+  description: service.description,
+  basePrice: service.basePrice,
+  durationMinutes: service.durationMinutes,
+  images: service.images,
+  inclusions: service.inclusions,
+  exclusions: service.exclusions,
+  faqs: service.faqs,
+  addOns: service.addOns,
+  checklist: service.checklist,
+  active: service.active,
+});
+
+interface ServiceRowProps {
+  service: AdminService;
+  index: number;
+  count: number;
+  busy: boolean;
+  reorderEnabled: boolean;
+  canManage: boolean;
+  online: boolean;
+  selected: boolean;
+  onSelect: (checked: boolean) => void;
+  onMove: (direction: -1 | 1) => void;
+  onToggle: () => void;
+  onPreview: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }
+
+const ServiceRow: React.FC<ServiceRowProps> = ({
+  service,
+  index,
+  count,
+  busy,
+  reorderEnabled,
+  canManage,
+  online,
+  selected,
+  onSelect,
+  onMove,
+  onToggle,
+  onPreview,
+  onEdit,
+  onDelete,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: service.id,
+    disabled: !reorderEnabled,
+  });
+
+  const cover =
+    service.images.find((image) => image.isPrimary) ??
+    service.images[0];
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className="cat-group"
+    >
+      <div
+        className={clsx(
+          "svc-row-item",
+          !service.active && "is-inactive",
+          busy && "is-busy",
+          isDragging && "is-dragging",
+        )}
+      >
+        {canManage && (
+          <input
+            type="checkbox"
+            checked={selected}
+            disabled={busy}
+            aria-label={`Select ${service.name}`}
+            onChange={(event) => onSelect(event.target.checked)}
+          />
+        )}
+
+        <button
+          type="button"
+          className="cat-grip"
+          disabled={!reorderEnabled}
+          aria-label={`Drag ${service.name} to reorder`}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={18} />
+        </button>
+
+        <div className="cat-media">
+          <span className="cat-cover">
+            {cover ? (
+              <img src={cover.url} alt="" loading="lazy" />
+            ) : (
+              <span className="cat-cover__empty">
+                <ImageIcon size={18} aria-hidden />
+              </span>
+            )}
+          </span>
+
+          {service.images.length > 1 && (
+            <span className="svc-count">
+              {service.images.length} photos
+            </span>
+          )}
+        </div>
+
+        <div className="cat-main">
+          <div className="cat-name">
+            <span>{service.name}</span>
+            {!service.active && (
+              <span className="cat-meta">Inactive</span>
+            )}
+          </div>
+
+          <div className="cat-sub">
+            <code>/{service.slug}</code>
+            <span>{service.categoryName || "Uncategorized"}</span>
+          </div>
+
+          <div className="svc-facts">
+            <b>{rupees(service.basePrice)}</b>
+            <span>
+              <Clock size={12} aria-hidden />{" "}
+              {duration(service.durationMinutes)}
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={service.active}
+          aria-label={`${service.name} is ${
+            service.active ? "active" : "inactive"
+          }`}
+          className={clsx(
+            "cat-switch",
+            service.active && "is-on",
+          )}
+          disabled={!canManage || !online || busy}
+          onClick={onToggle}
+        >
+          <span />
+        </button>
+
+        <div className="cat-actions">
+          <button
+            type="button"
+            className="cat-iconbtn"
+            onClick={() => onMove(-1)}
+            disabled={!reorderEnabled || index === 0}
+            aria-label={`Move ${service.name} up`}
+            title="Move up"
+          >
+            <ArrowUp size={16} />
+          </button>
+
+          <button
+            type="button"
+            className="cat-iconbtn"
+            onClick={() => onMove(1)}
+            disabled={
+              !reorderEnabled || index === count - 1
+            }
+            aria-label={`Move ${service.name} down`}
+            title="Move down"
+          >
+            <ArrowDown size={16} />
+          </button>
+
+          <button
+            type="button"
+            className="cat-iconbtn"
+            onClick={onPreview}
+            aria-label={`Preview ${service.name}`}
+            title="Preview"
+          >
+            <Eye size={16} />
+          </button>
+
+          <PermissionGate permission={CATALOG_MANAGE}>
+            <button
+              type="button"
+              className="cat-iconbtn"
+              onClick={onEdit}
+              aria-label={`Edit ${service.name}`}
+              title="Edit"
+            >
+              <Pencil size={16} />
+            </button>
+
+            <button
+              type="button"
+              className="cat-iconbtn cat-iconbtn--danger"
+              onClick={onDelete}
+              disabled={!online}
+              aria-label={`Delete ${service.name}`}
+              title="Delete"
+            >
+              <Trash2 size={16} />
+            </button>
+          </PermissionGate>
+        </div>
+      </div>
+    </li>
+  );
+};
 
 export const AdminServicesPage: React.FC = () => {
   const online = useOnlineStatus();
@@ -110,22 +355,28 @@ export const AdminServicesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  // Shared search used by the admin navigation.
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
 
   const [params, setParams] = useSearchParams();
+  const [order, setOrder] = useState<string[]>(() =>
+    adminServiceApi.getOrder(),
+  );
 
-  // All selected service IDs use a single consistent representation.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [busyIds, setBusyIds] = useState<Set<string>>(
+    new Set(),
+  );
 
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "inactive"
-  >("all");
-  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>("all");
+  const [localSearch, setLocalSearch] = useState("");
 
-  const [previewing, setPreviewing] = useState<AdminService | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [previewing, setPreviewing] =
+    useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -145,20 +396,28 @@ export const AdminServicesPage: React.FC = () => {
 
   const [auditOpen, setAuditOpen] = useState(false);
   const [audit, setAudit] = useState<ServiceAuditEntry[]>([]);
-  const [auditEntry, setAuditEntry] = useState<AuditEntry | null>(null);
+  const [auditEntry, setAuditEntry] =
+    useState<AuditEntry | null>(null);
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
 
+  const [searchSlot, setSearchSlot] =
+    useState<HTMLElement | null>(null);
+
   const flash = useCallback(
-    (text: string, tone: "success" | "error" = "success") => {
+    (
+      text: string,
+      tone: "success" | "error" = "success",
+    ) => {
       if (toastTimer.current) {
         clearTimeout(toastTimer.current);
       }
 
       setToast({ text, tone });
+
       toastTimer.current = setTimeout(() => {
         setToast(null);
       }, 5500);
@@ -176,17 +435,27 @@ export const AdminServicesPage: React.FC = () => {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError("");
 
     try {
       const cats = await adminCategoryApi
         .list()
         .catch(() => [] as AdminCategory[]);
 
-      setCategories(cats);
-
       const services = await adminServiceApi.list();
+
+      setCategories(cats);
       setItems(services);
-      setLoadError("");
+
+      const savedOrder = adminServiceApi.getOrder();
+      const existingIds = new Set(services.map((item) => item.id));
+
+      setOrder([
+        ...savedOrder.filter((id) => existingIds.has(id)),
+        ...services
+          .map((item) => item.id)
+          .filter((id) => !savedOrder.includes(id)),
+      ]);
     } catch (error) {
       setLoadError(
         (error as ServiceApiError)?.message ||
@@ -206,49 +475,90 @@ export const AdminServicesPage: React.FC = () => {
   }, [setPageSearch]);
 
   useEffect(() => {
+    setSearchSlot(
+      document.getElementById("admin-search-slot"),
+    );
+  }, []);
+
+  useEffect(() => {
+    const existingIds = new Set(items.map((item) => item.id));
+
     setSelectedIds((previous) => {
-      const existingIds = new Set(items.map((service) => service.id));
-      return new Set(
+      const next = new Set(
         [...previous].filter((id) => existingIds.has(id)),
       );
+
+      return next.size === previous.size ? previous : next;
     });
   }, [items]);
 
-  const options = useMemo(() => toOptions(categories), [categories]);
+  const options = useMemo(
+    () => toOptions(categories),
+    [categories],
+  );
 
   const categoryParam = params.get("category") ?? "";
 
+  const ordered = useMemo(() => {
+    const rank = new Map(
+      order.map((id, index) => [id, index]),
+    );
+
+    return [...items].sort(
+      (a, b) =>
+        (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+  }, [items, order]);
+
   const filtered = Boolean(
     search.trim() ||
-      searchTerm.trim() ||
+      localSearch.trim() ||
       statusFilter !== "all" ||
       categoryParam,
   );
 
+  const reorderEnabled =
+    !filtered && canManage && online && !loading;
+
   const visible = useMemo(() => {
-    const needle = (search || searchTerm).trim().toLowerCase();
+    const needle = `${search} ${localSearch}`
+      .trim()
+      .toLowerCase();
 
     const categoryIds = new Set(
       categoryParam
         ? [
             categoryParam,
             ...categories
-              .filter((category) => category.parentId === categoryParam)
+              .filter(
+                (category) =>
+                  category.parentId === categoryParam,
+              )
               .map((category) => category.id),
           ]
         : [],
     );
 
-    return items.filter((service) => {
-      if (categoryParam && !categoryIds.has(service.categoryId)) {
+    return ordered.filter((service) => {
+      if (
+        categoryParam &&
+        !categoryIds.has(service.categoryId)
+      ) {
         return false;
       }
 
-      if (statusFilter === "active" && !service.active) {
+      if (
+        statusFilter === "active" &&
+        !service.active
+      ) {
         return false;
       }
 
-      if (statusFilter === "inactive" && service.active) {
+      if (
+        statusFilter === "inactive" &&
+        service.active
+      ) {
         return false;
       }
 
@@ -265,44 +575,60 @@ export const AdminServicesPage: React.FC = () => {
       );
     });
   }, [
-    items,
+    ordered,
     categories,
     search,
-    searchTerm,
-    statusFilter,
+    localSearch,
     categoryParam,
+    statusFilter,
   ]);
 
-  const filterOptions = useMemo(() => {
-    return options.map((option) => {
-      const categoryIds = new Set([
-        option.id,
-        ...categories
-          .filter((category) => category.parentId === option.id)
-          .map((category) => category.id),
-      ]);
+  const filterOptions = useMemo(
+    () =>
+      options.map((option) => {
+        const categoryIds = new Set([
+          option.id,
+          ...categories
+            .filter(
+              (category) => category.parentId === option.id,
+            )
+            .map((category) => category.id),
+        ]);
 
-      return {
-        ...option,
-        count: items.filter((service) =>
-          categoryIds.has(service.categoryId),
-        ).length,
-      };
-    });
-  }, [options, categories, items]);
+        return {
+          ...option,
+          count: items.filter((service) =>
+            categoryIds.has(service.categoryId),
+          ).length,
+        };
+      }),
+    [options, categories, items],
+  );
 
   const stats = useMemo(
     () => ({
       total: items.length,
-      active: items.filter((service) => service.active).length,
-      inactive: items.filter((service) => !service.active).length,
+      active: items.filter((item) => item.active).length,
+      inactive: items.filter((item) => !item.active).length,
     }),
     [items],
   );
 
   const selectedServices = useMemo(
-    () => items.filter((service) => selectedIds.has(service.id)),
+    () =>
+      items.filter((service) =>
+        selectedIds.has(service.id),
+      ),
     [items, selectedIds],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const chooseCategory = (id: string) => {
@@ -310,42 +636,52 @@ export const AdminServicesPage: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setSearchTerm("");
+    setLocalSearch("");
     setStatusFilter("all");
-    setParams({});
     setPageSearch("");
+    setParams({});
   };
 
-  const openCreate = () => {
+  const filterMenu = (
+    <CategoryFilterMenu
+      options={filterOptions}
+      value={categoryParam}
+      onChange={chooseCategory}
+      total={visible.length}
+    />
+  );
+
+  const openCreate = useCallback(() => {
     setEditing(null);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
-  };
+  }, []);
 
-  const openEdit = (service: AdminService) => {
+  const openEdit = useCallback((service: AdminService) => {
     setEditing(service);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
-  };
+  }, []);
 
-  // Support links from the Categories page that request a new service.
+  // Support links such as /admin/services?new=1&category=<id>.
   useEffect(() => {
-    if (loading || !["", "1"].includes(params.get("new") ?? "")) {
+    if (
+      loading ||
+      !params.has("new")
+    ) {
       return;
     }
 
-    if (params.has("new")) {
-      if (canManage) {
-        openCreate();
-      }
-
-      const next = new URLSearchParams(params);
-      next.delete("new");
-      setParams(next, { replace: true });
+    if (canManage) {
+      openCreate();
     }
-  }, [loading, params, canManage, setParams]);
+
+    const next = new URLSearchParams(params);
+    next.delete("new");
+    setParams(next, { replace: true });
+  }, [loading, params, canManage, openCreate, setParams]);
 
   async function save(input: ServiceInput) {
     setSaving(true);
@@ -354,7 +690,11 @@ export const AdminServicesPage: React.FC = () => {
 
     try {
       const result = editing
-        ? await adminServiceApi.update(editing.id, input, options)
+        ? await adminServiceApi.update(
+            editing.id,
+            input,
+            options,
+          )
         : await adminServiceApi.create(input, options);
 
       const { service, ignored, localOnly } = result;
@@ -369,16 +709,23 @@ export const AdminServicesPage: React.FC = () => {
         );
       } else {
         const warning = localOnly?.length
-          ? ` Some data is only stored in this browser: ${localOnly.join(", ")}.`
+          ? ` Some data is only stored in this browser: ${localOnly.join(
+              ", ",
+            )}.`
           : "";
 
         flash(
-          `${editing ? `"${service.name}" updated` : `"${service.name}" created`}.${warning}`,
+          `${
+            editing
+              ? `"${service.name}" updated`
+              : `"${service.name}" created`
+          }.${warning}`,
           localOnly?.length ? "error" : "success",
         );
       }
     } catch (error) {
       const apiError = error as ServiceApiError;
+
       setFormError(
         apiError?.message || "Unable to save this service.",
       );
@@ -389,24 +736,38 @@ export const AdminServicesPage: React.FC = () => {
   }
 
   async function toggle(service: AdminService) {
-    if (!online || !canManage || busyIds.has(service.id)) {
+    if (
+      !online ||
+      !canManage ||
+      busyIds.has(service.id)
+    ) {
       return;
     }
 
-    const next = !service.active;
+    const nextActive = !service.active;
 
-    setBusyIds((previous) => new Set(previous).add(service.id));
+    setBusyIds((previous) =>
+      new Set(previous).add(service.id),
+    );
+
     setItems((previous) =>
       previous.map((item) =>
-        item.id === service.id ? { ...item, active: next } : item,
+        item.id === service.id
+          ? { ...item, active: nextActive }
+          : item,
       ),
     );
 
     try {
-      await adminServiceApi.setActive([service.id], next);
+      await adminServiceApi.setActive(
+        [service.id],
+        nextActive,
+      );
 
       flash(
-        `"${service.name}" ${next ? "activated" : "deactivated"}`,
+        `"${service.name}" ${
+          nextActive ? "activated" : "deactivated"
+        }`,
       );
     } catch (error) {
       setItems((previous) =>
@@ -424,45 +785,56 @@ export const AdminServicesPage: React.FC = () => {
       );
     } finally {
       setBusyIds((previous) => {
-        const nextIds = new Set(previous);
-        nextIds.delete(service.id);
-        return nextIds;
+        const next = new Set(previous);
+        next.delete(service.id);
+        return next;
       });
     }
   }
 
-  async function bulkSetActive(next: boolean) {
+  async function bulkSetActive(nextActive: boolean) {
     const ids = [...selectedIds];
 
     if (!ids.length || !online || !canManage) {
       return;
     }
 
-    setBusyIds((previous) => new Set([...previous, ...ids]));
+    setBusyIds(
+      (previous) => new Set([...previous, ...ids]),
+    );
 
     try {
-      const result = await adminServiceApi.setActive(ids, next);
+      const result = await adminServiceApi.setActive(
+        ids,
+        nextActive,
+      );
+
       const changedIds = new Set(result.changed);
 
       setItems((previous) =>
         previous.map((service) =>
           changedIds.has(service.id)
-            ? { ...service, active: next }
+            ? { ...service, active: nextActive }
             : service,
         ),
       );
 
       if (result.failed.length > 0) {
         flash(
-          `${result.changed.length} updated; ${result.failed.length} failed: ${result.failed
-            .map((failure) => `${failure.name} (${failure.message})`)
+          `${result.changed.length} updated; ${
+            result.failed.length
+          } failed: ${result.failed
+            .map(
+              (failure) =>
+                `${failure.name} (${failure.message})`,
+            )
             .join("; ")}`,
           "error",
         );
       } else {
         flash(
           `${result.changed.length} service(s) ${
-            next ? "activated" : "deactivated"
+            nextActive ? "activated" : "deactivated"
           }.`,
         );
       }
@@ -478,9 +850,9 @@ export const AdminServicesPage: React.FC = () => {
       );
     } finally {
       setBusyIds((previous) => {
-        const nextIds = new Set(previous);
-        ids.forEach((id) => nextIds.delete(id));
-        return nextIds;
+        const next = new Set(previous);
+        ids.forEach((id) => next.delete(id));
+        return next;
       });
     }
   }
@@ -494,6 +866,96 @@ export const AdminServicesPage: React.FC = () => {
     setBulkAction(null);
     await bulkSetActive(activate);
   }
+
+  function applyOrder(
+    ids: string[],
+    movedId: string,
+    from: number,
+    to: number,
+  ) {
+    const name =
+      items.find((item) => item.id === movedId)?.name ??
+      "Service";
+
+    setOrder(ids);
+
+    try {
+      const result = adminServiceApi.reorder(ids, {
+        id: movedId,
+        name,
+        from,
+        to,
+      });
+
+      if (
+        result &&
+        typeof (result as Promise<unknown>).catch === "function"
+      ) {
+        void (result as Promise<unknown>).catch(() => {
+          flash(
+            "The order could not be saved. Refresh to verify the current order.",
+            "error",
+          );
+        });
+      }
+    } catch {
+      flash(
+        "The order could not be saved. Refresh to verify the current order.",
+        "error",
+      );
+      return;
+    }
+
+    flash(`"${name}" moved to position ${to + 1}`);
+  }
+
+  function move(id: string, direction: -1 | 1) {
+    if (!reorderEnabled) {
+      return;
+    }
+
+    const ids = visible.map((service) => service.id);
+    const from = ids.indexOf(id);
+    const to = from + direction;
+
+    if (from < 0 || to < 0 || to >= ids.length) {
+      return;
+    }
+
+    applyOrder(arrayMove(ids, from, to), id, from, to);
+  }
+
+  function onDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  function onDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+
+    if (
+      !reorderEnabled ||
+      !event.over ||
+      event.active.id === event.over.id
+    ) {
+      return;
+    }
+
+    const ids = visible.map((service) => service.id);
+    const from = ids.indexOf(String(event.active.id));
+    const to = ids.indexOf(String(event.over.id));
+
+    if (from >= 0 && to >= 0) {
+      applyOrder(
+        arrayMove(ids, from, to),
+        String(event.active.id),
+        from,
+        to,
+      );
+    }
+  }
+
+  const activeService =
+    items.find((item) => item.id === activeId) ?? null;
 
   async function saveImages(
     service: AdminService,
@@ -510,12 +972,22 @@ export const AdminServicesPage: React.FC = () => {
 
       setItems((previous) =>
         previous.map((item) =>
-          item.id === result.service.id ? result.service : item,
+          item.id === result.service.id
+            ? result.service
+            : item,
         ),
       );
 
       setPreviewing(result.service);
-      flash(`Photos for "${service.name}" saved.`);
+
+      if (result.ignored.length > 0) {
+        flash(
+          `Photos for "${service.name}" were updated, but some images could not be stored.`,
+          "error",
+        );
+      } else {
+        flash(`Photos for "${service.name}" saved.`);
+      }
     } catch (error) {
       flash(
         (error as ServiceApiError)?.message ||
@@ -538,13 +1010,13 @@ export const AdminServicesPage: React.FC = () => {
       await adminServiceApi.remove(toDelete.id);
 
       flash(`"${toDelete.name}" deleted.`);
-      setToDelete(null);
       setSelectedIds((previous) => {
         const next = new Set(previous);
         next.delete(toDelete.id);
         return next;
       });
 
+      setToDelete(null);
       await load();
     } catch (error) {
       flash(
@@ -562,8 +1034,14 @@ export const AdminServicesPage: React.FC = () => {
 
     try {
       setAudit(await adminServiceApi.auditLog());
-    } catch {
+    } catch (error) {
       setAudit([]);
+
+      flash(
+        (error as ServiceApiError)?.message ||
+          "Unable to load the service audit log.",
+        "error",
+      );
     }
   }
 
@@ -603,22 +1081,26 @@ export const AdminServicesPage: React.FC = () => {
       {!online && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} />
-          You are offline. Changes are disabled until the connection returns.
+          You are offline. Changes are disabled until the
+          connection returns.
         </div>
       )}
 
       {mode === "demo" && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} />
-          Backend not reachable ({getServiceApiModeReason()}): showing local
-          demo data.
+          Backend not reachable ({getServiceApiModeReason()}):
+          showing local demo data.
         </div>
       )}
 
       {!canManage && (
-        <div className="cat-banner cat-banner--info" role="status">
-          You can view services but need the "{CATALOG_MANAGE}" permission to
-          make changes.
+        <div
+          className="cat-banner cat-banner--info"
+          role="status"
+        >
+          You can view services but need the "
+          {CATALOG_MANAGE}" permission to make changes.
         </div>
       )}
 
@@ -640,7 +1122,7 @@ export const AdminServicesPage: React.FC = () => {
 
           <button
             type="button"
-            aria-label="Dismiss"
+            aria-label="Dismiss notification"
             onClick={() => setToast(null)}
           >
             <X size={14} />
@@ -681,14 +1163,17 @@ export const AdminServicesPage: React.FC = () => {
       </div>
 
       <div className="svc-toolbar">
-        <label className="svc-filter" htmlFor="svc-status-filter">
+        <label
+          className="svc-filter"
+          htmlFor="svc-status-filter"
+        >
           <span>Filter by status</span>
           <select
             id="svc-status-filter"
             value={statusFilter}
             onChange={(event) =>
               setStatusFilter(
-                event.target.value as "all" | "active" | "inactive",
+                event.target.value as StatusFilter,
               )
             }
           >
@@ -698,34 +1183,50 @@ export const AdminServicesPage: React.FC = () => {
           </select>
         </label>
 
-        <label className="svc-search" htmlFor="svc-search-input">
+        <label
+          className="svc-search"
+          htmlFor="svc-search-input"
+        >
           <span className="sr-only">Search services</span>
           <input
             id="svc-search-input"
             type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            value={localSearch}
+            onChange={(event) =>
+              setLocalSearch(event.target.value)
+            }
             placeholder="Search services"
           />
         </label>
 
-        <CategoryFilterMenu
-          options={filterOptions}
-          value={categoryParam}
-          onChange={chooseCategory}
-          total={visible.length}
-        />
+        {searchSlot
+          ? createPortal(filterMenu, searchSlot)
+          : filterMenu}
       </div>
 
       <p className="svc-count-note">
         {visible.length} of {items.length} services
       </p>
 
+      {filtered && (
+        <div className="cat-note">
+          Reordering is paused while search, status, or category
+          filters are active.
+          <button
+            type="button"
+            className="hcx-btn"
+            onClick={clearFilters}
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
+
       {canManage && selectedServices.length > 0 && (
         <div
           className="cat-toolbar cat-toolbar--bulk"
           role="toolbar"
-          aria-label="Bulk actions"
+          aria-label="Bulk service actions"
         >
           <span>{selectedServices.length} selected</span>
 
@@ -753,20 +1254,10 @@ export const AdminServicesPage: React.FC = () => {
               className="hcx-btn"
               onClick={() => setSelectedIds(new Set())}
             >
-              Clear
+              Clear selection
             </button>
           </div>
         </div>
-      )}
-
-      {filtered && (
-        <button
-          type="button"
-          className="hcx-btn"
-          onClick={clearFilters}
-        >
-          Clear filters
-        </button>
       )}
 
       {loadError && (
@@ -783,176 +1274,121 @@ export const AdminServicesPage: React.FC = () => {
       )}
 
       {loading ? (
-        <table className="hcx-table" aria-label="Services" aria-busy="true">
-          <thead>
-            <tr>
-              {canManage && <th scope="col">Select</th>}
-              <th scope="col">Name</th>
-              <th scope="col">Category</th>
-              <th scope="col">Price</th>
-              <th scope="col">Status</th>
-              {canManage && <th scope="col">Actions</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {[0, 1, 2, 3].map((number) => (
-              <tr key={number}>
-                <td colSpan={canManage ? 6 : 4}>
-                  <span className="hcx-skeleton hcx-skeleton--row" />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div
+          className="cat-skel"
+          aria-label="Loading services"
+          aria-busy="true"
+        >
+          {[0, 1, 2, 3, 4].map((number) => (
+            <span
+              key={number}
+              className="hcx-skeleton hcx-skeleton--block"
+              style={{ height: 78 }}
+            />
+          ))}
+        </div>
       ) : visible.length === 0 ? (
         <div className="cat-empty">
           <Package size={34} aria-hidden />
+
           <h3>
             {items.length === 0
               ? "No services yet"
               : "No services match your filters"}
           </h3>
+
           <p>
             {items.length === 0
               ? "Create your first service to add it to the catalog."
-              : "Try a different search or category."}
+              : "Try a different search, status, or category."}
           </p>
 
-          {items.length === 0 && canManage ? (
-            <button
-              type="button"
-              className="hcx-btn hcx-btn--primary"
-              onClick={openCreate}
-              disabled={!online}
-            >
-              <Plus size={16} />
-              New service
-            </button>
-          ) : (
-            items.length > 0 && (
+          {items.length === 0 ? (
+            <PermissionGate permission={CATALOG_MANAGE}>
               <button
                 type="button"
-                className="hcx-btn"
-                onClick={clearFilters}
+                className="hcx-btn hcx-btn--primary"
+                onClick={openCreate}
+                disabled={!online}
               >
-                Clear filters
+                <Plus size={16} />
+                New service
               </button>
-            )
+            </PermissionGate>
+          ) : (
+            <button
+              type="button"
+              className="hcx-btn"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
           )}
         </div>
       ) : (
         <>
-          <table className="hcx-table" aria-label="Services">
-            <thead>
-              <tr>
-                {canManage && (
-                  <th scope="col" className="hcx-table__check">
-                    <span className="sr-only">Select</span>
-                  </th>
-                )}
-                <th scope="col">Name</th>
-                <th scope="col">Category</th>
-                <th scope="col">Price</th>
-                <th scope="col">Status</th>
-                {canManage && <th scope="col">Actions</th>}
-              </tr>
-            </thead>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <SortableContext
+              items={visible.map((service) => service.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="cat-tree">
+                <ul
+                  className="cat-list"
+                  aria-label="Services"
+                >
+                  {visible.map((service, index) => (
+                    <ServiceRow
+                      key={service.id}
+                      service={service}
+                      index={index}
+                      count={visible.length}
+                      busy={busyIds.has(service.id)}
+                      reorderEnabled={reorderEnabled}
+                      canManage={canManage}
+                      online={online}
+                      selected={selectedIds.has(service.id)}
+                      onSelect={(checked) =>
+                        setSelectedIds((previous) => {
+                          const next = new Set(previous);
 
-            <tbody>
-              {visible.map((service) => (
-                <tr key={service.id}>
-                  {canManage && (
-                    <td className="hcx-table__check">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(service.id)}
-                        disabled={busyIds.has(service.id)}
-                        onChange={(event) =>
-                          setSelectedIds((previous) => {
-                            const next = new Set(previous);
+                          if (checked) {
+                            next.add(service.id);
+                          } else {
+                            next.delete(service.id);
+                          }
 
-                            if (event.target.checked) {
-                              next.add(service.id);
-                            } else {
-                              next.delete(service.id);
-                            }
-
-                            return next;
-                          })
-                        }
-                        aria-label={`Select ${service.name}`}
-                      />
-                    </td>
-                  )}
-
-                  <td>
-                    <strong>{service.name}</strong>
-                    <div>
-                      <code>/{service.slug}</code>
-                    </div>
-                  </td>
-
-                  <td>{service.categoryName || "—"}</td>
-                  <td>{rupees(service.basePrice)}</td>
-
-                  <td>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={service.active}
-                      aria-label={`${service.name} is ${
-                        service.active ? "active" : "inactive"
-                      }`}
-                      className={clsx(
-                        "cat-switch",
-                        service.active && "is-on",
-                      )}
-                      disabled={
-                        !canManage ||
-                        !online ||
-                        busyIds.has(service.id)
+                          return next;
+                        })
                       }
-                      onClick={() => void toggle(service)}
-                    >
-                      <span />
-                    </button>
-                    <span>{service.active ? "Active" : "Inactive"}</span>
-                  </td>
+                      onMove={(direction) =>
+                        move(service.id, direction)
+                      }
+                      onToggle={() => void toggle(service)}
+                      onPreview={() => setPreviewing(service)}
+                      onEdit={() => openEdit(service)}
+                      onDelete={() => setToDelete(service)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </SortableContext>
 
-                  {canManage && (
-                    <td>
-                      <div className="cat-head-actions">
-                        <button
-                          type="button"
-                          className="hcx-btn"
-                          onClick={() => setPreviewing(service)}
-                        >
-                          Preview
-                        </button>
-
-                        <button
-                          type="button"
-                          className="hcx-btn"
-                          onClick={() => openEdit(service)}
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          className="hcx-btn hcx-btn--danger-ghost"
-                          disabled={!online}
-                          onClick={() => setToDelete(service)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <DragOverlay>
+              {activeService && (
+                <div className="cat-overlay">
+                  <GripVertical size={16} />
+                  <strong>{activeService.name}</strong>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
 
           {canManage && (
             <BulkActionBar
@@ -1008,9 +1444,10 @@ export const AdminServicesPage: React.FC = () => {
         confirmLabel="Delete"
         message={
           <>
-            "{toDelete?.name}" will be permanently removed and recorded in
-            the audit log. A service with existing bookings may not be
-            deletable; deactivate it instead if required.
+            "{toDelete?.name}" will be permanently removed and
+            recorded in the audit log. A service with existing
+            bookings may not be deletable; deactivate it instead
+            if required.
           </>
         }
         onCancel={() => setToDelete(null)}
@@ -1019,7 +1456,7 @@ export const AdminServicesPage: React.FC = () => {
 
       <ConfirmDialog
         open={Boolean(bulkAction)}
-        loading={false}
+        loading={busyIds.size > 0}
         title={
           bulkAction === "activate"
             ? "Activate selected services?"
@@ -1057,7 +1494,9 @@ export const AdminServicesPage: React.FC = () => {
                       action: entry.action,
                       entity: `Service · ${entry.entityName}`,
                       entityId: entry.entityId,
-                      time: new Date(entry.time).toLocaleString(),
+                      time: new Date(
+                        entry.time,
+                      ).toLocaleString(),
                       before: entry.before,
                       after: entry.after,
                     })
@@ -1074,8 +1513,14 @@ export const AdminServicesPage: React.FC = () => {
                     }
                     dot={false}
                   />
-                  <span className="cat-audit__n">{entry.entityName}</span>
-                  <small>{new Date(entry.time).toLocaleString()}</small>
+
+                  <span className="cat-audit__n">
+                    {entry.entityName}
+                  </span>
+
+                  <small>
+                    {new Date(entry.time).toLocaleString()}
+                  </small>
                 </button>
               </li>
             ))}

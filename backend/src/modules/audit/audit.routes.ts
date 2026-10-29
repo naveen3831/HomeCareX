@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 
 import { authenticate } from '../../middleware/auth.middleware';
@@ -18,8 +17,8 @@ import { auditController } from './audit.controller';
  */
 export const auditRoutes = Router();
 
-// Protect all audit routes with authentication,
-// admin authorization, and audit-read permission.
+// Protect all audit routes with authentication, admin role,
+// and the required audit-read permission.
 auditRoutes.use(
   authenticate,
   requireAdmin,

@@ -34,16 +34,26 @@ export const Header: React.FC<HeaderProps> = ({
     (state) => state.toggleSidebar,
   );
 
-  const toggleMobileMenu = useUIStore(
-    (state) => state.toggleMobileMenu,
-  );
+export interface HeaderNotification {
+  id: string;
+  title: string;
+  time: string;
+  href?: string;
+}
 
-  // Hide customer-detail breadcrumbs on mobile.
-  const isCustomerDetails =
-    /^\/admin\/customers\/[^/]+/.test(pathname);
+export interface HeaderProps {
+  notifications?: HeaderNotification[];
+}
 
-  // Notifications are handled by NotificationBell.
-  // Retain the prop for compatibility with existing callers.
+/** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
+export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
+  const { pathname } = useLocation();
+  const isCollapsed = useUIStore((state) => state.isSidebarCollapsed);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
+  const toggleMobileMenu = useUIStore((state) => state.toggleMobileMenu);
+  const isCustomerDetails = /^\/admin\/customers\/[^/]+/.test(pathname);
+
+  // Notifications are rendered by NotificationBell; keep the prop for existing callers.
   void notifications;
 
   return (

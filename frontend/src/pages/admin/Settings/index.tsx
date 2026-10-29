@@ -20,8 +20,9 @@ import {
   type SettingsApiError,
   type SettingsSection,
   type SettingValue,
-} from "@/services/adminSettingsApi";
-import { SettingField } from "./SettingField";
+} from '@/services/adminSettingsApi';
+import { SettingField } from './SettingField';
+
 
 const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);

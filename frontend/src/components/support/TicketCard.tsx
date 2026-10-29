@@ -7,7 +7,6 @@ import {
 } from '@/features/support/types';
 
 export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
-  const id = ticket.id || '';
   const id = ticket.id || (ticket as { _id?: string })._id || '';
   return (
     <li className="hcx-support-ticket">
@@ -29,11 +28,10 @@ export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
         <span
           className={`hcx-support-badge hcx-support-badge--${ticket.status || 'open'}`}
         >
-          {label(ticket.status || 'open')}
+          {ticket.status || 'open'}
         </span>
-        <span>{label(ticket.priority || 'normal')} priority</span>
-        <time dateTime={ticket.updatedAt || ticket.createdAt}>
-          {when(ticket.updatedAt || ticket.createdAt)}
+        <time dateTime={ticket.createdAt}>
+          {when(ticket.createdAt)}
         </time>
       </div>
     </li>
