@@ -216,3 +216,167 @@
 .dash-legend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-legend b { font-variant-numeric: tabular-nums; color: #0f172a; }
 .dash-legend small { min-width: 32px; text-align: right; color: #94a3b8; }
+
+/* ==========================================================================
+   Phone / tablet header: greeting + help + bell (replaces the hidden top bar)
+   ========================================================================== */
+.dash-mhead { display: none; }
+@media (max-width: 1023px) {
+  .dash-head__title { display: none; }
+  .dash-head__row { width: 100%; }
+  .dash-mhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding-top: env(safe-area-inset-top, 0px); }
+  .dash-mhead__text { min-width: 0; }
+  .dash-mhead__text h1 { margin: 0; font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: #0f172a; }
+  .dash-mhead__text p { margin: 2px 0 0; font-size: 15px; color: #64748b; }
+  .dash-mhead__actions { display: flex; align-items: center; gap: 10px; flex: none; }
+  .dash-mhead__actions .icon-btn { position: relative; width: 44px; height: 44px; padding: 0; border-radius: 50%; background: #eef0f6; color: #334155; }
+  .dash-mhead__actions .icon-btn:hover { background: #e4e7f0; }
+}
+
+/* Needs attention: one "Active bookings" card that expands to the first 5 bookings */
+.dash-active { margin-bottom: 10px; }
+.dash-active__card { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 0; border-bottom: 1px solid #f1f5f9; }
+.dash-active__toggle { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; min-height: 56px; padding: 6px 0; font: inherit; text-align: left; color: inherit; background: none; border: 0; cursor: pointer; }
+.dash-active__chev { color: #94a3b8; flex: none; transition: transform 0.15s ease; }
+.dash-active__card.is-open .dash-active__chev { transform: rotate(180deg); }
+.dash-active__all { flex: none; padding: 6px 14px; font-size: 13px; font-weight: 600; color: #4338ca; text-decoration: none; background: #eef2ff; border-radius: 99px; }
+.dash-active__all:hover { background: #e0e7ff; }
+.dash-active__panel { padding-top: 4px; }
+.dash-active__empty { margin: 8px 0 4px; font-size: 13px; color: #64748b; }
+.dash-active__list { margin: 0; padding: 0; list-style: none; }
+.dash-active__row { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 0; color: inherit; text-decoration: none; border-top: 1px solid #f1f5f9; }
+.dash-active__list li:first-child .dash-active__row { border-top: 0; }
+.dash-active__row:hover { background: #f8fafc; }
+.dash-active__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.dash-active__name { overflow: hidden; font-size: 14px; font-weight: 500; color: #0f172a; text-overflow: ellipsis; white-space: nowrap; }
+.dash-active__text small { overflow: hidden; font-size: 12px; color: #64748b; text-overflow: ellipsis; white-space: nowrap; }
+.dash-active__status { flex: none; padding: 3px 9px; font-size: 12px; font-weight: 600; color: #374151; background: #f3f4f6; border-radius: 99px; white-space: nowrap; }
+.dash-active__status--assigned { color: #92400e; background: #fef3c7; }
+.dash-active__status--searching_for_partner { color: #3730a3; background: #e0e7ff; }
+.dash-active__status--en_route,
+.dash-active__status--arrived,
+.dash-active__status--in_progress { color: #1d4ed8; background: #dbeafe; }
+
+/* ==========================================================================
+   Phone redesign v2 (<= 640px): compact, professional, data-first
+   Tokens: ink #0f172a · muted #64748b · line #e8ebf3 · canvas #f4f6fb · brand #4338ca
+   ========================================================================== */
+.dash-stat__chev, .dash-card__go { display: none; }
+.dash-spark { display: none; }
+
+@media (max-width: 640px) {
+  .admin-layout.admin-layout--home { background-color: #f4f6fb; }
+  .dash.admin-page-container { padding: 12px 14px 20px; }
+  .dash-head { gap: 10px; }
+  .dash-range { display: none; }
+
+  /* header: smaller greeting, 40px bell */
+  .dash-mhead__text h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .dash-mhead__text p { margin-top: 1px; font-size: 13px; }
+  .dash-mhead__actions .icon-btn { width: 40px; height: 40px; background: #fff; border: 1px solid #e8ebf3; }
+
+  /* filter chips: one slim row */
+  .dash-chips { gap: 8px; }
+  .dash-chip { flex: 3 1 0; min-height: 40px; padding: 0 10px; gap: 6px; font-size: 13px; font-weight: 600; color: #0f172a; border: 1px solid #e8ebf3; border-radius: 12px; box-shadow: none; }
+  .dash-chip:first-child { flex: 3 1 0; }
+  .dash-chip:last-child { flex: 2 1 0; }
+  .dash-chip svg:first-child { width: 16px; height: 16px; }
+  .dash-chip svg:last-child { width: 14px; height: 14px; }
+
+  /* ---------- KPI cards ---------- */
+  .dash-stats { margin-top: 12px; gap: 8px; }
+  .dash-stat { position: relative; display: flex; flex-direction: column; padding: 10px 12px 11px; background: #fff; border: 1px solid #e8ebf3; border-radius: 14px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+  .dash-stat__top { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .dash-stat__icon { width: 26px; height: 26px; border-radius: 8px; }
+  .dash-stat__icon svg { width: 15px; height: 15px; }
+  .dash-stat__label { flex: 1; min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; padding: 0; font-size: 12px; font-weight: 500; line-height: 1.2; color: #475569; }
+  .dash-stat__chev { display: none; }
+  .dash-stat__value { margin: 8px 0 4px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .dash-stat__delta { gap: 3px 6px; font-size: 11px; line-height: 1.3; color: #64748b; }
+  .dash-stat__delta b { padding: 1px 7px; font-size: 11px; white-space: nowrap; }
+  .dash-stat__delta em { font-style: normal; font-size: 11px; color: #64748b; }
+
+  .dash-stat--blue .dash-stat__icon { color: #2f5bea; background: #e8efff; }
+  .dash-stat--violet .dash-stat__icon { color: #6a43e8; background: #efe9ff; }
+  .dash-stat--green .dash-stat__icon { color: #0f9d68; background: #e3f6ec; }
+  .dash-stat--orange .dash-stat__icon { color: #ee6a1c; background: #fff0e3; }
+
+  /* Payments hero: soft lavender card (#f1f4fd), dark text, indigo sparkline on the right. */
+  .dash-stat--hero { grid-column: 1 / -1; min-height: 0; padding: 12px 14px 14px; overflow: hidden; color: #0f172a; background: #f1f4fd; border-color: #e0e6f8; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+  .dash-stat--hero .dash-stat__icon { width: 28px; height: 28px; color: #4338ca; background: #e3e8fb; box-shadow: none; }
+  .dash-stat--hero .dash-stat__label { padding-right: 0; font-size: 13px; color: #475569; }
+  .dash-stat--hero .dash-stat__chev { display: block; position: static; box-sizing: content-box; width: 14px; height: 14px; padding: 5px; color: #4338ca; background: #e3e8fb; border-radius: 50%; }
+  .dash-stat--hero .dash-stat__value { margin: 8px 0 6px; font-size: 28px; color: #0f172a; }
+  .dash-stat--hero .dash-stat__delta { font-size: 12px; color: #64748b; }
+  .dash-stat--hero .dash-stat__delta b { padding: 2px 8px; font-size: 12px; }
+  .dash-stat--hero .dash-stat__delta.is-good b { color: #15803d; background: #dcfce7; }
+  .dash-stat--hero .dash-stat__delta.is-bad b { color: #b91c1c; background: #fee2e2; }
+  .dash-stat--hero .dash-stat__delta em { color: #64748b; }
+  .dash-stat--hero .dash-retry { color: #4338ca; }
+  .dash-stat--hero .dash-skeleton--kpi { background: #e3e8fb; }
+  .dash-spark { display: block; position: absolute; right: 10px; bottom: 12px; width: 30%; height: 46px; pointer-events: none; }
+  .dash-spark__line { fill: none; stroke: #6366f1; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- cards ---------- */
+  .dash-card { margin-top: 12px; padding: 14px; border: 1px solid #e8ebf3; border-radius: 16px; box-shadow: 0 1px 2px rgba(15, 23, 42, .04); }
+  .dash-card__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .dash-card__title { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #0f172a; }
+  .dash-card__go { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; margin: -4px -6px -4px 0; color: #64748b; border-radius: 50%; }
+  .dash-card__go svg { width: 18px; height: 18px; }
+  .dash-card__go:active { background: #f1f5f9; }
+  .dash-skeleton { height: 140px; }
+
+  /* ---------- needs attention: active-bookings row + 2x2 tiles ---------- */
+  .dash-snapshot-card { padding-bottom: 14px; }
+  .dash-active { margin-bottom: 8px; }
+  .dash-active__card { gap: 6px; padding: 0 8px 0 10px; background: #f8fafc; border: 1px solid #e8ebf3; border-radius: 12px; }
+  .dash-active__toggle { gap: 10px; min-height: 46px; padding: 4px 0; }
+  .dash-active__toggle .dash-tile__icon { width: 30px; height: 30px; border-radius: 9px; color: #4338ca; background: #e9ebff; }
+  .dash-active__toggle .dash-tile__icon svg { width: 16px; height: 16px; }
+  .dash-active__toggle .dash-tile__label { font-size: 13px; font-weight: 600; }
+  .dash-active__toggle .dash-tile__count { min-width: 0; padding: 1px 9px; font-size: 13px; font-weight: 700; color: #4338ca; background: #e9ebff; }
+  .dash-active__all { padding: 5px 12px; font-size: 12px; }
+  .dash-active__row { min-height: 52px; }
+
+  .dash-snapshot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dash-tile, .dash-tile:first-child { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'icon count' 'text text'; align-items: center; gap: 8px 6px; min-height: 0; padding: 10px 12px; background: #fff; border: 1px solid #e8ebf3; border-radius: 14px; }
+  .dash-tile__icon { grid-area: icon; justify-self: start; width: 30px; height: 30px; border-radius: 9px; }
+  .dash-tile__icon svg { width: 16px; height: 16px; }
+  .dash-tile__count { grid-area: count; min-width: 0; padding: 1px 9px; font-size: 14px; font-weight: 700; color: #64748b; background: #f1f5f9; }
+  .dash-tile__text { grid-area: text; flex: none; }
+  .dash-tile__label { font-size: 13px; font-weight: 600; line-height: 1.2; }
+  .dash-tile__text small { margin-top: 1px; font-size: 11px; }
+  .dash-tile__chev { display: none; }
+  .dash-tile.has-count .dash-tile__count { color: #4338ca; background: #e9ebff; }
+  .dash-tile.is-alert { background: #fffafa; border-color: #fcd9d9; }
+  .dash-tile.is-alert .dash-tile__count { color: #dc2626; background: #fde8e8; }
+  .dash-tile--approvals .dash-tile__icon { color: #4f46e5; background: #ecebff; }
+  .dash-tile--tickets .dash-tile__icon { color: #2f5bea; background: #e8efff; }
+  .dash-tile--payouts .dash-tile__icon { color: #0f9d68; background: #e3f6ec; }
+  .dash-tile--refunds .dash-tile__icon { color: #e0332f; background: #fde8e8; }
+  .dash-tile.is-alert .dash-tile__icon { color: #e0332f; background: #fde8e8; }
+
+  /* ---------- charts ---------- */
+  .dash-chart { height: 150px; }
+  .dash-total { min-height: 0; margin: 0 0 6px; }
+  .dash-total strong { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .dash-total span { font-size: 12px; }
+
+  .dash-donut { grid-template-columns: 104px minmax(0, 1fr); gap: 12px; }
+  .dash-donut__plot { width: 104px; height: 104px; margin: 0; }
+  .dash-donut__center strong { font-size: 15px; }
+  .dash-donut__center span { font-size: 10px; }
+  .dash-legend { gap: 7px; }
+  .dash-legend li { grid-template-columns: 8px minmax(0, 1fr) auto auto; gap: 6px; font-size: 12px; }
+  .dash-legend i { width: 8px; height: 8px; border-radius: 2px; }
+  .dash-legend small { min-width: 28px; }
+
+  .dash-funnel__note { margin-top: 10px; padding: 7px 10px; font-size: 11.5px; }
+}
+
+/* Phone: greeting + bell bar stays pinned to the top while the page scrolls.
+   position: fixed (not sticky) so no parent overflow can break it; the page gets matching top padding. */
+@media (max-width: 640px) {
+  .dash.admin-page-container { padding-top: calc(76px + env(safe-area-inset-top, 0px)); }
+  .dash-head__row { position: fixed; top: 0; left: 0; right: 0; z-index: 30; width: auto; margin: 0; padding: 12px 14px 10px; background: #f4f6fb; box-shadow: 0 1px 0 #e8ebf3; }
+}

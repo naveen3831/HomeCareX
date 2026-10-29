@@ -5,6 +5,8 @@ import CategoryCard from "../../../components/public/CategoryCard";
 import Seo from "../../../components/common/Seo";
 import OptimizedImage from "../../../components/common/OptimizedImage";
 import { organizationLd, websiteLd } from "../../../lib/jsonld";
+import { useCategories, useServices } from "../../../features/public/hooks";
+import { serviceImageFor } from "../../../lib/serviceImage";
 // Below-the-fold sections load in separate chunks so they do not block the first paint.
 const TrustStrip = lazy(() => import("../../../components/public/TrustStrip"));
 const Testimonials = lazy(() => import("../../../components/public/Testimonials"));
@@ -395,6 +397,7 @@ const FitToHeight: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 /** Popular category cards. Owns the catalog state so loading it re-renders only these cards. */
 const PopularCategories: React.FC = () => {
+  const categoriesQuery = useCategories();
   const [catalog, setCatalog] = useState<ServiceItem[]>(defaultCatalog);
 
   useEffect(() => {
@@ -420,6 +423,39 @@ const PopularCategories: React.FC = () => {
     [catalog]
   );
 
+  // Real categories, already in the order the admin set. The built-in list below is only a fallback.
+  const apiCategories = (categoriesQuery.data ?? []).slice(0, 4);
+
+  if (apiCategories.length > 0) {
+    return (
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {apiCategories.map((c, i) => (
+          <Reveal key={c.id} delay={i * 110}>
+            <CategoryCard
+              id={c.slug}
+              name={c.name}
+              description={c.description || `Trusted ${c.name.toLowerCase()} professionals at your doorstep.`}
+              image={serviceImageFor(c.name)}
+              serviceCount={c.serviceCount}
+              link={`/services?category=${encodeURIComponent(c.slug)}`}
+              icon={c.icon || undefined}
+            />
+          </Reveal>
+        ))}
+      </div>
+    );
+  }
+
+  if (categoriesQuery.isPending) {
+    return (
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4" aria-busy="true">
+        {[0, 1, 2, 3].map((n) => (
+          <div key={n} className="h-80 animate-pulse rounded-3xl bg-white/70 ring-1 ring-[#4338ca]/10" />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {popularCategories.map((c, i) => (
@@ -436,6 +472,99 @@ const PopularCategories: React.FC = () => {
         </Reveal>
       ))}
     </div>
+  );
+};
+
+interface HomeServiceCard {
+  id: string;
+  title: string;
+  icon: string;
+  description: string;
+  image: string;
+  fallbackImage: string;
+}
+
+const HOME_SERVICE_COUNT = 6;
+
+/** First 6 services in the order the admin set, with a "View all services" button underneath. */
+const HomeServices: React.FC = () => {
+  const servicesQuery = useServices({ sort: "order", page: 1, limit: HOME_SERVICE_COUNT });
+
+  const fromApi: HomeServiceCard[] = (servicesQuery.data?.items ?? []).slice(0, HOME_SERVICE_COUNT).map((s) => {
+    const photo = serviceImageFor(s.name);
+    return {
+      id: s.slug,
+      title: s.name,
+      icon: s.icon || "🛠️",
+      description: s.description || `${s.category.name} from ₹${s.basePrice.toLocaleString("en-IN")}`,
+      image: photo, // same file for both: a missing .webp must not break the picture
+      fallbackImage: photo,
+    };
+  });
+
+  // The built-in list is shown only when the server cannot be reached, so the section is never blank.
+  const cards: HomeServiceCard[] = fromApi.length > 0 ? fromApi : servicesQuery.isError ? services : [];
+  const loading = servicesQuery.isPending && cards.length === 0;
+
+  return (
+    <>
+      {loading ? (
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
+          {Array.from({ length: HOME_SERVICE_COUNT }, (_, n) => (
+            <div key={n} className="h-96 animate-pulse rounded-3xl bg-white/70 ring-1 ring-[#4338ca]/10" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {cards.map((s, i) => (
+            <Reveal key={s.id} delay={(i % 3) * 90}>
+              <Link
+                to={`/services/${s.id}`}
+                {...tilt}
+                className="hcx-tilt group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#4338ca]/10 transition duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_-25px_rgba(67,56,202,0.45)] hover:ring-[#4338ca]/30"
+              >
+                <div className="relative h-56 overflow-hidden">
+                  <picture>
+                    {s.image !== s.fallbackImage && <source srcSet={s.image} type="image/webp" />}
+                    <OptimizedImage
+                      src={s.fallbackImage}
+                      alt={s.title}
+                      width={600}
+                      height={400}
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+                    />
+                  </picture>
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b6e]/60 via-transparent to-transparent" />
+                  <span className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-lg transition duration-500 group-hover:-rotate-6 group-hover:bg-[#ff8a3d]">
+                    {s.icon}
+                  </span>
+                </div>
+
+                <div className="flex flex-1 flex-col p-7">
+                  <h3 className="text-xl font-bold text-[#1e1b6e]">{s.title}</h3>
+                  <p className="mt-3 line-clamp-3 flex-1 leading-7 text-[#5b5b7a]">{s.description}</p>
+                  <span className="mt-6 inline-flex items-center gap-2 font-bold text-[#4338ca] group-hover:text-[#e06a12]">
+                    Learn more
+                    <span className="transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>→</span>
+                  </span>
+                </div>
+              </Link>
+            </Reveal>
+          ))}
+        </div>
+      )}
+
+      <Reveal className="mt-12 flex justify-center">
+        <Link
+          to="/services"
+          className="group inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-8 py-4 text-lg font-bold text-white shadow-lg transition duration-300 hover:-translate-y-0.5 hover:bg-[#1e1b6e] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#4338ca]/30"
+        >
+          View all services
+          <span className="transition-transform duration-300 group-hover:translate-x-1" aria-hidden>→</span>
+        </Link>
+      </Reveal>
+    </>
   );
 };
 
@@ -658,49 +787,7 @@ return (
             text="Professional home services delivered with convenience, reliability and care."
           />
 
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((s, i) => (
-              <Reveal key={s.id} delay={(i % 3) * 90}>
-                <Link
-                  to={`/services/${s.id}`}
-                  {...tilt}
-                  className="hcx-tilt group flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-[#4338ca]/10 transition duration-500 hover:-translate-y-2 hover:shadow-[0_30px_60px_-25px_rgba(67,56,202,0.45)] hover:ring-[#4338ca]/30"
-                >
-                  <div className="relative h-56 overflow-hidden">
-                    
-
-
-<picture>
-  <source srcSet={s.image} type="image/webp" />
-  <OptimizedImage
-    src={s.fallbackImage}
-    alt={s.title}
-    width={600}
-    height={400}
-    className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
-  />
-</picture>
-
-
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b6e]/60 via-transparent to-transparent" />
-                    <span className="absolute bottom-4 left-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-lg transition duration-500 group-hover:-rotate-6 group-hover:bg-[#ff8a3d]">
-                      {s.icon}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-1 flex-col p-7">
-                    <h3 className="text-xl font-bold text-[#1e1b6e]">{s.title}</h3>
-                    <p className="mt-3 flex-1 leading-7 text-[#5b5b7a]">{s.description}</p>
-                    <span className="mt-6 inline-flex items-center gap-2 font-bold text-[#4338ca] group-hover:text-[#e06a12]">
-                      Learn more
-                      <span className="transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>→</span>
-                    </span>
-                  </div>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
+          <HomeServices />
         </div>
       </section>
 

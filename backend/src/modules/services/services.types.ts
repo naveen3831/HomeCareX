@@ -9,6 +9,7 @@ export interface ServiceDto {
   durationMinutes: number;
   addOns: { id: string; name: string; price: number }[];
   active: boolean;
+  sortOrder: number;
   media: { url: string; alt: string }[];
   inclusions: string[];
   exclusions: string[];

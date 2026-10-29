@@ -18,10 +18,6 @@ import {
 } from '@/services/adminSettingsApi';
 import { SettingField } from './SettingField';
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-} from "@/services/adminSettingsApi";
-import { SettingField } from "./SettingField";
-
 const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 

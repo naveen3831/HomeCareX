@@ -57,8 +57,20 @@ function ChartTooltip({
 const tickEvery = (n: number) => Math.max(Math.ceil(n / 5) - 1, 0);
 
 // ---------- Revenue: area chart ----------
-export function RevenueChart({ points, fmt, axisFmt }: { points: Point[]; fmt: Fmt; axisFmt: Fmt }) {
+export function RevenueChart({
+  points,
+  fmt,
+  axisFmt,
+  compact = false,
+}: {
+  points: Point[];
+  fmt: Fmt;
+  axisFmt: Fmt;
+  /** Phone look: slimmer y-axis, a dot on the latest point and up to six date labels. The total always shows. */
+  compact?: boolean;
+}) {
   const total = points.reduce((s, p) => s + p.value, 0);
+  const lastIndex = points.length - 1;
   return (
     <>
       <p className="dash-total">
@@ -73,16 +85,33 @@ export function RevenueChart({ points, fmt, axisFmt }: { points: Point[]; fmt: F
                 <stop offset="100%" stopColor={BRAND} stopOpacity={0.02} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="label" tick={AXIS} tickLine={false} axisLine={false} interval={tickEvery(points.length)} minTickGap={16} />
-            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={46} tickFormatter={axisFmt} tickCount={4} />
+            <CartesianGrid stroke={GRID} strokeDasharray={compact ? '3 4' : undefined} vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={AXIS}
+              tickLine={false}
+              axisLine={false}
+              interval={compact ? Math.max(Math.ceil(points.length / 6) - 1, 0) : tickEvery(points.length)}
+              minTickGap={compact ? 8 : 16}
+            />
+            <YAxis tick={AXIS} tickLine={false} axisLine={false} width={compact ? 40 : 46} tickFormatter={axisFmt} tickCount={4} />
             <Tooltip content={<ChartTooltip fmt={fmt} noun="Revenue" />} cursor={{ stroke: '#c7d2fe', strokeDasharray: '3 3' }} />
             <Area
               type="monotone"
               dataKey="value"
-              stroke={BRAND}
+              stroke={BRAND_SOFT}
               strokeWidth={2}
               fill="url(#dashRevenueFill)"
+              dot={
+                compact
+                  ? (dotProps: { cx?: number; cy?: number; index?: number }) =>
+                      dotProps.index === lastIndex && dotProps.cx !== undefined && dotProps.cy !== undefined ? (
+                        <circle key="last" cx={dotProps.cx} cy={dotProps.cy} r={6} fill={BRAND_SOFT} stroke="#fff" strokeWidth={2} />
+                      ) : (
+                        <g key={dotProps.index} />
+                      )
+                  : false
+              }
               activeDot={{ r: 5, stroke: '#fff', strokeWidth: 2 }}
               isAnimationActive={false}
             />
@@ -163,7 +192,7 @@ export function FunnelChart({ steps, fmt }: { steps: FunnelStep[]; fmt: Fmt }) {
     pct: i === 0 ? '' : `${conv(i).toFixed(0)}%`,
     isWorst: i === worst,
   }));
-  const height = Math.max(steps.length * 44, 120);
+  const height = Math.max(steps.length * 38, 112);
 
   return (
     <>

@@ -33,6 +33,15 @@ export const serviceUpdateSchema = serviceCreateSchema.partial().refine((v) => O
   message: 'Nothing to update',
 });
 
+/** Bulk reorder: every item carries its final sortOrder; ids must be unique. */
+export const serviceReorderSchema = z.object({
+  items: z
+    .array(z.object({ id: objectId, sortOrder: z.number().int().min(0).max(100_000) }))
+    .min(1)
+    .max(1000)
+    .refine((a) => new Set(a.map((i) => i.id)).size === a.length, { message: 'Duplicate ids in reorder request' }),
+});
+
 export const serviceQuerySchema = z.object({
   category: z.string().trim().optional(), // category id or slug
   q: z.string().trim().max(60).optional(),

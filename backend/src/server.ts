@@ -7,7 +7,7 @@ import { registerEarningsListeners } from './modules/earnings/earnings.listener'
 import { seedDefaultSettings } from './modules/settings/settings.service';
 import { seedDefaultDesignations } from './modules/designations/designations.service';
 import { seedDefaultCategories } from './modules/categories/categories.service';
-import { seedDefaultServices } from './modules/services/services.service';
+import { backfillServiceOrder, seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
 import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
@@ -63,6 +63,7 @@ const seedDefaults = async (): Promise<void> => {
 
     if (freshCatalog) {
       await timed('catalog seed', upsertCatalogSeed);
+      await timed('service order', backfillServiceOrder);
     }
 
     console.log('[startup] Default seeding completed.');

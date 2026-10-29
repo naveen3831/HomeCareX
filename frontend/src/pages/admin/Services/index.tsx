@@ -110,7 +110,6 @@ export const AdminServicesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
-  const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
@@ -163,13 +162,11 @@ export const AdminServicesPage: React.FC = () => {
   const filtered = search.trim() !== '' || categoryParam !== '';
   const reorderEnabled = !filtered && canManage && online;
 
-  // Saved manual order first; services not in it yet (new ones) sit on top, newest first.
-  const ordered = useMemo(() => {
-    const pos = new Map(order.map((id, n) => [id, n]));
-    const known = items.filter((s) => pos.has(s.id)).sort((a, b) => pos.get(a.id)! - pos.get(b.id)!);
-    const fresh = items.filter((s) => !pos.has(s.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return [...fresh, ...known];
-  }, [items, order]);
+  // The admin's saved order (stored on the server, same one customers see). Ties fall back to name.
+  const ordered = useMemo(
+    () => [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
+    [items],
+  );
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -186,23 +183,30 @@ export const AdminServicesPage: React.FC = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  function applyOrder(ids: string[], movedId: string, from: number, to: number) {
+  async function applyOrder(ids: string[], movedId: string, from: number, to: number) {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
-    setOrder(ids);
-    adminServiceApi.reorder(ids, { id: movedId, name, from, to });
-    flash(`“${name}” moved to position ${to + 1}`);
+    const before = items;
+    const pos = new Map(ids.map((id, n) => [id, n]));
+    setItems((cur) => cur.map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s))); // show it at once
+    try {
+      await adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+      flash(`“${name}” moved to position ${to + 1}. Customers will see this order.`);
+    } catch (e) {
+      setItems(before); // the server refused: put the list back so the screen never lies
+      flash((e as ServiceApiError).message, 'error');
+    }
   }
   const move = (id: string, dir: -1 | 1) => {
     const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
     if (to < 0 || to >= ids.length) return;
-    applyOrder(arrayMove(ids, from, to), id, from, to);
+    void applyOrder(arrayMove(ids, from, to), id, from, to);
   };
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over || e.active.id === e.over.id) return;
     const ids = ordered.map((x) => x.id);
     const from = ids.indexOf(String(e.active.id)); const to = ids.indexOf(String(e.over.id));
-    if (from > -1 && to > -1) applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
+    if (from > -1 && to > -1) void applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
   };
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const activeSvc = items.find((x) => x.id === activeId) ?? null;

@@ -1,33 +1,7 @@
 import type { PayoutStatus } from './payouts.calc';
 import type { PayoutBatchStatus } from './payouts.constants';
 
-import type { PayoutStatus } from "./payouts.calc";
-
-export type { PayoutStatus };
-
-/**
- * Status of a payout batch.
- */
-export type PayoutBatchStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
-
-/**
- * Input for generating a payout batch.
- */
-export interface GeneratePayoutBatchInput {
-  periodStart: string | Date;
-  periodEnd: string | Date;
-  adminId: string;
-  ip: string;
-}
-
-/**
- * Backward-compatible alias used by payouts.service.ts.
- */
-export type GenerateBatchInput = GeneratePayoutBatchInput;
+export type { PayoutStatus, PayoutBatchStatus };
 
 /**
  * Pagination details.
@@ -73,6 +47,9 @@ export interface PayoutRecord {
   createdAt: Date;
 }
 
+/**
+ * Input for generating a payout batch.
+ */
 export interface GenerateBatchInput {
   periodStart: string | Date;
   periodEnd: string | Date;
@@ -80,17 +57,9 @@ export interface GenerateBatchInput {
   ip: string;
 }
 
-export interface GeneratePayoutBatchInput {
-  periodStart: string;
-  periodEnd: string;
-  adminId: string;
-  ip: string;
-}
+/** Backward-compatible alias. */
+export type GeneratePayoutBatchInput = GenerateBatchInput;
 
-export interface ListBatchesInput {
-  page?: number;
-  limit?: number;
-  status?: string;
 /**
  * Query parameters for listing payout batches.
  */
@@ -190,9 +159,6 @@ export interface PayoutsRepository {
   findBatchById(batchId: string): Promise<BatchRecord | null>;
 
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
-  markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
-}
-
   markPaid(input: {
     payoutId: string;
     transactionId?: string;
