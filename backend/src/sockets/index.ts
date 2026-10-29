@@ -98,14 +98,12 @@ async function canJoinBooking(
     return Boolean(await BookingModel.exists({ _id: bookingId }));
   }
 
-  if (auth.role === 'customer') {
-    return Boolean(
-      await BookingModel.exists({
-        _id: bookingId,
-        customerId: auth.sub,
-      }),
-    );
-  }
+
+  if (auth.role === 'customer')
+    return !!(await BookingModel.exists({
+      _id: bookingId,
+      customerId: auth.sub,
+    }));
 
   if (auth.role === 'partner') {
     const partner = await PartnerModel.findOne({

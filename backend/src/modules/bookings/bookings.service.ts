@@ -1,18 +1,30 @@
 import { createHash } from 'crypto';
-import { notifyAdmins } from "../notifications";
-import { alertRefundRequested } from "../notifications/admin-alerts";
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError';
-import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
+import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
+import { PaymentModel } from '../../models/Payment';
+import { RefundModel } from '../../models/Refund';
+import { ServiceModel } from '../../models/Service';
+import { notifyAdmins } from '../notifications';
+import {
+  alertCustomerBookingCancelled,
+  alertCustomerBookingCreated,
+  alertCustomerBookingRescheduled,
+} from '../notifications/customer-alerts';
+import { alertRefundRequested } from '../notifications/admin-alerts';
+import {
+  addressesService,
+  type ResolvedAddress,
+} from '../addresses/addresses.service';
+import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
+import { couponsService } from '../coupons/coupons.service';
+import { HttpError } from '../auth/auth.types';
 import { bookingsRepository } from './bookings.repository';
 import type { ListBookingsQuery } from './bookings.query';
 import { bookingSettings } from './bookings.settings';
 import { withSlotLock } from './bookings.lock';
 import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
 import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
-import { PaymentModel } from '../../models/Payment';
-import { RefundModel } from '../../models/Refund';
-
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
@@ -24,18 +36,12 @@ import {
   type BookingStatus,
 } from './bookings.constants';
 import {
-
   canTransition,
   type StatusHistoryEntry,
-} from "./bookings.stateMachine";
-import { computeCancellation, type CancellationQuote } from "./bookings.cancel";
+} from './bookings.stateMachine';
+import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
-import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
-import { ServiceModel } from '../../models/Service';
-import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
-import { couponsService } from '../coupons/coupons.service';
-import { HttpError } from '../auth/auth.types';
 
 export interface SlotAvailability {
   slot: string;
@@ -340,14 +346,14 @@ export const BookingService = {
     try {
       const created = await withSlotLock(`booking:${input.serviceId}:${input.date}:${input.slot}`, async () => {
         await bookingsRepository.releaseStaleHolds(input.serviceId, input.date, input.slot, now);
-        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity);
+        const seat = await bookingsRepository.findFreeSeat(input.serviceId, input.date, input.slot, capacity, now);
         if (seat === null) {
           throw new AppError(409, 'SLOT_UNAVAILABLE', 'Selected slot is no longer available');
         }
         const createdBooking = await bookingsRepository.create({
           customerId: new Types.ObjectId(customerId),
           serviceId: new Types.ObjectId(input.serviceId),
-          categoryId: service.categoryId,
+          ...(service.categoryId ? { categoryId: service.categoryId } : {}),
           quantity: input.quantity,
           addOns: input.addOns.map((a) => ({ addOnId: new Types.ObjectId(a.addOnId), quantity: a.quantity })),
           addressSnapshot: {
@@ -397,7 +403,11 @@ export const BookingService = {
         } as never);
 
         if (coupon) {
-          await couponsService.recordUsage(coupon.code, customerId, (createdBooking as { _id?: unknown })._id?.toString());
+          await couponsService.recordUsage(
+            coupon.code,
+            customerId,
+            String((createdBooking as { _id?: unknown })._id ?? ''),
+          );
         }
         return createdBooking;
       });
@@ -407,6 +417,10 @@ export const BookingService = {
         bookingId: String((created as { _id?: unknown })._id ?? ''),
         serviceId: input.serviceId,
       }).catch(() => undefined);
+      alertCustomerBookingCreated({
+        customerId,
+        bookingId: String((created as { _id?: unknown })._id ?? ''),
+      });
 
       return { booking: toView(created as never), replayed: false };
     } catch (err) {
@@ -604,14 +618,14 @@ export const BookingService = {
     let refundStatus: CancellationSummary['refundStatus'] = 'none';
     if (quote.refundAmount > 0 && isPaid) {
       try {
-        const refund = (await bookingsRepository.createRefundRequest({
+        const refund = await bookingsRepository.createRefundRequest({
           payment: paidRecord,
           bookingId,
           customerId,
           amount: quote.refundAmount,
           reason,
           now,
-        })) as any;
+        });
         refundStatus = 'requested';
         if (refund && refund._id) {
           alertRefundRequested({
@@ -620,11 +634,6 @@ export const BookingService = {
             amount: quote.refundAmount,
           });
         }
-        alertRefundRequested({
-          refundId: String(refund._id),
-          bookingId,
-          amount: quote.refundAmount,
-        });
       } catch {
         throw new AppError(
           500,
@@ -633,6 +642,12 @@ export const BookingService = {
         );
       }
     }
+
+    alertCustomerBookingCancelled({
+      customerId,
+      bookingId,
+      refundAmount: isPaid ? quote.refundAmount : 0,
+    });
 
     const updatedBooking = await BookingService.getBooking(customerId, bookingId);
     const hoursUntilSlot = Math.max(0, Math.round((slotStart.getTime() - now.getTime()) / 3_600_000));
@@ -728,6 +743,8 @@ export const BookingService = {
         if (!updated) {
           throw new AppError(409, 'INVALID_STATE_TRANSITION', 'The booking was updated concurrently; please refresh and try again');
         }
+
+        alertCustomerBookingRescheduled({ customerId, bookingId, date: input.date, slot: input.slot });
 
         return BookingService.getBooking(customerId, bookingId);
       });

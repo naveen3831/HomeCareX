@@ -243,6 +243,12 @@ export default function MyBookingsPage() {
             </select>
           </div>
         </div>
+        {state.tab === "overdue" && (
+          <p className="mb-3 rounded-xl border border-line bg-panel px-4 py-3 text-sm text-muted">
+            These bookings passed their scheduled time without the service being
+            completed. Open one to see its details or contact support.
+          </p>
+        )}
         <ul
           aria-busy={isPlaceholderData}
           className={clsx(

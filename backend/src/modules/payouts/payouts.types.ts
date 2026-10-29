@@ -21,7 +21,6 @@ export interface GeneratePayoutBatchInput {
 /**
  * Backward-compatible alias used by payouts.service.ts.
  */
-export type GenerateBatchInput = GeneratePayoutBatchInput;
 
 /**
  * Pagination details.
@@ -66,6 +65,13 @@ export interface PayoutRecord {
   transactionId?: string | null;
   paidAt: Date | null;
   createdAt: Date;
+}
+
+export interface GenerateBatchInput {
+  periodStart: string | Date;
+  periodEnd: string | Date;
+  adminId: string;
+  ip: string;
 }
 
 /**

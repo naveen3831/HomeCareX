@@ -8,7 +8,6 @@ const CouponSchema = new Schema(
     code: {
       type: String,
       required: true,
-      unique: true,
       uppercase: true,
       trim: true,
       minlength: 3,

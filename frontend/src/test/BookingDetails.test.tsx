@@ -313,7 +313,7 @@ describe("BookingDetails page", () => {
     getBookingDetail.mockResolvedValue(detail({ status: "completed" }));
     const first = renderPage();
     const actions = (await screen.findByRole("heading", { name: /booking actions/i })).closest("section")!;
-    expect(within(actions).getByRole("link", { name: /write a review/i })).toHaveAttribute("href", "/customer/reviews");
+    expect(within(actions).getByRole("link", { name: /write a review/i })).toHaveAttribute("href", expect.stringMatching(/^\/customer\/reviews\?booking=/));
     first.unmount();
 
     getBookingDetail.mockResolvedValue(detail({ status: "cancelled_by_customer" }));

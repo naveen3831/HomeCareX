@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -405,7 +406,6 @@ export const authService = {
   },
 
   /** Logout ends the caller session, or every session for legacy/test tokens. */
-  /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
@@ -939,3 +939,4 @@ export const authService = {
     };
   },
 };
+export default authService;

@@ -13,19 +13,19 @@ const isItemActive = (pathname: string, { to }: CustomerNavItem) => norm(pathnam
  * Everything else (Account, Support, Referrals…) lives on the Profile tab.
  *
  * Design
- *  - Floating, rounded, frosted-glass bar inset from the screen edges, with a soft shadow.
- *  - The ACTIVE tab is the raised button (brand gradient, white ring) — whichever tab that is.
- *    Every other tab, Home included, is a quiet icon + label tab. Raised and plain tabs take
- *    the same height, so the bar doesn't jump when you switch.
- *  - Plain tabs: icon + label (tinted on hover). The active tab also has a bold brand label and
- *    aria-current="page" (never colour alone). Only the five tab pages themselves light a tab: service
- *    details, the booking flow, booking details, Addresses, Wallet, Support… leave every tab plain.
+ *  - A flat, full-width bar fixed to the bottom of the screen, with a thin top border and a soft shadow.
+ *  - Five equal columns (centred, max-w-md). Every tab is an icon + a short label.
+ *  - The ACTIVE tab shows its icon in a filled brand pill with a bold label and aria-current="page"
+ *    (never colour alone). Inactive tabs are quiet and tint on hover. Only the five tab pages themselves
+ *    light a tab: service details, the booking flow, booking details, Addresses, Wallet, Support… leave
+ *    every tab plain.
  *
  * Behaviour
- *  - Safe area: bottom gap is max(0.75rem, env(safe-area-inset-bottom)).
- *  - Touch targets: every tab is at least 60px tall and a fifth of the bar wide.
+ *  - Safe area: the bar adds env(safe-area-inset-bottom) as bottom padding (needs viewport-fit=cover in
+ *    index.html), so tabs never sit under the iPhone home indicator.
+ *  - Touch targets: every tab is at least 60px tall and a fifth of the bar wide (WCAG minimum is 44px).
  *  - Press feedback uses motion-safe: so it is skipped for prefers-reduced-motion.
- *  - The wrapper ignores pointer events so taps in the side gutters reach the page.
+ *  - Hidden at md and up (the Sidebar takes over) and on focused full pages (see CustomerLayout).
  */
 export default function BottomNav() {
   const { pathname } = useLocation();

@@ -91,9 +91,11 @@ const getAuthenticatedUserId = (res: Response): string => {
 
 export const authController = {
   login: wrap(async (req, res) => {
-    const { user, accessToken, refreshToken } =
-      await authService.login(parseBody(loginSchema, req.body));
 
+     const { user, accessToken, refreshToken } = await authService.login(
+        parseBody(loginSchema, req.body),
+        { ip: req.ip, userAgent: req.headers['user-agent'] },
+      );
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
 
@@ -282,6 +284,28 @@ export const authController = {
     });
   }),
 
+  /** POST /api/v1/auth/verify-invite */
+  verifyInvite: wrap(async (req, res) => {
+    const payload = parseBody(verifyInviteSchema, req.body);
+    const result = await authService.verifyInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
+  /** POST /api/v1/auth/accept-invite */
+  acceptInvite: wrap(async (req, res) => {
+    const payload = parseBody(acceptInviteSchema, req.body);
+    const result = await authService.acceptInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
   /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
   revokeUserSessions: wrap(async (req, res) => {
     const userId = req.params.userId ?? req.params.id;
@@ -326,33 +350,6 @@ export const authController = {
     });
   }),
 
-  /**
-   * POST /api/v1/auth/verify-invite
-   */
-  verifyInvite: wrap(async (req, res) => {
-    const data = await authService.verifyInvite(
-      parseBody(verifyInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data,
-    });
-  }),
-
-  /**
-   * POST /api/v1/auth/accept-invite
-   */
-  acceptInvite: wrap(async (req, res) => {
-    await authService.acceptInvite(
-      parseBody(acceptInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data: { ok: true },
-    });
-  }),
 };
 
 export default authController;

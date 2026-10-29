@@ -29,10 +29,7 @@ export const bookingsController = {
     const serviceId = req.params.id;
     const date = req.query.date as string;
 
-    const result = await BookingService.getAvailableSlots(
-      serviceId,
-      date,
-    );
+    const result = await BookingService.getAvailableSlots(serviceId, date);
 
     res.json({
       success: true,
@@ -84,10 +81,7 @@ export const bookingsController = {
   async getBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
 
-    const booking = await BookingService.getBooking(
-      customerId,
-      req.params.id,
-    );
+    const booking = await BookingService.getBooking(customerId, req.params.id);
 
     res.json({
       success: true,
