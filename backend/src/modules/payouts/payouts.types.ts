@@ -1,16 +1,12 @@
 import type { PayoutStatus } from './payouts.calc';
-
+import type { PayoutBatchStatus } from './payouts.constants';
 
 export type { PayoutStatus };
 
 /**
  * Status of a payout batch.
  */
-export type PayoutBatchStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+export type { PayoutBatchStatus };
 
 /**
  * Input for generating a payout batch.
@@ -64,6 +60,7 @@ export interface PayoutRecord {
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
+  notes?: string;
   method?: string | null;
   transactionId?: string | null;
   paidAt: Date | null;
@@ -77,13 +74,6 @@ export interface GenerateBatchInput {
   ip: string;
 }
 
-
-
-export interface ListBatchesInput {
-  page?: number;
-  limit?: number;
-  status?: string;
-}
 /**
  * Query parameters for listing payout batches.
  */
@@ -155,9 +145,9 @@ export interface PayoutCsvRow {
   partner: string;
   email: string;
   amount: number;
-  gross: number;
-  commission: number;
   status: string;
+  method: string;
+  transactionId: string;
   paidAt: string;
 }
 
@@ -185,5 +175,3 @@ export interface PayoutsRepository {
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
   markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
 }
-
-

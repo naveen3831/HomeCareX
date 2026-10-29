@@ -36,7 +36,6 @@ export const UnauthorizedPage: React.FC = () => {
   const dashboardRoute = isAuthenticated && user ? getRoleDashboard(user.role) : null;
 
   return (
-   
     <main
       className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12"
       role="alert"
@@ -56,7 +55,7 @@ export const UnauthorizedPage: React.FC = () => {
           id="unauthorized-heading"
           className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
         >
-          Access Denied — You don't have access to this page
+          Access Denied — You don&apos;t have access to this page
         </h1>
 
         <p className="mt-3 text-base leading-6 text-gray-600">

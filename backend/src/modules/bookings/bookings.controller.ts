@@ -1,10 +1,10 @@
 
 import type { Request, Response } from 'express';
 
-import { BookingService } from './bookings.service';
-import type { CreateBookingInput } from './bookings.types';
-import type { ListBookingsQuery } from './bookings.query';
 import { AppError } from '../../utils/AppError';
+import { BookingService } from './bookings.service';
+import type { ListBookingsQuery } from './bookings.query';
+import type { CreateBookingInput } from './bookings.types';
 
 /**
  * Gets the signed-in user's ID from the verified authentication token.
@@ -111,7 +111,6 @@ export const bookingsController = {
   },
 
   async decideExtraCharge(req: Request, res: Response) {
-    const customerId = requireUserId(req);
     const { id, chargeId } = req.params;
 
     const { decision } = req.body as {
@@ -119,7 +118,7 @@ export const bookingsController = {
     };
 
     const booking = await BookingService.decideExtraCharge(
-      customerId,
+      requireUserId(req),
       id,
       chargeId,
       decision,
@@ -157,11 +156,10 @@ export const bookingsController = {
   },
 
   async cancelBooking(req: Request, res: Response) {
-    const customerId = requireUserId(req);
     const { reason } = req.body as { reason: string };
 
     const result = await BookingService.cancelBooking(
-      customerId,
+      requireUserId(req),
       req.params.id,
       reason,
     );

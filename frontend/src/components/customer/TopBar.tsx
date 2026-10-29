@@ -3,11 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import clsx from "clsx";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
 import { customerPath } from "@/routes/customerPath";
+import { useUIStore } from "@/store/useUIStore";
+import { getCustomerPageMeta } from "./pageTitles";
 import LocationPicker from "./LocationPicker";
 import NotificationBell from "./NotificationBell";
 import { CUSTOMER_SIDEBAR_ID } from "./Sidebar";
 import { FOCUS_RING } from "./focusRing";
-import { getCustomerPageMeta } from "./pageTitles";
 
 interface TopBarProps {
   /** Desktop: is the sidebar expanded? */
@@ -23,77 +24,239 @@ const BAR =
 
 /**
  * Top bar.
- *  - Home (all widths): phones show the delivery-location picker and the bell. md+ shows
- *    ☰ (only while the sidebar is collapsed) | brand | location picker … bell.
- *  - Every other page, at every width: ← back arrow + the page name (see pageTitles.ts), with ☰ in front
- *    of it on md+ while the sidebar is collapsed. The bell shows at the right on md+ only. No picker, no brand.
- *    The arrow returns to the previous in-app page, or to the page's parent when the page was opened
- *    directly (deep link / refresh) so it never leaves the app. Notifications returns to Home and
- *    Referrals returns to Profile this way.
- * CustomerLayout pins the bar to the top of the screen on every page, so it never scrolls away.
+ *  - Home        : ☰ (md+, sidebar collapsed) | brand | location picker … bell
+ *  - Inner pages : ☰ (md+, sidebar collapsed) | ← Page name … bell (md+ only). The back arrow goes
+ *                  back through in-app history, or to the page's parent when it was opened directly.
  * The account avatar/menu lives at the bottom of the sidebar (SidebarAccount) and on the Profile page.
  */
 export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const unread = useUnreadNotifications();
-  const { pathname, key } = useLocation();
+  const location = useLocation();
+  const { pathname, key } = location;
   const navigate = useNavigate();
 
-  // null on Home. Everywhere else the bar becomes "← Page name".
-  const meta = getCustomerPageMeta(pathname);
-  const inner = meta !== null;
+  const activeBookingsCount = useUIStore((s) => s.activeBookingsCount);
 
-  // React Router gives the first entry of a session the key "default": nothing to go back to.
+  // null on Home, which keeps the address picker + bell instead of a back bar.
+  const meta = getCustomerPageMeta(pathname);
+  const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
+  const searchParams = new URLSearchParams(location.search);
+  const isSupportContact =
+    normalizedPath === customerPath("/support").toLowerCase() &&
+    searchParams.get("view") === "new";
+  const displayTitle = isSupportContact ? "Contact Us" : (meta?.title ?? "");
+  const isExcludedMobileTopBar =
+    normalizedPath.startsWith(customerPath("/bookings").toLowerCase()) ||
+    normalizedPath === customerPath("/security").toLowerCase() ||
+    normalizedPath === customerPath("/profile/security").toLowerCase();
+
+  // Back navigation: Active Bookings retains its entry point (Profile/Dashboard) and avoids looping
   const goBack = () => {
     if (!meta) return;
+    if (normalizedPath === customerPath("/notifications").toLowerCase()) {
+      navigate(customerPath());
+      return;
+    }
+    if (normalizedPath === customerPath("/referrals").toLowerCase()) {
+      navigate(customerPath("/profile"));
+      return;
+    }
+    if (normalizedPath === customerPath("/tracking").toLowerCase()) {
+      const fromCandidate =
+        (location.state as { origin?: string; from?: string })?.origin ||
+        (location.state as { origin?: string; from?: string })?.from;
+      let origin =
+        fromCandidate &&
+        !fromCandidate.includes("/bookings") &&
+        !fromCandidate.includes("/tracking")
+          ? fromCandidate
+          : null;
+
+      if (!origin) {
+        try {
+          const saved = sessionStorage.getItem("active_bookings_origin");
+          if (
+            saved &&
+            !saved.includes("/bookings") &&
+            !saved.includes("/tracking")
+          ) {
+            origin = saved;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!origin) {
+        origin = meta.parent || customerPath("/profile");
+      }
+
+      try {
+        sessionStorage.removeItem("active_bookings_origin");
+      } catch {
+        // ignore
+      }
+      navigate(origin);
+      return;
+    }
+    if (normalizedPath === customerPath("/payments").toLowerCase()) {
+      const fromCandidate =
+        (location.state as { origin?: string; from?: string })?.origin ||
+        (location.state as { origin?: string; from?: string })?.from;
+      let origin =
+        fromCandidate &&
+        !fromCandidate.includes("/bookings") &&
+        !fromCandidate.includes("/payments")
+          ? fromCandidate
+          : null;
+
+      if (!origin) {
+        try {
+          const saved = sessionStorage.getItem("payments_origin");
+          if (
+            saved &&
+            !saved.includes("/bookings") &&
+            !saved.includes("/payments")
+          ) {
+            origin = saved;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!origin) {
+        origin = meta.parent || customerPath("/profile");
+      }
+
+      try {
+        sessionStorage.removeItem("payments_origin");
+      } catch {
+        // ignore
+      }
+      navigate(origin);
+      return;
+    }
+    if (
+      normalizedPath === customerPath("/support").toLowerCase() ||
+      normalizedPath.startsWith(customerPath("/support/").toLowerCase())
+    ) {
+      const stateObj = location.state as {
+        returnTo?: string;
+        origin?: string;
+        from?: string;
+      } | null;
+      const search = new URLSearchParams(location.search);
+      let origin =
+        stateObj?.returnTo ||
+        stateObj?.origin ||
+        (stateObj?.from === "delete-account" || search.get("from") === "delete-account"
+          ? customerPath("/profile?action=delete-account")
+          : null) ||
+        search.get("returnTo");
+
+      if (!origin) {
+        try {
+          const saved = sessionStorage.getItem("support_return_to");
+          if (saved) origin = saved;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (origin) {
+        try {
+          sessionStorage.removeItem("support_return_to");
+        } catch {
+          // ignore
+        }
+        navigate(origin);
+        return;
+      }
+    }
     if (key !== "default") navigate(-1);
     else navigate(meta.parent, { replace: true });
   };
 
-  // Desktop only: shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar.
-  const hamburger = !sidebarOpen && (
-    <button
-      type="button"
-      onClick={onToggleSidebar}
-      aria-label="Open sidebar"
-      aria-expanded={false}
-      aria-controls={CUSTOMER_SIDEBAR_ID}
-      className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
-    >
-      <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-      <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
-      <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
-    </button>
-  );
-
   return (
     <header
-      data-inner={inner ? "true" : undefined}
       className={clsx(
-        "customer-topbar flex h-[64px] items-center justify-between gap-3 px-3 md:h-[68px] md:px-8",
-        inner ? "border-b border-line bg-canvas" : "bg-white/85 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl",
+        "customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3 bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8",
+        isExcludedMobileTopBar && "hidden md:flex",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-1">
+        {/* Only shown while the sidebar is collapsed; when it is open, its own close (X) button lives in the sidebar. */}
+        {!sidebarOpen && (
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            aria-label="Open sidebar"
+            aria-expanded={false}
+            aria-controls={CUSTOMER_SIDEBAR_ID}
+            className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
+          >
+            <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
+            <span
+              aria-hidden="true"
+              className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")}
+            />
+            <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
+          </button>
+        )}
+
         {meta ? (
           <>
-            {hamburger}
-            <button
-              type="button"
-              onClick={goBack}
-              aria-label={`Back from ${meta.title}`}
-              className={clsx(
-                "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-3 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
-                FOCUS_RING,
-              )}
-            >
-              <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-              <span className="truncate">{meta.title}</span>
-            </button>
+            {normalizedPath === customerPath("/tracking").toLowerCase() ? (
+              <div className="flex w-full min-w-0 items-center justify-between pr-1">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  aria-label={`Back from ${displayTitle}`}
+                  className={clsx(
+                    "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand active:opacity-70",
+                    FOCUS_RING,
+                  )}
+                >
+                  <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">Back from {meta.title}</span>
+                </button>
+
+                <h1 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg">
+                  {meta.title}
+                </h1>
+
+                {activeBookingsCount !== null && activeBookingsCount > 0 ? (
+                  <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#a7f3d0]/60 bg-[#ecfdf5] px-2.5 py-1 text-xs font-semibold text-[#059669]">
+                    <span className="relative flex h-2 w-2" aria-hidden="true">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#10b981] opacity-75" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10b981]" />
+                    </span>
+                    <span>{activeBookingsCount} Live</span>
+                  </span>
+                ) : (
+                  <div className="w-10 shrink-0" aria-hidden="true" />
+                )}
+              </div>
+            ) : (
+              <div className="flex min-w-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  aria-label={`Back from ${displayTitle}`}
+                  className={clsx(
+                    "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                    FOCUS_RING,
+                  )}
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{displayTitle}</span>
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <>
-            {hamburger}
-            {/* Brand: desktop only, and only while the sidebar is collapsed (the sidebar has its own brand). */}
             <Link
               to={customerPath()}
               className={clsx(
@@ -102,7 +265,6 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
                 "hidden md:inline-flex",
                 FOCUS_RING,
               )}
-              aria-label="HomeCareX home"
             >
               <span className="text-accent">Home</span>
               <span className="text-brand">CareX</span>
@@ -110,7 +272,10 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
 
             <span
               aria-hidden="true"
-              className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
+              className={clsx(
+                "mx-3 hidden h-8 w-px bg-line",
+                !sidebarOpen && "md:block",
+              )}
             />
 
             {/* One picker at every width (a single instance keeps DOM ids unique). */}
@@ -121,8 +286,14 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
       </div>
 
-      {/* Phones: bell on Home only. md+: always. */}
-      <div className={clsx(inner && "hidden md:block")}>
+      <div
+        className={clsx(
+          meta && "hidden",
+          meta &&
+            normalizedPath !== customerPath("/tracking").toLowerCase() &&
+            "md:block",
+        )}
+      >
         <NotificationBell count={unread} />
       </div>
     </header>

@@ -28,9 +28,9 @@ import mongoose, { Types } from 'mongoose';
 import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
+import { ensurePartnerProfile } from '../partners/partners.service';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
-import { ensurePartnerProfile } from '../partners/partners.service';
 
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET || `${accessSecret()}_refresh`;

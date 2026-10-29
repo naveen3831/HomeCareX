@@ -131,7 +131,7 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
 
   receive(req, res, (error: unknown) => {
     if (error instanceof multer.MulterError) {
-      return next(
+      next(
         new HttpError(
           400,
           error.code === 'LIMIT_FILE_SIZE'
@@ -140,6 +140,7 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
           'INVALID_ATTACHMENT',
         ),
       );
+      return;
     }
 
     if (error) {

@@ -143,6 +143,7 @@ export function mapJob(api: ApiJob): JobDetails {
   };
 }
 
+/** Converts a live job / list item (e.g. from GET /partner/jobs) into JobDetails format */
 function isApiJob(item: Record<string, unknown>): item is Record<string, unknown> & ApiJob {
   const customer = item.customer && typeof item.customer === 'object'
     ? item.customer as Record<string, unknown>
@@ -202,7 +203,6 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown> | JobLi
     return mapJob(item as unknown as ApiJob);
   }
 
- 
   const customerObj = item.customer && typeof item.customer === 'object'
     ? item.customer as Record<string, unknown>
     : {};
@@ -237,9 +237,13 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown> | JobLi
     },
     service: {
       name: serviceName,
-      description: String(item.serviceDescription || `${serviceName} professional service`),
+      description: typeof item.serviceDescription === 'string'
+        ? item.serviceDescription
+        : `${serviceName} professional service`,
       quantity: 1,
-      durationMinutes: Number(item.durationMinutes) || 90,
+      durationMinutes: typeof item.durationMinutes === 'number'
+        ? item.durationMinutes
+        : 90,
     },
     location: {
       address: addressText,
@@ -257,7 +261,7 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown> | JobLi
       partnerEarning: Number(item.partnerEarning || item.amount || 1299) || 1299,
     },
     addOns: [],
-    instructions: String(item.instructions || ''),
+    instructions: typeof item.instructions === 'string' ? item.instructions : '',
     checklist: getDefaultChecklistForService(serviceName),
     extraCharges: [],
     payment: {
@@ -266,7 +270,7 @@ export function mapJobListItemToJobDetails(item: Record<string, unknown> | JobLi
     },
     actions: status === 'assigned' || status === 'confirmed'
       ? [{ status: 'en_route', label: 'On the way' }]
-      : status === 'en_route'
+      : item.status === 'en_route'
         ? [{ status: 'arrived', label: 'Arrived at location' }]
         : [],
     otpRequired: status === 'arrived',

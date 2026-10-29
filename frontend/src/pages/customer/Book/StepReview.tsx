@@ -472,7 +472,6 @@ export default function StepReview() {
 
   const quoteReady = Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
   const payDisabled = !quoteReady || !online;
-
   const INITIAL_COUPON_LIMIT = 6;
   const visibleCoupons = showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT ? sortedCoupons : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
   const hiddenCouponCount = Math.max(sortedCoupons.length - INITIAL_COUPON_LIMIT, 0);

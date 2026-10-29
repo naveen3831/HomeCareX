@@ -54,7 +54,7 @@ export default function BottomNav() {
                 {active ? (
                   <span
                     aria-hidden="true"
-                    className="flex h-7 w-12 items-center justify-center rounded-full bg-brand text-white transition-all duration-200 motion-safe:group-active:scale-95"
+                    className="flex h-7 w-12 items-center justify-center rounded-full bg-brand-soft text-brand transition-all duration-200 motion-safe:group-active:scale-95"
                   >
                     <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
                   </span>

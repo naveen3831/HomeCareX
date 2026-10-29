@@ -18,21 +18,27 @@ function cleanParams(obj: object): Record<string, string | number> {
 }
 
 const asObject = (value: unknown): Record<string, unknown> =>
-  value !== null && typeof value === "object" ? value as Record<string, unknown> : {};
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 
 const asTickets = (value: unknown): CustomerTicket[] =>
-  Array.isArray(value) ? value as CustomerTicket[] : [];
+  Array.isArray(value) ? (value as CustomerTicket[]) : [];
 
 const ticketMeta = (
   value: unknown,
   fallback: TicketPage["meta"],
 ): TicketPage["meta"] => {
   const meta = asObject(value);
+  const page = Number(meta.page);
+  const limit = Number(meta.limit);
+  const total = Number(meta.total);
+  const pages = Number(meta.pages);
   return {
-    page: Number(meta.page) || fallback.page,
-    limit: Number(meta.limit) || fallback.limit,
-    total: Number(meta.total) || fallback.total,
-    pages: Number(meta.pages) || fallback.pages,
+    page: Number.isFinite(page) && page > 0 ? page : fallback.page,
+    limit: Number.isFinite(limit) && limit > 0 ? limit : fallback.limit,
+    total: Number.isFinite(total) && total >= 0 ? total : fallback.total,
+    pages: Number.isFinite(pages) && pages >= 0 ? pages : fallback.pages,
   };
 };
 
@@ -56,7 +62,6 @@ export const supportApi = {
       total: 0,
       pages: 1,
     };
-
     if (Array.isArray(body)) {
       const items = asTickets(body);
       return {

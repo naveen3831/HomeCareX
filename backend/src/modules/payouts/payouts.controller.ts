@@ -1,4 +1,3 @@
-
 import type { Request, Response } from 'express';
 import { getAuthUser } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
@@ -22,7 +21,7 @@ const str = (value: unknown): string | undefined =>
     : undefined;
 
 export const payoutsController = {
-  /** POST /admin/payouts */
+  /** POST /admin/payout-batches or /admin/payouts { periodStart, periodEnd } */
   async generate(req: Request, res: Response) {
     const admin = getAuthUser(req);
     const batch = await payoutsService.generateBatch({
@@ -35,7 +34,7 @@ export const payoutsController = {
     sendSuccess(res, batch, { status: 201 });
   },
 
-  /** GET /admin/payouts?page&limit&status */
+  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
   async list(req: Request, res: Response) {
     const result = await payoutsService.listBatches({
       page: num(req.query.page),
@@ -48,7 +47,7 @@ export const payoutsController = {
     });
   },
 
-  /** GET /admin/payouts/:id */
+  /** GET /admin/payouts/:id or /admin/payout-batches/:id */
   async get(req: Request, res: Response) {
     sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
   },
@@ -58,7 +57,7 @@ export const payoutsController = {
     return this.get(req, res);
   },
 
-  /** GET /admin/payouts/:id/payouts */
+  /** GET /admin/payouts/:id/payouts or /admin/payout-batches/:id/payouts */
   async listPayouts(req: Request, res: Response) {
     sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
   },
@@ -68,9 +67,13 @@ export const payoutsController = {
     return this.listPayouts(req, res);
   },
 
-  /** Mark an individual payout as paid. */
+  /**
+   * Mark an individual payout as paid.
+   * PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id { transactionId? }
+   */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
+
     sendSuccess(
       res,
       await payoutsService.markPaid({
@@ -87,10 +90,13 @@ export const payoutsController = {
     return this.markPaid(req, res);
   },
 
-  /** GET /admin/payouts/export?batchId=<batchId> or /admin/payouts/:id/export */
+  /**
+   * GET /admin/payouts/export?batchId=<batchId>
+   * GET /admin/payouts/:id/export
+   * GET /admin/payout-batches/:id/export
+   */
   async exportCsv(req: Request, res: Response) {
-    const batchId =
-      str(req.params.id) ?? str(req.query.batchId);
+    const batchId = str(req.params.id) ?? str(req.query.batchId);
 
     if (!batchId) {
       res.status(400).json({

@@ -8,14 +8,14 @@ import { validationMiddleware } from '../../middleware/validation.middleware';
 import { bookingsController } from './bookings.controller';
 
 import {
+  cancelBookingBodySchema,
+  checkSlotBodySchema,
   createBookingBodySchema,
-  getBookingParamsSchema,
-  extraChargeDecisionParamsSchema,
   extraChargeDecisionBodySchema,
+  extraChargeDecisionParamsSchema,
+  getBookingParamsSchema,
   getSlotsParamsSchema,
   getSlotsQuerySchema,
-  checkSlotBodySchema,
-  cancelBookingBodySchema,
   rescheduleBookingBodySchema,
 } from './bookings.validation';
 

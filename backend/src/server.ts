@@ -11,8 +11,8 @@ import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
-import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import {
   ReferralCodeModel,
   ReferralModel,
@@ -68,10 +68,7 @@ const seedDefaults = async (): Promise<void> => {
 
     await timed('seed categories', seedDefaultCategories);
     await timed('seed services', seedDefaultServices);
-
-    if (freshCatalog) {
-      await timed('catalog seed', upsertCatalogSeed);
-    }
+    if (freshCatalog) await timed('catalog seed', upsertCatalogSeed);
 
     console.log('[startup] Default seeding completed.');
   } catch (error) {
@@ -108,7 +105,6 @@ const startServer = async (): Promise<void> => {
       ]);
     });
 
-    // Start listening exactly once.
     await new Promise<void>((resolve, reject) => {
       const onError = (error: Error): void => {
         server.removeListener('listening', onListening);

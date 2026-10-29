@@ -6,14 +6,11 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
- 
-
 import {
   acceptInviteSchema,
- 
-  inviteStaffSchema,
   changePasswordSchema,
   forgotPasswordSchema,
+  inviteStaffSchema,
   loginSchema,
   parseBody,
   registerSchema,
@@ -22,7 +19,6 @@ import {
   verifyInviteSchema,
   verifyOtpSchema,
 } from './auth.validation';
-
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
@@ -95,7 +91,7 @@ const getAuthenticatedUserId = (res: Response): string => {
 
 export const authController = {
   login: wrap(async (req, res) => {
-    
+
      const { user, accessToken, refreshToken } = await authService.login(
         parseBody(loginSchema, req.body),
         { ip: req.ip, userAgent: req.headers['user-agent'] },
@@ -218,32 +214,57 @@ export const authController = {
   }),
 
   /**
-   * Individual session records are not implemented yet.
+   * Returns active sessions for the authenticated user.
    */
- getSessions: wrap(async (req, res) => {
-  const userId = getAuthenticatedUserId(res);
-  const data = await authService.getSessions(userId, {
-    userAgent: req.headers['user-agent'],
-    ip: req.ip,
-    currentSid: res.locals.auth?.sid,
-  });
-  res.json({ success: true, data });
-}),
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const userAgent = req.headers['user-agent'];
+    const ip =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const currentSid = (res.locals.auth as any)?.sid;
+
+    const data = await authService.getSessions(userId, {
+      userAgent,
+      ip,
+      currentSid,
+    });
+
+    res.json({
+      success: true,
+      data,
+    });
+  }),
 
   /**
-   * Individual session revocation requires persistent session records.
+   * Revokes an individual session.
    */
- revokeSession: wrap(async (req, res) => {
-  const userId = getAuthenticatedUserId(res);
-  const result = await authService.revokeSession(
-    userId,
-    String(req.params.id ?? ''),
-    res.locals.auth?.sid,
-  );
-  if (result.isCurrent) clearRefreshCookies(res);
-  res.json({ success: true, data: result, message: result.message });
-}),
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const sessionId = req.params.id;
+    const currentSid = (res.locals.auth as any)?.sid;
 
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        revoked: true,
+        isCurrent: result.isCurrent,
+        message: result.message,
+      },
+    });
+  }),
 
   /**
    * Invalidate refresh tokens for the currently authenticated user.
@@ -251,9 +272,18 @@ export const authController = {
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
     const result = await authService.logoutAll(userId);
+
     clearRefreshCookies(res);
-    res.json({ success: true, data: result, message: result.message });
+
+    res.json({
+      success: true,
+      data: {
+        revokedSessionsCount: result.revokedSessionsCount,
+      },
+      message: result.message,
+    });
   }),
+
   /** POST /api/v1/auth/verify-invite */
   verifyInvite: wrap(async (req, res) => {
     const payload = parseBody(verifyInviteSchema, req.body);
@@ -276,10 +306,7 @@ export const authController = {
     });
   }),
 
-  /**
-   * Admin endpoint: revoke refresh tokens for a specified user.
-   * Protect this route with admin authorization middleware.
-   */
+  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
   revokeUserSessions: wrap(async (req, res) => {
     const userId = req.params.userId ?? req.params.id;
 
@@ -302,7 +329,6 @@ export const authController = {
     });
   }),
 
-
   /**
    * POST /api/v1/admin/staff
    * Admin authorization must be applied by the route.
@@ -324,7 +350,6 @@ export const authController = {
     });
   }),
 
- 
 };
 
 export default authController;

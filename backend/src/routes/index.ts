@@ -3,10 +3,7 @@ import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
 import { requirePermission, requireResourceAccess } from "../middleware/permission.middleware";
 
-// Core & Auth
 import { authRoutes } from "../modules/auth/auth.routes";
-
-// Admin
 import { adminRoutes } from "../modules/admin/admin.routes";
 import { adminCustomersRoutes } from "../modules/admin-customers/admin-customers.routes";
 import { adminDashboardRoutes } from "../modules/admin-dashboard/admin-dashboard.routes";
@@ -37,13 +34,9 @@ import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
-
-// Catalog & Public
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
 import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
-
-// Bookings & Payments
 import {
   addressesRoutes,
   serviceabilityRoutes,
@@ -53,12 +46,8 @@ import { chatRoutes } from "../modules/chat/chat.routes";
 import paymentRoutes from "../modules/payments/payments.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
-
-// Notifications
 import customerNotificationsRoutes from "../modules/notifications/customer-notifications.routes";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes";
-
-// Customer
 import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
 import {
   customerPreferencesRoutes,
@@ -66,8 +55,6 @@ import {
 } from "../modules/customer-profile/customer-profile.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
-
-// Partner
 import { availabilityRoutes } from "../modules/availability/availability.routes";
 import { blackoutRoutes } from "../modules/availability/blackout.routes";
 import { scheduleRoutes } from "../modules/availability/schedule.routes";
@@ -78,6 +65,7 @@ import {
   partnerJobRequestsRoutes,
   partnerJobsRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
+import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
@@ -92,7 +80,6 @@ import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
-import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { sosRoutes } from "../modules/sos/sos.routes";
 
 export const rootRouter = Router();

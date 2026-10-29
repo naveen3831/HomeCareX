@@ -6,9 +6,15 @@ import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
-interface HeaderProps {
-  /** Kept for existing callers; the bell loads its own notifications. */
-  notifications?: unknown[];
+export interface HeaderNotification {
+  id: string;
+  title: string;
+  time: string;
+  href?: string;
+}
+
+export interface HeaderProps {
+  notifications?: HeaderNotification[];
 }
 
 /** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
