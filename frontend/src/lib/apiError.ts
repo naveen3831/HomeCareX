@@ -52,17 +52,6 @@ export function classifyApiError(
     };
   }
 
-  const apiErr = err as (ApiError & { response?: { status?: number; data?: { message?: string; code?: string; details?: ApiError['details'] } } }) | undefined;
-  const responseData = apiErr?.response?.data;
-  const normalized: ApiError = {
-    message: apiErr?.message || responseData?.message || defaultHttpMsg,
-    status: apiErr?.status ?? apiErr?.response?.status,
-    code: apiErr?.code || responseData?.code,
-    isTimeout: apiErr?.isTimeout,
-    details: apiErr?.details ?? responseData?.details,
-  };
-
-  if (!apiErr && !responseData) {
   const apiErr = normalizeRaw(err);
   if (!apiErr) {
     return {
@@ -70,6 +59,17 @@ export function classifyApiError(
       message: 'Something went wrong. Please try again.',
     };
   }
+
+  const responseData = (apiErr as ApiError & {
+    response?: { data?: { message?: string; code?: string; details?: ApiError['details'] } };
+  }).response?.data;
+  const normalized: ApiError = {
+    message: apiErr?.message || responseData?.message || defaultHttpMsg,
+    status: apiErr?.status,
+    code: apiErr?.code || responseData?.code,
+    isTimeout: apiErr?.isTimeout,
+    details: apiErr?.details ?? responseData?.details,
+  };
 
   // 2. Request Timeout
   if (

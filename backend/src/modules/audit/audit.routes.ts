@@ -1,4 +1,3 @@
-
 import { Router } from 'express';
 import { authenticate } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
@@ -22,6 +21,7 @@ auditRoutes.get(
   requireAdmin,
   requirePermission(AUDIT_CONSTANTS.PERMISSION),
   asyncHandler((req, res) => auditController.getAuditLogs(req, res)),
+)
 // Protect all audit routes with authentication, admin role,
 // and the required audit-read permission.
 auditRoutes.use(

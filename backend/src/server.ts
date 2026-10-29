@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 import http from 'http';
 import mongoose from 'mongoose';
@@ -38,7 +37,8 @@ const timed = async <T>(
 
 const server = http.createServer(app);
 
-// Attach Socket.IO to the same HTTP server before it starts listening.
+// Attach Socket.IO to the same HTTP server, otherwise /socket.io/ requests
+// fall through to Express and return 404. Must happen once, before listen().
 initSockets(server);
 
 const PORT = Number(process.env.PORT) || 5000;
@@ -53,24 +53,17 @@ let shuttingDown = false;
  */
 const seedDefaults = async (): Promise<void> => {
   try {
-    const added = await timed(
-      'seed settings',
-      seedDefaultSettings,
-    );
+    const added = await timed('seed settings', seedDefaultSettings);
 
     if (added > 0) {
       console.log(`Seeded ${added} default setting(s)`);
     }
 
-    await timed(
-      'seed designations',
-      seedDefaultDesignations,
-    );
+    await timed('seed designations', seedDefaultDesignations);
 
     const freshCatalog = await timed(
       'count services',
-      async () =>
-        (await ServiceModel.estimatedDocumentCount()) === 0,
+      async () => (await ServiceModel.estimatedDocumentCount()) === 0,
     );
 
     await timed('seed categories', seedDefaultCategories);
@@ -133,13 +126,6 @@ const startServer = async (): Promise<void> => {
     });
 
     console.log(`HomeCareX server running on port ${PORT}`);
-
-    console.log(
-      `[timing] total startup: ${Math.round(
-        process.uptime() * 1000,
-      )} ms`,
-    );
-
     console.log(
       `[timing] process uptime at listen: ${Math.round(
         process.uptime() * 1000,

@@ -115,7 +115,6 @@ type CompactCoupon = {
   minOrder?: number;
   serviceName?: string;
   eligible?: boolean;
-  reason?: { code: string; minOrder?: number };
   reason?: string | { code: string; minOrder?: number };
 };
 
@@ -473,14 +472,7 @@ export default function StepReview() {
 
   const quoteReady = Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
   const payDisabled = !quoteReady || !online;
-  const compactCoupons: CompactCoupon[] = Array.isArray(availableCoupons) ? availableCoupons : [];
-  const sortedCoupons = [...compactCoupons].sort((a, b) => {
-    const aEligible = a.eligible !== false;
-    const bEligible = b.eligible !== false;
-    if (aEligible && !bEligible) return -1;
-    if (!aEligible && bEligible) return 1;
-    return 0;
-  });
+
   const INITIAL_COUPON_LIMIT = 6;
   const visibleCoupons = showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT ? sortedCoupons : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
   const hiddenCouponCount = Math.max(sortedCoupons.length - INITIAL_COUPON_LIMIT, 0);

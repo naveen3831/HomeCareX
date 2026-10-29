@@ -4,6 +4,7 @@ import type { BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 export type BookingTab =
   | "upcoming"
   | "live"
+  | "overdue"
   | "completed"
   | "cancelled";
 

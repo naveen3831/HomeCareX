@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -29,6 +30,7 @@ import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { StaffModel } from '../../models/Staff';
 import { mailService } from '../../services/mail.service';
+import { ensurePartnerProfile } from '../partners/partners.service';
 
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET || `${accessSecret()}_refresh`;
@@ -404,7 +406,6 @@ export const authService = {
   },
 
   /** Logout ends the caller session, or every session for legacy/test tokens. */
-  /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
@@ -938,3 +939,4 @@ export const authService = {
     };
   },
 };
+export default authService;

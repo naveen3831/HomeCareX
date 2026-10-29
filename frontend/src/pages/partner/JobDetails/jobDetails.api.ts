@@ -32,8 +32,7 @@ function getCurrentUserId(): string | undefined {
 }
 
 export function getAssignedCatalogStorageKey(userId?: string): string {
-  const effectiveId = userId || currentUserId();
-  const effectiveId = userId || getCurrentUserId();
+  const effectiveId = userId || getCurrentUserId() || currentUserId();
   return effectiveId
     ? `homecarex_partner_assigned_services_v3_${effectiveId}`
     : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
@@ -1138,7 +1137,6 @@ function findKnownJob(requestedId?: string): JobDetails | null {
     if (rawLive) {
       const liveList: unknown = JSON.parse(rawLive);
       if (Array.isArray(liveList)) {
-        const found = liveList.find((job) => String(asRecord(job).id).toLowerCase() === cleanId);
         const found = liveList.find((j: { id?: string | number }) => String(j.id).toLowerCase() === cleanId);
         if (found) {
           return mapJobListItemToJobDetails(asRecord(found));
@@ -1284,8 +1282,7 @@ export interface FetchAssignedServicesOptions {
 export async function fetchAssignedServices(
   options?: FetchAssignedServicesOptions,
 ): Promise<JobDetails[]> {
-  const effectiveUserId = options?.userId || currentUserId();
-  const effectiveUserId = options?.userId || getCurrentUserId();
+  const effectiveUserId = options?.userId || getCurrentUserId() || currentUserId();
   let partnerServices = options?.assignedServices;
 
   if (!partnerServices || partnerServices.length === 0) {
@@ -1301,7 +1298,6 @@ export async function fetchAssignedServices(
   }
 
   try {
-    const res = await api.get<{ data: Record<string, unknown>[] }>('/partner/jobs?tab=all');
     const res = await api.get<{ data: JobListItemLike[] }>('/partner/jobs?tab=all');
     if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
       const mapped = res.data.data.map(mapJobListItemToJobDetails);
@@ -1419,8 +1415,6 @@ export async function fetchJob(id: string): Promise<JobDetails> {
     const status = errorStatus(err);
     console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, errorMessage(err));
     if (!IS_MOCK_JOBS && (status === 404 || status === 403)) {
-    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
-    if (!IS_MOCK_JOBS && ((err as { response?: { status?: number } })?.response?.status === 404 || (err as { response?: { status?: number } })?.response?.status === 403)) {
       const fallback = findKnownJob(cleanId);
       if (fallback) {
         return withStartVerification(fallback);
@@ -1550,7 +1544,6 @@ export function getMockExtraCharges(bookingId: string): ExtraChargeItem[] {
     }
     /* ignore parse failure */
   }
-  }
   return [];
 }
 
@@ -1571,7 +1564,6 @@ export function saveMockExtraCharges(bookingId: string, items: ExtraChargeItem[]
       // Storage is best-effort; try writing the remaining aliases.
     }
     /* ignore parse failure */
-  }
   }
 }
 

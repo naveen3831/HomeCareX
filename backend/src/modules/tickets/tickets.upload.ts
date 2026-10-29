@@ -1,6 +1,5 @@
 import type { RequestHandler } from 'express';
 import multer from 'multer';
-
 import { HttpError } from '../auth/auth.types';
 
 export const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -23,14 +22,12 @@ export interface EvidenceFile {
   data: Buffer;
 }
 
-const invalidUpload = (
-  message = 'Upload up to 3 files and check the form fields.',
-) => new HttpError(400, message, 'INVALID_ATTACHMENT');
+
 
 /** Verify the file signature as well as the declared MIME type. */
 export function validateEvidence(
   file: Pick<
-    UploadedFile,
+    Express.Multer.File,
     'originalname' | 'mimetype' | 'buffer' | 'size'
   >,
 ): EvidenceFile {
@@ -125,11 +122,8 @@ const receive = multer({
  * Supports JSON requests without files and multipart requests with files.
  * Uploaded files are kept in memory and validated before reaching the controller.
  */
-export const receiveTicketFiles: RequestHandler = (
-  req,
-  res,
-  next,
-) => {
+export const receiveTicketFiles: RequestHandler = (req, res, next) => {
+  // Text-only requests may be plain JSON (already parsed by express.json()); they carry no files.
   if (req.is('application/json')) {
     res.locals.ticketFiles = [];
     return next();

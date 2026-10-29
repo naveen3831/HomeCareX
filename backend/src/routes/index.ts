@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
-import { requireResourceAccess } from "../middleware/permission.middleware";
+import { requirePermission, requireResourceAccess } from "../middleware/permission.middleware";
 
 // Core & Auth
 import { authRoutes } from "../modules/auth/auth.routes";
@@ -73,6 +73,11 @@ import { blackoutRoutes } from "../modules/availability/blackout.routes";
 import { scheduleRoutes } from "../modules/availability/schedule.routes";
 import { earningsRoutes } from "../modules/earnings/earnings.routes";
 import { maskedCallRoutes } from "../modules/masked-call/masked-call.routes";
+import {
+  bookingStatusRoutes,
+  partnerJobRequestsRoutes,
+  partnerJobsRoutes,
+} from "../modules/partner-jobs/partner-jobs.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
@@ -84,16 +89,10 @@ import {
 import { partnerSettingsRoutes } from "../modules/partner-settings/partner-settings.routes";
 import { partnerTicketsRoutes } from "../modules/partner-tickets/partner-tickets.routes";
 import {
-  bookingStatusRoutes,
-  partnerJobRequestsRoutes,
-  partnerJobsRoutes,
-} from "../modules/partner-jobs/partner-jobs.routes";
-import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
-import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
-import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
 } from "../modules/partner-wallet/partner-wallet.routes";
+import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { sosRoutes } from "../modules/sos/sos.routes";
 
 export const rootRouter = Router();

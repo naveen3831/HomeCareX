@@ -3,6 +3,7 @@ import { PaymentModel, type IPayment } from "../../models/Payment";
 import { BOOKING_STATUS } from "../bookings/bookings.constants";
 import { codOrderId, isCodOnlinePayableStatus } from "./payments.constants";
 import { referralsService } from "../referrals/referrals.service";
+import { alertCustomerPaymentSucceeded } from "../notifications/customer-alerts";
 
 export type SettleOutcome =
   | { kind: "confirmed"; booking: IBooking }
@@ -122,6 +123,7 @@ export async function settleCapturedPayment(
   if (updated) {
     await markPaymentPaid();
     rewardReferrer(updated);
+    alertCustomerPaymentSucceeded({ customerId: updated.customerId, bookingId: String(updated._id) });
     return { kind: "confirmed", booking: updated };
   }
 
