@@ -1,4 +1,3 @@
-
 import { UserModel } from '../../models/User';
 import { OtpModel } from '../../models/Otp';
 

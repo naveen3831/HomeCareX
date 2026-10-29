@@ -27,20 +27,23 @@ export const bookingsRoutes = Router();
 bookingsRoutes.get(
   ['/services/:id/slots', '/services/:serviceId/slots'],
   (req, _res, next) => {
-    if (!req.params.id) {
+    if (!req.params.id && req.params.serviceId) {
       req.params.id = req.params.serviceId;
     }
+
     next();
   },
   validationMiddleware({
     params: getSlotsParamsSchema,
     query: getSlotsQuerySchema,
   }),
-  asyncHandler(async (req, res) => bookingsController.getSlots(req, res)),
+  asyncHandler(async (req, res) =>
+    bookingsController.getSlots(req, res),
+  ),
 );
 
 // POST /bookings/check-slot
-// Verify slot availability before creating a booking.
+// Real-time slot verification before booking.
 bookingsRoutes.post(
   '/bookings/check-slot',
   validationMiddleware({
@@ -50,6 +53,7 @@ bookingsRoutes.post(
 );
 
 // POST /bookings
+// Create a booking for the authenticated customer.
 bookingsRoutes.post(
   '/bookings',
   authMiddleware,
@@ -61,6 +65,7 @@ bookingsRoutes.post(
 );
 
 // GET /bookings
+// List the authenticated customer's bookings with pagination and filters.
 bookingsRoutes.get(
   '/bookings',
   authMiddleware,
@@ -72,6 +77,7 @@ bookingsRoutes.get(
 );
 
 // GET /bookings/:id
+// Retrieve a single booking belonging to the authenticated customer.
 bookingsRoutes.get(
   '/bookings/:id',
   authMiddleware,
@@ -156,7 +162,8 @@ bookingsRoutes.post(
   ),
 );
 
-// Backward-compatible PATCH form for extra-charge decisions.
+// PATCH /bookings/:id/extra-charges/:chargeId
+// Backward-compatible extra-charge decision endpoint.
 bookingsRoutes.patch(
   '/bookings/:id/extra-charges/:chargeId',
   authMiddleware,

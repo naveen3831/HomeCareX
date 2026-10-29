@@ -13,12 +13,16 @@ export const ATTACHMENT_TYPES = [
   'application/pdf',
 ] as const;
 
+type UploadedFile = Express.Multer.File;
+
 export interface EvidenceFile {
   name: string;
   mimeType: string;
   sizeBytes: number;
   data: Buffer;
 }
+
+
 
 /** Verify the file signature as well as the declared MIME type. */
 export function validateEvidence(
@@ -39,22 +43,26 @@ export function validateEvidence(
     );
   }
 
-  const b = file.buffer;
+  const buffer = file.buffer;
 
   const matches =
     (file.mimetype === 'image/png' &&
-      b.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
+      buffer
+        .subarray(0, 8)
+        .equals(Buffer.from('89504e470d0a1a0a', 'hex'))) ||
     (file.mimetype === 'image/jpeg' &&
-      b[0] === 0xff &&
-      b[1] === 0xd8 &&
-      b[2] === 0xff) ||
+      buffer[0] === 0xff &&
+      buffer[1] === 0xd8 &&
+      buffer[2] === 0xff) ||
     (file.mimetype === 'image/gif' &&
-      /^GIF8[79]a$/.test(b.subarray(0, 6).toString('ascii'))) ||
+      /^GIF8[79]a$/.test(
+        buffer.subarray(0, 6).toString('ascii'),
+      )) ||
     (file.mimetype === 'image/webp' &&
-      b.subarray(0, 4).toString() === 'RIFF' &&
-      b.subarray(8, 12).toString() === 'WEBP') ||
+      buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      buffer.subarray(8, 12).toString('ascii') === 'WEBP') ||
     (file.mimetype === 'application/pdf' &&
-      b.subarray(0, 5).toString() === '%PDF-');
+      buffer.subarray(0, 5).toString('ascii') === '%PDF-');
 
   if (!matches) {
     throw new HttpError(
@@ -64,10 +72,14 @@ export function validateEvidence(
     );
   }
 
-  // Strip any path and control characters from the client-supplied name.
+  // Remove directory components, control characters and excessively long names.
   const name =
     Array.from(file.originalname.replace(/.*[/\\]/, ''))
-      .filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127)
+      .filter(
+        (character) =>
+          character.charCodeAt(0) >= 32 &&
+          character.charCodeAt(0) !== 127,
+      )
       .slice(0, 180)
       .join('') || 'attachment';
 
@@ -75,7 +87,7 @@ export function validateEvidence(
     name,
     mimeType: file.mimetype,
     sizeBytes: file.size,
-    data: b,
+    data: buffer,
   };
 }
 
@@ -88,11 +100,13 @@ const receive = multer({
     fieldSize: 20_000,
     parts: 12,
   },
-  fileFilter: (_req, file, cb) => {
-    if ((ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype)) {
-      cb(null, true);
+  fileFilter: (_req, file, callback) => {
+    if (
+      (ATTACHMENT_TYPES as readonly string[]).includes(file.mimetype)
+    ) {
+      callback(null, true);
     } else {
-      cb(
+      callback(
         new HttpError(
           400,
           'Use JPG, PNG, GIF, WebP or PDF files only.',
@@ -106,6 +120,7 @@ const receive = multer({
 /**
  * Applied only to authenticated ticket mutations.
  * Supports JSON requests without files and multipart requests with files.
+ * Uploaded files are kept in memory and validated before reaching the controller.
  */
 export const receiveTicketFiles: RequestHandler = (req, res, next) => {
   // Text-only requests may be plain JSON (already parsed by express.json()); they carry no files.
@@ -132,14 +147,15 @@ export const receiveTicketFiles: RequestHandler = (req, res, next) => {
     }
 
     try {
-      // multer has already put the text fields on req.body for validation.
-      res.locals.ticketFiles = (
-        Array.isArray(req.files) ? req.files : []
-      ).map(validateEvidence);
+      const files = Array.isArray(req.files) ? req.files : [];
 
-      next();
-    } catch (validationError) {
-      next(validationError);
+      res.locals.ticketFiles = files.map((file) =>
+        validateEvidence(file as UploadedFile),
+      );
+
+      return next();
+    } catch (error) {
+      return next(error);
     }
   });
 };

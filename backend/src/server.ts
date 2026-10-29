@@ -3,24 +3,24 @@ import http from 'http';
 import mongoose from 'mongoose';
 
 import app from './app';
-
+import { initSockets } from './sockets';
 import { registerEarningsListeners } from './modules/earnings/earnings.listener';
 import { seedDefaultSettings } from './modules/settings/settings.service';
 import { seedDefaultDesignations } from './modules/designations/designations.service';
 import { seedDefaultCategories } from './modules/categories/categories.service';
 import { seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
-
 import { ServiceModel } from './models/Service';
+import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
-
 import {
   ReferralCodeModel,
   ReferralModel,
 } from './modules/referrals/referrals.model';
-import { WalletLedgerModel, WalletModel } from './models/Wallet';
-import { startSlaSweep } from './modules/admin-tickets/admin-tickets.sla-sweep';
-import { initSockets } from './sockets';
+import {
+  WalletLedgerModel,
+  WalletModel,
+} from './models/Wallet';
 
 const timed = async <T>(
   label: string,
@@ -48,7 +48,7 @@ let stopSlaSweep: (() => void) | undefined;
 let shuttingDown = false;
 
 /**
- * Seeds default data without preventing the server from running
+ * Seed default data without preventing the server from running
  * if a non-critical seeding operation fails.
  */
 const seedDefaults = async (): Promise<void> => {
@@ -80,23 +80,25 @@ const seedDefaults = async (): Promise<void> => {
 };
 
 /**
- * Connects to MongoDB, initializes critical indexes,
- * starts the HTTP server once, and starts background workers.
+ * Connect to MongoDB, initialize critical indexes, start the HTTP
+ * server once, and then start background workers and listeners.
  */
 const startServer = async (): Promise<void> => {
   try {
-    await timed('mongo connect', async () => {
-      if (!process.env.DATABASE_URL) {
-        throw new Error('DATABASE_URL is missing from your environment.');
-      }
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        'DATABASE_URL is missing from your environment.',
+      );
+    }
 
-      await mongoose.connect(process.env.DATABASE_URL);
+    await timed('mongo connect', async () => {
+      await mongoose.connect(process.env.DATABASE_URL as string);
     });
 
     console.log('Connected to MongoDB');
 
     // Initialize critical indexes before accepting requests that
-    // could award referral rewards or modify wallet balances.
+    // can modify referral rewards or wallet balances.
     await timed('initialize critical indexes', async () => {
       await Promise.all([
         ReferralCodeModel.init(),
@@ -130,29 +132,30 @@ const startServer = async (): Promise<void> => {
       )} ms`,
     );
 
-    stopReferralWorker = startReferralWorker((error) => {
+    // Start background workers and listeners exactly once.
+    stopReferralWorker = startReferralWorker((error) =>
       console.error(
         '[referral-worker] Background referral processing failed:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-    });
+        error instanceof Error ? error.message : String(error),
+      ),
+    );
 
     registerEarningsListeners();
-
     stopSlaSweep = startSlaSweep();
 
-    // Seed default data after the server starts.
-    // Seeding failures are logged and do not stop the server.
+    // Seeding is non-critical and can complete after the server starts.
     void seedDefaults();
   } catch (error) {
     console.error('[startup] Failed to start HomeCareX:', error);
-
     process.exitCode = 1;
+
     stopReferralWorker?.();
     stopSlaSweep?.();
 
     if (server.listening) {
-      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      });
     }
 
     if (mongoose.connection.readyState !== 0) {
@@ -169,14 +172,10 @@ const startServer = async (): Promise<void> => {
 };
 
 /**
- * Gracefully stops background workers, the HTTP server,
- * and the MongoDB connection.
+ * Gracefully stop background workers, the HTTP server, and MongoDB.
  */
 const shutdown = async (): Promise<void> => {
-  if (shuttingDown) {
-    return;
-  }
-
+  if (shuttingDown) return;
   shuttingDown = true;
 
   console.log('Stopping server gracefully...');
@@ -187,7 +186,13 @@ const shutdown = async (): Promise<void> => {
   try {
     if (server.listening) {
       await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()));
+        server.close((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
       });
     }
 
@@ -203,7 +208,12 @@ const shutdown = async (): Promise<void> => {
   }
 };
 
-process.on('SIGTERM', () => void shutdown());
-process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => {
+  void shutdown();
+});
+
+process.on('SIGINT', () => {
+  void shutdown();
+});
 
 void startServer();

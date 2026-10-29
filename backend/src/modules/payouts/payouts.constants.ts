@@ -1,4 +1,3 @@
-
 export const PAYOUTS_CONSTANTS = {
   DEFAULT_PAGE: 1,
   DEFAULT_LIMIT: 20,

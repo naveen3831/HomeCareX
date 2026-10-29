@@ -40,7 +40,7 @@ export default defineConfig({
 
   server: {
     port: 3000,
-    open: true,
+    open: false,
 
     proxy: {
       '/api': {
@@ -69,5 +69,6 @@ export default defineConfig({
     // jsdom page tests (typing into forms, waiting for lists) are slow under parallel load; the 5 s default
     // caused false failures that pass when the file is run alone.
     testTimeout: 20000,
+    exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
   },
 });

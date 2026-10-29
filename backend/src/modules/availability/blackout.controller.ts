@@ -1,7 +1,10 @@
 import { Request, Response } from 'express';
+import { Types } from 'mongoose';
 import { ZodError } from 'zod';
 import * as service from './blackout.service';
 import { createBlackoutSchema, updateBlackoutSchema } from './blackout.validation';
+
+const validId = (id: string) => Types.ObjectId.isValid(id) && String(new Types.ObjectId(id)) === id.toLowerCase();
 
 const partnerId = (res: Response) => res.locals.auth.sub as string;
 
@@ -27,6 +30,7 @@ export const createBlackout = async (req: Request, res: Response) => {
 
 export const updateBlackout = async (req: Request, res: Response) => {
   try {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid blackout date id' });
     const input = updateBlackoutSchema.parse(req.body);
     res.json({ data: await service.updateBlackout(partnerId(res), req.params.id, input) });
   } catch (err) { handleError(err, res); }
@@ -34,6 +38,7 @@ export const updateBlackout = async (req: Request, res: Response) => {
 
 export const deleteBlackout = async (req: Request, res: Response) => {
   try {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid blackout date id' });
     await service.deleteBlackout(partnerId(res), req.params.id);
     res.status(204).send();
   } catch (err) { handleError(err, res); }

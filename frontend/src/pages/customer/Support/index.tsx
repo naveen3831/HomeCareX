@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Link,
@@ -13,6 +14,7 @@ import {
   Ticket,
   ChevronDown,
 } from "lucide-react";
+
 import { useTickets, useTicketUpdates } from "@/hooks/useTickets";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
@@ -58,16 +60,44 @@ function HeroIllustration() {
         strokeWidth="9"
         strokeLinecap="round"
       />
-      <rect x="130" y="66" width="12" height="30" rx="6" fill="#3a2a9e" />
-      <rect x="206" y="62" width="16" height="38" rx="8" fill="#2b1f8f" />
+      <rect
+        x="130"
+        y="66"
+        width="12"
+        height="30"
+        rx="6"
+        fill="#3a2a9e"
+      />
+      <rect
+        x="206"
+        y="62"
+        width="16"
+        height="38"
+        rx="8"
+        fill="#2b1f8f"
+      />
       <path
         d="M214 98C214 122 198 128 180 128"
         stroke="#2b1f8f"
         strokeWidth="5"
         strokeLinecap="round"
       />
-      <rect x="164" y="121" width="20" height="12" rx="6" fill="#2b1f8f" />
-      <rect x="62" y="70" width="68" height="46" rx="20" fill="#c3bbf5" />
+      <rect
+        x="164"
+        y="121"
+        width="20"
+        height="12"
+        rx="6"
+        fill="#2b1f8f"
+      />
+      <rect
+        x="62"
+        y="70"
+        width="68"
+        height="46"
+        rx="20"
+        fill="#c3bbf5"
+      />
       <path d="M74 110L66 128L92 114Z" fill="#c3bbf5" />
       <circle cx="82" cy="93" r="4.5" fill="#fff" />
       <circle cx="96" cy="93" r="4.5" fill="#fff" />
@@ -91,6 +121,7 @@ function HeroIllustration() {
 function HelpCenter() {
   const [search, setSearch] = useState("");
   const sections = searchHelp(search);
+
   return (
     <section aria-label="Help center">
       <label className="hcx-support-search" htmlFor="help-search">
@@ -100,15 +131,18 @@ function HelpCenter() {
           type="search"
           value={search}
           maxLength={150}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) => setSearch(event.target.value)}
           placeholder="Search payments, bookings, refunds…"
           aria-label="Search help articles"
         />
       </label>
+
       <p className="hcx-support-muted" role="status">
-        {sections.length} help {sections.length === 1 ? "section" : "sections"}
+        {sections.length} help{" "}
+        {sections.length === 1 ? "section" : "sections"}
       </p>
-      {sections.length ? (
+
+      {sections.length > 0 ? (
         <div className="hcx-support-help-list">
           {sections.flatMap((section) =>
             section.articles.map((article) => (
@@ -118,19 +152,22 @@ function HelpCenter() {
               >
                 <summary>
                   <span>
-                    <small className="hcx-support-faq-cat">
+                    <span className="hcx-support-faq-cat">
                       {section.title}
-                    </small>
+                    </span>
                     <span className="hcx-support-faq-q">
                       {article.question}
                     </span>
                   </span>
                   <ChevronDown size={18} aria-hidden="true" />
                 </summary>
+
                 <div className="hcx-support-faq-body">
                   <p>{article.answer}</p>
                   <Link
-                    to={`/customer/support?view=new&category=${section.category}`}
+                    to={`/customer/support?view=new&category=${encodeURIComponent(
+                      section.category,
+                    )}`}
                   >
                     Get help with {section.title.toLowerCase()} →
                   </Link>
@@ -142,35 +179,77 @@ function HelpCenter() {
       ) : (
         <div className="hcx-support-state">
           <h2>No matching help articles</h2>
-          <p>Try a different word, or create a ticket so our team can help.</p>
-          <Link to="/customer/support?view=new">Create a ticket</Link>
+          <p>
+            Try a different word, or create a ticket so our team can help.
+          </p>
+          <Link to="/customer/support?view=new">
+            Create a ticket
+          </Link>
         </div>
       )}
     </section>
   );
 }
 
+function getTicketPageData(raw: unknown): {
+  items: CustomerTicket[];
+  page: number;
+  pages: number;
+  total: number;
+} {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw as CustomerTicket[],
+      page: 1,
+      pages: 1,
+      total: raw.length,
+    };
+  }
+
+  if (raw && typeof raw === "object") {
+    const data = raw as {
+      items?: CustomerTicket[];
+      meta?: {
+        page?: number;
+        pages?: number;
+        total?: number;
+      };
+    };
+
+    const items = Array.isArray(data.items) ? data.items : [];
+    const meta = data.meta;
+
+    return {
+      items,
+      page: meta?.page ?? 1,
+      pages: Math.max(1, meta?.pages ?? 1),
+      total: meta?.total ?? items.length,
+    };
+  }
+
+  return {
+    items: [],
+    page: 1,
+    pages: 1,
+    total: 0,
+  };
+}
+
 function TicketList() {
   const online = useOnlineStatus();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<TicketStatus | "">("");
-  const tickets = useTickets({ page, status: status || undefined });
 
-  const raw = tickets.data as unknown;
-  const items: CustomerTicket[] = Array.isArray(raw)
-    ? (raw as CustomerTicket[])
-    : Array.isArray((raw as { items?: CustomerTicket[] })?.items)
-    ? ((raw as { items: CustomerTicket[] }).items)
-    : [];
+  const tickets = useTickets({
+    page,
+    status: status || undefined,
+  });
 
-  const meta = (raw as { meta?: { pages?: number; page?: number; total?: number } })?.meta ?? {
-    pages: 1,
-    page: 1,
-    total: items.length,
-  };
+  const pageData = getTicketPageData(tickets.data);
+  const { items, pages } = pageData;
 
   return (
-    <section aria-label="Ticket list">
+    <section aria-label="My support tickets">
       <div className="hcx-support-section-head">
         <div>
           <h2>My tickets</h2>
@@ -178,67 +257,89 @@ function TicketList() {
             Track requests and continue the conversation.
           </p>
         </div>
+
         <TicketStatusFilter
           value={status}
-          onChange={(nextStatus) => {
+          onChange={(nextStatus: TicketStatus | "") => {
             setStatus(nextStatus);
             setPage(1);
           }}
         />
       </div>
+
       {tickets.isError && (
         <p className="hcx-support-error" role="alert">
           {problem(tickets.error)}{" "}
-          <button type="button" onClick={() => void tickets.refetch()}>
+          <button
+            type="button"
+            onClick={() => void tickets.refetch()}
+          >
             Try again
           </button>
         </p>
       )}
-      {!tickets.data && !tickets.isError && (
+
+      {tickets.isPending && !tickets.data && (
         <div className="hcx-support-state" role="status">
-          {online ? "Loading your tickets…" : "Reconnect to load your tickets."}
+          {online
+            ? "Loading your tickets…"
+            : "Reconnect to load your tickets."}
         </div>
       )}
-      {tickets.data &&
-        (items.length ? (
-          <ul
-            className="hcx-support-ticket-list"
-            aria-busy={tickets.isFetching}
-          >
-            {items.map((ticket) => (
-              <TicketCard key={ticket.id} ticket={ticket} />
-            ))}
-          </ul>
-        ) : (
-          <div className="hcx-support-state">
-            <MessageSquare size={28} aria-hidden="true" />
-            <h3>{status ? "No tickets with this status" : "No tickets yet"}</h3>
-            <p>
-              {status
-                ? "Choose another status to see your requests."
-                : "When you need a hand, our support team is here."}
-            </p>
-            <Link to="/customer/support?view=new">Create a ticket</Link>
-          </div>
-        ))}
-      {tickets.data && (meta.pages ?? 1) > 1 && (
-        <nav className="hcx-support-pagination" aria-label="Ticket pages">
+
+      {tickets.data && items.length > 0 && (
+        <ul
+          className="hcx-support-ticket-list"
+          aria-busy={tickets.isFetching}
+        >
+          {items.map((ticket) => (
+            <TicketCard key={ticket.id} ticket={ticket} />
+          ))}
+        </ul>
+      )}
+
+      {tickets.data && items.length === 0 && (
+        <div className="hcx-support-state">
+          <MessageSquare size={28} aria-hidden="true" />
+          <h3>
+            {status ? "No tickets with this status" : "No tickets yet"}
+          </h3>
+          <p>
+            {status
+              ? "Choose another status to see your requests."
+              : "When you need a hand, our support team is here."}
+          </p>
+          <Link to="/customer/support?view=new">
+            Create a ticket
+          </Link>
+        </div>
+      )}
+
+      {tickets.data && pages > 1 && (
+        <nav
+          className="hcx-support-pagination"
+          aria-label="Ticket pages"
+        >
           <button
             type="button"
-            disabled={page === 1 || tickets.isFetching || !online}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={page <= 1 || tickets.isFetching || !online}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
             Previous
           </button>
+
           <span>
-            Page {page} of {meta.pages}
+            Page {page} of {pages}
           </span>
+
           <button
             type="button"
             disabled={
-              page >= (meta.pages ?? 1) || tickets.isFetching || !online
+              page >= pages || tickets.isFetching || !online
             }
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() =>
+              setPage((current) => Math.min(pages, current + 1))
+            }
           >
             Next
           </button>
@@ -253,31 +354,43 @@ export default function Support() {
   const [params] = useSearchParams();
   const location = useLocation();
   const online = useOnlineStatus();
+
   useTicketUpdates();
+
   const view = ticketId
     ? "thread"
-    : (params.get("view") ??
-      (location.pathname.endsWith("/tickets") ? "tickets" : "help"));
+    : params.get("view") ??
+      (location.pathname.endsWith("/tickets") ? "tickets" : "help");
+
   const rawCategory = params.get("category");
-  const category = CATEGORIES.includes(rawCategory as TicketCategory)
+
+  const category = CATEGORIES.includes(
+    rawCategory as TicketCategory,
+  )
     ? (rawCategory as TicketCategory)
     : "booking";
+
   const showHelp = !ticketId && view !== "new" && view !== "tickets";
+
   return (
     <div className="hcx-support hcx-support--proof hcx-support--reference">
       <header className="hcx-support-hero">
         <span className="hcx-support-icon">
           <LifeBuoy size={30} aria-hidden="true" />
         </span>
+
         <div>
           <p className="hcx-support-eyebrow">HERE TO HELP</p>
           <h1>
-            How can we <span className="hcx-support-accent">help you?</span>
+            How can we{" "}
+            <span className="hcx-support-accent">help you?</span>
           </h1>
           <p>Find an answer or talk to the HomeCareX team.</p>
         </div>
+
         <HeroIllustration />
       </header>
+
       <nav className="hcx-support-tabs" aria-label="Support sections">
         <Link
           to="/customer/support"
@@ -286,15 +399,19 @@ export default function Support() {
           <LifeBuoy size={18} aria-hidden="true" />
           Help center
         </Link>
+
         <Link
           to="/customer/support/tickets"
           aria-current={
-            view === "tickets" || view === "thread" ? "page" : undefined
+            view === "tickets" || view === "thread"
+              ? "page"
+              : undefined
           }
         >
           <Ticket size={18} aria-hidden="true" />
           My tickets
         </Link>
+
         <Link
           to="/customer/support?view=new"
           aria-current={view === "new" ? "page" : undefined}
@@ -303,14 +420,18 @@ export default function Support() {
           New ticket
         </Link>
       </nav>
+
       {!online && (
         <p className="hcx-support-notice" role="status">
           You’re offline. You can read help articles and any conversation
           already loaded. Reconnect to send a request.
         </p>
       )}
+
       <div
-        className={`hcx-support-panel${showHelp ? " hcx-support-panel--help" : ""}`}
+        className={`hcx-support-panel${
+          showHelp ? " hcx-support-panel--help" : ""
+        }`}
       >
         {ticketId ? (
           <CustomerTicketThread key={ticketId} id={ticketId} />

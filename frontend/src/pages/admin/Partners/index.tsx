@@ -35,6 +35,7 @@ const AdminPartnersPage: React.FC = () => {
    // Search text comes from the navbar search bar
   const search = useUIStore((state) => state.pageSearch);
   const setSearch = useUIStore((state) => state.setPageSearch);
+  React.useEffect(() => { setSearch(''); }, [setSearch]);
   const [kycStatus, setKycStatus] = useState("");
   const [accountStatus, setAccountStatus] = useState("");
   const [category, setCategory] = useState("");

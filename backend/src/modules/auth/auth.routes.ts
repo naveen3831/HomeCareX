@@ -4,6 +4,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
 import { authRateLimit } from '../../middleware/rateLimit.middleware';
 
+
 export const authRoutes = Router();
 
 authRoutes.post('/login', authRateLimit, authController.login);

@@ -69,7 +69,7 @@ export default function Profile() {
   if (places) badges.Addresses = { text: `${places} saved` };
 
   return (
-    <div className="profile-page -mt-4 space-y-5 md:space-y-6">
+    <div className="profile-page space-y-5 md:space-y-6">
       {flash && (
         <div className="flex items-start gap-2 animate-fadeUp">
           <div className="flex-1">

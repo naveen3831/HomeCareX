@@ -89,9 +89,11 @@ export async function getPartnerTicket(userId: string, ticketId: string) {
 }
 
 export async function replyToPartnerTicket(userId: string, ticketId: string, input: unknown) {
+  // Validate the id and the body first so a bad request never costs a database read.
+  assertObjectId(ticketId, 'ticketId');
+  const data = parseReply(input);
   const ticket = await loadOwnTicket(ticketId, userId);
   if (ticket.status === 'closed') throw new TicketError(409, 'This ticket is closed. Open a new ticket instead.');
-  const data = parseReply(input);
   const message = await repo.createMessage({
     ticketId,
     senderId: userId,

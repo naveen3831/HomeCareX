@@ -53,6 +53,7 @@ describe('GET /partner/dashboard', () => {
       acceptanceRate: 80,
       completionRate: 95,
       activeJob: null,
+      assignedServices: [],
     });
   });
 

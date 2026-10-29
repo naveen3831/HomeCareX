@@ -1,4 +1,5 @@
-import { Request, Response } from 'express';
+
+import type { Request, Response } from 'express';
 
 import { BookingService } from './bookings.service';
 import type { CreateBookingInput } from './bookings.types';
@@ -6,8 +7,8 @@ import type { ListBookingsQuery } from './bookings.query';
 import { AppError } from '../../utils/AppError';
 
 /**
- * The signed-in user's ID comes from the verified authentication token,
- * never from the request body or query parameters.
+ * Gets the signed-in user's ID from the verified authentication token.
+ * Never trust a user ID supplied through the request body or query.
  */
 function requireUserId(req: Request): string {
   const id = req.user?.id;
@@ -25,7 +26,7 @@ function requireUserId(req: Request): string {
 
 export const bookingsController = {
   async getSlots(req: Request, res: Response) {
-    const serviceId = req.params.id || req.params.serviceId;
+    const serviceId = req.params.id;
     const date = req.query.date as string;
 
     const result = await BookingService.getAvailableSlots(serviceId, date);
@@ -148,9 +149,11 @@ export const bookingsController = {
     });
   },
 
-  /** Alias retained for routes that still call previewCancel. */
+  /**
+   * Backward-compatible alias for routes using previewCancel.
+   */
   async previewCancel(req: Request, res: Response) {
-    return bookingsController.previewCancellation(req, res);
+    return this.previewCancellation(req, res);
   },
 
   async cancelBooking(req: Request, res: Response) {
@@ -192,10 +195,10 @@ export const bookingsController = {
   },
 
   async listBookings(req: Request, res: Response) {
-    // The customer ID comes from the verified token.
+    // The customer ID always comes from the verified authentication token.
     const customerId = requireUserId(req);
 
-    // validationMiddleware should already have parsed the query.
+    // Validation middleware should supply parsed, defaulted query values.
     const query = req.query as unknown as ListBookingsQuery;
 
     const { items, meta } = await BookingService.listBookings(

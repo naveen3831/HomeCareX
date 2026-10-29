@@ -1,4 +1,3 @@
-
 import type {
   CookieOptions,
   NextFunction,
@@ -7,12 +6,14 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
+ 
 
 import {
   acceptInviteSchema,
+ 
+  inviteStaffSchema,
   changePasswordSchema,
   forgotPasswordSchema,
-  inviteStaffSchema,
   loginSchema,
   parseBody,
   registerSchema,
@@ -94,9 +95,11 @@ const getAuthenticatedUserId = (res: Response): string => {
 
 export const authController = {
   login: wrap(async (req, res) => {
-    const { user, accessToken, refreshToken } =
-      await authService.login(parseBody(loginSchema, req.body));
-
+    
+     const { user, accessToken, refreshToken } = await authService.login(
+        parseBody(loginSchema, req.body),
+        { ip: req.ip, userAgent: req.headers['user-agent'] },
+      );
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
 
@@ -217,40 +220,59 @@ export const authController = {
   /**
    * Individual session records are not implemented yet.
    */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
-
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
-    });
-  }),
+ getSessions: wrap(async (req, res) => {
+  const userId = getAuthenticatedUserId(res);
+  const data = await authService.getSessions(userId, {
+    userAgent: req.headers['user-agent'],
+    ip: req.ip,
+    currentSid: res.locals.auth?.sid,
+  });
+  res.json({ success: true, data });
+}),
 
   /**
    * Individual session revocation requires persistent session records.
    */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
-    });
-  }),
+ revokeSession: wrap(async (req, res) => {
+  const userId = getAuthenticatedUserId(res);
+  const result = await authService.revokeSession(
+    userId,
+    String(req.params.id ?? ''),
+    res.locals.auth?.sid,
+  );
+  if (result.isCurrent) clearRefreshCookies(res);
+  res.json({ success: true, data: result, message: result.message });
+}),
+
 
   /**
    * Invalidate refresh tokens for the currently authenticated user.
    */
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
-    const result = await authService.revokeUserSessions(userId);
-
+    const result = await authService.logoutAll(userId);
     clearRefreshCookies(res);
+    res.json({ success: true, data: result, message: result.message });
+  }),
+  /** POST /api/v1/auth/verify-invite */
+  verifyInvite: wrap(async (req, res) => {
+    const payload = parseBody(verifyInviteSchema, req.body);
+    const result = await authService.verifyInvite(payload);
 
     res.json({
       success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
+      data: result,
+    });
+  }),
+
+  /** POST /api/v1/auth/accept-invite */
+  acceptInvite: wrap(async (req, res) => {
+    const payload = parseBody(acceptInviteSchema, req.body);
+    const result = await authService.acceptInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
     });
   }),
 
@@ -280,6 +302,7 @@ export const authController = {
     });
   }),
 
+
   /**
    * POST /api/v1/admin/staff
    * Admin authorization must be applied by the route.
@@ -301,33 +324,7 @@ export const authController = {
     });
   }),
 
-  /**
-   * POST /api/v1/auth/verify-invite
-   */
-  verifyInvite: wrap(async (req, res) => {
-    const data = await authService.verifyInvite(
-      parseBody(verifyInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data,
-    });
-  }),
-
-  /**
-   * POST /api/v1/auth/accept-invite
-   */
-  acceptInvite: wrap(async (req, res) => {
-    await authService.acceptInvite(
-      parseBody(acceptInviteSchema, req.body),
-    );
-
-    res.json({
-      success: true,
-      data: { ok: true },
-    });
-  }),
+ 
 };
 
 export default authController;

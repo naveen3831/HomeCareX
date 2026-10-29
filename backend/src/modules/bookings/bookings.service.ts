@@ -1,5 +1,13 @@
+
 import { createHash } from 'crypto';
 import { Types } from 'mongoose';
+
+import { AppError } from '../../utils/AppError';
+import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
+import { PaymentModel } from '../../models/Payment';
+import { RefundModel } from '../../models/Refund';
+import { ServiceModel } from '../../models/Service';
+
 import { notifyAdmins } from '../notifications';
 import {
   alertCustomerBookingCancelled,
@@ -7,17 +15,29 @@ import {
   alertCustomerBookingRescheduled,
 } from '../notifications/customer-alerts';
 import { alertRefundRequested } from '../notifications/admin-alerts';
-import { AppError } from '../../utils/AppError';
-import { addressesService, type ResolvedAddress } from '../addresses/addresses.service';
+import {
+  addressesService,
+  type ResolvedAddress,
+} from '../addresses/addresses.service';
+import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
+import { couponsService } from '../coupons/coupons.service';
+import { HttpError } from '../auth/auth.types';
+
 import { bookingsRepository } from './bookings.repository';
 import type { ListBookingsQuery } from './bookings.query';
 import { bookingSettings } from './bookings.settings';
 import { withSlotLock } from './bookings.lock';
-import { buildDetailView, INTERNAL_KEYS, type PaymentInfo, type ServiceInfo } from './bookings.detail';
-import { buildInvoiceData, renderInvoiceHtml, withPaymentRecord } from './bookings.invoice';
-import { PaymentModel } from '../../models/Payment';
-import { RefundModel } from '../../models/Refund';
-
+import {
+  buildDetailView,
+  INTERNAL_KEYS,
+  type PaymentInfo,
+  type ServiceInfo,
+} from './bookings.detail';
+import {
+  buildInvoiceData,
+  renderInvoiceHtml,
+  withPaymentRecord,
+} from './bookings.invoice';
 import {
   BOOKING_HOLD_MS,
   BOOKING_STATUS,
@@ -32,11 +52,7 @@ import { canTransition, type StatusHistoryEntry } from './bookings.stateMachine'
 import { computeCancellation, type CancellationQuote } from './bookings.cancel';
 import type { CreateBookingInput, PriceLine, PriceSnapshot } from './bookings.types';
 import { addDays, hasSlotStarted, isRealDate, nowInBookingTz } from './bookings.time';
-import { BOOKING_PAYMENT_STATUS } from '../../models/Booking';
-import { ServiceModel } from '../../models/Service';
-import { calculatePricing, toQuoteCouponCode } from '../pricing/pricing.service';
-import { couponsService } from '../coupons/coupons.service';
-import { HttpError } from '../auth/auth.types';
+
 
 export interface SlotAvailability {
   slot: string;

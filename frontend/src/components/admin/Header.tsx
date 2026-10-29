@@ -6,15 +6,9 @@ import { NotificationBell } from '@/components/admin/NotificationBell';
 import { Breadcrumbs } from '@/components/admin/Breadcrumbs';
 import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
-export interface HeaderNotification {
-  id: string;
-  title: string;
-  time: string;
-  href?: string;
-}
-
 interface HeaderProps {
-  notifications?: HeaderNotification[];
+  /** Kept for existing callers; the bell loads its own notifications. */
+  notifications?: unknown[];
 }
 
 /** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
@@ -43,7 +37,9 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         type="button"
         onClick={toggleSidebar}
         className="icon-btn desktop-only"
-        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={
+          isCollapsed ? "Expand sidebar" : "Collapse sidebar"
+        }
       >
         {isCollapsed ? (
           <PanelLeftOpen size={20} aria-hidden="true" />
@@ -69,7 +65,9 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         >
           <HelpCircle size={20} />
         </Link>
+
         <NotificationBell />
+
         <ProfileMenu />
       </div>
     </header>

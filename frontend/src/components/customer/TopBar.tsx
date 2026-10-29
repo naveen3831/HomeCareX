@@ -16,7 +16,7 @@ interface TopBarProps {
 }
 
 const HAMBURGER =
-  "group relative h-10 w-10 shrink-0 rounded-[14px] bg-gradient-to-br from-white to-brand-soft shadow-[0_2px_8px_-2px_rgba(30,27,46,.18)] ring-1 ring-line transition-[box-shadow,transform] duration-200 hover:shadow-[0_4px_12px_-2px_rgba(30,27,46,.25)] active:scale-95";
+  "group relative h-10 w-10 shrink-0 rounded-[14px]   from-white to-brand-soft  transition-[box-shadow,transform] duration-200  active:scale-95";
 /** Centred bars; the short middle one grows to full width on hover. */
 const BAR =
   "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
@@ -102,6 +102,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
                 "hidden md:inline-flex",
                 FOCUS_RING,
               )}
+              aria-label="HomeCareX home"
             >
               <span className="text-accent">Home</span>
               <span className="text-brand">CareX</span>
