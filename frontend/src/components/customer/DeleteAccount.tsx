@@ -1,21 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
-  ArchiveRestore,
-  ChevronRight,
-  MapPinOff,
-  ShieldCheck,
+  BellOff,
+  ExternalLink,
+  FileText,
+  Headphones,
+  Mail,
+  Shield,
   Trash2,
-  UserX,
+  User,
 } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "@/hooks/useAuth";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDeleteAccount, useCustomerDashboard } from "@/features/customer";
 import { bookingApi } from "@/services/bookingApi";
 import { LOGIN_PATH } from "@/routes/authPaths";
+import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "./focusRing";
 
 const FOCUSABLE = "button:not([disabled]),a[href],[tabindex]:not([tabindex=\"-1\"])";
@@ -41,20 +45,28 @@ export const ACTIVE_BOOKING_STATUSES = new Set([
   "disputed",
 ]);
 
-const EFFECTS: { icon: typeof UserX; text: string; tone: string }[] = [
+const EFFECTS: {
+  icon: typeof User;
+  text: string;
+  altText: string;
+  tone: string;
+}[] = [
   {
-    icon: UserX,
-    text: "Your profile, photo and sign-in are removed",
+    icon: User,
+    text: "Your profile, photo and sign-in details will be removed",
+    altText: "Your profile, photo and sign-in are removed",
     tone: "bg-[#fee2e2] text-[#ef4444]",
   },
   {
-    icon: MapPinOff,
-    text: "Saved addresses, notifications and wallet are erased",
+    icon: BellOff,
+    text: "Saved addresses, notifications and wallet data will be erased",
+    altText: "Saved addresses, notifications and wallet are erased",
     tone: "bg-[#fef3c7] text-[#f59e0b]",
   },
   {
-    icon: ArchiveRestore,
+    icon: FileText,
     text: "Past booking and payment records are kept for accounting",
+    altText: "Past booking and payment records are kept for accounting",
     tone: "bg-[#e0f2fe] text-[#0ea5e9]",
   },
 ];
@@ -69,14 +81,15 @@ interface DialogProps {
   onRetryBookings?: () => void;
   onKeep: () => void;
   onDelete: () => void;
+  onHelpNavigate?: () => void;
 }
 
 /**
  * Delete Account confirmation sheet:
- * - Mobile: iOS-style bottom sheet with drag handle, smooth slide-up, rounded-t-[32px]
+ * - Mobile: iOS-style bottom sheet matching reference template, rounded-t-[36px]
  * - Desktop: Centred modal card
  * - Scenario A: When customer has active bookings, shows "Account deletion unavailable",
- *   a pale-red active bookings warning card (linking to Active Bookings), and disables "Yes, delete".
+ *   a pale-red active bookings warning card, consequences, Need Help section, and disables "Yes, delete".
  * - Scenario B: When customer has 0 active bookings, shows "Delete your account?",
  *   permanent action confirmation, and enabled red-outline "Yes, delete" button.
  */
@@ -90,6 +103,7 @@ function DeleteAccountDialog({
   onRetryBookings,
   onKeep,
   onDelete,
+  onHelpNavigate,
 }: DialogProps) {
   const panel = useRef<HTMLDivElement>(null);
   const keepRef = useRef<HTMLButtonElement>(null);
@@ -101,7 +115,19 @@ function DeleteAccountDialog({
     if (!open) return;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const frame = requestAnimationFrame(() => keepRef.current?.focus());
+    if (panel.current) {
+      panel.current.scrollTop = 0;
+    }
+    const frame = requestAnimationFrame(() => {
+      try {
+        keepRef.current?.focus({ preventScroll: true });
+      } catch {
+        keepRef.current?.focus();
+      }
+      if (panel.current) {
+        panel.current.scrollTop = 0;
+      }
+    });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !busy) return onKeep();
       if (e.key !== "Tab" || !panel.current) return;
@@ -132,7 +158,7 @@ function DeleteAccountDialog({
       <div
         aria-hidden="true"
         onClick={() => !busy && onKeep()}
-        className="delete-backdrop absolute inset-0 bg-ink/50 backdrop-blur-sm"
+        className="delete-backdrop absolute inset-0 bg-black/40 backdrop-blur-[2px] touch-none"
       />
 
       <div
@@ -141,29 +167,23 @@ function DeleteAccountDialog({
         aria-modal="true"
         aria-labelledby="delete-account-title"
         aria-describedby="delete-account-desc"
-        className="delete-sheet relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[32px] bg-white shadow-[0_-24px_60px_-20px_rgba(30,27,46,.45)] md:max-w-md md:rounded-[32px] md:shadow-[0_32px_80px_-24px_rgba(30,27,46,.5)]"
+        className="delete-sheet relative flex h-auto max-h-[96dvh] min-h-0 w-full flex-col justify-start overflow-hidden rounded-t-[32px] bg-white px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center shadow-[0_-20px_60px_-15px_rgba(0,0,0,0.25)] md:h-auto md:min-h-0 md:max-h-none md:max-w-[440px] md:overflow-visible md:rounded-[32px] md:p-6 md:shadow-[0_32px_80px_-24px_rgba(0,0,0,0.35)] md:justify-start"
       >
-        {/* Soft pink/red danger glow behind the icon */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-rose-100/60 via-orange-50/20 to-transparent"
-        />
+        <div className="min-h-0 w-full md:min-h-0 md:shrink-0">
+          {/* Drag handle for mobile bottom sheet */}
+          <div
+            aria-hidden="true"
+            className="mx-auto mb-2 mt-0.5 h-1 w-10 shrink-0 rounded-full bg-[#e2e8f0] md:hidden"
+          />
 
-        {/* Drag handle for mobile bottom sheet */}
-        <div
-          aria-hidden="true"
-          className="mx-auto mt-2.5 h-1.5 w-10 shrink-0 rounded-full bg-slate-200 md:hidden"
-        />
-
-        <div className="relative flex-1 overflow-y-auto px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-5 text-center sm:px-6 md:pb-7 md:pt-7">
-          {/* Top circular delete icon */}
-          <div className="relative mx-auto flex h-16 w-16 items-center justify-center">
+          {/* Top circular delete icon with soft halo */}
+          <div className="relative mx-auto mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center md:mt-0 md:h-12 md:w-12">
             <span
               aria-hidden="true"
-              className="absolute inset-0 rounded-full bg-red-400/20 blur-md"
+              className="absolute -inset-2.5 rounded-full bg-rose-400/25 blur-md"
             />
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#f87171] via-[#ef4444] to-[#dc2626] text-white shadow-[0_8px_20px_-4px_rgba(220,38,38,0.55),inset_0_1px_1px_rgba(255,255,255,0.6)]">
-              <Trash2 className="h-6 w-6" aria-hidden="true" />
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#f87171] text-white shadow-[0_8px_24px_-4px_rgba(248,113,113,0.55)] md:h-12 md:w-12">
+              <Trash2 className="h-5 w-5 stroke-[2] md:h-6 md:w-6" aria-hidden="true" />
             </div>
           </div>
 
@@ -172,13 +192,13 @@ function DeleteAccountDialog({
             <>
               <h2
                 id="delete-account-title"
-                className="mt-4 text-[19px] font-bold leading-snug tracking-tight text-slate-900 sm:text-[21px]"
+                className="mt-2 text-[18px] font-bold tracking-tight text-slate-900 leading-snug md:mt-2.5 md:text-[20px]"
               >
                 Account deletion unavailable
               </h2>
               <p
                 id="delete-account-desc"
-                className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-slate-500 sm:text-[13px]"
+                className="mx-auto mt-1 max-w-sm text-[11px] leading-snug text-slate-500 md:mt-1 md:text-[12.5px] md:leading-normal"
               >
                 You have active bookings or ongoing services. Please wait until all your active services are completed or cancelled before deleting your account.
               </p>
@@ -186,22 +206,22 @@ function DeleteAccountDialog({
               {/* Warning Card for Active Bookings */}
               <div
                 aria-label={`You have ${activeCount} active booking${activeCount === 1 ? "" : "s"}`}
-                className="mt-4 flex items-center gap-3 rounded-2xl border border-[#fecdd3] bg-[#fff1f2] p-3 text-left sm:p-3.5"
+                className="mt-2 flex items-start gap-2.5 rounded-[18px] border border-[#fecdd3] bg-[#fff1f2] p-2.5 text-left md:mt-2.5 md:gap-3 md:rounded-[18px] md:p-3"
               >
                 <span
                   aria-hidden="true"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#e11d48] shadow-2xs"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#ffe4e6] text-[#e11d48] md:h-9 md:w-9"
                 >
-                  <AlertTriangle className="h-5 w-5" />
+                  <AlertTriangle className="h-4 w-4 stroke-[2.2] md:h-4.5 md:w-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold leading-snug text-slate-900 sm:text-sm">
+                  <p className="text-[11.5px] font-bold text-slate-900 leading-snug md:text-[13px]">
                     You have{" "}
-                    <span className="font-bold text-[#e11d48]">
+                    <span className="font-extrabold text-[#e11d48]">
                       {activeCount} active booking{activeCount === 1 ? "" : "s"}
                     </span>
                   </p>
-                  <p className="mt-0.5 text-[11px] leading-tight text-slate-500 sm:text-xs">
+                  <p className="mt-0.5 text-[10.5px] leading-snug text-slate-500 md:text-[11.5px] md:leading-tight">
                     Complete or cancel your active services to delete your account.
                   </p>
                 </div>
@@ -211,13 +231,13 @@ function DeleteAccountDialog({
             <>
               <h2
                 id="delete-account-title"
-                className="mt-4 text-[19px] font-bold leading-snug tracking-tight text-slate-900 sm:text-[21px]"
+                className="mt-2 text-[18px] font-bold tracking-tight text-slate-900 leading-snug md:mt-2.5 md:text-[20px]"
               >
                 Delete your account?
               </h2>
               <p
                 id="delete-account-desc"
-                className="mx-auto mt-2 max-w-xs text-xs leading-relaxed text-slate-500 sm:text-[13px]"
+                className="mx-auto mt-1.5 max-w-xs text-[12.5px] leading-relaxed text-slate-500 md:mt-1 md:text-[12.5px]"
               >
                 Are you sure? This action is permanent and can&apos;t be undone.
               </p>
@@ -228,12 +248,12 @@ function DeleteAccountDialog({
           {isBookingCheckError && (
             <div
               role="alert"
-              className="mt-4 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-800 sm:text-[13px]"
+              className="mt-3 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-left text-xs text-amber-800"
             >
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
               <div className="min-w-0 flex-1">
-                <p className="font-semibold">Unable to verify booking status</p>
-                <p className="mt-0.5 text-amber-700">
+                <p className="font-semibold text-xs">Unable to verify booking status</p>
+                <p className="mt-0.5 text-[11px] text-amber-700">
                   Please check your connection and try again before deleting your account.
                 </p>
               </div>
@@ -241,7 +261,7 @@ function DeleteAccountDialog({
                 <button
                   type="button"
                   onClick={onRetryBookings}
-                  className="shrink-0 font-semibold text-brand hover:underline"
+                  className="shrink-0 font-semibold text-brand hover:underline text-xs"
                 >
                   Retry
                 </button>
@@ -250,110 +270,181 @@ function DeleteAccountDialog({
           )}
 
           {/* Account information / consequence rows */}
-          <ul className="mt-4 space-y-2.5 text-left" aria-label="Deletion consequences">
-            {EFFECTS.map(({ icon: Icon, text, tone }) => (
+          <ul className="mt-2 space-y-1.5 text-left md:mt-2.5 md:space-y-1.5" aria-label="Deletion consequences">
+            {EFFECTS.map(({ icon: Icon, text, altText, tone }) => (
               <li
                 key={text}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-2xs sm:p-3.5"
+                className="flex items-center gap-2.5 rounded-[16px] border border-[#f1f5f9] bg-white p-2 md:gap-3 md:rounded-[16px] md:py-2 md:px-3 shadow-[0_1px_3px_rgba(0,0,0,0.03)]"
               >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <span
-                    aria-hidden="true"
-                    className={clsx(
-                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                      tone,
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 text-xs font-medium leading-snug text-slate-700 sm:text-[13px]">
-                    {text}
-                  </span>
-                </div>
-                <ChevronRight
-                  className="h-4 w-4 shrink-0 text-slate-300"
+                <span
                   aria-hidden="true"
-                />
+                  className={clsx(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full md:h-8 md:w-8",
+                    tone,
+                  )}
+                >
+                  <Icon className="h-4 w-4 md:h-4 md:w-4" />
+                </span>
+                <span className="min-w-0 flex-1 text-[11px] font-medium leading-snug text-slate-700 md:text-[12px]">
+                  {altText && altText !== text && (
+                    <span className="sr-only">{altText}</span>
+                  )}
+                  <span>{text}</span>
+                </span>
               </li>
             ))}
           </ul>
+
+          {/* Need help? section — opens Support / Contact Us */}
+          <div className="mt-2 rounded-[18px] border border-[#e0e7ff] bg-[#f0f4ff] p-2.5 text-left md:mt-2.5 md:rounded-[18px] md:p-3">
+            <div className="flex items-start gap-2.5 md:gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[#4f46e5] shadow-2xs md:h-8 md:w-8"
+              >
+                <Headphones className="h-4 w-4 md:h-4.5 md:w-4.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[12px] font-bold text-slate-900 leading-snug md:text-[13px]">
+                  Need help?
+                </h3>
+                <p className="mt-0.5 text-[10.5px] text-slate-500 leading-snug md:text-[11.5px] md:leading-tight">
+                  Visit our Help Center or contact our support team.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 grid grid-cols-2 gap-2 md:mt-2.5 md:gap-2.5">
+              <Link
+                to={customerPath("/support")}
+                state={{
+                  from: "delete-account",
+                  returnTo: customerPath("/profile?action=delete-account"),
+                }}
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(
+                      "support_return_to",
+                      customerPath("/profile?action=delete-account"),
+                    );
+                  } catch {
+                    // ignore
+                  }
+                  if (onHelpNavigate) onHelpNavigate();
+                  else onKeep();
+                }}
+                className={clsx(
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-full border border-[#dbeafe] bg-white px-2 text-[10.5px] font-semibold text-[#4338ca] shadow-2xs transition-all hover:bg-slate-50 active:scale-95 whitespace-nowrap md:h-9 md:gap-1.5 md:px-3 md:text-[11.5px]",
+                  FOCUS_RING,
+                )}
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Help Center</span>
+              </Link>
+              <Link
+                to={customerPath("/support?view=new")}
+                state={{
+                  from: "delete-account",
+                  returnTo: customerPath("/profile?action=delete-account"),
+                }}
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(
+                      "support_return_to",
+                      customerPath("/profile?action=delete-account"),
+                    );
+                  } catch {
+                    // ignore
+                  }
+                  if (onHelpNavigate) onHelpNavigate();
+                  else onKeep();
+                }}
+                className={clsx(
+                  "inline-flex h-8 items-center justify-center gap-1 rounded-full border border-[#dbeafe] bg-white px-2 text-[10.5px] font-semibold text-[#4338ca] shadow-2xs transition-all hover:bg-slate-50 active:scale-95 whitespace-nowrap md:h-9 md:gap-1.5 md:px-3 md:text-[11.5px]",
+                  FOCUS_RING,
+                )}
+              >
+                <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Contact Us</span>
+              </Link>
+            </div>
+          </div>
 
           {/* Mutation failure alert (e.g. 409 refused on backend) */}
           {error && (
             <p
               role="alert"
-              className="mt-4 flex items-start gap-2 rounded-xl bg-danger-soft px-3 py-2 text-left text-xs text-danger sm:text-sm"
+              className="mt-3 flex items-start gap-2 rounded-xl bg-danger-soft px-3.5 py-2 text-left text-xs text-danger sm:text-sm"
             >
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <span>{error}</span>
             </p>
           )}
+        </div>
 
-          {/* Action buttons */}
-          <div className="mt-6 grid grid-cols-2 gap-3">
+        {/* Action buttons */}
+        <div className="mt-2 shrink-0 grid grid-cols-2 gap-2 pt-0 md:mt-3 md:gap-2.5 md:pt-0">
+          <button
+            ref={keepRef}
+            type="button"
+            onClick={onKeep}
+            disabled={busy}
+            aria-label="No, keep it"
+            className={clsx(
+              "inline-flex h-10 items-center justify-center gap-1 rounded-full bg-[#4f46e5] px-2 text-[10px] font-bold text-white whitespace-nowrap shadow-[0_8px_20px_-6px_rgba(79,70,229,0.55)] transition-all hover:bg-[#4338ca] active:scale-95 disabled:opacity-60 md:h-11 md:gap-1.5 md:px-4 md:text-[13px]",
+              FOCUS_RING,
+            )}
+          >
+            <Shield className="h-4 w-4 stroke-[2.2] shrink-0" aria-hidden="true" />
+            <span>No, keep my account</span>
+          </button>
+
+          {isDeletionBlocked ? (
             <button
-              ref={keepRef}
               type="button"
-              onClick={onKeep}
-              disabled={busy}
+              disabled={true}
+              aria-disabled={true}
+              title={
+                hasActiveBookings
+                  ? "Account deletion unavailable while active bookings exist"
+                  : isBookingCheckError
+                    ? "Cannot delete account until booking status is verified"
+                    : "Verifying eligibility…"
+              }
               className={clsx(
-                "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full bg-[#5046e5] px-4 text-xs font-semibold text-white sm:text-sm",
-                "shadow-[0_8px_18px_-8px_rgba(80,70,229,.6)] transition-all hover:bg-[#4338ca] active:scale-95 disabled:opacity-60",
+                "inline-flex h-10 select-none items-center justify-center gap-1 rounded-full border border-transparent bg-[#eef2f6] px-2 text-[10px] font-bold text-[#94a3b8] whitespace-nowrap cursor-not-allowed md:h-11 md:gap-1.5 md:px-4 md:text-[13px]",
                 FOCUS_RING,
               )}
             >
-              <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-              <span>No, keep it</span>
+              <Trash2 className="h-4 w-4 stroke-[2.2] text-[#94a3b8] shrink-0" aria-hidden="true" />
+              <span>Yes, delete</span>
             </button>
-
-            {isDeletionBlocked ? (
-              <button
-                type="button"
-                disabled={true}
-                aria-disabled={true}
-                title={
-                  hasActiveBookings
-                    ? "Account deletion unavailable while active bookings exist"
-                    : isBookingCheckError
-                      ? "Cannot delete account until booking status is verified"
-                      : "Verifying eligibility…"
-                }
-                className={clsx(
-                  "inline-flex min-h-[48px] select-none items-center justify-center gap-2 rounded-full border border-transparent bg-[#f1f3f9] px-4 text-xs font-semibold text-[#9ca3af] cursor-not-allowed sm:text-sm",
-                  FOCUS_RING,
-                )}
-              >
-                <Trash2 className="h-4 w-4 text-[#9ca3af]" aria-hidden="true" />
-                <span>Yes, delete</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onDelete}
-                disabled={busy}
-                className={clsx(
-                  "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-[1.5px] border-[#fca5a5] bg-white px-4 text-xs font-semibold text-[#dc2626] sm:text-sm",
-                  "shadow-2xs transition-all hover:bg-rose-50 active:scale-95 disabled:opacity-60",
-                  FOCUS_RING,
-                )}
-              >
-                {busy ? (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="h-4 w-4 animate-spin rounded-full border-2 border-rose-300 border-t-rose-600"
-                    />
-                    <span>Deleting…</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-4 w-4 text-[#dc2626]" aria-hidden="true" />
-                    <span>Yes, delete</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              className={clsx(
+                "inline-flex h-10 items-center justify-center gap-1 rounded-full border-[1.5px] border-[#fca5a5] bg-white px-2 text-[10px] font-bold text-[#dc2626] whitespace-nowrap shadow-2xs transition-all hover:bg-rose-50 active:scale-95 disabled:opacity-60 md:h-11 md:gap-1.5 md:px-4 md:text-[13px]",
+                FOCUS_RING,
+              )}
+            >
+              {busy ? (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-rose-300 border-t-rose-600"
+                  />
+                  <span>Deleting…</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 stroke-[2.2] text-[#dc2626]" aria-hidden="true" />
+                  <span>Yes, delete</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>,
@@ -364,6 +455,7 @@ function DeleteAccountDialog({
 export interface DeleteAccountProps {
   variant: "card" | "sidebar" | "inline";
   activeBookingsCount?: number | null;
+  defaultOpen?: boolean;
 }
 
 /**
@@ -376,12 +468,35 @@ export interface DeleteAccountProps {
 export default function DeleteAccount({
   variant,
   activeBookingsCount: propActiveCount,
+  defaultOpen = false,
 }: DeleteAccountProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const del = useDeleteAccount();
-  const [open, setOpen] = useState(false);
+
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  const action = searchParams.get("action") || searchParams.get("modal") || searchParams.get("dialog");
+  const isDeleteRoute =
+    defaultOpen ||
+    action === "delete-account" ||
+    searchParams.get("delete") === "true" ||
+    location.hash === "#delete-account" ||
+    location.hash === "#delete" ||
+    location.pathname.endsWith("/delete") ||
+    location.pathname.endsWith("/delete-account") ||
+    (location.state as { openDeleteAccount?: boolean })?.openDeleteAccount === true;
+
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return defaultOpen;
+    const isInitialDesktop = window.innerWidth >= 768;
+    const matchesVariant = isInitialDesktop ? variant !== "card" : variant === "card";
+    return Boolean((defaultOpen || isDeleteRoute) && matchesVariant);
+  });
+
   const [error, setError] = useState<string | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -443,9 +558,52 @@ export default function DeleteAccount({
   const isBookingCheckError = propActiveCount === undefined && bookingsQuery.isError;
   const isDeletionBlocked = activeCount > 0 || isCheckingBookings || isBookingCheckError;
 
+  // Sync open state with route changes (e.g. returning from Support or opening /profile?action=delete-account)
+  useEffect(() => {
+    const isSingleInstance =
+      typeof document !== "undefined"
+        ? document.querySelectorAll("[data-delete-account-trigger]").length <= 1
+        : true;
+    const isTargetVariant =
+      isSingleInstance || (isDesktop ? variant !== "card" : variant === "card");
+
+    if (isDeleteRoute && isTargetVariant) {
+      setOpen(true);
+      if (propActiveCount === undefined) {
+        void bookingsQuery.refetch();
+      }
+    } else if (!isDeleteRoute && open) {
+      setOpen(false);
+    }
+  }, [
+    isDeleteRoute,
+    isDesktop,
+    variant,
+    propActiveCount,
+    open,
+  ]);
+
   const keep = () => {
     setOpen(false);
     setError(null);
+    if (
+      searchParams.get("action") === "delete-account" ||
+      searchParams.get("modal") === "delete-account" ||
+      searchParams.get("dialog") === "delete-account" ||
+      searchParams.get("delete") === "true"
+    ) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete("action");
+      nextParams.delete("modal");
+      nextParams.delete("dialog");
+      nextParams.delete("delete");
+      setSearchParams(nextParams, { replace: true });
+    } else if (
+      location.pathname.endsWith("/delete") ||
+      location.pathname.endsWith("/delete-account")
+    ) {
+      navigate(customerPath("/profile"), { replace: true });
+    }
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
@@ -468,6 +626,15 @@ export default function DeleteAccount({
     if (propActiveCount === undefined) {
       void bookingsQuery.refetch();
     }
+    if (searchParams.get("action") !== "delete-account") {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set("action", "delete-account");
+      setSearchParams(nextParams, { replace: false });
+    }
+  };
+
+  const handleHelpNavigate = () => {
+    setOpen(false);
   };
 
   const dialog = (
@@ -481,6 +648,7 @@ export default function DeleteAccount({
       onRetryBookings={() => void bookingsQuery.refetch()}
       onKeep={keep}
       onDelete={confirmDelete}
+      onHelpNavigate={handleHelpNavigate}
     />
   );
 
@@ -490,6 +658,7 @@ export default function DeleteAccount({
         <button
           ref={triggerRef}
           type="button"
+          data-delete-account-trigger="inline"
           onClick={handleOpen}
           className={clsx(
             "inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full border-[1.5px] border-danger/40 bg-white px-6 text-sm font-semibold text-danger",
@@ -511,6 +680,7 @@ export default function DeleteAccount({
         <button
           ref={triggerRef}
           type="button"
+          data-delete-account-trigger="sidebar"
           onClick={handleOpen}
           className={clsx(
             "mt-1 flex min-h-[44px] w-full items-center gap-3 rounded-lg px-2 text-sm font-medium text-muted transition-colors hover:bg-danger-soft hover:text-danger",
@@ -535,6 +705,7 @@ export default function DeleteAccount({
         <button
           ref={triggerRef}
           type="button"
+          data-delete-account-trigger="card"
           onClick={handleOpen}
           className={clsx(
             "group flex min-h-[64px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors active:bg-danger-soft",

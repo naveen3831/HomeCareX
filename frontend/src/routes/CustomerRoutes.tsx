@@ -62,6 +62,9 @@ export default function CustomerRoutes() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/account/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/delete-account" element={<Profile defaultDeleteOpen />} />
           <Route path="/profile/edit" element={<EditProfile />} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile/security" element={<AccountSecurityPage />} />

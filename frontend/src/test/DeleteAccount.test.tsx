@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { LOGIN_PATH } from "@/routes/authPaths";
 
 const logout = vi.fn(() => Promise.resolve());
@@ -33,6 +33,18 @@ vi.mock("@/services/bookingApi", async (importOriginal) => {
 
 import DeleteAccount from "@/components/customer/DeleteAccount";
 
+const SupportMock = () => {
+  const navigate = useNavigate();
+  return (
+    <div>
+      <p>Support Page</p>
+      <button type="button" onClick={() => navigate(-1)}>
+        Move Back
+      </button>
+    </div>
+  );
+};
+
 const renderIt = (variant: "card" | "sidebar" | "inline" = "card", activeBookingsCount?: number | null) => {
   const qc = new QueryClient({
     defaultOptions: {
@@ -50,6 +62,7 @@ const renderIt = (variant: "card" | "sidebar" | "inline" = "card", activeBooking
             element={<DeleteAccount variant={variant} activeBookingsCount={activeBookingsCount} />}
           />
           <Route path="/customer/tracking" element={<p>Active Bookings Page</p>} />
+          <Route path="/customer/support" element={<SupportMock />} />
           <Route path={LOGIN_PATH} element={<p>Login page</p>} />
         </Routes>
       </MemoryRouter>
@@ -291,5 +304,39 @@ describe("Delete Account: Conditional States & Business Logic", () => {
     expect(await screen.findByRole("heading", { name: "Delete your account?", level: 2 })).toBeInTheDocument();
     expect(screen.queryByText(/1 active booking/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /yes, delete/i })).toBeEnabled();
+  });
+
+  it("Need help section links to Help Center and Contact Us support sections", async () => {
+    mockListBookings.mockResolvedValue({
+      items: [{ id: "b1", status: "in_progress", serviceName: "Deep Cleaning" }],
+      meta: { page: 1, limit: 10, total: 1, totalPages: 1 },
+    });
+
+    renderIt();
+    await userEvent.click(screen.getByRole("button", { name: /delete account/i }));
+
+    expect(await screen.findByText(/need help\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/visit our help center or contact our support team/i)).toBeInTheDocument();
+
+    const helpCenterLink = screen.getByRole("link", { name: /help center/i });
+    expect(helpCenterLink).toBeInTheDocument();
+    expect(helpCenterLink).toHaveAttribute("href", "/customer/support");
+
+    const contactUsLink = screen.getByRole("link", { name: /contact us/i });
+    expect(contactUsLink).toBeInTheDocument();
+    expect(contactUsLink).toHaveAttribute("href", "/customer/support?view=new");
+
+    // Clicking Help Center closes dialog and navigates to support
+    await userEvent.click(helpCenterLink);
+    expect(await screen.findByText("Support Page")).toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    // Clicking Move Back button returns to the same account delete page with the dialog open
+    const backBtn = screen.getByRole("button", { name: /move back/i });
+    await userEvent.click(backBtn);
+    expect(await screen.findByRole("heading", { name: "Account deletion unavailable", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(screen.getByText(/1 active booking/i)).toBeInTheDocument();
+    expect(screen.getByText(/need help\?/i)).toBeInTheDocument();
   });
 });

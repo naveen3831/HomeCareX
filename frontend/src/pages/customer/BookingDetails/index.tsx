@@ -862,27 +862,6 @@ function DetailsBody({
       ) : (
         /* Desktop View (hidden md:block) - Preserved 100% untouched */
         <div className="hidden md:block">
-          {/* Top back button */}
-          <div className="mb-3">
-            <button
-              type="button"
-              onClick={handleBack}
-              className={clsx(
-                "inline-flex items-center gap-1.5 text-xs font-semibold text-muted transition hover:text-ink",
-                FOCUS_RING,
-              )}
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span>
-                {location.state?.from === customerPath("/tracking")
-                  ? "Back to Active Bookings"
-                  : location.state?.from?.includes("/payments")
-                    ? "Back to Payments"
-                    : "Back to My Bookings"}
-              </span>
-            </button>
-          </div>
-
           {/* Main Page Header */}
           <div className="mb-6 flex flex-col gap-1.5 sm:flex-row sm:items-baseline sm:justify-between">
             <div>

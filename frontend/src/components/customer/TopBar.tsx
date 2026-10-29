@@ -19,7 +19,8 @@ interface TopBarProps {
 const HAMBURGER =
   "group relative h-10 w-10 shrink-0 rounded-[14px]   from-white to-brand-soft  transition-[box-shadow,transform] duration-200  active:scale-95";
 /** Centred bars; the short middle one grows to full width on hover. */
-const BAR = "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
+const BAR =
+  "absolute left-1/2 h-[2.5px] -translate-x-1/2 rounded-full bg-brand transition-all duration-200";
 
 /**
  * Top bar.
@@ -39,6 +40,11 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   // null on Home, which keeps the address picker + bell instead of a back bar.
   const meta = getCustomerPageMeta(pathname);
   const normalizedPath = pathname.replace(/\/+$/, "").toLowerCase();
+  const searchParams = new URLSearchParams(location.search);
+  const isSupportContact =
+    normalizedPath === customerPath("/support").toLowerCase() &&
+    searchParams.get("view") === "new";
+  const displayTitle = isSupportContact ? "Contact Us" : (meta?.title ?? "");
   const isExcludedMobileTopBar =
     normalizedPath.startsWith(customerPath("/bookings").toLowerCase()) ||
     normalizedPath === customerPath("/security").toLowerCase() ||
@@ -60,14 +66,20 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         (location.state as { origin?: string; from?: string })?.origin ||
         (location.state as { origin?: string; from?: string })?.from;
       let origin =
-        fromCandidate && !fromCandidate.includes("/bookings") && !fromCandidate.includes("/tracking")
+        fromCandidate &&
+        !fromCandidate.includes("/bookings") &&
+        !fromCandidate.includes("/tracking")
           ? fromCandidate
           : null;
 
       if (!origin) {
         try {
           const saved = sessionStorage.getItem("active_bookings_origin");
-          if (saved && !saved.includes("/bookings") && !saved.includes("/tracking")) {
+          if (
+            saved &&
+            !saved.includes("/bookings") &&
+            !saved.includes("/tracking")
+          ) {
             origin = saved;
           }
         } catch {
@@ -92,14 +104,20 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         (location.state as { origin?: string; from?: string })?.origin ||
         (location.state as { origin?: string; from?: string })?.from;
       let origin =
-        fromCandidate && !fromCandidate.includes("/bookings") && !fromCandidate.includes("/payments")
+        fromCandidate &&
+        !fromCandidate.includes("/bookings") &&
+        !fromCandidate.includes("/payments")
           ? fromCandidate
           : null;
 
       if (!origin) {
         try {
           const saved = sessionStorage.getItem("payments_origin");
-          if (saved && !saved.includes("/bookings") && !saved.includes("/payments")) {
+          if (
+            saved &&
+            !saved.includes("/bookings") &&
+            !saved.includes("/payments")
+          ) {
             origin = saved;
           }
         } catch {
@@ -118,6 +136,43 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
       }
       navigate(origin);
       return;
+    }
+    if (
+      normalizedPath === customerPath("/support").toLowerCase() ||
+      normalizedPath.startsWith(customerPath("/support/").toLowerCase())
+    ) {
+      const stateObj = location.state as {
+        returnTo?: string;
+        origin?: string;
+        from?: string;
+      } | null;
+      const search = new URLSearchParams(location.search);
+      let origin =
+        stateObj?.returnTo ||
+        stateObj?.origin ||
+        (stateObj?.from === "delete-account" || search.get("from") === "delete-account"
+          ? customerPath("/profile?action=delete-account")
+          : null) ||
+        search.get("returnTo");
+
+      if (!origin) {
+        try {
+          const saved = sessionStorage.getItem("support_return_to");
+          if (saved) origin = saved;
+        } catch {
+          // ignore
+        }
+      }
+
+      if (origin) {
+        try {
+          sessionStorage.removeItem("support_return_to");
+        } catch {
+          // ignore
+        }
+        navigate(origin);
+        return;
+      }
     }
     if (key !== "default") navigate(-1);
     else navigate(meta.parent, { replace: true });
@@ -142,29 +197,22 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             className={clsx(HAMBURGER, "hidden md:block", FOCUS_RING)}
           >
             <span aria-hidden="true" className={clsx(BAR, "top-[12px] w-5")} />
-            <span aria-hidden="true" className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")} />
+            <span
+              aria-hidden="true"
+              className={clsx(BAR, "top-[18px] w-3.5 group-hover:w-5")}
+            />
             <span aria-hidden="true" className={clsx(BAR, "top-[25px] w-5")} />
           </button>
         )}
 
         {meta ? (
           <>
-            <Link
-              to={customerPath()}
-              className={clsx(
-                "hidden rounded-lg text-lg font-bold tracking-tight md:inline-flex",
-                FOCUS_RING,
-              )}
-            >
-              <span className="text-accent">Home</span>
-              <span className="text-brand">CareX</span>
-            </Link>
             {normalizedPath === customerPath("/tracking").toLowerCase() ? (
               <div className="flex w-full min-w-0 items-center justify-between pr-1">
                 <button
                   type="button"
                   onClick={goBack}
-                  aria-label={`Back from ${meta.title}`}
+                  aria-label={`Back from ${displayTitle}`}
                   className={clsx(
                     "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-700 transition-colors hover:bg-slate-100 hover:text-brand active:opacity-70",
                     FOCUS_RING,
@@ -195,14 +243,14 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
                 <button
                   type="button"
                   onClick={goBack}
-                  aria-label={`Back from ${meta.title}`}
+                  aria-label={`Back from ${displayTitle}`}
                   className={clsx(
                     "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
                     FOCUS_RING,
                   )}
                 >
                   <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{meta.title}</span>
+                  <span className="truncate">{displayTitle}</span>
                 </button>
               </div>
             )}
@@ -224,7 +272,10 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
 
             <span
               aria-hidden="true"
-              className={clsx("mx-3 hidden h-8 w-px bg-line", !sidebarOpen && "md:block")}
+              className={clsx(
+                "mx-3 hidden h-8 w-px bg-line",
+                !sidebarOpen && "md:block",
+              )}
             />
 
             {/* One picker at every width (a single instance keeps DOM ids unique). */}
@@ -235,7 +286,14 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
       </div>
 
-      <div className={clsx(meta && "hidden", meta && normalizedPath !== customerPath("/tracking").toLowerCase() && "md:block")}>
+      <div
+        className={clsx(
+          meta && "hidden",
+          meta &&
+            normalizedPath !== customerPath("/tracking").toLowerCase() &&
+            "md:block",
+        )}
+      >
         <NotificationBell count={unread} />
       </div>
     </header>

@@ -212,24 +212,55 @@ export const authController = {
   }),
 
   /**
-   * Individual session records are not implemented yet.
+   * Returns active sessions for the authenticated user.
    */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const userAgent = req.headers['user-agent'];
+    const ip =
+      req.ip ||
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      '127.0.0.1';
+    const currentSid = (res.locals.auth as any)?.sid;
 
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
+    const data = await authService.getSessions(userId, {
+      userAgent,
+      ip,
+      currentSid,
+    });
+
+    res.json({
+      success: true,
+      data,
     });
   }),
 
   /**
-   * Individual session revocation requires persistent session records.
+   * Revokes an individual session.
    */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const sessionId = req.params.id;
+    const currentSid = (res.locals.auth as any)?.sid;
+
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        revoked: true,
+        isCurrent: result.isCurrent,
+        message: result.message,
+      },
     });
   }),
 
@@ -238,7 +269,7 @@ export const authController = {
    */
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
-    const result = await authService.revokeUserSessions(userId);
+    const result = await authService.logoutAll(userId);
 
     clearRefreshCookies(res);
 

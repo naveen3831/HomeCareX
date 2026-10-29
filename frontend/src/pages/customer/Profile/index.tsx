@@ -16,6 +16,8 @@ const LEGACY_HASH: Record<string, string> = {
   "personal-info": customerPath("/profile/edit"),
   password: customerPath("/profile/password"),
   notifications: customerPath("/profile/notifications"),
+  "delete-account": customerPath("/profile?action=delete-account"),
+  delete: customerPath("/profile?action=delete-account"),
 };
 
 /**
@@ -25,7 +27,11 @@ const LEGACY_HASH: Record<string, string> = {
  *    /profile/notifications). After saving, they send the customer back here with a short confirmation banner.
  *  - Log out and Delete account sit at the bottom on mobile (Log out first, followed by Delete account); on desktop the sidebar carries Log out.
  */
-export default function Profile() {
+export default function Profile({
+  defaultDeleteOpen = false,
+}: {
+  defaultDeleteOpen?: boolean;
+} = {}) {
   const { user } = useAuth();
   const dashboard = useCustomerDashboard();
   const addresses = useAddresses();
@@ -95,7 +101,7 @@ export default function Profile() {
       />
 
       <LogoutCard />
-      <DeleteAccount variant="card" />
+      <DeleteAccount variant="card" defaultOpen={defaultDeleteOpen} />
     </div>
   );
 }
