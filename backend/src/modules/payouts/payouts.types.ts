@@ -67,6 +67,9 @@ export interface PayoutRecord {
   createdAt: Date;
 }
 
+/**
+ * Input for generating a payout batch.
+ */
 export interface GenerateBatchInput {
   periodStart: string | Date;
   periodEnd: string | Date;

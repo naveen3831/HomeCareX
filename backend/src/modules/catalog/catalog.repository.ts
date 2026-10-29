@@ -30,6 +30,7 @@ export interface ServiceRow {
   ratingAvg?: number;
   ratingCount?: number;
   availability?: ServiceAvailability;
+  sortOrder?: number;
   addOns?: { _id: Types.ObjectId; name: string; price: number }[];
   media?: { url: string; alt?: string }[];
   inclusions?: string[];
@@ -38,7 +39,7 @@ export interface ServiceRow {
 }
 
 const CATEGORY_FIELDS = 'name slug description icon sortOrder';
-const LIST_FIELDS = 'slug name description icon categoryId basePrice durationMinutes ratingAvg ratingCount availability';
+const LIST_FIELDS = 'slug name description icon categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
 const DETAIL_FIELDS = `${LIST_FIELDS} addOns media inclusions exclusions faqs`;
 
 /** Only layer that talks to Mongo. Tests swap these methods for in-memory versions. */

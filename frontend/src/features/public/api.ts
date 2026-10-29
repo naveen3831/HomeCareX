@@ -126,7 +126,8 @@ function mockServicesPage(p: ServicesParams): ServicesPage {
   if (p.sort === 'price-asc') items.sort((a, b) => a.basePrice - b.basePrice);
   else if (p.sort === 'price-desc') items.sort((a, b) => b.basePrice - a.basePrice);
   else if (p.sort === 'rating') items.sort((a, b) => b.rating - a.rating);
-  else items.sort((a, b) => b.ratingCount - a.ratingCount); // popular (default)
+  else if (p.sort === 'popular') items.sort((a, b) => b.ratingCount - a.ratingCount);
+  // 'order' (default): keep the mock list's own order, standing in for the admin-defined order
 
   const total = items.length;
   return {

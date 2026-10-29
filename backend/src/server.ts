@@ -8,7 +8,7 @@ import { registerEarningsListeners } from './modules/earnings/earnings.listener'
 import { seedDefaultSettings } from './modules/settings/settings.service';
 import { seedDefaultDesignations } from './modules/designations/designations.service';
 import { seedDefaultCategories } from './modules/categories/categories.service';
-import { seedDefaultServices } from './modules/services/services.service';
+import { backfillServiceOrder, seedDefaultServices } from './modules/services/services.service';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
 import { startReferralWorker } from './modules/referrals/referrals.worker';

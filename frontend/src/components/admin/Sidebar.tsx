@@ -6,10 +6,7 @@ import { ChevronDown, LogOut, X } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAuth } from "@/context/AuthContext";
-import {
-  adminNavGroups,
-  findAdminPage,
-} from "@/config/adminNav";
+import { adminNavGroups, findAdminPage, type AdminNavItem } from "@/config/adminNav";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -88,7 +85,32 @@ export const Sidebar: React.FC = () => {
     });
   };
 
-  const sidebarClassName = [
+  const renderItem = (item: AdminNavItem) => {
+    const Icon = item.icon;
+    const alsoActive = (item.also ?? []).some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`),
+    );
+    return (
+      <li key={item.path}>
+        <NavLink
+          to={item.path}
+          end={item.path === "/admin"}
+          title={isCollapsed ? item.label : undefined}
+          className={({ isActive }) =>
+            `nav-link${isActive || alsoActive ? " is-active" : ""}`
+          }
+        >
+          <Icon className="nav-link__icon" size={20} aria-hidden />
+          {!isCollapsed && (
+            <span className="nav-link__label">{item.label}</span>
+          )}
+          {isCollapsed && <span className="sr-only">{item.label}</span>}
+        </NavLink>
+      </li>
+    );
+  };
+
+  const className = [
     "admin-sidebar",
     isCollapsed ? "is-collapsed" : "",
     isMobileMenuOpen ? "is-mobile-open" : "",
@@ -180,46 +202,7 @@ export const Sidebar: React.FC = () => {
 
                 {isOpen && (
                   <ul className="nav-list">
-                    {items.map((item) => {
-                      const Icon = item.icon;
-
-                      return (
-                        <li key={item.path}>
-                          <NavLink
-                            to={item.path}
-                            end={item.path === "/admin"}
-                            title={
-                              isCollapsed
-                                ? item.label
-                                : undefined
-                            }
-                            className={({ isActive }) =>
-                              `nav-link${
-                                isActive ? " is-active" : ""
-                              }`
-                            }
-                          >
-                            <Icon
-                              className="nav-link__icon"
-                              size={20}
-                              aria-hidden="true"
-                            />
-
-                            {!isCollapsed && (
-                              <span className="nav-link__label">
-                                {item.label}
-                              </span>
-                            )}
-
-                            {isCollapsed && (
-                              <span className="sr-only">
-                                {item.label}
-                              </span>
-                            )}
-                          </NavLink>
-                        </li>
-                      );
-                    })}
+                    {items.map(renderItem)}
                   </ul>
                 )}
               </div>

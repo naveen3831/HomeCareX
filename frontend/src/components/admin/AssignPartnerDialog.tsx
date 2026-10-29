@@ -1172,7 +1172,7 @@ export const AssignPartnerDialog: React.FC<
               </h2>
 
               <p className="assign-partner-dialog__subtitle">
-                Booking ID: {booking.id}
+                Customer: {booking.customer?.name || "-"}
               </p>
             </div>
 

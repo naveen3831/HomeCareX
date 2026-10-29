@@ -25,6 +25,7 @@ import {
 import type { LeadSource, LeadStatus } from '@/features/public/leads';
 import { fetchLead, fetchLeads, updateLeadStatus, type AdminLead } from '@/services/leadsApi';
 import { Link } from 'react-router-dom';
+import HelpTabs from '@/components/admin/HelpTabs';
 import './Leads.css';
 
 const dateTime = (value: string) =>
@@ -168,6 +169,8 @@ const AdminLeadsPage: React.FC = () => {
 
   return (
     <div className="leads-workspace">
+      <HelpTabs />
+
       <header className="leads-heading">
         <div>
           <div className="leads-heading__eyebrow"><BriefcaseBusiness aria-hidden="true" size={14} /> Operations / Lead management</div>

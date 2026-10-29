@@ -357,7 +357,6 @@ export const AdminServicesPage: React.FC = () => {
 
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
-
   const [params, setParams] = useSearchParams();
   const [order, setOrder] = useState<string[]>(() =>
     adminServiceApi.getOrder(),
@@ -499,17 +498,11 @@ export const AdminServicesPage: React.FC = () => {
 
   const categoryParam = params.get("category") ?? "";
 
-  const ordered = useMemo(() => {
-    const rank = new Map(
-      order.map((id, index) => [id, index]),
-    );
-
-    return [...items].sort(
-      (a, b) =>
-        (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
-        (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
-    );
-  }, [items, order]);
+  // The admin's saved order (stored on the server, same one customers see). Ties fall back to name.
+  const ordered = useMemo(
+    () => [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
+    [items],
+  );
 
   const filtered = Boolean(
     search.trim() ||
@@ -630,16 +623,30 @@ export const AdminServicesPage: React.FC = () => {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  const chooseCategory = (id: string) => {
-    setParams(id ? { category: id } : {});
+  async function applyOrder(ids: string[], movedId: string, from: number, to: number) {
+    const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
+    const before = items;
+    const pos = new Map(ids.map((id, n) => [id, n]));
+    setItems((cur) => cur.map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s))); // show it at once
+    try {
+      await adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+      flash(`“${name}” moved to position ${to + 1}. Customers will see this order.`);
+    } catch (e) {
+      setItems(before); // the server refused: put the list back so the screen never lies
+      flash((e as ServiceApiError).message, 'error');
+    }
+  }
+  const move = (id: string, dir: -1 | 1) => {
+    const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
+    if (to < 0 || to >= ids.length) return;
+    void applyOrder(arrayMove(ids, from, to), id, from, to);
   };
-
-  const clearFilters = () => {
-    setLocalSearch("");
-    setStatusFilter("all");
-    setPageSearch("");
-    setParams({});
+  const onDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
+    if (!e.over || e.active.id === e.over.id) return;
+    const ids = ordered.map((x) => x.id);
+    const from = ids.indexOf(String(e.active.id)); const to = ids.indexOf(String(e.over.id));
+    if (from > -1 && to > -1) void applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
   };
 
   const filterMenu = (

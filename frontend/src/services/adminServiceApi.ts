@@ -38,7 +38,6 @@ export function __resetServiceApiForTests() { mode = 'unknown'; modeReason = '';
 
 const STORE_KEY = 'hcx.admin.services.v1';
 const AUDIT_KEY = 'hcx.admin.services.audit.v1';
-const ORDER_KEY = 'hcx.admin.serviceOrder';
 const now = () => new Date().toISOString();
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 const delay = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 120));
@@ -74,6 +73,7 @@ interface RawService {
   faqs?: { id?: string; question: string; answer: string }[];
   checklist?: { id?: string; label: string; required?: boolean }[];
   active?: boolean;
+  sortOrder?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -96,6 +96,7 @@ export function toService(raw: RawService): AdminService {
     addOns: (raw.addOns ?? []).map((a, i): ServiceAddOn => ({ id: a.id ?? `addon-${i}`, name: a.name, price: a.price })),
     checklist: (raw.checklist ?? []).map((c, i): ChecklistItem => ({ id: c.id ?? `chk-${i}`, label: c.label, required: c.required ?? false })),
     active: raw.active ?? true,
+    sortOrder: Number(raw.sortOrder ?? 0) || 0,
     createdAt: created,
     updatedAt: raw.updatedAt ?? created,
   };
@@ -170,12 +171,8 @@ function audit(action: ServiceAuditEntry['action'], target: AdminService, before
   write(AUDIT_KEY, log.slice(0, 300));
 }
 
-/** Display order is kept in this browser until the backend has a sortOrder field for services. */
-function readOrder(): string[] {
-  try { const v = JSON.parse(localStorage.getItem(ORDER_KEY) ?? '[]') as unknown; return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []; } catch { return []; }
-}
-function saveReorder(ids: string[], moved: { id: string; name: string; from: number; to: number }) {
-  write(ORDER_KEY, ids);
+/** Records who moved what, from which position to which. */
+function auditReorder(moved: { id: string; name: string; from: number; to: number }) {
   const log = read<ServiceAuditEntry[]>(AUDIT_KEY, () => []);
   log.unshift({
     id: uid(), actor: 'You (admin)', action: 'reorder', entityId: moved.id, entityName: moved.name, time: now(),
@@ -272,6 +269,13 @@ const live = {
     });
     return result;
   },
+  /** One request saves the whole order on the server, so customers and the public site see it immediately. */
+  async reorder(ids: string[], moved: { id: string; name: string; from: number; to: number }) {
+    await http.put('/admin/services/reorder', { items: ids.map((id, i) => ({ id, sortOrder: i })) });
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    cache = cache.map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s));
+    auditReorder(moved);
+  },
   async remove(id: string) {
     const target = cache.find((s) => s.id === id);
     await http.delete(`/admin/services/${id}`); // 409 SERVICE_IN_USE when bookings exist
@@ -298,7 +302,7 @@ function seed(): AdminService[] {
     mk('s2', 'Sofa Shampooing', 'c1b', 'Sofa & Carpet', 799, 120),
     mk('s3', 'AC Jet Service', 'c2a', 'AC Service', 499, 60),
     mk('s4', 'Full Body Massage', 'c3', 'Salon & Spa', 1499, 75, false),
-  ];
+  ].map((s, i) => ({ ...s, sortOrder: i }));
 }
 const demoAll = () => read<AdminService[]>(STORE_KEY, seed);
 const demoSave = (all: AdminService[]) => { cache = all; write(STORE_KEY, all); };
@@ -317,7 +321,8 @@ const demo = {
     const t = now();
     const service: AdminService = {
       ...input, name: input.name.trim(), description: input.description.trim(), id: uid(), slug: uniqueSlug(all, input.name),
-      categoryName: names.get(input.categoryId) ?? '', createdAt: t, updatedAt: t,
+      categoryName: names.get(input.categoryId) ?? '', sortOrder: all.reduce((m, s) => Math.max(m, s.sortOrder ?? 0), -1) + 1,
+      createdAt: t, updatedAt: t,
     };
     demoSave([...all, service]);
     adminCategoryApi.adjustDemoServiceCount(input.categoryId, 1);
@@ -349,6 +354,12 @@ const demo = {
     });
     demoSave(out);
     return delay({ changed, failed: [] });
+  },
+  async reorder(ids: string[], moved: { id: string; name: string; from: number; to: number }) {
+    const pos = new Map(ids.map((id, i) => [id, i]));
+    demoSave(demoAll().map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s)));
+    auditReorder(moved);
+    return delay(undefined);
   },
   async remove(id: string) {
     const all = demoAll();
@@ -386,7 +397,7 @@ export const adminServiceApi = {
   setActive: (ids: string[], active: boolean) => run(() => (mode === 'demo' ? demo : live).setActive(ids, active)),
   remove: (id: string) => run(() => (mode === 'demo' ? demo : live).remove(id)),
   auditLog: () => run(async () => read<ServiceAuditEntry[]>(AUDIT_KEY, () => [])),
-  getOrder: (): string[] => readOrder(),
-  /** Saves the new display order and records who moved what, from which position to which. */
-  reorder: (ids: string[], moved: { id: string; name: string; from: number; to: number }) => { saveReorder(ids, moved); },
+  /** Saves the new display order (live: on the server, so customers see it) and records who moved what. */
+  reorder: (ids: string[], moved: { id: string; name: string; from: number; to: number }) =>
+    run(() => (mode === 'demo' ? demo : live).reorder(ids, moved)),
 };

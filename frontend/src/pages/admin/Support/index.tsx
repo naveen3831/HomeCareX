@@ -14,6 +14,7 @@ import {
   type TicketPriority,
   type TicketStatus,
 } from '@/types/adminTicket';
+import HelpTabs from '@/components/admin/HelpTabs';
 import AssigneeSelect from './AssigneeSelect';
 import SlaBadge from './SlaBadge';
 import StatusSelect from './StatusSelect';
@@ -231,6 +232,8 @@ export const AdminSupportPage: React.FC = () => {
 
   return (
     <div className="admin-page-container sup-page">
+      <HelpTabs />
+
       <header className="sup-head">
         <h1 className="sup-head__title">Support</h1>
         <p className="sup-head__desc">Tickets from customers and partners, with SLA and ownership.</p>

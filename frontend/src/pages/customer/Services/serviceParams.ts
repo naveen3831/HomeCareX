@@ -4,6 +4,7 @@ import type { AvailabilityFilter, ServiceListParams, ServiceSort } from "@/types
 export const PAGE_SIZE = 12;
 
 export const SORT_OPTIONS: { id: ServiceSort; label: string }[] = [
+  { id: "order", label: "Featured" },
   { id: "popular", label: "Popular" },
   { id: "rating", label: "Top rated" },
   { id: "price-asc", label: "Price: low to high" },
