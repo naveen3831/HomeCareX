@@ -1,5 +1,4 @@
-
-import type { ApiError } from './http';
+﻿import type { ApiError } from './http';
 
 export type ApiErrorKind =
   | 'offline'
@@ -96,31 +95,26 @@ export function classifyApiError(
 
   // 2. Request Timeout
   if (
-    normalized.isTimeout ||
-    normalized.code === 'ECONNABORTED' ||
-    normalized.code === 'ETIMEDOUT' ||
-    (typeof normalized.message === 'string' &&
-      /taking too long|timeout|timed out/i.test(normalized.message))
+    apiErr.isTimeout ||
+    apiErr.code === 'ECONNABORTED' ||
+    apiErr.code === 'ETIMEDOUT' ||
+    (typeof apiErr.message === 'string' && /taking too long|timeout/i.test(apiErr.message))
   ) {
     return {
       kind: 'timeout',
-      code: normalized.code,
-      message:
-        'The server is taking too long to respond. Please check your connection and try again.',
+      code: apiErr.code,
+      message: 'The server is taking too long to respond. Please check your connection and try again.',
     };
   }
 
-  // 3. HTTP response received
-  if (
-    typeof normalized.status === 'number' &&
-    normalized.status > 0
-  ) {
+  // 3. HTTP status response received
+  if (typeof apiErr.status === 'number' && apiErr.status > 0) {
     return {
       kind: 'http',
-      status: normalized.status,
-      code: normalized.code,
-      message: normalized.message || defaultHttpMsg,
-      details: normalized.details,
+      status: apiErr.status,
+      code: apiErr.code,
+      message: apiErr.message || defaultHttpMsg,
+      details: apiErr.details,
     };
   }
 
@@ -141,8 +135,8 @@ export function classifyApiError(
 
   // 5. Unexpected error
   return {
-    kind: 'unknown',
-    code: normalized.code,
-    message: normalized.message || 'Something went wrong. Please try again.',
+    kind: 'network',
+    code: apiErr.code,
+    message: 'Unable to connect to the server. Please check your connection and try again.',
   };
 }

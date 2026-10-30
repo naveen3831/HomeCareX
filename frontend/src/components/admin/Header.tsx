@@ -1,5 +1,6 @@
-import React from 'react';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+﻿import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 
@@ -10,7 +11,7 @@ export interface HeaderNotification {
   href?: string;
 }
 
-export interface HeaderProps {
+interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
@@ -28,9 +29,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         type="button"
         onClick={toggleSidebar}
         className="icon-btn desktop-only"
-        aria-label={
-          isCollapsed ? "Expand sidebar" : "Collapse sidebar"
-        }
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {isCollapsed ? (
           <PanelLeftOpen size={20} aria-hidden="true" />
@@ -48,9 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
         >
           <HelpCircle size={20} aria-hidden="true" />
         </Link>
-
         <NotificationBell />
-
         <ProfileMenu />
       </div>
     </header>

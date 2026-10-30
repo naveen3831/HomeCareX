@@ -1,33 +1,9 @@
-
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import clsx from "clsx";
-import { createPortal } from "react-dom";
-import { useSearchParams } from "react-router-dom";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  DndContext,
-  DragOverlay,
-  KeyboardSensor,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+  CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
+} from 'lucide-react';
+import clsx from 'clsx';
+import { useSearchParams } from 'react-router-dom';
 import {
   ArrowDown,
   ArrowUp,
@@ -94,32 +70,15 @@ type Toast = {
   tone: "success" | "error";
 } | null;
 
-type StatusFilter = "all" | "active" | "inactive";
+type Toast = { text: string; tone: 'success' | 'error' } | null;
+const rupees = (n: number) => `Γé╣${n.toLocaleString('en-IN')}`;
+const duration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ''}`);
 
-const rupees = (amount: number) =>
-  `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-
-const duration = (minutes: number) =>
-  minutes < 60
-    ? `${minutes} min`
-    : `${Math.floor(minutes / 60)} hr${
-        minutes % 60 ? ` ${minutes % 60} min` : ""
-      }`;
-
-function toOptions(categories: AdminCategory[]): CategoryOption[] {
-  const byId = new Map(
-    categories.map((category) => [category.id, category]),
-  );
-
-  return categories
-    .map((category) => ({
-      id: category.id,
-      name:
-        category.parentId && byId.has(category.parentId)
-          ? `${byId.get(category.parentId)!.name} › ${category.name}`
-          : category.name,
-      active: category.active,
-    }))
+/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
+function toOptions(cats: AdminCategory[]): CategoryOption[] {
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  return cats
+    .map((c) => ({ id: c.id, name: c.parentId && byId.get(c.parentId) ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}` : c.name, active: c.active }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -357,26 +316,16 @@ export const AdminServicesPage: React.FC = () => {
 
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
-  const [order, setOrder] = useState<string[]>(() =>
-    adminServiceApi.getOrder(),
-  );
-
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    new Set(),
-  );
-  const [busyIds, setBusyIds] = useState<Set<string>>(
-    new Set(),
-  );
-
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>("all");
-  const [localSearch, setLocalSearch] = useState("");
-
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [previewing, setPreviewing] =
-    useState<AdminService | null>(null);
+  const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [toast, setToast] = useState<Toast>(null);
+  const toastTimer = useRef<number>();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<AdminService | null>(null);
@@ -464,6 +413,7 @@ export const AdminServicesPage: React.FC = () => {
       setLoading(false);
     }
   }, []);
+  useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     void load();
@@ -498,11 +448,10 @@ export const AdminServicesPage: React.FC = () => {
 
   const categoryParam = params.get("category") ?? "";
 
-  // The admin's saved order (stored on the server, same one customers see). Ties fall back to name.
-  const ordered = useMemo(
-    () => [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
-    [items],
-  );
+  // ---- derived list ----
+  const categoryParam = params.get('category') ?? '';
+  const filtered = search.trim() !== '' || categoryParam !== '';
+  const reorderEnabled = !filtered && canManage && online;
 
   const filtered = Boolean(
     search.trim() ||
@@ -515,66 +464,40 @@ export const AdminServicesPage: React.FC = () => {
     !filtered && canManage && online && !loading;
 
   const visible = useMemo(() => {
-    const needle = `${search} ${localSearch}`
-      .trim()
-      .toLowerCase();
-
-    const categoryIds = new Set(
-      categoryParam
-        ? [
-            categoryParam,
-            ...categories
-              .filter(
-                (category) =>
-                  category.parentId === categoryParam,
-              )
-              .map((category) => category.id),
-          ]
-        : [],
-    );
-
-    return ordered.filter((service) => {
-      if (
-        categoryParam &&
-        !categoryIds.has(service.categoryId)
-      ) {
-        return false;
-      }
-
-      if (
-        statusFilter === "active" &&
-        !service.active
-      ) {
-        return false;
-      }
-
-      if (
-        statusFilter === "inactive" &&
-        service.active
-      ) {
-        return false;
-      }
-
-      if (!needle) {
-        return true;
-      }
-
-      return [
-        service.name,
-        service.slug,
-        service.categoryName,
-      ].some((value) =>
-        (value ?? "").toLowerCase().includes(needle),
-      );
+    const needle = search.trim().toLowerCase();
+    // A parent category also shows its sub-categories' services.
+    const catIds = new Set(categoryParam ? [categoryParam, ...categories.filter((c) => c.parentId === categoryParam).map((c) => c.id)] : []);
+    return ordered.filter((s) => {
+      if (categoryParam && !catIds.has(s.categoryId)) return false;
+      if (!needle) return true;
+      return [s.name, s.slug, s.categoryName].some((v) => (v ?? '').toLowerCase().includes(needle));
     });
-  }, [
-    ordered,
-    categories,
-    search,
-    localSearch,
-    categoryParam,
-    statusFilter,
-  ]);
+  }, [ordered, categories, search, categoryParam]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  function applyOrder(ids: string[], movedId: string, from: number, to: number) {
+    const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
+    setOrder(ids);
+    adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+    flash(`ΓÇ£${name}ΓÇ¥ moved to position ${to + 1}`);
+  }
+  const move = (id: string, dir: -1 | 1) => {
+    const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
+    if (to < 0 || to >= ids.length) return;
+    applyOrder(arrayMove(ids, from, to), id, from, to);
+  };
+  const onDragEnd = (e: DragEndEvent) => {
+    setActiveId(null);
+    if (!e.over || e.active.id === e.over.id) return;
+    const ids = ordered.map((x) => x.id);
+    const from = ids.indexOf(String(e.active.id)); const to = ids.indexOf(String(e.over.id));
+    if (from > -1 && to > -1) applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
+  };
+  const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
+  const activeSvc = items.find((x) => x.id === activeId) ?? null;
 
   const filterOptions = useMemo(
     () =>
@@ -685,6 +608,9 @@ export const AdminServicesPage: React.FC = () => {
       openCreate();
     }
 
+  // ---- actions ----
+  const openCreate = () => { setEditing(null); setFormError(''); setFormFields(undefined); setFormOpen(true); };
+  const openEdit = (s: AdminService) => { setEditing(s); setFormError(''); setFormFields(undefined); setFormOpen(true); };
     const next = new URLSearchParams(params);
     next.delete("new");
     setParams(next, { replace: true });
@@ -1085,31 +1011,9 @@ export const AdminServicesPage: React.FC = () => {
         }
       />
 
-      {!online && (
-        <div className="cat-banner" role="status">
-          <WifiOff size={15} />
-          You are offline. Changes are disabled until the
-          connection returns.
-        </div>
-      )}
-
-      {mode === "demo" && (
-        <div className="cat-banner" role="status">
-          <WifiOff size={15} />
-          Backend not reachable ({getServiceApiModeReason()}):
-          showing local demo data.
-        </div>
-      )}
-
-      {!canManage && (
-        <div
-          className="cat-banner cat-banner--info"
-          role="status"
-        >
-          You can view services but need the "
-          {CATALOG_MANAGE}" permission to make changes.
-        </div>
-      )}
+      {!online && <div className="cat-banner" role="status"><WifiOff size={15} /> You are offline. You can browse what has loaded, but changes are disabled until the connection returns.</div>}
+      {mode === 'demo' && <div className="cat-banner" role="status"><WifiOff size={15} /> Backend not reachable ({getServiceApiModeReason()}): showing local demo data. Changes are saved in this browser only.</div>}
+      {!canManage && <div className="cat-banner cat-banner--info" role="status">You can view services but need the ΓÇ£{CATALOG_MANAGE}ΓÇ¥ permission to change them.</div>}
 
       {toast && (
         <div

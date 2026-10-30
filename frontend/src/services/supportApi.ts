@@ -1,4 +1,4 @@
-import http, { type ApiResponse } from "@/lib/http";
+﻿import http, { type ApiResponse } from "@/lib/http";
 import type {
   CustomerMessage,
   CustomerTicket,
@@ -77,37 +77,37 @@ export const supportApi = {
     if (Array.isArray(data)) {
       const items = asTickets(data);
       return {
-        items,
-        meta: ticketMeta(record.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.data,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.data.length,
+          pages: 1,
+        },
       };
     }
-
-    const nestedData = asObject(data);
-    if (Array.isArray(nestedData.items)) {
-      const items = asTickets(nestedData.items);
+    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
       return {
-        items,
-        meta: ticketMeta(nestedData.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.data.items,
+        meta: body.data.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.data.items.length,
+          pages: 1,
+        },
       };
     }
-
-    if (Array.isArray(record.items)) {
-      const items = asTickets(record.items);
+    if (body?.items && Array.isArray(body.items)) {
       return {
-        items,
-        meta: ticketMeta(record.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.items,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.items.length,
+          pages: 1,
+        },
       };
     }
-
     return {
       items: [],
       meta: fallbackMeta,

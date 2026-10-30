@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -60,37 +60,24 @@ import "./index.css";
 
 export const PRICING_MANAGE = "pricing:manage";
 
-type Toast = {
-  text: string;
-  tone: "success" | "error";
-} | null;
+type Toast = { text: string; tone: "success" | "error" } | null;
+const rupees = (n: number) => `Γé╣${n.toLocaleString("en-IN")}`;
+const duration = (m: number) =>
+  m < 60
+    ? `${m} min`
+    : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
 
-type StatusFilter = "all" | "active" | "inactive";
-type ModeFilter = "FIXED" | "HOURLY" | null;
-
-const rupees = (amount: number) =>
-  `₹${Number(amount || 0).toLocaleString("en-IN")}`;
-
-const duration = (minutes: number) =>
-  minutes < 60
-    ? `${minutes} min`
-    : `${Math.floor(minutes / 60)} hr${
-        minutes % 60 ? ` ${minutes % 60} min` : ""
-      }`;
-
-function toCategoryOptions(
-  categories: AdminCategory[],
-): CategoryOption[] {
-  const byId = new Map(categories.map((category) => [category.id, category]));
-
-  return categories
-    .map((category) => ({
-      id: category.id,
+/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
+function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  return cats
+    .map((c) => ({
+      id: c.id,
       name:
-        category.parentId && byId.has(category.parentId)
-          ? `${byId.get(category.parentId)!.name} › ${category.name}`
-          : category.name,
-      active: category.active,
+        c.parentId && byId.get(c.parentId)
+          ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}`
+          : c.name,
+      active: c.active,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -207,17 +194,8 @@ export const AdminPricingPage: React.FC = () => {
   );
 
   const labelFor = useCallback(
-    (rule: {
-      categoryId: string;
-      serviceId: string | null;
-      city: string;
-    }) => {
-      const scope = rule.serviceId
-        ? serviceName(rule.serviceId)
-        : `${categoryName(rule.categoryId)} (all services)`;
-
-      return `${scope} · ${rule.city || "All cities"}`;
-    },
+    (r: { categoryId: string; serviceId: string | null; city: string }) =>
+      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} ┬╖ ${r.city || "All cities"}`,
     [categoryName, serviceName],
   );
 
@@ -302,9 +280,7 @@ export const AdminPricingPage: React.FC = () => {
       await load();
 
       flash(
-        `Pricing rule for “${labelFor(saved)}” ${
-          editing ? "updated" : "created"
-        }`,
+        `Pricing rule for ΓÇ£${labelFor(saved)}ΓÇ¥ ${editing ? "updated" : "created"}`,
       );
     } catch (error) {
       const apiError = error as PricingApiError;
@@ -329,30 +305,11 @@ export const AdminPricingPage: React.FC = () => {
     setBusyIds((previous) => new Set(previous).add(rule.id));
 
     try {
-      await adminPricingApi.setActive(
-        rule,
-        nextActive,
-        labelFor(rule),
-      );
-
-      flash(
-        `Rule for “${labelFor(rule)}” ${
-          nextActive ? "activated" : "deactivated"
-        }`,
-      );
-    } catch (error) {
-      setRules((previous) =>
-        previous.map((item) =>
-          item.id === rule.id
-            ? { ...item, active: rule.active }
-            : item,
-        ),
-      );
-
-      flash(
-        (error as PricingApiError).message ||
-          "Could not update pricing rule.",
-        "error",
+      await adminPricingApi.setActive(r, next, labelFor(r));
+      flash(`Rule for ΓÇ£${labelFor(r)}ΓÇ¥ ${next ? "activated" : "deactivated"}`);
+    } catch (e) {
+      setRules((prev) =>
+        prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)),
       );
     } finally {
       setBusyIds((previous) => {
@@ -370,8 +327,7 @@ export const AdminPricingPage: React.FC = () => {
 
     try {
       await adminPricingApi.remove(toDelete, labelFor(toDelete));
-
-      flash(`Rule for “${labelFor(toDelete)}” removed`);
+      flash(`Rule for ΓÇ£${labelFor(toDelete)}ΓÇ¥ removed`);
       setToDelete(null);
 
       await load();
@@ -430,6 +386,8 @@ export const AdminPricingPage: React.FC = () => {
         }
       />
 
+      <PageSearch placeholder="Search service, category, city or modeΓÇª" />
+
       {!online && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} /> You are offline. You can browse what has
@@ -447,8 +405,8 @@ export const AdminPricingPage: React.FC = () => {
 
       {!canManage && (
         <div className="cat-banner cat-banner--info" role="status">
-          You can view pricing but need the “{PRICING_MANAGE}” permission
-          to change it.
+          You can view pricing but need the ΓÇ£{PRICING_MANAGE}ΓÇ¥ permission to
+          change it.
         </div>
       )}
 
@@ -660,14 +618,14 @@ export const AdminPricingPage: React.FC = () => {
                       </td>
 
                       <td className="hcx-hide-sm" data-label="Add-ons">
-                        {rule.addOns.length || (
-                          <span className="prc-muted">—</span>
+                        {r.addOns.length || (
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
 
                       <td className="hcx-hide-sm" data-label="Surge windows">
-                        {rule.surgeWindows.length || (
-                          <span className="prc-muted">—</span>
+                        {r.surgeWindows.length || (
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
 
@@ -767,10 +725,9 @@ export const AdminPricingPage: React.FC = () => {
         confirmLabel="Remove"
         message={
           <>
-            The rule for “{toDelete ? labelFor(toDelete) : ""}” will be
-            removed and recorded in the audit log. Customers will then be
-            quoted by the next most specific rule, or the service’s own
-            price.
+            The rule for ΓÇ£{toDelete ? labelFor(toDelete) : ""}ΓÇ¥ will be removed
+            and recorded in the audit log. Customers will then be quoted by the
+            next most specific rule, or the serviceΓÇÖs own price.
           </>
         }
         onCancel={() => setToDelete(null)}
@@ -793,14 +750,14 @@ export const AdminPricingPage: React.FC = () => {
                   type="button"
                   onClick={() =>
                     setAuditEntry({
-                      id: entry.id,
-                      actor: entry.actor,
-                      action: entry.action,
-                      entity: `Pricing rule · ${entry.entityName}`,
-                      entityId: entry.entityId,
-                      time: new Date(entry.time).toLocaleString(),
-                      before: entry.before,
-                      after: entry.after,
+                      id: a.id,
+                      actor: a.actor,
+                      action: a.action,
+                      entity: `Pricing rule ┬╖ ${a.entityName}`,
+                      entityId: a.entityId,
+                      time: new Date(a.time).toLocaleString(),
+                      before: a.before,
+                      after: a.after,
                     })
                   }
                 >

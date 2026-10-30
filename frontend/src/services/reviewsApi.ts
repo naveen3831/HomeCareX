@@ -289,3 +289,88 @@ export const fetchServiceReviews = async (
     },
   };
 };
+
+/** Public customer review shape for the Reviews page & Testimonials */
+export interface PublicCustomerReview {
+  id: string;
+  name: string;
+  city: string;
+  service: string;
+  category: "Cleaning" | "Plumbing" | "Electrical" | "Appliances" | "Carpentry" | string;
+  tag: string;
+  headline: string;
+  review: string;
+  rating: number;
+  avatar: string;
+  date: string;
+  verifiedBookingsCount: number;
+  helpfulCount: number;
+  verified?: boolean;
+  createdAt?: string;
+}
+
+export interface PublicReviewsStats {
+  averageRating: number;
+  totalReviews: number;
+  satisfactionRate: number;
+  homesServed: string;
+  categoryCounts: Record<string, number>;
+}
+
+export interface PublicReviewsResponse {
+  reviews: PublicCustomerReview[];
+  stats: PublicReviewsStats;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface FetchPublicReviewsParams {
+  category?: string;
+  rating?: number | string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** GET /public/reviews — site-wide customer reviews and platform stats */
+export const fetchPublicReviews = async (
+  params: FetchPublicReviewsParams = {},
+): Promise<PublicReviewsResponse> => {
+  const query: Record<string, unknown> = {};
+  if (params.category && params.category !== "All") {
+    query.category = params.category;
+  }
+  if (params.rating && params.rating !== "all") {
+    query.rating = params.rating;
+  }
+  if (params.search && params.search.trim()) {
+    query.search = params.search.trim();
+  }
+  if (params.page) query.page = params.page;
+  if (params.limit) query.limit = params.limit;
+
+  const response = await http.get<
+    ApiResponse<{
+      reviews: PublicCustomerReview[];
+      stats: PublicReviewsStats;
+    }> & { meta?: PublicReviewsResponse["meta"] }
+  >("/public/reviews", { params: query });
+
+  const data = response.data.data;
+  const meta = response.data.meta;
+
+  return {
+    reviews: data.reviews,
+    stats: data.stats,
+    meta: meta ?? {
+      page: params.page ?? 1,
+      limit: params.limit ?? 20,
+      total: data.reviews.length,
+      totalPages: 1,
+    },
+  };
+};

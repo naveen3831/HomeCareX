@@ -1,343 +1,24 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-  Search,
-  Clock3,
-  CheckCircle2,
-  XCircle,
-  ReceiptText,
-  Eye,
-  RefreshCw,
-  Wallet,
-  CreditCard,
-  ArrowUpRight,
-  ArrowLeft,
-  CalendarDays,
-  UserRound,
-  ClipboardList,
-  CircleDollarSign,
-  Check,
-  Ban,
-  Copy,
-} from "lucide-react";
-import clsx from "clsx";
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { CheckCircle2, Check, X, XCircle } from 'lucide-react';
+import clsx from 'clsx';
+import { PageHeader } from '@/components/admin/PageHeader';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { Pagination } from '@/components/admin/Pagination';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { REFUND_STATUSES, decideRefund, fetchAdminRefunds, type AdminRefund, type AdminRefundsResult, type RefundStatus } from '@/services/adminRefundApi';
+import { formatDateTime, formatMoney } from '../Payments/paymentFormat';
+import '../Categories/index.css';
+import './index.css';
 
-import { PageHeader } from "@/components/admin/PageHeader";
-import {
-  fetchAdminRefundList,
-  fetchAdminRefund,
-  approveAdminRefund,
-  rejectAdminRefund,
-  type AdminRefundItem,
-  type AdminRefundSummaryCounts,
-} from "@/services/adminRefundApi";
+export const PAYMENTS_REFUND = 'payments:refund';
+const PAGE_SIZE = 20;
+const LABEL: Record<RefundStatus, string> = { requested: 'Requested', approved: 'Approved', processed: 'Processed', rejected: 'Rejected' };
+const errText = (e: unknown) => (e as { response?: { data?: { message?: string } }; message?: string })?.response?.data?.message || (e as { message?: string })?.message || 'Something went wrong. Please try again.';
 
-import "./index.css";
+type Pending = { refund: AdminRefund; action: 'approve' | 'reject' } | null;
 
-type FilterStatus =
-  | "all"
-  | "PENDING_APPROVAL"
-  | "CREDITED"
-  | "REJECTED";
-
-const EMPTY_COUNTS: AdminRefundSummaryCounts = {
-  pendingApproval: 0,
-  credited: 0,
-  rejected: 0,
-  total: 0,
-};
-
-function getCustomer(refund: AdminRefundItem) {
-  const customer = refund.customerId;
-
-  if (typeof customer === "object" && customer !== null) {
-    return {
-      id: customer._id || "",
-      name: customer.name || "Unknown customer",
-      email: customer.email || "",
-      phone: customer.phone || "",
-    };
-  }
-
-  return {
-    id: "",
-    name: "Unknown customer",
-    email: "",
-    phone: "",
-  };
-}
-
-function getBooking(refund: AdminRefundItem) {
-  const booking = refund.bookingId;
-
-const asObject = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-  return {
-    id: typeof booking === "string" ? booking : "",
-    number: typeof booking === "string" ? booking : "—",
-    service: "Home service",
-    status: "—",
-    paymentStatus: "—",
-    cancellationReason: "",
-    scheduledAt: undefined,
-  };
-}
-
-function getPayment(refund: AdminRefundItem) {
-  const payment = refund.paymentId;
-
-  if (typeof payment === "object" && payment !== null) {
-    return {
-      id: payment._id || "",
-      reference: payment.razorpayPaymentId || payment._id || "—",
-      orderId: payment.razorpayOrderId || "",
-      amount: payment.amount,
-      currency: payment.currency || refund.currency || "INR",
-      status: payment.status || "—",
-      method: payment.method || refund.method || "",
-      paidAt: payment.paidAt,
-    };
-  }
-
-  return {
-    id: typeof payment === "string" ? payment : "",
-    reference: typeof payment === "string" ? payment : "—",
-    orderId: "",
-    amount: undefined,
-    currency: refund.currency || "INR",
-    status: "—",
-    method: refund.method || "",
-    paidAt: undefined,
-  };
-}
-
-function getPersonName(
-  person:
-    | AdminRefundItem["requestedBy"]
-    | AdminRefundItem["approvedBy"]
-    | AdminRefundItem["rejectedBy"],
-) {
-  if (typeof person === "object" && person !== null) {
-    return person.name || person.email || "—";
-  }
-
-  return "—";
-}
-
-function getStatus(refund: AdminRefundItem): {
-  label: string;
-  className: string;
-} {
-  const status = String(refund.status).toUpperCase();
-
-  if (["CREDITED", "PROCESSED"].includes(status)) {
-    return {
-      label: "Credited",
-      className: "refund-status--credited",
-    };
-  }
-
-  if (status === "REJECTED") {
-    return {
-      label: "Rejected",
-      className: "refund-status--rejected",
-    };
-  }
-
-  if (status === "PROCESSING") {
-    return {
-      label: "Processing",
-      className: "refund-status--processing",
-    };
-  }
-
-  if (status === "CREDIT_FAILED") {
-    return {
-      label: "Credit failed",
-      className: "refund-status--failed",
-    };
-  }
-
-const normalizeRefund = (item: unknown): Refund => {
-  const raw = asObject(item);
-  const payment = asObject(raw.payment ?? raw.paymentDetails);
-  const booking = asObject(raw.booking);
-  const customer = asObject(
-    raw.customer ?? raw.user ?? booking.customer ?? booking.user,
-  );
-
-function canReviewRefund(refund: AdminRefundItem) {
-  return ["PENDING_APPROVAL", "REQUESTED"].includes(
-    String(refund.status).toUpperCase(),
-  );
-}
-
-function formatAmount(amount: number, currency = "INR") {
-  try {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: currency || "INR",
-      maximumFractionDigits: 2,
-    }).format(Number(amount) || 0);
-  } catch {
-    return `₹${(Number(amount) || 0).toLocaleString("en-IN")}`;
-  }
-}
-
-function formatDate(value?: string) {
-  if (!value) return "—";
-
-  return {
-    id,
-    refundId: firstValue(raw.refundId, raw.refund_id, raw._id, raw.id, id),
-    paymentId: firstValue(
-      raw.paymentId,
-      payment._id,
-      payment.id,
-      payment.razorpayPaymentId,
-      raw.razorpayPaymentId,
-    ),
-    bookingId: firstValue(
-      raw.bookingId,
-      booking.bookingId,
-      booking._id,
-      booking.id,
-    ),
-    customerName: firstValue(
-      raw.customerName,
-      customer.name,
-      customer.fullName,
-      raw.userName,
-      "Customer",
-    ),
-    customerEmail: firstValue(raw.customerEmail, customer.email),
-    customerPhone: firstValue(
-      raw.customerPhone,
-      customer.phone,
-      customer.mobile,
-    ),
-    amount,
-    status: normalizeStatus(
-      raw.status ?? raw.refundStatus ?? payment.refundStatus,
-    ),
-    method: firstValue(
-      raw.method,
-      raw.paymentMethod,
-      payment.method,
-      payment.paymentMethod,
-      payment.razorpayPaymentId ? "Razorpay" : "",
-      "Wallet",
-    ),
-    reason: firstValue(
-      raw.reason,
-      raw.refundReason,
-      raw.description,
-      raw.customerReason,
-      "No reason provided",
-    ),
-    rejectionReason: firstValue(raw.rejectionReason, raw.reviewNote),
-    failureMessage: firstValue(
-      raw.failureMessage,
-      raw.errorMessage,
-      raw.failureReason,
-      payment.failureMessage,
-    ),
-    razorpayRefundId: firstValue(
-      raw.razorpayRefundId,
-      asObject(raw.refundDetails).razorpayRefundId,
-      payment.razorpayRefundId,
-    ),
-    createdAt: firstValue(raw.createdAt, raw.requestedAt, raw.date),
-    updatedAt: firstValue(raw.updatedAt, raw.processedAt),
-    raw,
-  };
-};
-
-const getErrorMessage = (error: unknown): string => {
-  const errorObject = asObject(error);
-  const response = asObject(errorObject.response);
-  const data = asObject(response.data);
-  return firstValue(
-    data.message,
-    data.error,
-    errorObject.message,
-    "Something went wrong. Please try again.",
-  );
-};
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
-function formatDateTime(value?: string) {
-  if (!value) return "—";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "—";
-
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function getErrorMessage(error: unknown) {
-  if (error instanceof Error) return error.message;
-
-const getInitials = (name: string): string =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("") || "C";
-
-const statusClass = (status: RefundStatus): string =>
-  `refund-status refund-status--${status.toLowerCase()}`;
-
-const extractRefunds = (response: unknown): Refund[] => {
-  const responseObject = asObject(response);
-  const body = responseObject.data ?? response;
-  const payload = asObject(body).data ?? body;
-  if (Array.isArray(payload)) return payload.map(normalizeRefund);
-  const payloadObject = asObject(payload);
-  const rows =
-    payloadObject.refunds ??
-    payloadObject.items ??
-    payloadObject.results ??
-    payloadObject.requests;
-
-  return Array.isArray(rows) ? rows.map(normalizeRefund) : [];
-};
-
-const extractTotal = (response: unknown, fallback: number): number => {
-  const responseObject = asObject(response);
-  const body = responseObject.data ?? response;
-  const payload = asObject(body).data ?? body;
-  const payloadObject = asObject(payload);
-  const pagination = asObject(payloadObject.pagination);
-  const meta = asObject(payloadObject.meta);
-  const total = Number(
-    payloadObject.total ??
-      payloadObject.totalCount ??
-      pagination.total ??
-      meta.total,
-  );
-
-  return (
-    <div className="refunds-detail-field">
-      <span className="refunds-detail-field__label">{label}</span>
-
+/** /admin/refunds: review refund requests (GET /admin/refunds) and approve or reject them (PATCH /admin/refunds/:id). */
 export const AdminRefundsPage: React.FC = () => {
   const navigate = useNavigate();
   const { id: routeId } = useParams<{ id: string }>();
@@ -1155,17 +836,14 @@ export const AdminRefundsPage: React.FC = () => {
           </button>
         </div>
       )}
+      {!canDecide && <div className="cat-banner cat-banner--info" role="status">You can view refunds but need the ΓÇ£{PAYMENTS_REFUND}ΓÇ¥ permission to approve or reject them.</div>}
 
-      {loadError && (
-        <div className="refunds-alert refunds-alert--error" role="alert">
-          <span>{loadError}</span>
-          <button
-            type="button"
-            className="refunds-button refunds-button--secondary"
-            onClick={() => void loadRefunds()}
-          >
-            Try again
-          </button>
+      <div className="rfd-toolbar">
+        <div className="rfd-chips" role="radiogroup" aria-label="Status">
+          <button type="button" role="radio" aria-checked={status === ''} className={clsx('rfd-chip', status === '' && 'is-on')} onClick={() => { setStatus(''); setPage(1); }}>All</button>
+          {REFUND_STATUSES.map((s) => (
+            <button key={s} type="button" role="radio" aria-checked={status === s} className={clsx('rfd-chip', status === s && 'is-on')} onClick={() => { setStatus(s); setPage(1); }}>{LABEL[s]}</button>
+          ))}
         </div>
       )}
 
@@ -1344,35 +1022,24 @@ export const AdminRefundsPage: React.FC = () => {
                     </button>
                   </td>
                 </tr>
-              ))}
-
-              {!loading && visibleRefunds.length === 0 && (
-                <tr>
-                  <td colSpan={7}>
-                    <div className="refunds-empty">
-                      <div className="refunds-empty-icon">⌕</div>
-                      <h3>
-                        {refunds.length === 0
-                          ? "No refund requests yet"
-                          : "No matching refunds"}
-                      </h3>
-                      <p>
-                        {refunds.length === 0
-                          ? "Refund requests will appear here when available from the backend."
-                          : "Try changing your search text or clearing one or more filters."}
-                      </p>
-                      {refunds.length > 0 && (
-                        <button
-                          type="button"
-                          className="refunds-button refunds-button--secondary"
-                          onClick={() => {
-                            setSearch("");
-                            setStatusFilter("All");
-                            setMethodFilter("All");
-                          }}
-                        >
-                          Clear filters
-                        </button>
+              </thead>
+              <tbody>
+                {items.map((r) => (
+                  <tr key={r._id}>
+                    <td>{r.customerId?.name ?? 'ΓÇö'}{r.customerId?.email && <small className="rfd-sub">{r.customerId.email}</small>}</td>
+                    <td>{r.bookingId?.serviceName ?? 'ΓÇö'}<small className="rfd-sub rfd-mono">{r.bookingId?._id ?? ''}</small></td>
+                    <td className="rfd-mono">{r.paymentId?.razorpayPaymentId ?? r.paymentId?._id ?? 'ΓÇö'}</td>
+                    <td>{formatMoney(r.amount, r.currency)}</td>
+                    <td>{r.method === 'WALLET' ? 'Wallet credit' : 'Original payment'}</td>
+                    <td>{r.reason}{r.status === 'rejected' && r.rejectionReason && <p className="rfd-note">Rejected: {r.rejectionReason}</p>}</td>
+                    <td><span className={clsx('rfd-pill', `rfd-pill--${r.status}`)}>{LABEL[r.status]}</span></td>
+                    <td>{formatDateTime(r.requestedAt ?? r.createdAt)}</td>
+                    <td>
+                      {canDecide && r.status === 'requested' && (
+                        <div className="rfd-actions">
+                          <button type="button" className="hcx-btn hcx-btn--primary" disabled={!online} aria-label={`Approve refund of ${formatMoney(r.amount, r.currency)}`} onClick={() => setPending({ refund: r, action: 'approve' })}><Check size={14} /> Approve</button>
+                          <button type="button" className="hcx-btn" disabled={!online} aria-label={`Reject refund of ${formatMoney(r.amount, r.currency)}`} onClick={() => setPending({ refund: r, action: 'reject' })}><X size={14} /> Reject</button>
+                        </div>
                       )}
                     </div>
                   </td>
@@ -1421,16 +1088,4 @@ export const AdminRefundsPage: React.FC = () => {
   );
 };
 
-function paymentReference(refund: AdminRefundItem) {
-  const payment = refund.paymentId;
-
-  if (typeof payment === "object" && payment !== null) {
-    return payment.razorpayPaymentId || payment._id || "—";
-  }
-
-  return payment || "—";
-}
-
 export default AdminRefundsPage;
-
-

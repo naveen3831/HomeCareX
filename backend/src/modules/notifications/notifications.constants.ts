@@ -3,11 +3,6 @@ export const NOTIFICATION_TYPES = [
   'booking.assigned',
   'booking.cancelled',
   'booking.completed',
-  /** Customer-facing booking updates. Raised by the helpers in customer-alerts.ts. */
-  'booking.confirmed',
-  'booking.rescheduled',
-  'booking.partner_arrived',
-  'booking.started',
   'partner.approved',
   'partner.rejected',
   'payout.processed',
@@ -61,24 +56,29 @@ export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
   'offer.new',
 ]);
 
-/** Type prefix -> group. Anything that matches no prefix (including future types) is 'system'. */
+/** Type prefixes per group; 'system' is whatever matches none of these. Mirrors groupOf(). */
 export const GROUP_PREFIXES: Record<Exclude<NotificationGroup, 'system'>, readonly string[]> = {
   booking: ['booking.'],
   payment: ['payment.', 'payout.', 'refund.'],
-  partner: ['partner.', 'kyc.'],
+  partner: ['partner.'],
   offers: ['offer.'],
-  support: ['ticket.', 'support.'],
+  support: ['ticket.'],
 };
 
-/**
- * Returns the group associated with a notification type.
- */
 export function groupOf(type: string): NotificationGroup {
-  for (const [group, prefixes] of Object.entries(GROUP_PREFIXES)) {
-    if (prefixes.some((p) => type.startsWith(p))) {
-      return group as NotificationGroup;
-    }
+  if (type.startsWith('booking.')) return 'booking';
+  if (
+    type.startsWith('payment.') ||
+    type.startsWith('payout.') ||
+    type.startsWith('refund.') ||
+    type === 'payout.processed' ||
+    type === 'refund.updated'
+  ) {
+    return 'payment';
   }
+  if (type.startsWith('partner.')) return 'partner';
+  if (type.startsWith('offer.')) return 'offers';
+  if (type.startsWith('ticket.')) return 'support';
   return 'system';
 }
 

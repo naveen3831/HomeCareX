@@ -1,5 +1,5 @@
-import type { PayoutStatus } from './payouts.calc';
-import type { PayoutBatchStatus } from './payouts.constants';
+﻿
+import type { PayoutStatus } from "./payouts.calc";
 
 export type { PayoutStatus };
 
@@ -65,16 +65,6 @@ export interface PayoutRecord {
   transactionId?: string | null;
   paidAt: Date | null;
   createdAt: Date;
-}
-
-/**
- * Input for generating a payout batch.
- */
-export interface GenerateBatchInput {
-  periodStart: string | Date;
-  periodEnd: string | Date;
-  adminId: string;
-  ip: string;
 }
 
 /**
@@ -176,5 +166,9 @@ export interface PayoutsRepository {
   findBatchById(batchId: string): Promise<BatchRecord | null>;
 
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
-  markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
+
+  markPaid(input: {
+    payoutId: string;
+    transactionId?: string;
+  }): Promise<PayoutRecord>;
 }

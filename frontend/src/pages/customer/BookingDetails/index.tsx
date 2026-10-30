@@ -944,6 +944,46 @@ function DetailsBody({
                   </p>
                 </div>
               </div>
+            )}
+          </Section>
+
+          <Section
+            id="partner-heading"
+            title="Service Partner"
+            icon={Users}
+          >
+            <PartnerCard
+              partner={
+                booking.partner ||
+                (typeof booking.partnerId === "object" &&
+                booking.partnerId !== null
+                  ? (booking.partnerId as unknown as typeof booking.partner)
+                  : null)
+              }
+              hasPartner={Boolean(booking.partnerId)}
+              isCancelled={cancelled}
+            />
+          </Section>
+
+          <Section
+            id="schedule-heading"
+            title="Schedule"
+            icon={CalendarDays}
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Tile
+                icon={CalendarDays}
+                label="Service Date"
+                value={dateFormatted}
+                hint={day ? `(${day})` : undefined}
+              />
+
+              <Tile
+                icon={Clock}
+                label="Time Slot"
+                value={slotFormatted}
+                hint={slotHours ? `(${slotHours})` : undefined}
+              />
               <a
                 href="#extra-charges-heading"
                 className="inline-flex items-center justify-center shrink-0 rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"

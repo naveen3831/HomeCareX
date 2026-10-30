@@ -62,9 +62,18 @@ export const sanitizeSearchText = (value: unknown): string => cleanText(value, Q
 
 const CATEGORY_RE = /^[A-Za-z0-9][A-Za-z0-9 _&-]*$/;
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  plumbing: 'electrical-plumbing',
+  electrical: 'electrical-plumbing',
+  'appliance-repair': 'appliance-repair-service',
+  cleaning: 'home-cleaning',
+};
+
 export function sanitizeCategory(value: unknown): string {
   const text = cleanText(value, QUERY_LIMITS.category);
-  return CATEGORY_RE.test(text) ? text : '';
+  if (!CATEGORY_RE.test(text)) return '';
+  const lower = text.toLowerCase();
+  return CATEGORY_ALIASES[lower] || text;
 }
 
 /** Indian pincode: exactly 6 digits, otherwise dropped. */
