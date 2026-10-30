@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import HeroSearch from "../../../components/public/HeroSearch";
+import MobileHome from "./MobileHome";
 import CategoryCard, { BroomIcon, FaucetIcon } from "../../../components/public/CategoryCard";
 import Seo from "../../../components/common/Seo";
 import OptimizedImage from "../../../components/common/OptimizedImage";
@@ -439,6 +440,11 @@ const Home: React.FC = () => {
 
       <style>{styles}</style>
 
+      {/* ================= MOBILE VIEW (EXACT NATIVE APP EXPERIENCE FROM DESIGN) ================= */}
+      <MobileHome />
+
+      {/* ================= DESKTOP VIEW (PRESERVED FULL SECTIONS) ================= */}
+      <div className="hidden md:block">
       {/* ================= HERO (IMAGE 2) ================= */}
       <section className="relative isolate overflow-hidden bg-gradient-to-r from-[#f0f4fa] via-[#f7f9fd] to-[#f4f7fb] pt-5 pb-8 sm:pt-7 sm:pb-10 lg:pt-8 lg:pb-10 xl:pt-10 xl:pb-12">
         {/* Subtle decorative glow for depth */}
@@ -1019,6 +1025,7 @@ const Home: React.FC = () => {
           </Reveal>
         </div>
       </section>
+      </div>
     </div>
   );
 };

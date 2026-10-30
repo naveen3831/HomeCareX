@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
+import MobileBottomNav from "../components/layout/MobileBottomNav";
 import SkipLink from "../components/common/SkipLink";
 import ScrollToTop from "../components/common/ScrollToTop";
 import ErrorBoundary from "../components/common/ErrorBoundary";
@@ -54,6 +55,7 @@ const PublicLayout: React.FC = () => {
 
       {/* Footer */}
       <Footer />
+      <MobileBottomNav />
     </div>
   );
 };
