@@ -62,6 +62,12 @@ export const pricingAdminService = {
     if (before) body = { ...body, city: before.city };
     const saved = await pricingRepository.upsert(body, actor.id);
 
+    // Catalog / customer / public pages read Service.basePrice, so keep it in step with the service-wide rule
+    // (service-specific, "All cities", active). City-specific rules still apply at quote time only.
+    if (saved && saved.serviceId && !saved.city && saved.active) {
+      await ServiceModel.updateOne({ _id: saved.serviceId }, { $set: { basePrice: saved.basePrice } });
+    }
+
     try {
       await auditService.recordAudit({
         actor: actor.id,

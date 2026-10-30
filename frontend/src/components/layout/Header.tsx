@@ -6,8 +6,8 @@ import MobileDrawer from "./MobileDrawer";
 /* =========================================================
    HomeCareX Header
    Brand Colors:
-   Indigo: #4338ca
-   Orange: #ff8a3d
+   Navy: #0e2439 / #1e1b4b
+   Orange: #ff8a3d / #f97316
 ========================================================= */
 
 const styles = `
@@ -64,7 +64,7 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: #dfe1ff;
+    color: #cbd5e1;
     transition: color 0.2s ease;
   }
 
@@ -76,12 +76,10 @@ const styles = `
 
   .hcx-nav-link {
     position: relative;
-    padding: 9px 2px;
-    font-weight: 600;
-    color: #3a3a5c;
-    transition:
-      color 0.25s ease,
-      transform 0.25s ease;
+    padding: 8px 2px;
+    font-weight: 500;
+    color: #475569;
+    transition: color 0.2s ease;
   }
 
   .hcx-nav-link::after {
@@ -89,8 +87,8 @@ const styles = `
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 2px;
-    height: 2px;
+    bottom: -2px;
+    height: 3px;
     border-radius: 999px;
     background: #ff8a3d;
     transform: scaleX(0);
@@ -99,7 +97,7 @@ const styles = `
   }
 
   .hcx-nav-link:hover {
-    color: #4338ca;
+    color: #0f172a;
   }
 
   .hcx-nav-link:hover::after,
@@ -108,7 +106,7 @@ const styles = `
   }
 
   .hcx-nav-link.active {
-    color: #4338ca;
+    color: #0f172a;
     font-weight: 700;
   }
 
@@ -126,7 +124,7 @@ const styles = `
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.45),
+      rgba(255, 255, 255, 0.4),
       transparent
     );
     transform: translateX(-120%) skewX(-20deg);
@@ -144,7 +142,7 @@ const styles = `
     width: 22px;
     height: 2px;
     border-radius: 999px;
-    background: #4338ca;
+    background: #1e1b4b;
     transition:
       transform 0.3s ease,
       opacity 0.2s ease;
@@ -213,6 +211,7 @@ const contact = {
 const navItems = [
   { to: "/", label: "Home", end: true },
   { to: "/services", label: "Services", end: false },
+  { to: "/reviews", label: "Reviews", end: true },
   { to: "/about", label: "About", end: true },
   { to: "/contact", label: "Contact", end: true },
 ];
@@ -233,23 +232,13 @@ const Header: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  /* HEADER HEIGHT
-     Uses the ResizeObserver entry size instead of reading offsetHeight,
-     so no synchronous layout read (forced reflow) happens on first render.
-     The observer fires once on observe() and again whenever the size changes,
-     which also covers window resizes. */
-
+  /* HEADER HEIGHT */
   useEffect(() => {
     const element = headerRef.current;
-
-    if (!element) {
-      return undefined;
-    }
+    if (!element) return undefined;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      if (window.scrollY > 8) {
-        return;
-      }
+      if (window.scrollY > 8) return;
 
       const entry = entries[0];
       const height =
@@ -269,17 +258,13 @@ const Header: React.FC = () => {
     };
   }, []);
 
-  /* SCROLL BEHAVIOR
-     Header always stays visible. Only the compact style
-     (smaller padding, collapsed top bar, shadow) changes. */
-
+  /* SCROLL BEHAVIOR */
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 8);
     };
 
     handleScroll();
-
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
@@ -288,17 +273,13 @@ const Header: React.FC = () => {
   }, []);
 
   /* CLOSE MENU WHEN ROUTE CHANGES */
-
   useEffect(() => {
     setIsMenuOpen(false);
   }, [pathname]);
 
   /* ESCAPE KEY */
-
   useEffect(() => {
-    if (!isMenuOpen) {
-      return undefined;
-    }
+    if (!isMenuOpen) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -308,7 +289,6 @@ const Header: React.FC = () => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -317,83 +297,52 @@ const Header: React.FC = () => {
   return (
     <header
       ref={headerRef}
-      className={`hcx-hd sticky top-0 z-50 transition-shadow duration-500 ${
-        scrolled ? "shadow-[0_12px_40px_-15px_rgba(67,56,202,0.30)]" : ""
+      className={`hcx-hd sticky top-0 z-50 transition-shadow duration-300 ${
+        scrolled ? "shadow-md" : ""
       }`}
     >
       <style>{styles}</style>
 
       {/* TOP INFORMATION BAR */}
-
       <div
         className={`hcx-topbar hidden md:grid ${scrolled ? "collapsed" : ""}`}
       >
         <div>
-        <div className="flex min-h-10 items-center justify-between bg-[#242064] px-6 text-xs">
-          <div className="hidden items-center gap-5 lg:inline-flex">
-            <span className="inline-flex items-center gap-2 text-[#dfe1ff]">
-              <Clock size={14} aria-hidden="true" />
-              {contact.hours}
-            </span>
-            <a href={contact.phoneHref} className="hcx-top-link">
-              <Phone size={14} aria-hidden="true" />
-              {contact.phone}
-            </a>
-            <a href={`mailto:${contact.email}`} className="hcx-top-link">
-              <Mail size={14} aria-hidden="true" />
-              {contact.email}
-            </a>
-          </div>
+          <div className="flex min-h-10 items-center justify-between bg-[#0e2439] px-6 text-xs text-slate-300">
+            <div className="hidden items-center gap-6 lg:inline-flex">
+              <span className="inline-flex items-center gap-2 text-slate-300">
+                <Clock size={14} aria-hidden="true" />
+                {contact.hours}
+              </span>
+              <a href={contact.phoneHref} className="hcx-top-link text-slate-300 hover:text-white">
+                <Phone size={14} aria-hidden="true" />
+                {contact.phone}
+              </a>
+              <a href={`mailto:${contact.email}`} className="hcx-top-link text-slate-300 hover:text-white">
+                <Mail size={14} aria-hidden="true" />
+                {contact.email}
+              </a>
+            </div>
 
-          <NavLink
-            to="/register/partner"
-            className="hcx-top-link ml-auto font-medium"
-          >
-            Are you a service professional?
-            <span className="font-bold text-[#ff8a3d]">Join us</span>
-          </NavLink>
-        </div>
+            <NavLink
+              to="/register/partner"
+              className="hcx-top-link ml-auto font-medium text-slate-300 hover:text-white"
+            >
+              Are you a service professional?
+              <span className="font-bold text-[#ff8a3d] ml-1.5">Join us</span>
+            </NavLink>
+          </div>
         </div>
       </div>
 
       {/* MAIN HEADER */}
-
       <div
-        className={`relative overflow-hidden backdrop-blur-xl transition-all duration-500 ${
-          scrolled
-            ? "bg-white/95"
-            : "bg-gradient-to-r from-white via-[#eef0ff] to-white"
+        className={`relative overflow-hidden bg-white backdrop-blur-xl transition-all duration-300 ${
+          scrolled ? "py-2 shadow-sm" : "py-3 border-b border-gray-100"
         }`}
       >
-        {/* Indigo decorative glow */}
         <div
-          className={`pointer-events-none absolute -left-24 -top-24 h-56 w-56 rounded-full bg-[#4338ca]/15 blur-3xl transition-opacity duration-500 ${
-            scrolled ? "opacity-0" : "opacity-100"
-          }`}
-          aria-hidden="true"
-        />
-
-        {/* Orange decorative glow */}
-        <div
-          className={`pointer-events-none absolute -bottom-28 -right-20 h-56 w-56 rounded-full bg-[#ff8a3d]/20 blur-3xl transition-opacity duration-500 ${
-            scrolled ? "opacity-0" : "opacity-100"
-          }`}
-          aria-hidden="true"
-        />
-
-        {/* Bottom border */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#4338ca]/30 to-transparent"
-          aria-hidden="true"
-        />
-
-        {/* NOTE: "hcx-header-drop" is intentionally NOT on this wrapper.
-            An animated transform/opacity here would isolate the logo and
-            stop mix-blend-multiply from removing its white background. */}
-        <div
-          className={`relative mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center px-5 sm:px-6 md:grid-cols-[1fr_auto_1fr] ${
-            scrolled ? "py-2" : "py-3"
-          }`}
+          className="relative mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center px-5 sm:px-6 md:grid-cols-[1fr_auto_1fr]"
         >
           {/* LOGO */}
           <NavLink
@@ -402,8 +351,6 @@ const Header: React.FC = () => {
             aria-label="HomeCareX Home"
             className="flex items-center justify-self-start rounded-xl"
           >
-            {/* Resized logo (about 330x128, WebP). width/height reserve space so
-                the header does not shift while the image loads. */}
             <img
               src="/logo.webp"
               alt="HomeCareX"
@@ -417,7 +364,7 @@ const Header: React.FC = () => {
 
           {/* DESKTOP NAVIGATION */}
           <nav
-            className="hcx-header-drop hidden items-center gap-8 rounded-full bg-white/75 px-8 py-2 shadow-sm ring-1 ring-[#4338ca]/10 backdrop-blur-md md:flex"
+            className="hcx-header-drop hidden items-center gap-8 md:flex"
             aria-label="Main navigation"
           >
             {navItems.map((item) => (
@@ -426,7 +373,9 @@ const Header: React.FC = () => {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `hcx-nav-link${isActive ? " active" : ""}`
+                  `hcx-nav-link text-base transition-colors duration-200 ${
+                    isActive ? "active font-bold text-[#0f172a]" : "font-medium text-slate-600 hover:text-[#0f172a]"
+                  }`
                 }
               >
                 {item.label}
@@ -438,13 +387,7 @@ const Header: React.FC = () => {
           <div className="hcx-header-drop hidden justify-self-end md:block">
             <NavLink
               to="/login"
-              className={({ isActive }) =>
-                `hcx-login group inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition duration-300 hover:-translate-y-0.5 ${
-                  isActive
-                    ? "bg-[#4338ca] text-white shadow-[0_10px_25px_-10px_rgba(67,56,202,0.8)]"
-                    : "bg-[#ff8a3d] text-[#1b1b3a] shadow-[0_10px_25px_-10px_rgba(255,138,61,0.8)] hover:bg-[#f97829]"
-                }`
-              }
+              className="hcx-login group inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-2.5 text-sm font-semibold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5"
             >
               <span className="relative z-10">Login</span>
               <span
@@ -461,8 +404,8 @@ const Header: React.FC = () => {
             ref={menuButtonRef}
             type="button"
             onClick={() => setIsMenuOpen((previous) => !previous)}
-            className={`hcx-menu flex h-11 w-11 flex-col items-center justify-center gap-[5px] justify-self-end rounded-xl transition-colors duration-300 hover:bg-[#eef0ff] md:hidden ${
-              isMenuOpen ? "open bg-[#eef0ff]" : ""
+            className={`hcx-menu flex h-11 w-11 flex-col items-center justify-center gap-[5px] justify-self-end rounded-xl transition-colors duration-300 hover:bg-slate-100 md:hidden ${
+              isMenuOpen ? "open bg-slate-100" : ""
             }`}
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
             aria-expanded={isMenuOpen}
@@ -476,7 +419,6 @@ const Header: React.FC = () => {
       </div>
 
       {/* MOBILE DRAWER */}
-
       <div id="mobile-navigation">
         <MobileDrawer
           isOpen={isMenuOpen}

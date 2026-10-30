@@ -39,21 +39,27 @@ export const NOTIFICATION_GROUPS = [
 
 export type NotificationGroup = (typeof NOTIFICATION_GROUPS)[number];
 
-export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
-  ...NOTIFICATION_TYPES,
-  'payment.succeeded',
-  'payment.failed',
-  'offer.new',
-]);
-
-/** Type prefix -> group. Anything that matches no prefix (including future types) is 'system'. */
-export const GROUP_PREFIXES: Record<Exclude<NotificationGroup, 'system'>, readonly string[]> = {
+/**
+ * Prefixes used to group notifications.
+ * Keep these in sync with groupOf().
+ */
+export const GROUP_PREFIXES: Record<
+  Exclude<NotificationGroup, 'system'>,
+  readonly string[]
+> = {
   booking: ['booking.'],
   payment: ['payment.', 'payout.', 'refund.'],
   partner: ['partner.', 'kyc.'],
   offers: ['offer.'],
   support: ['ticket.', 'support.'],
 };
+
+export const SYSTEM_NOTIFICATION_TYPES = new Set<string>([
+  ...NOTIFICATION_TYPES,
+  'payment.succeeded',
+  'payment.failed',
+  'offer.new',
+]);
 
 /**
  * Returns the group associated with a notification type.
@@ -85,4 +91,7 @@ export const NOTIFICATIONS_CONSTANTS = {
   GROUP_PREFIXES,
   NOTIFICATION_SOCKET_EVENT,
   groupOf,
+  ADMIN_ALERT_SETTING,
+  HIGH_PRIORITY_TYPES,
+  SYSTEM_NOTIFICATION_TYPES,
 };

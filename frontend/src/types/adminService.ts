@@ -45,6 +45,8 @@ export interface AdminService {
   addOns: ServiceAddOn[];
   checklist: ChecklistItem[];
   active: boolean;
+  /** Display order set by the admin (lowest first). Customers and the public site list services in this order. */
+  sortOrder?: number;
   createdAt: string;
   updatedAt: string;
 }

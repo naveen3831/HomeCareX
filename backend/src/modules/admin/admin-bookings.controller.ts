@@ -158,6 +158,16 @@ interface UserSource {
   status?: string;
 }
 
+/**
+ * Everything the booking list needs from other collections, fetched in a few
+ * bulk queries instead of several queries per booking.
+ */
+interface BookingLookups {
+  partnersById: Map<string, PartnerSource>;
+  partnersByUserId: Map<string, PartnerSource>;
+  users: Map<string, UserSource>;
+}
+
 export class AdminBookingsController {
   /**
    * ---------------------------------------------------------
@@ -383,24 +393,117 @@ export class AdminBookingsController {
 
   /**
    * ---------------------------------------------------------
-   * USER LOOKUP FOR PARTNER
+   * BULK LOOKUPS (used by the booking list)
    * ---------------------------------------------------------
    */
-  private async getPartnerUser(
-    partnerUserId: string,
-  ): Promise<UserSource | null> {
-    const user =
-      await UserModel.findById(
-        partnerUserId,
-      )
+  private async getPaymentsForBookings(
+    bookingIds: string[],
+  ): Promise<Map<string, PaymentLike>> {
+    const result = new Map<string, PaymentLike>();
+
+    if (bookingIds.length === 0) {
+      return result;
+    }
+
+    const payments =
+      await PaymentModel.find({
+        bookingId: { $in: bookingIds },
+      })
+        .sort({
+          createdAt: -1,
+        })
         .lean()
         .exec();
 
-    if (!user) {
-      return null;
+    // Newest payment first, so the first one seen per booking wins.
+    for (const payment of payments) {
+      const key = String(
+        (payment as { bookingId?: unknown }).bookingId,
+      );
+
+      if (!result.has(key)) {
+        result.set(
+          key,
+          payment as unknown as PaymentLike,
+        );
+      }
     }
 
-    return user as unknown as UserSource;
+    return result;
+  }
+
+  private async prefetchLookups(
+    bookings: AdminBookingSource[],
+  ): Promise<BookingLookups> {
+    const unique = (values: Array<string | undefined>) =>
+      [
+        ...new Set(
+          values.filter(
+            (value): value is string =>
+              Boolean(value) &&
+              Types.ObjectId.isValid(value as string),
+          ),
+        ),
+      ];
+
+    const partnerIds = unique(
+      bookings.map((booking) =>
+        booking.partnerId?.toString(),
+      ),
+    );
+
+    const customerIds = unique(
+      bookings.map((booking) =>
+        booking.customerId?.toString(),
+      ),
+    );
+
+    const partnersById = new Map<string, PartnerSource>();
+    const partnersByUserId = new Map<string, PartnerSource>();
+    const users = new Map<string, UserSource>();
+
+    let partnerProfiles: PartnerSource[] = [];
+
+    if (partnerIds.length > 0) {
+      const [byId, byUser] = await Promise.all([
+        PartnerModel.find({ _id: { $in: partnerIds } })
+          .lean()
+          .exec(),
+        PartnerModel.find({ userId: { $in: partnerIds } })
+          .lean()
+          .exec(),
+      ]);
+
+      for (const profile of byId as unknown as PartnerSource[]) {
+        partnersById.set(profile._id.toString(), profile);
+      }
+
+      for (const profile of byUser as unknown as PartnerSource[]) {
+        partnersByUserId.set(profile.userId.toString(), profile);
+      }
+
+      partnerProfiles = [...byId, ...byUser] as unknown as PartnerSource[];
+    }
+
+    const userIds = unique([
+      ...customerIds,
+      ...partnerProfiles.map((profile) =>
+        profile.userId.toString(),
+      ),
+    ]);
+
+    if (userIds.length > 0) {
+      const found =
+        await UserModel.find({ _id: { $in: userIds } })
+          .lean()
+          .exec();
+
+      for (const user of found as unknown as UserSource[]) {
+        users.set(user._id.toString(), user);
+      }
+    }
+
+    return { partnersById, partnersByUserId, users };
   }
 
   /**
@@ -411,9 +514,20 @@ export class AdminBookingsController {
   private async buildBookingResponse(
     booking: AdminBookingSource,
     payment: PaymentLike | null,
+    prefetched?: BookingLookups,
   ) {
     const bookingId =
       booking._id.toString();
+
+    // The list passes shared lookups; single-booking calls fetch their own (a few parallel queries).
+    const lookups =
+      prefetched ??
+      (await this.prefetchLookups([booking]));
+
+    const customerUser =
+      lookups.users.get(
+        booking.customerId?.toString() ?? '',
+      ) ?? null;
 
     const scheduledAt =
       this.toISOString(booking.scheduledAt);
@@ -471,6 +585,7 @@ export class AdminBookingsController {
 
     const customerName =
       booking.customerName?.trim() ||
+      customerUser?.name?.trim() ||
       demoData?.customerName ||
       '';
 
@@ -506,27 +621,16 @@ export class AdminBookingsController {
       const partnerId =
         booking.partnerId.toString();
 
-      let partnerProfile =
-        await PartnerModel.findById(
-          partnerId,
-        )
-          .lean()
-          .exec();
-
-      if (!partnerProfile && Types.ObjectId.isValid(partnerId)) {
-        partnerProfile =
-          await PartnerModel.findOne({
-            userId: partnerId,
-          })
-            .lean()
-            .exec();
-      }
+      const partnerProfile =
+        lookups.partnersById.get(partnerId) ??
+        lookups.partnersByUserId.get(partnerId) ??
+        null;
 
       if (partnerProfile) {
         const partnerUser =
-          await this.getPartnerUser(
+          lookups.users.get(
             partnerProfile.userId.toString(),
-          );
+          ) ?? null;
 
         const typedPartner =
           partnerProfile as unknown as PartnerSource;
@@ -618,9 +722,11 @@ export class AdminBookingsController {
         name:
           customerName,
 
-        phone: '',
+        phone:
+          customerUser?.phone ?? '',
 
-        email: '',
+        email:
+          customerUser?.email ?? '',
       },
 
       service: {

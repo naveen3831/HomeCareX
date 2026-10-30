@@ -7,6 +7,7 @@ import { validationMiddleware } from '../../middleware/validation.middleware';
 import { pricingController } from './pricing.controller';
 import { getPricingQuerySchema, putPricingBodySchema, quoteBodySchema } from './pricing.validation';
 import { z } from 'zod';
+import { ADMIN_ROLES } from '../../models/User';
 
 export const pricingRoutes = Router();
 export const adminPricingRoutes = Router();
@@ -15,7 +16,7 @@ export const adminPricingRoutes = Router();
 pricingRoutes.post(
   '/quote',
   authMiddleware,
-  roleMiddleware('customer'),
+  roleMiddleware('customer', ...ADMIN_ROLES), // admins use this for the "Server quote" preview
   validationMiddleware({ body: quoteBodySchema }),
   asyncHandler(async (req, res) => pricingController.quote(req, res)),
 );

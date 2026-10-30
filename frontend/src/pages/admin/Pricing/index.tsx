@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { PageHeader } from "@/components/admin/PageHeader";
+import { PageSearch } from "@/components/admin/PageSearch";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { FullScreenPanel } from "@/components/admin/FullScreenPanel";
 import {
@@ -57,13 +58,13 @@ import "./index.css";
 export const PRICING_MANAGE = "pricing:manage";
 
 type Toast = { text: string; tone: "success" | "error" } | null;
-const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const rupees = (n: number) => `Γé╣${n.toLocaleString("en-IN")}`;
 const duration = (m: number) =>
   m < 60
     ? `${m} min`
     : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
 
-/** "Parent › Child" labels so sub-categories are recognisable in a flat list. */
+/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
 function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
   const byId = new Map(cats.map((c) => [c.id, c]));
   return cats
@@ -71,7 +72,7 @@ function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
       id: c.id,
       name:
         c.parentId && byId.get(c.parentId)
-          ? `${byId.get(c.parentId)!.name} › ${c.name}`
+          ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}`
           : c.name,
       active: c.active,
     }))
@@ -88,10 +89,14 @@ export const AdminPricingPage: React.FC = () => {
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  // Search text comes from the search bar below the navbar (same as Services and Manage Partners).
+  // Search text comes from the PageSearch box under the title.
   const search = useUIStore((s) => s.pageSearch);
   const setPageSearch = useUIStore((s) => s.setPageSearch);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // In-page filters (the navbar search above still works too).
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [modeFilter, setModeFilter] = useState<"FIXED" | "HOURLY" | null>(null);
+  const [cityFilter, setCityFilter] = useState("");
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -163,7 +168,7 @@ export const AdminPricingPage: React.FC = () => {
   );
   const labelFor = useCallback(
     (r: { categoryId: string; serviceId: string | null; city: string }) =>
-      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} · ${r.city || "All cities"}`,
+      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} ┬╖ ${r.city || "All cities"}`,
     [categoryName, serviceName],
   );
 
@@ -171,6 +176,9 @@ export const AdminPricingPage: React.FC = () => {
     const needle = search.trim().toLowerCase();
 
     return rules.filter((r) => {
+      if (statusFilter !== "all" && (statusFilter === "active") !== r.active) return false;
+      if (modeFilter && r.mode !== modeFilter) return false;
+      if (cityFilter && cityKey(r.city || "") !== cityKey(cityFilter)) return false;
       if (!needle) return true;
 
       return [
@@ -180,9 +188,15 @@ export const AdminPricingPage: React.FC = () => {
         r.mode,
       ].some((v) => v.toLowerCase().includes(needle));
     });
-  }, [rules, search, serviceName, categoryName]);
+  }, [rules, search, statusFilter, modeFilter, cityFilter, serviceName, categoryName]);
 
-  const clearFilters = () => setPageSearch("");
+  const filtersActive = statusFilter !== "all" || modeFilter !== null || cityFilter !== "" || search.trim() !== "";
+  const clearFilters = () => {
+    setPageSearch("");
+    setStatusFilter("all");
+    setModeFilter(null);
+    setCityFilter("");
+  };
 
   const stats = useMemo(
     () => ({
@@ -224,7 +238,7 @@ export const AdminPricingPage: React.FC = () => {
       setFormOpen(false);
       await load();
       flash(
-        `Pricing rule for “${labelFor(saved)}” ${editing ? "updated" : "created"}`,
+        `Pricing rule for ΓÇ£${labelFor(saved)}ΓÇ¥ ${editing ? "updated" : "created"}`,
       );
     } catch (e) {
       const err = e as PricingApiError;
@@ -243,7 +257,7 @@ export const AdminPricingPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(r.id));
     try {
       await adminPricingApi.setActive(r, next, labelFor(r));
-      flash(`Rule for “${labelFor(r)}” ${next ? "activated" : "deactivated"}`);
+      flash(`Rule for ΓÇ£${labelFor(r)}ΓÇ¥ ${next ? "activated" : "deactivated"}`);
     } catch (e) {
       setRules((prev) =>
         prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)),
@@ -263,7 +277,7 @@ export const AdminPricingPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminPricingApi.remove(toDelete, labelFor(toDelete));
-      flash(`Rule for “${labelFor(toDelete)}” removed`);
+      flash(`Rule for ΓÇ£${labelFor(toDelete)}ΓÇ¥ removed`);
       setToDelete(null);
       await load();
     } catch (e) {
@@ -314,6 +328,8 @@ export const AdminPricingPage: React.FC = () => {
         }
       />
 
+      <PageSearch placeholder="Search service, category, city or modeΓÇª" />
+
       {!online && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} /> You are offline. You can browse what has loaded,
@@ -329,7 +345,7 @@ export const AdminPricingPage: React.FC = () => {
       )}
       {!canManage && (
         <div className="cat-banner cat-banner--info" role="status">
-          You can view pricing but need the “{PRICING_MANAGE}” permission to
+          You can view pricing but need the ΓÇ£{PRICING_MANAGE}ΓÇ¥ permission to
           change it.
         </div>
       )}
@@ -407,6 +423,34 @@ export const AdminPricingPage: React.FC = () => {
           >
             Retry
           </button>
+        </div>
+      )}
+
+      {!loading && !loadError && rules.length > 0 && (
+        <div className="prc-toolbar">
+          <div className="prc-chips" role="radiogroup" aria-label="Status">
+            {([["all", "All", stats.total], ["active", "Active", stats.active], ["inactive", "Inactive", stats.inactive]] as const).map(([value, label, n]) => (
+              <button key={value} type="button" role="radio" aria-checked={statusFilter === value}
+                className={clsx("prc-chip", statusFilter === value && "is-on")} onClick={() => setStatusFilter(value)}>
+                {label} <span>{n}</span>
+              </button>
+            ))}
+          </div>
+          <div className="prc-seg" role="radiogroup" aria-label="Mode">
+            {(["FIXED", "HOURLY"] as const).map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={modeFilter === m}
+                className={clsx(modeFilter === m && "is-on")} onClick={() => setModeFilter(modeFilter === m ? null : m)}>
+                {m === "FIXED" ? "Fixed" : "Hourly"}
+              </button>
+            ))}
+          </div>
+          <div className="prc-citysel">
+            <select aria-label="City" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+              <option value="">All cities</option>
+              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {filtersActive && <button type="button" className="prc-clear" onClick={clearFilters}>Clear filters</button>}
         </div>
       )}
 
@@ -519,12 +563,12 @@ export const AdminPricingPage: React.FC = () => {
                       </td>
                       <td className="hcx-hide-sm" data-label="Add-ons">
                         {r.addOns.length || (
-                          <span className="prc-muted">—</span>
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
                       <td className="hcx-hide-sm" data-label="Surge windows">
                         {r.surgeWindows.length || (
-                          <span className="prc-muted">—</span>
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
                       <td className="hcx-hide-sm" data-label="Cancellation fee">
@@ -606,9 +650,9 @@ export const AdminPricingPage: React.FC = () => {
         confirmLabel="Remove"
         message={
           <>
-            The rule for “{toDelete ? labelFor(toDelete) : ""}” will be removed
+            The rule for ΓÇ£{toDelete ? labelFor(toDelete) : ""}ΓÇ¥ will be removed
             and recorded in the audit log. Customers will then be quoted by the
-            next most specific rule, or the service’s own price.
+            next most specific rule, or the serviceΓÇÖs own price.
           </>
         }
         onCancel={() => setToDelete(null)}
@@ -634,7 +678,7 @@ export const AdminPricingPage: React.FC = () => {
                       id: a.id,
                       actor: a.actor,
                       action: a.action,
-                      entity: `Pricing rule · ${a.entityName}`,
+                      entity: `Pricing rule ┬╖ ${a.entityName}`,
                       entityId: a.entityId,
                       time: new Date(a.time).toLocaleString(),
                       before: a.before,

@@ -103,7 +103,7 @@ interface Props {
 export function ServiceFilters({ params, categories, onChange }: Props) {
   const groups = buildFilterGroups(params, categories, onChange);
   const hasQuery = !!params.q;
-  const sortValue: ServiceSort = params.sort ?? (hasQuery ? "relevance" : "popular");
+  const sortValue: ServiceSort = params.sort ?? (hasQuery ? "relevance" : "order");
   const sortOptions = SORT_OPTIONS.filter((o) => o.id !== "relevance" || hasQuery);
   return (
     <div>

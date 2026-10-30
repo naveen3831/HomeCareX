@@ -1,3 +1,4 @@
+
 import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -25,6 +26,7 @@ const AdminPartnerDetailsPage = lazy(
   () => import("@/pages/admin/PartnerDetails"),
 );
 const AdminSupportPage = lazy(() => import("@/pages/admin/Support"));
+const AdminSupportTicketPage = lazy(() => import("@/pages/admin/Support/Ticketdetail"));
 
 // Catalog
 const AdminCategoriesPage = lazy(
@@ -39,6 +41,9 @@ const AdminMarketingPage = lazy(() => import("@/pages/admin/Marketing"));
 
 // Finance
 const AdminPaymentsPage = lazy(() => import("@/pages/admin/Payments"));
+const AdminPaymentDetailsPage = lazy(
+  () => import("@/pages/admin/Payments/PaymentDetails"),
+);
 const AdminRefundsPage = lazy(() => import("@/pages/admin/Refunds"));
 const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
 
@@ -75,13 +80,16 @@ interface AdminRoute {
   /** Relative to /admin. An empty path is the index route. */
   path: string;
   element: React.ReactElement;
-  /** Permission key. Routes without a permission remain unguarded. */
+  /** Routes with a permission are protected by RequirePermission. */
   permission?: string;
 }
 
 const adminRoutes: AdminRoute[] = [
   // Dashboard
-  { path: "", element: <AdminDashboardPage /> },
+  {
+    path: "",
+    element: <AdminDashboardPage />,
+  },
 
   // Operations
   { path: 'leads', element: <AdminLeadsPage />, permission: 'leads:view' },
@@ -92,6 +100,7 @@ const adminRoutes: AdminRoute[] = [
   { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
   { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
   { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
+  { path: 'support/:id', element: <AdminSupportTicketPage />, permission: 'tickets:view' },
   { path: "leads", element: <AdminLeadsPage /> },
   { path: "bookings", element: <AdminBookingsPage /> },
   { path: "customers", element: <AdminCustomersPage /> },
@@ -130,6 +139,8 @@ const adminRoutes: AdminRoute[] = [
 
   // Finance
   { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
+  // Payment details: opened from a row in the payments list.
+  { path: 'payments/:id', element: <AdminPaymentDetailsPage />, permission: 'payments:read' },
   { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
   // Refund details: required for the Review button.
   // Keep this route after the base refunds route.
@@ -157,26 +168,60 @@ const adminRoutes: AdminRoute[] = [
   { path: "coupons/:id/edit", element: <AdminCouponsPage /> },
 
   // Marketing
-  { path: "marketing", element: <AdminMarketingPage /> },
-  { path: "marketing/create", element: <AdminMarketingPage /> },
-  { path: "marketing/:id/edit", element: <AdminMarketingPage /> },
+  {
+    path: "marketing",
+    element: <AdminMarketingPage />,
+    permission: "marketing:view",
+  },
+  {
+    path: "marketing/create",
+    element: <AdminMarketingPage />,
+    permission: "marketing:manage",
+  },
+  {
+    path: "marketing/:id/edit",
+    element: <AdminMarketingPage />,
+    permission: "marketing:manage",
+  },
 
   // Finance
-  { path: "payments", element: <AdminPaymentsPage /> },
-  { path: "refunds", element: <AdminRefundsPage /> },
+  {
+    path: "payments",
+    element: <AdminPaymentsPage />,
+    permission: "payments:read",
+  },
+  {
+    path: "refunds",
+    element: <AdminRefundsPage />,
+    permission: "refunds:view",
+  },
+  {
+    path: "refunds/:id",
+    element: <AdminRefundsPage />,
+    permission: "refunds:view",
+  },
+  {
+    path: "payouts",
+    element: <AdminPayoutsPage />,
+    permission: "payouts:view",
+  },
+  {
+    path: "payouts/:id",
+    element: <AdminPayoutsPage />,
+    permission: "payouts:view",
+  },
 
-  // Refund details
-  { path: "refunds/:id", element: <AdminRefundsPage /> },
-
-  // Payouts list
-  { path: "payouts", element: <AdminPayoutsPage /> },
-
-  // Payout details — added to fix View Details navigation
-  { path: "payouts/:id", element: <AdminPayoutsPage /> },
-
-  // Quality and reporting
-  { path: "reviews", element: <AdminReviewsPage /> },
-  { path: "reports", element: <AdminReportsPage /> },
+  // Reviews and reporting
+  {
+    path: "reviews",
+    element: <AdminReviewsPage />,
+    permission: "reviews:view",
+  },
+  {
+    path: "reports",
+    element: <AdminReportsPage />,
+    permission: "reports:view",
+  },
 
   // Roles
   {
@@ -227,13 +272,28 @@ const adminRoutes: AdminRoute[] = [
   },
 
   // Account security
-  { path: "security", element: <AccountSecurityPage /> },
-  { path: "account/security", element: <AccountSecurityPage /> },
-  { path: "settings/security", element: <AccountSecurityPage /> },
+  {
+    path: "security",
+    element: <AccountSecurityPage />,
+  },
+  {
+    path: "account/security",
+    element: <AccountSecurityPage />,
+  },
+  {
+    path: "settings/security",
+    element: <AccountSecurityPage />,
+  },
 
-  // Header pages
-  { path: "profile", element: <AdminProfilePage /> },
-  { path: "notifications", element: <AdminNotificationsPage /> },
+  // Header-only account pages
+  {
+    path: "profile",
+    element: <AdminProfilePage />,
+  },
+  {
+    path: "notifications",
+    element: <AdminNotificationsPage />,
+  },
 
   // Legacy URLs
   {
@@ -248,9 +308,7 @@ const adminRoutes: AdminRoute[] = [
 
 const NotFound: React.FC = () => (
   <div className="admin-page-container">
-    <h1 className="hcx-page-header__title">
-      Page not found
-    </h1>
+    <h1 className="hcx-page-header__title">Page not found</h1>
     <p className="hcx-page-header__desc">
       That admin page doesn't exist.
     </p>

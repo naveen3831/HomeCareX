@@ -126,7 +126,7 @@ export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
 export type ReviewsPage = z.infer<typeof reviewsPageSchema>;
 export type Banner = z.infer<typeof bannerSchema>;
 
-export type ServiceSort = 'popular' | 'rating' | 'price-asc' | 'price-desc' | 'newest' | 'relevance';
+export type ServiceSort = 'order' | 'popular' | 'rating' | 'price-asc' | 'price-desc' | 'newest' | 'relevance';
 export type BannerPlacement = 'home';
 
 /** Query params accepted by GET /services (same as ServiceListParams in types/catalog.ts). */

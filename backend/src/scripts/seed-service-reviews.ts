@@ -21,7 +21,7 @@ const DEMO_REVIEWS: DemoReview[] = [
   { slug: 'deep-home-cleaning', name: 'Ananya Rao', rating: 5, message: 'The team was on time and the flat looked brand new. Kitchen and bathrooms were spotless.', verified: true, status: 'approved', daysAgo: 2 },
   { slug: 'deep-home-cleaning', name: 'Vikram Singh', rating: 4, message: 'Very thorough work overall. Balcony needed a little extra attention but they fixed it quickly.', verified: true, status: 'approved', daysAgo: 6 },
   { slug: 'deep-home-cleaning', name: 'Meera Nair', rating: 5, message: 'Polite professionals and no mess left behind. Will book again before the festive season.', verified: false, status: 'approved', daysAgo: 11 },
-  { slug: 'deep-home-cleaning', name: 'Rohit Verma', rating: 3, message: 'Good cleaning but they arrived a little later than the slot I had picked for the visit.', verified: true, status: 'approved', daysAgo: 20 },
+  { slug: 'deep-home-cleaning', name: 'Rohit Verma', rating: 3.5, message: 'Good cleaning but they arrived a little later than the slot I had picked for the visit.', verified: true, status: 'approved', daysAgo: 20 },
   { slug: 'deep-home-cleaning', name: 'Pending Person', rating: 5, message: 'This one is still waiting for moderation and must stay hidden from the public page.', verified: true, status: 'pending', daysAgo: 1 },
   { slug: 'deep-home-cleaning', name: 'Rejected Person', rating: 1, message: 'This one was rejected by an admin and must never be visible on the public page.', verified: false, status: 'rejected', daysAgo: 3 },
   { slug: 'ac-service-gas-refill', name: 'Sandeep Kumar', rating: 5, message: 'AC is cooling much better after the jet wash. The technician explained everything clearly.', verified: true, status: 'approved', daysAgo: 4 },
@@ -29,6 +29,9 @@ const DEMO_REVIEWS: DemoReview[] = [
   { slug: 'at-home-spa-for-women', name: 'Kavitha Reddy', rating: 5, message: 'Very relaxing session and the therapist was professional and friendly throughout the visit.', verified: true, status: 'approved', daysAgo: 5 },
   { slug: 'general-pest-control', name: 'Imran Shaikh', rating: 4, message: 'No smell and the cockroaches were gone within a few days. Clear instructions were given.', verified: true, status: 'approved', daysAgo: 8 },
   { slug: 'mens-haircut-grooming', name: 'Arjun Das', rating: 5, message: 'Neat haircut and beard trim at home. Saved me a trip and the barber was very skilled.', verified: false, status: 'approved', daysAgo: 7 },
+  { slug: 'plumbing-tap-leak-repair', name: 'Rahul Kumar', rating: 4.5, message: 'Water was gushing under our kitchen sink on Saturday. Rajesh arrived in 40 mins and fixed it cleanly.', verified: true, status: 'approved', daysAgo: 5 },
+  { slug: 'electrician-visit-general', name: 'Ananya Reddy', rating: 5, message: 'Felt so safe having them assist my elderly parents. The electrician spoke politely and fixed everything.', verified: true, status: 'approved', daysAgo: 12 },
+  { slug: 'kitchen-deep-cleaning', name: 'Sneha Mukherjee', rating: 4.5, message: 'Years of daily tadka and oil grime on our kitchen chimney vanished after their steam degreasing.', verified: true, status: 'approved', daysAgo: 18 },
 ];
 
 async function main() {

@@ -1,4 +1,4 @@
-
+﻿
 import React, {
   useCallback,
   useEffect,
@@ -6,11 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  Check,
-  ChevronDown,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
@@ -27,7 +23,6 @@ const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
 
 export const AdminSettingsPage: React.FC = () => {
-  // Keep desktop tabs and use a dropdown on mobile.
   const isMobile = useMediaQuery("(max-width: 767px)");
   const pageRef = useDragScroll<HTMLDivElement>('[role="tablist"]');
 
@@ -39,7 +34,6 @@ export const AdminSettingsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-
   const [notice, setNotice] = useState<{
     ok: boolean;
     text: string;
@@ -49,16 +43,21 @@ export const AdminSettingsPage: React.FC = () => {
 
   const apply = useCallback((next: SettingsSection[]) => {
     setSections(next);
-
     setDraft(
       Object.fromEntries(
         next.flatMap((section) =>
           section.settings.map((setting) => [
             setting.key,
             setting.value,
-          ]),
-        ),
-      ),
+          ])
+        )
+      )
+    );
+
+    setActiveId((current) =>
+      next.some((section) => section.id === current)
+        ? current
+        : next[0]?.id ?? "business",
     );
   }, []);
 
@@ -79,7 +78,7 @@ export const AdminSettingsPage: React.FC = () => {
         if (!cancelled) {
           setLoadError(
             (error as SettingsApiError).message ||
-              "Unable to load settings. Please try again.",
+              "Unable to load settings. Please try again."
           );
         }
       } finally {
@@ -101,9 +100,7 @@ export const AdminSettingsPage: React.FC = () => {
       return;
     }
 
-    const handleOutsideClick = (
-      event: MouseEvent | TouchEvent,
-    ) => {
+    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
       if (
         filterRef.current &&
         !filterRef.current.contains(event.target as Node)
@@ -123,21 +120,14 @@ export const AdminSettingsPage: React.FC = () => {
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick,
-      );
-      document.removeEventListener(
-        "touchstart",
-        handleOutsideClick,
-      );
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [filterOpen]);
 
   const section =
-    sections.find((item) => item.id === activeId) ??
-    sections[0];
+    sections.find((item) => item.id === activeId) ?? sections[0];
 
   const dirtyKeys = useMemo(
     () =>
@@ -145,11 +135,11 @@ export const AdminSettingsPage: React.FC = () => {
         ? section.settings
             .filter(
               (setting) =>
-                !same(draft[setting.key], setting.value),
+                !same(draft[setting.key], setting.value)
             )
             .map((setting) => setting.key)
         : [],
-    [section, draft],
+    [section, draft]
   );
 
   const onSave = async () => {
@@ -213,11 +203,10 @@ export const AdminSettingsPage: React.FC = () => {
 
     try {
       const updates = Object.fromEntries(
-        dirtyKeys.map((key) => [key, draft[key]]),
+        dirtyKeys.map((key) => [key, draft[key]])
       );
 
       const updatedSections = await saveSettings(updates);
-
       apply(updatedSections);
 
       setNotice({
@@ -252,7 +241,7 @@ export const AdminSettingsPage: React.FC = () => {
         section.settings.map((setting) => [
           setting.key,
           setting.value,
-        ]),
+        ])
       ),
     }));
 
@@ -269,7 +258,7 @@ export const AdminSettingsPage: React.FC = () => {
 
   const handleFieldChange = (
     key: string,
-    value: SettingValue,
+    value: SettingValue
   ) => {
     setDraft((current) => ({
       ...current,
@@ -312,7 +301,7 @@ export const AdminSettingsPage: React.FC = () => {
         className="rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3730a3] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving
-          ? "Saving…"
+          ? "SavingΓÇª"
           : isMobile
             ? "Save changes"
             : "Save"}
@@ -366,7 +355,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="h-12 animate-pulse rounded-2xl bg-slate-100" />
           <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
           <p className="text-sm text-gray-500">
-            Loading settings…
+            Loading settingsΓÇª
           </p>
         </div>
       )}

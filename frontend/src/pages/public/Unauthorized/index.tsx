@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -48,14 +48,14 @@ export const UnauthorizedPage: React.FC = () => {
 
         <p className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 ring-1 ring-red-600/20">
           <span className="h-1.5 w-1.5 rounded-full bg-red-600" />
-          Error 403 · 403 Status
+          Error 403 ┬╖ 403 Status
         </p>
 
         <h1
           id="unauthorized-heading"
           className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
         >
-          Access Denied — You don&apos;t have access to this page
+          Access Denied ΓÇö You don't have access to this page
         </h1>
 
         <p className="mt-3 text-base leading-6 text-gray-600">

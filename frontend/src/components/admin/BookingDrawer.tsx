@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useUIStore } from "@/store/useUIStore";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 import type {
   AdminBooking,
   BookingStatus,
   TimelineActorType,
 } from "@/types/adminBooking";
+
+import { NotificationBell } from "@/components/admin/NotificationBell";
 
 import Timeline, {
   type TimelineItem,
@@ -231,6 +235,17 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
   const [cancelError, setCancelError] =
     useState("");
 
+  // Desktop: the details page starts after the admin sidebar so the sidebar stays visible and usable.
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const sidebarCollapsed = useUIStore(
+    (state) => state.isSidebarCollapsed,
+  );
+  const sidebarWidth = isDesktop
+    ? sidebarCollapsed
+      ? 68
+      : 260
+    : 0;
+
   useEffect(() => {
     if (!open) {
       return;
@@ -365,9 +380,12 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
       <style>{`
         .booking-details {
           position: fixed;
-          inset: 0;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          left: var(--booking-details-left, 0px);
           z-index: 1000;
-          width: 100%;
+          width: auto;
           height: 100vh;
           min-height: 100vh;
           overflow-y: auto;
@@ -407,19 +425,54 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
           gap: 20px;
         }
 
+        .booking-details__topbar {
+          border-bottom: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+
+        .booking-details__topbar-inner {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          width: 100%;
+          max-width: 1600px;
+          min-height: 56px;
+          margin: 0 auto;
+          padding: 6px 32px;
+          box-sizing: border-box;
+        }
+
+        .booking-details__title-block {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          column-gap: 14px;
+          align-items: center;
+          min-width: 0;
+        }
+
+        .booking-details__title-block .booking-details__back-button {
+          grid-column: 1;
+          grid-row: 2;
+        }
+
+        .booking-details__title-block .booking-details__eyebrow,
+        .booking-details__title-block .booking-details__title,
+        .booking-details__title-block .booking-details__subtitle {
+          grid-column: 2;
+        }
+
         .booking-details__back-button {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          min-height: 40px;
-          padding: 8px 14px;
+          justify-content: center;
+          flex-shrink: 0;
+          width: 36px;
+          height: 36px;
+          padding: 0;
           border: 1px solid #dbe2ea;
           border-radius: 8px;
           background: #ffffff;
-          color: #334155;
-          font: inherit;
-          font-size: 13px;
-          font-weight: 600;
+          color: #64748b;
           cursor: pointer;
           transition:
             background-color 150ms ease,
@@ -427,15 +480,26 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
             color 150ms ease;
         }
 
-        .booking-details__back-button:hover {
-          background: #f8fafc;
+        .booking-details__back-button:hover:not(:disabled) {
+          background: #f1f5f9;
           border-color: #cbd5e1;
           color: #0f172a;
         }
 
+        .booking-details__back-button:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
+
         .booking-details__back-icon {
-          font-size: 18px;
-          line-height: 1;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .booking-details__back-icon svg {
+          width: 18px;
+          height: 18px;
         }
 
         .booking-details__header-actions {
@@ -474,7 +538,7 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
           align-items: flex-end;
           justify-content: space-between;
           gap: 24px;
-          margin-top: 22px;
+          margin-top: 0;
         }
 
         .booking-details__eyebrow {
@@ -1111,9 +1175,9 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
           position: fixed;
           right: 0;
           bottom: 0;
-          left: 0;
+          left: var(--booking-details-left, 0px);
           z-index: 30;
-          width: 100%;
+          width: auto;
           border-top: 1px solid #e2e8f0;
           background: rgba(255, 255, 255, 0.97);
           backdrop-filter: blur(10px);
@@ -1229,7 +1293,11 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
             align-items: flex-start;
             flex-direction: column;
             gap: 14px;
-            margin-top: 18px;
+            margin-top: 0;
+          }
+
+          .booking-details__topbar-inner {
+            padding: 6px 16px;
           }
 
           .booking-details__heading-statuses {
@@ -1320,13 +1388,17 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
             padding: 12px;
           }
 
+          .booking-details__topbar-inner {
+            padding: 6px 12px;
+          }
+
           .booking-details__main {
             padding: 14px 12px 170px;
           }
 
           .booking-details__back-button {
-            min-height: 38px;
-            padding: 8px 11px;
+            width: 34px;
+            height: 34px;
           }
 
           .booking-details__header-close {
@@ -1402,51 +1474,57 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
       <main
         className="booking-details"
         aria-labelledby="booking-details-title"
+        style={
+          {
+            "--booking-details-left": `${sidebarWidth}px`,
+          } as React.CSSProperties
+        }
       >
         <header className="booking-details__header">
-          <div className="booking-details__header-inner">
-            <div className="booking-details__top-row">
-              <button
-                type="button"
-                className="booking-details__back-button"
-                onClick={onClose}
-                disabled={cancelling}
-                aria-label="Back to bookings"
-              >
-                <span
-                  className="booking-details__back-icon"
-                  aria-hidden="true"
-                >
-                  ←
-                </span>
-
-                <span>Back to Bookings</span>
-              </button>
-
-              <div className="booking-details__header-actions">
-                <button
-                  type="button"
-                  className="booking-details__header-close"
-                  onClick={onClose}
-                  disabled={cancelling}
-                  aria-label="Close booking details"
-                >
-                  ×
-                </button>
-              </div>
+          <div className="booking-details__topbar">
+            <div className="booking-details__topbar-inner">
+              <NotificationBell />
             </div>
+          </div>
 
+          <div className="booking-details__header-inner">
             <div className="booking-details__heading-row">
-              <div>
+              <div className="booking-details__title-block">
                 <p className="booking-details__eyebrow">
                   Booking Details
                 </p>
+
+                <button
+                  type="button"
+                  className="booking-details__back-button"
+                  onClick={onClose}
+                  disabled={cancelling}
+                  aria-label="Back to bookings"
+                  title="Back to bookings"
+                >
+                  <span
+                    className="booking-details__back-icon"
+                    aria-hidden="true"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M19 12H5" />
+                      <path d="m12 19-7-7 7-7" />
+                    </svg>
+                  </span>
+                </button>
 
                 <h1
                   id="booking-details-title"
                   className="booking-details__title"
                 >
-                  {booking.id}
+                  {booking.customer.name || "Customer"}
                 </h1>
 
                 <p className="booking-details__subtitle">
@@ -2040,16 +2118,6 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
                 </div>
 
                 <div className="booking-details__grid">
-                  <div className="booking-details__field booking-details__field--full">
-                    <span className="booking-details__label">
-                      Booking ID
-                    </span>
-
-                    <div className="booking-details__value booking-details__value--strong">
-                      {booking.id}
-                    </div>
-                  </div>
-
                   <div className="booking-details__field">
                     <span className="booking-details__label">
                       City
@@ -2207,16 +2275,6 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
               </div>
 
               <div className="booking-cancel-screen__booking">
-                <div className="booking-cancel-screen__booking-item">
-                  <span className="booking-cancel-screen__booking-label">
-                    Booking ID
-                  </span>
-
-                  <div className="booking-cancel-screen__booking-value">
-                    {booking.id}
-                  </div>
-                </div>
-
                 <div className="booking-cancel-screen__booking-item">
                   <span className="booking-cancel-screen__booking-label">
                     Customer

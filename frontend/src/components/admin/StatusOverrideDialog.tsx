@@ -79,18 +79,6 @@ function getStatusLabel(status: BookingStatus): string {
   );
 }
 
-function formatBookingId(id: string): string {
-  if (!id) {
-    return "-";
-  }
-
-  if (id.length <= 16) {
-    return id;
-  }
-
-  return `${id.slice(0, 8)}...${id.slice(-6)}`;
-}
-
 function getErrorMessage(err: unknown): string {
   if (
     typeof err === "object" &&
@@ -905,12 +893,10 @@ export const StatusOverrideDialog: React.FC<
               </h2>
 
               <p className="status-override-dialog__subtitle">
-                Booking ID:
+                Customer:
                 {" "}
                 <strong className="status-override-dialog__booking-id">
-                  {formatBookingId(
-                    booking.id,
-                  )}
+                  {booking.customer?.name || "-"}
                 </strong>
               </p>
             </div>

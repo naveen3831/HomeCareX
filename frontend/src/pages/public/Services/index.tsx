@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useServices } from "@/hooks/useServices";
+import { useCategories } from "@/features/public/hooks";
+import { serviceImageFor } from "@/lib/serviceImage";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import OfflineState from "@/components/common/OfflineState";
 import {
@@ -91,6 +93,10 @@ export const ServicesPage: React.FC = () => {
   };
 
   const servicesQuery = useServices(serviceParams);
+
+  // Category dropdown: real categories in the order the admin set (falls back to the built-in list).
+  const categoriesQuery = useCategories();
+  const categoryOptions = (categoriesQuery.data ?? []).map((c) => ({ label: c.name, value: c.slug }));
 
   // Offline with nothing to show yet: React Query pauses the request, so show a clear
   // offline state instead of an endless skeleton. It refetches by itself on reconnect.
@@ -340,6 +346,7 @@ export const ServicesPage: React.FC = () => {
 
         <ServiceFilters
           q={searchInput}
+          categories={categoryOptions}
           category={category}
           sort={sort}
           pincode={pincodeInput}
@@ -534,42 +541,7 @@ export const ServicesPage: React.FC = () => {
           >
 
             {apiServices.map((service) => {
-              const name = service.name.toLowerCase();
-
-              let image = "/images/home-cleaning.jpg";
-
-              if (name.includes("deep") && name.includes("clean")) {
-                image = "/images/deep-cleaning.jpg";
-              } else if (name.includes("clean")) {
-                image = "/images/home-cleaning.jpg";
-              } else if (
-                name.includes("ac service") ||
-                name.includes("gas refill") ||
-                name.includes("appliance") ||
-                name.includes("geyser") ||
-                name.includes("refrigerator") ||
-                name.includes("washing machine") ||
-                name.includes("microwave")
-              ) {
-                image = "/images/appliance-repair.jpg";
-              } else if (
-                name.includes("electrician") ||
-                name.includes("electrical")
-              ) {
-                image = "/images/electrical.jpg";
-              } else if (name.includes("plumbing")) {
-                image = "/images/plumbing.jpg";
-              } else if (name.includes("painting")) {
-                image = "/images/painting.jpg";
-              } else if (name.includes("pest")) {
-                image = "/images/pest-control-clean.webp";
-              } else if (name.includes("massage")) {
-                image = "/images/full-body-massage.webp";
-              } else if (name.includes("makeup")) {
-                image = "/images/bridal-makeup.webp";
-              } else if (name.includes("bathroom")) {
-                image = "/images/bathroom-cleaning.webp";
-              }
+              const image = serviceImageFor(service.name);
 
               return (
                 <ServiceCard

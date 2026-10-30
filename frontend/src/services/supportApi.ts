@@ -1,4 +1,4 @@
-import http, { type ApiResponse } from "@/lib/http";
+﻿import http, { type ApiResponse } from "@/lib/http";
 import type {
   CustomerMessage,
   CustomerTicket,
@@ -17,100 +17,65 @@ function cleanParams(obj: object): Record<string, string | number> {
   return out;
 }
 
-const asObject = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-
-const asTickets = (value: unknown): CustomerTicket[] =>
-  Array.isArray(value) ? (value as CustomerTicket[]) : [];
-
-const ticketMeta = (
-  value: unknown,
-  fallback: TicketPage["meta"],
-): TicketPage["meta"] => {
-  const meta = asObject(value);
-  const page = Number(meta.page);
-  const limit = Number(meta.limit);
-  const total = Number(meta.total);
-  const pages = Number(meta.pages);
-  return {
-    page: Number.isFinite(page) && page > 0 ? page : fallback.page,
-    limit: Number.isFinite(limit) && limit > 0 ? limit : fallback.limit,
-    total: Number.isFinite(total) && total >= 0 ? total : fallback.total,
-    pages: Number.isFinite(pages) && pages >= 0 ? pages : fallback.pages,
-  };
-};
-
 export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
     const response = await http.get<{
-      data?: TicketPage | CustomerTicket[] | { items?: CustomerTicket[]; meta?: TicketPage["meta"] };
+      data?: TicketPage | CustomerTicket[];
       items?: CustomerTicket[];
       meta?: TicketPage["meta"];
     } | CustomerTicket[]>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
-
     const body = response.data;
-    const record = asObject(body);
-    const fallbackMeta: TicketPage["meta"] = {
-      page: Number(filters.page) || 1,
-      limit: 10,
-      total: 0,
-      pages: 1,
-    };
     if (Array.isArray(body)) {
-      const items = asTickets(body);
       return {
-        items,
+        items: body,
         meta: {
-          ...fallbackMeta,
-          total: items.length,
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.length,
+          pages: 1,
         },
       };
     }
-
-    const data = record.data;
-    if (Array.isArray(data)) {
-      const items = asTickets(data);
+    if (Array.isArray(body?.data)) {
       return {
-        items,
-        meta: ticketMeta(record.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.data,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.data.length,
+          pages: 1,
+        },
       };
     }
-
-    const nestedData = asObject(data);
-    if (Array.isArray(nestedData.items)) {
-      const items = asTickets(nestedData.items);
+    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
       return {
-        items,
-        meta: ticketMeta(nestedData.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.data.items,
+        meta: body.data.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.data.items.length,
+          pages: 1,
+        },
       };
     }
-
-    if (Array.isArray(record.items)) {
-      const items = asTickets(record.items);
+    if (body?.items && Array.isArray(body.items)) {
       return {
-        items,
-        meta: ticketMeta(record.meta, {
-          ...fallbackMeta,
-          total: items.length,
-        }),
+        items: body.items,
+        meta: body.meta ?? {
+          page: Number(filters.page) || 1,
+          limit: 10,
+          total: body.items.length,
+          pages: 1,
+        },
       };
     }
-
     return {
       items: [],
-      meta: fallbackMeta,
+      meta: { page: 1, limit: 10, total: 0, pages: 1 },
     };
   },
 

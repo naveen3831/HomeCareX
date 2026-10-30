@@ -22,6 +22,17 @@ const ownListQuery = validate(
   'query',
 );
 
+// Public: site-wide customer reviews & platform stats for the Reviews page & Testimonials.
+reviewsRoutes.get(
+  '/public/reviews',
+  controller.listPublicReviews,
+);
+
+reviewsRoutes.get(
+  '/reviews/public',
+  controller.listPublicReviews,
+);
+
 // Public: visible reviews and star distribution for a service.
 reviewsRoutes.get(
   '/services/:id/reviews',

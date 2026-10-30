@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BookingDrawer } from "@/components/admin/BookingDrawer";
 import { BookingTable } from "@/components/admin/BookingTable";
 import { AssignPartnerDialog } from "@/components/admin/AssignPartnerDialog";
@@ -12,6 +13,12 @@ import type {
   PaymentStatus,
 } from "@/types/adminBooking";
 import "./index.css";
+
+/**
+ * Last loaded list, kept for the session. Coming back to the page shows it straight away
+ * while a fresh copy loads in the background.
+ */
+let bookingsCache: { key: string; data: AdminBooking[] } | null = null;
 
 const INITIAL_FILTERS: BookingFilters = {
   search: "",
@@ -157,6 +164,8 @@ function downloadCsv(bookings: AdminBooking[]): void {
 }
 
 export default function Bookings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [filters, setFilters] =
     useState<BookingFilters>(INITIAL_FILTERS);
 
@@ -165,6 +174,7 @@ export default function Bookings() {
 
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [fetched, setFetched] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [offline, setOffline] = useState<boolean>(
     !navigator.onLine,
@@ -203,14 +213,25 @@ export default function Bookings() {
   const loadBookings = async (
     activeFilters: BookingFilters = filters,
   ) => {
-    setLoading(true);
+    const key = JSON.stringify(activeFilters);
+
+    if (bookingsCache?.key === key) {
+      // Show the last list right away; refresh quietly.
+      setBookings(bookingsCache.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
       const data =
         await adminBookingApi.getBookings(activeFilters);
 
+      bookingsCache = { key, data };
       setBookings(data);
+      setFetched(true);
     } catch (err) {
       const normalized = err as { message?: string };
 
@@ -236,6 +257,24 @@ export default function Bookings() {
     filters.date,
     filters.paymentStatus,
   ]);
+
+  // Dashboard links here with ?open=<bookingId>: open that booking's details once the list is loaded.
+  const openId = searchParams.get("open");
+
+  useEffect(() => {
+    if (!openId || loading || !fetched) {
+      return;
+    }
+
+    const match = bookings.find((booking) => booking.id === openId);
+
+    if (match) {
+      setSelectedBooking(match);
+      setDrawerOpen(true);
+    }
+
+    setSearchParams({}, { replace: true });
+  }, [openId, loading, fetched, bookings, setSearchParams]);
 
   useEffect(() => {
     const handleOnline = () => setOffline(false);
@@ -740,10 +779,28 @@ export default function Bookings() {
 
         {/* TABLE */}
         <div className="booking-results__table">
+          {loading &&
+          bookings.length === 0 ? (
+            <div
+              className="booking-skeleton"
+              aria-busy="true"
+              aria-label="Loading bookings"
+            >
+              {Array.from({ length: 6 }).map(
+                (_, index) => (
+                  <div
+                    key={index}
+                    className="booking-skeleton__row"
+                  />
+                ),
+              )}
+            </div>
+          ) : (
           <BookingTable
             bookings={bookings}
             onBookingSelect={handleBookingSelect}
           />
+          )}
         </div>
       </section>
 

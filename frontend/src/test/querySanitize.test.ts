@@ -45,7 +45,7 @@ describe('tampered query params: sort', () => {
     'falls back to popular for %s',
     (bad) => {
       expect(parse(`sort=${encodeURIComponent(bad)}`).sort).toBe('popular');
-      expect(sanitizeServicesParams({ sort: bad }).sort).toBe('popular');
+      expect(sanitizeServicesParams({ sort: bad }).sort).toBe('order');
     },
   );
 });
@@ -95,7 +95,7 @@ describe('dirty flag and URL rewrite', () => {
 describe('request params sent to GET /services', () => {
   it('rejects page=-1, limit=1000 and sort=injection', () => {
     expect(sanitizeServicesParams({ page: -1, limit: 1000, sort: 'injection' })).toEqual({
-      sort: 'popular',
+      sort: 'order',
       page: 1,
       limit: QUERY_LIMITS.limit,
     });
@@ -110,7 +110,7 @@ describe('request params sent to GET /services', () => {
       availability: 'never',
       admin: true,
     } as never);
-    expect(out).toEqual({ sort: 'popular', page: 1, limit: QUERY_LIMITS.defaultLimit });
+    expect(out).toEqual({ sort: 'order', page: 1, limit: QUERY_LIMITS.defaultLimit });
   });
 
   it('drops an inverted price range', () => {

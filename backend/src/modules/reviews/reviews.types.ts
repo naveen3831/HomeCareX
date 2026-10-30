@@ -60,3 +60,36 @@ export interface PendingReviewDto {
   partnerName: string | null;
   completedOn: string;
 }
+
+/** Full public customer review for the site-wide Reviews page & Testimonials */
+export interface PublicCustomerReviewDto {
+  id: string;
+  name: string;
+  city: string;
+  service: string;
+  category: string;
+  tag: string;
+  headline: string;
+  review: string;
+  rating: number;
+  avatar: string;
+  date: string;
+  verifiedBookingsCount: number;
+  helpfulCount: number;
+  verified: boolean;
+  createdAt: string;
+}
+
+export interface PublicReviewsStats {
+  averageRating: number;
+  totalReviews: number;
+  satisfactionRate: number;
+  homesServed: string;
+  categoryCounts: Record<string, number>;
+}
+
+export interface PublicReviewsResult {
+  reviews: PublicCustomerReviewDto[];
+  stats: PublicReviewsStats;
+  meta: ReviewPageMeta;
+}
