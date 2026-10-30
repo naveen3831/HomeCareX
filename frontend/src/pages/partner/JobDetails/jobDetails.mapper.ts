@@ -259,7 +259,8 @@ function isApiJob(item: Record<string, unknown>): item is Record<string, unknown
     ? item.price as Record<string, unknown>
     : {};
 
-  return typeof item.id === 'string' &&
+  return (
+    typeof item.id === 'string' &&
     typeof item.status === 'string' &&
     typeof customer.name === 'string' &&
     typeof service.name === 'string' &&
@@ -273,26 +274,6 @@ function isApiJob(item: Record<string, unknown>): item is Record<string, unknown
     Array.isArray(item.actions) &&
     Array.isArray(item.statusHistory)
   );
-}
-
-export interface JobListItemLike {
-  id?: string | number;
-  service?: string | { name?: string };
-  serviceDescription?: string;
-  durationMinutes?: number;
-  status?: JobStatus | string;
-  customer?: string | { name?: string; phone?: string | null };
-  customerName?: string;
-  customerPhone?: string;
-  location?: string | { line1?: string; area?: string; city?: string; pincode?: string | null };
-  address?: string | { line1?: string; area?: string; city?: string; pincode?: string | null };
-  scheduledAt?: string;
-  slot?: string;
-  partnerEarning?: number;
-  amount?: number;
-  total?: number;
-  instructions?: string;
-  [key: string]: unknown;
 }
 
 export function mapJobListItemToJobDetails(item: Record<string, unknown>): JobDetails;

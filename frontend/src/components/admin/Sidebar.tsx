@@ -129,7 +129,7 @@ export const Sidebar: React.FC = () => {
       )}
 
       <aside
-        className={sidebarClassName}
+        className={className}
         aria-label="Admin navigation"
       >
         <div className="sidebar-brand">

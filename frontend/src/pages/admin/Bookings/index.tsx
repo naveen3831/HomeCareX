@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BookingDrawer } from "@/components/admin/BookingDrawer";
 import { BookingTable } from "@/components/admin/BookingTable";
 import { AssignPartnerDialog } from "@/components/admin/AssignPartnerDialog";
@@ -173,6 +174,7 @@ export default function Bookings() {
 
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [fetched, setFetched] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [offline, setOffline] = useState<boolean>(
     !navigator.onLine,

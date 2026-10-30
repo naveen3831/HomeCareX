@@ -1,4 +1,3 @@
-
 import type {
   CookieOptions,
   NextFunction,
@@ -7,7 +6,6 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
-
 import {
   acceptInviteSchema,
   changePasswordSchema,
@@ -304,6 +302,37 @@ export const authController = {
     const userId = getAuthenticatedUserId(res);
     const sessionId = req.params.id;
 
+    const currentSid = (res.locals.auth as { sid?: string } | undefined)
+      ?.sid;
+
+    const result = await authService.revokeSession(
+      userId,
+      sessionId,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        revoked: true,
+        isCurrent: result.isCurrent,
+        message: result.message,
+      },
+    });
+  }),
+
+  /**
+   * POST /api/v1/auth/logout-all
+   */
+  logoutAll: wrap(async (_req, res) => {
+    const userId = getAuthenticatedUserId(res);
+
+    const result = await authService.logoutAll(userId);
+
     clearRefreshCookies(res);
 
     res.json({
@@ -325,6 +354,23 @@ export const authController = {
     );
 
     const result = await authService.verifyInvite(payload);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  }),
+
+  /**
+   * POST /api/v1/auth/accept-invite
+   */
+  acceptInvite: wrap(async (req, res) => {
+    const payload = parseBody(
+      acceptInviteSchema,
+      req.body,
+    );
+
+    const result = await authService.acceptInvite(payload);
 
     res.json({
       success: true,
