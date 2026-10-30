@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import clsx from "clsx";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
@@ -33,6 +33,7 @@ const PANEL_ID = "bookings-panel";
 
 export default function MyBookingsPage() {
   const navigate = useNavigate();
+ const location = useLocation();
   const {
     state,
     hasFilters,
@@ -74,9 +75,16 @@ export default function MyBookingsPage() {
       setPage(totalPages, true);
   }, [isPlaceholderData, totalPages, state.page, setPage]);
 
-  // Always go to Profile. navigate(-1) would only step back through tab/page changes on this same page.
+  // Go back to referring page (Home or Profile) if available, otherwise Home.
   const goBack = () => {
-    navigate(customerPath("/profile"));
+    const from =
+      (location.state as { from?: string; origin?: string })?.from ||
+      (location.state as { from?: string; origin?: string })?.origin;
+    if (from && !from.includes("/bookings")) {
+      navigate(from);
+      return;
+    }
+    navigate(customerPath());
   };
 
   /** Pay-now strip and the payment result for one booking. Kept here so payment state lives in one place. */
@@ -114,7 +122,7 @@ export default function MyBookingsPage() {
                 FOCUS_RING,
               )}
             >
-              {thisBusy ? "Please wait…" : retry ? "Try again" : "Pay now"}
+              {thisBusy ? "Please wait..." : retry ? "Try again" : "Pay now"}
               <span className="sr-only">
                 {" "}
                 for {name}, {getBookingCode(b)}
@@ -252,7 +260,7 @@ export default function MyBookingsPage() {
         <ul
           aria-busy={isPlaceholderData}
           className={clsx(
-            "grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4 transition-opacity",
+            "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 transition-opacity",
             isPlaceholderData && "opacity-60",
           )}
         >
@@ -281,7 +289,7 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div className="w-full min-w-0">
       {/* Mobile-only Header (md:hidden) */}
       <div className="space-y-3 md:hidden">
         <div>

@@ -4,9 +4,9 @@
  * the right picture from the emoji first and then from keywords in the name or slug.
  */
 export type Icon3DName =
-  | "ant" | "broom" | "bug" | "droplet" | "gift" | "house" | "house-garden" | "light-bulb" | "massage"
+  | "ant" | "broom" | "bug" | "droplet" | "gift" | "gift-green" | "house" | "house-garden" | "light-bulb" | "massage"
   | "paintbrush" | "palette" | "party" | "plug" | "scissors" | "shower" | "snowflake" | "soap"
-  | "sparkles" | "toolbox" | "tools" | "wrench";
+  | "sparkles" | "sparkles-lavender" | "toolbox" | "tools" | "wrench";
 
 const EMOJI_TO_ICON: Record<string, Icon3DName> = {
   "🧹": "broom", "🧽": "soap", "🧼": "soap", "🔧": "wrench", "🛠": "tools", "💆": "massage", "💇": "scissors",
@@ -43,6 +43,8 @@ export function resolveIcon3D(...hints: (string | null | undefined)[]): Icon3DNa
   for (const hint of hints) {
     if (!hint) continue;
     const text = hint.toLowerCase();
+    if (text === "gift-green") return "gift-green";
+    if (text === "sparkles-lavender") return "sparkles-lavender";
     for (const [pattern, name] of KEYWORDS) if (pattern.test(text)) return name;
   }
   return "sparkles";

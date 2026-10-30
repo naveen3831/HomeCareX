@@ -280,3 +280,6 @@ package-lock.json
 
 # Ignore root package lock file
 /package-lock.json
+
+# Large ZIP archives
+frontend.zip

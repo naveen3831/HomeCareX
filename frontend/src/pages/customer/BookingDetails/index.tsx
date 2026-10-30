@@ -260,19 +260,12 @@ function DetailsBody({
 
   const handleBack = () => {
     if (location.state?.from) {
-      if (location.state.from === customerPath("/tracking") || location.state.from.includes("/payments")) {
-        if (window.history.length > 1) {
-          navigate(-1);
-        } else {
-          navigate(location.state.from, {
-            replace: true,
-            state: { origin: location.state?.origin },
-          });
-        }
-      } else {
-        navigate(location.state.from);
-      }
-    } else if (window.history.length > 1) {
+      navigate(location.state.from, {
+        state: { origin: location.state?.origin },
+      });
+      return;
+    }
+    if (window.history.length > 1) {
       navigate(-1);
     } else {
       navigate(customerPath("/bookings"));

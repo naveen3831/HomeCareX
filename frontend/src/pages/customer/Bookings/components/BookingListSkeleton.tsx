@@ -22,7 +22,7 @@ export function BookingListSkeleton({ count = 3 }: { count?: number }) {
   return (
     <div role="status" aria-live="polite" aria-label="Loading your bookings">
       <span className="sr-only">Loading your bookings…</span>
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4">
+      <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {Array.from({ length: count }, (_, i) => (
           <li
             key={i}
@@ -70,7 +70,7 @@ export function BookingListSkeleton({ count = 3 }: { count?: number }) {
  */
 export function BookingsPageSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl" aria-hidden="true">
+    <div className="w-full min-w-0" aria-hidden="true">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <Bone className="h-8 w-40" />
