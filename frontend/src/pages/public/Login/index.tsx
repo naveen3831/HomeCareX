@@ -72,7 +72,7 @@ export const LoginPage: React.FC = () => {
     const stateMsg = (location.state as { registeredMessage?: string } | null)?.registeredMessage;
     if (stateMsg) return stateMsg;
     if (params.get('registered') === 'partner') {
-      return 'Registration successful! You can now log in with your credentials.';
+      return 'Registration submitted! You can log in after an admin approves your documents. We will email you.';
     }
     if (params.get('reset') === 'success' || (location.state as { resetSuccess?: boolean } | null)?.resetSuccess) {
       return 'Password reset successful. Please log in with your new password.';

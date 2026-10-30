@@ -104,6 +104,59 @@ export class PartnersController {
   });
 
   /**
+   * GET ONE PARTNER (details page)
+   */
+  getOne = wrap(async (req, res) => {
+    const data = await partnersService.detail(req.params.id);
+
+    res.json({ success: true, data });
+  });
+
+  /**
+   * KYC DECISION
+   */
+  reviewKyc = wrap(async (req, res) => {
+    const actor = getActor(req);
+    const body = (req.body ?? {}) as { decision?: unknown; reason?: unknown };
+
+    if (body.decision !== 'approve' && body.decision !== 'reject') {
+      res.status(400).json({ success: false, message: 'decision must be "approve" or "reject".' });
+      return;
+    }
+
+    const data = await partnersService.reviewKyc(
+      req.params.id,
+      {
+        decision: body.decision,
+        reason: typeof body.reason === 'string' ? body.reason : undefined,
+      },
+      actor,
+    );
+
+    const message =
+      body.decision === 'reject'
+        ? 'Partner KYC rejected.'
+        : data.emailSent
+          ? 'Partner KYC approved. An email with a set-password link was sent to the partner.'
+          : 'Partner KYC approved, but the email could not be sent. Ask the partner to use "Forgot password" on the login page.';
+
+    res.json({ success: true, data, message });
+  });
+
+  /**
+   * STREAM ONE KYC DOCUMENT (admin only)
+   */
+  getKycDocument = wrap(async (req, res) => {
+    const file = await partnersService.kycDocument(req.params.id, req.params.docId);
+
+    res.setHeader('Content-Type', file.mimeType);
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(file.buffer);
+  });
+
+  /**
    * GET PARTNERS
    */
   getPartners = wrap(async (_req, res) => {

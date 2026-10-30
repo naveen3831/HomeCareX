@@ -200,7 +200,7 @@
  */
 @media (min-width: 1024px) {
   .sup-scroll { overflow-x: visible; }
-  .sup-table { min-width: 0; table-layout: fixed; }
+  .sup-card .sup-table { min-width: 0; width: 100%; table-layout: fixed; }
   .sup-table th { white-space: normal; padding: 12px 10px; }
   .sup-table td { padding: 12px 10px; overflow-wrap: anywhere; }
   .sup-table th:nth-child(1) { width: 9%; }   /* Ticket */

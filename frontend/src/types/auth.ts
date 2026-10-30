@@ -22,6 +22,13 @@ export interface LoginInput {
   password: string;
 }
 
+/** POST /auth/register result. Partners get no session: `pendingApproval` is set and accessToken is absent. */
+export interface RegisterResult {
+  user: AuthUser;
+  accessToken?: string;
+  pendingApproval?: boolean;
+}
+
 export interface RegisterInput {
   name: string;
   email: string;

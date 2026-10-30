@@ -26,6 +26,7 @@ import type { LeadSource, LeadStatus } from '@/features/public/leads';
 import { fetchLead, fetchLeads, updateLeadStatus, type AdminLead } from '@/services/leadsApi';
 import { Link } from 'react-router-dom';
 import HelpTabs from '@/components/admin/HelpTabs';
+import { FilterButton, FilterPanel, type FilterField } from '@/components/admin/FilterPanel';
 import './Leads.css';
 
 const dateTime = (value: string) =>
@@ -70,6 +71,11 @@ const LeadAvatar: React.FC<{ name: string; source: LeadSource }> = ({ name, sour
   </span>
 );
 
+const LEAD_FILTERS: FilterField[] = [
+  { key: 'source', label: 'Type', options: [{ value: '', label: 'All types' }, { value: 'contact', label: 'Contact' }, { value: 'partner', label: 'Partner' }] },
+  { key: 'status', label: 'Status', options: [{ value: '', label: 'All statuses' }, { value: 'new', label: 'New' }, { value: 'contacted', label: 'Contacted' }, { value: 'closed', label: 'Closed' }] },
+];
+
 const AdminLeadsPage: React.FC = () => {
   const [searchValue, setSearchValue] = useState('');
   const [search, setSearch] = useState('');
@@ -78,6 +84,7 @@ const AdminLeadsPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -159,30 +166,84 @@ const AdminLeadsPage: React.FC = () => {
     setStatus('');
     setPage(1);
   };
-  const chooseStatus = (value: string) => {
-    if (value === '' || value === 'new' || value === 'contacted' || value === 'closed') {
-      setStatus(value);
-      setPage(1);
-    }
+  const applyPanel = (values: Record<string, string>) => {
+    setSource(values.source === 'contact' || values.source === 'partner' ? values.source : '');
+    setStatus(values.status === 'new' || values.status === 'contacted' || values.status === 'closed' ? values.status : '');
+    setPage(1);
   };
+  const applied: { key: 'source' | 'status'; label: string }[] = [
+    ...(source ? [{ key: 'source' as const, label: `Type: ${source === 'partner' ? 'Partner' : 'Contact'}` }] : []),
+    ...(status ? [{ key: 'status' as const, label: `Status: ${status.charAt(0).toUpperCase()}${status.slice(1)}` }] : []),
+  ];
+  const removeFilter = (key: 'source' | 'status') => {
+    if (key === 'source') setSource('');
+    else setStatus('');
+    setPage(1);
+  };
+
   const leads = data?.leads ?? [];
 
   return (
-    <div className="leads-workspace">
+    <div className="admin-page-container leads-page">
       <HelpTabs />
 
-      <header className="leads-heading">
-        <div>
-          <div className="leads-heading__eyebrow"><BriefcaseBusiness aria-hidden="true" size={14} /> Operations / Lead management</div>
-          <h1>Leads</h1>
-          <p className="leads-heading__description">A clear view of customer enquiries and partner opportunities.</p>
-        </div>
-        <p className={`leads-heading__status ${leadsQuery.isError ? 'leads-heading__status--error' : ''}`}>
-          <i aria-hidden="true" />
-          {leadsQuery.isError ? (isAuthError(leadsQuery.error) ? 'Admin sign-in required' : 'Connection needs attention') : 'Lead workspace'}
-        </p>
+      <header className="leads-head">
+        <h1 className="leads-head__title">Leads</h1>
+        <p className="leads-head__desc">Customer enquiries and partner opportunities, with their progress.</p>
       </header>
 
+      {stats ? (
+        <section aria-label="Lead statistics" className="leads-totals">
+          <Metric label="Total leads" value={stats.total} icon={<UsersRound size={20} />} />
+          <Metric label="New" value={stats.new} icon={<CircleDot size={20} />} />
+          <Metric label="Contacted" value={stats.contacted} icon={<MessageSquareText size={20} />} />
+          <Metric label="Closed" value={stats.closed} icon={<CheckCircle2 size={20} />} />
+          <Metric label="Partner interests" value={stats.partnerInterests} icon={<BriefcaseBusiness size={20} />} />
+        </section>
+      ) : leadsQuery.isLoading ? (
+        <section aria-label="Loading lead statistics" className="leads-totals">
+          {Array.from({ length: 5 }, (_, index) => <div key={index} className="leads-total leads-total--skeleton" />)}
+        </section>
+      ) : null}
+
+      <div className="leads-toolbar">
+        <label className="leads-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Search name, email, phone or city"
+            spellCheck={false}
+            aria-label="Search leads"
+          />
+          {searchValue && (
+            <button type="button" className="leads-search__clear" onClick={() => setSearchValue('')} aria-label="Clear search">
+              <X size={14} />
+            </button>
+          )}
+        </label>
+        <FilterButton count={applied.length} open={panelOpen} onClick={() => setPanelOpen((o) => !o)} />
+      </div>
+
+      <FilterPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        fields={LEAD_FILTERS}
+        values={{ source, status }}
+        onApply={applyPanel}
+      />
+
+      {applied.length > 0 && (
+        <div className="leads-applied" aria-label="Applied filters">
+          {applied.map((item) => (
+            <span key={item.key} className="leads-tag">
+              {item.label}
+              <button type="button" onClick={() => removeFilter(item.key)} aria-label={`Remove ${item.label}`}><X size={12} /></button>
+            </span>
+          ))}
+          <button type="button" className="leads-linkbtn" onClick={clearFilters}>Clear all</button>
+        </div>
+      )}
 
       {notice && (
         <div role="status" className="leads-notice">
@@ -191,60 +252,7 @@ const AdminLeadsPage: React.FC = () => {
         </div>
       )}
 
-      {stats ? (
-        <section aria-label="Lead statistics" className="leads-metrics">
-          <Metric label="Total leads" value={stats.total} icon={<UsersRound size={16} />} />
-          <Metric label="New" value={stats.new} icon={<CircleDot size={16} />} tone="new" />
-          <Metric label="Contacted" value={stats.contacted} icon={<MessageSquareText size={16} />} />
-          <Metric label="Closed" value={stats.closed} icon={<CheckCircle2 size={16} />} tone="closed" />
-          <Metric label="Partner interests" value={stats.partnerInterests} icon={<BriefcaseBusiness size={16} />} tone="partners" />
-        </section>
-      ) : leadsQuery.isLoading ? (
-        <section aria-label="Loading lead statistics" className="leads-metrics leads-metrics--skeleton">
-          {Array.from({ length: 5 }, (_, index) => <div key={index} className="leads-metric"><div><div className="leads-metric__label" /><div className="leads-metric__value" /></div></div>)}
-        </section>
-      ) : null}
-
-      <section aria-label="Lead list" className="leads-board">
-        <header className="leads-board__header">
-          <div className="leads-board__heading">
-            <h2>Enquiries</h2>
-            <p>Review incoming requests and update their progress.</p>
-          </div>
-          <span className="leads-board__updated">{leadsQuery.isFetching ? <LoaderCircle aria-hidden="true" size={13} className="animate-spin" /> : <RefreshCw aria-hidden="true" size={12} />}{leadsQuery.isFetching ? 'Updating' : 'Enquiry inbox'}</span>
-        </header>
-
-        <div className="leads-toolbar">
-          <label className="leads-search">
-            <span className="sr-only">Search leads by name, email, phone, or city</span>
-            <Search aria-hidden="true" size={15} />
-            <input value={searchValue} onChange={(event) => setSearchValue(event.target.value)} placeholder="Search leads..." />
-          </label>
-          <div className="leads-toolbar__filters">
-            <div className="leads-source-tabs" role="group" aria-label="Filter by lead type">
-              {([
-                ['', 'All leads'],
-                ['contact', 'Contact'],
-                ['partner', 'Partner'],
-              ] as const).map(([value, label]) => (
-                <button key={label} type="button" aria-pressed={source === value} onClick={() => { setSource(value); setPage(1); }} className="leads-focus">{label}</button>
-              ))}
-            </div>
-            <label className="leads-status-filter">
-              <span className="sr-only">Filter by status</span>
-              <select value={status} onChange={(event) => chooseStatus(event.target.value)} className="leads-focus">
-                <option value="">All statuses</option><option value="new">New</option><option value="contacted">Contacted</option><option value="closed">Closed</option>
-              </select>
-            </label>
-            {hasFilters && <button type="button" onClick={clearFilters} className="leads-clear leads-focus">Clear filters</button>}
-          </div>
-        </div>
-
-        <div className="leads-board__meta">
-          <span>{data ? `${data.pagination.total.toLocaleString('en-IN')} ${data.pagination.total === 1 ? 'lead' : 'leads'}` : 'Lead activity'}</span>
-          {leadsQuery.isFetching && <span><LoaderCircle aria-hidden="true" size={12} className="animate-spin" /> Refreshing</span>}
-        </div>
-
+      <section aria-label="Lead list" className="leads-card" aria-busy={leadsQuery.isFetching}>
         {leadsQuery.isLoading ? (
           <LoadingLeads />
         ) : leadsQuery.isError ? (
@@ -260,58 +268,65 @@ const AdminLeadsPage: React.FC = () => {
           </div>
         ) : data && leads.length > 0 ? (
           <>
-            <div className="leads-table-wrap">
+            <div className="leads-scroll">
               <table className="leads-table">
-                <thead><tr><th scope="col">Contact</th><th scope="col">Details</th><th scope="col">Enquiry / message</th><th scope="col">Type</th><th scope="col">Received</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                <thead>
+                  <tr>
+                    <th scope="col">Contact</th>
+                    <th scope="col">Details</th>
+                    <th scope="col">Enquiry</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Received</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {leads.map((lead) => (
-                    <tr key={lead._id}>
+                    <tr
+                      key={lead._id}
+                      className="leads-row"
+                      tabIndex={0}
+                      aria-label={`View lead ${lead.name}`}
+                      onClick={(event) => openLead(lead._id, event.currentTarget)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          openLead(lead._id, event.currentTarget);
+                        }
+                      }}
+                    >
                       <td>
                         <div className="leads-person">
                           <LeadAvatar name={lead.name} source={lead.source} />
-                          <div><div className="leads-person__name">{lead.name}</div><div className="leads-person__type">{lead.source === 'partner' ? 'Service partner' : 'Customer'}</div></div>
+                          <div>
+                            <span className="leads-person__name">{lead.name}</span>
+                            <span className="leads-person__type">{lead.source === 'partner' ? 'Service partner' : 'Customer'}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="leads-table__contact">
-                        {lead.email && <a href={`mailto:${lead.email}`}>{lead.email}</a>}
-                        <a href={`tel:${lead.phone}`}>{lead.phone}</a>
+                        {lead.email && <a href={`mailto:${lead.email}`} onClick={(event) => event.stopPropagation()}>{lead.email}</a>}
+                        <a href={`tel:${lead.phone}`} onClick={(event) => event.stopPropagation()}>{lead.phone}</a>
                         <span>{lead.city}</span>
                       </td>
-                      <td><LeadSourceLabel source={lead.source} /></td>
-                      <td>{dateShort(lead.createdAt)}</td>
                       <td className="leads-table__inquiry"><span>{lead.message ?? lead.skills?.join(', ') ?? 'Partner interest'}</span></td>
+                      <td><LeadSourceLabel source={lead.source} /></td>
+                      <td className="leads-date">{dateShort(lead.createdAt)}</td>
                       <td><LeadStatusBadge status={lead.status} /></td>
-                      <td><button type="button" className="leads-row-action leads-focus" onClick={(event) => openLead(lead._id, event.currentTarget)}>View details</button></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            <div className="leads-mobile-list">
-              {leads.map((lead) => (
-                <button key={lead._id} type="button" className="leads-mobile-card leads-focus" onClick={(event) => openLead(lead._id, event.currentTarget)}>
-                  <span className="leads-mobile-card__top">
-                    <span className="leads-person">
-                      <LeadAvatar name={lead.name} source={lead.source} />
-                      <span><span className="leads-person__name">{lead.name}</span><span className="leads-person__type">{lead.city}</span></span>
-                    </span>
-                    <LeadStatusBadge status={lead.status} />
-                  </span>
-                  <span className="leads-mobile-card__details">
-                    {lead.email && <span>{lead.email}</span>}<span>{lead.phone}</span>
-                    <span className="leads-mobile-card__message">{lead.message ?? lead.skills?.join(', ') ?? 'Partner interest'}</span>
-                  </span>
-                  <span className="leads-mobile-card__bottom"><LeadSourceLabel source={lead.source} /><span>{dateShort(lead.createdAt)}</span></span>
-                </button>
-              ))}
-            </div>
-
-            <footer className="leads-pagination">
-              <span>Page {data.pagination.page} of {Math.max(data.pagination.pages, 1)}</span>
-              <div className="leads-pagination__controls">
-                <button type="button" aria-label="Previous page" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="leads-focus"><ChevronLeft aria-hidden="true" size={16} /></button>
-                <button type="button" aria-label="Next page" disabled={page >= data.pagination.pages} onClick={() => setPage((current) => current + 1)} className="leads-focus"><ChevronRight aria-hidden="true" size={16} /></button>
+            <footer className="leads-pager">
+              <span className="leads-muted">
+                Page {data.pagination.page} of {Math.max(data.pagination.pages, 1)} · {data.pagination.total.toLocaleString('en-IN')} {data.pagination.total === 1 ? 'lead' : 'leads'}
+              </span>
+              <div className="leads-pager__btns">
+                <button type="button" className="leads-btn" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}><ChevronLeft aria-hidden="true" size={16} /> Previous</button>
+                <button type="button" className="leads-btn" disabled={page >= data.pagination.pages} onClick={() => setPage((current) => current + 1)}>Next <ChevronRight aria-hidden="true" size={16} /></button>
               </div>
             </footer>
           </>
@@ -364,16 +379,19 @@ const AdminLeadsPage: React.FC = () => {
   );
 };
 
-const Metric: React.FC<{ label: string; value: number; icon: React.ReactNode; tone?: 'new' | 'closed' | 'partners' }> = ({ label, value, icon, tone }) => (
-  <article className={`leads-metric ${tone ? `leads-metric--${tone}` : ''}`}>
-    <div><p className="leads-metric__label">{label}</p><p className="leads-metric__value">{value.toLocaleString('en-IN')}</p></div>
-    <span className="leads-metric__icon">{icon}</span>
+const Metric: React.FC<{ label: string; value: number; icon: React.ReactNode }> = ({ label, value, icon }) => (
+  <article className="leads-total">
+    <span className="leads-total__icon">{icon}</span>
+    <div className="leads-total__body">
+      <p className="leads-total__label" style={{ margin: 0 }}>{label}</p>
+      <p className="leads-total__value" style={{ margin: 0 }}>{value.toLocaleString('en-IN')}</p>
+    </div>
   </article>
 );
 
 const LoadingLeads: React.FC = () => (
   <div className="leads-state" aria-label="Loading leads">
-    <span className="leads-state__icon"><LoaderCircle aria-hidden="true" size={22} className="animate-spin" /></span>
+    <span className="leads-state__icon"><LoaderCircle aria-hidden="true" size={22} className="leads-spin" /></span>
     <h2>Loading enquiries</h2>
     <p>Fetching the latest lead activity.</p>
   </div>
@@ -414,7 +432,7 @@ const LeadDetails: React.FC<{ lead: AdminLead; busy: boolean; onStatusChange: (s
       </div>
       <div className="leads-detail__actions">
         <button type="button" onClick={() => onStatusChange('contacted')} disabled={busy || lead.status === 'contacted'} className="leads-focus">
-          {busy ? <LoaderCircle aria-hidden="true" size={13} className="animate-spin" /> : <Phone aria-hidden="true" size={13} />} Mark contacted
+          {busy ? <LoaderCircle aria-hidden="true" size={13} className="leads-spin" /> : <Phone aria-hidden="true" size={13} />} Mark contacted
         </button>
         <button type="button" onClick={() => onStatusChange(lead.status === 'closed' ? 'new' : 'closed')} disabled={busy} className="leads-focus">
           {lead.status === 'closed' ? 'Reopen lead' : 'Close lead'}

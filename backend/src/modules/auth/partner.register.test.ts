@@ -64,8 +64,10 @@ test('backend partner registration: creates partner user with role partner and l
     assert.equal(res.user.role, 'partner');
     assert.equal(res.user.home, '/partner');
     assert.equal(createdUsers[0].gender, 'male');
-    assert.ok(res.accessToken);
-    assert.ok(res.refreshToken);
+    // Partners are not signed in: an admin must approve their KYC first.
+    assert.equal('pendingApproval' in res && res.pendingApproval, true);
+    assert.equal('accessToken' in res, false);
+    assert.equal('refreshToken' in res, false);
 
     // Password must be hashed with bcrypt
     assert.ok(createdUsers[0].passwordHash);
@@ -106,7 +108,7 @@ test('backend partner registration: backward compatibility with customer registr
 
     assert.equal(res.user.role, 'customer');
     assert.equal(res.user.home, '/customer');
-    assert.ok(res.accessToken);
+    assert.ok('accessToken' in res && res.accessToken);
   } finally {
     authRepository.existsByEmailOrPhone = originalExists;
     authRepository.create = originalCreate;

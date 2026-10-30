@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock3, ListFilter,
+  AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Clock3,
   Search, Undo2, X, XCircle,
 } from 'lucide-react';
-import { useOverlay } from '@/hooks/useOverlay';
+import { FilterButton, FilterPanel, type FilterField } from '@/components/admin/FilterPanel';
 import { fetchAdminPayments } from '@/services/adminPaymentApi';
 import { PAYMENT_STATUSES, type AdminPayment, type AdminPaymentsPage, type PaymentStatus } from '@/types/adminPayment';
 import StatusBadge from './StatusBadge';
@@ -55,6 +54,15 @@ const describeFilters = (f: Filters): { key: keyof Filters | 'range'; label: str
   return out;
 };
 
+const FILTER_FIELDS: FilterField[] = [
+  { key: 'status', label: 'Status', options: [{ value: '', label: 'All statuses' }, ...PAYMENT_STATUSES.map((s) => ({ value: s, label: STATUS_LABEL[s] }))] },
+  { key: 'method', label: 'Payment method', options: [{ value: '', label: 'All methods' }, ...METHOD_OPTIONS.map((m) => ({ value: m.value, label: m.label }))] },
+  { key: 'from', label: 'From', type: 'date' },
+  { key: 'to', label: 'To', type: 'date' },
+  { key: 'customer', label: 'Customer', type: 'text', placeholder: 'Name, email, phone or ID' },
+  { key: 'booking', label: 'Booking', type: 'text', placeholder: 'BK-1A2B3 or booking ID' },
+];
+
 const TOTALS = [
   { status: 'PAID', icon: CheckCircle2, label: 'Collected' },
   { status: 'PENDING', icon: Clock3, label: 'Pending' },
@@ -64,7 +72,6 @@ const TOTALS = [
 
 export const AdminPaymentsPageView: React.FC = () => {
   const [filters, setFilters] = useState<Filters>(EMPTY); // applied from the filter panel
-  const [panel, setPanel] = useState<Filters>(EMPTY); // draft inside the panel
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState(''); // debounced
@@ -84,8 +91,6 @@ export const AdminPaymentsPageView: React.FC = () => {
     navigate(`/admin/payments/${p.id}`);
   };
 
-  const closePanel = () => setPanelOpen(false);
-  const sheetRef = useOverlay<HTMLDivElement>(panelOpen, closePanel); // Esc, scroll lock, focus trap
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -119,15 +124,16 @@ export const AdminPaymentsPageView: React.FC = () => {
   const meta = data?.meta;
   const summary = meta?.summary;
 
-  const openPanel = () => {
-    setPanel(filters);
-    setPanelOpen(true);
-  };
-  const draftCount = describeFilters(panel).length;
-  const apply = () => {
-    setFilters(panel);
+  const applyPanel = (v: Record<string, string>) => {
+    setFilters({
+      status: (PAYMENT_STATUSES as readonly string[]).includes(v.status) ? (v.status as PaymentStatus) : '',
+      method: v.method ?? '',
+      customer: (v.customer ?? '').trim(),
+      booking: (v.booking ?? '').trim(),
+      from: v.from ?? '',
+      to: v.to ?? '',
+    });
     setPage(1);
-    setPanelOpen(false);
   };
   const removeFilter = (key: keyof Filters | 'range') => {
     setFilters((f) => (key === 'range' ? { ...f, from: '', to: '' } : { ...f, [key]: '' }));
@@ -135,12 +141,10 @@ export const AdminPaymentsPageView: React.FC = () => {
   };
   const clearAll = () => {
     setFilters(EMPTY);
-    setPanel(EMPTY);
     setSearchInput('');
     setSearch('');
     setPage(1);
   };
-  const setP = <K extends keyof Filters>(key: K, value: Filters[K]) => setPanel((p) => ({ ...p, [key]: value }));
 
   // Mouse drag-to-scroll for the table (touch devices scroll natively)
   const onDragStart = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -209,107 +213,16 @@ export const AdminPaymentsPageView: React.FC = () => {
           )}
         </label>
 
-        <button
-          type="button"
-          className={`pay-btn pay-btn--filter${applied.length ? ' is-active' : ''}`}
-          onClick={openPanel}
-          aria-expanded={panelOpen}
-          aria-haspopup="dialog"
-        >
-          <ListFilter size={16} />
-          <span>Filters</span>
-          {applied.length > 0 && <span className="pay-count">{applied.length}</span>}
-        </button>
+        <FilterButton count={applied.length} open={panelOpen} onClick={() => setPanelOpen((o) => !o)} />
       </div>
 
-      {panelOpen &&
-        createPortal(
-          <div className="pay-sheet-overlay" onMouseDown={(e) => e.target === e.currentTarget && closePanel()}>
-            <div ref={sheetRef} className="pay-sheet" role="dialog" aria-modal="true" aria-label="Filter payments" tabIndex={-1}>
-              <header className="pay-sheet__head">
-                <div>
-                  <h2 className="pay-sheet__title">Filters</h2>
-                  <p className="pay-sheet__sub" aria-live="polite">
-                    {draftCount === 0 ? 'No filters applied' : `${draftCount} ${draftCount === 1 ? 'filter' : 'filters'} selected`}
-                  </p>
-                </div>
-                <div className="pay-sheet__actions">
-                  {draftCount > 0 && (
-                    <button type="button" className="pay-sheet__clear" onClick={() => setPanel(EMPTY)}>Clear all</button>
-                  )}
-                  <button type="button" className="pay-sheet__close" onClick={closePanel} aria-label="Close filters">
-                    <X size={20} />
-                  </button>
-                </div>
-              </header>
-
-              <div className="pay-sheet__body">
-                <fieldset className="pay-group">
-                  <legend>Status</legend>
-                  <div className="pay-chips">
-                    {(['', ...PAYMENT_STATUSES] as const).map((s) => (
-                      <button
-                        key={s || 'all'}
-                        type="button"
-                        className={`pay-chip${panel.status === s ? ' is-active' : ''}`}
-                        aria-pressed={panel.status === s}
-                        onClick={() => setP('status', s)}
-                      >
-                        {s ? STATUS_LABEL[s] : 'All'}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
-                <fieldset className="pay-group">
-                  <legend>Payment method</legend>
-                  <div className="pay-chips">
-                    <button type="button" className={`pay-chip${panel.method === '' ? ' is-active' : ''}`} aria-pressed={panel.method === ''} onClick={() => setP('method', '')}>
-                      All
-                    </button>
-                    {METHOD_OPTIONS.map((m) => (
-                      <button
-                        key={m.value}
-                        type="button"
-                        className={`pay-chip${panel.method === m.value ? ' is-active' : ''}`}
-                        aria-pressed={panel.method === m.value}
-                        onClick={() => setP('method', m.value)}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
-                <div className="pay-row2">
-                  <label className="pay-field">
-                    <span>From</span>
-                    <input type="date" value={panel.from} max={panel.to || undefined} onChange={(e) => setP('from', e.target.value)} />
-                  </label>
-                  <label className="pay-field">
-                    <span>To</span>
-                    <input type="date" value={panel.to} min={panel.from || undefined} onChange={(e) => setP('to', e.target.value)} />
-                  </label>
-                </div>
-
-                <label className="pay-field">
-                  <span>Customer</span>
-                  <input value={panel.customer} onChange={(e) => setP('customer', e.target.value)} placeholder="Name, email, phone or ID" />
-                </label>
-
-                <label className="pay-field">
-                  <span>Booking</span>
-                  <input value={panel.booking} onChange={(e) => setP('booking', e.target.value)} placeholder="BK-1A2B3 or booking ID" spellCheck={false} />
-                </label>
-              </div>
-
-              <footer className="pay-sheet__foot">
-                <button type="button" className="pay-sheet__cta" onClick={apply}>Apply filters</button>
-              </footer>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <FilterPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        fields={FILTER_FIELDS}
+        values={{ ...filters }}
+        onApply={applyPanel}
+      />
 
       {/* Applied filter chips */}
       {hasAny && (

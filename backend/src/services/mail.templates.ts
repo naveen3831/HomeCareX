@@ -393,3 +393,107 @@ export function passwordResetOtpEmail(d: PasswordResetOtpEmailData): { subject: 
   return { subject: `${d.otp} is your ${BRAND.name} password reset code`, html, text };
 }
 
+export interface PartnerApprovedEmailData {
+  name: string;
+  email: string;
+  setPasswordUrl: string;
+  /** How long the link works, in hours. */
+  validHours: number;
+  logoSrc?: string;
+  supportEmail?: string;
+}
+
+/** Sent when an admin approves a partner's KYC. The link sets a new password; login stays blocked until then. */
+export function partnerApprovedEmail(d: PartnerApprovedEmailData) {
+  const firstName = d.name.trim().split(/\s+/)[0] || d.name;
+
+  const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 24px ${FONT};color:${BRAND.indigoDark};text-align:center">You're approved, ${esc(firstName)}!</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">Your KYC verification is complete.</p>
+
+<p style="margin:0 0 16px">Hi ${esc(d.name)},</p>
+<p style="margin:0 0 16px">Great news: our team has reviewed and approved your documents. Your ${BRAND.name} partner account is now verified.</p>
+<p style="margin:0 0 20px">One last step: set a new password for your account. You can sign in as soon as you have done that.</p>
+
+${button(d.setPasswordUrl, 'Set My Password')}
+<p style="margin:20px 0 22px;text-align:center;font-size:12px;color:${BRAND.muted}">Button not working? Copy and paste this link into your browser:<br /><a href="${esc(d.setPasswordUrl)}" style="color:${BRAND.indigo};word-break:break-all">${esc(d.setPasswordUrl)}</a></p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff7ed;border-left:4px solid ${BRAND.orange};border-radius:6px;margin-bottom:24px">
+  <tr><td style="padding:14px 18px;font:14px/1.6 ${FONT};color:#7c2d12">
+    <strong>Security note:</strong> this link works for <strong>${d.validHours} hours</strong> and only once. If it expires, use "Forgot password" on the login page with this email address. We will never ask for your password.
+  </td></tr>
+</table>
+
+<p style="margin:26px 0 0">Welcome aboard,<br /><strong>The ${BRAND.name} Team</strong></p>`;
+
+  const html = layout({
+    preheader: `Your ${BRAND.name} partner account is approved. Set your password to sign in.`,
+    logoSrc: d.logoSrc,
+    bodyHtml,
+    footerNote: `You are receiving this email because a ${BRAND.name} partner registration was submitted with ${d.email}.`,
+    supportEmail: d.supportEmail,
+  });
+
+  const text = [
+    `Hi ${d.name},`,
+    '',
+    `Your ${BRAND.name} partner KYC has been approved.`,
+    'Set your new password using the link below, then sign in:',
+    d.setPasswordUrl,
+    '',
+    `This link works for ${d.validHours} hours and only once.`,
+    'If it expires, use "Forgot password" on the login page.',
+    '',
+    `The ${BRAND.name} Team`,
+  ].join('\n');
+
+  return { subject: `You're approved: set your ${BRAND.name} password`, html, text };
+}
+
+export interface AdminPartnerKycEmailData {
+  partnerName: string;
+  partnerEmail: string;
+  partnerPhone?: string;
+  category?: string;
+  reviewUrl: string;
+  logoSrc?: string;
+  supportEmail?: string;
+}
+
+/** Sent to admins when a partner registers with KYC documents. */
+export function adminPartnerKycEmail(d: AdminPartnerKycEmailData) {
+  const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 22px ${FONT};color:${BRAND.indigoDark};text-align:center">New partner awaiting KYC review</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">The partner cannot sign in until you approve.</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BRAND.border};border-radius:12px;border-collapse:separate;background:#f8fafc;margin-bottom:20px">
+  ${row('Name', esc(d.partnerName))}
+  ${row('Email', esc(d.partnerEmail))}
+  ${row('Phone', esc(d.partnerPhone || '-'))}
+  ${row('Category', esc(d.category || '-'), true)}
+</table>
+
+${button(d.reviewUrl, 'Review KYC Documents')}
+<p style="margin:20px 0 0;text-align:center;font-size:12px;color:${BRAND.muted}">Open the partner, view each document, then approve or reject.</p>`;
+
+  const html = layout({
+    preheader: `${d.partnerName} submitted KYC documents for review.`,
+    logoSrc: d.logoSrc,
+    bodyHtml,
+    footerNote: `Admin notification from ${BRAND.name}.`,
+    supportEmail: d.supportEmail,
+  });
+
+  const text = [
+    'New partner awaiting KYC review',
+    '',
+    `Name: ${d.partnerName}`,
+    `Email: ${d.partnerEmail}`,
+    `Phone: ${d.partnerPhone || '-'}`,
+    `Category: ${d.category || '-'}`,
+    '',
+    `Review: ${d.reviewUrl}`,
+  ].join('\n');
+
+  return { subject: `KYC review needed: ${d.partnerName}`, html, text };
+}

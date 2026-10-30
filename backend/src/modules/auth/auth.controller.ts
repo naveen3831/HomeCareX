@@ -105,15 +105,24 @@ export const authController = {
   }),
 
   register: wrap(async (req, res) => {
-    const { user, accessToken, refreshToken } =
-      await authService.register(parseBody(registerSchema, req.body));
+    const result = await authService.register(parseBody(registerSchema, req.body));
+
+    // Partners wait for admin approval: no session, no cookie.
+    if ('pendingApproval' in result) {
+      res.status(201).json({
+        success: true,
+        data: { user: result.user, pendingApproval: true },
+        message: result.message,
+      });
+      return;
+    }
 
     clearRefreshCookies(res);
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
+    res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions());
 
     res.status(201).json({
       success: true,
-      data: { user, accessToken },
+      data: { user: result.user, accessToken: result.accessToken },
     });
   }),
 

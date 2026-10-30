@@ -348,7 +348,7 @@
 
 .payout-table {
   width: 100%;
-  min-width: 1120px;
+  min-width: 0;
   border-collapse: separate;
   border-spacing: 0;
   text-align: left;
@@ -404,6 +404,11 @@
   overflow-wrap: anywhere;
 }
 
+/* Keep money columns and the action button on one line; other cells may wrap so the table fits the card. */
+.payout-table td:nth-child(n + 3):nth-child(-n + 5) {
+  white-space: nowrap;
+}
+
 .payout-nowrap {
   white-space: nowrap;
 }
@@ -435,7 +440,7 @@
 
 .payout-period-cell {
   min-width: 140px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .payout-period-separator {
@@ -1196,4 +1201,12 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Desktop: table fits the card (no sideways scroll). Phones / small tablets scroll inside the card. */
+@media (max-width: 900px) {
+  .payout-table { width: max-content; min-width: 960px; }
+  .payout-table th,
+  .payout-table td { white-space: nowrap; }
+  .payout-period-cell { white-space: nowrap; }
 }

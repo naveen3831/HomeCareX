@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ChevronLeft, ChevronRight, ListFilter, Search, X } from 'lucide-react';
-import { useOverlay } from '@/hooks/useOverlay';
+import { AlertCircle, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 import { assignTicket, fetchAdminTickets, fetchAssignableAgents, updateTicketStatus } from '@/services/adminTicketApi';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
@@ -15,6 +13,7 @@ import {
   type TicketStatus,
 } from '@/types/adminTicket';
 import HelpTabs from '@/components/admin/HelpTabs';
+import { FilterButton, FilterPanel, type FilterField } from '@/components/admin/FilterPanel';
 import AssigneeSelect from './AssigneeSelect';
 import SlaBadge from './SlaBadge';
 import StatusSelect from './StatusSelect';
@@ -79,7 +78,6 @@ export const AdminSupportPage: React.FC = () => {
   };
 
   const [filters, setFilters] = useState<Filters>(EMPTY);
-  const [panel, setPanel] = useState<Filters>(EMPTY); // draft inside the side sheet, applied on "Apply filters"
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState(''); // debounced
@@ -95,8 +93,6 @@ export const AdminSupportPage: React.FC = () => {
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const latest = useRef(0);
-  const closePanel = () => setPanelOpen(false);
-  const sheetRef = useOverlay<HTMLDivElement>(panelOpen, closePanel); // Esc, scroll lock, focus trap
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), SLA_TICK_MS);
@@ -202,26 +198,35 @@ export const AdminSupportPage: React.FC = () => {
     return out;
   };
   const applied = describe(filters);
-  const draftCount = describe(panel).length;
   const hasAny = applied.length > 0 || !!search;
 
-  const openPanel = () => {
-    setPanel(filters);
-    setPanelOpen(true);
-  };
-  const apply = () => {
-    setFilters(panel);
+  const applyPanel = (v: Record<string, string>) => {
+    setFilters({
+      status: (TICKET_STATUSES as readonly string[]).includes(v.status) ? (v.status as TicketStatus) : '',
+      priority: (TICKET_PRIORITIES as readonly string[]).includes(v.priority) ? (v.priority as TicketPriority) : '',
+      assignee: v.assignee ?? '',
+    });
     setPage(1);
-    setPanelOpen(false);
   };
+  const filterFields: FilterField[] = [
+    { key: 'status', label: 'Status', options: [{ value: '', label: 'All statuses' }, ...TICKET_STATUSES.map((v) => ({ value: v, label: STATUS_LABEL[v] }))] },
+    { key: 'priority', label: 'Priority', options: [{ value: '', label: 'All priorities' }, ...TICKET_PRIORITIES.map((v) => ({ value: v, label: PRIORITY_LABEL[v] }))] },
+    {
+      key: 'assignee',
+      label: 'Assignee',
+      options: [
+        { value: '', label: 'All assignees' },
+        { value: 'unassigned', label: 'Unassigned' },
+        ...agents.map((a) => ({ value: a.id, label: a.id === myId ? `${a.name} (you)` : a.name })),
+      ],
+    },
+  ];
   const removeFilter = (key: FilterKey) => {
     setFilters((f) => ({ ...f, [key]: '' }));
     setPage(1);
   };
-  const setP = <K extends FilterKey>(key: K, value: Filters[K]) => setPanel((p) => ({ ...p, [key]: value }));
   const clearAll = () => {
     setFilters(EMPTY);
-    setPanel(EMPTY);
     setSearchInput('');
     setSearch('');
     setPage(1);
@@ -256,84 +261,16 @@ export const AdminSupportPage: React.FC = () => {
           )}
         </label>
 
-        <button
-          type="button"
-          className={`sup-btn sup-btn--filter${applied.length ? ' is-active' : ''}`}
-          onClick={openPanel}
-          aria-expanded={panelOpen}
-          aria-haspopup="dialog"
-        >
-          <ListFilter size={16} />
-          <span>Filters</span>
-          {applied.length > 0 && <span className="sup-count">{applied.length}</span>}
-        </button>
+        <FilterButton count={applied.length} open={panelOpen} onClick={() => setPanelOpen((o) => !o)} />
       </div>
 
-      {panelOpen &&
-        createPortal(
-          <div className="sup-sheet-overlay" onMouseDown={(e) => e.target === e.currentTarget && closePanel()}>
-            <div ref={sheetRef} className="sup-sheet" role="dialog" aria-modal="true" aria-label="Filter tickets" tabIndex={-1}>
-              <header className="sup-sheet__head">
-                <div>
-                  <h2 className="sup-sheet__title">Filters</h2>
-                  <p className="sup-sheet__sub" aria-live="polite">
-                    {draftCount === 0 ? 'No filters applied' : `${draftCount} ${draftCount === 1 ? 'filter' : 'filters'} selected`}
-                  </p>
-                </div>
-                <div className="sup-sheet__actions">
-                  {draftCount > 0 && (
-                    <button type="button" className="sup-sheet__clear" onClick={() => setPanel(EMPTY)}>Clear all</button>
-                  )}
-                  <button type="button" className="sup-sheet__close" onClick={closePanel} aria-label="Close filters">
-                    <X size={20} />
-                  </button>
-                </div>
-              </header>
-
-              <div className="sup-sheet__body">
-                <fieldset className="sup-group">
-                  <legend>Status</legend>
-                  <div className="sup-chips">
-                    {(['', ...TICKET_STATUSES] as const).map((v) => (
-                      <button key={v || 'all'} type="button" className={`sup-chip${panel.status === v ? ' is-active' : ''}`} aria-pressed={panel.status === v} onClick={() => setP('status', v)}>
-                        {v ? STATUS_LABEL[v] : 'All'}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
-                <fieldset className="sup-group">
-                  <legend>Priority</legend>
-                  <div className="sup-chips">
-                    {(['', ...TICKET_PRIORITIES] as const).map((v) => (
-                      <button key={v || 'all'} type="button" className={`sup-chip${panel.priority === v ? ' is-active' : ''}`} aria-pressed={panel.priority === v} onClick={() => setP('priority', v)}>
-                        {v ? PRIORITY_LABEL[v] : 'All'}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-
-                <fieldset className="sup-group">
-                  <legend>Assignee</legend>
-                  <div className="sup-chips">
-                    <button type="button" className={`sup-chip${panel.assignee === '' ? ' is-active' : ''}`} aria-pressed={panel.assignee === ''} onClick={() => setP('assignee', '')}>All</button>
-                    <button type="button" className={`sup-chip${panel.assignee === 'unassigned' ? ' is-active' : ''}`} aria-pressed={panel.assignee === 'unassigned'} onClick={() => setP('assignee', 'unassigned')}>Unassigned</button>
-                    {agents.map((a) => (
-                      <button key={a.id} type="button" className={`sup-chip${panel.assignee === a.id ? ' is-active' : ''}`} aria-pressed={panel.assignee === a.id} onClick={() => setP('assignee', a.id)}>
-                        {a.id === myId ? `${a.name} (you)` : a.name}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-              </div>
-
-              <footer className="sup-sheet__foot">
-                <button type="button" className="sup-sheet__cta" onClick={apply}>Apply filters</button>
-              </footer>
-            </div>
-          </div>,
-          document.body,
-        )}
+      <FilterPanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        fields={filterFields}
+        values={{ status: filters.status, priority: filters.priority, assignee: filters.assignee }}
+        onApply={applyPanel}
+      />
 
       {hasAny && (
         <div className="sup-applied" aria-label="Applied filters">
