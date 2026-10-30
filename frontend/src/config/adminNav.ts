@@ -17,7 +17,6 @@ import {
   RotateCcw,
   Settings,
   ShieldCheck,
-  Star,
   Tag,
   Ticket,
   UserCircle,

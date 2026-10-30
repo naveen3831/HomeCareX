@@ -13,8 +13,6 @@ import {
   History,
   Pencil,
   Plus,
-  Search,
-  SlidersHorizontal,
   Tag,
   Trash2,
   WifiOff,
@@ -22,8 +20,8 @@ import {
   XCircle,
 } from "lucide-react";
 import clsx from "clsx";
-
 import { PageHeader } from "@/components/admin/PageHeader";
+import { PageSearch } from "@/components/admin/PageSearch";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { FullScreenPanel } from "@/components/admin/FullScreenPanel";
 import {
@@ -54,7 +52,6 @@ import type {
   ServiceOption,
 } from "@/types/adminPricing";
 import PricingRuleForm from "./PricingRuleForm";
-
 import "../Categories/index.css";
 import "./index.css";
 
@@ -87,28 +84,28 @@ export const AdminPricingPage: React.FC = () => {
   const { can } = usePermissions();
   const canManage = can(PRICING_MANAGE);
 
-  const search = useUIStore((state) => state.pageSearch);
-  const setPageSearch = useUIStore((state) => state.setPageSearch);
-
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  // Search text comes from the search bar below the navbar (same as Services and Manage Partners).
+  // Search text comes from the PageSearch box under the title.
   const search = useUIStore((s) => s.pageSearch);
   const setPageSearch = useUIStore((s) => s.setPageSearch);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+  // In-page filters (the navbar search above still works too).
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [modeFilter, setModeFilter] = useState<"FIXED" | "HOURLY" | null>(null);
+  const [cityFilter, setCityFilter] = useState("");
 
   const [toast, setToast] = useState<Toast>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
+  const toastTimer = useRef<number>();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PricingRule | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [formFields, setFormFields] =
-    useState<PricingFormErrors | undefined>();
+  const [formFields, setFormFields] = useState<PricingFormErrors | undefined>();
 
   const [toDelete, setToDelete] = useState<PricingRule | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -120,79 +117,55 @@ export const AdminPricingPage: React.FC = () => {
   const flash = useCallback(
     (text: string, tone: "success" | "error" = "success") => {
       setToast({ text, tone });
-
-      if (toastTimer.current !== undefined) {
-        window.clearTimeout(toastTimer.current);
-      }
-
-      toastTimer.current = window.setTimeout(() => {
-        setToast(null);
-      }, 5500);
+      window.clearTimeout(toastTimer.current);
+      toastTimer.current = window.setTimeout(() => setToast(null), 5500);
     },
     [],
   );
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current !== undefined) {
-        window.clearTimeout(toastTimer.current);
-      }
-    };
-  }, []);
+  useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
   const load = useCallback(async () => {
-    setLoading(true);
-
     try {
-      const [categoryResult, serviceResult] = await Promise.all([
-        adminCategoryApi.list().catch(() => [] as AdminCategory[]),
-        adminServiceApi.list().catch(() => []),
-      ]);
-
-      setCategories(toCategoryOptions(categoryResult));
-
+      // Categories, then services (each decides its own live/demo mode), then the rules.
+      const cats = await adminCategoryApi
+        .list()
+        .catch(() => [] as AdminCategory[]);
+      const svcs = await adminServiceApi.list().catch(() => []);
+      setCategories(toCategoryOptions(cats));
       setServices(
-        serviceResult.map((service) => ({
-          id: service.id,
-          name: service.name,
-          categoryId: service.categoryId,
-          basePrice: service.basePrice,
-          durationMinutes: service.durationMinutes,
+        svcs.map((s) => ({
+          id: s.id,
+          name: s.name,
+          categoryId: s.categoryId,
+          basePrice: s.basePrice,
+          durationMinutes: s.durationMinutes,
         })),
       );
-
       setRules(await adminPricingApi.list());
       setLoadError("");
-    } catch (error) {
-      setLoadError(
-        (error as PricingApiError).message ||
-          "Could not load pricing rules.",
-      );
+    } catch (e) {
+      setLoadError((e as PricingApiError).message);
     } finally {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => {
     void load();
   }, [load]);
 
+  // ---- names for the table ----
   const categoryName = useCallback(
     (id: string) =>
-      categories.find((category) => category.id === id)?.name ??
-      "Unknown category",
+      categories.find((c) => c.id === id)?.name ?? "Unknown category",
     [categories],
   );
-
   const serviceName = useCallback(
     (id: string | null) =>
       id === null
         ? "All services"
-        : services.find((service) => service.id === id)?.name ??
-          "Unknown service",
+        : (services.find((s) => s.id === id)?.name ?? "Unknown service"),
     [services],
   );
-
   const labelFor = useCallback(
     (r: { categoryId: string; serviceId: string | null; city: string }) =>
       `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} ┬╖ ${r.city || "All cities"}`,
@@ -203,48 +176,21 @@ export const AdminPricingPage: React.FC = () => {
     const needle = search.trim().toLowerCase();
 
     return rules.filter((r) => {
+      if (statusFilter !== "all" && (statusFilter === "active") !== r.active) return false;
+      if (modeFilter && r.mode !== modeFilter) return false;
+      if (cityFilter && cityKey(r.city || "") !== cityKey(cityFilter)) return false;
       if (!needle) return true;
 
       return [
-        serviceName(rule.serviceId),
-        categoryName(rule.categoryId),
-        rule.city || "all cities",
-        rule.mode,
-      ].some((value) => value.toLowerCase().includes(needle));
+        serviceName(r.serviceId),
+        categoryName(r.categoryId),
+        r.city || "all cities",
+        r.mode,
+      ].some((v) => v.toLowerCase().includes(needle));
     });
-  }, [rules, search, serviceName, categoryName]);
+  }, [rules, search, statusFilter, modeFilter, cityFilter, serviceName, categoryName]);
 
-  const clearFilters = () => setPageSearch("");
-
-  const stats = useMemo(
-    () => ({
-      total: rules.length,
-      active: rules.filter((rule) => rule.active).length,
-      inactive: rules.filter((rule) => !rule.active).length,
-    }),
-    [rules],
-  );
-
-  const cities = useMemo(() => {
-    const cityMap = new Map<string, string>();
-
-    rules.forEach((rule) => {
-      if (rule.city && !cityMap.has(cityKey(rule.city))) {
-        cityMap.set(cityKey(rule.city), rule.city);
-      }
-    });
-
-    return Array.from(cityMap.values()).sort((a, b) =>
-      a.localeCompare(b),
-    );
-  }, [rules]);
-
-  const filtersActive =
-    statusFilter !== "all" ||
-    modeFilter !== null ||
-    cityFilter !== "" ||
-    search.trim() !== "";
-
+  const filtersActive = statusFilter !== "all" || modeFilter !== null || cityFilter !== "" || search.trim() !== "";
   const clearFilters = () => {
     setPageSearch("");
     setStatusFilter("all");
@@ -252,15 +198,32 @@ export const AdminPricingPage: React.FC = () => {
     setCityFilter("");
   };
 
+  const stats = useMemo(
+    () => ({
+      total: rules.length,
+      active: rules.filter((r) => r.active).length,
+      inactive: rules.filter((r) => !r.active).length,
+    }),
+    [rules],
+  );
+  const cities = useMemo(() => {
+    const byKey = new Map<string, string>();
+    rules.forEach((r) => {
+      if (r.city && !byKey.has(cityKey(r.city)))
+        byKey.set(cityKey(r.city), r.city);
+    });
+    return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b));
+  }, [rules]);
+
+  // ---- actions ----
   const openCreate = () => {
     setEditing(null);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
   };
-
-  const openEdit = (rule: PricingRule) => {
-    setEditing(rule);
+  const openEdit = (r: PricingRule) => {
+    setEditing(r);
     setFormError("");
     setFormFields(undefined);
     setFormOpen(true);
@@ -270,40 +233,28 @@ export const AdminPricingPage: React.FC = () => {
     setSaving(true);
     setFormError("");
     setFormFields(undefined);
-
     try {
       const saved = await adminPricingApi.save(input, labelFor(input));
-
       setFormOpen(false);
-      setEditing(null);
-
       await load();
-
       flash(
         `Pricing rule for ΓÇ£${labelFor(saved)}ΓÇ¥ ${editing ? "updated" : "created"}`,
       );
-    } catch (error) {
-      const apiError = error as PricingApiError;
-      setFormError(apiError.message || "Could not save pricing rule.");
-      setFormFields(apiError.fields);
+    } catch (e) {
+      const err = e as PricingApiError;
+      setFormError(err.message);
+      setFormFields(err.fields);
     } finally {
       setSaving(false);
     }
   }
 
-  async function toggle(rule: PricingRule) {
-    const nextActive = !rule.active;
-
-    setRules((previous) =>
-      previous.map((item) =>
-        item.id === rule.id
-          ? { ...item, active: nextActive }
-          : item,
-      ),
+  async function toggle(r: PricingRule) {
+    const next = !r.active;
+    setRules((prev) =>
+      prev.map((x) => (x.id === r.id ? { ...x, active: next } : x)),
     );
-
-    setBusyIds((previous) => new Set(previous).add(rule.id));
-
+    setBusyIds((b) => new Set(b).add(r.id));
     try {
       await adminPricingApi.setActive(r, next, labelFor(r));
       flash(`Rule for ΓÇ£${labelFor(r)}ΓÇ¥ ${next ? "activated" : "deactivated"}`);
@@ -311,32 +262,26 @@ export const AdminPricingPage: React.FC = () => {
       setRules((prev) =>
         prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)),
       );
+      flash((e as PricingApiError).message, "error");
     } finally {
-      setBusyIds((previous) => {
-        const next = new Set(previous);
-        next.delete(rule.id);
-        return next;
+      setBusyIds((b) => {
+        const n = new Set(b);
+        n.delete(r.id);
+        return n;
       });
     }
   }
 
   async function confirmDelete() {
     if (!toDelete) return;
-
     setDeleting(true);
-
     try {
       await adminPricingApi.remove(toDelete, labelFor(toDelete));
       flash(`Rule for ΓÇ£${labelFor(toDelete)}ΓÇ¥ removed`);
       setToDelete(null);
-
       await load();
-    } catch (error) {
-      flash(
-        (error as PricingApiError).message ||
-          "Could not remove pricing rule.",
-        "error",
-      );
+    } catch (e) {
+      flash((e as PricingApiError).message, "error");
       setToDelete(null);
     } finally {
       setDeleting(false);
@@ -345,12 +290,10 @@ export const AdminPricingPage: React.FC = () => {
 
   async function openAudit() {
     setAuditOpen(true);
-
     try {
       setAudit(await adminPricingApi.auditLog());
     } catch {
       setAudit([]);
-      flash("Could not load the pricing audit log.", "error");
     }
   }
 
@@ -371,7 +314,6 @@ export const AdminPricingPage: React.FC = () => {
             >
               <History size={16} /> Audit log
             </button>
-
             <PermissionGate permission={PRICING_MANAGE}>
               <button
                 type="button"
@@ -390,49 +332,40 @@ export const AdminPricingPage: React.FC = () => {
 
       {!online && (
         <div className="cat-banner" role="status">
-          <WifiOff size={15} /> You are offline. You can browse what has
-          loaded, but changes are disabled until the connection returns.
+          <WifiOff size={15} /> You are offline. You can browse what has loaded,
+          but changes are disabled until the connection returns.
         </div>
       )}
-
       {mode === "demo" && (
         <div className="cat-banner" role="status">
           <WifiOff size={15} /> Backend not reachable (
-          {getPricingApiModeReason()}): showing local demo data. Changes
-          are saved in this browser only.
+          {getPricingApiModeReason()}): showing local demo data. Changes are
+          saved in this browser only.
         </div>
       )}
-
       {!canManage && (
         <div className="cat-banner cat-banner--info" role="status">
           You can view pricing but need the ΓÇ£{PRICING_MANAGE}ΓÇ¥ permission to
           change it.
         </div>
       )}
-
       {noCatalog && !loadError && (
         <div className="cat-banner cat-banner--info" role="status">
-          Create a category and a service first, then come back to set
-          pricing.
+          Create a category and a service first, then come back to set pricing.
         </div>
       )}
 
       {toast && (
         <div
           role="status"
-          className={clsx(
-            "cat-toast",
-            toast.tone === "error" && "is-error",
-          )}
+          className={clsx("cat-toast", toast.tone === "error" && "is-error")}
         >
           {toast.tone === "error" ? (
             <XCircle size={16} />
           ) : (
             <CheckCircle2 size={16} />
           )}
-
           <span>{toast.text}</span>
-
           <button
             type="button"
             aria-label="Dismiss"
@@ -453,7 +386,6 @@ export const AdminPricingPage: React.FC = () => {
             <small>Total rules</small>
           </div>
         </div>
-
         <div className="cat-stat">
           <span className="cat-stat__i is-ok">
             <Eye size={18} />
@@ -463,7 +395,6 @@ export const AdminPricingPage: React.FC = () => {
             <small>Active</small>
           </div>
         </div>
-
         <div className="cat-stat">
           <span className="cat-stat__i is-off">
             <EyeOff size={18} />
@@ -485,18 +416,49 @@ export const AdminPricingPage: React.FC = () => {
           <button
             type="button"
             className="hcx-btn"
-            onClick={() => void load()}
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
           >
             Retry
           </button>
         </div>
       )}
 
+      {!loading && !loadError && rules.length > 0 && (
+        <div className="prc-toolbar">
+          <div className="prc-chips" role="radiogroup" aria-label="Status">
+            {([["all", "All", stats.total], ["active", "Active", stats.active], ["inactive", "Inactive", stats.inactive]] as const).map(([value, label, n]) => (
+              <button key={value} type="button" role="radio" aria-checked={statusFilter === value}
+                className={clsx("prc-chip", statusFilter === value && "is-on")} onClick={() => setStatusFilter(value)}>
+                {label} <span>{n}</span>
+              </button>
+            ))}
+          </div>
+          <div className="prc-seg" role="radiogroup" aria-label="Mode">
+            {(["FIXED", "HOURLY"] as const).map((m) => (
+              <button key={m} type="button" role="radio" aria-checked={modeFilter === m}
+                className={clsx(modeFilter === m && "is-on")} onClick={() => setModeFilter(modeFilter === m ? null : m)}>
+                {m === "FIXED" ? "Fixed" : "Hourly"}
+              </button>
+            ))}
+          </div>
+          <div className="prc-citysel">
+            <select aria-label="City" value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
+              <option value="">All cities</option>
+              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {filtersActive && <button type="button" className="prc-clear" onClick={clearFilters}>Clear filters</button>}
+        </div>
+      )}
+
       {loading ? (
         <div className="cat-skel" aria-label="Loading pricing rules">
-          {[0, 1, 2, 3].map((number) => (
+          {[0, 1, 2, 3].map((n) => (
             <span
-              key={number}
+              key={n}
               className="hcx-skeleton hcx-skeleton--block"
               style={{ height: 56 }}
             />
@@ -504,20 +466,17 @@ export const AdminPricingPage: React.FC = () => {
         </div>
       ) : visible.length === 0 ? (
         <div className="cat-empty">
-          <Tag size={34} aria-hidden="true" />
-
+          <Tag size={34} aria-hidden />
           <h3>
             {rules.length === 0
               ? "No pricing rules yet"
               : "No rules match your filters"}
           </h3>
-
           <p>
             {rules.length === 0
               ? "Create a rule to set the price, add-ons and surge windows for a category or service."
               : "Try a different search or clear the filters."}
           </p>
-
           {rules.length === 0 ? (
             <PermissionGate permission={PRICING_MANAGE}>
               <button
@@ -530,11 +489,7 @@ export const AdminPricingPage: React.FC = () => {
               </button>
             </PermissionGate>
           ) : (
-            <button
-              type="button"
-              className="hcx-btn"
-              onClick={clearFilters}
-            >
+            <button type="button" className="hcx-btn" onClick={clearFilters}>
               Clear filters
             </button>
           )}
@@ -542,10 +497,7 @@ export const AdminPricingPage: React.FC = () => {
       ) : (
         <div className="hcx-table-card">
           <div className="hcx-table-scroll">
-            <table
-              className="hcx-table prc-table"
-              aria-label="Pricing rules"
-            >
+            <table className="hcx-table prc-table" aria-label="Pricing rules">
               <thead>
                 <tr>
                   <th scope="col">Service / category</th>
@@ -569,117 +521,95 @@ export const AdminPricingPage: React.FC = () => {
                   </th>
                 </tr>
               </thead>
-
               <tbody>
-                {visible.map((rule) => {
-                  const busy = busyIds.has(rule.id);
-                  const name = labelFor(rule);
-
+                {visible.map((r) => {
+                  const busy = busyIds.has(r.id);
+                  const name = labelFor(r);
                   return (
                     <tr
-                      key={rule.id}
+                      key={r.id}
                       className={clsx(
-                        !rule.active && "is-inactive",
+                        !r.active && "is-inactive",
                         busy && "is-busy",
                       )}
                     >
                       <td className="prc-td-scope">
                         <div className="prc-scope">
-                          <strong>{serviceName(rule.serviceId)}</strong>
-                          <small>{categoryName(rule.categoryId)}</small>
+                          <strong>{serviceName(r.serviceId)}</strong>
+                          <small>{categoryName(r.categoryId)}</small>
                         </div>
                       </td>
-
                       <td data-label="City">
-                        {rule.city || (
+                        {r.city || (
                           <span className="prc-muted">All cities</span>
                         )}
                       </td>
-
                       <td data-label="Price">
-                        <b className="prc-price">
-                          {rupees(rule.basePrice)}
-                        </b>
+                        <b className="prc-price">{rupees(r.basePrice)}</b>
                         <span
                           className={clsx(
                             "prc-mode",
-                            rule.mode === "HOURLY" && "is-hourly",
+                            r.mode === "HOURLY" && "is-hourly",
                           )}
                         >
-                          {rule.mode === "HOURLY" ? "per hour" : "fixed"}
+                          {r.mode === "HOURLY" ? "per hour" : "fixed"}
                         </span>
                       </td>
-
                       <td className="hcx-hide-sm" data-label="Duration">
                         <span className="prc-dur">
-                          <Clock size={12} aria-hidden="true" />{" "}
-                          {duration(rule.durationMinutes)}
+                          <Clock size={12} aria-hidden />{" "}
+                          {duration(r.durationMinutes)}
                         </span>
                       </td>
-
                       <td className="hcx-hide-sm" data-label="Add-ons">
                         {r.addOns.length || (
                           <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
-
                       <td className="hcx-hide-sm" data-label="Surge windows">
                         {r.surgeWindows.length || (
                           <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
-
-                      <td
-                        className="hcx-hide-sm"
-                        data-label="Cancellation fee"
-                      >
-                        {rupees(rule.cancellationFee)}
+                      <td className="hcx-hide-sm" data-label="Cancellation fee">
+                        {rupees(r.cancellationFee)}
                       </td>
-
                       <td data-label="Status">
                         <div className="prc-status">
                           <button
                             type="button"
                             role="switch"
-                            aria-checked={rule.active}
-                            aria-label={`Rule for ${name} is ${
-                              rule.active ? "active" : "inactive"
-                            }`}
-                            className={clsx(
-                              "cat-switch",
-                              rule.active && "is-on",
-                            )}
+                            aria-checked={r.active}
+                            aria-label={`Rule for ${name} is ${r.active ? "active" : "inactive"}`}
+                            className={clsx("cat-switch", r.active && "is-on")}
                             disabled={!canManage || !online || busy}
-                            onClick={() => void toggle(rule)}
+                            onClick={() => void toggle(r)}
                           >
                             <span />
                           </button>
-
                           <StatusBadge
-                            status={rule.active ? "Active" : "Inactive"}
-                            tone={rule.active ? "success" : "neutral"}
+                            status={r.active ? "Active" : "Inactive"}
+                            tone={r.active ? "success" : "neutral"}
                           />
                         </div>
                       </td>
-
                       <td className="prc-td-actions">
                         <div className="prc-actions">
                           <PermissionGate permission={PRICING_MANAGE}>
                             <button
                               type="button"
                               className="cat-iconbtn"
-                              onClick={() => openEdit(rule)}
+                              onClick={() => openEdit(r)}
                               disabled={!online}
                               aria-label={`Edit rule for ${name}`}
                               title="Edit"
                             >
                               <Pencil size={16} />
                             </button>
-
                             <button
                               type="button"
                               className="cat-iconbtn cat-iconbtn--danger"
-                              onClick={() => setToDelete(rule)}
+                              onClick={() => setToDelete(r)}
                               disabled={!online}
                               aria-label={`Remove rule for ${name}`}
                               title="Remove"
@@ -708,13 +638,8 @@ export const AdminPricingPage: React.FC = () => {
         saving={saving}
         serverError={formError}
         serverFields={formFields}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-          setFormError("");
-          setFormFields(undefined);
-        }}
-        onSubmit={(input) => void save(input)}
+        onClose={() => setFormOpen(false)}
+        onSubmit={(i) => void save(i)}
       />
 
       <ConfirmDialog
@@ -744,8 +669,8 @@ export const AdminPricingPage: React.FC = () => {
           <p className="cat-note">No activity yet.</p>
         ) : (
           <ul className="cat-audit">
-            {audit.map((entry) => (
-              <li key={entry.id}>
+            {audit.map((a) => (
+              <li key={a.id}>
                 <button
                   type="button"
                   onClick={() =>
@@ -762,35 +687,25 @@ export const AdminPricingPage: React.FC = () => {
                   }
                 >
                   <StatusBadge
-                    status={entry.action}
+                    status={a.action}
                     tone={
-                      entry.action === "delete"
+                      a.action === "delete"
                         ? "danger"
-                        : entry.action === "create"
+                        : a.action === "create"
                           ? "success"
                           : "info"
                     }
                     dot={false}
                   />
-
-                  <span className="cat-audit__n">
-                    {entry.entityName}
-                  </span>
-
-                  <small>
-                    {new Date(entry.time).toLocaleString()}
-                  </small>
+                  <span className="cat-audit__n">{a.entityName}</span>
+                  <small>{new Date(a.time).toLocaleString()}</small>
                 </button>
               </li>
             ))}
           </ul>
         )}
       </FullScreenPanel>
-
-      <AuditDiffDrawer
-        entry={auditEntry}
-        onClose={() => setAuditEntry(null)}
-      />
+      <AuditDiffDrawer entry={auditEntry} onClose={() => setAuditEntry(null)} />
     </div>
   );
 };

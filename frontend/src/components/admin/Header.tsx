@@ -1,8 +1,9 @@
-﻿import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { HelpCircle, Menu, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { HelpCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { NotificationBell } from '@/components/admin/NotificationBell';
+import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
 export interface HeaderNotification {
   id: string;
