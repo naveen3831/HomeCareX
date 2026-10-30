@@ -36,10 +36,19 @@ export function useBooking(id: string | undefined) {
     enabled: Boolean(id),
     staleTime: 10_000,
     retry: retryTransientOnly,
-    refetchInterval: (query) =>
-      query.state.data && LIVE_STATUSES.has(query.state.data.status)
-        ? LIVE_REFRESH_MS
-        : false,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return false;
+      if (LIVE_STATUSES.has(data.status)) return LIVE_REFRESH_MS;
+      // Finished but not paid yet: keep checking so "Paid" shows up without a reload.
+      if (
+        data.status === "completed" &&
+        String(data.paymentDetails?.status ?? "").toLowerCase() !== "paid"
+      ) {
+        return LIVE_REFRESH_MS;
+      }
+      return false;
+    },
   });
 }
 

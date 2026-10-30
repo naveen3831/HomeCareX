@@ -15,8 +15,6 @@ const errorMessage = (error: unknown): string => {
   return error instanceof Error ? error.message : String(record.message ?? error);
 };
 
-const errorStatus = (error: unknown): number | undefined =>
-  Number(asRecord(asRecord(error).response).status) || undefined;
 
 const currentUserId = (): string | undefined => {
   const id = useAuthStore.getState().user?.id;
@@ -26,14 +24,8 @@ const currentUserId = (): string | undefined => {
 export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_mock_job_v1';
 export const MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
 
-function getCurrentUserId(): string | undefined {
-  const id = useAuthStore.getState().user?.id;
-  return typeof id === 'string' ? id : undefined;
-}
-
 export function getAssignedCatalogStorageKey(userId?: string): string {
   const effectiveId = userId || currentUserId();
-  const effectiveId = userId || getCurrentUserId();
   return effectiveId
     ? `homecarex_partner_assigned_services_v3_${effectiveId}`
     : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
@@ -93,7 +85,7 @@ export const DEMO_START_OTP = '1234';
  * Mocks are active when VITE_USE_MOCKS is explicitly set to 'true'.
  * In real API mode, fetchJob still falls back cleanly if a mock job is requested.
  */
-export const IS_MOCK_JOBS = String(import.meta.env.VITE_USE_MOCKS ?? 'false') === 'true';
+export const IS_MOCK_JOBS = false;
 
 /** Same rules as the backend (backend/src/modules/partner-jobs/partner-jobs.service.ts). */
 export const START_OTP_MAX_ATTEMPTS = 5;
@@ -334,6 +326,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PENDING',
+        phase: 'pending',
+        upi: null,
         amount: 1997,
         method: 'Pay after service (UPI / cash)',
       },
@@ -397,6 +391,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 1299,
         method: 'Online prepaid (UPI)',
       },
@@ -459,6 +455,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PENDING',
+        phase: 'pending',
+        upi: null,
         amount: 1148,
         method: 'Pay after service (UPI / cash)',
       },
@@ -522,6 +520,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 1599,
         method: 'Online prepaid (Card)',
       },
@@ -583,6 +583,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PENDING',
+        phase: 'pending',
+        upi: null,
         amount: 1099,
         method: 'Pay after service (UPI / cash)',
       },
@@ -645,6 +647,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 1399,
         method: 'Online prepaid (UPI)',
       },
@@ -708,6 +712,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 1348,
         method: 'Online prepaid (UPI)',
       },
@@ -769,6 +775,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 999,
         method: 'Online prepaid (Card)',
       },
@@ -829,6 +837,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PENDING',
+        phase: 'pending',
+        upi: null,
         amount: 899,
         method: 'Pay after service (UPI / cash)',
       },
@@ -890,6 +900,8 @@ export function createInitialAssignedServicesCatalog(
       ],
       payment: {
         status: 'PAID',
+        phase: 'paid',
+        upi: null,
         amount: 1099,
         method: 'Online prepaid (UPI)',
       },
@@ -1034,6 +1046,8 @@ export function createInitialPartnerRouteMockJob(
     checklist,
     payment: {
       status: 'PENDING',
+      phase: 'pending',
+      upi: null,
       amount: profile.price!.total,
       method: 'Pay after service (UPI / cash)',
     },
@@ -1139,7 +1153,6 @@ function findKnownJob(requestedId?: string): JobDetails | null {
       const liveList: unknown = JSON.parse(rawLive);
       if (Array.isArray(liveList)) {
         const found = liveList.find((job) => String(asRecord(job).id).toLowerCase() === cleanId);
-        const found = liveList.find((j: { id?: string | number }) => String(j.id).toLowerCase() === cleanId);
         if (found) {
           return mapJobListItemToJobDetails(asRecord(found));
         }
@@ -1285,7 +1298,6 @@ export async function fetchAssignedServices(
   options?: FetchAssignedServicesOptions,
 ): Promise<JobDetails[]> {
   const effectiveUserId = options?.userId || currentUserId();
-  const effectiveUserId = options?.userId || getCurrentUserId();
   let partnerServices = options?.assignedServices;
 
   if (!partnerServices || partnerServices.length === 0) {
@@ -1301,7 +1313,6 @@ export async function fetchAssignedServices(
   }
 
   try {
-    const res = await api.get<{ data: Record<string, unknown>[] }>('/partner/jobs?tab=all');
     const res = await api.get<{ data: JobListItemLike[] }>('/partner/jobs?tab=all');
     if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
       const mapped = res.data.data.map(mapJobListItemToJobDetails);
@@ -1401,6 +1412,37 @@ export function resetMockPartnerJob(
   return saveMockJobToStorage(fresh, userId);
 }
 
+/* ---- Checklist ticks kept on this device when the server has no save route ---- */
+const checklistKey = (bookingId: string) => `homecarex_checklist_${bookingId}`;
+
+function readLocalTicks(bookingId: string): Record<string, boolean> {
+  try {
+    const raw = window.localStorage.getItem(checklistKey(bookingId));
+    return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalTick(bookingId: string, itemId: string, done: boolean): void {
+  try {
+    const ticks = readLocalTicks(bookingId);
+    ticks[itemId] = done;
+    window.localStorage.setItem(checklistKey(bookingId), JSON.stringify(ticks));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
+function withLocalTicks(job: JobDetails): JobDetails {
+  const ticks = readLocalTicks(job.id);
+  if (Object.keys(ticks).length === 0) return job;
+  return {
+    ...job,
+    checklist: job.checklist.map((c) => (c.id in ticks ? { ...c, done: ticks[c.id] } : c)),
+  };
+}
+
 export async function fetchJob(id: string): Promise<JobDetails> {
   const cleanId = id?.trim();
   if (!cleanId) {
@@ -1412,23 +1454,16 @@ export async function fetchJob(id: string): Promise<JobDetails> {
     const res = await api.get<{ data: ApiJob }>(`/partner/jobs/${cleanId}`);
     if (res.data?.data) {
       const mapped = mapJob(res.data.data);
-      saveMockJobToStorage(mapped);
-      return mapped;
+      if (IS_MOCK_JOBS) saveMockJobToStorage(mapped);
+      return withLocalTicks(mapped);
     }
   } catch (err: unknown) {
-    const status = errorStatus(err);
     console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, errorMessage(err));
-    if (!IS_MOCK_JOBS && (status === 404 || status === 403)) {
-    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
-    if (!IS_MOCK_JOBS && ((err as { response?: { status?: number } })?.response?.status === 404 || (err as { response?: { status?: number } })?.response?.status === 403)) {
-      const fallback = findKnownJob(cleanId);
-      if (fallback) {
-        return withStartVerification(fallback);
-      }
-      throw err;
-    }
+    // Real mode: never show demo data. Surface the error instead.
+    if (!IS_MOCK_JOBS) throw err;
   }
 
+  if (!IS_MOCK_JOBS) throw new Error('Could not load this job.');
   return loadMockJobFromStorage(cleanId);
 }
 
@@ -1466,11 +1501,20 @@ export async function persistChecklistItem(
   done: boolean,
 ): Promise<{ id: string; label: string; done: boolean }[]> {
   if (!IS_MOCK_JOBS) {
-    const res = await api.patch<{ data: { checklist: { id: string; label: string; done: boolean }[] } }>(
-      `/partner/jobs/${bookingId}/checklist/${encodeURIComponent(itemId)}`,
-      { done },
-    );
-    return res.data.data.checklist;
+    try {
+      const res = await api.patch<{ data: { checklist: { id: string; label: string; done: boolean }[] } }>(
+        `/partner/jobs/${bookingId}/checklist/${encodeURIComponent(itemId)}`,
+        { done },
+      );
+      return res.data.data.checklist;
+    } catch (err) {
+      // The backend has no checklist route yet (404): keep the tick on this device.
+      if (Number(asRecord(asRecord(err).response).status) === 404) {
+        writeLocalTick(bookingId, itemId, done);
+        return [];
+      }
+      throw err;
+    }
   }
   const current = loadMockJobFromStorage(bookingId);
   const nextChecklist = current.checklist.map((item) =>
@@ -1548,8 +1592,6 @@ export function getMockExtraCharges(bookingId: string): ExtraChargeItem[] {
     } catch {
       // Ignore malformed cached data and try the next storage key.
     }
-    /* ignore parse failure */
-  }
   }
   return [];
 }
@@ -1570,8 +1612,6 @@ export function saveMockExtraCharges(bookingId: string, items: ExtraChargeItem[]
     } catch {
       // Storage is best-effort; try writing the remaining aliases.
     }
-    /* ignore parse failure */
-  }
   }
 }
 
@@ -1669,7 +1709,7 @@ export async function triggerSos(
   });
   return {
     success: true,
-    message: 'SOS alert sent (Demo Mode)',
+    message: 'SOS alert sent',
   };
 }
 
@@ -1781,6 +1821,15 @@ export async function verifyStart(jobId: string, otp: string, photo: File): Prom
   const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${jobId}/verify-start`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return mapJob(res.data.data);
+}
+
+/**
+ * The partner took the payment on site (POST /partner/jobs/:id/collect-payment).
+ * Only works after the job is completed. Returns the updated job (payment now PAID).
+ */
+export async function collectPayment(jobId: string, method: 'cash' | 'upi'): Promise<JobDetails> {
+  const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${jobId}/collect-payment`, { method });
   return mapJob(res.data.data);
 }
 

@@ -6,17 +6,9 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
- 
-import {
 
 import {
   acceptInviteSchema,
- 
-  inviteStaffSchema,
-  verifyInviteSchema,
-
-  changePasswordSchema,
-  forgotPasswordSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   inviteStaffSchema,
@@ -102,7 +94,10 @@ const getAuthenticatedUserId = (res: Response): string => {
 export const authController = {
   login: wrap(async (req, res) => {
     const { user, accessToken, refreshToken } =
-      await authService.login(parseBody(loginSchema, req.body));
+      await authService.login(parseBody(loginSchema, req.body), {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
 
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
@@ -221,69 +216,53 @@ export const authController = {
     res.json(result);
   }),
 
-  /**
-   * Individual session records are not implemented yet.
-   */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
+  /** GET /api/v1/auth/sessions */
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const currentSid = (res.locals.auth as { sid?: string } | undefined)?.sid;
 
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
+    const data = await authService.getSessions(userId, {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+      currentSid,
+    });
+
+    res.json({
+      success: true,
+      data,
+    });
+  }),
+
+  /** DELETE /api/v1/auth/sessions/:id */
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const currentSid = (res.locals.auth as { sid?: string } | undefined)?.sid;
+
+    const result = await authService.revokeSession(
+      userId,
+      req.params.id,
+      currentSid,
+    );
+
+    if (result.isCurrent) {
+      clearRefreshCookies(res);
+    }
+
+    res.json({
+      success: true,
+      data: { isCurrent: result.isCurrent },
+      message: result.message,
     });
   }),
 
   /**
-   * Individual session revocation requires persistent session records.
-   */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
-    });
-  }),
-
-  /**
+   * POST /api/v1/auth/logout-all
    * Invalidate refresh tokens for the currently authenticated user.
    */
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
-    const result = await authService.revokeUserSessions(userId);
+    const result = await authService.logoutAll(userId);
 
-        parseBody(
-          resetPasswordSchema,
-          req.body,
-        ),
-      );
-    res.json(result);
-  }),
-  /** POST /api/v1/auth/verify-invite */
-  verifyInvite: wrap(async (req, res) => {
-    const payload = parseBody(verifyInviteSchema, req.body);
-    const result = await authService.verifyInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-
-  /** POST /api/v1/auth/accept-invite */
-  acceptInvite: wrap(async (req, res) => {
-    const payload = parseBody(acceptInviteSchema, req.body);
-    const result = await authService.acceptInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-  /** POST /api/v1/auth/change-password */
-  changePassword: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
-    const { currentPassword, newPassword } = parseBody(changePasswordSchema, req.body);
-    const data = await authService.changePassword(userId, { currentPassword, newPassword });
-    res.json({ success: true, data, message: 'Password updated' });
     clearRefreshCookies(res);
 
     res.json({
@@ -296,7 +275,7 @@ export const authController = {
   }),
 
   /**
-   * Admin endpoint: revoke refresh tokens for a specified user.
+   * POST /api/v1/auth/revoke-user-sessions/:userId (admin)
    * Protect this route with admin authorization middleware.
    */
   revokeUserSessions: wrap(async (req, res) => {
@@ -321,22 +300,6 @@ export const authController = {
     });
   }),
 
-
-  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
-  revokeUserSessions: wrap(async (req, res) => {
-    const { userId } = req.params;
-
-    const result = await authService.revokeUserSessions(userId);
-
-    res.json({
-      success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
-    });
-  }),
-};
   /**
    * POST /api/v1/admin/staff
    * Admin authorization must be applied by the route.
@@ -358,9 +321,7 @@ export const authController = {
     });
   }),
 
-  /**
-   * POST /api/v1/auth/verify-invite
-   */
+  /** POST /api/v1/auth/verify-invite */
   verifyInvite: wrap(async (req, res) => {
     const data = await authService.verifyInvite(
       parseBody(verifyInviteSchema, req.body),
@@ -372,9 +333,7 @@ export const authController = {
     });
   }),
 
-  /**
-   * POST /api/v1/auth/accept-invite
-   */
+  /** POST /api/v1/auth/accept-invite */
   acceptInvite: wrap(async (req, res) => {
     await authService.acceptInvite(
       parseBody(acceptInviteSchema, req.body),

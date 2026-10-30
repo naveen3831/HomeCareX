@@ -33,7 +33,7 @@ import { FOCUS_RING } from "@/components/customer/focusRing";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useBooking, useDecideExtraCharge } from "@/hooks/useBooking";
 import { customerPath } from "@/routes/customerPath";
-import type { BookingDetailView } from "@/types/bookingDetail";
+import type { BookingDetailPartner, BookingDetailView } from "@/types/bookingDetail";
 import { PILL_CLASS, formatSlot, rupees } from "../Bookings/bookingModel";
 import {
   buildPriceBreakdown,
@@ -246,7 +246,6 @@ function DetailsBody({
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
 
   const bookingId = String(booking._id || booking.id || "");
-  const bookingId = String(booking._id || (booking as { id?: string }).id || "");
   const normalizedStatus = String(booking.status || "").toLowerCase();
   const pill = statusPill(booking);
   const code =
@@ -285,16 +284,12 @@ function DetailsBody({
   const slotFormatted = formatSlot(booking.slot);
   const bookedOn = formatBookedOn(booking.createdAt);
   const duration = formatDuration(service?.durationMinutes || booking.durationMinutes);
-  const duration = formatDuration(
-    service?.durationMinutes || (booking as { durationMinutes?: number }).durationMinutes,
-  );
   const maps = mapsUrl(address);
   const paidOn = formatMoment(pay?.paidAt);
   const methodText = paymentMethodLabel(pay?.method);
   const txn = pay?.transactionId || pay?.paymentId;
   const supportHref = `${customerPath("/support")}?booking=${encodeURIComponent(bookingId)}`;
   const scheduledAt = booking.scheduledAt;
-  const scheduledAt = (booking as { scheduledAt?: string | Date }).scheduledAt;
   const slotHours = (() => {
     const m = /^(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})$/.exec(
       booking.slot || "",
@@ -626,8 +621,7 @@ function DetailsBody({
               partner={
                 booking.partner ||
                 (typeof booking.partnerId === "object" && booking.partnerId !== null
-                  ? booking.partnerId
-                  ? (booking.partnerId as typeof booking.partner)
+                  ? (booking.partnerId as BookingDetailPartner)
                   : null)
               }
               hasPartner={Boolean(booking.partnerId)}

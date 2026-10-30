@@ -68,17 +68,6 @@ const getPayload = (response: unknown): unknown => {
   const root = asObject(response);
   const body = asObject(root.data ?? response);
   return body.data ?? body;
-const getErrorMessage = (error: unknown): string =>
-  firstValue(
-    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.message,
-    (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.error,
-    (error as { message?: string })?.message,
-    "Something went wrong. Please try again."
-  );
-
-const getPayload = (response: unknown): unknown => {
-  const body = (response as { data?: unknown })?.data ?? response;
-  return (body as { data?: unknown })?.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {
@@ -271,7 +260,6 @@ export const AdminPayoutsPage: React.FC = () => {
       setBatches(rows);
 
       const serverPagination = asObject(asObject(payload).pagination);
-      const serverPagination = asObject(payload?.pagination);
       const total = Number(serverPagination.total ?? rows.length);
       setPagination({
         page: Number(serverPagination.page ?? page),

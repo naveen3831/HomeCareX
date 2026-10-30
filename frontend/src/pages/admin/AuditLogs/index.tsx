@@ -25,11 +25,6 @@ interface AuditLog {
 interface AuditLogApi {
   _id?: string;
   id?: string;
-  actor?: string;
-  actorName?: string | null;
-  action?: string;
-  entity?: string;
-  entityId?: string;
   actor?: string | null;
   actorName?: string | null;
   action?: string | null;

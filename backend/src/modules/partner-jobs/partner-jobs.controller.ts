@@ -2,12 +2,22 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
-import type { SosBody, StatusBody } from "./partner-jobs.validation";
+import type {
+  CollectPaymentBody,
+  CompleteBody,
+  RateCustomerBody,
+  RejectBody,
+  SosBody,
+  StatusBody,
+  VerifyStartBody,
+} from "./partner-jobs.validation";
 
 export const listPartnerJobs = asyncHandler(
-  async (_req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
-    sendSuccess(res, await partnerJobsService.listLiveJobs(sub));
+    const raw = typeof req.query.scope === "string" ? req.query.scope : "live";
+    const scope = raw === "completed" || raw === "cancelled" ? raw : "live";
+    sendSuccess(res, await partnerJobsService.listLiveJobs(sub, scope));
   },
 );
 
@@ -45,8 +55,49 @@ export const acceptJobOffer = asyncHandler(
 export const rejectJobOffer = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
-    const result = await partnerJobsService.rejectOffer(sub, req.params.id);
+    const { reason } = (req.body ?? {}) as RejectBody;
+    const result = await partnerJobsService.rejectOffer(sub, req.params.id, reason);
     sendSuccess(res, result, { message: result.message });
+  },
+);
+
+export const verifyJobStart = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { otp } = req.body as VerifyStartBody;
+    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp), {
+      message: "Job started",
+    });
+  },
+);
+
+export const completePartnerJob = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { notes } = (req.body ?? {}) as CompleteBody;
+    sendSuccess(res, await partnerJobsService.completeJob(sub, req.params.id, notes), {
+      message: "Job completed",
+    });
+  },
+);
+
+export const collectJobPayment = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { method } = req.body as CollectPaymentBody;
+    sendSuccess(res, await partnerJobsService.collectPayment(sub, req.params.id, method), {
+      message: "Payment recorded",
+    });
+  },
+);
+
+export const rateJobCustomer = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { rating, comment } = req.body as RateCustomerBody;
+    sendSuccess(res, await partnerJobsService.rateCustomer(sub, req.params.id, rating, comment), {
+      message: "Thanks for rating the customer",
+    });
   },
 );
 

@@ -1,4 +1,4 @@
-import {
+﻿import {
   useState,
   useEffect,
   useCallback,
@@ -46,7 +46,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
-import OnlineIndicator from "@/components/partner/OnlineIndicator";
+import OnlineToggle from "@/components/partner/OnlineToggle";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
@@ -84,14 +84,6 @@ export const NAV: NavItem[] = [
     label: "My Jobs",
     to: "/partner/jobs",
     icon: ClipboardList,
-    children: [
-      {
-        key: "job-requests",
-        label: "Job Requests",
-        to: "/partner/jobs/requests",
-        icon: ClipboardList,
-      },
-    ],
   },
   { key: "work", label: "Work", to: "/partner/work", icon: Briefcase },
   {
@@ -284,10 +276,10 @@ const BOTTOM_NAV = [
   },
   {
     key: "work",
-    label: "Work",
-    to: "/partner/work",
+    label: "Jobs",
+    to: "/partner/jobs",
     icon: Briefcase,
-    match: ["/partner/work"],
+    match: ["/partner/jobs", "/partner/work"],
     exact: false,
   },
   {
@@ -720,9 +712,14 @@ export default function PartnerLayout() {
   );
 
   const setOnline = useCallback((next: boolean) => {
+    const previous = readStoredOnlineStatus() ?? !next;
     setOnlineState(next);
     writeStoredOnlineStatus(next);
-    void setOnlineApi(next).catch(() => {});
+    // If the server rejects the change, put the switch back so the UI never lies about availability.
+    void setOnlineApi(next).catch(() => {
+      setOnlineState(previous);
+      writeStoredOnlineStatus(previous);
+    });
   }, []);
 
   useEffect(() => {
@@ -801,11 +798,6 @@ export default function PartnerLayout() {
     cleanPath,
   );
 
-  const hideStatusPill = Object.prototype.hasOwnProperty.call(
-    EXTRA_TITLES,
-    cleanPath,
-  );
-
   const fullBleed =
     cleanPath === "/partner/support" ||
     cleanPath.startsWith("/partner/support/") ||
@@ -817,7 +809,8 @@ export default function PartnerLayout() {
   const hideBottomNav =
     HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
 
-  const showBack = cleanPath !== "/partner";
+  const isHome = cleanPath === "/partner";
+  const showBack = !isHome;
 
   const isTabRoot = BOTTOM_NAV.some(
     (item) => item.to === cleanPath,
@@ -835,6 +828,13 @@ export default function PartnerLayout() {
 
     if (typeof index === "number" && index > 0) {
       navigate(-1);
+      return;
+    }
+
+    // Job pages (details, navigation, active, location) go back to My Jobs,
+    // not Profile, when there is no history to step back through.
+    if (cleanPath.startsWith("/partner/jobs/")) {
+      navigate("/partner/jobs");
       return;
     }
 
@@ -900,35 +900,41 @@ export default function PartnerLayout() {
                 )}
               </button>
 
-              <h1 className="truncate text-base font-semibold text-[#4338ca] sm:text-lg">
+              {isHome ? (
+                <NavLink
+                  to="/partner"
+                  end
+                  aria-label="HomeCareX home"
+                  className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:hidden"
+                >
+                  <HomeCarexMark size={30} />
+                  <span className="truncate bg-gradient-to-r from-[#4338ca] via-[#7c3aed] to-[#ff8a3d] bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
+                    HomeCareX
+                  </span>
+                </NavLink>
+              ) : null}
+
+              {/* Home keeps an invisible page heading for screen readers; the brand replaces the visible "Home". */}
+              <h1
+                className={
+                  isHome
+                    ? "sr-only"
+                    : "truncate text-base font-semibold text-[#4338ca] sm:text-lg"
+                }
+              >
                 {title}
               </h1>
             </div>
 
-            <div
-              className={`shrink-0 items-center gap-0.5 sm:gap-3 ${
-                minimalHeader ? "hidden lg:flex" : "flex"
-              }`}
-            >
-              {!hideStatusPill &&
-                (fullBleed ? (
-                  <div className="hidden lg:block">
-                    <OnlineIndicator
-                      online={online}
-                      onChange={setOnline}
-                    />
-                  </div>
-                ) : (
-                  <OnlineIndicator
-                    online={online}
-                    onChange={setOnline}
-                  />
-                ))}
-
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+              {/* Online/Offline is controlled from the Home page only. */}
+              {isHome && <OnlineToggle online={online} onChange={setOnline} />}
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                className={`relative min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-orange-500 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
+                  minimalHeader ? "hidden lg:inline-flex" : "inline-flex"
+                }`}
               >
                 <Bell size={20} aria-hidden="true" />
               </button>

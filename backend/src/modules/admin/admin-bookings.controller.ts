@@ -48,6 +48,14 @@ interface AdminBookingSource {
     toString(): string;
   };
 
+  /** Set by the booking itself, e.g. when a partner collects cash on site (no Payment document exists then). */
+  paymentStatus?: string;
+  paymentDetails?: {
+    status?: string;
+    method?: string;
+    paidAt?: Date;
+  };
+
   customerId?: {
     toString(): string;
   };
@@ -157,6 +165,9 @@ interface UserSource {
 
   status?: string;
 }
+
+/** How long a partner has to accept or reject a booking the admin assigned to them. */
+const ADMIN_OFFER_WINDOW_MS = 30 * 60 * 1000;
 
 export class AdminBookingsController {
   /**
@@ -711,11 +722,17 @@ export class AdminBookingsController {
           '',
 
         method:
-          payment?.method ?? '',
+          payment?.method ??
+          booking.paymentDetails?.method ??
+          '',
 
+        // A payment the partner collected on site (cash/UPI) lives on the booking, not in Payment.
         status:
           this.mapPaymentStatus(
-            payment?.status,
+            payment?.status?.toUpperCase() === 'PAID' ||
+              booking.paymentStatus?.toUpperCase() !== 'PAID'
+              ? payment?.status
+              : 'PAID',
           ),
 
         amount:
@@ -724,9 +741,9 @@ export class AdminBookingsController {
             : finalAmount,
 
         paidAt:
-          payment?.paidAt
+          (payment?.paidAt ?? booking.paymentDetails?.paidAt)
             ? this.toISOString(
-                payment.paidAt,
+                (payment?.paidAt ?? booking.paymentDetails?.paidAt) as Date,
               )
             : undefined,
       },
@@ -1462,42 +1479,81 @@ export class AdminBookingsController {
       status: previousStatus,
     };
 
-    booking.partnerId =
-      partner._id;
+    // A booking that no partner has accepted yet is OFFERED to the chosen partner.
+    // The partner sees it under Job Requests and must Accept or Reject it; accepting
+    // moves it to "assigned" (partner-jobs acceptOffer). Only a booking that is already
+    // assigned (a reassignment) is switched to the new partner straight away.
+    const now = new Date();
+    const offerable = ['created', 'confirmed', 'searching_for_partner'].includes(
+      booking.status,
+    );
 
-    if (
-      booking.status !==
-      'assigned'
-    ) {
-      applyTransition(
-        booking,
-        'assigned',
-        {
-          role: 'admin',
-          id: user.id,
-        },
-        reason.trim(),
-      );
-    } else {
-      booking.statusHistory.push({
-        from:
-          previousStatus,
-
-        to:
-          'assigned',
-
-        reason:
+    if (offerable) {
+      if (booking.status !== 'searching_for_partner') {
+        applyTransition(
+          booking,
+          'searching_for_partner',
+          {
+            role: 'system',
+            id: user.id,
+          },
           reason.trim(),
+        );
+      }
 
-        actorId:
-          user.id,
+      // Withdraw any other open offer so only this partner can accept.
+      for (const offer of booking.offers ?? []) {
+        if (offer.response === 'pending') {
+          offer.response = 'expired';
+          offer.respondedAt = now;
+        }
+      }
 
-        actorRole:
-          'admin',
-
-        at:
-          new Date(),
+      booking.offers = booking.offers ?? [];
+      booking.offers.push({
+        partnerId: partner._id,
+        offeredAt: now,
+        expiresAt: new Date(now.getTime() + ADMIN_OFFER_WINDOW_MS),
+        response: 'pending',
       });
+    } else {
+      booking.partnerId =
+        partner._id;
+
+      if (
+        booking.status !==
+        'assigned'
+      ) {
+        applyTransition(
+          booking,
+          'assigned',
+          {
+            role: 'admin',
+            id: user.id,
+          },
+          reason.trim(),
+        );
+      } else {
+        booking.statusHistory.push({
+          from:
+            previousStatus,
+
+          to:
+            'assigned',
+
+          reason:
+            reason.trim(),
+
+          actorId:
+            user.id,
+
+          actorRole:
+            'admin',
+
+          at:
+            now,
+        });
+      }
     }
 
     await booking.save();
@@ -1511,6 +1567,7 @@ export class AdminBookingsController {
       {
         partnerId: partner._id.toString(),
         status: booking.status,
+        offered: offerable,
         reason: reason.trim(),
       },
     );

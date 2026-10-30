@@ -4,16 +4,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
-import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
-} from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { PageSearch } from '@/components/admin/PageSearch';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { FullScreenPanel } from '@/components/admin/FullScreenPanel';
 import { AuditDiffDrawer, type AuditEntry } from '@/components/admin/AuditDiffDrawer';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -46,52 +38,6 @@ function toOptions(cats: AdminCategory[]): CategoryOption[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-interface RowProps {
-  s: AdminService; index: number; count: number; busy: boolean; reorderEnabled: boolean; canManage: boolean; online: boolean;
-  selected: boolean; onSelect: (checked: boolean) => void;
-  onMove: (d: -1 | 1) => void; onToggle: () => void; onPreview: () => void; onEdit: () => void; onDelete: () => void;
-}
-
-const ServiceRow: React.FC<RowProps> = ({ s, index, count, busy, reorderEnabled, canManage, online, selected, onSelect, onMove, onToggle, onPreview, onEdit, onDelete }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !reorderEnabled });
-  const cover = s.images.find((i) => i.isPrimary) ?? s.images[0];
-  return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className="cat-group">
-      <div className={clsx('svc-row-item', !s.active && 'is-inactive', busy && 'is-busy', isDragging && 'is-dragging')}>
-        {canManage && (
-          <input
-            type="checkbox" className="svc-select" checked={selected} disabled={busy || !online}
-            aria-label={`Select ${s.name}`} onChange={(e) => onSelect(e.target.checked)}
-          />
-        )}
-        <button type="button" className="cat-grip" disabled={!reorderEnabled} aria-label={`Drag ${s.name} to reorder`} {...attributes} {...listeners}><GripVertical size={18} /></button>
-        <div className="cat-media">
-          <span className="cat-cover">{cover ? <img src={cover.url} alt="" loading="lazy" /> : <span className="cat-cover__empty"><ImageIcon size={18} aria-hidden /></span>}</span>
-          {s.images.length > 1 && <span className="svc-count">{s.images.length} photos</span>}
-        </div>
-        <div className="cat-main">
-          <div className="cat-name"><span>{s.name}</span>{!s.active && <span className="cat-meta">Inactive</span>}</div>
-          <div className="cat-sub"><code>/{s.slug}</code></div>
-          <div className="svc-facts"><b>{rupees(s.basePrice)}</b><span><Clock size={12} aria-hidden /> {duration(s.durationMinutes)}</span></div>
-        </div>
-        <button
-          type="button" role="switch" aria-checked={s.active} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
-          className={clsx('cat-switch', s.active && 'is-on')} disabled={!canManage || !online || busy} onClick={onToggle}
-        ><span /></button>
-        <div className="cat-actions">
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={onPreview} aria-label={`Preview ${s.name}`} title="Preview"><Eye size={16} /></button>
-          <PermissionGate permission={CATALOG_MANAGE}>
-            <button type="button" className="cat-iconbtn" onClick={onEdit} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={16} /></button>
-            <button type="button" className="cat-iconbtn cat-iconbtn--danger" onClick={onDelete} disabled={!online} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={16} /></button>
-          </PermissionGate>
-        </div>
-      </div>
-    </li>
-  );
-};
-
 const toInput = (s: AdminService): ServiceInput => ({
   name: s.name, categoryId: s.categoryId, description: s.description, basePrice: s.basePrice, durationMinutes: s.durationMinutes,
   images: s.images, inclusions: s.inclusions, exclusions: s.exclusions, faqs: s.faqs, addOns: s.addOns, checklist: s.checklist, active: s.active,
@@ -114,8 +60,6 @@ export const AdminServicesPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -261,44 +205,6 @@ export const AdminServicesPage: React.FC = () => {
     } finally { setSaving(false); }
   }
 
-  async function toggle(s: AdminService) {
-    const next = !s.active;
-    setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: next } : x)));
-    setBusyIds((b) => new Set(b).add(s.id));
-    try {
-      await adminServiceApi.setActive([s.id], next);
-      flash(`“${s.name}” ${next ? 'activated' : 'deactivated'}`);
-    } catch (e) {
-      setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
-      flash((e as ServiceApiError).message, 'error');
-    } finally {
-      setBusyIds((b) => { const n = new Set(b); n.delete(s.id); return n; });
-    }
-  }
-
-  /** Bulk activate / deactivate every selected service (one PATCH per service; failures are listed). */
-  async function bulkSetActive(next: boolean) {
-    const ids = items.filter((x) => selectedIds.has(x.id)).map((x) => x.id);
-    if (ids.length === 0) return;
-    setBusyIds((b) => new Set([...b, ...ids]));
-    try {
-      const result = await adminServiceApi.setActive(ids, next);
-      const changed = new Set(result.changed);
-      setItems((prev) => prev.map((x) => (changed.has(x.id) ? { ...x, active: next } : x)));
-      const verb = next ? 'activated' : 'deactivated';
-      if (result.failed.length) {
-        flash(`${result.changed.length} ${verb}, ${result.failed.length} failed: ${result.failed.map((f) => `${f.name} (${f.message})`).join('; ')}`, 'error');
-      } else {
-        flash(result.changed.length ? `${result.changed.length} service${result.changed.length === 1 ? '' : 's'} ${verb}` : `Already ${next ? 'active' : 'inactive'}`);
-      }
-      setSelectedIds(new Set(result.failed.map((f) => f.id)));
-    } catch (e) {
-      flash((e as ServiceApiError).message, 'error');
-    } finally {
-      setBusyIds((b) => { const n = new Set(b); ids.forEach((id) => n.delete(id)); return n; });
-    }
-  }
-
   async function saveImages(svc: AdminService, images: ServiceImage[]) {
     setSavingImages(true);
     try {
@@ -388,12 +294,6 @@ export const AdminServicesPage: React.FC = () => {
           <span className="sr-only">Search services</span>
           <input id="svc-search-input" type="search" aria-label="Search services" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search services" />
         </label>
-      </div>
-
-      {/* Filter button sits beside the navbar search bar (portal); inline fallback if the slot is missing. */}
-      {slot ? createPortal(filterMenu, slot) : <div className="svc-toolbar">{filterMenu}</div>}
-      <div className="svc-toolbar">
-        <PageSearch placeholder="Search name, slug or category…" />
         {filterMenu}
       </div>
       <p className="svc-count-note">{visible.length} of {items.length} services{categoryParam && filterOptions.find((o) => o.id === categoryParam) ? ` in ${filterOptions.find((o) => o.id === categoryParam)!.name}` : ''}</p>
@@ -463,37 +363,6 @@ export const AdminServicesPage: React.FC = () => {
             ))}
           </tbody>
         </table>
-        <>
-          {canManage && (
-            <BulkActionBar
-              selectedCount={selectedIds.size} noun="services"
-              onClear={() => setSelectedIds(new Set())}
-              actions={[
-                { label: 'Activate', icon: <Eye size={16} />, onClick: () => void bulkSetActive(true), disabled: !online },
-                { label: 'Deactivate', icon: <EyeOff size={16} />, onClick: () => void bulkSetActive(false), disabled: !online },
-              ]}
-            />
-          )}
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
-            <SortableContext items={visible.map((x) => x.id)} strategy={verticalListSortingStrategy}>
-              <div className="cat-tree">
-                <ul className="cat-list" aria-label="Services">
-                  {visible.map((s, i) => (
-                    <ServiceRow
-                      key={s.id} s={s} index={i} count={visible.length} busy={busyIds.has(s.id)} reorderEnabled={reorderEnabled}
-                      canManage={canManage} online={online}
-                      selected={selectedIds.has(s.id)}
-                      onSelect={(checked) => setSelectedIds((prev) => { const n = new Set(prev); if (checked) n.add(s.id); else n.delete(s.id); return n; })}
-                      onMove={(d) => move(s.id, d)} onToggle={() => void toggle(s)} onPreview={() => setPreviewing(s)}
-                      onEdit={() => openEdit(s)} onDelete={() => setToDelete(s)}
-                    />
-                  ))}
-                </ul>
-              </div>
-            </SortableContext>
-            <DragOverlay>{activeSvc && <div className="cat-overlay"><GripVertical size={16} /><strong>{activeSvc.name}</strong></div>}</DragOverlay>
-          </DndContext>
-        </>
       )}
 
       <ServicePreview service={previewing} canManage={canManage && online} saving={savingImages} onClose={() => setPreviewing(null)} onSaveImages={(svc, imgs) => void saveImages(svc, imgs)} />

@@ -40,91 +40,39 @@ export const supportApi = {
   /** GET /support/tickets -> { items, meta } */
   async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
     const response = await http.get<unknown>("/support/tickets", {
-    const response = await http.get<{
-      data?: TicketPage | CustomerTicket[];
-      items?: CustomerTicket[];
-      meta?: TicketPage["meta"];
-    } | CustomerTicket[]>("/support/tickets", {
       params: cleanParams(filters),
       signal,
     });
     const body = response.data;
     const record = asObject(body);
     const data = record.data;
+    const fallbackMeta = (total: number): TicketPage["meta"] => ({
+      page: Number(filters.page) || 1,
+      limit: 10,
+      total,
+      pages: 1,
+    });
+
+    // Bare array: [ticket, ...]
+    if (Array.isArray(body)) {
+      const items = asTickets(body);
+      return { items, meta: fallbackMeta(items.length) };
+    }
+    // { data: [ticket, ...], meta }
     if (Array.isArray(data)) {
       const items = asTickets(data);
-    if (Array.isArray(body)) {
-      return {
-        items: body,
-        meta: {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.length,
-          pages: 1,
-        },
-      };
+      return { items, meta: ticketMeta(record.meta, fallbackMeta(items.length)) };
     }
-    if (Array.isArray(body?.data)) {
-      return {
-        items,
-        meta: ticketMeta(record.meta, {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: items.length,
-          pages: 1,
-        }),
-      };
-    }
+    // { data: { items, meta } }
     const nested = asObject(data);
     if (Array.isArray(nested.items)) {
       const items = asTickets(nested.items);
-      return {
-        items,
-        meta: ticketMeta(nested.meta, {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: items.length,
-          pages: 1,
-        }),
-      };
+      return { items, meta: ticketMeta(nested.meta, fallbackMeta(items.length)) };
     }
+    // { items, meta }
     if (Array.isArray(record.items)) {
       const items = asTickets(record.items);
-      return {
-        items,
-        meta: ticketMeta(record.meta, {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: items.length,
-          pages: 1,
-        }),
-      };
-    }
-    if (Array.isArray(body)) {
-      return {
-        items: asTickets(body),
-        meta: {
-    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
-      return {
-        items: body.data.items,
-        meta: body.data.meta ?? {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.data.items.length,
-          pages: 1,
-        },
-      };
-    }
-    if (body?.items && Array.isArray(body.items)) {
-      return {
-        items: body.items,
-        meta: body.meta ?? {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.items.length,
-          pages: 1,
-        },
-      };
+      return { items, meta: ticketMeta(record.meta, fallbackMeta(items.length)) };
     }
     return {
       items: [],

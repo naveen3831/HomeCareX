@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import {
-  DEMO_START_OTP,
   fetchJob,
   completeJob,
   startJob,
@@ -17,6 +16,7 @@ import JobTimer from '@/components/partner/JobTimer';
 import Checklist from '@/components/partner/Checklist';
 import SosButton from '@/components/partner/SosButton';
 import AddItemDialog from '@/components/partner/AddItemDialog';
+import PaymentPanel from '@/components/partner/PaymentPanel';
 import './activeJob.css';
 
 type LoadState = 'loading' | 'ready' | 'notfound' | 'error';
@@ -48,7 +48,6 @@ function formatStartedTime(
 export const ActiveJobPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const effectiveId = id || 'BK-20418';
-  const navigate = useNavigate();
 
   const [job, setJob] = useState<JobDetails | null>(null);
   const [loadState, setLoadState] = useState<LoadState>('loading');
@@ -120,7 +119,7 @@ export const ActiveJobPage: React.FC = () => {
       const updated = await completeJob(job.id);
       setJob(updated);
       setShowCompleteConfirm(false);
-      navigate(`/partner/jobs/${job.id}`);
+      // Stay here: the finished screen below shows the payment QR for the customer.
     } catch (err) {
       setCompleteError(getErrorMessage(err, 'Could not complete the job. Try again.'));
     } finally {
@@ -252,8 +251,7 @@ export const ActiveJobPage: React.FC = () => {
           <div className="aj-ref-card">
             <h2 className="text-lg font-bold text-slate-900 mb-2">Customer OTP Verification</h2>
             <p className="text-sm text-slate-600 mb-4">
-              Ask customer {job.customer.name} ({job.customer.phoneMasked}) for the start OTP (Demo:{' '}
-              <code>{DEMO_START_OTP}</code>).
+              Ask customer {job.customer.name} ({job.customer.phoneMasked}) for the start OTP.
             </p>
 
             <div className="space-y-4">
@@ -332,8 +330,14 @@ export const ActiveJobPage: React.FC = () => {
     job.status === 'disputed';
 
   if (isFinishedOrCancelled) {
+    const isDone = job.status === 'completed' || job.status === 'rated';
     return (
       <div className="aj-ref-page">
+        {!online && (
+          <div className="aj-offline" role="status">
+            You are offline. Payment updates will appear once you reconnect.
+          </div>
+        )}
         <div className="aj-ref-container">
           <header className="aj-ref-header">
             <div>
@@ -343,8 +347,12 @@ export const ActiveJobPage: React.FC = () => {
             <span className={`aj-badge aj-badge-${job.status}`}>{STATUS_LABEL[job.status]}</span>
           </header>
 
+          {isDone && <PaymentPanel job={job} onJobChange={setJob} online={online} />}
+
           <div className="aj-ref-card text-center py-8">
-            <h2 className="text-lg font-bold text-slate-900">Job Not In Progress</h2>
+            <h2 className="text-lg font-bold text-slate-900">
+              {isDone ? 'Job completed' : 'Job Not In Progress'}
+            </h2>
             <p className="mt-2 text-sm text-slate-600">
               Current status: <span className="font-semibold">{STATUS_LABEL[job.status]}</span>.
             </p>
