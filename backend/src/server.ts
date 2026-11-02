@@ -8,7 +8,8 @@ import { registerEarningsListeners } from './modules/earnings/earnings.listener'
 import { seedDefaultSettings } from './modules/settings/settings.service';
 import { seedDefaultDesignations } from './modules/designations/designations.service';
 import { seedDefaultCategories } from './modules/categories/categories.service';
-import { backfillServiceOrder, seedDefaultServices } from './modules/services/services.service';
+import { seedDefaultServices } from './modules/services/services.service';
+import { seedDefaultCoupons } from './modules/coupons/coupons.seed';
 import { upsertCatalogSeed } from './modules/catalog/catalog.seed';
 import { ServiceModel } from './models/Service';
 import { startReferralWorker } from './modules/referrals/referrals.worker';
@@ -68,6 +69,7 @@ const seedDefaults = async (): Promise<void> => {
 
     await timed('seed categories', seedDefaultCategories);
     await timed('seed services', seedDefaultServices);
+    await timed('seed coupons', seedDefaultCoupons);
     if (freshCatalog) await timed('catalog seed', upsertCatalogSeed);
 
     console.log('[startup] Default seeding completed.');

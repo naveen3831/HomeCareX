@@ -185,7 +185,7 @@ describe("Tracking page", () => {
   it("joins the tracking room and shows the partner, ETA, map and timeline", async () => {
     renderPage();
     expect(
-      await screen.findByText("Your partner is on the way"),
+      await screen.findByText("Your partner is en route"),
     ).toBeInTheDocument();
     expect(fake.socket.emitted[0]).toEqual([
       "tracking:join",
@@ -268,7 +268,7 @@ describe("Tracking page", () => {
 
   it("switches to the fallback when a tracking:location event says sharing stopped", async () => {
     renderPage();
-    await screen.findByText("Your partner is on the way");
+    await screen.findByText("Your partner is en route");
     expect(
       screen.queryByText("Live location unavailable"),
     ).not.toBeInTheDocument();
@@ -301,7 +301,7 @@ describe("Tracking page", () => {
 
   it("moves the timeline and headline when a status event arrives", async () => {
     renderPage();
-    await screen.findByText("Your partner is on the way");
+    await screen.findByText("Your partner is en route");
     act(() =>
       fake.socket.fire("tracking:status", {
         bookingId: ID,
@@ -320,7 +320,7 @@ describe("Tracking page", () => {
 
   it("moves the partner marker on a location event and ignores other bookings", async () => {
     renderPage();
-    await screen.findByText("Your partner is on the way");
+    await screen.findByText("Your partner is en route");
     act(() =>
       fake.socket.fire("tracking:location", {
         bookingId: "someone-elses",
@@ -355,7 +355,7 @@ describe("Tracking page", () => {
 
   it("re-joins and refreshes from the snapshot after a reconnect", async () => {
     renderPage();
-    await screen.findByText("Your partner is on the way");
+    await screen.findByText("Your partner is en route");
     expect(fake.socket.joins).toBe(1);
 
     fake.socket.connected = false;
@@ -380,7 +380,7 @@ describe("Tracking page", () => {
   it("opens the customer's chat beside the timeline and focuses it from the Chat button", async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findByText("Your partner is on the way");
+    await screen.findByText("Your partner is en route");
     expect(screen.queryByTestId("chat")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Chat" }));
     expect(screen.getByTestId("chat")).toHaveTextContent(`${ID}:customer`);

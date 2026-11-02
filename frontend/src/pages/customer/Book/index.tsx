@@ -5,7 +5,6 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useBookingDraftStore } from "@/features/booking";
 import { useService } from "@/hooks/useService";
 import { customerPath } from "@/routes/customerPath";
-import BackToService from "./components/BackToService";
 import BookingStepper from "./components/BookingStepper";
 import StepService from "./StepService";
 import StepAddress from "./StepAddress";
@@ -77,7 +76,6 @@ export default function BookServiceShell() {
 
   return (
     <div className={clsx("mx-auto w-full min-w-0", "max-w-5xl space-y-5 pb-4 sm:space-y-6 sm:pb-6 lg:max-w-6xl")}>
-      <BackToService slug={serviceSlug} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="sr-only">Book a Service</h1>

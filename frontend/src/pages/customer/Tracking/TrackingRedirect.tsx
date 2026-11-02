@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   Calendar,
   Check,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Clock,
   CreditCard,
@@ -50,13 +51,13 @@ function statusHeadline(status: string, partnerName?: string | null): string {
   const who = partnerName || "Service partner";
   if (status === "in_progress") return `${who} is currently working on your service`;
   if (status === "arrived") return `${who} has arrived at your location`;
-  if (status === "en_route") return `${who} is on the way to your location`;
+  if (status === "en_route") return `${who} is en route to your location`;
   if (status === "assigned") {
     return partnerName
-      ? `${who} is on the way to your location`
+      ? `${who} is en route to your location`
       : "Partner has been assigned to your booking";
   }
-  return `${who} is on the way to your location`;
+  return `${who} is en route to your location`;
 }
 
 function getStatusPill(status: string, label: string) {
@@ -91,15 +92,15 @@ function getStatusPill(status: string, label: string) {
 
 function ActiveBookingsSkeleton() {
   return (
-    <div className="space-y-3.5">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 items-start">
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm"
+          className="flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 md:p-6 shadow-sm min-h-[115px] sm:min-h-[130px] md:min-h-[190px]"
         >
-          <div className="flex items-start gap-3.5">
-            <Skeleton className="h-14 w-14 rounded-2xl" />
-            <div className="flex-1 space-y-2">
+          <div className="flex items-start gap-3.5 sm:gap-4">
+            <Skeleton className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 rounded-2xl shrink-0" />
+            <div className="flex-1 space-y-2.5">
               <div className="flex justify-between items-center">
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-4 w-16" />
@@ -108,15 +109,19 @@ function ActiveBookingsSkeleton() {
               <Skeleton className="h-4 w-60" />
             </div>
           </div>
+          <div className="hidden md:flex mt-5 pt-3.5 border-t border-slate-100 justify-between items-center">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-20" />
+          </div>
           {i === 1 && (
-            <>
+            <div className="md:hidden">
               <Skeleton className="mt-4 h-12 w-full rounded-xl" />
               <Skeleton className="mt-3.5 h-36 w-full rounded-xl" />
               <div className="mt-4 flex gap-3">
                 <Skeleton className="h-11 flex-1 rounded-xl" />
                 <Skeleton className="h-11 flex-1 rounded-xl" />
               </div>
-            </>
+            </div>
           )}
         </div>
       ))}
@@ -125,13 +130,15 @@ function ActiveBookingsSkeleton() {
 }
 
 export default function TrackingRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [params] = useSearchParams();
   const requested = params.get("booking");
   const online = useOnlineStatus();
 
   // If a specific booking was requested via query param, deep-link straight to its tracking page:
   if (requested) {
-    return <Navigate to={trackPath(requested)} replace />;
+    return <Navigate to={trackPath(requested)} replace state={location.state} />;
   }
 
   const dashboard = useCustomerDashboard();
@@ -290,7 +297,6 @@ export default function TrackingRedirect() {
   }, [activeBookings.length, setActiveBookingsCount]);
 
   // Preserve entry origin (e.g. Profile or Dashboard) so returning from Booking Details never breaks back navigation
-  const location = useLocation();
   useEffect(() => {
     const fromCandidate =
       (location.state as { origin?: string; from?: string })?.origin ||
@@ -315,6 +321,16 @@ export default function TrackingRedirect() {
     }
   }, [activeBookings]);
 
+  const handleCardClick = (id: string) => {
+    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+      navigate(customerPath(`/bookings/${id}`), {
+        state: { from: customerPath("/tracking") },
+      });
+    } else {
+      toggleExpand(id);
+    }
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -331,7 +347,7 @@ export default function TrackingRedirect() {
   const isError = dashboard.isError && !dashboard.data;
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-3 -mt-2 sm:mt-0 pb-36 sm:pb-12">
+    <div className="mx-auto w-full max-w-2xl md:mx-0 md:max-w-none md:w-full min-w-0 -mt-2 sm:mt-0 pb-36 sm:pb-12">
       {isLoading ? (
         <ActiveBookingsSkeleton />
       ) : isError ? (
@@ -384,7 +400,7 @@ export default function TrackingRedirect() {
           }
         />
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 items-stretch">
           {activeBookings.map((b, index) => {
             const isExpanded = expandedIds.has(b.id);
             const pill = getStatusPill(b.status, b.statusLabelText);
@@ -392,26 +408,34 @@ export default function TrackingRedirect() {
             return (
               <article
                 key={b.id}
-                className="relative flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-5 shadow-[0_4px_20px_-4px_rgba(40,30,80,0.06)] transition-all hover:shadow-[0_8px_25px_-5px_rgba(40,30,80,0.09)]"
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                    handleCardClick(b.id);
+                  }
+                }}
+                className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 md:p-6 shadow-[0_4px_20px_-4px_rgba(40,30,80,0.06)] transition-all hover:shadow-[0_8px_25px_-5px_rgba(40,30,80,0.12)] hover:border-slate-200/90 cursor-pointer min-h-[115px] sm:min-h-[130px] md:min-h-[190px]"
               >
                 {/* Accordion Header */}
                 <div
                   role="button"
                   tabIndex={0}
-                  onClick={() => toggleExpand(b.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCardClick(b.id);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      toggleExpand(b.id);
+                      handleCardClick(b.id);
                     }
                   }}
                   aria-expanded={isExpanded}
-                  className="flex items-start gap-3 cursor-pointer select-none text-left focus:outline-none"
+                  className="flex items-start gap-3.5 sm:gap-4 cursor-pointer select-none text-left focus:outline-none"
                 >
                   <BookingThumb
                     serviceName={b.serviceName}
                     index={index}
-                    className="h-12 w-12 sm:h-14 sm:w-14 shrink-0 rounded-2xl border border-slate-100 object-cover shadow-sm"
+                    className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 shrink-0 rounded-2xl border border-slate-100 object-cover shadow-sm"
                   />
 
                   <div className="min-w-0 flex-1">
@@ -419,7 +443,7 @@ export default function TrackingRedirect() {
                     <div className="flex items-center justify-between gap-1.5">
                       <span
                         className={clsx(
-                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                          "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] sm:text-xs font-semibold",
                           pill.bg,
                         )}
                       >
@@ -428,12 +452,12 @@ export default function TrackingRedirect() {
                       </span>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-400">
                           {b.code}
                         </span>
                         <div
                           aria-label={isExpanded ? "Collapse card" : "Expand card"}
-                          className="text-slate-700 p-0.5"
+                          className="text-slate-700 p-0.5 md:hidden"
                         >
                           {isExpanded ? (
                             <ChevronUp className="h-4.5 w-4.5" />
@@ -441,17 +465,21 @@ export default function TrackingRedirect() {
                             <ChevronDown className="h-4.5 w-4.5" />
                           )}
                         </div>
+                        <ChevronRight
+                          className="hidden md:block h-4.5 w-4.5 text-slate-400 group-hover:text-brand group-hover:translate-x-0.5 transition-all"
+                          aria-hidden="true"
+                        />
                       </div>
                     </div>
 
                     {/* Middle Row: Service Name */}
-                    <h3 className="mt-0.5 text-[14px] sm:text-base font-bold text-slate-900 leading-snug">
+                    <h3 className="mt-1 text-[15px] sm:text-base md:text-lg font-bold text-slate-900 leading-snug">
                       {b.serviceName}
                     </h3>
 
                     {/* Bottom Row: Status / Partner location headline */}
-                    <p className="mt-0.5 flex items-center gap-1 text-[11px] sm:text-xs text-slate-500 font-medium truncate">
-                      <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                    <p className="mt-1 flex items-center gap-1.5 text-xs sm:text-[13px] text-slate-500 font-medium truncate">
+                      <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                       <span className="truncate">
                         {statusHeadline(b.status, b.partnerName)}
                       </span>
@@ -459,9 +487,26 @@ export default function TrackingRedirect() {
                   </div>
                 </div>
 
+                {/* Desktop Card Footer: Rich metadata and height boost */}
+                <div className="hidden md:flex mt-5 pt-3.5 border-t border-slate-100 items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center gap-1.5 font-medium text-slate-600 truncate mr-2">
+                    <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{b.scheduledText}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <span className="font-bold text-slate-900 text-sm">
+                      {rupees(b.total || 348)}
+                    </span>
+                    <span className="inline-flex items-center gap-0.5 font-semibold text-brand group-hover:underline">
+                      <span>View details</span>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </span>
+                  </div>
+                </div>
+
                 {/* Collapsible Content */}
                 {isExpanded && (
-                  <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200">
+                  <div className="mt-3 border-t border-slate-100 pt-3 animate-in fade-in duration-200 md:hidden">
                     {/* Visual 4-Step Progress Tracker */}
                     <div className="px-1 sm:px-2">
                       <div className="relative flex items-center justify-between">

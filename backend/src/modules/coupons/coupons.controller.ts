@@ -1,7 +1,7 @@
-
 import type { Request, Response } from 'express';
 import { couponsService } from './coupons.service';
 import { sendSuccess } from '../../utils/response';
+import type { CouponValidateInput } from './coupons.types';
 
 export class CouponsController {
   async list(req: Request, res: Response) {
@@ -122,9 +122,14 @@ export class CouponsController {
   ) {
     const userId = req.user?.id || '';
 
+    const input =
+      req.method === 'GET'
+        ? (req.query as unknown as Omit<CouponValidateInput, 'couponCode'>)
+        : req.body;
+
     const coupons =
       await couponsService.listAvailable(
-        req.body,
+        input,
         userId,
       );
 

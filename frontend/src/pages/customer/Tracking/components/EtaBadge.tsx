@@ -12,11 +12,11 @@ export default function EtaBadge({
 }) {
   const s = normalizeStatus(status);
   let text: string | null = null;
-  if (s === "en_route")
-    text = minutes ? `About ${minutes} min away` : "On the way";
-  else if (s === "arrived") text = "Arrived";
-  else if (s === "in_progress") text = "Service in progress";
-  else if (s === "assigned") text = "Will set off before your slot";
+  if (s === "en_route" && minutes) {
+    text = `About ${minutes} min away`;
+  } else if (s === "assigned") {
+    text = "Will set off before your slot";
+  }
   if (!text) return null;
 
   return (

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { BookingTab } from "@/types/bookingList";
@@ -24,6 +24,14 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
     {},
   );
 
+  useEffect(() => {
+    refs.current[active]?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [active]);
+
   const move = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;
     if (e.key === "ArrowRight") next = (index + 1) % TABS.length;
@@ -44,7 +52,7 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
       <div
         role="tablist"
         aria-label="Booking status"
-        className="grid min-w-0 flex-1 grid-cols-4 rounded-xl bg-[#f1f3f7] p-1 md:rounded-none md:bg-transparent md:p-0"
+        className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-5 md:gap-0 md:overflow-visible md:pb-0 md:rounded-none md:bg-transparent md:p-0"
       >
         {TABS.map((tab, i) => {
           const selected = tab.id === active;
@@ -63,13 +71,14 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => move(e, i)}
               className={clsx(
-                "flex min-h-[40px] w-full min-w-0 items-center justify-center whitespace-nowrap text-center text-xs transition-all sm:text-sm md:min-h-[44px]",
-                // Mobile segmented control styling (matching Image 2)
+                // Mobile: clean, neat pill chips (matching Payments page filter tabs)
+                "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition-all select-none active:scale-95",
                 selected
-                  ? "rounded-lg bg-[#eeebf9] text-[#4338ca] font-semibold border-b-2 border-[#4338ca]"
-                  : "rounded-lg border-b-2 border-transparent text-slate-600 font-medium hover:text-slate-900",
-                // Desktop override (matching original desktop tablist)
-                "-mb-px md:rounded-none md:bg-transparent md:border-b-2",
+                  ? "bg-[#4338ca] text-white shadow-xs"
+                  : "border border-slate-200/90 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+                // Desktop override (matching original desktop tablist - web view untouched)
+                "md:min-h-[44px] md:w-full md:rounded-none md:border-0 md:border-b-2 md:bg-transparent md:px-0 md:py-0 md:text-sm md:shadow-none md:active:scale-100",
+                "-mb-px",
                 selected
                   ? "md:border-brand md:text-brand"
                   : "md:border-transparent md:text-muted md:hover:text-ink",

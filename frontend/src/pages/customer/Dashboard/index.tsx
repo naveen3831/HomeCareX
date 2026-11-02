@@ -1,11 +1,12 @@
-import type { CSSProperties } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { ErrorState, OfflineState } from "@/components/customer";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useCustomerDashboard } from "@/features/customer";
-import { OFFERS } from "@/mocks/customerMockData"; // no offers endpoint yet — promos stay static
+import { useCustomerCoupons } from "@/hooks/useCoupons";
+import { useReferral } from "@/hooks/useReferral";
 import DashboardSkeleton from "./sections/DashboardSkeleton";
 import GreetingSection from "./sections/GreetingSection";
 import SearchBar from "./sections/SearchBar";
@@ -15,7 +16,7 @@ import QuickActions from "./sections/QuickActions";
 import UpcomingBookings from "./sections/UpcomingBookings";
 import CategoryCard from "./sections/CategoryCard";
 import RecommendedServices from "./sections/RecommendedServices";
-import OffersCarousel from "./sections/OffersCarousel";
+import OffersCarousel, { type Offer } from "./sections/OffersCarousel";
 import NewCustomerEmptyState from "./sections/NewCustomerEmptyState";
 
 function SectionHeader({ title, to }: { title: string; to?: string }) {
@@ -34,6 +35,38 @@ function SectionHeader({ title, to }: { title: string; to?: string }) {
 export default function Dashboard() {
   const { data, isPending, isError, error, refetch } = useCustomerDashboard();
   const online = useOnlineStatus();
+  const { data: coupons = [], isLoading: couponsLoading } = useCustomerCoupons();
+  const { data: referralData, isLoading: referralLoading } = useReferral();
+
+  const offers = useMemo(() => {
+    // 1. Map real-time coupons configured by admin in backend & database
+    const list: Offer[] = (coupons || []).map((c, index) => ({
+      id: c.id || c.code,
+      title: c.title,
+      description: c.description,
+      code: c.code,
+      accent: index % 2 === 0 ? "brand" : "accent",
+      isReferral: false,
+    }));
+
+    // 2. Real-time dynamic referral card based on backend configured reward & user's referral code
+    const rewardRupees =
+      referralData?.rewardPerReferralPaise != null
+        ? Math.round(referralData.rewardPerReferralPaise / 100)
+        : 50;
+    const referralCode = referralData?.code || "REFERRAL";
+
+    list.push({
+      id: "referral-reward",
+      title: `Refer a friend, earn ₹${rewardRupees}`,
+      description: "Both of you get wallet credit on their first booking.",
+      code: referralCode,
+      accent: list.length % 2 === 0 ? "brand" : "accent",
+      isReferral: true,
+    });
+
+    return list;
+  }, [coupons, referralData]);
 
   if (isPending) return <DashboardSkeleton />;
 
@@ -115,7 +148,7 @@ export default function Dashboard() {
 
       <section className="dashboard-section dashboard-section--offers">
         <SectionHeader title="Offers for you" />
-        <OffersCarousel offers={OFFERS} />
+        <OffersCarousel offers={offers} isLoading={couponsLoading || referralLoading} />
       </section>
     </div>
   );
