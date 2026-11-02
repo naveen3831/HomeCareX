@@ -1,881 +1,575 @@
-import { useCallback, useContext, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowRight,
-  CalendarDays,
-  Clock3,
-  MapPin,
-  StickyNote,
-  Wallet,
-} from 'lucide-react';
-import { AuthContext } from '@/context/AuthContext';
-import { useAuthStore } from '@/store/useAuthStore';
-import {
-  acceptAssignedService,
-  declineAssignedService,
-  fetchAssignedServices,
-  fetchJob,
-  getErrorMessage,
-  getHttpStatus,
-  startJob,
-  verifyJobOtp,
-} from './jobDetails.api';
-import ServiceHeroImage from './ServiceHeroImage';
-import PaymentPanel from '@/components/partner/PaymentPanel';
-import type { JobDetails } from './jobDetails.types';
-import { STATUS_LABEL } from './jobStatus';
-import './jobDetails.css';
-import './jobDetailsModern.css';
+/**
+ * Partner job API.
+ *
+ * Two back ends live behind the same functions:
+ *  - the real server (ids that look like Mongo ObjectIds, when a login token exists), and
+ *  - a demo store kept in localStorage (demo ids such as "BK-20418", or VITE_USE_MOCKS=true).
+ *
+ * The demo store follows the same rules as the server (status steps, 4-digit start code,
+ * 5 attempts, 1 hour validity, photo checks) so the screens behave the same in both modes.
+ */
+import api from '@/lib/api';
+import { tokenStore } from '@/lib/tokenStore';
+import { sendSos } from '@/pages/partner/Safety/safety.api';
+import { mapJob, mapJobListItemToJobDetails, normalizePayment, getDefaultChecklistForService } from './jobDetails.mapper';
+import type { ApiJob, JobChecklistItem, JobDetails, StartVerification } from './jobDetails.types';
+import type { JobStatus } from './jobStatus';
 
-type LoadState = 'loading' | 'ready' | 'error' | 'notfound';
-type ViewMode = 'list' | 'details';
+/* ------------------------------------------------------------------ constants */
 
-const money = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-});
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
 
-function formatDate(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? iso
-    : date.toLocaleDateString('en-IN', {
-        weekday: 'short',
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'Asia/Kolkata',
-      });
+/** The demo start code the customer "shows" the partner. */
+export const DEMO_START_OTP = '1234';
+export const START_OTP_MAX_ATTEMPTS = 5;
+export const START_OTP_TTL_MS = 60 * 60 * 1000;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/** Holds the one demo job that is currently being worked on (the route job). */
+export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_job_v1';
+/** Holds the demo "Assigned Services" list. */
+export const MOCK_PARTNER_ASSIGNED_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
+
+const OBJECT_ID = /^[a-f\d]{24}$/i;
+const isDemoId = (id: string): boolean => !OBJECT_ID.test(id);
+const useDemo = (id: string): boolean => USE_MOCKS || isDemoId(id);
+
+/* ------------------------------------------------------------------ error helpers */
+
+type ErrorLike = {
+  message?: unknown;
+  status?: unknown;
+  code?: unknown;
+  response?: { status?: unknown; data?: { message?: unknown; code?: unknown; details?: unknown } };
+};
+
+const asErr = (err: unknown): ErrorLike | null => (err && typeof err === 'object' ? (err as ErrorLike) : null);
+
+/** HTTP status of a failed call, or undefined when there was none. */
+export function getHttpStatus(err: unknown): number | undefined {
+  const e = asErr(err);
+  const status = e?.response?.status ?? e?.status;
+  return typeof status === 'number' ? status : undefined;
 }
 
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+/** The server's `code` (for example INVALID_OTP), or undefined. */
+export function getErrorCode(err: unknown): string | undefined {
+  const e = asErr(err);
+  const code = e?.response?.data?.code;
+  return typeof code === 'string' ? code : undefined;
 }
 
-function formatDuration(minutes: number | null | undefined): string {
-  if (!minutes || minutes <= 0) return '3 hrs';
-  if (minutes % 60 === 0) {
-    const hrs = minutes / 60;
-    return `${hrs} ${hrs === 1 ? 'hr' : 'hrs'}`;
-  }
-  return `${minutes} mins`;
+/** Message to show the person. Uses what the server said, otherwise the fallback. */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  const message = asErr(err)?.response?.data?.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
-function useOnline(): boolean {
-  const [online, setOnline] = useState(navigator.onLine);
-  useEffect(() => {
-    const up = () => setOnline(true);
-    const down = () => setOnline(false);
-    window.addEventListener('online', up);
-    window.addEventListener('offline', down);
-    return () => {
-      window.removeEventListener('online', up);
-      window.removeEventListener('offline', down);
-    };
-  }, []);
-  return online;
+/** true only when no response came back at all (offline, DNS, CORS, timeout). */
+export function isNetworkError(err: unknown): boolean {
+  const e = asErr(err);
+  return Boolean(e) && !e?.response;
 }
 
-type FilterTab = 'all' | 'accept' | 'confirmed' | 'declined' | 'completed';
-
-export default function JobDetailsPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const online = useOnline();
-
-  const authCtx = useContext(AuthContext);
-  const storeUserId = useAuthStore((s) => s.user?.id);
-  void authCtx;
-  void storeUserId;
-
-  // /partner/jobs/:id  -> that job's details.
-  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
-  // If route has an explicit :id (/partner/jobs/:id), open details directly;
-  // If on /partner/work (no :id), first show Assigned Service Cards.
-  const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));
-  const [filterTab, setFilterTab] = useState<FilterTab>('accept');
-  const [showFilters, setShowFilters] = useState<boolean>(false);
-  const [assignedServices, setAssignedServices] = useState<JobDetails[]>([]);
-  const [acceptingId, setAcceptingId] = useState<string | null>(null);
-  const [justAcceptedBanner, setJustAcceptedBanner] = useState<boolean>(false);
-
-  const [job, setJob] = useState<JobDetails | null>(null);
-  const [state, setState] = useState<LoadState>('loading');
-  const [message, setMessage] = useState('');
-
-  // OTP & Start Job flow state
-  const [otpModalOpen, setOtpModalOpen] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpVerifiedLocal, setOtpVerifiedLocal] = useState(false);
-  const [actionBusy, setActionBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    setState('loading');
-    try {
-      const targetId = id || 'BK-20418';
-      const [loadedJob, catalog] = await Promise.all([
-        fetchJob(targetId),
-        fetchAssignedServices().catch(() => [] as JobDetails[]),
-      ]);
-      setJob(loadedJob);
-      setAssignedServices(catalog);
-      // At first show 'accept' as default; if there is no data in accept, show 'all' as default
-      const pendingAssignedCount = catalog.filter((s) => s.status === 'assigned').length;
-      setFilterTab(pendingAssignedCount > 0 ? 'accept' : 'all');
-      setOtpVerifiedLocal(Boolean(loadedJob.otpVerified));
-      setState('ready');
-    } catch (err) {
-      const code = getHttpStatus(err);
-      if (code === 404 || code === 403) {
-        setState('notfound');
-      } else {
-        setMessage(getErrorMessage(err, 'Could not load this job.'));
-        setState('error');
-      }
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  // If currently on 'accept' filter but there are no items in 'accept', fall back to 'all'
-  useEffect(() => {
-    if (assignedServices.length > 0) {
-      const pendingAssignedCount = assignedServices.filter((s) => s.status === 'assigned').length;
-      if (pendingAssignedCount === 0 && filterTab === 'accept') {
-        setFilterTab('all');
-      }
-    }
-  }, [assignedServices, filterTab]);
-
-  // Keep viewMode synced if route param changes
-  useEffect(() => {
-    if (id) {
-      setViewMode('details');
-    }
-  }, [id]);
-
-  const handleAcceptServiceCard = async (serviceId: string) => {
-    if (acceptingId || !online) return;
-    setAcceptingId(serviceId);
-    try {
-      const accepted = await acceptAssignedService(serviceId);
-      const updatedCatalog = await fetchAssignedServices();
-      setAssignedServices(updatedCatalog);
-      setJob(accepted);
-      setOtpCode('');
-      setOtpError(null);
-      setOtpVerifiedLocal(Boolean(accepted.otpVerified));
-      setJustAcceptedBanner(true);
-      setViewMode('details');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally {
-      setAcceptingId(null);
-    }
-  };
-
-  const handleDeclineServiceCard = async (serviceId: string) => {
-    if (!online) return;
-    const remaining = await declineAssignedService(serviceId);
-    setAssignedServices(remaining);
-  };
-
-  const handlePrimaryStartClick = () => {
-    if (!job) return;
-    if (job.status === 'in_progress') {
-      navigate(`/partner/jobs/${job.id}/active`);
-      return;
-    }
-    // The customer's start OTP is only accepted once the partner has arrived,
-    // so that is the one step where the OTP popup is still shown.
-    if (job.status === 'arrived') {
-      setOtpError(null);
-      setOtpModalOpen(true);
-      return;
-    }
-    // Before arriving: go to the page with map, call, chat and help.
-    navigate(`/partner/jobs/${job.id}/navigation`);
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!job || actionBusy) return;
-    if (!online) {
-      setOtpError('You are offline. Reconnect and try again.');
-      return;
-    }
-    if (!otpCode.trim()) {
-      setOtpError(`Please enter the 6-digit customer OTP .`);
-      return;
-    }
-
-    setActionBusy(true);
-    setOtpError(null);
-    try {
-      const res = await verifyJobOtp(job.id, otpCode.trim());
-      if (!res.verified) {
-        setOtpError(res.message || 'Incorrect OTP. Please check the code with the customer.');
-      } else {
-        setOtpVerifiedLocal(true);
-      }
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'OTP verification failed.'));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  const handleConfirmStartJob = async () => {
-    if (!job || actionBusy || !otpVerifiedLocal) return;
-    setActionBusy(true);
-    setOtpError(null);
-    try {
-      const updated = await startJob(job.id, otpCode.trim());
-      setJob(updated);
-      setOtpModalOpen(false);
-      navigate(`/partner/jobs/${updated.id}/active`);
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'Could not start job.'));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  if (state === 'loading') {
-    return (
-      <div className="jd-ref-page" aria-busy="true">
-        <div className="jd-ref-container">
-          <div className="jd-skel jd-skel-tall" />
-          <div className="jd-skel" />
-          <div className="jd-skel" />
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'notfound') {
-    return (
-      <div className="jd-ref-page">
-        <div className="jd-ref-container">
-          <div className="jd-emptycard">
-            <p className="jd-empty-title">Job not found</p>
-            <p className="jd-empty">This job was not found, or it is not assigned to you.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'error' || !job) {
-    return (
-      <div className="jd-ref-page">
-        <div className="jd-ref-container">
-          <div className="jd-emptycard">
-            <p className="jd-error" role="alert">
-              {message || 'Could not load this job.'}
-            </p>
-            <button type="button" className="jd-ref-primary-btn" onClick={() => void load()}>
-              Try again
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // STEP 1: ASSIGNED SERVICE CARDS VIEW (shown first on /partner/work)
-  // ============================================================================
-  if (viewMode === 'list') {
-    const acceptCount = assignedServices.filter((s) => s.status === 'assigned').length;
-    const declinedCount = assignedServices.filter(
-      (s) => s.status === 'cancelled_by_partner' || s.status.startsWith('cancelled')
-    ).length;
-    const confirmedCount = assignedServices.filter(
-      (s) =>
-        s.status === 'confirmed' ||
-        s.status === 'en_route' ||
-        s.status === 'arrived' ||
-        s.status === 'in_progress'
-    ).length;
-    const completedCount = assignedServices.filter(
-      (s) => s.status === 'completed' || s.status === 'rated'
-    ).length;
-
-    const filteredServices = assignedServices.filter((item) => {
-      if (filterTab === 'accept') return item.status === 'assigned';
-      if (filterTab === 'declined') {
-        return item.status === 'cancelled_by_partner' || item.status.startsWith('cancelled');
-      }
-      if (filterTab === 'confirmed') {
-        return (
-          item.status === 'confirmed' ||
-          item.status === 'en_route' ||
-          item.status === 'arrived' ||
-          item.status === 'in_progress'
-        );
-      }
-      if (filterTab === 'completed') {
-        return item.status === 'completed' || item.status === 'rated';
-      }
-      return true;
-    });
-
-    return (
-      <div className="jd-ref-page">
-        {!online && (
-          <p className="jd-offline" role="status">
-            You are offline. Reconnect to accept assigned services.
-          </p>
-        )}
-
-        <div className="jd-assigned-shell">
-          <header className="jd-assigned-header">
-            <div>
-              <p className="jd-ref-eyebrow">PARTNER WORK QUEUE</p>
-              <h2 className="jd-ref-booking-code">Assigned Services</h2>
-              <p className="jd-assigned-subtitle">
-                Select and accept an assigned service below to unlock full booking details and start the job.
-              </p>
-            </div>
-            <div className="jd-assigned-header-actions">
-              <span className="jd-assigned-count-pill">
-                {filteredServices.length} {filteredServices.length === 1 ? 'Service' : 'Services'}
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowFilters((prev) => !prev)}
-                className={`jd-filter-toggle-btn ${showFilters ? 'jd-filter-toggle-btn-active' : ''}`}
-                aria-expanded={showFilters}
-                aria-controls="jd-filter-tabs-panel"
-                aria-label="Filter"
-                title="Filter services"
-              >
-                {/* Sliders filter icon matching user uploaded image */}
-                <svg
-                  className="jd-filter-slider-icon"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <line x1="2" y1="5" x2="13" y2="5" />
-                  <line x1="19" y1="5" x2="22" y2="5" />
-                  <circle cx="16" cy="5" r="3" fill="none" />
-
-                  <line x1="2" y1="12" x2="5" y2="12" />
-                  <line x1="11" y1="12" x2="22" y2="12" />
-                  <circle cx="8" cy="12" r="3" fill="none" />
-
-                  <line x1="2" y1="19" x2="12" y2="19" />
-                  <line x1="18" y1="19" x2="22" y2="19" />
-                  <circle cx="15" cy="19" r="3" fill="none" />
-                </svg>
-                <span>Filter</span>
-              </button>
-            </div>
-          </header>
-
-          {/* Filter Bar: Shown directly on web, toggleable on mobile */}
-          <div
-            className={`jd-filter-section ${showFilters ? 'jd-filter-mobile-open' : 'jd-filter-mobile-closed'}`}
-            id="jd-filter-tabs-panel"
-          >
-            <div className="jd-filter-tabs-row" role="tablist" aria-label="Filter assigned services">
-              {/* 1. Accept */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterTab === 'accept'}
-                onClick={() => setFilterTab('accept')}
-                className={`jd-filter-tab ${filterTab === 'accept' ? 'jd-filter-tab-active' : ''}`}
-              >
-                <span>Accept</span>
-                <span className="jd-filter-count">{acceptCount}</span>
-              </button>
-
-              {/* 2. Decline */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterTab === 'declined'}
-                onClick={() => setFilterTab('declined')}
-                className={`jd-filter-tab ${filterTab === 'declined' ? 'jd-filter-tab-active' : ''}`}
-              >
-                <span>Decline</span>
-                <span className="jd-filter-count">{declinedCount}</span>
-              </button>
-
-              {/* 3. Confirmed */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterTab === 'confirmed'}
-                onClick={() => setFilterTab('confirmed')}
-                className={`jd-filter-tab ${filterTab === 'confirmed' ? 'jd-filter-tab-active' : ''}`}
-              >
-                <span>Confirmed</span>
-                <span className="jd-filter-count">{confirmedCount}</span>
-              </button>
-
-              {/* 4. Completed */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterTab === 'completed'}
-                onClick={() => setFilterTab('completed')}
-                className={`jd-filter-tab ${filterTab === 'completed' ? 'jd-filter-tab-active' : ''}`}
-              >
-                <span>Completed</span>
-                <span className="jd-filter-count">{completedCount}</span>
-              </button>
-
-              {/* 5. All */}
-              <button
-                type="button"
-                role="tab"
-                aria-selected={filterTab === 'all'}
-                onClick={() => setFilterTab('all')}
-                className={`jd-filter-tab ${filterTab === 'all' ? 'jd-filter-tab-active' : ''}`}
-              >
-                <span>All</span>
-                <span className="jd-filter-count">{assignedServices.length}</span>
-              </button>
-            </div>
-          </div>
-
-          {filteredServices.length === 0 ? (
-            <div className="jd-emptycard">
-              <p className="jd-empty-title">No services in this filter</p>
-              <p className="jd-empty">Switch filters above to view other assigned, confirmed, declined, or completed services.</p>
-              {filterTab !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => setFilterTab('all')}
-                  className="jd-ref-secondary-btn"
-                >
-                  Show All Services
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="jd-assigned-grid" role="list" aria-label="Assigned service cards">
-              {filteredServices.map((item) => {
-                const isPendingAssigned = item.status === 'assigned';
-                const isDeclined =
-                  item.status === 'cancelled_by_partner' || item.status.startsWith('cancelled');
-                const isInProgress = item.status === 'in_progress';
-                const isCompleted = item.status === 'completed' || item.status === 'rated';
-                const itemAddress = [
-                  item.location.address,
-                  item.location.city
-                    ? `${item.location.city}${item.location.pincode ? ` ${item.location.pincode}` : ''}`
-                    : item.location.pincode,
-                ]
-                  .filter(Boolean)
-                  .join(', ');
-
-                return (
-                  <article
-                    key={item.id}
-                    role="listitem"
-                    className={`jd-service-card ${!isPendingAssigned ? 'jd-service-card-accepted' : ''}`}
-                  >
-                    {/* Card Top: Booking ID + Status Pill */}
-                    <div className="jd-service-card-top">
-                      <span className="jd-ref-card-label" style={{ marginBottom: 0 }}>
-                        {item.bookingCode}
-                      </span>
-                      <span className={`jd-ref-status-pill jd-ref-status-${item.status}`}>
-                        {isPendingAssigned
-                          ? 'Assigned to you'
-                          : isDeclined
-                            ? 'Declined'
-                            : isInProgress
-                              ? 'In progress'
-                              : isCompleted
-                                ? 'Completed'
-                                : 'Confirmed'}
-                      </span>
-                    </div>
-
-                    {/* Service Title & Duration */}
-                    <div className="jd-service-card-hero">
-                      <div className="jd-ref-row-between">
-                        <h3 className="jd-service-card-title">{item.service.name}</h3>
-                        <span className="jd-service-duration-badge">
-                          {formatDuration(item.service.durationMinutes)}
-                        </span>
-                      </div>
-                      {item.service.description && (
-                        <p className="jd-ref-card-sub">{item.service.description}</p>
-                      )}
-                    </div>
-
-                    {/* Details Grid Inside Card */}
-                    <div className="jd-service-card-meta">
-                      <div className="jd-service-meta-box">
-                        <span className="jd-service-meta-label">SCHEDULE</span>
-                        <strong className="jd-service-meta-value">
-                          {item.schedule.dateLabel ?? formatDate(item.schedule.scheduledAt)}
-                        </strong>
-                        <span className="jd-service-meta-sub">{item.schedule.slot}</span>
-                      </div>
-
-                      <div className="jd-service-meta-box">
-                        <span className="jd-service-meta-label">CUSTOMER (MASKED)</span>
-                        <strong className="jd-service-meta-value">{item.customer.name}</strong>
-                        <span className="jd-service-meta-sub">{item.customer.phoneMasked}</span>
-                      </div>
-                    </div>
-
-                    {/* Location */}
-                    <div className="jd-service-location-box">
-                      <span className="jd-service-meta-label">LOCATION</span>
-                      <p className="jd-service-location-text">{itemAddress}</p>
-                      {item.location.hint && (
-                        <p className="jd-ref-location-hint">{item.location.hint}</p>
-                      )}
-                    </div>
-
-                    {/* Add-ons & Payout Summary */}
-                    <div className="jd-service-payout-row">
-                      <div>
-                        <span className="jd-service-meta-label">TOTAL BOOKING</span>
-                        <p className="jd-service-total-amt">
-                          {money.format(item.price.total)}
-                          {item.addOns.length > 0 && (
-                            <span className="jd-service-addon-tag">
-                              +{item.addOns.length} {item.addOns.length === 1 ? 'add-on' : 'add-ons'}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <div className="jd-service-payout-right">
-                        <span className="jd-service-meta-label">YOUR PAYOUT</span>
-                        <strong className="jd-service-payout-amt">
-                          {money.format(item.price.partnerEarning)}
-                        </strong>
-                      </div>
-                    </div>
-
-                    {/* Card Action Buttons */}
-                    <div className="jd-service-card-actions">
-                      {isPendingAssigned ? (
-                        <>
-                          <button
-                            type="button"
-                            disabled={!online || acceptingId === item.id}
-                            onClick={() => void handleAcceptServiceCard(item.id)}
-                            className="jd-service-accept-btn"
-                          >
-                            {acceptingId === item.id ? 'Accepting…' : 'Accept Service'}
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!online || acceptingId === item.id}
-                            onClick={() => void handleDeclineServiceCard(item.id)}
-                            className="jd-service-decline-btn"
-                          >
-                            Decline
-                          </button>
-                        </>
-                      ) : isDeclined ? (
-                        <button
-                          type="button"
-                          disabled
-                          className="jd-service-declined-state-btn"
-                        >
-                          Service Declined
-                        </button>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleAcceptServiceCard(item.id)}
-                            className="jd-service-accept-btn"
-                          >
-                            View Total Booked Details →
-                          </button>
-                          {isInProgress && (
-                            <button
-                              type="button"
-                              onClick={() => navigate(`/partner/jobs/${item.id}/active`)}
-                              className="jd-service-active-btn"
-                            >
-                              Active Job
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // STEP 2: TOTAL BOOKED DETAILS VIEW (shown after Partner accepts a service card)
-  // ============================================================================
-  const time = formatTime(job.schedule.scheduledAt);
-  const fullAddress = [
-    job.location.address,
-    job.location.city
-      ? `${job.location.city}${job.location.pincode ? ` ${job.location.pincode}` : ''}`
-      : job.location.pincode,
-  ]
-    .filter(Boolean)
-    .join(', ');
-
-  // The backend sends the status in capitals ("PAID"), so compare ignoring case.
-  const isPaid = job.payment.phase === 'paid';
-  const paymentLabel = isPaid
-    ? 'Payment completed'
-    : (job.payment.method ?? 'Pay after service is completed');
-
-  const initials =
-    job.customer.name
-      .replace(/[^A-Za-z ]/g, '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0])
-      .join('')
-      .toUpperCase() || 'C';
-
-  return (
-    <div className="jdx-page">
-      {!online && (
-        <p className="jd-offline" role="status">
-          You are offline. Status changes will not work until you reconnect.
-        </p>
-      )}
-
-      <div className="jdx-container">
-        {justAcceptedBanner && (
-          <div className="jdx-topbar">
-            <span className="jdx-toast" role="status">
-              ✓ Service accepted — Total booked details unlocked
-            </span>
-          </div>
-        )}
-
-        {/* 1. Service picture */}
-        <ServiceHeroImage serviceName={job.service.name} />
-
-        {/* 2. Booking details + how the customer will pay */}
-        <header className="jdx-hero">
-          <div className="jdx-hero-top">
-            <span className={`jdx-status jdx-status-${job.status}`}>
-              <span className="jdx-status-dot" aria-hidden="true" />
-              {STATUS_LABEL[job.status] ?? 'Confirmed'}
-            </span>
-
-            <div className="jdx-code-wrap">
-              <span className="jdx-code-label">Booking</span>
-              <span className="jdx-code">{job.bookingCode}</span>
-            </div>
-          </div>
-
-          <h2 className="jdx-title">{job.service.name}</h2>
-          {job.service.description && (
-            <p className="jdx-subtitle">{job.service.description}</p>
-          )}
-
-          <div className="jdx-chips">
-            <span className="jdx-chip">
-              <CalendarDays size={14} aria-hidden="true" />
-              {job.schedule.dateLabel ?? formatDate(job.schedule.scheduledAt)}
-            </span>
-            <span className="jdx-chip">
-              <Clock3 size={14} aria-hidden="true" />
-              {job.schedule.slot ?? (time || '—')}
-            </span>
-            <span className="jdx-chip">{formatDuration(job.service.durationMinutes)}</span>
-          </div>
-
-          <div className="jdx-paynote">
-            <span className="jdx-paynote-icon" aria-hidden="true">
-              <Wallet size={18} />
-            </span>
-            <div className="jdx-paynote-body">
-              <span className="jdx-paynote-label">{isPaid ? 'Payment' : 'Customer will pay'}</span>
-              <strong className="jdx-paynote-value">{paymentLabel}</strong>
-            </div>
-          </div>
-        </header>
-
-        {/* 3. Customer name + address (no navigate / maps buttons) */}
-        <section className="jdx-sheet" aria-label="Customer and address">
-          <div className="jdx-row">
-            <span className="jdx-avatar" aria-hidden="true">
-              {initials}
-            </span>
-            <div className="jdx-row-body">
-              <span className="jdx-eyebrow">CUSTOMER</span>
-              <strong>{job.customer.name}</strong>
-              {job.customer.subtitle && <small>{job.customer.subtitle}</small>}
-            </div>
-          </div>
-
-          <div className="jdx-row">
-            <span className="jdx-tile" aria-hidden="true">
-              <MapPin size={18} />
-            </span>
-            <div className="jdx-row-body">
-              <span className="jdx-eyebrow">ADDRESS</span>
-              <strong>{fullAddress}</strong>
-              {job.location.hint && <small>{job.location.hint}</small>}
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Instructions (always shown) */}
-        <section className="jdx-note" aria-label="Instructions">
-          <StickyNote size={20} aria-hidden="true" />
-          <div>
-            <strong>Instructions</strong>
-            <p>{job.instructions?.trim() || 'No special instructions.'}</p>
-          </div>
-        </section>
-
-        {/* 4b. Payment: QR after completion, status once paid */}
-        {(job.status === 'completed' || job.status === 'rated') && (
-          <PaymentPanel job={job} onJobChange={setJob} online={online} />
-        )}
-
-        {/* 5. Total, then Start job */}
-        <section className="jdx-total-card" aria-label="Total">
-          <div className="jdx-total jdx-total-flat">
-            <span>Total</span>
-            <strong>{money.format(job.price.total)}</strong>
-          </div>
-
-          {/* Start only makes sense before the job is done. Finished jobs go back to the list; cancelled ones get no button. */}
-          {(job.status === 'completed' || job.status === 'rated') && (
-            <div className="jdx-action">
-              <button type="button" className="jdx-cta" onClick={() => navigate('/partner/jobs')}>
-                Back to my jobs
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-          {job.status !== 'completed' &&
-            job.status !== 'rated' &&
-            !job.status.startsWith('cancelled') &&
-            job.status !== 'no_show' &&
-            job.status !== 'disputed' && (
-              <div className="jdx-action">
-                <button
-                  type="button"
-                  className="jdx-cta"
-                  disabled={!online || actionBusy}
-                  onClick={handlePrimaryStartClick}
-                >
-                  {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
-                  <ArrowRight size={18} aria-hidden="true" />
-                </button>
-              </div>
-            )}
-        </section>
-      </div>
-
-      {/* Start Job Customer OTP Verification Modal */}
-      {otpModalOpen && (
-        <div
-          className="jd-ref-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="jd-otp-modal-title"
-        >
-          <div className="jd-ref-modal">
-            <div className="jd-ref-modal-header">
-              <h3 id="jd-otp-modal-title" className="jd-ref-modal-title">
-                Verify Customer Start OTP
-              </h3>
-            </div>
-
-            <p className="jd-ref-modal-desc">
-              Ask <strong>{job.customer.name}</strong> ({job.customer.phoneMasked}) for the start code
-              to unlock the full address and begin <strong>{job.service.name}</strong>.
-            </p>
-
-            <form onSubmit={(e) => void handleVerifyOtp(e)} className="jd-ref-otp-form">
-              <label htmlFor="jd-start-otp-input" className="jd-ref-otp-label">
-                Enter 6-Digit Start OTP
-              </label>
-              <div className="jd-ref-otp-input-row">
-                <input
-                  id="jd-start-otp-input"
-                  type="text"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => {
-                    setOtpCode(e.target.value);
-                    setOtpVerifiedLocal(false);
-                    if (otpError) setOtpError(null);
-                  }}
-                  placeholder="Enter start OTP"
-                  className="jd-ref-otp-input"
-                />
-                <button
-                  type="submit"
-                  disabled={actionBusy}
-                  className="jd-ref-otp-verify-btn"
-                >
-                  Verify
-                </button>
-              </div>
-            </form>
-
-            {otpError && (
-              <p className="jd-ref-otp-error" role="alert">
-                {otpError}
-              </p>
-            )}
-
-            {otpVerifiedLocal && (
-              <p className="jd-ref-otp-success" role="status">
-                ✓ OTP verified! You can now start the job.
-              </p>
-            )}
-
-            <div className="jd-ref-modal-actions">
-              <button
-                type="button"
-                onClick={() => setOtpModalOpen(false)}
-                className="jd-ref-modal-cancel"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!otpVerifiedLocal || actionBusy}
-                onClick={() => void handleConfirmStartJob()}
-                className="jd-ref-modal-confirm"
-              >
-                {actionBusy ? 'Starting…' : 'Start job'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+/** How many start-code attempts are left, read from the error details. null when unknown. */
+export function getAttemptsRemaining(err: unknown): number | null {
+  const details = asErr(err)?.response?.data?.details;
+  if (!Array.isArray(details)) return null;
+  const entry = details.find(
+    (d): d is { field: string; message: string } =>
+      Boolean(d) && typeof d === 'object' && (d as { field?: unknown }).field === 'attemptsRemaining',
   );
+  if (!entry || typeof entry.message !== 'string' || !/^\d+$/.test(entry.message.trim())) return null;
+  return Number(entry.message.trim());
+}
+
+/** Builds an error shaped like an Axios error, so the screens handle demo and real errors the same way. */
+function demoError(status: number, code: string, message: string, details?: Array<{ field: string; message: string }>) {
+  const err = new Error(message) as Error & { response: { status: number; data: Record<string, unknown> } };
+  err.response = { status, data: { code, message, ...(details ? { details } : {}) } };
+  return err;
+}
+
+/* ------------------------------------------------------------------ demo store */
+
+type StoredJob = JobDetails & { startAttempts?: number };
+
+const hasStorage = (): boolean => {
+  try {
+    return typeof window !== 'undefined' && !!window.localStorage;
+  } catch {
+    return false;
+  }
+};
+
+function readJson<T>(key: string): T | null {
+  if (!hasStorage()) return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(key: string, value: unknown): void {
+  if (!hasStorage()) return;
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage full or blocked: the demo keeps working for this page load only */
+  }
+}
+
+const dayAt = (daysFromNow: number, hour: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+};
+
+const demoPayment = (total: number, code: string, paid = false) =>
+  normalizePayment(
+    {
+      status: paid ? 'PAID' : 'PENDING',
+      paidAt: paid ? new Date().toISOString() : null,
+      method: paid ? 'upi' : null,
+      upi: { payeeId: 'homecarex@upi', payeeName: 'HomeCareX' },
+    },
+    total,
+    code,
+  );
+
+interface SeedInput {
+  n: number;
+  status: JobStatus;
+  service: string;
+  description: string;
+  customer: string;
+  phone: string;
+  address: string;
+  minutes: number;
+  total: number;
+  earning: number;
+  day: number;
+  hour: number;
+  addOns?: Array<{ name: string; amount: number }>;
+  checklist?: JobChecklistItem[];
+}
+
+function seedJob(s: SeedInput): JobDetails {
+  const id = `BK-${20417 + s.n}`;
+  const code = `#${id}`;
+  const done = s.status === 'completed';
+  return {
+    id,
+    bookingCode: code,
+    status: s.status,
+    customer: { name: s.customer, phoneMasked: s.phone },
+    service: { name: s.service, description: s.description, quantity: 1, durationMinutes: s.minutes },
+    location: { address: s.address, city: 'Hyderabad', pincode: '500081', coordinates: null },
+    schedule: {
+      scheduledAt: dayAt(s.day, s.hour),
+      slot: `${s.hour}:00 – ${s.hour + Math.ceil(s.minutes / 60)}:00`,
+      startedAt: null,
+      completedAt: done ? dayAt(s.day, s.hour + 2) : null,
+    },
+    price: { basePrice: s.total - 49, total: s.total, partnerEarning: s.earning },
+    addOns: (s.addOns ?? []).map((a, i) => ({ id: `addon-${s.n}-${i}`, name: a.name, quantity: 1, amount: a.amount })),
+    extraCharges: [],
+    instructions: 'Please call 10 minutes before reaching. Parking is available near the gate.',
+    checklist: s.checklist ?? getDefaultChecklistForService(s.service),
+    payment: demoPayment(s.total, code, done),
+    actions: [],
+    otpRequired: false,
+    history: [{ status: s.status, at: new Date().toISOString(), actor: 'System' }],
+  };
+}
+
+function seedAssigned(): JobDetails[] {
+  const base = { customer: 'Customer', phone: '+91 ••••• ••000', address: 'Madhapur, Hyderabad', minutes: 120 };
+  return [
+    seedJob({
+      ...base,
+      n: 1,
+      status: 'assigned',
+      service: 'Deep home cleaning',
+      description: 'Top-to-bottom cleaning of rooms, kitchen and bathrooms',
+      customer: 'Rohan K.',
+      phone: '+91 ••••• ••214',
+      address: '12 MG Road, Madhapur',
+      minutes: 180,
+      total: 1899,
+      earning: 1500,
+      day: 0,
+      hour: 16,
+      addOns: [
+        { name: 'Fridge cleaning', amount: 199 },
+        { name: 'Balcony wash', amount: 149 },
+      ],
+      checklist: [
+        { id: 'chk-1', label: 'Dust ceilings, fans and light fixtures', done: true },
+        { id: 'chk-2', label: 'Wipe walls, switches and windows', done: true },
+        { id: 'chk-3', label: 'Scrub kitchen counters and chimney', done: true },
+        { id: 'chk-4', label: 'Deep clean bathrooms and fittings', done: false },
+        { id: 'chk-5', label: 'Vacuum and mop all floors', done: false },
+        { id: 'chk-6', label: 'Final walkthrough with customer', done: false },
+      ],
+    }),
+    seedJob({ ...base, n: 2, status: 'assigned', service: 'Bathroom & kitchen sanitization', description: 'Anti-bacterial treatment for wet areas', customer: 'Anita R.', phone: '+91 ••••• ••318', total: 1299, earning: 1000, day: 0, hour: 18 }),
+    seedJob({ ...base, n: 3, status: 'assigned', service: 'AC foam-jet service & gas check', description: 'Foam-jet cleaning with pressure test', customer: 'Vikram S.', phone: '+91 ••••• ••427', minutes: 90, total: 699, earning: 520, day: 1, hour: 10 }),
+    seedJob({ ...base, n: 4, status: 'assigned', service: 'Sofa & carpet shampooing', description: 'Dry vacuum, shampoo and suction extraction', customer: 'Meera P.', phone: '+91 ••••• ••536', minutes: 90, total: 899, earning: 700, day: 1, hour: 14 }),
+    seedJob({ ...base, n: 5, status: 'assigned', service: 'General pest control', description: 'Odourless spray and gel bait treatment', customer: 'Sanjay D.', phone: '+91 ••••• ••645', minutes: 60, total: 799, earning: 600, day: 2, hour: 11 }),
+    seedJob({ ...base, n: 6, status: 'assigned', service: 'Interior wall touch-up painting', description: 'Patch, prime and repaint selected walls', customer: 'Lakshmi N.', phone: '+91 ••••• ••754', total: 2499, earning: 1900, day: 2, hour: 15 }),
+    seedJob({ ...base, n: 7, status: 'confirmed', service: 'Kitchen chimney & hob deep cleaning', description: 'Degreasing of chimney, filters and hob', customer: 'Farhan A.', phone: '+91 ••••• ••863', minutes: 90, total: 999, earning: 780, day: 3, hour: 10 }),
+    seedJob({ ...base, n: 8, status: 'cancelled_by_partner', service: 'Terrace water tank cleaning', description: 'Empty, scrub and disinfect the tank', customer: 'Gopal M.', phone: '+91 ••••• ••972', total: 1199, earning: 900, day: 3, hour: 14 }),
+    seedJob({ ...base, n: 9, status: 'completed', service: 'Full bathroom steam sanitization', description: 'Steam cleaning and disinfection', customer: 'Divya T.', phone: '+91 ••••• ••081', minutes: 60, total: 849, earning: 650, day: -1, hour: 11 }),
+  ];
+}
+
+/** Fills the gaps in a stored job so a partial record (older version, hand-edited) still renders. */
+function hydrate(raw: Partial<StoredJob> & { id: string }): StoredJob {
+  const total = raw.price?.total ?? 0;
+  const code = raw.bookingCode ?? `#${raw.id}`;
+  const payment = raw.payment
+    ? raw.payment.phase
+      ? raw.payment
+      : normalizePayment(raw.payment as never, raw.payment.amount ?? total, code)
+    : normalizePayment(undefined, total, code);
+  return {
+    status: 'assigned',
+    instructions: null,
+    otpRequired: false,
+    ...raw,
+    bookingCode: code,
+    customer: { name: 'Customer', phoneMasked: '—', ...raw.customer },
+    service: { name: 'Service', quantity: 1, durationMinutes: null, ...raw.service },
+    location: { address: '', city: '', pincode: null, ...raw.location },
+    schedule: { scheduledAt: new Date().toISOString(), slot: null, startedAt: null, ...raw.schedule },
+    price: { total: 0, partnerEarning: 0, ...raw.price },
+    addOns: raw.addOns ?? [],
+    extraCharges: raw.extraCharges ?? [],
+    checklist: raw.checklist ?? [],
+    payment,
+    actions: raw.actions ?? [],
+    history: raw.history ?? [],
+  } as StoredJob;
+}
+
+function loadAssigned(): StoredJob[] {
+  const stored = readJson<Array<Partial<StoredJob> & { id: string }>>(MOCK_PARTNER_ASSIGNED_STORAGE_KEY);
+  if (Array.isArray(stored)) return stored.filter((j) => j && typeof j.id === 'string').map(hydrate);
+  const seeded = seedAssigned() as StoredJob[];
+  writeJson(MOCK_PARTNER_ASSIGNED_STORAGE_KEY, seeded);
+  return seeded;
+}
+
+const saveAssigned = (list: StoredJob[]): void => writeJson(MOCK_PARTNER_ASSIGNED_STORAGE_KEY, list);
+
+function loadRoute(id: string): StoredJob | null {
+  const stored = readJson<Partial<StoredJob> & { id: string }>(MOCK_PARTNER_ROUTE_STORAGE_KEY);
+  if (stored && stored.id === id) return hydrate(stored);
+  const fromList = loadAssigned().find((j) => j.id === id);
+  return fromList ? { ...fromList } : null;
+}
+
+/** Saves the route job and keeps the matching list card in step. */
+function saveRoute(job: StoredJob): void {
+  writeJson(MOCK_PARTNER_ROUTE_STORAGE_KEY, job);
+  const list = loadAssigned();
+  const index = list.findIndex((j) => j.id === job.id);
+  if (index >= 0) {
+    list[index] = { ...job };
+    saveAssigned(list);
+  }
+}
+
+const nextActions = (status: JobStatus): JobDetails['actions'] =>
+  status === 'confirmed' || status === 'assigned'
+    ? [{ status: 'en_route', label: 'I am on the way' }]
+    : status === 'en_route'
+      ? [{ status: 'arrived', label: 'I have arrived' }]
+      : [];
+
+function startVerificationFor(job: StoredJob): StartVerification | null {
+  if (job.status !== 'arrived') return null;
+  const arrived = [...job.history].reverse().find((h) => h.status === 'arrived');
+  const arrivedMs = arrived ? Date.parse(arrived.at) : NaN;
+  const expiresAt = Number.isNaN(arrivedMs) ? null : new Date(arrivedMs + START_OTP_TTL_MS).toISOString();
+  const used = job.startAttempts ?? 0;
+  return {
+    maxAttempts: START_OTP_MAX_ATTEMPTS,
+    attemptsRemaining: Math.max(0, START_OTP_MAX_ATTEMPTS - used),
+    expiresAt,
+    expired: expiresAt ? Date.now() > Date.parse(expiresAt) : false,
+    locked: used >= START_OTP_MAX_ATTEMPTS,
+  };
+}
+
+/** What the screens get: no internal counters, and the computed fields filled in. */
+function view(job: StoredJob): JobDetails {
+  const { startAttempts: _attempts, ...rest } = job;
+  void _attempts;
+  return {
+    ...rest,
+    actions: nextActions(job.status),
+    otpRequired: job.status === 'arrived',
+    startVerification: startVerificationFor(job),
+  };
+}
+
+function requireRoute(id: string): StoredJob {
+  const job = loadRoute(id);
+  if (!job) throw demoError(404, 'NOT_FOUND', 'Job not found');
+  return job;
+}
+
+const pushHistory = (job: StoredJob, status: JobStatus): void => {
+  job.status = status;
+  job.history = [...job.history, { status, at: new Date().toISOString(), actor: 'Partner' }];
+};
+
+/** Back to the state right after the partner accepted the job. Used by the "Reset demo" buttons and tests. */
+export function resetMockPartnerJob(id: string): JobDetails {
+  const fresh = seedAssigned().find((j) => j.id === id) ?? seedAssigned()[0];
+  const job: StoredJob = { ...fresh, id, bookingCode: `#${id}`, status: 'confirmed', startAttempts: 0 };
+  job.history = [{ status: 'confirmed', at: new Date().toISOString(), actor: 'System' }];
+  saveRoute(job);
+  return view(job);
+}
+
+/* ------------------------------------------------------------------ file checks (start photo) */
+
+async function readHead(file: Blob, length: number): Promise<Uint8Array> {
+  const slice = file.slice(0, length);
+  if (typeof slice.arrayBuffer === 'function') return new Uint8Array(await slice.arrayBuffer());
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(slice);
+  });
+}
+
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const JPG = [0xff, 0xd8, 0xff];
+const startsWith = (bytes: Uint8Array, magic: number[]): boolean => magic.every((b, i) => bytes[i] === b);
+
+/** The type is checked from the file's own bytes, never from its name or declared type. */
+async function assertStartPhoto(file: File): Promise<void> {
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw demoError(413, 'PAYLOAD_TOO_LARGE', 'The photo is larger than 5 MB.');
+  }
+  const head = await readHead(file, 8);
+  if (!startsWith(head, PNG) && !startsWith(head, JPG)) {
+    throw demoError(422, 'INVALID_FILE', 'The photo must be a JPG or PNG image.');
+  }
+}
+
+/* ------------------------------------------------------------------ real server helpers */
+
+const unwrap = <T>(res: { data: { data: T } }): T => res.data.data;
+const hasToken = (): boolean => Boolean(tokenStore.get());
+
+/* ------------------------------------------------------------------ jobs */
+
+/** GET /partner/jobs/:id (demo ids come from the local store). */
+export async function fetchJob(id: string): Promise<JobDetails> {
+  if (useDemo(id)) return view(requireRoute(id));
+  return mapJob(unwrap(await api.get<{ data: ApiJob }>(`/partner/jobs/${id}`)));
+}
+
+/** The "Assigned Services" list. */
+export async function fetchAssignedServices(): Promise<JobDetails[]> {
+  if (USE_MOCKS || !hasToken()) return loadAssigned().map(view);
+  const res = await api.get<{ data: Array<Record<string, unknown>> }>('/partner/jobs');
+  return unwrap(res).map((item) => mapJobListItemToJobDetails(item));
+}
+
+/** POST /partner/jobs/:id/accept, then returns the accepted job. */
+export async function acceptAssignedService(id: string): Promise<JobDetails> {
+  if (useDemo(id)) {
+    const job = requireRoute(id);
+    if (job.status === 'assigned') pushHistory(job, 'confirmed');
+    job.startAttempts = 0;
+    saveRoute(job);
+    return view(job);
+  }
+  await api.post(`/partner/jobs/${id}/accept`);
+  return fetchJob(id);
+}
+
+/** POST /partner/jobs/:id/reject. Returns the refreshed list (the declined card moves to the Decline tab). */
+export async function declineAssignedService(id: string): Promise<JobDetails[]> {
+  if (useDemo(id)) {
+    const list = loadAssigned();
+    const index = list.findIndex((j) => j.id === id);
+    if (index < 0) throw demoError(404, 'NOT_FOUND', 'Job not found');
+    list[index] = { ...list[index], status: 'cancelled_by_partner', actions: [] };
+    saveAssigned(list);
+    return list.map(view);
+  }
+  await api.post(`/partner/jobs/${id}/reject`);
+  return fetchAssignedServices();
+}
+
+/** PATCH /bookings/:id/status. A partner can only step assigned -> en_route -> arrived. */
+export async function updateBookingStatus(id: string, status: JobStatus): Promise<JobDetails> {
+  if (useDemo(id)) {
+    const job = requireRoute(id);
+    const allowed =
+      (status === 'en_route' && (job.status === 'confirmed' || job.status === 'assigned')) ||
+      (status === 'arrived' && job.status === 'en_route');
+    if (!allowed) {
+      throw demoError(422, 'INVALID_STATE_TRANSITION', `A job that is "${job.status}" cannot move to "${status}".`);
+    }
+    pushHistory(job, status);
+    job.startAttempts = 0;
+    saveRoute(job);
+    return view(job);
+  }
+  return mapJob(unwrap(await api.patch<{ data: ApiJob }>(`/bookings/${id}/status`, { status })));
+}
+
+/** Checks the start code without starting the job (older start flow with the code typed first). */
+export async function verifyJobOtp(id: string, otp: string): Promise<{ verified: boolean; message?: string }> {
+  if (useDemo(id)) {
+    requireRoute(id);
+    return otp === DEMO_START_OTP
+      ? { verified: true }
+      : { verified: false, message: 'Incorrect OTP. Please check the code with the customer.' };
+  }
+  const data = unwrap(await api.post<{ data: { verified?: boolean; message?: string } }>(`/partner/jobs/${id}/verify-otp`, { otp }));
+  return { verified: Boolean(data?.verified), message: data?.message };
+}
+
+/** Starts the job once the code is right (older flow without a photo). */
+export async function startJob(id: string, otp: string): Promise<JobDetails> {
+  if (useDemo(id)) {
+    const job = requireRoute(id);
+    if (job.status === 'in_progress') throw demoError(409, 'ALREADY_STARTED', 'This job has already started.');
+    if (otp !== DEMO_START_OTP) throw demoError(422, 'INVALID_OTP', 'Incorrect OTP.');
+    pushHistory(job, 'in_progress');
+    job.schedule = { ...job.schedule, startedAt: new Date().toISOString() };
+    saveRoute(job);
+    return view(job);
+  }
+  return mapJob(unwrap(await api.patch<{ data: ApiJob }>(`/bookings/${id}/status`, { status: 'in_progress', otp })));
+}
+
+/**
+ * POST /partner/jobs/:id/verify-start: 4-digit code + a photo of the work area.
+ * Same rules in the demo: 400 bad code format, 422 wrong state / wrong code / bad file,
+ * 410 expired, 413 photo too big, 423 locked after 5 wrong codes, 409 already started.
+ */
+export async function verifyStart(id: string, otp: string, photo: File): Promise<JobDetails> {
+  if (!useDemo(id)) {
+    const form = new FormData();
+    form.append('otp', otp);
+    form.append('photo', photo);
+    const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return mapJob(unwrap(res));
+  }
+
+  const job = requireRoute(id);
+  if (!/^\d{4}$/.test(otp)) throw demoError(400, 'VALIDATION_ERROR', 'The start code must be 4 digits.');
+  if (job.status === 'in_progress' || job.status === 'completed' || job.status === 'rated') {
+    throw demoError(409, 'ALREADY_STARTED', 'This job has already started.');
+  }
+  if (job.status !== 'arrived') {
+    throw demoError(422, 'INVALID_STATE_TRANSITION', 'You can only start a job after you have arrived.');
+  }
+
+  const state = startVerificationFor(job);
+  if (state?.locked) throw demoError(423, 'OTP_LOCKED', 'Starting is locked. Contact support to unlock it.');
+  if (state?.expired) throw demoError(410, 'OTP_EXPIRED', 'The start code has expired. Ask support for a new one.');
+
+  await assertStartPhoto(photo); // a bad photo never uses up an attempt
+
+  if (otp !== DEMO_START_OTP) {
+    job.startAttempts = (job.startAttempts ?? 0) + 1;
+    saveRoute(job);
+    const left = Math.max(0, START_OTP_MAX_ATTEMPTS - job.startAttempts);
+    if (left === 0) throw demoError(423, 'OTP_LOCKED', 'Starting is locked. Contact support to unlock it.');
+    throw demoError(422, 'INVALID_OTP', 'Wrong start code.', [{ field: 'attemptsRemaining', message: String(left) }]);
+  }
+
+  pushHistory(job, 'in_progress');
+  job.schedule = { ...job.schedule, startedAt: new Date().toISOString() };
+  job.otpVerified = true;
+  saveRoute(job);
+  return view(job);
+}
+
+/** POST /partner/jobs/:id/complete. */
+export async function completeJob(id: string): Promise<JobDetails> {
+  if (useDemo(id)) {
+    const job = requireRoute(id);
+    if (job.status !== 'in_progress') {
+      throw demoError(422, 'INVALID_STATE_TRANSITION', 'Start the job before completing it.');
+    }
+    pushHistory(job, 'completed');
+    job.schedule = { ...job.schedule, completedAt: new Date().toISOString() };
+    saveRoute(job);
+    return view(job);
+  }
+  return mapJob(unwrap(await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/complete`)));
+}
+
+/* ------------------------------------------------------------------ checklist, extras, payment, SOS */
+
+/** Saves one tick. Returns the full checklist as the server now has it (or undefined if it did not send one). */
+export async function persistChecklistItem(
+  jobId: string,
+  itemId: string,
+  done: boolean,
+): Promise<JobChecklistItem[] | undefined> {
+  if (useDemo(jobId)) {
+    const job = requireRoute(jobId);
+    job.checklist = job.checklist.map((c) => (c.id === itemId ? { ...c, done } : c));
+    saveRoute(job);
+    return job.checklist;
+  }
+  const res = await api.patch<{ data?: { checklist?: JobChecklistItem[] } }>(`/partner/jobs/${jobId}/checklist/${itemId}`, { done });
+  return res.data?.data?.checklist;
+}
+
+export interface AddJobItemInput {
+  title: string;
+  amount: number;
+  reason?: string;
+}
+
+/** Asks for an extra charge / material on the job. */
+export async function addJobItem(bookingId: string, input: AddJobItemInput): Promise<void> {
+  if (useDemo(bookingId)) {
+    const job = requireRoute(bookingId);
+    job.addOns = [...job.addOns, { id: `custom-${Date.now()}`, name: input.title, quantity: 1, amount: input.amount }];
+    job.checklist = [...job.checklist, { id: `chk-custom-${Date.now()}`, label: `${input.title} (add-on)`, done: false }];
+    saveRoute(job);
+    return;
+  }
+  await api.post(`/partner/jobs/${bookingId}/extra-charges`, { ...input, quantity: 1 });
+}
+
+/** Partner confirms the customer paid in cash. */
+export async function collectPayment(jobId: string, method: 'cash'): Promise<JobDetails> {
+  if (useDemo(jobId)) {
+    const job = requireRoute(jobId);
+    job.payment = { ...job.payment, status: 'PAID', phase: 'paid', method, paidAt: new Date().toISOString() };
+    saveRoute(job);
+    return view(job);
+  }
+  await api.post(`/partner/jobs/${jobId}/payment/collect`, { method });
+  return fetchJob(jobId);
+}
+
+/** Raises the SOS alert. The booking is only sent when it is a real one (see sendSos). */
+export async function triggerSos(
+  bookingId?: string | null,
+  coordinates?: { lat: number; lng: number } | null,
+): Promise<void> {
+  await sendSos({ bookingId, location: coordinates ?? null });
 }

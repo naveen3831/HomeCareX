@@ -1,4 +1,4 @@
-import {
+﻿import {
   useState,
   useEffect,
   useCallback,
@@ -475,12 +475,10 @@ const NAV_GROUPS: {
 function PartnerSidebar({
   collapsed,
   currentKey,
-  currentLabel,
   onToggle,
 }: {
   collapsed: boolean;
   currentKey?: string;
-  currentLabel?: string;
   onToggle: () => void;
 }) {
   const { pathname } = useLocation();
@@ -577,6 +575,7 @@ function PartnerSidebar({
             )}
           </div>
 
+          {/* The only sidebar collapse / expand arrow (the header one was removed). */}
           <button
             type="button"
             onClick={onToggle}
@@ -597,11 +596,7 @@ function PartnerSidebar({
         </div>
 
         {!collapsed && (
-          <p className="sidebar-brand__guide">
-            {currentLabel
-              ? `Partner / ${currentLabel}`
-              : "Partner Console"}
-          </p>
+          <p className="sidebar-brand__guide">Partner Dashboard</p>
         )}
       </div>
 
@@ -988,7 +983,6 @@ export default function PartnerLayout() {
         <PartnerSidebar
           collapsed={collapsed}
           currentKey={current?.key}
-          currentLabel={current?.label}
           onToggle={() =>
             setCollapsedPref((value) => !value)
           }
@@ -1017,23 +1011,6 @@ export default function PartnerLayout() {
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  setCollapsedPref((value) => !value)
-                }
-                aria-label={
-                  collapsed ? "Expand sidebar" : "Collapse sidebar"
-                }
-                className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen size={20} aria-hidden="true" />
-                ) : (
-                  <PanelLeftClose size={20} aria-hidden="true" />
-                )}
-              </button>
-
               {isHome ? (
                 <NavLink
                   to="/partner"
@@ -1048,15 +1025,15 @@ export default function PartnerLayout() {
                 </NavLink>
               ) : null}
 
-              {/* Home keeps an invisible page heading for screen readers; the brand replaces the visible "Home". */}
+              {/* Home shows "Partner Dashboard" on desktop; mobile keeps the brand above. */}
               <h1
                 className={
                   isHome
-                    ? "sr-only"
+                    ? "hidden truncate text-base font-semibold text-[#4338ca] sm:text-lg lg:block"
                     : "truncate text-base font-semibold text-[#4338ca] sm:text-lg"
                 }
               >
-                {title}
+                {isHome ? "Partner Dashboard" : title}
               </h1>
             </div>
 

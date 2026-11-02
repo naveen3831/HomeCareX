@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AuthContext } from '@/context/AuthContext';
 import { useAuthStore } from '@/store/useAuthStore';
 import {
@@ -10,8 +10,6 @@ import {
   StickyNote,
   Wallet,
 } from 'lucide-react';
-import { AuthContext } from '@/context/AuthContext';
-import { useAuthStore } from '@/store/useAuthStore';
 import {
   acceptAssignedService,
   declineAssignedService,
