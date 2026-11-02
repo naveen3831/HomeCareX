@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 import { BookingDrawer } from "@/components/admin/BookingDrawer";
 import { BookingTable } from "@/components/admin/BookingTable";
 import { AssignPartnerDialog } from "@/components/admin/AssignPartnerDialog";
@@ -13,6 +17,7 @@ import type {
   PaymentStatus,
 } from "@/types/adminBooking";
 import "./index.css";
+
 
 /**
  * Last loaded list, kept for the session. Coming back to the page shows it straight away
@@ -165,6 +170,13 @@ function downloadCsv(bookings: AdminBooking[]): void {
 
 export default function Bookings() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // /admin/bookings/:bookingId[/assign|/status|/cancel]
+  const { bookingId, action } = useParams<{
+    bookingId?: string;
+    action?: string;
+  }>();
 
   const [filters, setFilters] =
     useState<BookingFilters>(INITIAL_FILTERS);
@@ -184,17 +196,26 @@ export default function Bookings() {
   const [selectedBooking, setSelectedBooking] =
     useState<AdminBooking | null>(null);
 
-  const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-  const [assignDialogOpen, setAssignDialogOpen] =
-    useState<boolean>(false);
-  const [statusDialogOpen, setStatusDialogOpen] =
-    useState<boolean>(false);
 
   const [eligiblePartners, setEligiblePartners] =
     useState<BookingPartnerCandidate[]>([]);
 
   const [eligiblePartnersLoading, setEligiblePartnersLoading] =
     useState<boolean>(false);
+
+  // Every screen is driven by the URL so it can be opened, shared and
+  // reached with the browser back button.
+  const hasBooking =
+    Boolean(bookingId) && selectedBooking?.id === bookingId;
+  const drawerOpen =
+    hasBooking && (!action || action === "cancel");
+  const cancelOpen = hasBooking && action === "cancel";
+  const assignDialogOpen = hasBooking && action === "assign";
+  const statusDialogOpen = hasBooking && action === "status";
+
+  const bookingsPath = "/admin/bookings";
+  const bookingPath = (id: string) =>
+    `${bookingsPath}/${encodeURIComponent(id)}`;
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -269,12 +290,52 @@ export default function Bookings() {
     const match = bookings.find((booking) => booking.id === openId);
 
     if (match) {
-      setSelectedBooking(match);
-      setDrawerOpen(true);
+      navigate(bookingPath(match.id), { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, loading, fetched, bookings, setSearchParams]);
+
+  // Load the booking named in the URL (from the list, or from the API).
+  useEffect(() => {
+    if (!bookingId) {
+      return;
     }
 
-    setSearchParams({}, { replace: true });
-  }, [openId, loading, fetched, bookings, setSearchParams]);
+    if (selectedBooking?.id === bookingId) {
+      return;
+    }
+
+    const match = bookings.find((item) => item.id === bookingId);
+
+    if (match) {
+      setSelectedBooking(match);
+      return;
+    }
+
+    if (loading && !fetched) {
+      return;
+    }
+
+    let cancelled = false;
+
+    adminBookingApi
+      .getBookingById(bookingId)
+      .then((booking) => {
+        if (!cancelled) setSelectedBooking(booking);
+      })
+      .catch((err: { message?: string }) => {
+        if (cancelled) return;
+        setError(err?.message || "Unable to open this booking.");
+        navigate(bookingsPath, { replace: true });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, bookings, loading, fetched, selectedBooking?.id]);
 
   useEffect(() => {
     const handleOnline = () => setOffline(false);
@@ -334,23 +395,29 @@ export default function Bookings() {
 
   const handleBookingSelect = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(true);
+    navigate(bookingPath(booking.id));
   };
 
   const handleCloseDrawer = () => {
-    setDrawerOpen(false);
+    navigate(bookingsPath);
   };
 
   const handleAssignPartner = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(false);
-    setAssignDialogOpen(true);
+    navigate(`${bookingPath(booking.id)}/assign`);
   };
 
   const handleStatusOverride = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(false);
-    setStatusDialogOpen(true);
+    navigate(`${bookingPath(booking.id)}/status`);
+  };
+
+  const handleCancelOpen = () => {
+    if (bookingId) navigate(`${bookingPath(bookingId)}/cancel`);
+  };
+
+  const handleCancelClose = () => {
+    if (bookingId) navigate(bookingPath(bookingId));
   };
 
   /**
@@ -445,30 +512,29 @@ export default function Bookings() {
 
     void handleLoadEligiblePartners(selectedBooking);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignDialogOpen, selectedBooking]);
+  }, [assignDialogOpen, selectedBooking?.id]);
 
   const handleAssignDialogClose = () => {
-    setAssignDialogOpen(false);
     setEligiblePartners([]);
+    handleCancelClose();
   };
 
   const handlePartnerAssigned = (
     updatedBooking: AdminBooking,
   ) => {
+    // The dialog calls onClose next, which returns to the booking.
     handleBookingUpdated(updatedBooking);
-    setAssignDialogOpen(false);
     setEligiblePartners([]);
   };
 
   const handleStatusDialogClose = () => {
-    setStatusDialogOpen(false);
+    handleCancelClose();
   };
 
   const handleStatusUpdated = (
     updatedBooking: AdminBooking,
   ) => {
     handleBookingUpdated(updatedBooking);
-    setStatusDialogOpen(false);
   };
 
   const filterButtonClassName = [
@@ -812,6 +878,9 @@ export default function Bookings() {
         onAssignPartner={handleAssignPartner}
         onStatusOverride={handleStatusOverride}
         onCancelBooking={handleCancelBooking}
+        cancelOpen={cancelOpen}
+        onCancelOpen={handleCancelOpen}
+        onCancelClose={handleCancelClose}
       />
 
       {/* ASSIGN PARTNER */}

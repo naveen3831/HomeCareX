@@ -1,4 +1,3 @@
-
 import React, { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 
@@ -26,7 +25,9 @@ const AdminPartnerDetailsPage = lazy(
   () => import("@/pages/admin/PartnerDetails"),
 );
 const AdminSupportPage = lazy(() => import("@/pages/admin/Support"));
-const AdminSupportTicketPage = lazy(() => import("@/pages/admin/Support/Ticketdetail"));
+const AdminSupportTicketPage = lazy(
+  () => import("@/pages/admin/Support/Ticketdetail"),
+);
 
 // Catalog
 const AdminCategoriesPage = lazy(
@@ -80,7 +81,6 @@ interface AdminRoute {
   /** Relative to /admin. An empty path is the index route. */
   path: string;
   element: React.ReactElement;
-  /** Routes with a permission are protected by RequirePermission. */
   permission?: string;
 }
 
@@ -92,23 +92,70 @@ const adminRoutes: AdminRoute[] = [
   },
 
   // Operations
-  { path: 'leads', element: <AdminLeadsPage />, permission: 'leads:view' },
-  { path: 'bookings', element: <AdminBookingsPage />, permission: 'bookings:view' },
-  { path: 'customers', element: <AdminCustomersPage />, permission: 'customers:view' },
-  { path: 'customers/:id', element: <AdminCustomerDetailsPage />, permission: 'customers:view' },
-  { path: 'partners', element: <AdminPartnersPage />, permission: 'partners:view' },
-  { path: 'manage-partners', element: <AdminManagePartnersPage />, permission: 'partners:view' },
-  { path: 'partners/:id', element: <AdminPartnerDetailsPage />, permission: 'partners:view' },
-  { path: 'support', element: <AdminSupportPage />, permission: 'tickets:view' },
-  { path: 'support/:id', element: <AdminSupportTicketPage />, permission: 'tickets:view' },
-  { path: "leads", element: <AdminLeadsPage /> },
-  { path: "bookings", element: <AdminBookingsPage /> },
-  { path: "customers", element: <AdminCustomersPage /> },
-  { path: "customers/:id", element: <AdminCustomerDetailsPage /> },
-  { path: "partners", element: <AdminPartnersPage /> },
-  { path: "partners/:id", element: <AdminPartnerDetailsPage /> },
-  { path: "manage-partners", element: <AdminManagePartnersPage /> },
-  { path: "support", element: <AdminSupportPage /> },
+  {
+    path: "leads",
+    element: <AdminLeadsPage />,
+    permission: "leads:view",
+  },
+
+  // Bookings list
+  {
+    path: "bookings",
+    element: <AdminBookingsPage />,
+    permission: "bookings:view",
+  },
+
+  // Individual booking details.
+  // Uses the same Bookings component and reads bookingId from the URL.
+  {
+    path: "bookings/:bookingId",
+    element: <AdminBookingsPage />,
+    permission: "bookings:view",
+  },
+
+  // Assign partner, override status and cancel booking:
+  // bookings/:bookingId/assign | status | cancel
+  {
+    path: "bookings/:bookingId/:action",
+    element: <AdminBookingsPage />,
+    permission: "bookings:view",
+  },
+
+  {
+    path: "customers",
+    element: <AdminCustomersPage />,
+    permission: "customers:view",
+  },
+  {
+    path: "customers/:id",
+    element: <AdminCustomerDetailsPage />,
+    permission: "customers:view",
+  },
+  {
+    path: "partners",
+    element: <AdminPartnersPage />,
+    permission: "partners:view",
+  },
+  {
+    path: "manage-partners",
+    element: <AdminManagePartnersPage />,
+    permission: "partners:view",
+  },
+  {
+    path: "partners/:id",
+    element: <AdminPartnerDetailsPage />,
+    permission: "partners:view",
+  },
+  {
+    path: "support",
+    element: <AdminSupportPage />,
+    permission: "tickets:view",
+  },
+  {
+    path: "support/:id",
+    element: <AdminSupportTicketPage />,
+    permission: "tickets:view",
+  },
 
   // Catalog
   {
@@ -128,44 +175,21 @@ const adminRoutes: AdminRoute[] = [
   },
 
   // Coupons
-  { path: 'coupons', element: <AdminCouponsPage />, permission: 'coupons:view' },
-  { path: 'coupons/create', element: <AdminCouponsPage />, permission: 'coupons:create' },
-  { path: 'coupons/:id/edit', element: <AdminCouponsPage />, permission: 'coupons:update' },
-
-  // Marketing
-  { path: 'marketing', element: <AdminMarketingPage />, permission: 'marketing:view' },
-  { path: 'marketing/create', element: <AdminMarketingPage />, permission: 'marketing:manage' },
-  { path: 'marketing/:id/edit', element: <AdminMarketingPage />, permission: 'marketing:manage' },
-
-  // Finance
-  { path: 'payments', element: <AdminPaymentsPage />, permission: 'payments:read' },
-  // Payment details: opened from a row in the payments list.
-  { path: 'payments/:id', element: <AdminPaymentDetailsPage />, permission: 'payments:read' },
-  { path: 'refunds', element: <AdminRefundsPage />, permission: 'refunds:view' },
-  // Refund details: required for the Review button.
-  // Keep this route after the base refunds route.
-  { path: 'refunds/:id', element: <AdminRefundsPage />, permission: 'refunds:view' },
-  { path: 'payouts', element: <AdminPayoutsPage />, permission: 'payouts:view' },
-
-  // Reporting
-  { path: 'reports', element: <AdminReportsPage />, permission: 'reports:view' },
-
-  // System
-  { path: 'roles', element: <AdminRolesPage />, permission: 'roles:view' },
-  { path: 'roles/new', element: <AdminRoleFormPage />, permission: 'roles:create' },
-  { path: 'roles/:id', element: <AdminRoleFormPage />, permission: 'roles:view' },
-  { path: 'staff', element: <AdminStaffPage />, permission: 'staff:view' },
-  { path: 'staff/new', element: <AdminInviteStaffPage />, permission: 'staff:create' },
-  { path: 'audit-logs', element: <AdminAuditLogsPage />, permission: 'audit:view' },
-  { path: 'audit-logs/:id', element: <AdminAuditLogsPage />, permission: 'audit:view' },
-  { path: 'settings', element: <AdminSettingsPage />, permission: 'settings:manage' },
-
-  // Old URLs keep working.
-  { path: 'roles-permissions', element: <Navigate to="/admin/roles" replace /> },
-  { path: 'roles/staff/new', element: <Navigate to="/admin/staff/new" replace /> },
-  { path: "coupons", element: <AdminCouponsPage /> },
-  { path: "coupons/create", element: <AdminCouponsPage /> },
-  { path: "coupons/:id/edit", element: <AdminCouponsPage /> },
+  {
+    path: "coupons",
+    element: <AdminCouponsPage />,
+    permission: "coupons:view",
+  },
+  {
+    path: "coupons/create",
+    element: <AdminCouponsPage />,
+    permission: "coupons:create",
+  },
+  {
+    path: "coupons/:id/edit",
+    element: <AdminCouponsPage />,
+    permission: "coupons:update",
+  },
 
   // Marketing
   {
@@ -191,6 +215,11 @@ const adminRoutes: AdminRoute[] = [
     permission: "payments:read",
   },
   {
+    path: "payments/:id",
+    element: <AdminPaymentDetailsPage />,
+    permission: "payments:read",
+  },
+  {
     path: "refunds",
     element: <AdminRefundsPage />,
     permission: "refunds:view",
@@ -211,7 +240,7 @@ const adminRoutes: AdminRoute[] = [
     permission: "payouts:view",
   },
 
-  // Reviews and reporting
+  // Quality and reporting
   {
     path: "reviews",
     element: <AdminReviewsPage />,
@@ -223,7 +252,7 @@ const adminRoutes: AdminRoute[] = [
     permission: "reports:view",
   },
 
-  // Roles
+  // Roles and staff
   {
     path: "roles",
     element: <AdminRolesPage />,
@@ -239,8 +268,6 @@ const adminRoutes: AdminRoute[] = [
     element: <AdminRoleFormPage />,
     permission: "roles:view",
   },
-
-  // Staff
   {
     path: "staff",
     element: <AdminStaffPage />,
@@ -271,7 +298,15 @@ const adminRoutes: AdminRoute[] = [
     permission: "settings:manage",
   },
 
-  // Account security
+  // Account pages
+  {
+    path: "profile",
+    element: <AdminProfilePage />,
+  },
+  {
+    path: "notifications",
+    element: <AdminNotificationsPage />,
+  },
   {
     path: "security",
     element: <AccountSecurityPage />,
@@ -283,16 +318,6 @@ const adminRoutes: AdminRoute[] = [
   {
     path: "settings/security",
     element: <AccountSecurityPage />,
-  },
-
-  // Header-only account pages
-  {
-    path: "profile",
-    element: <AdminProfilePage />,
-  },
-  {
-    path: "notifications",
-    element: <AdminNotificationsPage />,
   },
 
   // Legacy URLs

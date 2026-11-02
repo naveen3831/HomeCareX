@@ -6,6 +6,11 @@ import { PartnerModel } from '../../models/Partner';
 import { PaymentModel } from '../../models/Payment';
 import { UserModel } from '../../models/User';
 import { ServiceModel } from '../../models/Service';
+import { ServiceAreaModel } from '../../models/ServiceArea';
+import { CategoryModel } from '../../models/Category';
+
+import Availability from '../availability/availability.model';
+import { isAvailable } from '../availability/availability.service';
 
 import { getAuthUser } from '../../middleware/auth.middleware';
 import { HttpError } from '../auth/auth.types';
@@ -16,54 +21,28 @@ import {
 } from '../bookings/bookings.constants';
 
 import { applyTransition } from '../bookings/bookings.stateMachine';
-
 import { getRazorpay } from '../../integrations/razorpay';
 import { auditService } from '../audit/audit.service';
 
-type AdminPaymentStatus =
-  | 'Pending'
-  | 'Paid'
-  | 'Failed'
-  | 'Refunded';
-
-type TimelineActorType =
-  | 'Admin'
-  | 'Customer'
-  | 'Partner'
-  | 'System';
+type AdminPaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
+type TimelineActorType = 'Admin' | 'Customer' | 'Partner' | 'System';
 
 interface RefundResult {
   eligible: boolean;
   amount: number;
   currency: string;
-  status:
-    | 'none'
-    | 'processed'
-    | 'already_refunded';
+  status: 'none' | 'processed' | 'already_refunded';
   paymentId?: string;
 }
 
 interface AdminBookingSource {
-  _id: {
-    toString(): string;
-  };
-
-  customerId?: {
-    toString(): string;
-  };
-
+  _id: { toString(): string };
+  customerId?: { toString(): string };
   customerName?: string;
-
-  categoryId?: {
-    toString(): string;
-  };
-
+  categoryId?: { toString(): string };
+  serviceId?: { toString(): string };
   serviceName?: string;
-
-  partnerId?: {
-    toString(): string;
-  } | null;
-
+  partnerId?: { toString(): string } | null;
   address?: {
     line1?: string;
     line2?: string;
@@ -71,14 +50,20 @@ interface AdminBookingSource {
     city?: string;
     state?: string;
     pincode?: string;
+    location?: {
+      type?: string;
+      coordinates?: number[];
+    };
   };
-
+  addressSnapshot?: {
+    location?: {
+      lat?: number;
+      lng?: number;
+    };
+  };
   scheduledAt?: Date | string;
-
   createdAt?: Date | string;
-
   updatedAt?: Date | string;
-
   priceBreakdown?: {
     base?: number;
     addOns?: number;
@@ -87,9 +72,7 @@ interface AdminBookingSource {
     tax?: number;
     total?: number;
   };
-
   status: BookingStatus;
-
   statusHistory?: Array<{
     from?: BookingStatus;
     to: BookingStatus;
@@ -98,9 +81,7 @@ interface AdminBookingSource {
     actorRole?: string;
     reason?: string;
   }>;
-
   date?: string;
-
   slot?: string;
 }
 
@@ -112,7 +93,6 @@ interface PaymentLike {
   paidAt?: Date | string;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
-
   refund?: {
     status?: string;
     amount?: number;
@@ -121,59 +101,53 @@ interface PaymentLike {
 }
 
 interface PartnerSource {
-  _id: {
-    toString(): string;
-  };
-
-  userId: {
-    toString(): string;
-  };
-
-  categories: Array<{
-    toString(): string;
-  }>;
-
+  _id: { toString(): string };
+  userId: { toString(): string };
+  categories?: Array<{ toString(): string }>;
+  services?: Array<{ toString(): string }>;
   ratingAvg?: number;
-
   ratingCount?: number;
-
   trainingCompleted?: boolean;
-
-  kyc?: {
-    status?: string;
-  };
+  serviceRadiusKm?: number;
+  kyc?: { status?: string };
 }
 
 interface UserSource {
-  _id: {
-    toString(): string;
-  };
-
+  _id: { toString(): string };
   name?: string;
-
   email?: string;
-
   phone?: string;
-
   status?: string;
 }
 
-/**
- * Everything the booking list needs from other collections, fetched in a few
- * bulk queries instead of several queries per booking.
- */
 interface BookingLookups {
   partnersById: Map<string, PartnerSource>;
   partnersByUserId: Map<string, PartnerSource>;
   users: Map<string, UserSource>;
 }
 
+interface Coordinates {
+  lat: number;
+  lng: number;
+}
+
+interface ServiceAreaSource {
+  partnerId: { toString(): string };
+  baseLocation?: Coordinates;
+  radiusKm?: number;
+  cities?: string[];
+  areas?: string[];
+}
+
+const INACTIVE_BOOKING_STATUSES = [
+  'cancelled_by_customer',
+  'cancelled_by_partner',
+  'cancelled_by_admin',
+  'completed',
+  'no_show',
+];
+
 export class AdminBookingsController {
-  /**
-   * ---------------------------------------------------------
-   * ADMIN CHECK
-   * ---------------------------------------------------------
-   */
   private assertAdmin(req: Request) {
     const user = getAuthUser(req);
 
@@ -188,11 +162,6 @@ export class AdminBookingsController {
     return user;
   }
 
-  /**
-   * Record a booking mutation in the admin audit log.
-   * Audit failures must not turn a successful booking mutation
-   * into a failed API request.
-   */
   private async recordBookingAudit(
     action: string,
     bookingId: string,
@@ -213,219 +182,112 @@ export class AdminBookingsController {
         after,
       });
     } catch (error) {
-      console.error(
-        '[Audit] Failed to record booking action:',
-        error,
-      );
+      console.error('[Audit] Failed to record booking action:', error);
     }
   }
 
-  /**
-   * ---------------------------------------------------------
-   * NORMALIZE AVAILABILITY TIME
-   * ---------------------------------------------------------
-   */
-  private normalizeAvailabilityTime(
-    value: string,
-  ): string {
+  private normalizeAvailabilityTime(value: string): string {
     const trimmed = value.trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
-    const match = trimmed.match(
-      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i,
-    );
-
-    if (!match) {
-      return trimmed;
-    }
+    if (!match) return trimmed;
 
     let hour = Number(match[1]);
     const minute = match[2];
     const period = match[3].toUpperCase();
 
     if (period === 'AM') {
-      if (hour === 12) {
-        hour = 0;
-      }
-    } else {
-      if (hour !== 12) {
-        hour += 12;
-      }
+      if (hour === 12) hour = 0;
+    } else if (hour !== 12) {
+      hour += 12;
     }
 
-    return `${hour
-      .toString()
-      .padStart(2, '0')}:${minute}`;
+    return `${hour.toString().padStart(2, '0')}:${minute}`;
   }
 
-  /**
-   * ---------------------------------------------------------
-   * SLOT TIME PARSER
-   * ---------------------------------------------------------
-   */
-  private getSlotTimes(slot?: string): {
-    start: string;
-    end: string;
-  } {
-    if (!slot) {
-      return {
-        start: '',
-        end: '',
-      };
-    }
-
-    const parts = slot
-      .split(/\s+-\s+/)
-      .map((part) => part.trim());
-
-    if (parts.length !== 2) {
-      return {
-        start: '',
-        end: '',
-      };
-    }
-
-    return {
-      start: this.normalizeAvailabilityTime(
-        parts[0],
-      ),
-      end: this.normalizeAvailabilityTime(
-        parts[1],
-      ),
-    };
+  private getSlotTimes(slot?: string): { start: string; end: string } {
+  if (!slot || typeof slot !== 'string') {
+    return { start: '', end: '' };
   }
 
-  /**
-   * ---------------------------------------------------------
-   * PAYMENT STATUS
-   * ---------------------------------------------------------
-   */
-  private mapPaymentStatus(
-    status?: string,
-  ): AdminPaymentStatus {
+  const parts = slot.split(/\s*-\s*/).map((part) => part.trim());
+
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
+    return { start: '', end: '' };
+  }
+
+  const start = this.normalizeAvailabilityTime(parts[0]);
+  const end = this.normalizeAvailabilityTime(parts[1]);
+
+  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+  if (!timeRegex.test(start) || !timeRegex.test(end)) {
+    return { start: '', end: '' };
+  }
+
+  return { start, end };
+}
+
+  private mapPaymentStatus(status?: string): AdminPaymentStatus {
     switch ((status ?? '').toUpperCase()) {
-      case 'PAID':
-        return 'Paid';
-
-      case 'FAILED':
-        return 'Failed';
-
-      case 'REFUNDED':
-        return 'Refunded';
-
+      case 'PAID': return 'Paid';
+      case 'FAILED': return 'Failed';
+      case 'REFUNDED': return 'Refunded';
       case 'PENDING':
-      default:
-        return 'Pending';
+      default: return 'Pending';
     }
   }
 
-  /**
-   * ---------------------------------------------------------
-   * TIMELINE ACTOR TYPE
-   * ---------------------------------------------------------
-   */
-  private mapTimelineActorType(
-    actorRole?: string,
-  ): TimelineActorType {
+  private mapTimelineActorType(actorRole?: string): TimelineActorType {
     switch ((actorRole ?? '').toLowerCase()) {
-      case 'admin':
-        return 'Admin';
-
-      case 'customer':
-        return 'Customer';
-
-      case 'partner':
-        return 'Partner';
-
+      case 'admin': return 'Admin';
+      case 'customer': return 'Customer';
+      case 'partner': return 'Partner';
       case 'system':
-      default:
-        return 'System';
+      default: return 'System';
     }
   }
 
-  /**
-   * ---------------------------------------------------------
-   * DATE HELPER
-   * ---------------------------------------------------------
-   */
-  private toISOString(
-    value?: Date | string,
-  ): string {
-    if (!value) {
-      return '';
-    }
+  private toISOString(value?: Date | string): string {
+    if (!value) return '';
 
-    const date =
-      value instanceof Date
-        ? value
-        : new Date(value);
+    const date = value instanceof Date ? value : new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
-      return '';
-    }
-
-    return date.toISOString();
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
   }
 
-  /**
-   * ---------------------------------------------------------
-   * PAYMENT LOOKUP
-   * ---------------------------------------------------------
-   */
   private async getPaymentForBooking(
     bookingId: string,
   ): Promise<PaymentLike | null> {
-    const payment =
-      await PaymentModel.findOne({
-        bookingId,
-      })
-        .sort({
-          createdAt: -1,
-        })
-        .lean()
-        .exec();
+    const payment = await PaymentModel.findOne({ bookingId })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
-    if (!payment) {
-      return null;
-    }
-
-    return payment as unknown as PaymentLike;
+    return payment ? payment as unknown as PaymentLike : null;
   }
 
-  /**
-   * ---------------------------------------------------------
-   * BULK LOOKUPS (used by the booking list)
-   * ---------------------------------------------------------
-   */
   private async getPaymentsForBookings(
     bookingIds: string[],
   ): Promise<Map<string, PaymentLike>> {
     const result = new Map<string, PaymentLike>();
 
-    if (bookingIds.length === 0) {
-      return result;
-    }
+    if (!bookingIds.length) return result;
 
-    const payments =
-      await PaymentModel.find({
-        bookingId: { $in: bookingIds },
-      })
-        .sort({
-          createdAt: -1,
-        })
-        .lean()
-        .exec();
+    const payments = await PaymentModel.find({
+      bookingId: { $in: bookingIds },
+    })
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
 
-    // Newest payment first, so the first one seen per booking wins.
     for (const payment of payments) {
       const key = String(
         (payment as { bookingId?: unknown }).bookingId,
       );
 
       if (!result.has(key)) {
-        result.set(
-          key,
-          payment as unknown as PaymentLike,
-        );
+        result.set(key, payment as unknown as PaymentLike);
       }
     }
 
@@ -435,27 +297,26 @@ export class AdminBookingsController {
   private async prefetchLookups(
     bookings: AdminBookingSource[],
   ): Promise<BookingLookups> {
-    const unique = (values: Array<string | undefined>) =>
-      [
-        ...new Set(
-          values.filter(
-            (value): value is string =>
-              Boolean(value) &&
-              Types.ObjectId.isValid(value as string),
-          ),
-        ),
-      ];
+    const unique = (values: Array<string | undefined>): string[] => {
+  return [
+    ...new Set(
+      values.filter((value): value is string => {
+        if (typeof value !== 'string' || value.trim() === '') {
+          return false;
+        }
+
+        return Types.ObjectId.isValid(value);
+      }),
+    ),
+  ];
+};
 
     const partnerIds = unique(
-      bookings.map((booking) =>
-        booking.partnerId?.toString(),
-      ),
+      bookings.map((booking) => booking.partnerId?.toString()),
     );
 
     const customerIds = unique(
-      bookings.map((booking) =>
-        booking.customerId?.toString(),
-      ),
+      bookings.map((booking) => booking.customerId?.toString()),
     );
 
     const partnersById = new Map<string, PartnerSource>();
@@ -464,14 +325,10 @@ export class AdminBookingsController {
 
     let partnerProfiles: PartnerSource[] = [];
 
-    if (partnerIds.length > 0) {
+    if (partnerIds.length) {
       const [byId, byUser] = await Promise.all([
-        PartnerModel.find({ _id: { $in: partnerIds } })
-          .lean()
-          .exec(),
-        PartnerModel.find({ userId: { $in: partnerIds } })
-          .lean()
-          .exec(),
+        PartnerModel.find({ _id: { $in: partnerIds } }).lean().exec(),
+        PartnerModel.find({ userId: { $in: partnerIds } }).lean().exec(),
       ]);
 
       for (const profile of byId as unknown as PartnerSource[]) {
@@ -482,21 +339,21 @@ export class AdminBookingsController {
         partnersByUserId.set(profile.userId.toString(), profile);
       }
 
-      partnerProfiles = [...byId, ...byUser] as unknown as PartnerSource[];
+      partnerProfiles = [
+        ...byId,
+        ...byUser,
+      ] as unknown as PartnerSource[];
     }
 
     const userIds = unique([
       ...customerIds,
-      ...partnerProfiles.map((profile) =>
-        profile.userId.toString(),
-      ),
+      ...partnerProfiles.map((profile) => profile.userId.toString()),
     ]);
 
-    if (userIds.length > 0) {
-      const found =
-        await UserModel.find({ _id: { $in: userIds } })
-          .lean()
-          .exec();
+    if (userIds.length) {
+      const found = await UserModel.find({ _id: { $in: userIds } })
+        .lean()
+        .exec();
 
       for (const user of found as unknown as UserSource[]) {
         users.set(user._id.toString(), user);
@@ -506,154 +363,57 @@ export class AdminBookingsController {
     return { partnersById, partnersByUserId, users };
   }
 
-  /**
-   * ---------------------------------------------------------
-   * BOOKING RESPONSE BUILDER
-   * ---------------------------------------------------------
-   */
   private async buildBookingResponse(
     booking: AdminBookingSource,
     payment: PaymentLike | null,
     prefetched?: BookingLookups,
   ) {
-    const bookingId =
-      booking._id.toString();
-
-    // The list passes shared lookups; single-booking calls fetch their own (a few parallel queries).
-    const lookups =
-      prefetched ??
-      (await this.prefetchLookups([booking]));
+    const bookingId = booking._id.toString();
+    const lookups = prefetched ?? await this.prefetchLookups([booking]);
 
     const customerUser =
-      lookups.users.get(
-        booking.customerId?.toString() ?? '',
-      ) ?? null;
+      lookups.users.get(booking.customerId?.toString() ?? '') ?? null;
 
-    const scheduledAt =
-      this.toISOString(booking.scheduledAt);
+    const scheduledAt = this.toISOString(booking.scheduledAt);
+    const createdAt = this.toISOString(booking.createdAt);
+    const updatedAt = this.toISOString(booking.updatedAt ?? booking.createdAt);
 
-    const createdAt =
-      this.toISOString(booking.createdAt);
-
-    const updatedAt =
-      this.toISOString(
-        booking.updatedAt ??
-          booking.createdAt,
-      );
-
-    const address =
-      booking.address;
-
-    /**
-     * -------------------------------------------------------
-     * DEMO FALLBACK DATA
-     * -------------------------------------------------------
-     *
-     * The current demo bookings have empty customerName
-     * and zero pricing in the database.
-     *
-     * These fallback values allow the trainer demo to show
-     * meaningful customer names and booking amounts.
-     *
-     * Real database values always take priority.
-     */
-    const demoBookingData: Record<
-      string,
-      {
-        customerName: string;
-        amount: number;
-      }
-    > = {
-      '6ac48ad97879ce770d2bd1fb': {
-        customerName: 'Rahul Sharma',
-        amount: 1316,
-      },
-
-      '6ac48ad97879ce770d2bd1fc': {
-        customerName: 'Priya Reddy',
-        amount: 999,
-      },
-
-      '6ac48ad97879ce770d2bd1fd': {
-        customerName: 'Arjun Kumar',
-        amount: 1499,
-      },
-    };
-
-    const demoData =
-      demoBookingData[bookingId];
+    const address = booking.address;
 
     const customerName =
       booking.customerName?.trim() ||
       customerUser?.name?.trim() ||
-      demoData?.customerName ||
       '';
 
-    const databaseTotal =
-      booking.priceBreakdown?.total ?? 0;
+    const databaseTotal = booking.priceBreakdown?.total ?? 0;
+    const paymentAmount = payment?.amount ?? 0;
+    const finalAmount = databaseTotal > 0 ? databaseTotal : paymentAmount;
 
-    const paymentAmount =
-      payment?.amount ?? 0;
-
-    const finalAmount =
-      databaseTotal > 0
-        ? databaseTotal
-        : paymentAmount > 0
-          ? paymentAmount
-          : demoData?.amount ?? 0;
-
-    /**
-     * -------------------------------------------------------
-     * PARTNER
-     * -------------------------------------------------------
-     */
-    let partner:
-      | {
-          id: string;
-          name: string;
-          email: string;
-          phone: string;
-          category: string;
-        }
-      | null = null;
+    let partner: {
+      id: string;
+      name: string;
+      email: string;
+      phone: string;
+      category: string;
+    } | null = null;
 
     if (booking.partnerId) {
-      const partnerId =
-        booking.partnerId.toString();
-
-      const partnerProfile =
+      const partnerId = booking.partnerId.toString();
+      const profile =
         lookups.partnersById.get(partnerId) ??
         lookups.partnersByUserId.get(partnerId) ??
         null;
 
-      if (partnerProfile) {
+      if (profile) {
         const partnerUser =
-          lookups.users.get(
-            partnerProfile.userId.toString(),
-          ) ?? null;
-
-        const typedPartner =
-          partnerProfile as unknown as PartnerSource;
+          lookups.users.get(profile.userId.toString()) ?? null;
 
         partner = {
           id: partnerId,
-
-          name:
-            partnerUser?.name ??
-            'Assigned Partner',
-
-          email:
-            partnerUser?.email ??
-            '',
-
-          phone:
-            partnerUser?.phone ??
-            '',
-
-          category:
-            typedPartner.categories?.length
-              ? 'Home Services'
-              : 'Home Services',
+          name: partnerUser?.name ?? 'Assigned Partner',
+          email: partnerUser?.email ?? '',
+          phone: partnerUser?.phone ?? '',
+          category: 'Home Services',
         };
       } else {
         partner = {
@@ -666,198 +426,206 @@ export class AdminBookingsController {
       }
     }
 
-    /**
-     * -------------------------------------------------------
-     * TIMELINE
-     * -------------------------------------------------------
-     */
-    const timeline =
-      (booking.statusHistory ?? []).map(
-        (item, index) => ({
-          id: `${bookingId}-${index}`,
+    const timeline = (booking.statusHistory ?? []).map((item, index) => ({
+      id: `${bookingId}-${index}`,
+      timestamp: this.toISOString(item.at),
+      actor: item.actorId ?? item.actorRole ?? 'System',
+      actorType: this.mapTimelineActorType(item.actorRole),
+      status: item.to,
+      note: item.reason ?? '',
+      location: address?.city
+        ? `${address.city}${address.area ? `, ${address.area}` : ''}`
+        : undefined,
+    }));
 
-          timestamp:
-            this.toISOString(item.at),
-
-          actor:
-            item.actorId ??
-            item.actorRole ??
-            'System',
-
-          actorType:
-            this.mapTimelineActorType(
-              item.actorRole,
-            ),
-
-          status:
-            item.to,
-
-          note:
-            item.reason ?? '',
-
-          location:
-            address?.city
-              ? `${address.city}${
-                  address.area
-                    ? `, ${address.area}`
-                    : ''
-                }`
-              : undefined,
-        }),
-      );
-
-    /**
-     * -------------------------------------------------------
-     * FINAL RESPONSE
-     * -------------------------------------------------------
-     */
     return {
       id: bookingId,
-
       customer: {
-        id:
-          booking.customerId?.toString() ??
-          '',
-
-        name:
-          customerName,
-
-        phone:
-          customerUser?.phone ?? '',
-
-        email:
-          customerUser?.email ?? '',
+        id: booking.customerId?.toString() ?? '',
+        name: customerName,
+        phone: customerUser?.phone ?? '',
+        email: customerUser?.email ?? '',
       },
-
       service: {
-        id:
-          booking.categoryId?.toString() ??
-          '',
-
-        name:
-          booking.serviceName ??
-          '',
-
-        category:
-          'Home Services',
-
+        id: booking.categoryId?.toString() ?? '',
+        name: booking.serviceName ?? '',
+        category: 'Home Services',
         durationMinutes: 60,
       },
-
       partner,
-
-      city:
-        address?.city ?? '',
-
+      city: address?.city ?? '',
       address: {
-        line1:
-          address?.line1 ?? '',
-
-        line2:
-          address?.line2 ?? '',
-
-        area:
-          address?.area ?? '',
-
-        city:
-          address?.city ?? '',
-
-        state:
-          address?.state ?? '',
-
-        pincode:
-          address?.pincode ?? '',
+        line1: address?.line1 ?? '',
+        line2: address?.line2 ?? '',
+        area: address?.area ?? '',
+        city: address?.city ?? '',
+        state: address?.state ?? '',
+        pincode: address?.pincode ?? '',
       },
-
       slot: {
-        date:
-          booking.date ??
-          scheduledAt,
-
-        startTime:
-          booking.slot ??
-          scheduledAt,
-
-        endTime:
-          scheduledAt,
+        date: booking.date ?? scheduledAt,
+        startTime: booking.slot ?? scheduledAt,
+        endTime: scheduledAt,
       },
-
       pricing: {
-        baseAmount:
-          booking.priceBreakdown?.base ??
-          finalAmount,
-
-        addOnAmount:
-          booking.priceBreakdown?.addOns ??
-          0,
-
-        discountAmount:
-          booking.priceBreakdown?.discount ??
-          0,
-
-        convenienceFee:
-          booking.priceBreakdown
-            ?.convenienceFee ?? 0,
-
-        taxAmount:
-          booking.priceBreakdown?.tax ??
-          0,
-
-        totalAmount:
-          finalAmount,
+        baseAmount: booking.priceBreakdown?.base ?? finalAmount,
+        addOnAmount: booking.priceBreakdown?.addOns ?? 0,
+        discountAmount: booking.priceBreakdown?.discount ?? 0,
+        convenienceFee: booking.priceBreakdown?.convenienceFee ?? 0,
+        taxAmount: booking.priceBreakdown?.tax ?? 0,
+        totalAmount: finalAmount,
       },
-
-      status:
-        booking.status,
-
+      status: booking.status,
       payment: {
-        paymentId:
-          payment?.razorpayPaymentId ??
-          payment?.razorpayOrderId ??
-          '',
-
-        method:
-          payment?.method ?? '',
-
-        status:
-          this.mapPaymentStatus(
-            payment?.status,
-          ),
-
-        amount:
-          paymentAmount > 0
-            ? paymentAmount
-            : finalAmount,
-
-        paidAt:
-          payment?.paidAt
-            ? this.toISOString(
-                payment.paidAt,
-              )
-            : undefined,
+        paymentId: payment?.razorpayPaymentId ?? payment?.razorpayOrderId ?? '',
+        method: payment?.method ?? '',
+        status: this.mapPaymentStatus(payment?.status),
+        amount: paymentAmount > 0 ? paymentAmount : finalAmount,
+        paidAt: payment?.paidAt
+          ? this.toISOString(payment.paidAt)
+          : undefined,
       },
-
       createdAt,
-
       updatedAt,
-
       timeline,
     };
   }
 
-  
   /**
-   * ---------------------------------------------------------
-   * GET BOOKINGS
-   * GET /api/v1/admin/bookings
-   * ---------------------------------------------------------
+   * Get booking coordinates.
+   * GeoJSON coordinates are stored as [longitude, latitude].
    */
-  async getBookings(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
-    console.log('[AdminBookings] Request received');
+  private getBookingCoordinates(
+    booking: AdminBookingSource,
+  ): Coordinates | null {
+    const coordinates = booking.address?.location?.coordinates;
 
+    if (
+      Array.isArray(coordinates) &&
+      coordinates.length >= 2 &&
+      Number.isFinite(coordinates[0]) &&
+      Number.isFinite(coordinates[1])
+    ) {
+      return {
+        lng: Number(coordinates[0]),
+        lat: Number(coordinates[1]),
+      };
+    }
+
+    const snapshot = booking.addressSnapshot?.location;
+
+    if (
+      snapshot &&
+      Number.isFinite(snapshot.lat) &&
+      Number.isFinite(snapshot.lng)
+    ) {
+      return {
+        lat: Number(snapshot.lat),
+        lng: Number(snapshot.lng),
+      };
+    }
+
+    return null;
+  }
+
+  private calculateDistanceKm(
+    origin: Coordinates,
+    destination: Coordinates,
+  ): number {
+    const earthRadiusKm = 6371;
+    const toRadians = (degrees: number) => degrees * Math.PI / 180;
+
+    const lat1 = toRadians(origin.lat);
+    const lat2 = toRadians(destination.lat);
+    const deltaLat = toRadians(destination.lat - origin.lat);
+    const deltaLng = toRadians(destination.lng - origin.lng);
+
+    const a =
+      Math.sin(deltaLat / 2) ** 2 +
+      Math.cos(lat1) *
+        Math.cos(lat2) *
+        Math.sin(deltaLng / 2) ** 2;
+
+    return earthRadiusKm * 2 *
+      Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  private async resolveBookingCategory(
+    booking: AdminBookingSource,
+  ): Promise<string> {
+    let categoryId = booking.categoryId?.toString() ?? '';
+
+    if (!categoryId && booking.serviceId) {
+      const service = await ServiceModel.findById(
+        booking.serviceId,
+        'categoryId',
+      ).lean().exec();
+
+      if (service?.categoryId) {
+        categoryId = service.categoryId.toString();
+
+        await BookingModel.updateOne(
+          { _id: booking._id },
+          { $set: { categoryId: service.categoryId } },
+        ).exec();
+      }
+    }
+
+    return categoryId;
+  }
+
+  private async partnerMatchesBooking(
+    partner: PartnerSource,
+    booking: AdminBookingSource,
+    bookingCategoryId: string,
+  ): Promise<boolean> {
+    if (!bookingCategoryId) return false;
+
+    const matchesCategory = (partner.categories ?? []).some(
+      (id) => id.toString() === bookingCategoryId,
+    );
+
+    const matchesService = Boolean(
+      booking.serviceId &&
+      (partner.services ?? []).some(
+        (id) => id.toString() === booking.serviceId?.toString(),
+      ),
+    );
+
+    return matchesCategory || matchesService;
+  }
+
+  private async hasBookingConflict(
+    booking: AdminBookingSource,
+    partnerId: string,
+  ): Promise<boolean> {
+    if (!booking.scheduledAt) return true;
+
+    const bookingStart = new Date(booking.scheduledAt);
+
+    if (Number.isNaN(bookingStart.getTime())) return true;
+
+    const bookingEnd = new Date(
+      bookingStart.getTime() + 60 * 60 * 1000,
+    );
+
+    const conflict = await BookingModel.findOne({
+      _id: { $ne: booking._id },
+      partnerId: new Types.ObjectId(partnerId),
+      scheduledAt: {
+        $gte: new Date(bookingStart.getTime() - 60 * 60 * 1000),
+        $lte: bookingEnd,
+      },
+      status: { $nin: INACTIVE_BOOKING_STATUSES },
+    })
+      .select({ _id: 1 })
+      .lean()
+      .exec();
+
+    return Boolean(conflict);
+  }
+
+  async getBookings(req: Request, res: Response): Promise<void> {
     this.assertAdmin(req);
 
     const {
@@ -872,9 +640,7 @@ export class AdminBookingsController {
 
     const query: Record<string, unknown> = {};
 
-    if (status) {
-      query.status = status;
-    }
+    if (status) query.status = status;
 
     if (city?.trim()) {
       query['address.city'] = {
@@ -883,9 +649,7 @@ export class AdminBookingsController {
       };
     }
 
-    if (category) {
-      query.categoryId = category;
-    }
+    if (category) query.categoryId = category;
 
     if (customer?.trim()) {
       query.customerName = {
@@ -894,22 +658,14 @@ export class AdminBookingsController {
       };
     }
 
-    if (partner) {
-      query.partnerId = partner;
-    }
+    if (partner) query.partnerId = partner;
 
     if (date) {
       const start = new Date(`${date}T00:00:00.000Z`);
       const end = new Date(`${date}T23:59:59.999Z`);
 
-      if (
-        !Number.isNaN(start.getTime()) &&
-        !Number.isNaN(end.getTime())
-      ) {
-        query.scheduledAt = {
-          $gte: start,
-          $lte: end,
-        };
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        query.scheduledAt = { $gte: start, $lte: end };
       }
     }
 
@@ -920,425 +676,545 @@ export class AdminBookingsController {
       );
 
       query.$or = [
-        {
-          customerName: {
-            $regex: escapedSearch,
-            $options: 'i',
-          },
-        },
-        {
-          serviceName: {
-            $regex: escapedSearch,
-            $options: 'i',
-          },
-        },
+        { customerName: { $regex: escapedSearch, $options: 'i' } },
+        { serviceName: { $regex: escapedSearch, $options: 'i' } },
       ];
     }
 
-    console.log(
-      '[AdminBookings] Executing query:',
-      JSON.stringify(query),
+    const bookings = await BookingModel.find(query)
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean()
+      .exec();
+
+    const typedBookings =
+      bookings as unknown as AdminBookingSource[];
+
+    const [lookups, payments] = await Promise.all([
+      this.prefetchLookups(typedBookings),
+      this.getPaymentsForBookings(
+        typedBookings.map((booking) => booking._id.toString()),
+      ),
+    ]);
+
+    const data = await Promise.all(
+      typedBookings.map((booking) =>
+        this.buildBookingResponse(
+          booking,
+          payments.get(booking._id.toString()) ?? null,
+          lookups,
+        ),
+      ),
     );
 
-    try {
-      const bookings = await BookingModel.find(query)
-        .sort({ createdAt: -1 })
-        .limit(100)
-        .lean()
-        .exec();
-
-      console.log(
-        `[AdminBookings] Found ${bookings.length} bookings`,
-      );
-
-      const data = await Promise.all(
-        bookings.map(async (rawBooking) => {
-          const booking =
-            rawBooking as unknown as AdminBookingSource;
-
-          const payment = await this.getPaymentForBooking(
-            booking._id.toString(),
-          );
-
-          return this.buildBookingResponse(
-            booking,
-            payment,
-          );
-        }),
-      );
-
-      console.log(
-        `[AdminBookings] Returning ${data.length} bookings`,
-      );
-
-      res.status(200).json({
-        success: true,
-        data,
-      });
-    } catch (error) {
-      console.error(
-        '[AdminBookings] Failed to load bookings:',
-        error,
-      );
-
-      throw error;
-    }
+    res.status(200).json({ success: true, data });
   }
 
-  /**
-   * ---------------------------------------------------------
-   * GET BOOKING BY ID
-   * GET /api/v1/admin/bookings/:bookingId
-   * ---------------------------------------------------------
-   */
-  async getBookingById(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
+  async getBookingById(req: Request, res: Response): Promise<void> {
     this.assertAdmin(req);
 
-    const {
-      bookingId,
-    } = req.params;
+    const { bookingId } = req.params;
 
-    const booking =
-      await BookingModel.findById(
-        bookingId,
-      )
-        .lean()
-        .exec();
+    const booking = await BookingModel.findById(bookingId)
+      .lean()
+      .exec();
 
     if (!booking) {
-      throw new HttpError(
-        404,
-        'Booking not found',
-        'BOOKING_NOT_FOUND',
-      );
+      throw new HttpError(404, 'Booking not found', 'BOOKING_NOT_FOUND');
     }
 
-    const typedBooking =
-      booking as unknown as AdminBookingSource;
+    const payment = await this.getPaymentForBooking(bookingId);
 
-    const payment =
-      await this.getPaymentForBooking(
-        bookingId,
-      );
+    const data = await this.buildBookingResponse(
+      booking as unknown as AdminBookingSource,
+      payment,
+    );
 
-    const data =
-      await this.buildBookingResponse(
-        typedBooking,
-        payment,
-      );
-
-    res.status(200).json({
-      success: true,
-      data,
-    });
+    res.status(200).json({ success: true, data });
   }
 
-  /**
-   * ---------------------------------------------------------
-   * GET ELIGIBLE PARTNERS
+    /**
    * GET /api/v1/admin/bookings/:bookingId/eligible-partners
-   * ---------------------------------------------------------
+   *
+   * Returns all partners with their eligibility information.
+   * Only eligible partners can be assigned through assignPartner().
    */
-  async getEligiblePartners(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
+  async getEligiblePartners(req: Request, res: Response): Promise<void> {
     this.assertAdmin(req);
 
-    const {
-      bookingId,
-    } = req.params;
+    const { bookingId } = req.params;
+
+    const bookingDocument = await BookingModel.findById(bookingId)
+      .lean()
+      .exec();
+
+    if (!bookingDocument) {
+      throw new HttpError(404, 'Booking not found', 'BOOKING_NOT_FOUND');
+    }
 
     const booking =
-      await BookingModel.findById(
-        bookingId,
-      )
-        .lean()
-        .exec();
+      bookingDocument as unknown as AdminBookingSource;
 
-    if (!booking) {
+    const bookingCategoryId =
+      await this.resolveBookingCategory(booking);
+
+    if (!bookingCategoryId) {
       throw new HttpError(
-        404,
-        'Booking not found',
-        'BOOKING_NOT_FOUND',
+        400,
+        'Booking category could not be determined',
+        'BOOKING_CATEGORY_MISSING',
       );
     }
 
-    let bookingCategoryId =
-      booking.categoryId ? booking.categoryId.toString() : '';
+    const bookingCoordinates =
+      this.getBookingCoordinates(booking);
 
-    if (!bookingCategoryId && (booking as { serviceId?: unknown }).serviceId) {
-      const svc = await ServiceModel.findById(
-        (booking as { serviceId: unknown }).serviceId,
-        'categoryId',
-      ).lean();
-      if (svc?.categoryId) {
-        bookingCategoryId = svc.categoryId.toString();
-        await BookingModel.updateOne(
-          { _id: booking._id },
-          { $set: { categoryId: svc.categoryId } },
-        ).exec();
-      }
+    if (!bookingCoordinates) {
+      throw new HttpError(
+        400,
+        'Booking location is missing or invalid',
+        'BOOKING_LOCATION_MISSING',
+      );
     }
 
-    const rawPartners =
-      await PartnerModel.find({
-        $or: [
-          { 'kyc.status': { $in: ['approved', 'submitted'] } },
-          { trainingCompleted: true },
-        ],
-      })
-        .sort({
-          ratingAvg: -1,
-          ratingCount: -1,
-        })
-        .lean()
-        .exec();
-
-    const data = [];
-
-    void booking.categoryId;
-
-    const slotTimes =
-      this.getSlotTimes(
-        booking.slot,
+    if (!booking.scheduledAt) {
+      throw new HttpError(
+        400,
+        'Booking scheduled date is missing',
+        'BOOKING_SCHEDULE_MISSING',
       );
+    }
+
+    const slotTimes = this.getSlotTimes(booking.slot);
 
     const bookingDate =
       booking.date ??
-      this.toISOString(
-        booking.scheduledAt,
-      ).slice(0, 10);
+      this.toISOString(booking.scheduledAt).slice(0, 10);
 
-    for (const rawPartner of rawPartners) {
-      const partner =
-        rawPartner as unknown as PartnerSource;
+    if (!slotTimes.start || !slotTimes.end || !bookingDate) {
+      throw new HttpError(
+        400,
+        'Booking date or time slot is invalid',
+        'BOOKING_SLOT_INVALID',
+      );
+    }
 
-      const partnerId =
-        partner._id.toString();
+    // Fetch all real partner profiles, including profiles that
+    // are offline, pending KYC, or not yet trained.
+    const rawPartners = await PartnerModel.find({})
+      .lean()
+      .exec();
 
-      const hasCategory =
-        !bookingCategoryId ||
-        (Array.isArray(partner.categories) &&
-          partner.categories.some(
-            (categoryId) =>
-              categoryId.toString() ===
-              bookingCategoryId,
-          )) ||
-        (Array.isArray((partner as unknown as { services?: unknown[] }).services) &&
-          (partner as unknown as { services: unknown[] }).services.some(
-            (sId: unknown) =>
-              sId &&
-              (booking as { serviceId?: unknown }).serviceId &&
-              String(sId) === String((booking as { serviceId?: unknown }).serviceId),
-          ));
+    const partners =
+      rawPartners as unknown as PartnerSource[];
 
-      if (!hasCategory) {
-        continue;
-      }
+    if (!partners.length) {
+      res.status(200).json({
+        success: true,
+        totalPartners: 0,
+        totalEligible: 0,
+        onlineCount: 0,
+        availableCount: 0,
+        data: [],
+      });
+      return;
+    }
 
-      const partnerUser =
-        await UserModel.findById(
-          partner.userId,
-        )
+    const partnerIds = partners.map(
+      (partner) => partner._id,
+    );
+
+    const userIds = partners.map(
+      (partner) => partner.userId,
+    );
+
+    // Resolve category names for display.
+    const categoryIds = [
+      ...new Set(
+        partners.flatMap((partner) =>
+          (partner.categories ?? []).map((id) => id.toString()),
+        ),
+      ),
+    ];
+
+    const [users, availabilityRecords, serviceAreas, categories] =
+      await Promise.all([
+        UserModel.find({
+          _id: { $in: userIds },
+        })
           .lean()
-          .exec();
+          .exec(),
 
-      const typedUser =
-        partnerUser as unknown as
-          | UserSource
-          | null;
+        // Availability is saved against the partner's User id
+        // (JWT sub), not Partner._id.
+        Availability.find({
+          partnerId: { $in: userIds },
+        })
+          .lean()
+          .exec(),
 
-      if (!typedUser) {
-        continue;
+        ServiceAreaModel.find({
+          partnerId: { $in: partnerIds },
+        })
+          .lean()
+          .exec(),
+
+        categoryIds.length
+          ? CategoryModel.find({
+              _id: { $in: categoryIds },
+            })
+              .select('_id name')
+              .lean()
+              .exec()
+          : Promise.resolve([]),
+      ]);
+
+    const usersById = new Map(
+      (users as unknown as UserSource[]).map((user) => [
+        user._id.toString(),
+        user,
+      ]),
+    );
+
+    const availabilityByPartner = new Map(
+      availabilityRecords.map((record) => [
+        record.partnerId.toString(),
+        record,
+      ]),
+    );
+
+    const areasByPartner = new Map(
+      (serviceAreas as unknown as ServiceAreaSource[]).map((area) => [
+        area.partnerId.toString(),
+        area,
+      ]),
+    );
+
+    const categoryNamesById = new Map(
+      categories.map((category) => [
+        category._id.toString(),
+        category.name,
+      ]),
+    );
+
+    const data: Array<Record<string, unknown>> = [];
+
+    let onlineCount = 0;
+    let availableCount = 0;
+    let totalEligible = 0;
+
+    for (const partner of partners) {
+      const partnerId = partner._id.toString();
+
+      const partnerUser = usersById.get(
+        partner.userId.toString(),
+      );
+
+      // A profile without its linked user cannot be presented
+      // as a usable partner account.
+      if (!partnerUser) continue;
+
+      const availability =
+        availabilityByPartner.get(partner.userId.toString());
+
+      const serviceArea =
+        areasByPartner.get(partnerId);
+
+      const isOnline =
+        availability?.isOnline === true;
+
+      if (isOnline) {
+        onlineCount++;
       }
 
-      const isActive =
-        typedUser.status === 'active';
+      const kycStatus =
+        partner.kyc?.status ?? 'not_submitted';
 
-      if (!isActive) {
-        continue;
-      }
+      const isKycApproved =
+        kycStatus.toLowerCase() === 'approved';
 
-      let available = false;
+      const trainingCompleted =
+        partner.trainingCompleted === true;
 
-      if (
-        bookingDate &&
-        slotTimes.start &&
-        slotTimes.end
-      ) {
-        try {
-          available = true;
-        } catch {
-          available = false;
+      const accountStatus =
+        partnerUser.status ?? 'unknown';
+
+      const isAccountActive =
+        accountStatus.toLowerCase() === 'active';
+
+      const categoryMatches =
+        await this.partnerMatchesBooking(
+          partner,
+          booking,
+          bookingCategoryId,
+        );
+
+      const hasServiceArea =
+        Boolean(serviceArea?.baseLocation);
+
+      let distanceKm: number | null = null;
+
+      if (hasServiceArea && serviceArea?.baseLocation) {
+        const distance = this.calculateDistanceKm(
+          bookingCoordinates,
+          serviceArea.baseLocation,
+        );
+
+        if (Number.isFinite(distance)) {
+          distanceKm = Number(distance.toFixed(2));
         }
       }
 
-      const scheduledAt =
-        booking.scheduledAt;
+      const radiusKm =
+        serviceArea?.radiusKm ??
+        partner.serviceRadiusKm ??
+        0;
+
+      const withinServiceRadius =
+        distanceKm !== null &&
+        radiusKm > 0 &&
+        distanceKm <= radiusKm;
+
+      let slotAvailable = false;
+
+      if (availability) {
+        try {
+          slotAvailable = await isAvailable(
+            partner.userId.toString(),
+            {
+              date: bookingDate,
+              start: slotTimes.start,
+              end: slotTimes.end,
+            },
+          );
+        } catch (error) {
+          console.error(
+            `[AdminBookings] Availability check failed for ${partnerId}:`,
+            error,
+          );
+
+          slotAvailable = false;
+        }
+      }
+
+      if (slotAvailable) {
+        availableCount++;
+      }
 
       let hasConflict = false;
 
-      if (scheduledAt) {
-        const bookingStart =
-          new Date(
-            scheduledAt,
-          );
+      try {
+        hasConflict = await this.hasBookingConflict(
+          booking,
+          partnerId,
+        );
+      } catch (error) {
+        console.error(
+          `[AdminBookings] Conflict check failed for ${partnerId}:`,
+          error,
+        );
 
-        const bookingEnd =
-          new Date(
-            bookingStart.getTime() +
-              60 * 60 * 1000,
-          );
+        // Fail closed: do not mark a partner eligible if the
+        // conflict check could not be completed.
+        hasConflict = true;
+      }
 
-        const conflict =
-          await BookingModel.findOne({
-            _id: {
-              $ne: booking._id,
-            },
+      const eligibilityReasons: string[] = [];
 
-            partnerId:
-              partner._id,
+      if (!isKycApproved) {
+        eligibilityReasons.push(
+          `KYC is ${kycStatus.replace(/_/g, ' ')}`,
+        );
+      }
 
-            scheduledAt: {
-              $gte:
-                new Date(
-                  bookingStart.getTime() -
-                    60 * 60 * 1000,
-                ),
+      if (!trainingCompleted) {
+        eligibilityReasons.push(
+          'Training is not completed',
+        );
+      }
 
-              $lte:
-                bookingEnd,
-            },
+      if (!isAccountActive) {
+        eligibilityReasons.push(
+          `Partner account is ${accountStatus}`,
+        );
+      }
 
-            status: {
-              $nin: [
-                'cancelled_by_customer',
-                'cancelled_by_partner',
-                'cancelled_by_admin',
-                'completed',
-                'no_show',
-              ],
-            },
-          })
-            .select({
-              _id: 1,
-            })
-            .lean()
-            .exec();
+      if (!isOnline) {
+        eligibilityReasons.push(
+          'Partner is offline',
+        );
+      }
 
-        hasConflict =
-          Boolean(conflict);
+      if (!categoryMatches) {
+        eligibilityReasons.push(
+          'Partner does not provide this booking category or service',
+        );
+      }
+
+      if (!hasServiceArea) {
+        eligibilityReasons.push(
+          'Partner service area or base location is not configured',
+        );
+      } else if (distanceKm === null) {
+        eligibilityReasons.push(
+          'Partner distance could not be calculated',
+        );
+      } else if (radiusKm <= 0) {
+        eligibilityReasons.push(
+          'Partner service radius is not configured',
+        );
+      } else if (!withinServiceRadius) {
+        eligibilityReasons.push(
+          'Booking is outside the partner service radius',
+        );
+      }
+
+      if (!slotAvailable) {
+        eligibilityReasons.push(
+          'Partner is not available during the selected time slot',
+        );
       }
 
       if (hasConflict) {
-        continue;
+        eligibilityReasons.push(
+          'Partner has a conflicting booking',
+        );
       }
+
+      const eligible =
+        isKycApproved &&
+        trainingCompleted &&
+        isAccountActive &&
+        isOnline &&
+        categoryMatches &&
+        hasServiceArea &&
+        withinServiceRadius &&
+        slotAvailable &&
+        !hasConflict;
+
+      if (eligible) {
+        totalEligible++;
+      }
+
+      const partnerCategoryNames = (
+        partner.categories ?? []
+      ).map((id) => {
+        const categoryId = id.toString();
+
+        return (
+          categoryNamesById.get(categoryId) ??
+          categoryId
+        );
+      });
 
       data.push({
         id: partnerId,
 
-        name:
-          typedUser.name ??
-          'Partner',
+        name: partnerUser.name ?? 'Partner',
+        email: partnerUser.email ?? '',
+        phone: partnerUser.phone ?? '',
 
-        email:
-          typedUser.email ??
-          '',
+        category: partnerCategoryNames.length
+          ? partnerCategoryNames.join(', ')
+          : 'Not configured',
 
-        phone:
-          typedUser.phone ??
-          '',
+        categories: partnerCategoryNames,
 
-        category:
-          'Home Services',
+        categoryIds:
+          partner.categories?.map((id) => id.toString()) ?? [],
 
-        categories: ['Home Services', 'Electrical & Plumbing'],
+        cities: serviceArea?.cities ?? [],
+        areas: serviceArea?.areas ?? [],
 
-        cities: ['Hyderabad'],
+        kycStatus,
+        isApproved: isKycApproved,
 
-        areas: [],
+        accountStatus,
+        trainingCompleted,
 
-        kycStatus:
-          partner.kyc?.status === 'approved'
-            ? 'Approved'
-            : partner.kyc?.status === 'rejected'
-              ? 'Rejected'
-              : 'Pending',
-
-        accountStatus:
-          isActive ? 'Active' : 'Inactive',
-
-        available,
-
-        conflictBookingIds: hasConflict ? ['conflict'] : [],
-
-        rating:
-          partner.ratingAvg ?? 0,
-
-        ratingCount:
-          partner.ratingCount ?? 0,
-
-        isApproved:
-          partner.kyc?.status ===
-          'approved',
-
-        isActive,
-
-        isAvailable:
-          available,
+        isOnline,
+        available: slotAvailable,
+        isAvailable: slotAvailable,
 
         hasConflict,
+
+        distanceKm,
+        serviceRadiusKm: radiusKm,
+
+        withinServiceRadius,
+        categoryMatches,
+
+        rating: partner.ratingAvg ?? 0,
+        ratingCount: partner.ratingCount ?? 0,
+
+        eligible,
+        eligibilityReasons,
       });
     }
 
+    // Sort eligible partners first, then online partners.
+    // Within each group, nearest partners appear first.
+    // Rating is used as the final tie-breaker.
+    data.sort((a, b) => {
+      if (Boolean(a.eligible) !== Boolean(b.eligible)) {
+        return Number(Boolean(b.eligible)) -
+          Number(Boolean(a.eligible));
+      }
+
+      if (Boolean(a.isOnline) !== Boolean(b.isOnline)) {
+        return Number(Boolean(b.isOnline)) -
+          Number(Boolean(a.isOnline));
+      }
+
+      const distanceA =
+        typeof a.distanceKm === 'number'
+          ? a.distanceKm
+          : Number.POSITIVE_INFINITY;
+
+      const distanceB =
+        typeof b.distanceKm === 'number'
+          ? b.distanceKm
+          : Number.POSITIVE_INFINITY;
+
+      if (distanceA !== distanceB) {
+        return distanceA - distanceB;
+      }
+
+      return Number(b.rating) - Number(a.rating);
+    });
+
     res.status(200).json({
       success: true,
+      totalPartners: data.length,
+      totalEligible,
+      onlineCount,
+      availableCount,
       data,
     });
   }
 
   /**
-   * ---------------------------------------------------------
-   * ASSIGN / REASSIGN PARTNER
    * PATCH /api/v1/admin/bookings/:bookingId/assign
-   * ---------------------------------------------------------
    */
-  async assignPartner(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
-    const user =
-      this.assertAdmin(req);
+  async assignPartner(req: Request, res: Response): Promise<void> {
+    const user = this.assertAdmin(req);
 
-    const {
-      bookingId,
-    } = req.params;
+    const { bookingId } = req.params;
 
-    const {
-      partnerId,
-      reason,
-    } =
-      req.body as {
-        partnerId?: string;
-        reason?: string;
-      };
+    const { partnerId, reason } = req.body as {
+      partnerId?: string;
+      reason?: string;
+    };
 
-    if (!partnerId) {
+    if (!partnerId || !Types.ObjectId.isValid(partnerId)) {
       throw new HttpError(
         400,
-        'partnerId is required',
-        'PARTNER_ID_REQUIRED',
+        'A valid partnerId is required',
+        'INVALID_PARTNER_ID',
       );
     }
 
-    if (
-      !reason ||
-      !reason.trim()
-    ) {
+    if (!reason?.trim()) {
       throw new HttpError(
         400,
         'Assignment reason is required',
@@ -1346,62 +1222,66 @@ export class AdminBookingsController {
       );
     }
 
-    const booking =
-      await BookingModel.findById(
-        bookingId,
-      );
+    const booking = await BookingModel.findById(bookingId);
 
     if (!booking) {
+      throw new HttpError(404, 'Booking not found', 'BOOKING_NOT_FOUND');
+    }
+
+    const typedBooking =
+      booking as unknown as AdminBookingSource;
+
+    const bookingCategoryId =
+      await this.resolveBookingCategory(typedBooking);
+
+    if (!bookingCategoryId) {
       throw new HttpError(
-        404,
-        'Booking not found',
-        'BOOKING_NOT_FOUND',
+        400,
+        'Booking category could not be determined',
+        'BOOKING_CATEGORY_MISSING',
       );
     }
 
-    let bookingCategoryId =
-      booking.categoryId ? booking.categoryId.toString() : '';
+    const bookingCoordinates =
+      this.getBookingCoordinates(typedBooking);
 
-    if (!bookingCategoryId && booking.serviceId) {
-      const svc = await ServiceModel.findById(
-        booking.serviceId,
-        'categoryId',
-      ).lean();
-      if (svc?.categoryId) {
-        bookingCategoryId = svc.categoryId.toString();
-        booking.categoryId = svc.categoryId;
-        await BookingModel.updateOne(
-          { _id: booking._id },
-          { $set: { categoryId: svc.categoryId } },
-        ).exec();
-      }
+    if (!bookingCoordinates) {
+      throw new HttpError(
+        400,
+        'Booking location is missing or invalid',
+        'BOOKING_LOCATION_MISSING',
+      );
     }
 
-    const FRONTEND_TEST_PARTNER_ID = '6abcd9a2113bfeaa34911617';
-
-    let partner = Types.ObjectId.isValid(partnerId)
-      ? await PartnerModel.findById(partnerId)
-      : null;
-
-    if (!partner && Types.ObjectId.isValid(partnerId)) {
-      partner = await PartnerModel.findOne({ userId: partnerId });
+    if (!booking.scheduledAt) {
+      throw new HttpError(
+        400,
+        'Booking scheduled date is missing',
+        'BOOKING_SCHEDULE_MISSING',
+      );
     }
 
-    if (
-      !partner &&
-      (partnerId === FRONTEND_TEST_PARTNER_ID ||
-        partnerId.toLowerCase().includes('test') ||
-        !Types.ObjectId.isValid(partnerId))
-    ) {
-      const testUser = await UserModel.findOne({
-        $or: [
-          { email: 'partner@homecarex.com' },
-          { name: /Test Partner/i },
-        ],
-      }).select('_id');
-      if (testUser) {
-        partner = await PartnerModel.findOne({ userId: testUser._id });
-      }
+    const slotTimes = this.getSlotTimes(booking.slot);
+
+    const bookingDate =
+      booking.date ??
+      this.toISOString(booking.scheduledAt).slice(0, 10);
+
+    if (!slotTimes.start || !slotTimes.end || !bookingDate) {
+      throw new HttpError(
+        400,
+        'Booking date or time slot is invalid',
+        'BOOKING_SLOT_INVALID',
+      );
+    }
+
+    // Resolve either the Partner profile ID or the linked User ID.
+    let partner = await PartnerModel.findById(partnerId);
+
+    if (!partner) {
+      partner = await PartnerModel.findOne({
+        userId: partnerId,
+      });
     }
 
     if (!partner) {
@@ -1412,28 +1292,7 @@ export class AdminBookingsController {
       );
     }
 
-    if (partner.kyc?.status === 'submitted') {
-      if (!partner.kyc) {
-        partner.kyc = { status: 'approved' } as unknown as typeof partner.kyc;
-      } else {
-        partner.kyc.status = 'approved';
-      }
-      await PartnerModel.updateOne(
-        { _id: partner._id },
-        {
-          $set: {
-            'kyc.status': 'approved',
-            'kyc.reviewedAt': new Date(),
-            'kyc.reviewedBy': user.id,
-          },
-        },
-      ).exec();
-    }
-
-    if (
-      partner.kyc?.status !==
-      'approved'
-    ) {
+    if (partner.kyc?.status !== 'approved') {
       throw new HttpError(
         400,
         'Partner KYC is not approved',
@@ -1442,43 +1301,16 @@ export class AdminBookingsController {
     }
 
     if (!partner.trainingCompleted) {
-      partner.trainingCompleted = true;
-      await PartnerModel.updateOne(
-        { _id: partner._id },
-        { $set: { trainingCompleted: true } },
-      ).exec();
-    }
-
-    const hasCategory =
-      !bookingCategoryId ||
-      (Array.isArray(partner.categories) &&
-        partner.categories.some(
-          (categoryId) =>
-            categoryId.toString() ===
-            bookingCategoryId,
-        )) ||
-      (Array.isArray((partner as unknown as { services?: unknown[] }).services) &&
-        (partner as unknown as { services: unknown[] }).services.some(
-          (sId: unknown) =>
-            sId &&
-            booking.serviceId &&
-            String(sId) === String(booking.serviceId),
-        ));
-
-    if (!hasCategory) {
       throw new HttpError(
         400,
-        'Partner is not eligible for this booking category',
-        'PARTNER_CATEGORY_MISMATCH',
+        'Partner training is not completed',
+        'PARTNER_TRAINING_NOT_COMPLETED',
       );
     }
 
-    const partnerUser =
-      await UserModel.findById(
-        partner.userId,
-      )
-        .lean()
-        .exec();
+    const partnerUser = await UserModel.findById(
+      partner.userId,
+    ).lean().exec();
 
     if (!partnerUser) {
       throw new HttpError(
@@ -1488,10 +1320,7 @@ export class AdminBookingsController {
       );
     }
 
-    if (
-      partnerUser.status !==
-      'active'
-    ) {
+    if (partnerUser.status !== 'active') {
       throw new HttpError(
         400,
         'Partner account is not active',
@@ -1499,125 +1328,131 @@ export class AdminBookingsController {
       );
     }
 
-    const slotTimes =
-      this.getSlotTimes(
-        booking.slot,
+    const typedPartner =
+      partner as unknown as PartnerSource;
+
+    if (
+      !(await this.partnerMatchesBooking(
+        typedPartner,
+        typedBooking,
+        bookingCategoryId,
+      ))
+    ) {
+      throw new HttpError(
+        400,
+        'Partner is not eligible for this booking category',
+        'PARTNER_CATEGORY_MISMATCH',
       );
+    }
 
-    const bookingDate =
-      booking.date ??
-      this.toISOString(
-        booking.scheduledAt,
-      ).slice(0, 10);
+    const [availability, serviceArea] = await Promise.all([
+      Availability.findOne({
+        partnerId: partner.userId,
+      }).lean().exec(),
 
-    void slotTimes;
-    void bookingDate;
+      ServiceAreaModel.findOne({
+        partnerId: partner._id,
+      }).lean().exec(),
+    ]);
 
-    if (booking.scheduledAt) {
-      const start =
-        new Date(
-          booking.scheduledAt,
-        );
+    if (!availability?.isOnline) {
+      throw new HttpError(
+        400,
+        'Partner is currently offline',
+        'PARTNER_OFFLINE',
+      );
+    }
 
-      const end =
-        new Date(
-          start.getTime() +
-            60 * 60 * 1000,
-        );
+    if (!serviceArea?.baseLocation) {
+      throw new HttpError(
+        400,
+        'Partner service area is not configured',
+        'PARTNER_SERVICE_AREA_MISSING',
+      );
+    }
 
-      const conflict =
-        await BookingModel.findOne({
-          _id: {
-            $ne: booking._id,
-          },
+    const distanceKm = this.calculateDistanceKm(
+      bookingCoordinates,
+      serviceArea.baseLocation,
+    );
 
-          partnerId:
-            partner._id,
+    const radiusKm =
+      serviceArea.radiusKm ??
+      partner.serviceRadiusKm ??
+      0;
 
-          scheduledAt: {
-            $gte:
-              new Date(
-                start.getTime() -
-                  60 * 60 * 1000,
-              ),
+    if (radiusKm <= 0 || distanceKm > radiusKm) {
+      throw new HttpError(
+        400,
+        'Booking is outside the partner service radius',
+        'PARTNER_OUTSIDE_SERVICE_RADIUS',
+      );
+    }
 
-            $lte:
-              end,
-          },
+    let slotAvailable = false;
 
-          status: {
-            $nin: [
-              'cancelled_by_customer',
-              'cancelled_by_partner',
-              'cancelled_by_admin',
-              'completed',
-              'no_show',
-            ],
-          },
-        })
-          .select({
-            _id: 1,
-          })
-          .lean()
-          .exec();
+    try {
+      slotAvailable = await isAvailable(
+        partner.userId.toString(),
+        {
+          date: bookingDate,
+          start: slotTimes.start,
+          end: slotTimes.end,
+        },
+      );
+    } catch (error) {
+      console.error('[AdminBookings] Availability check failed:', error);
+    }
 
-      if (conflict) {
-        throw new HttpError(
-          409,
-          'Partner has a conflicting booking',
-          'PARTNER_BOOKING_CONFLICT',
-        );
-      }
+    if (!slotAvailable) {
+      throw new HttpError(
+        409,
+        'Partner is not available during the selected time slot',
+        'PARTNER_SLOT_UNAVAILABLE',
+      );
+    }
+
+    const hasConflict = await this.hasBookingConflict(
+      typedBooking,
+      partner._id.toString(),
+    );
+
+    if (hasConflict) {
+      throw new HttpError(
+        409,
+        'Partner has a conflicting booking',
+        'PARTNER_BOOKING_CONFLICT',
+      );
     }
 
     const previousPartnerId =
-      booking.partnerId
-        ? booking.partnerId.toString()
-        : null;
+      booking.partnerId?.toString() ?? null;
 
-    const previousStatus =
-      booking.status;
+    const previousStatus = booking.status;
+    const trimmedReason = reason.trim();
 
     const auditBefore: Record<string, unknown> = {
       partnerId: previousPartnerId,
       status: previousStatus,
     };
 
-    booking.partnerId =
-      partner._id;
+    booking.partnerId = partner._id;
 
-    if (
-      booking.status !==
-      'assigned'
-    ) {
+    if (booking.status !== 'assigned') {
       applyTransition(
         booking,
         'assigned',
-        {
-          role: 'admin',
-          id: user.id,
-        },
-        reason.trim(),
+        { role: 'admin', id: user.id },
+        trimmedReason,
       );
     } else {
       booking.statusHistory.push({
-        from:
-          previousStatus,
-
-        to:
-          'assigned',
-
-        reason:
-          reason.trim(),
-
-        actorId:
-          user.id,
-
-        actorRole:
-          'admin',
-
-        at:
-          new Date(),
+        from: previousStatus,
+        to: 'assigned',
+        reason: trimmedReason,
+        actorId: user.id,
+        actorRole: 'admin',
+        at: new Date(),
       });
     }
 
@@ -1632,76 +1467,44 @@ export class AdminBookingsController {
       {
         partnerId: partner._id.toString(),
         status: booking.status,
-        reason: reason.trim(),
+        reason: trimmedReason,
+        distanceKm: Number(distanceKm.toFixed(2)),
       },
     );
 
-    const payment =
-      await this.getPaymentForBooking(
-        bookingId,
-      );
+    const payment = await this.getPaymentForBooking(bookingId);
 
-    const data =
-      await this.buildBookingResponse(
-        booking as unknown as AdminBookingSource,
-        payment,
-      );
+    const data = await this.buildBookingResponse(
+      booking as unknown as AdminBookingSource,
+      payment,
+    );
 
     res.status(200).json({
       success: true,
-
       data,
-
       assignment: {
         previousPartnerId,
-
-        partnerId:
-          partner._id.toString(),
-
-        reason:
-          reason.trim(),
+        partnerId: partner._id.toString(),
+        reason: trimmedReason,
+        distanceKm: Number(distanceKm.toFixed(2)),
       },
     });
   }
 
-  /**
-   * ---------------------------------------------------------
-   * STATUS OVERRIDE
-   * PATCH /api/v1/admin/bookings/:bookingId/status
-   * ---------------------------------------------------------
-   */
-  async overrideStatus(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
-    const user =
-      this.assertAdmin(req);
+  async overrideStatus(req: Request, res: Response): Promise<void> {
+    const user = this.assertAdmin(req);
 
-    const {
-      bookingId,
-    } = req.params;
-
-    const {
-      status,
-      reason,
-    } =
-      req.body as {
-        status?: string;
-        reason?: string;
-      };
+    const { bookingId } = req.params;
+    const { status, reason } = req.body as {
+      status?: string;
+      reason?: string;
+    };
 
     if (!status) {
-      throw new HttpError(
-        400,
-        'Status is required',
-        'STATUS_REQUIRED',
-      );
+      throw new HttpError(400, 'Status is required', 'STATUS_REQUIRED');
     }
 
-    if (
-      !reason ||
-      !reason.trim()
-    ) {
+    if (!reason?.trim()) {
       throw new HttpError(
         400,
         'Override reason is required',
@@ -1709,16 +1512,10 @@ export class AdminBookingsController {
       );
     }
 
-    const isValidStatus = (
-      value: string,
-    ): value is BookingStatus =>
-      (
-        BOOKING_STATUSES as readonly string[]
-      ).includes(value);
+    const isValidStatus = (value: string): value is BookingStatus =>
+      (BOOKING_STATUSES as readonly string[]).includes(value);
 
-    if (
-      !isValidStatus(status)
-    ) {
+    if (!isValidStatus(status)) {
       throw new HttpError(
         400,
         `Invalid booking status: ${status}`,
@@ -1726,59 +1523,30 @@ export class AdminBookingsController {
       );
     }
 
-    const booking =
-      await BookingModel.findById(
-        bookingId,
-      );
+    const booking = await BookingModel.findById(bookingId);
 
     if (!booking) {
-      throw new HttpError(
-        404,
-        'Booking not found',
-        'BOOKING_NOT_FOUND',
-      );
+      throw new HttpError(404, 'Booking not found', 'BOOKING_NOT_FOUND');
     }
 
-    const previousStatus =
-      booking.status;
-
-    const auditBefore: Record<string, unknown> = {
-      status: previousStatus,
-    };
-
-    const trimmedReason =
-      reason.trim();
+    const previousStatus = booking.status;
+    const trimmedReason = reason.trim();
 
     applyTransition(
       booking,
       status,
-      {
-        role: 'admin',
-        id: user.id,
-      },
+      { role: 'admin', id: user.id },
       trimmedReason,
     );
 
     const latestHistoryEntry =
-      booking.statusHistory[
-        booking.statusHistory.length - 1
-      ];
+      booking.statusHistory[booking.statusHistory.length - 1];
 
     await BookingModel.updateOne(
+      { _id: booking._id },
       {
-        _id:
-          booking._id,
-      },
-      {
-        $set: {
-          status:
-            status,
-        },
-
-        $push: {
-          statusHistory:
-            latestHistoryEntry,
-        },
+        $set: { status },
+        $push: { statusHistory: latestHistoryEntry },
       },
     ).exec();
 
@@ -1787,59 +1555,28 @@ export class AdminBookingsController {
       bookingId,
       String(user.id),
       req.ip || 'unknown',
-      auditBefore,
-      {
-        status,
-        reason: trimmedReason,
-      },
+      { status: previousStatus },
+      { status, reason: trimmedReason },
     );
 
     res.status(200).json({
       success: true,
-
       data: {
-        id:
-          booking._id.toString(),
-
-        status:
-          status,
-
+        id: booking._id.toString(),
+        status,
         previousStatus,
-
-        reason:
-          trimmedReason,
+        reason: trimmedReason,
       },
     });
   }
 
-  /**
-   * ---------------------------------------------------------
-   * CANCEL BOOKING
-   * POST /api/v1/admin/bookings/:bookingId/cancel
-   * ---------------------------------------------------------
-   */
-  async cancelBooking(
-    req: Request,
-    res: Response,
-  ): Promise<void> {
-    const user =
-      this.assertAdmin(req);
+  async cancelBooking(req: Request, res: Response): Promise<void> {
+    const user = this.assertAdmin(req);
 
-    const {
-      bookingId,
-    } = req.params;
+    const { bookingId } = req.params;
+    const { reason } = req.body as { reason?: string };
 
-    const {
-      reason,
-    } =
-      req.body as {
-        reason?: string;
-      };
-
-    if (
-      !reason ||
-      !reason.trim()
-    ) {
+    if (!reason?.trim()) {
       throw new HttpError(
         400,
         'Cancellation reason is required',
@@ -1847,75 +1584,43 @@ export class AdminBookingsController {
       );
     }
 
-    const trimmedReason =
-      reason.trim();
+    const trimmedReason = reason.trim();
 
-    const booking =
-      await BookingModel.findById(
-        bookingId,
-      );
+    const booking = await BookingModel.findById(bookingId);
 
     if (!booking) {
-      throw new HttpError(
-        404,
-        'Booking not found',
-        'BOOKING_NOT_FOUND',
-      );
+      throw new HttpError(404, 'Booking not found', 'BOOKING_NOT_FOUND');
     }
 
     if (
-      booking.status ===
-        'cancelled_by_customer' ||
-      booking.status ===
-        'cancelled_by_admin' ||
-      booking.status ===
-        'cancelled_by_partner'
+      booking.status === 'cancelled_by_customer' ||
+      booking.status === 'cancelled_by_admin' ||
+      booking.status === 'cancelled_by_partner'
     ) {
-      const payment =
-        await this.getPaymentForBooking(
-          bookingId,
-        );
+      const payment = await this.getPaymentForBooking(bookingId);
 
-      const refundAmount =
-        payment?.refund?.amount ??
-        0;
+      const refundAmount = payment?.refund?.amount ?? 0;
+      const refundStatus = payment?.refund?.status;
 
-      const refundStatus =
-        payment?.refund?.status;
+      const refundResult: RefundResult = {
+        eligible: refundAmount > 0,
+        amount: refundAmount,
+        currency: payment?.currency ?? 'INR',
+        status: refundStatus === 'processed'
+          ? 'already_refunded'
+          : 'none',
+        paymentId: payment?.razorpayPaymentId,
+      };
 
-      const refundResult: RefundResult =
-        {
-          eligible:
-            refundAmount > 0,
-
-          amount:
-            refundAmount,
-
-          currency:
-            payment?.currency ??
-            'INR',
-
-          status:
-            refundStatus ===
-            'processed'
-              ? 'already_refunded'
-              : 'none',
-
-          paymentId:
-            payment?.razorpayPaymentId,
-        };
-
-      const data =
-        await this.buildBookingResponse(
-          booking as unknown as AdminBookingSource,
-          payment,
-        );
+      const data = await this.buildBookingResponse(
+        booking as unknown as AdminBookingSource,
+        payment,
+      );
 
       res.status(200).json({
         success: true,
         data,
-        refund:
-          refundResult,
+        refund: refundResult,
       });
 
       return;
@@ -1923,74 +1628,39 @@ export class AdminBookingsController {
 
     const auditBefore: Record<string, unknown> = {
       status: booking.status,
-      partnerId: booking.partnerId
-        ? booking.partnerId.toString()
-        : null,
+      partnerId: booking.partnerId?.toString() ?? null,
       cancellationReason: (
         booking as unknown as Record<string, unknown>
       ).cancellationReason,
     };
 
-    const payment =
-      await this.getPaymentForBooking(
-        bookingId,
-      );
+    const payment = await this.getPaymentForBooking(bookingId);
 
-    let refundResult: RefundResult =
-      {
-        eligible: false,
-        amount: 0,
-        currency:
-          payment?.currency ??
-          'INR',
-        status: 'none',
-        paymentId:
-          payment?.razorpayPaymentId,
-      };
+    let refundResult: RefundResult = {
+      eligible: false,
+      amount: 0,
+      currency: payment?.currency ?? 'INR',
+      status: 'none',
+      paymentId: payment?.razorpayPaymentId,
+    };
 
     if (payment) {
-      const paymentStatus =
-        (
-          payment.status ??
-          ''
-        ).toUpperCase();
-
-      const refundStatus =
-        (
-          payment.refund?.status ??
-          'none'
-        ).toLowerCase();
+      const paymentStatus = (payment.status ?? '').toUpperCase();
+      const refundStatus = (payment.refund?.status ?? 'none').toLowerCase();
 
       if (
-        paymentStatus ===
-          'REFUNDED' ||
-        refundStatus ===
-          'processed'
+        paymentStatus === 'REFUNDED' ||
+        refundStatus === 'processed'
       ) {
         refundResult = {
           eligible: true,
-
-          amount:
-            payment.refund?.amount ??
-            payment.amount ??
-            0,
-
-          currency:
-            payment.currency ??
-            'INR',
-
-          status:
-            'already_refunded',
-
-          paymentId:
-            payment.razorpayPaymentId,
+          amount: payment.refund?.amount ?? payment.amount ?? 0,
+          currency: payment.currency ?? 'INR',
+          status: 'already_refunded',
+          paymentId: payment.razorpayPaymentId,
         };
-      } else if (
-        paymentStatus ===
-        'PAID'
-      ) {
-        const paymentId =
-          payment.razorpayPaymentId;
+      } else if (paymentStatus === 'PAID') {
+        const paymentId = payment.razorpayPaymentId;
 
         if (!paymentId) {
           throw new HttpError(
@@ -2000,12 +1670,9 @@ export class AdminBookingsController {
           );
         }
 
-        const refundAmount =
-          payment.amount ?? 0;
+        const refundAmount = payment.amount ?? 0;
 
-        if (
-          refundAmount <= 0
-        ) {
+        if (refundAmount <= 0) {
           throw new HttpError(
             400,
             'Refund amount must be greater than zero',
@@ -2013,16 +1680,11 @@ export class AdminBookingsController {
           );
         }
 
-        const refundCurrency =
-          payment.currency ??
-          'INR';
+        const refundCurrency = payment.currency ?? 'INR';
 
-        const paymentDocument =
-          await PaymentModel.findOne({
-            bookingId,
-          }).sort({
-            createdAt: -1,
-          });
+        const paymentDocument = await PaymentModel.findOne({
+          bookingId,
+        }).sort({ createdAt: -1 });
 
         if (!paymentDocument) {
           throw new HttpError(
@@ -2033,75 +1695,44 @@ export class AdminBookingsController {
         }
 
         paymentDocument.refund = {
-          status:
-            'requested',
-
-          amount:
-            refundAmount,
-
-          requestedAt:
-            new Date(),
+          status: 'requested',
+          amount: refundAmount,
+          requestedAt: new Date(),
         };
 
         await paymentDocument.save();
 
         try {
-          await getRazorpay()
-            .payments
-            .refund(
-              paymentId,
-              {
-                amount:
-                  Math.round(
-                    refundAmount *
-                      100,
-                  ),
-              },
-            );
+          await getRazorpay().payments.refund(paymentId, {
+            amount: Math.round(refundAmount * 100),
+          });
 
-          paymentDocument.status =
-            'REFUNDED';
-
+          paymentDocument.status = 'REFUNDED';
           paymentDocument.refund = {
-            status:
-              'processed',
-
-            amount:
-              refundAmount,
-
+            status: 'processed',
+            amount: refundAmount,
             requestedAt:
-              paymentDocument
-                .refund
-                ?.requestedAt ??
-              new Date(),
+              paymentDocument.refund?.requestedAt ?? new Date(),
           };
 
           await paymentDocument.save();
 
           refundResult = {
             eligible: true,
-
-            amount:
-              refundAmount,
-
-            currency:
-              refundCurrency,
-
-            status:
-              'processed',
-
+            amount: refundAmount,
+            currency: refundCurrency,
+            status: 'processed',
             paymentId,
           };
-        } catch {
+        } catch (error) {
           paymentDocument.refund = {
-            status:
-              'rejected',
-
-            amount:
-              refundAmount,
+            status: 'rejected',
+            amount: refundAmount,
           };
 
           await paymentDocument.save();
+
+          console.error('[AdminBookings] Razorpay refund failed:', error);
 
           throw new HttpError(
             502,
@@ -2115,36 +1746,21 @@ export class AdminBookingsController {
     applyTransition(
       booking,
       'cancelled_by_admin',
-      {
-        role: 'admin',
-        id: user.id,
-      },
+      { role: 'admin', id: user.id },
       trimmedReason,
     );
 
     const latestHistoryEntry =
-      booking.statusHistory[
-        booking.statusHistory.length - 1
-      ];
+      booking.statusHistory[booking.statusHistory.length - 1];
 
     await BookingModel.updateOne(
-      {
-        _id:
-          booking._id,
-      },
+      { _id: booking._id },
       {
         $set: {
-          status:
-            'cancelled_by_admin',
-
-          cancellationReason:
-            trimmedReason,
+          status: 'cancelled_by_admin',
+          cancellationReason: trimmedReason,
         },
-
-        $push: {
-          statusHistory:
-            latestHistoryEntry,
-        },
+        $push: { statusHistory: latestHistoryEntry },
       },
     ).exec();
 
@@ -2162,12 +1778,9 @@ export class AdminBookingsController {
       },
     );
 
-    const updatedBooking =
-      await BookingModel.findById(
-        bookingId,
-      )
-        .lean()
-        .exec();
+    const updatedBooking = await BookingModel.findById(bookingId)
+      .lean()
+      .exec();
 
     if (!updatedBooking) {
       throw new HttpError(
@@ -2177,27 +1790,19 @@ export class AdminBookingsController {
       );
     }
 
-    const latestPayment =
-      await this.getPaymentForBooking(
-        bookingId,
-      );
+    const latestPayment = await this.getPaymentForBooking(bookingId);
 
-    const data =
-      await this.buildBookingResponse(
-        updatedBooking as unknown as AdminBookingSource,
-        latestPayment,
-      );
+    const data = await this.buildBookingResponse(
+      updatedBooking as unknown as AdminBookingSource,
+      latestPayment,
+    );
 
     res.status(200).json({
       success: true,
-
       data,
-
-      refund:
-        refundResult,
+      refund: refundResult,
     });
   }
 }
 
-export const adminBookingsController =
-  new AdminBookingsController();
+export const adminBookingsController = new AdminBookingsController();
