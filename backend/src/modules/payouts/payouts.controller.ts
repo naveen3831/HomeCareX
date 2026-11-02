@@ -1,4 +1,3 @@
-
 import type { Request, Response } from 'express';
 import { getAuthUser } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
@@ -8,150 +7,35 @@ const getIp = (req: Request): string =>
   req.ip || req.socket.remoteAddress || 'unknown';
 
 const num = (value: unknown): number | undefined => {
-  if (value === undefined || value === '') {
-    return undefined;
-  }
-
+  if (value === undefined || value === '') return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
 const str = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.trim()
-    ? value.trim()
-    : undefined;
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
 export const payoutsController = {
-  /** POST /admin/payouts */
   async generate(req: Request, res: Response) {
     const admin = getAuthUser(req);
-
     const batch = await payoutsService.generateBatch({
       periodStart: String(req.body?.periodStart ?? ''),
       periodEnd: String(req.body?.periodEnd ?? ''),
       adminId: admin.id,
       ip: getIp(req),
     });
-
     sendSuccess(res, batch, { status: 201 });
   },
 
-  /** GET /admin/payouts?page&limit&status */
-
-const num = (value: unknown): number | undefined =>
-  value === undefined || value === '' ? undefined : Number(value);
-
-const str = (value: unknown): string | undefined =>
-  typeof value === 'string' && value ? value : undefined;
-
-export const payoutsController = {
-  /** POST /admin/payout-batches or /admin/payouts  { periodStart, periodEnd } */
-  async generate(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-    const batch = await payoutsService.generateBatch({
-      periodStart: req.body?.periodStart,
-      periodEnd: req.body?.periodEnd,
-      adminId: admin.id,
-      ip: getIp(req),
-    });
-    sendSuccess(res, batch, { status: 201 });
-  },
-
-  /** GET /admin/payout-batches or /admin/payouts?page&limit&status */
   async list(req: Request, res: Response) {
     const result = await payoutsService.listBatches({
       page: num(req.query.page),
       limit: num(req.query.limit),
       status: str(req.query.status),
     });
-
-    sendSuccess(res, result.items, {
-      meta: { pagination: result.pagination },
-    });
-  },
-
-  /** GET /admin/payouts/:id */
-  async get(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, batch);
-  },
-
-  /** Compatibility alias for existing routes */
-  async getBatch(req: Request, res: Response) {
-    const batch = await payoutsService.getBatch(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, batch);
-  },
-
-  /** GET /admin/payouts/:id/payouts */
-  async listPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, payouts);
-  },
-
-  /** Compatibility alias for existing routes */
-  async listBatchPayouts(req: Request, res: Response) {
-    const payouts = await payoutsService.listPayouts(
-      String(req.params.id),
-    );
-
-    sendSuccess(res, payouts);
-  },
-
-  /**
-   * Mark an individual payout as paid.
-   * The current service supports markPaid(), not general status transitions.
-   */
-  async markPaid(req: Request, res: Response) {
-    const admin = getAuthUser(req);
-
-    const payout = await payoutsService.markPaid({
-      payoutId: String(req.params.id),
-      adminId: admin.id,
-      ip: getIp(req),
-      transactionId: str(req.body?.transactionId),
-    });
-
-    sendSuccess(res, payout);
-  },
-
-  /**
-   * GET /admin/payouts/export?batchId=<batchId>
-   * GET /admin/payouts/:id/export
-   */
-  async exportCsv(req: Request, res: Response) {
-    const batchId =
-      str(req.params.id) ?? str(req.query.batchId);
-
-    if (!batchId) {
-      res.status(400).json({
-        success: false,
-        message: 'batchId is required to export payouts',
-      });
-      return;
-    }
-
-    const { csv, filename } =
-      await payoutsService.exportCsv(batchId);
-
-    res.status(200);
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"`,
-    );
     sendSuccess(res, result.items, { meta: { pagination: result.pagination } });
   },
 
-  /** GET /admin/payout-batches/:id or /admin/payouts/:id */
   async get(req: Request, res: Response) {
     sendSuccess(res, await payoutsService.getBatch(String(req.params.id)));
   },
@@ -160,7 +44,6 @@ export const payoutsController = {
     return this.get(req, res);
   },
 
-  /** GET /admin/payout-batches/:id/payouts or /admin/payouts/:id/payouts */
   async listPayouts(req: Request, res: Response) {
     sendSuccess(res, await payoutsService.listPayouts(String(req.params.id)));
   },
@@ -169,7 +52,6 @@ export const payoutsController = {
     return this.listPayouts(req, res);
   },
 
-  /** PATCH /admin/payouts/:id/mark-paid or PATCH /admin/payouts/:id  { transactionId? } */
   async markPaid(req: Request, res: Response) {
     const admin = getAuthUser(req);
     sendSuccess(
@@ -184,15 +66,26 @@ export const payoutsController = {
   },
 
   async updateStatus(req: Request, res: Response) {
-    return this.markPaid(req, res);
+    const admin = getAuthUser(req);
+    sendSuccess(
+      res,
+      await payoutsService.updateStatus({
+        payoutId: String(req.params.id),
+        status: req.body?.status,
+        adminId: admin.id,
+        ip: getIp(req),
+      }),
+    );
   },
 
-  /** GET /admin/payout-batches/:id/export or /admin/payouts/:id/export (CSV download) */
   async exportCsv(req: Request, res: Response) {
-    const result = await payoutsService.exportCsv(str(req.params.id));
+    const batchId = str(req.params.id) ?? str(req.query.batchId);
+    const result = await payoutsService.exportCsv(batchId);
     const csv = typeof result === 'string' ? result : result.csv;
     const filename =
       typeof result === 'string' ? 'payouts.csv' : result.filename;
+
+    res.status(200);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);

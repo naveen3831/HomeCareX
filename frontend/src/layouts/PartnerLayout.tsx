@@ -1,4 +1,4 @@
-import {
+﻿import {
   useState,
   useEffect,
   useCallback,
@@ -414,12 +414,10 @@ const NAV_GROUPS: { groupName: string; keys: string[] }[] = [
 function PartnerSidebar({
   collapsed,
   currentKey,
-  currentLabel,
   onToggle,
 }: {
   collapsed: boolean;
   currentKey?: string;
-  currentLabel?: string;
   onToggle: () => void;
 }) {
   const { pathname } = useLocation();
@@ -519,9 +517,7 @@ function PartnerSidebar({
         </div>
 
         {!collapsed && (
-          <p className="sidebar-brand__guide">
-            {currentLabel ? `Partner / ${currentLabel}` : "Partner Console"}
-          </p>
+          <p className="sidebar-brand__guide">Partner Dashboard</p>
         )}
       </div>
 
@@ -856,7 +852,6 @@ export default function PartnerLayout() {
         <PartnerSidebar
           collapsed={collapsed}
           currentKey={current?.key}
-          currentLabel={current?.label}
           onToggle={() => setCollapsedPref((value) => !value)}
         />
 
@@ -882,23 +877,6 @@ export default function PartnerLayout() {
                   <ArrowLeft size={20} aria-hidden="true" />
                 </button>
               )}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCollapsedPref((value) => !value)
-                }
-                aria-label={
-                  collapsed ? "Expand sidebar" : "Collapse sidebar"
-                }
-                className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen size={20} aria-hidden="true" />
-                ) : (
-                  <PanelLeftClose size={20} aria-hidden="true" />
-                )}
-              </button>
 
               <h1 className="truncate text-base font-semibold text-[#4338ca] sm:text-lg">
                 {title}

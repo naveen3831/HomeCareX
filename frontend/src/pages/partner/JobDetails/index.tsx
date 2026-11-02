@@ -79,15 +79,6 @@ export default function JobDetailsPage() {
   const navigate = useNavigate();
   const online = useOnline();
 
-  const authCtx = useContext(AuthContext);
-  const storeUserId = useAuthStore((s) => s.user?.id);
-  const user = authCtx?.user ?? (typeof storeUserId === 'string' ? { id: storeUserId } : null);
-  const [partnerAssignedServices, setPartnerAssignedServices] = useState<
-    Array<{ id: string; name: string; slug: string }>
-  >([]);
-
-  // /partner/jobs/:id  -> that job's details.
-  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
   // If route has an explicit :id (/partner/jobs/:id), open details directly;
   // If on /partner/work (no :id), first show Assigned Service Cards.
   const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));

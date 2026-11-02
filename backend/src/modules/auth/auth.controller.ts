@@ -6,17 +6,8 @@ import type {
 } from 'express';
 
 import { authService } from './auth.service';
- 
-import {
-
 import {
   acceptInviteSchema,
- 
-  inviteStaffSchema,
-  verifyInviteSchema,
-
-  changePasswordSchema,
-  forgotPasswordSchema,
   changePasswordSchema,
   forgotPasswordSchema,
   inviteStaffSchema,
@@ -28,7 +19,6 @@ import {
   verifyInviteSchema,
   verifyOtpSchema,
 } from './auth.validation';
-
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_PATH,
@@ -43,18 +33,12 @@ const cookieOptions = (): CookieOptions => ({
   maxAge: REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
 });
 
-/**
- * Read a cookie without requiring cookie-parser.
- */
-export function readCookie(
-  req: Request,
-  name: string,
-): string | undefined {
+/** Read a cookie without requiring cookie-parser. */
+export function readCookie(req: Request, name: string): string | undefined {
   const cookieHeader = req.headers.cookie ?? '';
 
   for (const part of cookieHeader.split(';')) {
     const [key, ...rest] = part.trim().split('=');
-
     if (key === name) {
       try {
         return decodeURIComponent(rest.join('='));
@@ -68,13 +52,8 @@ export function readCookie(
 }
 
 const clearRefreshCookies = (res: Response): void => {
-  res.clearCookie(REFRESH_COOKIE, {
-    path: REFRESH_COOKIE_PATH,
-  });
-
-  res.clearCookie(REFRESH_COOKIE, {
-    path: '/',
-  });
+  res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+  res.clearCookie(REFRESH_COOKIE, { path: '/' });
 };
 
 const wrap = (
@@ -106,11 +85,7 @@ export const authController = {
 
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
-
-    res.json({
-      success: true,
-      data: { user, accessToken },
-    });
+    res.json({ success: true, data: { user, accessToken } });
   }),
 
   register: wrap(async (req, res) => {
@@ -119,16 +94,11 @@ export const authController = {
 
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
-
-    res.status(201).json({
-      success: true,
-      data: { user, accessToken },
-    });
+    res.status(201).json({ success: true, data: { user, accessToken } });
   }),
 
   refresh: wrap(async (req, res) => {
     const token = readCookie(req, REFRESH_COOKIE);
-
     if (!token) {
       res.status(401).json({
         success: false,
@@ -140,13 +110,8 @@ export const authController = {
     try {
       const { user, accessToken, refreshToken } =
         await authService.refresh(token);
-
       res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
-
-      res.json({
-        success: true,
-        data: { user, accessToken },
-      });
+      res.json({ success: true, data: { user, accessToken } });
     } catch (error) {
       clearRefreshCookies(res);
       throw error;
@@ -155,23 +120,16 @@ export const authController = {
 
   logout: wrap(async (req, res) => {
     await authService.logout(readCookie(req, REFRESH_COOKIE));
-
     clearRefreshCookies(res);
-
-    res.json({
-      success: true,
-      data: null,
-    });
+    res.json({ success: true, data: null });
   }),
 
   changePassword: wrap(async (req, res) => {
     const userId = getAuthenticatedUserId(res);
     const input = parseBody(changePasswordSchema, req.body);
-
     const data = await authService.changePassword(userId, input);
 
     clearRefreshCookies(res);
-
     res.json({
       success: true,
       data,
@@ -181,18 +139,13 @@ export const authController = {
 
   me: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
-
-    res.json({
-      success: true,
-      data: await authService.me(userId),
-    });
+    res.json({ success: true, data: await authService.me(userId) });
   }),
 
   forgotPassword: wrap(async (req, res) => {
     const result = await authService.forgotPassword(
       parseBody(forgotPasswordSchema, req.body),
     );
-
     res.json(result);
   }),
 
@@ -200,7 +153,6 @@ export const authController = {
     const result = await authService.verifyOtp(
       parseBody(verifyOtpSchema, req.body),
     );
-
     res.json(result);
   }),
 
@@ -208,7 +160,6 @@ export const authController = {
     const result = await authService.resendOtp(
       parseBody(resendOtpSchema, req.body),
     );
-
     res.json(result);
   }),
 
@@ -216,174 +167,70 @@ export const authController = {
     const result = await authService.resetPassword(
       parseBody(resetPasswordSchema, req.body),
     );
-
     clearRefreshCookies(res);
     res.json(result);
   }),
 
-  /**
-   * Individual session records are not implemented yet.
-   */
-  getSessions: wrap(async (_req, res) => {
-    getAuthenticatedUserId(res);
-
-    res.status(501).json({
-      success: false,
-      message: 'Individual session listing is not implemented yet.',
+  getSessions: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const sessions = await authService.getSessions(userId, {
+      userAgent: req.get('user-agent'),
+      ip: req.ip,
+      currentSid: res.locals.auth?.sid,
     });
+    res.json({ success: true, data: sessions });
   }),
 
-  /**
-   * Individual session revocation requires persistent session records.
-   */
-  revokeSession: wrap(async (_req, res) => {
-    res.status(501).json({
-      success: false,
-      message: 'Individual session revocation is not implemented yet.',
-    });
+  revokeSession: wrap(async (req, res) => {
+    const userId = getAuthenticatedUserId(res);
+    const result = await authService.revokeSession(
+      userId,
+      req.params.id,
+      res.locals.auth?.sid,
+    );
+    if (result.isCurrent) clearRefreshCookies(res);
+    res.json({ success: true, data: result, message: result.message });
   }),
 
-  /**
-   * Invalidate refresh tokens for the currently authenticated user.
-   */
   logoutAll: wrap(async (_req, res) => {
     const userId = getAuthenticatedUserId(res);
-    const result = await authService.revokeUserSessions(userId);
-
-        parseBody(
-          resetPasswordSchema,
-          req.body,
-        ),
-      );
-    res.json(result);
-  }),
-  /** POST /api/v1/auth/verify-invite */
-  verifyInvite: wrap(async (req, res) => {
-    const payload = parseBody(verifyInviteSchema, req.body);
-    const result = await authService.verifyInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-
-  /** POST /api/v1/auth/accept-invite */
-  acceptInvite: wrap(async (req, res) => {
-    const payload = parseBody(acceptInviteSchema, req.body);
-    const result = await authService.acceptInvite(payload);
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  }),
-  /** POST /api/v1/auth/change-password */
-  changePassword: wrap(async (req, res) => {
-    const userId = res.locals.auth?.sub || req.user?.id;
-    const { currentPassword, newPassword } = parseBody(changePasswordSchema, req.body);
-    const data = await authService.changePassword(userId, { currentPassword, newPassword });
-    res.json({ success: true, data, message: 'Password updated' });
+    const result = await authService.logoutAll(userId);
     clearRefreshCookies(res);
-
-    res.json({
-      success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
-    });
+    res.json({ success: true, data: result, message: result.message });
   }),
 
-  /**
-   * Admin endpoint: revoke refresh tokens for a specified user.
-   * Protect this route with admin authorization middleware.
-   */
   revokeUserSessions: wrap(async (req, res) => {
     const userId = req.params.userId ?? req.params.id;
-
     if (!userId) {
-      res.status(400).json({
-        success: false,
-        message: 'User ID is required.',
-      });
+      res.status(400).json({ success: false, message: 'User ID is required.' });
       return;
     }
 
     const result = await authService.revokeUserSessions(userId);
-
-    res.json({
-      success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
-    });
+    res.json({ success: true, data: result, message: result.message });
   }),
 
-
-  /** POST /api/v1/auth/revoke-user-sessions/:userId (admin) */
-  revokeUserSessions: wrap(async (req, res) => {
-    const { userId } = req.params;
-
-    const result = await authService.revokeUserSessions(userId);
-
-    res.json({
-      success: true,
-      data: {
-        revokedSessionsCount: result.revokedSessionsCount,
-      },
-      message: result.message,
-    });
-  }),
-};
-  /**
-   * POST /api/v1/admin/staff
-   * Admin authorization must be applied by the route.
-   */
   inviteStaff: wrap(async (req, res) => {
-    const invitedBy =
-      String(
-        (res.locals.auth as { sub?: string } | undefined)?.sub ?? '',
-      ) || undefined;
-
+    const invitedBy = res.locals.auth?.sub;
     const data = await authService.inviteStaff(
       parseBody(inviteStaffSchema, req.body),
-      invitedBy,
+      typeof invitedBy === 'string' ? invitedBy : undefined,
     );
-
-    res.status(201).json({
-      success: true,
-      data,
-    });
+    res.status(201).json({ success: true, data });
   }),
 
-  /**
-   * POST /api/v1/auth/verify-invite
-   */
   verifyInvite: wrap(async (req, res) => {
     const data = await authService.verifyInvite(
       parseBody(verifyInviteSchema, req.body),
     );
-
-    res.json({
-      success: true,
-      data,
-    });
+    res.json({ success: true, data });
   }),
 
-  /**
-   * POST /api/v1/auth/accept-invite
-   */
   acceptInvite: wrap(async (req, res) => {
-    await authService.acceptInvite(
+    const data = await authService.acceptInvite(
       parseBody(acceptInviteSchema, req.body),
     );
-
-    res.json({
-      success: true,
-      data: { ok: true },
-    });
+    res.json({ success: true, data });
   }),
 };
 

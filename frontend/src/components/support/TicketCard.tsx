@@ -7,7 +7,6 @@ import {
 } from '@/features/support/types';
 
 export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
-  const id = ticket.id || '';
   const id = ticket.id || (ticket as { _id?: string })._id || '';
   return (
     <li className="hcx-support-ticket">

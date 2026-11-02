@@ -124,14 +124,6 @@ async function canJoinBooking(
         _id: bookingId,
         partnerId: partner._id,
       }),
-    return (
-      Boolean(partner) &&
-      Boolean(
-        await BookingModel.exists({
-          _id: bookingId,
-          partnerId: partner?._id,
-        }),
-      )
     );
   }
 
@@ -256,36 +248,6 @@ export const initSockets = (server: HttpServer): Server => {
         }
       },
     );
-      if (!parsed.success) {
-        return reply({
-          ok: false,
-          code: ERROR_CODES.VALIDATION_ERROR,
-          message: 'bookingId is required',
-        });
-      }
-
-      try {
-        const allowed = await canJoinBooking(auth, parsed.data.bookingId);
-
-        if (!allowed) {
-          return reply({
-            ok: false,
-            code: ERROR_CODES.RESOURCE_FORBIDDEN,
-            message: 'You cannot join this booking',
-          });
-        }
-
-        await socket.join(rooms.booking(parsed.data.bookingId));
-
-        return reply({ ok: true });
-      } catch {
-        return reply({
-          ok: false,
-          code: ERROR_CODES.INTERNAL_ERROR,
-          message: 'Could not join booking',
-        });
-      }
-    });
 
     // Leave a booking room.
     socket.on('booking:leave', (payload: unknown) => {

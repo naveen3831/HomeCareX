@@ -57,17 +57,6 @@ const firstValue = (...values: unknown[]): string => {
   return "";
 };
 
-const getErrorMessage = (error: unknown): string => {
-  const root = asObject(error);
-  const response = asObject(root.response);
-  const data = asObject(response.data);
-  return firstValue(data.message, data.error, root.message, "Something went wrong. Please try again.");
-};
-
-const getPayload = (response: unknown): unknown => {
-  const root = asObject(response);
-  const body = asObject(root.data ?? response);
-  return body.data ?? body;
 const getErrorMessage = (error: unknown): string =>
   firstValue(
     (error as { response?: { data?: { message?: string; error?: string } }; message?: string })?.response?.data?.message,
@@ -125,11 +114,12 @@ const normalizePayoutStatus = (value: unknown): PayoutStatus => {
 
 const normalizeBatch = (item: unknown): PayoutBatch => {
   const raw = asObject(item);
+  const period = asObject(raw.period);
 
   return {
     id: firstValue(raw._id, raw.id, raw.batchId),
-    periodStart: firstValue(raw.periodStart, raw.startDate, asObject(raw.period).from),
-    periodEnd: firstValue(raw.periodEnd, raw.endDate, asObject(raw.period).to),
+    periodStart: firstValue(raw.periodStart, raw.startDate, period.from),
+    periodEnd: firstValue(raw.periodEnd, raw.endDate, period.to),
     gross: Number(raw.gross ?? 0),
     commission: Number(raw.commission ?? 0),
     net: Number(raw.net ?? 0),
@@ -271,7 +261,6 @@ export const AdminPayoutsPage: React.FC = () => {
       setBatches(rows);
 
       const serverPagination = asObject(asObject(payload).pagination);
-      const serverPagination = asObject(payload?.pagination);
       const total = Number(serverPagination.total ?? rows.length);
       setPagination({
         page: Number(serverPagination.page ?? page),
@@ -301,13 +290,13 @@ export const AdminPayoutsPage: React.FC = () => {
 
       const batchPayload = getPayload(batchResponse);
       const payoutPayload = getPayload(payoutsResponse);
-
       const batchRecord = asObject(batchPayload);
+
       const batchData =
         batchRecord.batch ??
         batchRecord.item ??
         batchRecord.data ??
-        batchRecord;
+        batchPayload;
 
       const normalizedBatch = normalizeBatch(batchData);
 
