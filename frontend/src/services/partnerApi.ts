@@ -14,10 +14,48 @@ import type {
 } from "@/types/partner";
 
 import type { PartnerDetails, AccountStatus } from "@/types/adminPartner";
+import { PARTNER_DETAILS } from "@/mocks/partnerDetails";
 
 /* =========================================================
    Config
    ========================================================= */
+
+/** "true" serves the demo partners from mocks/partnerDetails.ts when no live record exists. */
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
+
+const PARTNER_CACHE_KEY = "homecarex_admin_partner_cache_v1";
+
+function readPartnerCache(): Record<string, PartnerDetails> {
+  try {
+    const raw = window.localStorage.getItem(PARTNER_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, PartnerDetails>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Demo partner with this id, if there is one. */
+function getMockPartner(id: string): PartnerDetails | undefined {
+  return PARTNER_DETAILS.find((partner) => partner.id === id) as PartnerDetails | undefined;
+}
+
+/** Partner we already know about: the cached live record first, then (in mock mode) the demo one. */
+function getCurrentPartner(id: string): PartnerDetails | undefined {
+  return readPartnerCache()[id] ?? (USE_MOCKS ? getMockPartner(id) : undefined);
+}
+
+/** Remembers a partner so the details page can reuse its full structure next time. */
+function savePartner(partner: PartnerDetails): void {
+  try {
+    window.localStorage.setItem(
+      PARTNER_CACHE_KEY,
+      JSON.stringify({ ...readPartnerCache(), [partner.id]: partner }),
+    );
+  } catch {
+    /* storage full or blocked: the record just is not cached */
+  }
+}
 
 /* =========================================================
    Types
@@ -56,14 +94,6 @@ export interface PartnerMutationResult {
 /* =========================================================
    Helpers
    ========================================================= */
-
-const delay = (milliseconds: number) =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(resolve, milliseconds);
-  });
-
-const httpStatus = (error: unknown): number | undefined =>
-  (error as { response?: { status?: number } })?.response?.status;
 
 const httpMessage = (error: unknown, fallback: string): string =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||

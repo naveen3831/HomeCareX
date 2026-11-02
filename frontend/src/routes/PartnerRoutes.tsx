@@ -34,6 +34,8 @@ import "../styles/mobile-plain.css";
 import SettingsHome from "../pages/partner/Settings/SettingsHome";
 import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
 import PartnerSafetyPage from "../pages/partner/Safety";
+import PartnerOnboardingPage from "../pages/partner/Onboarding";
+import OnboardingGate from "../pages/partner/Onboarding/OnboardingGate";
 
 // Placeholder for pages that have not been implemented yet.
 const Placeholder = ({ title }: { title: string }) => (
@@ -101,7 +103,9 @@ const REAL_ROUTE_PATHS = new Set([
 export default function PartnerRoutes() {
   return (
     <Routes>
-      <Route element={<PartnerLayout />}>
+      {/* Full-screen demo: outside the gated layout so the gate cannot redirect it to itself. */}
+      <Route path="onboarding" element={<PartnerOnboardingPage />} />
+      <Route element={<OnboardingGate><PartnerLayout /></OnboardingGate>}>
         {/* =====================================================
             Partner Dashboard
         ===================================================== */}

@@ -11,6 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -390,6 +391,11 @@ const AdminPartnerDetailsPage: React.FC =
             </span>
           </div>
         </div>
+
+        <TrainingApprovalCard
+          partnerId={partner.id}
+          canApprove={hasKycApprovalPermission}
+        />
 
         <div className="partner-details-summary">
           <div>
