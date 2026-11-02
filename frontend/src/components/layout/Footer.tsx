@@ -27,8 +27,8 @@ const styles = `
   content: ""; position: absolute; left: 0; top: 50%; height: 2px; width: 0; border-radius: 2px;
   background: #ff8a3d; transform: translateY(-50%); transition: width .25s ease;
 }
-.ft-link:hover, .ft-link.is-active { color: #ffffff; padding-left: 16px; }
-.ft-link:hover::before, .ft-link.is-active::before { width: 10px; }
+.ft-link:hover, .ft-link.is-active { color: #ffffff; padding-left: 12px; }
+.ft-link:hover::before, .ft-link.is-active::before { width: 8px; }
 
 .hcx-ft a:focus-visible, .hcx-ft button:focus-visible { outline: 3px solid #ff8a3d; outline-offset: 3px; border-radius: 8px; }
 
@@ -89,18 +89,18 @@ const iconProps = {
 
 const icons = {
   phone: (
-    <svg {...iconProps} className="h-3.5 w-3.5">
+    <svg {...iconProps} className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5">
       <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z" />
     </svg>
   ),
   mail: (
-    <svg {...iconProps} className="h-3.5 w-3.5">
+    <svg {...iconProps} className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5">
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <path d="m22 7-10 6L2 7" />
     </svg>
   ),
   pin: (
-    <svg {...iconProps} className="h-3.5 w-3.5">
+    <svg {...iconProps} className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5">
       <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
@@ -188,11 +188,11 @@ const Footer: React.FC = () => {
       {/* Orange accent line on top */}
       <div className="h-1 w-full bg-gradient-to-r from-[#4338ca] via-[#ff8a3d] to-[#4338ca]" />
 
-      <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 pb-6 pt-10 sm:pt-12 sm:pb-7">
+      <div className="mx-auto max-w-7xl px-3.5 sm:px-8 lg:px-10 pb-24 md:pb-7 pt-10 sm:pt-12">
         {/* ================= FOOTER CONTENT ================= */}
-        <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 lg:gap-6">
+        <div className="grid gap-6 sm:gap-8 md:grid-cols-6 lg:gap-6">
           {/* ================= BRAND (LEFT SIDE - CLEAN WITHOUT CONTACT DETAILS) ================= */}
-          <div className="ft-col sm:col-span-2 md:col-span-3 lg:col-span-2" style={delay(0)}>
+          <div className="ft-col md:col-span-2" style={delay(0)}>
             <NavLink to="/" aria-label="HomeCareX Home" className="display inline-block text-2xl font-extrabold tracking-tight">
               HOME<span className="text-[#ff8a3d]">CARE</span>X
             </NavLink>
@@ -204,59 +204,61 @@ const Footer: React.FC = () => {
             </p>
           </div>
 
-          {/* ================= LINK COLUMNS (COMPANY, SERVICES, SUPPORT) ================= */}
-          {columns.map((col, i) => (
-            <nav key={col.title} className="ft-col" style={delay(i + 1)} aria-label={col.title}>
-              <h3 className="mb-3 text-sm font-bold text-white">{col.title}</h3>
-              <ul className="space-y-2.5 text-xs sm:text-sm">
-                {col.links.map((link) => (
-                  <li key={`${col.title}-${link.label}`}>
-                    <NavLink
-                      to={link.to}
-                      end={link.to === "/"}
-                      className={({ isActive }) => `ft-link ${isActive ? "is-active" : ""}`}
-                    >
-                      {link.label}
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ))}
+          {/* ================= LINK COLUMNS (COMPANY, SERVICES, SUPPORT, CONTACT US) IN A ROW ON MOBILE ================= */}
+          <div className="col-span-full grid grid-cols-[auto_auto_auto_1fr] gap-x-2.5 sm:grid-cols-4 sm:gap-x-6 md:contents">
+            {columns.map((col, i) => (
+              <nav key={col.title} className="ft-col min-w-0" style={delay(i + 1)} aria-label={col.title}>
+                <h3 className="mb-2 sm:mb-3 text-[11px] sm:text-sm font-bold text-white tracking-tight">{col.title}</h3>
+                <ul className="space-y-1.5 sm:space-y-2.5 text-[10px] sm:text-sm">
+                  {col.links.map((link) => (
+                    <li key={`${col.title}-${link.label}`} className="leading-snug">
+                      <NavLink
+                        to={link.to}
+                        end={link.to === "/"}
+                        className={({ isActive }) => `ft-link ${isActive ? "is-active" : ""}`}
+                      >
+                        {link.label}
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
 
-          {/* ================= CONTACT US (REPLACED LEGAL COLUMN) ================= */}
-          <div className="ft-col" style={delay(4)} aria-label="Contact Us">
-            <h3 className="mb-3 text-sm font-bold text-white">Contact Us</h3>
-            <ul className="space-y-2.5 text-xs sm:text-sm text-indigo-100">
-              <li>
-                <a
-                  href="tel:+919390212572"
-                  className="group inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-white"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a]">
-                    {icons.phone}
+            {/* ================= CONTACT US (4TH COLUMN IN THE SAME ROW) ================= */}
+            <div className="ft-col min-w-0 md:col-span-1" style={delay(4)} aria-label="Contact Us">
+              <h3 className="mb-2 sm:mb-3 text-[11px] sm:text-sm font-bold text-white tracking-tight">Contact Us</h3>
+              <ul className="space-y-1.5 sm:space-y-2.5 text-[10px] sm:text-sm text-indigo-100">
+                <li>
+                  <a
+                    href="tel:+919390212572"
+                    className="group flex items-start gap-1 sm:gap-2 transition-colors duration-200 hover:text-white"
+                  >
+                    <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a] mt-0.5">
+                      {icons.phone}
+                    </span>
+                    <span className="whitespace-nowrap sm:whitespace-normal leading-tight text-[9.5px] sm:text-sm">+91 9390212572</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:support@homecarex.com"
+                    className="group flex items-start gap-1 sm:gap-2 transition-colors duration-200 hover:text-white"
+                  >
+                    <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a] mt-0.5">
+                      {icons.mail}
+                    </span>
+                    <span className="break-all sm:break-normal leading-tight text-[9.5px] sm:text-sm">support@homecarex.com</span>
+                  </a>
+                </li>
+                <li className="flex items-center gap-1 sm:gap-2 text-indigo-100">
+                  <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d]">
+                    {icons.pin}
                   </span>
-                  +91 9390212572
-                </a>
-              </li>
-              <li>
-                <a
-                  href="mailto:support@homecarex.com"
-                  className="group inline-flex items-center gap-2.5 transition-colors duration-200 hover:text-white"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a]">
-                    {icons.mail}
-                  </span>
-                  support@homecarex.com
-                </a>
-              </li>
-              <li className="inline-flex items-center gap-2.5 text-indigo-100">
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d]">
-                  {icons.pin}
-                </span>
-                India
-              </li>
-            </ul>
+                  <span>India</span>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
 
@@ -265,11 +267,11 @@ const Footer: React.FC = () => {
           className="ft-col mt-8 border-t border-white/10 pt-5"
           style={delay(5)}
         >
-          {/* Row 1: Follow Us & Back to Top */}
-          <div className="flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-indigo-200">Follow us:</span>
-              <div className="flex items-center gap-2">
+          {/* Row 1: Follow Us & Back to Top IN THE SAME ROW ON MOBILE */}
+          <div className="flex flex-row items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-xs font-semibold text-indigo-200 shrink-0">Follow us:</span>
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {socials.map((s) => (
                   <a
                     key={s.label}
@@ -277,7 +279,7 @@ const Footer: React.FC = () => {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={s.label}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-indigo-100 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ff8a3d] hover:text-[#1b1b3a]"
+                    className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/5 text-indigo-100 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ff8a3d] hover:text-[#1b1b3a]"
                   >
                     {s.icon}
                   </a>
@@ -288,7 +290,8 @@ const Footer: React.FC = () => {
             <button
               type="button"
               onClick={scrollToTop}
-              className="group inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3.5 py-1.5 text-xs font-medium text-indigo-200 transition-all duration-200 hover:bg-[#ff8a3d] hover:text-[#1b1b3a]"
+              className="group inline-flex items-center gap-1 sm:gap-1.5 rounded-full bg-white/5 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-medium text-indigo-200 transition-all duration-200 hover:bg-[#ff8a3d] hover:text-[#1b1b3a] shrink-0"
+              aria-label="Scroll back to top"
             >
               <span>Back to top</span>
               <span className="transition-transform duration-200 group-hover:-translate-y-0.5" aria-hidden>

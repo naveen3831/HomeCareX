@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
 import PageLoader from "../components/common/PageLoader";
@@ -86,6 +86,12 @@ const PublicRoutes: React.FC = () => {
           <Route
             path={ROUTES.CONTACT}
             element={<Contact />}
+          />
+
+          {/* Support alias -> Contact */}
+          <Route
+            path="/support"
+            element={<Navigate to={ROUTES.CONTACT} replace />}
           />
 
           {/* Customer Reviews & Stories (Full Page) */}
