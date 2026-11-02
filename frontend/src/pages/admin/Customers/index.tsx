@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Inbox, Pencil, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Inbox, Pencil, Trash2 } from 'lucide-react';
 
 import { ConfirmDialog, DataTable, FilterBar, Modal, PageHeader, SearchInput, StatusBadge } from '@/components/admin';
 import type { Column, SortState } from '@/components/admin';
-import { useOverlay } from '@/hooks/useOverlay';
+import { FilterButton, FilterPanel, type FilterField } from '@/components/admin/FilterPanel';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { adminCustomerApi } from '@/services/adminCustomerApi';
 import type { AdminCustomerRow, CustomerListParams, CustomerSortKey, CustomerStatus } from '@/types/adminCustomer';
@@ -38,107 +37,14 @@ const STATUS_OPTIONS: { label: string; value: '' | CustomerStatus }[] = [
   { label: 'Blocked', value: 'blocked' },
 ];
 
+const FILTER_FIELDS: FilterField[] = [
+  { key: 'status', label: 'Status', options: STATUS_OPTIONS },
+  { key: 'sort', label: 'Sort by', options: SORT_OPTIONS.map((o) => ({ value: o.value, label: o.label })) },
+];
+
 const inr = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-
-/** Three sliders, drawn inline so it matches the icon you sent. */
-const FilterIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
-    <path d="M3 6h10.5M20.5 6H21" />
-    <circle cx="17" cy="6" r="2.6" />
-    <path d="M3 12h2.5M10.5 12H21" />
-    <circle cx="8" cy="12" r="2.6" />
-    <path d="M3 18h7.5M17.5 18H21" />
-    <circle cx="14" cy="18" r="2.6" />
-  </svg>
-);
-
-/** One chip in the filter sheet (pill, lavender when selected). */
-const FilterChip: React.FC<{ selected: boolean; onClick: () => void; children: React.ReactNode }> = ({ selected, onClick, children }) => (
-  <button type="button" className={`cm-chipbtn${selected ? ' is-selected' : ''}`} aria-pressed={selected} onClick={onClick}>
-    {children}
-  </button>
-);
-
-/**
- * The one filter icon. Opens a "Filters" sheet (bottom sheet on phones, right-hand panel on desktop)
- * with pill chips for status and sort, and a full-width "Show N customers" button.
- */
-const FilterMenu: React.FC<{
-  status: '' | CustomerStatus;
-  onStatus: (v: '' | CustomerStatus) => void;
-  sort: string;
-  onSort: (v: string) => void;
-  total?: number;
-}> = ({ status, onStatus, sort, onSort, total }) => {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
-  const panelRef = useOverlay<HTMLDivElement>(open, close);
-  const applied = (status ? 1 : 0) + (sort ? 1 : 0);
-  const subtitle = applied === 0 ? 'No filters applied' : `${applied} ${applied === 1 ? 'filter' : 'filters'} applied`;
-  const clearAll = () => { onStatus(''); onSort(''); };
-
-  return (
-    <div className="cm-filter">
-      <button
-        type="button"
-        className={`cm-filter__btn${applied ? ' is-active' : ''}`}
-        onClick={() => setOpen(true)}
-        aria-label="Filter and sort"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-      >
-        <FilterIcon />
-        {applied > 0 && <span className="cm-filter__dot" aria-hidden />}
-      </button>
-      {open && createPortal(
-        <div className="cm-sheet-overlay" onMouseDown={(e) => e.target === e.currentTarget && close()}>
-          <div ref={panelRef} className="cm-sheet" role="dialog" aria-modal="true" aria-label="Filters" tabIndex={-1}>
-            <span className="cm-sheet__grab" aria-hidden />
-            <header className="cm-sheet__head">
-              <div>
-                <h2 className="cm-sheet__title">Filters</h2>
-                <p className="cm-sheet__sub" aria-live="polite">{subtitle}</p>
-              </div>
-              <div className="cm-sheet__head-actions">
-                {applied > 0 && <button type="button" className="cm-sheet__clear" onClick={clearAll}>Clear all</button>}
-                <button type="button" className="cm-sheet__close" onClick={close} aria-label="Close filters"><X size={20} aria-hidden /></button>
-              </div>
-            </header>
-
-            <div className="cm-sheet__body">
-              <section className="cm-sheet__section" aria-labelledby="cm-f-status">
-                <h3 id="cm-f-status" className="cm-sheet__label">Status</h3>
-                <div className="cm-sheet__chips">
-                  {STATUS_OPTIONS.map((o) => (
-                    <FilterChip key={o.value || 'all'} selected={status === o.value} onClick={() => onStatus(o.value)}>{o.label}</FilterChip>
-                  ))}
-                </div>
-              </section>
-              <hr className="cm-sheet__rule" />
-              <section className="cm-sheet__section" aria-labelledby="cm-f-sort">
-                <h3 id="cm-f-sort" className="cm-sheet__label">Sort by</h3>
-                <div className="cm-sheet__chips">
-                  {SORT_OPTIONS.map((o) => (
-                    <FilterChip key={o.value || 'default'} selected={sort === o.value} onClick={() => onSort(o.value)}>{o.label}</FilterChip>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <footer className="cm-sheet__foot">
-              <button type="button" className="cm-sheet__cta" onClick={close}>
-                {total === undefined ? 'Show customers' : `Show ${total} ${total === 1 ? 'customer' : 'customers'}`}
-              </button>
-            </footer>
-          </div>
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-};
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -261,6 +167,7 @@ export const AdminCustomersPage: React.FC = () => {
   const [status, setStatus] = useState<'' | CustomerStatus>('');
   const [sort, setSort] = useState<SortState | null>(null); // null = server default (newest first)
   const [page, setPage] = useState(1);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0]);
   const [editing, setEditing] = useState<AdminCustomerRow | null>(null);
   const [removing, setRemoving] = useState<AdminCustomerRow | null>(null);
@@ -428,8 +335,19 @@ export const AdminCustomersPage: React.FC = () => {
             onChange={(v) => { setSearch(v); setPage(1); }}
             placeholder="Search name, email or phone"
           />
-          <FilterMenu status={status} onStatus={changeStatus} sort={sortValue} onSort={changeSort} total={query.data?.total} />
+          <FilterButton count={(status ? 1 : 0) + (sort ? 1 : 0)} open={filterOpen} onClick={() => setFilterOpen((o) => !o)} />
         </div>
+
+        <FilterPanel
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          fields={FILTER_FIELDS}
+          values={{ status, sort: sortValue }}
+          onApply={(v) => {
+            changeStatus(v.status === 'active' || v.status === 'blocked' ? v.status : '');
+            changeSort(v.sort ?? '');
+          }}
+        />
 
         {notice && <div className="cm-notice" role="status">{notice}</div>}
 
@@ -493,8 +411,19 @@ export const AdminCustomersPage: React.FC = () => {
         activeCount={activeFilters}
         onReset={resetFilters}
       >
-        <FilterMenu status={status} onStatus={changeStatus} sort={sortValue} onSort={changeSort} total={query.data?.total} />
+        <FilterButton count={(status ? 1 : 0) + (sort ? 1 : 0)} open={filterOpen} onClick={() => setFilterOpen((o) => !o)} />
       </FilterBar>
+
+      <FilterPanel
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        fields={FILTER_FIELDS}
+        values={{ status, sort: sortValue }}
+        onApply={(v) => {
+          changeStatus(v.status === 'active' || v.status === 'blocked' ? v.status : '');
+          changeSort(v.sort ?? '');
+        }}
+      />
 
       {notice && <div className="cm-notice" role="status">{notice}</div>}
 

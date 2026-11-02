@@ -161,3 +161,11 @@
 @media (prefers-reduced-motion: reduce) {
   .payout-page *, .payout-page *::before, .payout-page *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+/* Desktop: table fits the card (no sideways scroll). Phones / small tablets scroll inside the card. */
+@media (max-width: 900px) {
+  .payout-table { width: max-content; min-width: 960px; }
+  .payout-table th,
+  .payout-table td { white-space: nowrap; }
+  .payout-period-cell { white-space: nowrap; }
+}

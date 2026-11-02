@@ -134,11 +134,11 @@ export const authController = {
       );
 
     clearRefreshCookies(res);
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions());
+    res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions());
 
     res.status(201).json({
       success: true,
-      data: { user, accessToken },
+      data: { user: result.user, accessToken: result.accessToken },
     });
   }),
 

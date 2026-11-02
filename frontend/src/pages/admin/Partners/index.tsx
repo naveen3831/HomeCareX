@@ -260,6 +260,7 @@ const AdminPartnersPage: React.FC = () => {
       key: "email",
       header: "Email",
       sortValue: (row) => row.email,
+      cell: (row) => <span title={row.email}>{row.email}</span>,
     },
     {
       key: "kycStatus",
@@ -330,6 +331,7 @@ const AdminPartnersPage: React.FC = () => {
         <Link
           to={`/admin/partners/${row.id}`}
           className="partner-view-btn"
+          onClick={(event) => event.stopPropagation()}
         >
           View
         </Link>

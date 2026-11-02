@@ -157,7 +157,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     async (input: RegisterInput) => {
       const { user: u, accessToken } = await authApi.register(input);
 
-      applySession(u, accessToken, "authenticated");
+      // Partners register without a session (an admin must approve them first).
+      if (accessToken) {
+        applySession(u, accessToken, "authenticated");
+      }
 
       return u;
     },

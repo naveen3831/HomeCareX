@@ -628,7 +628,7 @@ const AdminReportsPage: React.FC = () => {
                   <th
                     scope="col"
                     key={column}
-                    className="whitespace-nowrap px-4 py-3 font-semibold"
+                    className="px-4 py-3 font-semibold"
                   >
                     {labels[column] || column}
                   </th>
@@ -687,7 +687,7 @@ const AdminReportsPage: React.FC = () => {
                             ? String(value)
                             : undefined
                         }
-                        className={`whitespace-nowrap px-4 py-3 ${
+                        className={`px-4 py-3 ${
                           isIdentifier ? 'report-id-cell' : ''
                         }`}
                       >
@@ -705,7 +705,7 @@ const AdminReportsPage: React.FC = () => {
   };
 
   return (
-    <main className="admin-page-container p-4 sm:p-6">
+    <main className="admin-page-container reports-page p-4 sm:p-6">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">
           Admin Reports

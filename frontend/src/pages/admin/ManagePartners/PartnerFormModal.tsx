@@ -52,7 +52,7 @@ export const PartnerFormModal: React.FC<Props> = ({ open, suspended, partner, de
         gender: partner.gender ?? '',
         password: '',
       });
-      setStatus(partner.status);
+      setStatus(partner.status === 'blocked' ? 'blocked' : 'active');
     } else {
       setForm(EMPTY);
       setStatus('active');
@@ -84,7 +84,7 @@ export const PartnerFormModal: React.FC<Props> = ({ open, suspended, partner, de
         if (form.designation !== (partner.designation ?? '')) changes.designation = form.designation;
         if (form.phone.trim() !== (partner.phone ?? '')) changes.phone = form.phone.trim();
         if (form.gender && form.gender !== partner.gender) changes.gender = form.gender as 'male' | 'female' | 'other';
-        if (status !== partner.status) changes.status = status;
+        if (status !== (partner.status === 'blocked' ? 'blocked' : 'active')) changes.status = status;
         if (Object.keys(changes).length === 0) return onClose();
         await adminApi.updatePartner(partner.id, changes);
         onSaved(`${form.name.trim()} was updated.`, 'success');

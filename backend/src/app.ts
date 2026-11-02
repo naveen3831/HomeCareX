@@ -17,6 +17,8 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 // Catalog forms send resized images as data: URLs, so these two admin routes get a larger JSON limit.
 // Must come before the global parser: express.json() skips a request that is already parsed.
 app.use(['/api/v1/admin/services', '/api/v1/admin/categories'], express.json({ limit: '6mb' }));
+// Partner registration carries two KYC files (max 5MB each) as base64 data: URLs.
+app.use('/api/v1/auth/register', express.json({ limit: '20mb' }));
 
 // Keep the exact bytes of the body: the payment webhook signature is an HMAC over the RAW request.
 app.use(

@@ -1,11 +1,15 @@
 
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Types } from 'mongoose';
 
 import BookingModel from '../../models/Booking';
 import CategoryModel from '../../models/Category';
 import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
+import PayoutModel from '../../models/Payout';
+import ReviewModel from '../../models/Review';
+import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
 
@@ -14,6 +18,10 @@ import { HttpError } from '../auth/auth.types';
 import { designationsService } from '../designations/designations.service';
 import { mailService } from '../../services/mail.service';
 import { auditService } from '../audit/audit.service';
+import { readKycDocument } from './kyc-storage';
+
+/** The set-password link in the approval email works this long. */
+const APPROVAL_LINK_HOURS = 72;
 
 import type {
   CreatePartnerInput,
@@ -317,10 +325,11 @@ export class PartnersService {
       .limit(500);
 
     for (const partner of partners) {
-      await ensurePartnerProfile(partner._id);
+      const profile = await ensurePartnerProfile(partner._id);
+      kycByUser.set(String(partner._id), String(profile.kyc?.status ?? 'not_started'));
     }
 
-    return partners.map(toDto);
+    return partners.map((p) => toDto(p, kycByUser.get(String(p._id))));
   }
 
   /**
@@ -710,7 +719,9 @@ export class PartnersService {
       after: partnerAuditSnapshot(user),
     });
 
-    return toDto(user);
+    const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.status').lean();
+
+    return toDto(user, String(profile?.kyc?.status ?? 'not_started'));
   }
 
   /**
