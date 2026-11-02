@@ -768,19 +768,21 @@ export class AdminBookingsController {
         pincode:
           address?.pincode ?? '',
       },
+slot: {
+  date:
+    booking.date ??
+    scheduledAt,
 
-      slot: {
-        date:
-          booking.date ??
-          scheduledAt,
+  // booking.slot is "HH:mm-HH:mm"; split it so the UI gets a real start and end time.
+  startTime:
+    booking.slot?.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/)?.[1] ??
+    booking.slot ??
+    scheduledAt,
 
-        startTime:
-          booking.slot ??
-          scheduledAt,
-
-        endTime:
-          scheduledAt,
-      },
+  endTime:
+    booking.slot?.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/)?.[2] ??
+    scheduledAt,
+},
 
       pricing: {
         baseAmount:

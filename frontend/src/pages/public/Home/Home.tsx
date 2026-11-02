@@ -435,10 +435,12 @@ const PopularCategories: React.FC = () => {
               id={c.slug}
               name={c.name}
               description={c.description || `Trusted ${c.name.toLowerCase()} professionals at your doorstep.`}
-              image={serviceImageFor(c.name)}
+              image={c.imageUrl || serviceImageFor(c.name)}
+              fallbackImage={serviceImageFor(c.name)}
               serviceCount={c.serviceCount}
               link={`/services?category=${encodeURIComponent(c.slug)}`}
               icon={c.icon || undefined}
+              iconUrl={c.iconUrl || undefined}
             />
           </Reveal>
         ))}

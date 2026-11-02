@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { Icon3D, tintAt } from "@/components/customer";
+import { CategoryIcon, Icon3D, tintAt } from "@/components/customer";
 import type { DashboardCategoryDto } from "@/features/customer";
 
 /** Shown instead of the booking-related sections when a customer has never booked. */
@@ -21,7 +21,7 @@ export default function NewCustomerEmptyState({ categories }: { categories: Dash
             to={customerPath("/services")}
             className={clsx("group rounded-2xl p-3 transition-transform duration-300 hover:-translate-y-1", tintAt(i), FOCUS_RING)}
           >
-            <Icon3D hints={[c.icon, c.name, c.slug]} size={44} delay={i * -0.8} className="mx-auto" />
+            <CategoryIcon iconUrl={c.iconUrl} hints={[c.icon, c.name, c.slug]} size={44} delay={i * -0.8} className="mx-auto" />
             <div className="mt-1.5 truncate text-xs font-medium text-ink">{c.name}</div>
           </Link>
         ))}

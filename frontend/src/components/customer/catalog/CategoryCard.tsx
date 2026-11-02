@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { categoryVisual } from "@/pages/customer/Shared/visuals";
 import type { CatalogCategory } from "@/types/catalog";
-import Icon3D from "../Icon3D";
+import CategoryIcon from "../CategoryIcon";
 import { FOCUS_RING } from "../focusRing";
 import { plural } from "./format";
 
@@ -24,8 +24,9 @@ interface Props {
  */
 export function CategoryCard({ category: c, index, featured = false }: Props) {
   const v = categoryVisual(c.slug);
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const photo = v.image && !photoFailed ? v.image : null;
+  // The admin's cover photo first; the built-in photo (by slug) only while the admin has not set one or it fails to load.
+  const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
+  const photo = [c.imageUrl?.trim(), v.image].find((src): src is string => !!src && !failedPhotos.includes(src)) ?? null;
   const hints = [c.icon, c.name, c.slug];
 
   return (
@@ -46,8 +47,8 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
             alt=""
             loading={index < 4 ? "eager" : "lazy"}
             decoding="async"
-            onError={() => setPhotoFailed(true)}
-            style={{ objectPosition: v.focus }}
+            onError={() => setFailedPhotos((list) => [...list, photo])}
+            style={{ objectPosition: photo === v.image ? v.focus : undefined }}
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-transparent from-35% to-[#0F0C28]/80" />
@@ -58,11 +59,12 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
               featured ? "h-14 w-14 md:h-16 md:w-16" : "h-10 w-10 md:h-12 md:w-12",
             )}
           >
-            <Icon3D hints={hints} size={featured ? 44 : 30} float={false} />
+            <CategoryIcon iconUrl={c.iconUrl} hints={hints} size={featured ? 44 : 30} float={false} />
           </span>
         </>
       ) : (
-        <Icon3D
+        <CategoryIcon
+          iconUrl={c.iconUrl}
           hints={hints}
           size={featured ? 150 : 96}
           delay={index * 0.65}

@@ -66,7 +66,7 @@ export default function PartnerTopBar({
           <Bell className="h-5 w-5" aria-hidden="true" />
           {unread > 0 && (
             <span aria-hidden="true" className="absolute right-1 top-1 h-4 min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-medium leading-4 text-white">
-              {unread > 9 ? "9+" : unread}
+              {unread}
             </span>
           )}
         </Link>

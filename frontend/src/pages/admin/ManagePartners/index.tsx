@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/admin/StatusBadge';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useUIStore } from '@/store/useUIStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { TablePagination, usePagination } from '@/components/tables';
 import { adminApi, type Designation, type PartnerMember } from '../Services/adminApi'
 import type { ApiError } from '@/lib/http';
 import { PartnerFormModal } from './PartnerFormModal';
@@ -59,6 +60,7 @@ export const AdminManagePartnersPage: React.FC = () => {
       [p.name, p.designation, p.email, p.phone].some((v) => (v ?? '').toLowerCase().includes(needle)),
     );
   }, [partners, search]);
+  const pager = usePagination(visiblePartners, { resetKey: search });
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -155,8 +157,9 @@ export const AdminManagePartnersPage: React.FC = () => {
               : 'No partners match your search.'}
           </div>
         ) : (
+          <>
           <ul className="mp-list" aria-label="Partners">
-            {visiblePartners.map((s) => (
+            {pager.pageItems.map((s) => (
               <li key={s.id} className="mp-card">
                 <div className="mp-card__head">
                   <span className="mp-avatar" aria-hidden>{initials(s.name)}</span>
@@ -182,6 +185,8 @@ export const AdminManagePartnersPage: React.FC = () => {
               </li>
             ))}
           </ul>
+          <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label="partners" />
+          </>
         )
       ) : (
       <div className="hcx-table-card">
@@ -209,7 +214,7 @@ export const AdminManagePartnersPage: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  visiblePartners.map((s) => (
+                  pager.pageItems.map((s) => (
                     <tr key={s.id}>
                       <td>{s.name}</td>
                       <td>{s.designation ?? '—'}</td>
@@ -240,6 +245,9 @@ export const AdminManagePartnersPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {!loading && (
+            <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label="partners" />
+          )}
         </div>
       )}
 

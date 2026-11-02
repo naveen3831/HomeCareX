@@ -177,9 +177,8 @@ const adminRoutes: AdminRoute[] = [
 
   { path: "payouts", element: <AdminPayoutsPage /> },
 
-  // Quality and reporting
-  { path: "reviews", element: <AdminReviewsPage /> },
-  { path: "reports", element: <AdminReportsPage /> },
+  // Operations: customer reviews. Viewing needs reviews:view; hide / restore inside the page needs reviews:moderate.
+  { path: "reviews", element: <AdminReviewsPage />, permission: "reviews:view" },
 
   // Roles
   {

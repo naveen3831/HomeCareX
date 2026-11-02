@@ -145,6 +145,13 @@ export const CategoryFormDrawer: React.FC<Props> = ({ open, editing, presetParen
             file={iconFile} currentUrl={form.iconUrl} shape="square" label="Upload icon" maxSizeMB={1} disabled={saving}
             onChange={(f) => void pickIcon(f)} onRemoveCurrent={() => set('iconUrl', undefined)}
           />
+          <label className="cat-field">
+            <span>Emoji icon <small>used when no icon image is uploaded</small></span>
+            <input
+              value={form.icon} maxLength={8} disabled={saving} placeholder="e.g. 🧹"
+              onChange={(e) => set('icon', e.target.value)}
+            />
+          </label>
         </section>
 
         <section className="cat-form__sec">
@@ -159,7 +166,7 @@ export const CategoryFormDrawer: React.FC<Props> = ({ open, editing, presetParen
             <div className="cat-preview__cover">
               {coverUrl ? <img src={coverUrl} alt="Cover preview" /> : <span><ImageIcon size={22} />No cover image</span>}
               <span className="cat-preview__icon">
-                {form.iconUrl ? <img src={form.iconUrl} alt="Icon preview" /> : <FolderTree size={16} />}
+                {form.iconUrl ? <img src={form.iconUrl} alt="Icon preview" /> : form.icon ? <span className="cat-icon__emoji">{form.icon}</span> : <FolderTree size={16} />}
               </span>
               <span className={`cat-preview__state ${form.active ? 'is-on' : ''}`}>{form.active ? 'Active' : 'Inactive'}</span>
             </div>

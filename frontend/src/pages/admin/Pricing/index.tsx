@@ -24,6 +24,7 @@ import {
 import clsx from "clsx";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { TablePagination, usePagination } from "@/components/tables";
 import { FullScreenPanel } from "@/components/admin/FullScreenPanel";
 import {
   AuditDiffDrawer,
@@ -195,6 +196,9 @@ export const AdminPricingPage: React.FC = () => {
       ].some((v) => v.toLowerCase().includes(needle));
     });
   }, [rules, search, statusFilter, modeFilter, cityFilter, serviceName, categoryName]);
+  const pager = usePagination(visible, {
+    resetKey: `${search}|${statusFilter}|${modeFilter}|${cityFilter}`,
+  });
 
   const filtersActive = statusFilter !== "all" || modeFilter !== null || cityFilter !== "" || search.trim() !== "";
   const clearFilters = () => {
@@ -596,7 +600,7 @@ export const AdminPricingPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {visible.map((r) => {
+                {pager.pageItems.map((r) => {
                   const busy = busyIds.has(r.id);
                   const name = labelFor(r);
                   return (
@@ -699,6 +703,7 @@ export const AdminPricingPage: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label="pricing rules" />
         </div>
       )}
 

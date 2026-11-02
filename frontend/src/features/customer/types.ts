@@ -48,6 +48,10 @@ export interface DashboardCategoryDto {
   name: string;
   slug: string;
   icon: string | null;
+  /** Cover photo the admin set in Categories ('' or missing: use the built-in photo). */
+  imageUrl?: string;
+  /** Icon image the admin uploaded ('' or missing: use the 3D icon). */
+  iconUrl?: string;
   serviceCount: number;
 }
 

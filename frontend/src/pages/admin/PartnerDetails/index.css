@@ -821,3 +821,116 @@
     width: 100%;
   }
 }
+
+/* Long values (emails) must wrap inside their card instead of overflowing it */
+.partner-details-summary > div,
+.detail-grid > div {
+  min-width: 0;
+}
+
+.partner-details-summary span,
+.detail-grid span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Training review */
+.document-status.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.partner-status.training-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.partner-status.training-approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.partner-status.training-rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.partner-status.training-not-submitted {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.training-note {
+  margin: 12px 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.training-rejected {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 14px;
+}
+
+.training-rejected p {
+  margin: 6px 0 0;
+}
+
+
+/* Status pills. Defined here too: this page can be opened directly (or reloaded) without the
+   Partners list page, which is the only other place these styles were loaded from. */
+.partner-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 25px;
+  padding: 4px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.partner-status.approved,
+.partner-status.active {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.partner-status.rejected,
+.partner-status.blocked {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.partner-status.pending,
+.partner-status.submitted,
+.partner-status.in_review,
+.partner-status.invited,
+.partner-status.inactive {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #a16207;
+}
+
+.partner-status.not_started {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.partner-status.suspended {
+  border-color: #ddd6fe;
+  background: #f5f3ff;
+  color: #6d28d9;
+}

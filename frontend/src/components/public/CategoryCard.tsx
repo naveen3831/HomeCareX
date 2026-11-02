@@ -10,6 +10,10 @@ interface CategoryCardProps {
   link: string;
   /** Optional emoji or short icon shown on the image, e.g. "🔧" */
   icon?: string;
+  /** Icon image the admin uploaded; wins over the emoji when set. */
+  iconUrl?: string;
+  /** Used when `image` fails to load (e.g. the admin's upload is gone). */
+  fallbackImage?: string;
 }
 
 const prefersReducedMotion = () =>
@@ -52,7 +56,13 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
   serviceCount,
   link,
   icon,
+  iconUrl,
+  fallbackImage,
 }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const [iconFailed, setIconFailed] = useState(false);
+  const shownImage = imageFailed && fallbackImage ? fallbackImage : image;
+  const shownIconUrl = iconUrl && !iconFailed ? iconUrl : "";
   const cardRef = useRef<HTMLAnchorElement | null>(null);
   const [inView, setInView] = useState(false);
   const count = useCountUp(serviceCount, inView);
@@ -108,11 +118,12 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
     >
       {/* ---------- Photo ---------- */}
       <img
-        src={image}
+        src={shownImage}
         alt=""
         loading="lazy"
         decoding="async"
         draggable={false}
+        onError={() => setImageFailed(true)}
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-[900ms] ease-out group-hover:scale-110 motion-reduce:transform-none motion-reduce:transition-none"
       />
 
@@ -144,12 +155,22 @@ const CategoryCard: React.FC<CategoryCardProps> = ({
           {count} {label}
         </span>
 
-        {icon && (
+        {(shownIconUrl || icon) && (
           <span
             className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl shadow-lg transition duration-500 group-hover:-rotate-12 group-hover:scale-110 group-hover:bg-[#ff8a3d] motion-reduce:transform-none motion-reduce:transition-none"
             aria-hidden
           >
-            {icon}
+            {shownIconUrl ? (
+              <img
+                src={shownIconUrl}
+                alt=""
+                draggable={false}
+                onError={() => setIconFailed(true)}
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              icon
+            )}
           </span>
         )}
       </div>

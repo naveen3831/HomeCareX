@@ -23,6 +23,7 @@ import { ServiceForm, type CategoryOption } from '@/components/admin/ServiceForm
 import { ServicePreview } from '@/components/admin/ServicePreview';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useUIStore } from '@/store/useUIStore';
+import { TablePagination, usePagination } from '@/components/tables';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { adminServiceApi, getServiceApiMode, getServiceApiModeReason, type ServiceApiError } from '@/services/adminServiceApi';
 import { adminCategoryApi } from './adminCategoryApi';
@@ -178,6 +179,8 @@ export const AdminServicesPage: React.FC = () => {
       return [s.name, s.slug, s.categoryName].some((v) => (v ?? '').toLowerCase().includes(needle));
     });
   }, [ordered, categories, search, categoryParam]);
+  const pager = usePagination(visible, { resetKey: `${search}|${categoryParam}` });
+  const pageOffset = (pager.page - 1) * pager.pageSize;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -390,12 +393,12 @@ export const AdminServicesPage: React.FC = () => {
             />
           )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
-            <SortableContext items={visible.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={pager.pageItems.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               <div className="cat-tree">
                 <ul className="cat-list" aria-label="Services">
-                  {visible.map((s, i) => (
+                  {pager.pageItems.map((s, i) => (
                     <ServiceRow
-                      key={s.id} s={s} index={i} count={visible.length} busy={busyIds.has(s.id)} reorderEnabled={reorderEnabled}
+                      key={s.id} s={s} index={pageOffset + i} count={visible.length} busy={busyIds.has(s.id)} reorderEnabled={reorderEnabled}
                       canManage={canManage} online={online}
                       selected={selectedIds.has(s.id)}
                       onSelect={(checked) => setSelectedIds((prev) => { const n = new Set(prev); if (checked) n.add(s.id); else n.delete(s.id); return n; })}
@@ -408,6 +411,7 @@ export const AdminServicesPage: React.FC = () => {
             </SortableContext>
             <DragOverlay>{activeSvc && <div className="cat-overlay"><GripVertical size={16} /><strong>{activeSvc.name}</strong></div>}</DragOverlay>
           </DndContext>
+          <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label="services" />
         </>
       )}
 

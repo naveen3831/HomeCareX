@@ -3,7 +3,7 @@ import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
 import { HttpError } from '../auth/auth.types';
 import { slugify, uniqueSlug } from '../../utils/slug';
-import { SEED_CATEGORIES } from './categories.constants';
+import { DEFAULT_CATEGORY_MEDIA, SEED_CATEGORIES } from './categories.constants';
 import { categoryCreateSchema, categoryReorderSchema, categoryUpdateSchema } from './categories.validation';
 import type { CategoryDto } from './categories.types';
 
@@ -79,6 +79,8 @@ export async function seedDefaultCategories() {
       continue;
     }
 
+    const media = DEFAULT_CATEGORY_MEDIA[category.slug];
+
     await CategoryModel.create({
       _id: category.id,
       name: category.name,
@@ -87,6 +89,12 @@ export async function seedDefaultCategories() {
       description: category.description,
       sortOrder: index,
       active: true,
+      ...(media
+        ? {
+            iconUrl: media.iconUrl,
+            images: [{ url: media.image, alt: category.name, isPrimary: true }],
+          }
+        : {}),
     });
   }
 }

@@ -15,7 +15,12 @@ const oid = () => new Types.ObjectId();
 const CLEAN = oid(), REPAIR = oid(), HIDDEN = oid();
 const categories: (CategoryRow & { active: boolean })[] = [
   { _id: REPAIR, name: 'Appliance Repair', slug: 'appliance-repair', sortOrder: 2, active: true },
-  { _id: CLEAN, name: 'Home Cleaning', slug: 'home-cleaning', sortOrder: 1, active: true },
+  {
+    _id: CLEAN, name: 'Home Cleaning', slug: 'home-cleaning', sortOrder: 1, active: true,
+    iconUrl: '/icons/3d/broom.png',
+    // The admin's Primary image is the cover even when it is not first in the list.
+    images: [{ url: '/images/extra.jpg', isPrimary: false }, { url: '/images/cover.jpg', isPrimary: true }],
+  },
   { _id: HIDDEN, name: 'Hidden', slug: 'hidden', sortOrder: 0, active: false },
 ];
 type Doc = ServiceRow & { active: boolean; bookingsCount: number; createdAt: Date; __v: number };
@@ -76,7 +81,7 @@ interface Svc {
   id: string; slug: string; basePrice: number; durationMinutes: number; rating: number; availability: string;
   category: Record<string, string>;
 }
-interface Cat { slug: string; serviceCount: number; fromPrice: number; popular: boolean }
+interface Cat { slug: string; serviceCount: number; fromPrice: number; popular: boolean; imageUrl: string; iconUrl: string }
 interface Body<T> {
   success: boolean; code?: string; details?: unknown[];
   meta: { page: number; limit: number; total: number; totalPages: number };
@@ -248,12 +253,23 @@ test('GET /categories: active only, admin order, public fields, service counts',
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.data.map((c: { slug: string }) => c.slug), ['home-cleaning', 'appliance-repair']);
   assert.equal(r.body.data[0].serviceCount, 11);
-  assert.deepEqual(Object.keys(r.body.data[0]).sort(), ['description', 'fromPrice', 'icon', 'id', 'name', 'popular', 'serviceCount', 'slug', 'sortOrder']);
+  assert.deepEqual(Object.keys(r.body.data[0]).sort(), ['description', 'fromPrice', 'icon', 'iconUrl', 'id', 'imageUrl', 'name', 'popular', 'serviceCount', 'slug', 'sortOrder']);
   assert.equal(r.body.data[0].fromPrice, 100); // cheapest active service in Home Cleaning (svc-1)
   assert.equal(r.body.data.filter((c) => c.popular).length, 1, 'exactly one most-booked category');
   assert.equal(r.body.data.find((c) => c.popular)?.slug, 'appliance-repair'); // higher bookings than Home Cleaning
   assert.ok(!JSON.stringify(r.body).includes('bookings'), 'raw booking counts must not be exposed');
   assert.ok(!JSON.stringify(r.body).includes('active'));
+});
+
+test('GET /categories: carries the admin cover (primary image) and icon, and never the whole gallery', async () => {
+  const r = await get<Cat[]>('/categories');
+  const clean = r.body.data.find((c) => c.slug === 'home-cleaning');
+  const repair = r.body.data.find((c) => c.slug === 'appliance-repair');
+  assert.equal(clean?.imageUrl, '/images/cover.jpg');
+  assert.equal(clean?.iconUrl, '/icons/3d/broom.png');
+  assert.equal(repair?.imageUrl, ''); // nothing uploaded: the sites fall back to their built-in photo
+  assert.equal(repair?.iconUrl, '');
+  assert.ok(!JSON.stringify(r.body).includes('extra.jpg'), 'only the cover is sent, not every gallery image');
 });
 
 test('GET /services/:idOrSlug: found by slug, 404 for inactive, 400 for malformed', async () => {

@@ -8,6 +8,7 @@ import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
 import ReviewModel from '../../models/Review';
+import ServiceAreaModel from '../../models/ServiceArea';
 import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
@@ -245,6 +246,18 @@ export async function ensurePartnerProfile(
  * PARTNERS SERVICE
  * ---------------------------------------------------------
  */
+/**
+ * City shown on the admin Partners & KYC pages. Prefer what the partner gave at registration, then
+ * their service area, then the city of their latest booking (older partners have nothing stored).
+ */
+function resolveCity(...candidates: Array<string | null | undefined>): string {
+  for (const c of candidates) {
+    const v = typeof c === 'string' ? c.trim() : '';
+    if (v) return v;
+  }
+  return '';
+}
+
 export class PartnersService {
   /**
    * CREATE PARTNER
@@ -378,7 +391,7 @@ export class PartnersService {
     const partners = await PartnerModel.find({}).sort({ createdAt: -1 }).limit(500).lean();
     const userIds = partners.map((p) => p.userId);
 
-    const [users, lastCities, categories] = await Promise.all([
+    const [users, lastCities, categories, serviceAreas] = await Promise.all([
       UserModel.find({ _id: { $in: userIds }, role: 'partner' }).select('name email phone status designation').lean(),
       // A partner has no address of their own: use the city of their most recent booking.
       BookingModel.aggregate<{ _id: unknown; city?: string }>([
@@ -387,8 +400,10 @@ export class PartnersService {
         { $group: { _id: '$partnerId', city: { $first: '$address.city' } } },
       ]),
       CategoryModel.find({}).select('name').lean(),
+      ServiceAreaModel.find({ partnerId: { $in: partners.map((p) => p._id) } }).select('partnerId cities').lean(),
     ]);
 
+    const areaCityByPartner = new Map(serviceAreas.map((a) => [String(a.partnerId), a.cities?.[0] ?? '']));
     const userById = new Map(users.map((u) => [String(u._id), u]));
     const cityByPartner = new Map(lastCities.map((r) => [String(r._id), r.city ?? '']));
     const categoryName = new Map(categories.map((c) => [String(c._id), c.name as string]));
@@ -408,7 +423,7 @@ export class PartnersService {
           kycStatus: p.kyc?.status ?? 'not_started',
           accountStatus: user.status === 'blocked' ? 'blocked' : user.status === 'invited' ? 'invited' : 'active',
           category: (p.categories ?? []).map((c) => categoryName.get(String(c))).filter(Boolean).join(', ') || user.designation || '',
-          city: cityByPartner.get(String(p._id)) ?? '',
+          city: resolveCity(p.address?.city, areaCityByPartner.get(String(p._id)), cityByPartner.get(String(p._id))),
           rating: Math.round((p.ratingAvg ?? 0) * 10) / 10,
           ratingCount: p.ratingCount ?? 0,
           acceptance: pct(stats.offersAccepted, stats.offersReceived),
@@ -445,7 +460,15 @@ export class PartnersService {
     const kyc = profile.kyc ?? ({} as NonNullable<typeof profile.kyc>);
     const kycRaw = String(kyc.status ?? 'not_started');
     const docs = kyc.documents ?? [];
-    const city = bookings.find((b) => b.address?.city)?.address?.city ?? '';
+    const serviceArea = await ServiceAreaModel.findOne({ partnerId: profile._id }).select('cities').lean();
+    const city = resolveCity(
+      profile.address?.city,
+      serviceArea?.cities?.[0],
+      bookings.find((b) => b.address?.city)?.address?.city,
+    );
+    const address = [profile.address?.line1, profile.address?.city, profile.address?.state, profile.address?.pincode]
+      .filter(Boolean)
+      .join(', ');
     const categoryNames = categories.map((c) => String(c.name));
 
     // Earnings per month from completed bookings.
@@ -469,7 +492,7 @@ export class PartnersService {
       category: categoryNames[0] ?? user.designation ?? '',
       categories: categoryNames.length ? categoryNames : user.designation ? [user.designation] : [],
       city,
-      address: city,
+      address: address || city,
       rating: Math.round((profile.ratingAvg ?? 0) * 10) / 10,
       acceptance: pct(stats.offersAccepted, stats.offersReceived),
       completion: pct(stats.jobsCompleted, stats.jobsAssigned),

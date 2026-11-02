@@ -846,14 +846,14 @@
 
 /* Column widths: 9 percentage columns + fixed-px Details column */
 .admin-partners-container .partners-table-wrapper th:nth-child(1)  { width: 10%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(2)  { width: 15%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(2)  { width: 14%; }
 .admin-partners-container .partners-table-wrapper th:nth-child(3)  { width: 10.5%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(4)  { width: 11.5%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(5)  { width: 10%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(6)  { width: 5%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(7)  { width: 7%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(8)  { width: 10%; }
-.admin-partners-container .partners-table-wrapper th:nth-child(9)  { width: 10%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(4)  { width: 9%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(5)  { width: 12%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(6)  { width: 9%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(7)  { width: 6%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(8)  { width: 9.5%; }
+.admin-partners-container .partners-table-wrapper th:nth-child(9)  { width: 9.5%; }
 .admin-partners-container .partners-table-wrapper th:nth-child(10) { width: 100px; min-width: 100px; }
 
 .admin-partners-container .partners-table-wrapper th,
@@ -873,8 +873,9 @@
   padding-left: 14px;
 }
 
-/* Category may wrap onto two lines */
-.admin-partners-container .partners-table-wrapper td:nth-child(5) {
+/* Category and City may wrap onto two lines instead of being cut off */
+.admin-partners-container .partners-table-wrapper td:nth-child(5),
+.admin-partners-container .partners-table-wrapper td:nth-child(6) {
   white-space: normal;
 }
 

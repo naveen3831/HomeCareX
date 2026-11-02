@@ -339,10 +339,18 @@ export const authService = {
           });
         }
 
+        const addressFields = {
+          ...(input.address?.trim() ? { 'address.line1': input.address.trim() } : {}),
+          ...(input.city?.trim() ? { 'address.city': input.city.trim() } : {}),
+          ...(input.state?.trim() ? { 'address.state': input.state.trim() } : {}),
+          ...(input.pincode?.trim() ? { 'address.pincode': input.pincode.trim() } : {}),
+        };
+
         await PartnerModel.findOneAndUpdate(
           { userId: user._id || user.id },
           {
             $set: {
+              ...addressFields,
               categories: categoryIds,
               services: serviceIds,
               skills: input.skills || [],

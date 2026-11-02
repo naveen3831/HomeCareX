@@ -26,7 +26,7 @@ export default function NotificationBell({ count = 0 }: NotificationBellProps) {
           aria-hidden="true"
           className="absolute -right-0.5 -top-0.5 h-[18px] min-w-[18px] rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-[18px] text-white ring-2 ring-white"
         >
-          {count > 9 ? "9+" : count}
+          {count}
         </span>
       )}
     </Link>

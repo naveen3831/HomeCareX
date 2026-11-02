@@ -20,6 +20,8 @@ import type {
   BookingStatus,
   PaymentStatus,
 } from "@/types/adminBooking";
+import { TablePagination, usePagination } from "@/components/tables";
+
 import "./index.css";
 
 /**
@@ -225,6 +227,11 @@ export default function Bookings() {
         ? bookingsCache.data
         : [],
     );
+
+  // 10 rows per page; back to page 1 whenever the applied filters change.
+  const pager = usePagination(bookings, {
+    resetKey: JSON.stringify(filters),
+  });
 
   // True once a fresh list has come back from the server (the cached list does not count).
   const [fetched, setFetched] =
@@ -1199,14 +1206,24 @@ export default function Bookings() {
               )}
             </div>
           ) : (
+          <>
           <BookingTable
             bookings={
-              bookings
+              pager.pageItems
             }
             onBookingSelect={
               handleBookingSelect
             }
           />
+          {bookings.length > 0 && (
+            <TablePagination
+              {...pager}
+              onPageChange={pager.setPage}
+              onPageSizeChange={pager.setPageSize}
+              label="bookings"
+            />
+          )}
+          </>
           )}
         </div>
 
