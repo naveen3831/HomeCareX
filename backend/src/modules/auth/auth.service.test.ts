@@ -141,7 +141,7 @@ test('email provider failure is logged without sensitive error details and regis
   const result = await authService.register(validInput);
 
   assert.equal(result.user.role, 'customer');
-  assert.ok(result.accessToken);
+  assert.ok('accessToken' in result && result.accessToken);
   assert.equal(logs.length, 1);
   assert.deepEqual(logs[0], ['Account-created email failed for user', result.user.id]);
   assert.equal(JSON.stringify(logs).includes('private-provider-secret'), false);

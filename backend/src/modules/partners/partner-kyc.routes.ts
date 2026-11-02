@@ -26,7 +26,8 @@ partnerKycRoutes.post(
     if (!partner) throw new HttpError(404, 'Partner profile not found', 'NOT_FOUND');
 
     const user = await UserModel.findById(id).select('name').lean();
-    alertKycSubmitted({ partnerId: String(partner._id), partnerName: user?.name });
+    // The admin UI opens /admin/partners/:id with the login user id, not the Partner profile id.
+    alertKycSubmitted({ partnerId: id, partnerName: user?.name });
 
     sendSuccess(res, { status: 'submitted' });
   }),

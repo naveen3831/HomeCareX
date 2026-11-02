@@ -1,5 +1,7 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   ArrowRight,
   CalendarDays,

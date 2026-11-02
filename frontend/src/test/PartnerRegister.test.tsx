@@ -220,7 +220,7 @@ describe('Partner Registration Flow Tests', () => {
   });
 
   // 8. Full Submission flow through Step 5
-  it('completes all steps, registers partner, clears session, and redirects to /login with verification notice', async () => {
+  it('completes all steps, registers partner with real file data, and redirects to /login with a pending-approval notice', async () => {
     const user = userEvent.setup();
     const { authValue } = renderWithAuth(<PartnerRegisterPage />);
 
@@ -240,7 +240,7 @@ describe('Partner Registration Flow Tests', () => {
     const fakeFile = new File(['fake id content'], 'aadhaar_card.pdf', { type: 'application/pdf' });
     const idFileInput = screen.getByLabelText(/upload id proof document/i);
     fireEvent.change(idFileInput, { target: { files: [fakeFile] } });
-    expect(screen.getByText('aadhaar_card.pdf')).toBeInTheDocument();
+    expect(await screen.findByText('aadhaar_card.pdf')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /continue to step 3/i }));
 
     // Step 3
@@ -250,7 +250,7 @@ describe('Partner Registration Flow Tests', () => {
     const fakeAddrFile = new File(['fake addr content'], 'electricity_bill.pdf', { type: 'application/pdf' });
     const addrFileInput = screen.getByLabelText(/upload address proof document/i);
     fireEvent.change(addrFileInput, { target: { files: [fakeAddrFile] } });
-    expect(screen.getByText('electricity_bill.pdf')).toBeInTheDocument();
+    expect(await screen.findByText('electricity_bill.pdf')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /continue to step 4/i }));
 
     // Step 4
@@ -284,16 +284,18 @@ describe('Partner Registration Flow Tests', () => {
           accountHolder: 'Ramesh Kumar',
           accountNumber: '1234567890123',
           ifsc: 'SBIN0001234',
+          // real file contents (base64 data URL), not a placeholder name
+          idProofDocument: expect.stringMatching(/^data:application\/pdf;base64,/),
+          addressProofDocument: expect.stringMatching(/^data:application\/pdf;base64,/),
         })
       );
-      expect(authValue.logout).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith(
         '/login?registered=partner',
         expect.objectContaining({
           replace: true,
           state: expect.objectContaining({
             registeredEmail: 'ramesh@example.com',
-            registeredMessage: expect.stringContaining('Registration successful!'),
+            registeredMessage: expect.stringContaining('Registration submitted!'),
           }),
         })
       );
@@ -325,6 +327,7 @@ describe('Partner Registration Flow Tests', () => {
     await user.type(screen.getByLabelText(/id proof number/i), '123456789012');
     const fakeFile = new File(['fake id'], 'id.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText(/upload id proof document/i), { target: { files: [fakeFile] } });
+    await screen.findByText('id.pdf'); // file is read asynchronously
     await user.click(screen.getByRole('button', { name: /continue to step 3/i }));
 
     // Step 3
@@ -332,6 +335,7 @@ describe('Partner Registration Flow Tests', () => {
     await user.type(screen.getByLabelText(/pincode/i), '500081');
     const fakeAddrFile = new File(['fake addr'], 'addr.pdf', { type: 'application/pdf' });
     fireEvent.change(screen.getByLabelText(/upload address proof document/i), { target: { files: [fakeAddrFile] } });
+    await screen.findByText('addr.pdf');
     await user.click(screen.getByRole('button', { name: /continue to step 4/i }));
 
     // Step 4
@@ -391,7 +395,7 @@ describe('Partner Registration Flow Tests', () => {
 
     expect(screen.getByRole('status')).toBeInTheDocument();
     expect(
-      screen.getByText(/registration successful! you can now log in with your credentials/i)
+      screen.getByText(/registration submitted! you can log in after an admin approves your documents/i)
     ).toBeInTheDocument();
   });
 });

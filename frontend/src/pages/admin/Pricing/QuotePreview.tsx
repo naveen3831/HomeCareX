@@ -148,7 +148,7 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
           </div>
           {scope.serviceId === null && (
             <label className="cat-field">
-              <span>Service to quote</span>
+              <span>Quote service</span>
               <select value={quoteServiceId} onChange={(e) => setServiceId(e.target.value)} disabled={!scope.categoryId}>
                 {categoryServices.length === 0 && <option value="">No services in this category</option>}
                 {categoryServices.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -209,23 +209,12 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
           {quote && (
             <div className="prc-qres" aria-live="polite">
               <div className="prc-qmeta">
-                <span className="prc-id">#{(quote.quoteId || '').split('-')[0]}</span>
-                {quote.expiresAt && (
-                  <span className="prc-validity">
-                    Valid for {Math.max(1, Math.ceil((new Date(quote.expiresAt).getTime() - Date.now()) / 60000))} minutes
-                  </span>
-                )}
                 {couponEndAt && (
                   <span className={clsx('prc-expiry', couponExpired && 'is-expired')}>
                     <Timer size={12} aria-hidden /> {couponExpired ? 'Coupon expired' : `Coupon valid till ${fmtDateTime(couponEndAt)}`}
                   </span>
                 )}
                 {quote.quoteId && <code title={quote.quoteId}>#{quote.quoteId.slice(0, 8)}</code>}
-                {quote.expiresAt && (
-                  <span className="prc-expiry">
-                    <Timer size={12} aria-hidden /> Quote valid for {Math.max(0, Math.ceil((new Date(quote.expiresAt).getTime() - Date.now()) / 60000))} min
-                  </span>
-                )}
                 <span className={clsx('prc-mode', quote.mode === 'HOURLY' && 'is-hourly')}>{quote.mode === 'HOURLY' ? 'per hour' : 'fixed'}</span>
               </div>
               <dl className="prc-bill">
@@ -236,7 +225,6 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
                 {quote.discount > 0 && <Row label={`Coupon ${quote.coupon?.code ?? ''}`} value={`− ${rupees(quote.discount)}`} accent />}
                 <Row label="Convenience fee" value={rupees(quote.convenienceFee)} muted />
                 <Row label="GST (18%)" value={rupees(quote.gst)} muted />
-                <div className="prc-row prc-row--total"><dt>Total</dt><dd>{rupees(quote.total)}</dd></div>
               </dl>
               {quote.couponError && (
                 <p className="prc-note prc-note--warn"><Ticket size={13} aria-hidden /> {COUPON_MESSAGES[quote.couponError.code] ?? (quote.couponError.code === 'COUPON_MIN_ORDER' ? `Minimum order is ${rupees(quote.couponError.minOrder ?? 0)}.` : 'The coupon was not applied.')}</p>

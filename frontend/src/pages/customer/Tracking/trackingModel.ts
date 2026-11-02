@@ -401,7 +401,7 @@ export function statusHeadline(status: string): string {
     case "assigned":
       return "Your partner has been assigned";
     case "en_route":
-      return "Your partner is on the way";
+      return "Your partner is en route";
     case "arrived":
       return "Your partner has arrived";
     case "in_progress":

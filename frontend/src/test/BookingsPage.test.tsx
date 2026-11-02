@@ -323,32 +323,34 @@ describe("My Bookings page", () => {
 });
 
 describe("Booking tabs", () => {
-  it("only displays Upcoming, Live, Completed, and Cancelled tabs", () => {
+  it("displays Upcoming, Live, Overdue, Completed, and Cancelled tabs", () => {
     listBookings.mockResolvedValue(page([]));
     renderPage();
     expect(screen.getByRole("tab", { name: "Upcoming" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Live" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overdue" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Completed" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Cancelled" })).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Overdue" })).not.toBeInTheDocument();
   });
 
-  it("falls back to Upcoming when a legacy overdue tab is requested", async () => {
+  it("opens the Overdue tab when ?tab=overdue is requested", async () => {
     listBookings.mockResolvedValue(page([]));
     renderPage("/customer/bookings?tab=overdue");
-    expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Overdue" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
   });
 
-  it("supports arrow, Home and End keys across all four tabs", async () => {
+  it("supports arrow, Home and End keys across all five tabs", async () => {
     const user = userEvent.setup();
     listBookings.mockResolvedValue(page([]));
     renderPage();
     await user.click(screen.getByRole("tab", { name: "Upcoming" }));
     await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "Live" })).toHaveFocus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "Overdue" })).toHaveFocus();
     await user.keyboard("{ArrowRight}");
     expect(screen.getByRole("tab", { name: "Completed" })).toHaveFocus();
     await user.keyboard("{End}");

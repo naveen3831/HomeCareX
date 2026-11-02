@@ -86,7 +86,7 @@ export function useRelatedServices(
 ) {
   const params: ServiceListParams = {
     category: categorySlug,
-    sort: "popular",
+    sort: "order",
     page: 1,
     limit: 4,
   };

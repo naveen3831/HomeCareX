@@ -12,14 +12,14 @@ import { usePermissions } from "@/hooks/usePermissions";
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
 
-import {
+import type {
   PartnerDetails as PartnerDetailsType,
-} from "../../../mocks/partnerDetails";
+  PartnerDocument,
+} from "@/types/adminPartner";
 
 import {
+  fetchKycDocumentBlob,
   getPartnerById,
-  notifyPartner,
-  recordPartnerAudit,
   updatePartnerKyc,
   updatePartnerStatus,
 } from "../../../services/partnerApi";
@@ -115,6 +115,9 @@ const AdminPartnerDetailsPage: React.FC =
     const [actionError, setActionError] =
       useState("");
 
+    const [notice, setNotice] =
+      useState("");
+
     const [rejectOpen, setRejectOpen] =
       useState(false);
 
@@ -201,28 +204,16 @@ const AdminPartnerDetailsPage: React.FC =
       try {
         setActionLoading(true);
         setActionError("");
+        setNotice("");
 
-        await updatePartnerKyc(
+        const result = await updatePartnerKyc(
           partner.id,
           {
             decision: "approve",
           }
         );
 
-        await notifyPartner(
-          partner.id,
-          "Your KYC has been approved."
-        );
-
-        await recordPartnerAudit(
-          partner.id,
-          "KYC_APPROVED",
-          {
-            previousStatus:
-              partner.kycStatus,
-            newStatus: "Approved",
-          }
-        );
+        setNotice(result.message);
 
         await refreshPartner();
       } catch (requestError) {
@@ -261,27 +252,12 @@ const AdminPartnerDetailsPage: React.FC =
       try {
         setActionLoading(true);
         setActionError("");
+        setNotice("");
 
         await updatePartnerKyc(
           partner.id,
           {
             decision: "reject",
-            reason,
-          }
-        );
-
-        await notifyPartner(
-          partner.id,
-          `Your KYC was rejected. Reason: ${reason}`
-        );
-
-        await recordPartnerAudit(
-          partner.id,
-          "KYC_REJECTED",
-          {
-            previousStatus:
-              partner.kycStatus,
-            newStatus: "Rejected",
             reason,
           }
         );
@@ -318,26 +294,12 @@ const AdminPartnerDetailsPage: React.FC =
       try {
         setActionLoading(true);
         setActionError("");
+        setNotice("");
 
         await updatePartnerStatus(
           partner.id,
           {
             status: "Suspended",
-          }
-        );
-
-        await notifyPartner(
-          partner.id,
-          "Your partner account has been suspended."
-        );
-
-        await recordPartnerAudit(
-          partner.id,
-          "PARTNER_SUSPENDED",
-          {
-            previousStatus:
-              partner.accountStatus,
-            newStatus: "Suspended",
           }
         );
 
@@ -479,6 +441,24 @@ const AdminPartnerDetailsPage: React.FC =
             role="alert"
           >
             {actionError}
+          </div>
+        )}
+
+        {notice && (
+          <div
+            className="partner-action-notice"
+            role="status"
+            style={{
+              margin: "12px 0",
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "#ecfdf5",
+              color: "#065f46",
+              border: "1px solid #a7f3d0",
+              fontSize: 14,
+            }}
+          >
+            {notice}
           </div>
         )}
 
@@ -817,14 +797,8 @@ const KycTab: React.FC<KycTabProps> = ({
                 </span>
               </div>
 
-              <DocumentViewer
-                url={document.url}
-                name={document.name}
-                mimeType={
-                  document.type === "pdf"
-                    ? "application/pdf"
-                    : "image/png"
-                }
+              <SecureDocument
+                document={document}
                 height={360}
               />
             </div>
@@ -834,6 +808,82 @@ const KycTab: React.FC<KycTabProps> = ({
     </section>
   </div>
 );
+
+/**
+ * Shows one KYC document. Stored files live behind an admin-only endpoint, so they are downloaded
+ * with the auth header and shown from a temporary blob: URL (an <img>/<iframe> pointing at the API
+ * path would get 401). Plain URLs are shown as they are.
+ */
+const SecureDocument: React.FC<{
+  document: PartnerDocument;
+  height?: number;
+}> = ({ document, height = 360 }) => {
+  const [blobUrl, setBlobUrl] = useState("");
+  const [mime, setMime] = useState("");
+  const [state, setState] = useState<"loading" | "ready" | "error">(
+    document.secure ? "loading" : "ready",
+  );
+
+  useEffect(() => {
+    if (!document.secure) {
+      setState("ready");
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl = "";
+    setState("loading");
+
+    fetchKycDocumentBlob(document.url)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+        setMime(blob.type);
+        setState("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setState("error");
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [document.secure, document.url]);
+
+  if (state === "loading") {
+    return (
+      <div className="hcx-docviewer-empty" style={{ height }} role="status">
+        Loading document...
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div className="hcx-docviewer-empty" style={{ height }} role="alert">
+        <strong>Document could not be loaded.</strong>
+        <p>The file may be missing on the server. Ask the partner to upload it again.</p>
+      </div>
+    );
+  }
+
+  return (
+    <DocumentViewer
+      url={document.secure ? blobUrl : document.url}
+      name={document.name}
+      mimeType={
+        document.secure
+          ? mime || (document.type === "pdf" ? "application/pdf" : "image/png")
+          : document.type === "pdf"
+            ? "application/pdf"
+            : "image/png"
+      }
+      height={height}
+    />
+  );
+};
 
 const CategoriesTab: React.FC<
   ProfileTabProps

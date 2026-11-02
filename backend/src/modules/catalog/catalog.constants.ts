@@ -1,6 +1,6 @@
 import { SERVICE_AVAILABILITY } from '../../models/Service';
 
-export const SERVICE_SORTS = ['popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance'] as const;
+export const SERVICE_SORTS = ['order', 'popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance'] as const;
 export type ServiceSort = (typeof SERVICE_SORTS)[number];
 
 export const AVAILABILITY_FILTERS = SERVICE_AVAILABILITY.filter((a) => a !== 'scheduled');

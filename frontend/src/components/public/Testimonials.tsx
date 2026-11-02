@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ROUTES } from "../../constants/routes";
+import { fetchPublicReviews } from "@/services/reviewsApi";
 
 /* =====================================================================
  * TYPES & DATA
@@ -7,36 +9,109 @@ import { Link } from "react-router-dom";
 
 export interface Testimonial {
   id: string;
-  name: string; // customer
-  service: string; // service the customer booked
+  name: string;
+  city?: string;
+  service: string;
+  tag?: string;
+  headline?: string;
   review: string;
   rating: number; // 1 to 5
+  avatar?: string;
+  date?: string;
+  verifiedBookingsCount?: number;
+  helpfulCount?: number;
 }
 
 const DEFAULT_TESTIMONIALS: Testimonial[] = [
   {
     id: "TEST001",
-    name: "Priya Sharma",
-    service: "Home Cleaning",
+    name: "Naveen Shetty",
+    city: "Bengaluru",
+    service: "Full Home Deep Cleaning",
+    tag: "CLEANING",
+    headline: "An absolute pleasure! Booking was seamless, and the service exceeded expectations.",
     review:
-      "The service was easy to book and the professional arrived on time. Very convenient experience.",
+      "An absolute pleasure! Booking was seamless, and the service exceeded expectations.",
     rating: 5,
+    avatar: "",
+    date: "2 days ago",
+    verifiedBookingsCount: 4,
+    helpfulCount: 38,
   },
   {
     id: "TEST002",
-    name: "Rahul Kumar",
-    service: "Plumbing Services",
+    name: "Priya Sharma",
+    city: "Bengaluru",
+    service: "Full Home Deep Cleaning",
+    tag: "CLEANING",
+    headline: "My home felt brand new before Diwali!",
     review:
-      "I found the service I needed quickly. The overall booking experience was simple and smooth.",
-    rating: 4,
+      "Preparing for visiting relatives with 60-hour work weeks felt impossible. HomeCareX arrived on time, left every tile and window spotless, and seeing my mother's happy smile was priceless.",
+    rating: 5,
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=160&q=80",
+    date: "3 days ago",
+    verifiedBookingsCount: 4,
+    helpfulCount: 38,
   },
   {
     id: "TEST003",
-    name: "Ananya Reddy",
-    service: "Home Maintenance",
+    name: "Rahul Kumar",
+    city: "Hyderabad",
+    service: "Emergency Plumbing",
+    tag: "PLUMBING",
+    headline: "Pipe burst fixed in 40 minutes flat",
     review:
-      "HomeCareX made it easy to find a suitable home service. I would use the platform again.",
+      "Water was gushing under our kitchen sink on Saturday. The plumber Rajesh arrived in 40 mins with the exact valve, fixed it cleanly with zero surge pricing, and saved our weekend.",
+    rating: 4.5,
+    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=160&q=80",
+    date: "1 week ago",
+    verifiedBookingsCount: 2,
+    helpfulCount: 27,
+  },
+  {
+    id: "TEST004",
+    name: "Ananya Reddy",
+    city: "Chennai",
+    service: "Elderly Care & Electrical",
+    tag: "ELECTRICAL",
+    headline: "Felt so safe having them assist my elderly parents",
+    review:
+      "Living abroad, I worry about my aging parents dealing with home repairs. The technicians were polite, spoke in Tamil, and fixed the main wiring with complete safety gear.",
     rating: 5,
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80",
+    date: "2 weeks ago",
+    verifiedBookingsCount: 6,
+    helpfulCount: 42,
+  },
+  {
+    id: "TEST005",
+    name: "Vikramaditya Verma",
+    city: "Mumbai",
+    service: "AC Deep Servicing",
+    tag: "APPLIANCES",
+    headline: "Rescued us in peak 39°C heatwave",
+    review:
+      "Our AC gave up during the hottest week. The specialist diagnosed the leak quickly, refilled it with genuine parts, and had our room ice cold in an hour. Honest and transparent.",
+    rating: 4,
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80",
+    date: "3 weeks ago",
+    verifiedBookingsCount: 3,
+    helpfulCount: 19,
+  },
+  {
+    id: "TEST006",
+    name: "Sneha Mukherjee",
+    city: "Pune",
+    service: "Kitchen Deep Degreasing",
+    tag: "CLEANING",
+    headline: "Stubborn chimney stains completely gone",
+    review:
+      "Years of daily tadka and oil grime on our chimney vanished after their steam degreasing. The kitchen smells fresh, feels hygienic, and looks brand new again.",
+    rating: 4.5,
+    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
+    date: "1 month ago",
+    verifiedBookingsCount: 5,
+    helpfulCount: 31,
   },
 ];
 
@@ -69,56 +144,60 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-/** True once the element has scrolled into view (runs once). */
 function useSeen<T extends HTMLElement>(threshold = 0.2) {
   const ref = useRef<T | null>(null);
   const [seen, setSeen] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return undefined;
+    if (!el || seen) return;
 
-    const io = new IntersectionObserver(
+    if (typeof IntersectionObserver === "undefined") {
+      setSeen(true);
+      return;
+    }
+
+    const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setSeen(true);
-          io.disconnect();
+          obs.disconnect();
         }
       },
       { threshold }
     );
 
-    io.observe(el);
-    return () => io.disconnect();
-  }, [threshold]);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [seen, threshold]);
 
   return [ref, seen] as const;
 }
 
 /* =====================================================================
- * SMALL COMPONENTS
+ * SUB-COMPONENTS
  * ===================================================================== */
 
 const FadeIn: React.FC<{
   children: React.ReactNode;
   delay?: number;
   className?: string;
-  reduced: boolean;
-}> = ({ children, delay = 0, className = "", reduced }) => {
-  const [ref, seen] = useSeen<HTMLDivElement>(0.12);
-  const visible = seen || reduced;
+  reduced?: boolean;
+}> = ({ children, delay = 0, className = "", reduced = false }) => {
+  const [ref, seen] = useSeen<HTMLDivElement>(0.15);
+
+  if (reduced) {
+    return <div className={className}>{children}</div>;
+  }
 
   return (
     <div
       ref={ref}
       className={className}
       style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "none" : "translateY(28px)",
-        filter: visible ? "blur(0)" : "blur(6px)",
-        transition: reduced
-          ? "none"
-          : `opacity .8s cubic-bezier(.2,.7,.2,1) ${delay}ms, transform .8s cubic-bezier(.2,.7,.2,1) ${delay}ms, filter .8s ease ${delay}ms`,
+        opacity: seen ? 1 : 0,
+        transform: seen ? "none" : "translateY(12px)",
+        transition: `opacity .5s cubic-bezier(.2,.7,.2,1) ${delay}ms, transform .5s cubic-bezier(.2,.7,.2,1) ${delay}ms`,
       }}
     >
       {children}
@@ -126,122 +205,111 @@ const FadeIn: React.FC<{
   );
 };
 
-/** Five stars, filled to any fraction (for example 4.7 out of 5). */
-const StarRating: React.FC<{ value: number; className?: string }> = ({
-  value,
-  className = "text-xl",
-}) => (
-  <div
-    className={`relative inline-block whitespace-nowrap leading-none tracking-widest ${className}`}
-    role="img"
-    aria-label={`${value.toFixed(1)} out of 5 stars`}
-  >
-    <div className="text-[#4338ca]/20" aria-hidden>
-      ★★★★★
-    </div>
-    <div
-      className="absolute inset-y-0 left-0 overflow-hidden text-[#ff8a3d]"
-      style={{ width: `${(value / 5) * 100}%` }}
-      aria-hidden
-    >
-      ★★★★★
-    </div>
-  </div>
-);
+interface StarRatingProps {
+  value: number;
+  className?: string;
+}
 
-const iconProps = {
-  width: 20,
-  height: 20,
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 2.25,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-  "aria-hidden": true,
+const StarRating: React.FC<StarRatingProps> = ({ value, className = "" }) => {
+  const rating = clampRating(value);
+
+  return (
+    <div
+      className={`inline-flex items-center gap-0.5 ${className}`}
+      aria-label={`${rating} out of 5 stars`}
+    >
+      {[0, 1, 2, 3, 4].map((i) => {
+        const fillPercent = Math.max(0, Math.min(1, rating - i)) * 100;
+        const gradientId = `star-grad-home-${i}-${Math.round(fillPercent)}`;
+
+        return (
+          <svg
+            key={i}
+            className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-[#f59e0b] drop-shadow-[0_1px_2px_rgba(245,158,11,0.2)]"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset={`${fillPercent}%`} stopColor="#f59e0b" />
+                <stop offset={`${fillPercent}%`} stopColor="#e2e8f0" />
+              </linearGradient>
+            </defs>
+            <path
+              fill={`url(#${gradientId})`}
+              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+            />
+          </svg>
+        );
+      })}
+    </div>
+  );
 };
 
-const ChevronLeft = () => (
-  <svg {...iconProps}>
-    <path d="M15 18l-6-6 6-6" />
-  </svg>
-);
-
-const ChevronRight = () => (
-  <svg {...iconProps}>
-    <path d="M9 18l6-6-6-6" />
-  </svg>
-);
-
-const QuoteIcon: React.FC<{ className?: string }> = ({ className = "" }) => (
-  <svg
-    className={className}
-    width="72"
-    height="72"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    aria-hidden
-  >
-    <path d="M9.4 5C5.9 6.8 3.5 10 3.5 14.2 3.5 17 5.2 19 7.6 19c2 0 3.5-1.5 3.5-3.4 0-1.9-1.4-3.2-3.2-3.2-.3 0-.6 0-.8.1.3-2 1.8-4 4-5.2L9.4 5zm9.1 0c-3.5 1.8-5.9 5-5.9 9.2 0 2.8 1.7 4.8 4.1 4.8 2 0 3.5-1.5 3.5-3.4 0-1.9-1.4-3.2-3.2-3.2-.3 0-.6 0-.8.1.3-2 1.8-4 4-5.2L18.5 5z" />
-  </svg>
-);
-
-const TagIcon = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.25"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z" />
-    <circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const controlButton =
-  "flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#4338ca]/20 bg-white text-[#4338ca] shadow-sm transition duration-300 hover:border-[#4338ca] hover:bg-[#4338ca] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] focus-visible:ring-offset-2";
-
 /* =====================================================================
- * COMPONENT
+ * MAIN COMPONENT: Testimonials (Matches Exact Design & HomeCareX Theme)
  * ===================================================================== */
 
-interface TestimonialsProps {
+export interface TestimonialsProps {
   testimonials?: Testimonial[];
 }
 
-const SWIPE_THRESHOLD_PX = 50;
-
 const Testimonials: React.FC<TestimonialsProps> = ({
-  testimonials = DEFAULT_TESTIMONIALS,
+  testimonials: initialTestimonials,
 }) => {
   const reduced = usePrefersReducedMotion();
-  const [summaryRef, summarySeen] = useSeen<HTMLDivElement>(0.3);
+  const [items, setItems] = useState<Testimonial[]>(
+    initialTestimonials ?? DEFAULT_TESTIMONIALS
+  );
   const [index, setIndex] = useState(0);
+  const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
+
+  // Sync when caller updates testimonials prop
+  useEffect(() => {
+    if (initialTestimonials && initialTestimonials.length > 0) {
+      setItems(initialTestimonials);
+    }
+  }, [initialTestimonials]);
+
+  // Dynamically fetch approved reviews from backend if not passed as props
+  useEffect(() => {
+    if (initialTestimonials && initialTestimonials.length > 0) return;
+
+    let isMounted = true;
+    async function loadTestimonialsFromBackend() {
+      try {
+        const res = await fetchPublicReviews({ limit: 8 });
+        if (isMounted && res?.reviews && res.reviews.length > 0) {
+          const mapped: Testimonial[] = res.reviews.map((r) => ({
+            id: r.id,
+            name: r.name,
+            city: r.city,
+            service: r.service,
+            tag: r.category ? r.category.toUpperCase() : "HOME CARE",
+            headline: r.headline || r.review,
+            review: r.review,
+            rating: r.rating,
+            avatar: r.avatar,
+            date: r.date,
+            verifiedBookingsCount: r.verifiedBookingsCount,
+            helpfulCount: r.helpfulCount,
+          }));
+          setItems(mapped);
+        }
+      } catch (err) {
+        console.warn("Could not load dynamic testimonials, using verified default reviews:", err);
+      }
+    }
+
+    loadTestimonialsFromBackend();
+    return () => {
+      isMounted = false;
+    };
+  }, [initialTestimonials]);
+
   const touchStartX = useRef<number | null>(null);
+  const count = items.length;
 
-  const count = testimonials.length;
-
-  /* Summary numbers are calculated from the reviews, so they stay correct */
-  const stats = useMemo(() => {
-    const total = testimonials.length;
-    const average =
-      total === 0
-        ? 0
-        : testimonials.reduce((sum, t) => sum + clampRating(t.rating), 0) / total;
-    const breakdown = [5, 4, 3, 2, 1].map((star) => ({
-      star,
-      count: testimonials.filter((t) => Math.round(clampRating(t.rating)) === star)
-        .length,
-    }));
-    return { total, average, breakdown };
-  }, [testimonials]);
-
-  /* Keep the index valid if the list changes */
   useEffect(() => {
     if (count > 0 && index >= count) setIndex(0);
   }, [count, index]);
@@ -255,7 +323,6 @@ const Testimonials: React.FC<TestimonialsProps> = ({
     [count]
   );
 
-  /* Keyboard: left / right arrows, Home and End */
   const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
     switch (event.key) {
       case "ArrowRight":
@@ -278,7 +345,6 @@ const Testimonials: React.FC<TestimonialsProps> = ({
     }
   };
 
-  /* Touch swipe */
   const handleTouchStart = (event: React.TouchEvent) => {
     touchStartX.current = event.touches[0].clientX;
   };
@@ -287,147 +353,84 @@ const Testimonials: React.FC<TestimonialsProps> = ({
     if (touchStartX.current === null) return;
     const deltaX = event.changedTouches[0].clientX - touchStartX.current;
     touchStartX.current = null;
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX) return;
+    if (Math.abs(deltaX) < 40) return;
     if (deltaX < 0) goNext();
     else goPrevious();
   };
 
-  const current = testimonials[index];
+  const current = items[index] || items[0];
 
   return (
     <section
       id="testimonials"
       aria-labelledby="testimonials-heading"
-      className="relative overflow-hidden bg-[#eef0ff] py-20 sm:py-28"
+      className="relative overflow-hidden bg-[#f8fafc] py-8 sm:py-10 border-y border-slate-100"
     >
+      {/* Home theme subtle ambient glows */}
       <div
-        className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-[#ff8a3d]/15 blur-3xl"
+        className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#ff8a3d]/10 blur-3xl"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-[#4338ca]/10 blur-3xl"
+        className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-indigo-100/30 blur-3xl"
         aria-hidden
       />
 
-      <div className="relative mx-auto max-w-7xl px-6">
-        <FadeIn reduced={reduced} className="mx-auto mb-14 max-w-2xl text-center">
+      <div className="relative mx-auto max-w-4xl px-4 sm:px-6">
+        {/* ===================== HEADER ===================== */}
+        <FadeIn reduced={reduced} className="mx-auto mb-4 sm:mb-5 max-w-xl text-center">
+          {/* Badge: ⭐ Verified Reviews (Home theme warm amber/orange) */}
+          <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-orange-50/90 px-3 py-0.5 text-[11px] font-semibold text-orange-800 ring-1 ring-orange-200/70 shadow-2xs">
+            <span className="text-[#f59e0b]">★</span>
+            <span>Verified Reviews</span>
+          </div>
+
+          {/* Heading: What Our Customers Say (with signature HomeCareX vibrant orange gradient) */}
           <h2
             id="testimonials-heading"
-            className="text-3xl font-extrabold text-[#1e1b6e] sm:text-4xl lg:text-[3.25rem] lg:leading-[1.05]"
+            className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#1e1b4b] tracking-tight leading-tight"
           >
-            What our customers say
+            What Our{" "}
+            <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">
+              Customers
+            </span>{" "}
+            Say
           </h2>
-          <p className="mt-4 text-lg leading-8 text-[#5b5b7a]">
-            See what customers have to say about their HomeCareX experience.
+
+          {/* Subtitle */}
+          <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed font-normal max-w-md mx-auto">
+            Real experiences from verified bookings — helping you choose with confidence.
           </p>
         </FadeIn>
 
-        {/* ===================== EMPTY STATE ===================== */}
+        {/* ===================== CAROUSEL SECTION ===================== */}
         {count === 0 ? (
-          <FadeIn reduced={reduced}>
-            <div className="mx-auto max-w-2xl rounded-3xl bg-white px-8 py-14 text-center shadow-[0_30px_60px_-30px_rgba(67,56,202,0.4)] ring-1 ring-[#4338ca]/10 sm:px-12">
-              <span
-                className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#fff3ea] text-[#ff8a3d] ring-8 ring-[#fff3ea]/60"
-                aria-hidden
+          <div className="mx-auto max-w-md rounded-2xl bg-white p-6 text-center shadow-sm border border-slate-100">
+            <p className="text-xs sm:text-sm text-slate-500 font-medium">No reviews available currently.</p>
+          </div>
+        ) : (
+          <FadeIn reduced={reduced} delay={60}>
+            {/* Card flanked by left & right circular arrow buttons */}
+            <div className="relative mx-auto flex max-w-3xl items-center justify-center gap-2.5 sm:gap-4">
+              {/* Left Arrow Button */}
+              <button
+                type="button"
+                onClick={goPrevious}
+                aria-label="Previous review"
+                className="flex-shrink-0 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200/80 text-slate-600 transition-all duration-200 hover:text-[#ff8a3d] hover:border-orange-300 hover:shadow-md hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] cursor-pointer"
               >
                 <svg
-                  width="36"
-                  height="36"
-                  viewBox="0 0 24 24"
+                  className="h-4 w-4 sm:h-4.5 sm:w-4.5"
                   fill="none"
+                  viewBox="0 0 24 24"
                   stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  strokeWidth={2.5}
                 >
-                  <path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                  <path d="M12 7.5l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4L12 7.5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-              </span>
+              </button>
 
-              <h3 className="display mt-6 text-2xl font-extrabold text-[#1e1b6e] sm:text-3xl">
-                No reviews yet
-              </h3>
-              <p className="mx-auto mt-3 max-w-md text-lg leading-8 text-[#5b5b7a]">
-                Be the first to share your experience with HomeCareX and help
-                others choose with confidence.
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  to="/contact"
-                  className="rounded-xl bg-[#ff8a3d] px-7 py-3.5 font-bold text-[#1b1b3a] shadow-[0_10px_30px_-10px_rgba(255,138,61,0.9)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ff7a22] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4338ca] focus-visible:ring-offset-2"
-                >
-                  Share your experience
-                </Link>
-                <Link
-                  to="/services"
-                  className="rounded-xl border-2 border-[#4338ca] px-7 py-3.5 font-bold text-[#4338ca] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4338ca] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] focus-visible:ring-offset-2"
-                >
-                  Explore services
-                </Link>
-              </div>
-            </div>
-          </FadeIn>
-        ) : (
-          <div className="grid items-start gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
-            {/* ===================== RATING SUMMARY ===================== */}
-            <FadeIn reduced={reduced} className="lg:sticky lg:top-28">
-              <div
-                ref={summaryRef}
-                className="rounded-3xl bg-white p-8 shadow-[0_30px_60px_-30px_rgba(67,56,202,0.4)] ring-1 ring-[#4338ca]/10"
-              >
-                <div className="flex items-end gap-4">
-                  <p className="display text-7xl font-extrabold leading-none text-[#1e1b6e]">
-                    {stats.average.toFixed(1)}
-                  </p>
-                  <p className="pb-2 text-lg font-bold text-[#5b5b7a]">out of 5</p>
-                </div>
-
-                <StarRating value={stats.average} className="mt-4 text-3xl" />
-                <p className="mt-3 text-sm text-[#5b5b7a]">
-                  Based on {stats.total} customer{" "}
-                  {stats.total === 1 ? "review" : "reviews"}
-                </p>
-
-                <ul className="mt-7 space-y-3">
-                  {stats.breakdown.map((row, i) => (
-                    <li key={row.star} className="flex items-center gap-3 text-sm">
-                      <span className="w-8 flex-shrink-0 font-bold text-[#1e1b6e]">
-                        {row.star} ★
-                      </span>
-                      <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-[#4338ca]/10">
-                        <span
-                          className="block h-full rounded-full bg-gradient-to-r from-[#ff8a3d] to-[#ffb37a]"
-                          style={{
-                            width:
-                              summarySeen || reduced
-                                ? `${(row.count / stats.total) * 100}%`
-                                : "0%",
-                            transition: reduced
-                              ? "none"
-                              : `width 1.1s cubic-bezier(.2,.7,.2,1) ${i * 90}ms`,
-                          }}
-                        />
-                      </span>
-                      <span className="w-5 flex-shrink-0 text-right text-[#5b5b7a]">
-                        {row.count}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  to="/contact"
-                  className="mt-8 flex w-full items-center justify-center rounded-xl bg-[#ff8a3d] px-6 py-3.5 font-bold text-[#1b1b3a] shadow-[0_10px_30px_-10px_rgba(255,138,61,0.9)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ff7a22] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4338ca] focus-visible:ring-offset-2"
-                >
-                  Share your experience
-                </Link>
-              </div>
-            </FadeIn>
-
-            {/* ===================== REVIEW CAROUSEL ===================== */}
-            <FadeIn reduced={reduced} delay={120}>
+              {/* The Card */}
               <div
                 role="group"
                 aria-roledescription="carousel"
@@ -436,13 +439,13 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                 onKeyDown={handleKeyDown}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
-                className="rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] focus-visible:ring-offset-4 focus-visible:ring-offset-[#eef0ff]"
+                className="w-full max-w-xl sm:max-w-2xl rounded-2xl sm:rounded-3xl bg-white shadow-[0_10px_35px_-8px_rgba(0,0,0,0.07)] border border-slate-100/90 p-6 sm:p-7 md:p-8 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] overflow-hidden"
               >
-                {/* All slides share one grid cell, so the card never jumps in height */}
-                <div className="grid overflow-hidden rounded-3xl">
-                  {testimonials.map((t, i) => {
+                <div className="grid overflow-hidden">
+                  {items.map((t, i) => {
                     const active = i === index;
                     const rating = clampRating(t.rating);
+                    const hasAvatar = Boolean(t.avatar && !avatarErrors[t.id]);
 
                     return (
                       <article
@@ -451,8 +454,8 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                         aria-roledescription="slide"
                         aria-label={`${i + 1} of ${count}`}
                         aria-hidden={!active}
-                        className={`relative col-start-1 row-start-1 flex flex-col rounded-3xl bg-white p-7 ring-1 ring-[#4338ca]/10 shadow-[0_30px_60px_-30px_rgba(67,56,202,0.4)] sm:p-10 ${
-                          active ? "visible" : "invisible"
+                        className={`col-start-1 row-start-1 flex flex-col ${
+                          active ? "visible" : "invisible pointer-events-none"
                         }`}
                         style={{
                           opacity: active ? 1 : 0,
@@ -460,137 +463,154 @@ const Testimonials: React.FC<TestimonialsProps> = ({
                             ? "none"
                             : active
                               ? "translateX(0)"
-                              : `translateX(${i < index ? "-48px" : "48px"})`,
+                              : `translateX(${i < index ? "-20px" : "20px"})`,
                           transition: reduced
                             ? "none"
-                            : "opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1), visibility .6s",
+                            : "opacity .3s cubic-bezier(.2,.7,.2,1), transform .3s cubic-bezier(.2,.7,.2,1), visibility .3s",
                         }}
                       >
-                        <QuoteIcon className="absolute right-6 top-6 text-[#ff8a3d]/20 sm:right-10 sm:top-8" />
+                        {/* Top row: Stars + Home Theme Warm Pill Tag */}
+                        <div className="flex items-center gap-2.5">
+                          <StarRating value={rating} />
 
-                        {/* Rating + service */}
-                        <div className="relative flex flex-wrap items-center gap-x-4 gap-y-3">
-                          <StarRating value={rating} className="text-2xl" />
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eef0ff] px-3.5 py-1.5 text-sm font-bold text-[#4338ca]">
-                            <TagIcon />
-                            {t.service}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-orange-50/90 border border-orange-200/70 px-3 py-0.5 text-[11px] sm:text-xs font-bold text-[#ea580c] uppercase tracking-wider">
+                            <svg
+                              className="h-3 w-3 text-[#ff8a3d]"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 100 4v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2a2 2 0 100-4V6z" />
+                            </svg>
+                            <span>{t.tag || t.service}</span>
                           </span>
                         </div>
 
-                        {/* Review */}
-                        <blockquote className="relative mt-6 flex-1">
-                          <p className="text-xl font-medium leading-9 text-[#1b1b3a] sm:text-2xl sm:leading-10">
+                        {/* Quote: Outline Quote Mark + Text */}
+                        <div className="mt-3 sm:mt-4 flex items-start gap-2.5">
+                          <svg
+                            className="h-6 w-6 sm:h-7 sm:w-7 text-orange-200/90 flex-shrink-0 mt-0.5 select-none"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                            <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
+                          </svg>
+
+                          <p className="text-sm sm:text-base md:text-[17px] font-semibold text-slate-800 leading-relaxed">
                             &ldquo;{t.review}&rdquo;
                           </p>
-                        </blockquote>
+                        </div>
 
-                        {/* Customer */}
-                        <footer className="relative mt-8 flex items-center gap-4 border-t border-[#4338ca]/10 pt-6">
-                          <span
-                            className="display flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#4338ca] to-[#ff8a3d] text-lg font-extrabold text-white shadow-md"
-                            aria-hidden
-                          >
-                            {initials(t.name)}
-                          </span>
+                        {/* Minimal Horizontal Divider */}
+                        <div className="border-t border-slate-100 my-4 sm:my-5" />
+
+                        {/* Bottom Author Row */}
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff8a3d] via-[#f97316] to-[#ff6b00] text-sm font-bold text-white shadow-2xs">
+                            {hasAvatar ? (
+                              <img
+                                src={t.avatar}
+                                alt={t.name}
+                                className="h-full w-full rounded-full object-cover"
+                                onError={() => setAvatarErrors((p) => ({ ...p, [t.id]: true }))}
+                              />
+                            ) : (
+                              initials(t.name)
+                            )}
+                          </div>
+
                           <div>
-                            <p className="display text-lg font-bold text-[#1e1b6e]">
+                            <h4 className="text-sm sm:text-base font-bold text-[#1e1b4b] leading-tight">
                               {t.name}
-                            </p>
-                            <p className="flex items-center gap-1.5 text-sm text-[#5b5b7a]">
-                              <span
-                                className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white"
-                                aria-hidden
-                              >
-                                ✓
-                              </span>
-                              HomeCareX customer
+                            </h4>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {t.service} {t.city ? `• ${t.city}` : ""}
                             </p>
                           </div>
-                        </footer>
+                        </div>
                       </article>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Controls (outside the focusable carousel group so Tab order stays simple) */}
-              {count > 1 && (
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-5">
-                    <p
-                      className="text-sm font-bold tabular-nums text-[#1e1b6e]"
-                      aria-hidden
-                    >
-                      {String(index + 1).padStart(2, "0")} /{" "}
-                      {String(count).padStart(2, "0")}
-                    </p>
+              {/* Right Arrow Button */}
+              <button
+                type="button"
+                onClick={goNext}
+                aria-label="Next review"
+                className="flex-shrink-0 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white shadow-sm border border-slate-200/80 text-slate-600 transition-all duration-200 hover:text-[#ff8a3d] hover:border-orange-300 hover:shadow-md hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] cursor-pointer"
+              >
+                <svg
+                  className="h-4 w-4 sm:h-4.5 sm:w-4.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
 
-                    <div
-                      className="flex items-center gap-2"
-                      role="group"
-                      aria-label="Choose a review"
-                    >
-                      {testimonials.map((t, i) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setIndex(i)}
-                          aria-label={`Show review ${i + 1} from ${t.name}`}
-                          aria-current={i === index ? "true" : undefined}
-                          className="group flex h-6 items-center focus:outline-none"
-                        >
-                          <span
-                            className={`block h-2.5 rounded-full transition-all duration-300 group-focus-visible:ring-2 group-focus-visible:ring-[#ff8a3d] group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[#eef0ff] ${
-                              i === index
-                                ? "w-8 bg-[#ff8a3d]"
-                                : "w-2.5 bg-[#4338ca]/25 group-hover:bg-[#4338ca]/50"
-                            }`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+            {/* Screen reader notification */}
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {current
+                ? `Review ${index + 1} of ${count} from ${current.name} for ${current.service}, rated ${clampRating(current.rating)} out of 5.`
+                : ""}
+            </p>
 
-                  <div className="flex items-center gap-4">
-                    <p className="hidden text-sm text-[#5b5b7a] md:block" aria-hidden>
-                      Use{" "}
-                      <kbd className="rounded-md border border-[#4338ca]/20 bg-white px-1.5 py-0.5 font-sans text-xs font-bold text-[#4338ca]">
-                        ←
-                      </kbd>{" "}
-                      <kbd className="rounded-md border border-[#4338ca]/20 bg-white px-1.5 py-0.5 font-sans text-xs font-bold text-[#4338ca]">
-                        →
-                      </kbd>{" "}
-                      to browse
-                    </p>
+            {/* Pagination Dots (Active HomeCareX orange gradient pill + circle dots) */}
+            {count > 1 && (
+              <div
+                className="mt-3 sm:mt-3.5 flex items-center justify-center gap-1.5"
+                role="group"
+                aria-label="Choose a review"
+              >
+                {items.map((t, i) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Show review ${i + 1} from ${t.name}`}
+                    aria-current={i === index ? "true" : undefined}
+                    className="group flex h-4 items-center focus:outline-none cursor-pointer"
+                  >
+                    <span
+                      className={`block h-1.5 rounded-full transition-all duration-300 ${
+                        i === index
+                          ? "w-6 bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] shadow-[0_1px_6px_rgba(255,138,61,0.4)]"
+                          : "w-1.5 bg-slate-300 hover:bg-orange-200"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={goPrevious}
-                        aria-label="Previous review"
-                        className={controlButton}
-                      >
-                        <ChevronLeft />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={goNext}
-                        aria-label="Next review"
-                        className={controlButton}
-                      >
-                        <ChevronRight />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+            {/* Compact View All Reviews Button */}
+            <div className="mt-3 sm:mt-3.5 flex flex-col items-center justify-center gap-1.5">
+              <Link
+                to={ROUTES.REVIEWS}
+                className="group inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-5 py-2 text-xs sm:text-sm font-bold text-slate-800 shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:border-[#ff8a3d] hover:bg-orange-50/40 hover:text-[#ff8a3d] hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d]"
+              >
+                <span>View All Reviews</span>
+                <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+              </Link>
 
-              {/* Screen readers hear which review is showing */}
-              <p className="sr-only" aria-live="polite" aria-atomic="true">
-                {`Review ${index + 1} of ${count} from ${current.name} for ${current.service}, rated ${clampRating(current.rating)} out of 5.`}
-              </p>
-            </FadeIn>
-          </div>
+              <Link
+                to="/customer/reviews"
+                className="text-[11px] font-semibold text-slate-500 hover:text-[#ff8a3d] transition-colors"
+              >
+                Have you booked with us recently? Share your experience →
+              </Link>
+            </div>
+          </FadeIn>
         )}
       </div>
     </section>

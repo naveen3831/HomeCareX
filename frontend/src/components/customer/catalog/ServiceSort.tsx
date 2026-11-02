@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function ServiceSort({ value, hasQuery, onChange, className }: Props) {
-  const current = value ?? (hasQuery ? "relevance" : "popular");
+  const current = value ?? (hasQuery ? "relevance" : "order");
   const options = SORT_OPTIONS.filter((o) => o.id !== "relevance" || hasQuery);
   return (
     <div className={clsx("relative", className)}>

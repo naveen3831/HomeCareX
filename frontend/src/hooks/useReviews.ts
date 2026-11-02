@@ -62,6 +62,8 @@ export function useCreateReview() {
     void queryClient.invalidateQueries({ queryKey: reviewKeys.all });
     void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
     void queryClient.invalidateQueries({ queryKey: ["customer"] });
+    // The review is published straight away: refresh the service page's review list, star summary and rating.
+    void queryClient.invalidateQueries({ queryKey: ["catalog"] });
   };
   return useMutation<MyReview, NormalizedApiError, CreateReviewVariables>({
     mutationFn: ({ bookingId, ...input }) => createBookingReview(bookingId, input),

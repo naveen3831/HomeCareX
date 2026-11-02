@@ -16,6 +16,7 @@
 .hcx-fs__titles p { margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--hcx-muted, #64748b); }
 
 .hcx-fs__body { flex: 1 1 0; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 24px; }
+.hcx-fs__body:focus { outline: none; } /* focusable so a click inside makes arrow keys / PageDown scroll this box */
 .hcx-fs__inner { width: 100%; max-width: 1120px; margin: 0 auto; }
 
 .hcx-fs__foot { background: var(--hcx-surface, #fff); border-top: 1px solid var(--hcx-line, #e2e8f0); padding: 12px 24px; }

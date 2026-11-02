@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+﻿import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -97,11 +97,6 @@ describe("Public Routes WCAG 2.1 AA Accessibility Audit with axe-core", () => {
   const renderRoute = (initialPath: string, ui: React.ReactNode) => {
     return render(
       <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>
-        </AuthProvider>
-      </QueryClientProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>

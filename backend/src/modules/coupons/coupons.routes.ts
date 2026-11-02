@@ -59,6 +59,20 @@ export const couponCustomerRoutes = Router();
 
 couponCustomerRoutes.use(optionalAuth);
 
+couponCustomerRoutes.get(
+  '/',
+  asyncHandler((req, res) =>
+    couponsController.listAvailable(req, res),
+  ),
+);
+
+couponCustomerRoutes.get(
+  '/available',
+  asyncHandler((req, res) =>
+    couponsController.listAvailable(req, res),
+  ),
+);
+
 couponCustomerRoutes.post(
   '/validate',
   asyncHandler((req, res) =>

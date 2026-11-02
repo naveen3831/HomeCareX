@@ -25,12 +25,9 @@ auditRoutes.use(
   requirePermission(AUDIT_CONSTANTS.PERMISSION),
 );
 
-// GET /api/v1/admin/audit-logs
 auditRoutes.get(
   '/audit-logs',
-  asyncHandler((req, res) =>
-    auditController.getAuditLogs(req, res),
-  ),
+  asyncHandler((req, res) => auditController.getAuditLogs(req, res)),
 );
 
 export default auditRoutes;

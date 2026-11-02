@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { BookingTab } from "@/types/bookingList";
@@ -24,6 +24,14 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
     {},
   );
 
+  useEffect(() => {
+    refs.current[active]?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [active]);
+
   const move = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;
     if (e.key === "ArrowRight") next = (index + 1) % TABS.length;
@@ -40,14 +48,11 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
   };
 
   return (
-    <div className="flex items-center gap-2 border-b border-line">
+    <div className="flex items-center gap-2 border-b-0 md:border-b md:border-line">
       <div
         role="tablist"
         aria-label="Booking status"
-        className="grid min-w-0 flex-1"
-        style={{
-          gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))`,
-        }}
+        className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-5 md:gap-0 md:overflow-visible md:pb-0 md:rounded-none md:bg-transparent md:p-0"
       >
         {TABS.map((tab, i) => {
           const selected = tab.id === active;
@@ -66,10 +71,17 @@ export function BookingTabs({ active, onChange, panelId, trailing }: Props) {
               onClick={() => onChange(tab.id)}
               onKeyDown={(e) => move(e, i)}
               className={clsx(
-                "-mb-px flex min-h-[44px] w-full min-w-0 items-center justify-center whitespace-nowrap border-b-2 px-0.5 text-center text-[11px] font-medium transition-colors sm:px-1 sm:text-sm",
+                // Mobile: clean, neat pill chips (matching Payments page filter tabs)
+                "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition-all select-none active:scale-95",
                 selected
-                  ? "border-brand text-brand"
-                  : "border-transparent text-muted hover:text-ink",
+                  ? "bg-[#4338ca] text-white shadow-xs"
+                  : "border border-slate-200/90 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+                // Desktop override (matching original desktop tablist - web view untouched)
+                "md:min-h-[44px] md:w-full md:rounded-none md:border-0 md:border-b-2 md:bg-transparent md:px-0 md:py-0 md:text-sm md:shadow-none md:active:scale-100",
+                "-mb-px",
+                selected
+                  ? "md:border-brand md:text-brand"
+                  : "md:border-transparent md:text-muted md:hover:text-ink",
                 FOCUS_RING,
               )}
             >

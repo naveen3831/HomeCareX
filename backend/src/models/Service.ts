@@ -65,6 +65,8 @@ const ServiceSchema = new Schema(
     durationMinutes: { type: Number, required: true, min: 5, max: 1440, default: 60 },
     addOns: { type: [AddOnSchema], default: [] },
     active: { type: Boolean, default: true },
+    /** Admin-defined display order (lowest first). Customers and the public site list services in this order. */
+    sortOrder: { type: Number, default: 0, index: true },
     /** Catalog listing fields (n03). Optional with defaults, so existing documents stay valid. */
     icon: { type: String, trim: true, default: '' },
     /** Denormalised from reviews so listings need no join. */

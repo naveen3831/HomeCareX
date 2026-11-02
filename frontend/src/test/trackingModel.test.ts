@@ -146,7 +146,7 @@ describe("misc", () => {
     expect(trackPath("abc")).toBe("/customer/bookings/abc/track");
   });
   it("has a headline for every live status", () => {
-    expect(statusHeadline("en_route")).toBe("Your partner is on the way");
+    expect(statusHeadline("en_route")).toBe("Your partner is en route");
     expect(statusHeadline("arrived")).toBe("Your partner has arrived");
   });
 });

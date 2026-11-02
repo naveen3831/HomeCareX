@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Pencil, Save, ShieldCheck } from 'lucide-react';
+import { ChevronRight, Pencil, Save, ShieldCheck, X } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AdminAccountMenu } from '@/components/admin/AdminAccountMenu';
 
 // Basic editable profile form. Starts read-only; "Edit" unlocks the fields,
 // "Save" locks them again (wire this up to an API call when one exists).
@@ -29,7 +30,28 @@ export const AdminProfilePage: React.FC = () => {
   };
 
   return (
-    <div className="admin-page-container p-6">
+    <div className="admin-page-container p-6 hcx-profile">
+      {/* Phones: header card + the sidebar pages as a menu (replaces the hamburger drawer). */}
+      <section className="hcx-profilehero" aria-label="Account">
+        <span className="hcx-profilehero__avatar" aria-hidden="true">
+          {form.name.charAt(0).toUpperCase()}
+        </span>
+        <div className="hcx-profilehero__text">
+          <h1>{form.name}</h1>
+          <p>{form.email}</p>
+          <span className="hcx-profilehero__role">{form.role}</span>
+          <button
+            type="button"
+            className="hcx-profilehero__edit"
+            onClick={() => setIsEditing(true)}
+          >
+            <Pencil size={14} aria-hidden="true" />
+            Edit profile
+          </button>
+        </div>
+      </section>
+      <AdminAccountMenu />
+
       <div className="profile-page__header">
         <h1 className="text-2xl font-bold">My Profile</h1>
         {!isEditing && (
@@ -40,7 +62,25 @@ export const AdminProfilePage: React.FC = () => {
         )}
       </div>
 
-      <form className="profile-card" onSubmit={handleSubmit}>
+      {isEditing && (
+        <div
+          className="hcx-sheetbackdrop"
+          onClick={() => setIsEditing(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <form
+        className={`profile-card hcx-profile__form${isEditing ? ' is-editing' : ''}`}
+        onSubmit={handleSubmit}
+      >
+        <div className="hcx-sheethead">
+          <h2>Edit profile</h2>
+          <button type="button" aria-label="Close" onClick={() => setIsEditing(false)}>
+            <X size={18} />
+          </button>
+        </div>
+
         <div className="profile-card__avatar">
           {form.name.charAt(0).toUpperCase()}
         </div>
@@ -101,7 +141,7 @@ export const AdminProfilePage: React.FC = () => {
         )}
       </form>
 
-      <div className="profile-card mt-6">
+      <div className="profile-card mt-6 hcx-profile__security">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">

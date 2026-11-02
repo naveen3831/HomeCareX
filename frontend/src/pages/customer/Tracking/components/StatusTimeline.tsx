@@ -31,7 +31,7 @@ const ICONS: Record<string, LucideIcon> = {
 const DESCRIPTIONS: Record<string, string> = {
   confirmed: "Your booking has been confirmed",
   assigned: "Partner has been assigned",
-  en_route: "Partner is on the way",
+  en_route: "Partner is en route",
   arrived: "Partner has arrived at your location",
   in_progress: "Service is in progress",
   completed: "Service has been completed",
