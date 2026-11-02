@@ -397,6 +397,7 @@ export const adminServiceApi = {
   setActive: (ids: string[], active: boolean) => run(() => (mode === 'demo' ? demo : live).setActive(ids, active)),
   remove: (id: string) => run(() => (mode === 'demo' ? demo : live).remove(id)),
   auditLog: () => run(async () => read<ServiceAuditEntry[]>(AUDIT_KEY, () => [])),
+  getOrder: (): string[] => read<string[]>('hcx.admin.services.order.v1', () => []),
   /** Saves the new display order (live: on the server, so customers see it) and records who moved what. */
   reorder: (ids: string[], moved: { id: string; name: string; from: number; to: number }) =>
     run(() => (mode === 'demo' ? demo : live).reorder(ids, moved)),

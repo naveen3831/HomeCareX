@@ -242,6 +242,7 @@ export default function ProfileDesktop({
             <li key={label}>
               <Link
                 to={customerPath(to)}
+                state={{ from: customerPath("/profile") }}
                 className={clsx(
                   "group flex h-full items-center gap-4 rounded-[22px] border border-line bg-panel p-4 transition-all hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-[0_16px_32px_-18px_rgba(67,56,202,.35)] motion-reduce:hover:translate-y-0",
                   FOCUS_RING,

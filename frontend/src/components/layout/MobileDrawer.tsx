@@ -216,6 +216,20 @@ const MobileDrawer: React.FC<MobileDrawerProps> = ({
           Services
         </NavLink>
 
+        {/* Reviews */}
+        <NavLink
+          to="/reviews"
+          end
+          onClick={onClose}
+          className={({ isActive }) =>
+            isActive
+              ? "text-sm font-bold text-[#ff8a3d] transition"
+              : "text-sm text-gray-700 transition hover:text-[#4338ca]"
+          }
+        >
+          Reviews
+        </NavLink>
+
         {/* About */}
         <NavLink
           to="/about"

@@ -16,6 +16,8 @@ const LEGACY_HASH: Record<string, string> = {
   "personal-info": customerPath("/profile/edit"),
   password: customerPath("/profile/password"),
   notifications: customerPath("/profile/notifications"),
+  "delete-account": customerPath("/profile?action=delete-account"),
+  delete: customerPath("/profile?action=delete-account"),
 };
 
 /**
@@ -23,9 +25,13 @@ const LEGACY_HASH: Record<string, string> = {
  *  - header: avatar, name and contact details in one light card (mobile also gets the account menu that replaced the hamburger).
  *  - settings: Edit profile, Change password and Notification settings are full pages (/profile/edit, /profile/password,
  *    /profile/notifications). After saving, they send the customer back here with a short confirmation banner.
- *  - Log out sits last on mobile; on desktop the sidebar carries it.
+ *  - Log out and Delete account sit at the bottom on mobile (Log out first, followed by Delete account); on desktop the sidebar carries Log out.
  */
-export default function Profile() {
+export default function Profile({
+  defaultDeleteOpen = false,
+}: {
+  defaultDeleteOpen?: boolean;
+} = {}) {
   const { user } = useAuth();
   const dashboard = useCustomerDashboard();
   const addresses = useAddresses();
@@ -69,7 +75,7 @@ export default function Profile() {
   if (places) badges.Addresses = { text: `${places} saved` };
 
   return (
-    <div className="profile-page space-y-5 md:space-y-6">
+    <div className="profile-page -mt-4 space-y-5 md:space-y-6">
       {flash && (
         <div className="flex items-start gap-2 animate-fadeUp">
           <div className="flex-1">
@@ -94,8 +100,8 @@ export default function Profile() {
         addressText={defaultAddress ? [defaultAddress.line1, defaultAddress.city].filter(Boolean).join(", ") : undefined}
       />
 
-      <DeleteAccount variant="card" />
       <LogoutCard />
+      <DeleteAccount variant="card" defaultOpen={defaultDeleteOpen} />
     </div>
   );
 }

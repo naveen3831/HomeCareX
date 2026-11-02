@@ -1,7 +1,22 @@
 import type { PayoutStatus } from './payouts.calc';
 import type { PayoutBatchStatus } from './payouts.constants';
 
-export type { PayoutStatus, PayoutBatchStatus };
+export type { PayoutStatus };
+
+/**
+ * Status of a payout batch.
+ */
+export type { PayoutBatchStatus };
+
+/**
+ * Input for generating a payout batch.
+ */
+export interface GeneratePayoutBatchInput {
+  periodStart: string | Date;
+  periodEnd: string | Date;
+  adminId: string;
+  ip: string;
+}
 
 /**
  * Pagination details.
@@ -41,6 +56,7 @@ export interface PayoutRecord {
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
+  notes?: string;
   method?: string | null;
   transactionId?: string | null;
   paidAt: Date | null;
@@ -56,9 +72,6 @@ export interface GenerateBatchInput {
   adminId: string;
   ip: string;
 }
-
-/** Backward-compatible alias. */
-export type GeneratePayoutBatchInput = GenerateBatchInput;
 
 /**
  * Query parameters for listing payout batches.
@@ -131,9 +144,9 @@ export interface PayoutCsvRow {
   partner: string;
   email: string;
   amount: number;
-  gross: number;
-  commission: number;
   status: string;
+  method: string;
+  transactionId: string;
   paidAt: string;
 }
 
@@ -159,8 +172,5 @@ export interface PayoutsRepository {
   findBatchById(batchId: string): Promise<BatchRecord | null>;
 
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
-  markPaid(input: {
-    payoutId: string;
-    transactionId?: string;
-  }): Promise<PayoutRecord>;
+  markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
 }

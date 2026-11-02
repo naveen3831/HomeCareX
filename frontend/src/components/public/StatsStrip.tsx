@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { CalendarCheck, Clock, Home, Sparkles } from "lucide-react";
 
 interface StatItem {
   id: string;
@@ -9,31 +10,30 @@ interface StatItem {
 
 /*
  * Initial / fallback statistics.
- * These will be displayed when the API has not provided
- * approved statistics yet.
+ * Clean, professional highlights displayed across the platform.
  */
 const INITIAL_STATS: StatItem[] = [
   {
     id: "STAT001",
-    icon: "📅",
+    icon: "calendar",
     title: "Easy Booking",
     description: "Find and book the service you need with ease.",
   },
   {
     id: "STAT002",
-    icon: "⏰",
+    icon: "clock",
     title: "Flexible Scheduling",
     description: "Choose a convenient time for your service.",
   },
   {
     id: "STAT003",
-    icon: "🏠",
+    icon: "home",
     title: "Home Convenience",
     description: "Get the services you need at your doorstep.",
   },
   {
     id: "STAT004",
-    icon: "✨",
+    icon: "sparkles",
     title: "Simple Experience",
     description: "Manage your home service journey in one place.",
   },
@@ -43,13 +43,12 @@ const INITIAL_STATS: StatItem[] = [
  * True once the element has scrolled into view.
  * Runs only once.
  */
-function useSeen<T extends HTMLElement>(threshold = 0.2) {
+function useSeen<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T | null>(null);
   const [seen, setSeen] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
-
     if (!el) return undefined;
 
     const observer = new IntersectionObserver(
@@ -73,21 +72,36 @@ function useSeen<T extends HTMLElement>(threshold = 0.2) {
   return [ref, seen] as const;
 }
 
-const StatsStrip: React.FC = () => {
-  /*
-   * Initial data is displayed immediately.
-   */
-  const [stats, setStats] = useState<StatItem[]>(INITIAL_STATS);
+const getStatTheme = (id: string, title: string) => {
+  const t = title.toLowerCase();
+  if (id === "STAT001" || t.includes("booking") || t.includes("calendar")) {
+    return {
+      icon: <CalendarCheck className="h-5 w-5" />,
+      badge: "bg-blue-50 text-blue-600 ring-1 ring-blue-500/15 group-hover:bg-blue-600 group-hover:text-white",
+    };
+  }
+  if (id === "STAT002" || t.includes("schedul") || t.includes("time") || t.includes("clock")) {
+    return {
+      icon: <Clock className="h-5 w-5" />,
+      badge: "bg-orange-50 text-[#f97316] ring-1 ring-orange-500/15 group-hover:bg-[#f97316] group-hover:text-white",
+    };
+  }
+  if (id === "STAT003" || t.includes("home") || t.includes("doorstep") || t.includes("convenience")) {
+    return {
+      icon: <Home className="h-5 w-5" />,
+      badge: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-500/15 group-hover:bg-indigo-600 group-hover:text-white",
+    };
+  }
+  return {
+    icon: <Sparkles className="h-5 w-5" />,
+    badge: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-500/15 group-hover:bg-emerald-600 group-hover:text-white",
+  };
+};
 
+const StatsStrip: React.FC = () => {
+  const [stats, setStats] = useState<StatItem[]>(INITIAL_STATS);
   const [ref, seen] = useSeen<HTMLDivElement>();
 
-  /*
-   * Load the statistics only once the section has scrolled into view,
-   * so the request does not compete with the page load.
-   *
-   * If the API returns approved statistics,
-   * setStats() will automatically update the UI.
-   */
   useEffect(() => {
     if (!seen) return undefined;
 
@@ -96,25 +110,13 @@ const StatsStrip: React.FC = () => {
     const fetchStats = async () => {
       try {
         const response = await fetch("/api/stats");
-
-        if (!response.ok) {
-          return;
-        }
+        if (!response.ok) return;
 
         const data: StatItem[] = await response.json();
-
-        /*
-         * Only replace the initial values when
-         * valid data is returned.
-         */
         if (active && Array.isArray(data) && data.length > 0) {
           setStats(data);
         }
       } catch (error) {
-        /*
-         * If the API is unavailable,
-         * keep the initial statistics.
-         */
         console.log("Using initial statistics:", error);
       }
     };
@@ -126,106 +128,49 @@ const StatsStrip: React.FC = () => {
     };
   }, [seen]);
 
-  /*
-   * If there is no data at all, hide the section.
-   */
   if (stats.length === 0) {
     return null;
   }
 
   return (
-    <div className="relative z-10 -mt-10 px-6">
-      <div
-        ref={ref}
-        className="mx-auto max-w-6xl"
-        style={{
-          opacity: seen ? 1 : 0,
-          transform: seen ? "none" : "translateY(24px)",
-          transition:
-            "opacity .8s cubic-bezier(.2,.7,.2,1), transform .8s cubic-bezier(.2,.7,.2,1)",
-        }}
-      >
-        <dl
-          className="
-            grid
-            grid-cols-1
-            divide-y
-            divide-[#4338ca]/10
-            rounded-3xl
-            bg-white
-            p-2
-            shadow-[0_30px_60px_-25px_rgba(67,56,202,0.35)]
-            ring-1
-            ring-[#4338ca]/10
-            sm:grid-cols-2
-            sm:divide-y-0
-            lg:grid-cols-4
-            lg:divide-x
-          "
-        >
-          {stats.map((stat, index) => (
-            <div
-              key={stat.id}
-              className="
-                group
-                flex
-                items-start
-                gap-4
-                rounded-2xl
-                px-6
-                py-7
-                transition
-                duration-500
-                hover:bg-[#eef0ff]
-              "
-              style={{
-                opacity: seen ? 1 : 0,
-                transform: seen ? "none" : "translateY(16px)",
-                transition: `opacity .7s ease ${
-                  200 + index * 110
-                }ms, transform .7s cubic-bezier(.2,.7,.2,1) ${
-                  200 + index * 110
-                }ms, background-color .5s`,
-              }}
-            >
-              {/* Icon */}
-              <span
-                className="
-                  flex
-                  h-14
-                  w-14
-                  flex-shrink-0
-                  items-center
-                  justify-center
-                  rounded-2xl
-                  bg-[#eef0ff]
-                  text-2xl
-                  transition
-                  duration-500
-                  group-hover:-rotate-6
-                  group-hover:scale-110
-                  group-hover:bg-[#ff8a3d]
-                "
-                aria-hidden
+    <section className="relative overflow-hidden bg-white pt-4 pb-2 sm:pt-5 sm:pb-2">
+      <div ref={ref} className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-5">
+          {stats.map((stat, index) => {
+            const theme = getStatTheme(stat.id, stat.title);
+            return (
+              <div
+                key={stat.id}
+                className="group relative flex items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-4.5 sm:p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-blue-400/50 hover:shadow-md"
+                style={{
+                  opacity: seen ? 1 : 0,
+                  transform: seen ? "none" : "translateY(18px)",
+                  transition: `opacity .6s ease ${index * 80}ms, transform .6s cubic-bezier(.2,.7,.2,1) ${index * 80}ms, box-shadow .3s, border-color .3s`,
+                }}
               >
-                {stat.icon}
-              </span>
+                {/* Icon */}
+                <div
+                  className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl shadow-xs transition-all duration-300 group-hover:scale-105 ${theme.badge}`}
+                  aria-hidden="true"
+                >
+                  {theme.icon}
+                </div>
 
-              {/* Content */}
-              <div>
-                <dt className="display text-lg font-extrabold text-[#4338ca]">
-                  {stat.title}
-                </dt>
-
-                <dd className="mt-1 text-sm leading-6 text-[#5b5b7a]">
-                  {stat.description}
-                </dd>
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 transition-colors duration-200 group-hover:text-blue-600 leading-snug">
+                    {stat.title}
+                  </h3>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                    {stat.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-        </dl>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 

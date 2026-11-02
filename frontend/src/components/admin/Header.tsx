@@ -1,7 +1,9 @@
 import React from 'react';
-import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { HelpCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useUIStore } from '@/store/useUIStore';
 import { NotificationBell } from '@/components/admin/NotificationBell';
+import { ProfileMenu } from '@/components/admin/ProfileMenu';
 
 export interface HeaderNotification {
   id: string;
@@ -14,12 +16,7 @@ interface HeaderProps {
   notifications?: HeaderNotification[];
 }
 
-/**
- * Sticky admin header: sidebar collapse (desktop) and the live notification bell.
- * No breadcrumbs and no help link (Help > Support lives in the sidebar).
- * No avatar and no hamburger: on phones the bottom bar + Profile tab replace the drawer, and on desktop the
- * sidebar footer links to the profile. (Search sits in the bar under it.)
- */
+/** Sticky admin header with navigation, breadcrumbs, help, notifications, and the profile menu. */
 export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
   const isCollapsed = useUIStore((state) => state.isSidebarCollapsed);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
@@ -43,7 +40,16 @@ export const Header: React.FC<HeaderProps> = ({ notifications = [] }) => {
       </button>
 
       <div className="topbar-right">
+        <Link
+          to="/admin/support"
+          className="icon-btn"
+          aria-label="Help and support"
+          title="Help and support"
+        >
+          <HelpCircle size={20} aria-hidden="true" />
+        </Link>
         <NotificationBell />
+        <ProfileMenu />
       </div>
     </header>
   );

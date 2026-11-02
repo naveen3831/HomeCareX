@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
@@ -36,14 +36,14 @@ import './index.css';
 export const CATALOG_MANAGE = 'catalog:manage';
 
 type Toast = { text: string; tone: 'success' | 'error' } | null;
-const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+const rupees = (n: number) => `Γé╣${n.toLocaleString('en-IN')}`;
 const duration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ''}`);
 
-/** "Parent › Child" labels so sub-categories are recognisable in a flat list. */
+/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
 function toOptions(cats: AdminCategory[]): CategoryOption[] {
   const byId = new Map(cats.map((c) => [c.id, c]));
   return cats
-    .map((c) => ({ id: c.id, name: c.parentId && byId.get(c.parentId) ? `${byId.get(c.parentId)!.name} › ${c.name}` : c.name, active: c.active }))
+    .map((c) => ({ id: c.id, name: c.parentId && byId.get(c.parentId) ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}` : c.name, active: c.active }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -110,6 +110,7 @@ export const AdminServicesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
@@ -162,11 +163,13 @@ export const AdminServicesPage: React.FC = () => {
   const filtered = search.trim() !== '' || categoryParam !== '';
   const reorderEnabled = !filtered && canManage && online;
 
-  // The admin's saved order (stored on the server, same one customers see). Ties fall back to name.
-  const ordered = useMemo(
-    () => [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
-    [items],
-  );
+  // Saved manual order first; services not in it yet (new ones) sit on top, newest first.
+  const ordered = useMemo(() => {
+    const pos = new Map(order.map((id, n) => [id, n]));
+    const known = items.filter((s) => pos.has(s.id)).sort((a, b) => pos.get(a.id)! - pos.get(b.id)!);
+    const fresh = items.filter((s) => !pos.has(s.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...fresh, ...known];
+  }, [items, order]);
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -183,30 +186,23 @@ export const AdminServicesPage: React.FC = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  async function applyOrder(ids: string[], movedId: string, from: number, to: number) {
+  function applyOrder(ids: string[], movedId: string, from: number, to: number) {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
-    const before = items;
-    const pos = new Map(ids.map((id, n) => [id, n]));
-    setItems((cur) => cur.map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s))); // show it at once
-    try {
-      await adminServiceApi.reorder(ids, { id: movedId, name, from, to });
-      flash(`“${name}” moved to position ${to + 1}. Customers will see this order.`);
-    } catch (e) {
-      setItems(before); // the server refused: put the list back so the screen never lies
-      flash((e as ServiceApiError).message, 'error');
-    }
+    setOrder(ids);
+    adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+    flash(`ΓÇ£${name}ΓÇ¥ moved to position ${to + 1}`);
   }
   const move = (id: string, dir: -1 | 1) => {
     const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
     if (to < 0 || to >= ids.length) return;
-    void applyOrder(arrayMove(ids, from, to), id, from, to);
+    applyOrder(arrayMove(ids, from, to), id, from, to);
   };
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over || e.active.id === e.over.id) return;
     const ids = ordered.map((x) => x.id);
     const from = ids.indexOf(String(e.active.id)); const to = ids.indexOf(String(e.over.id));
-    if (from > -1 && to > -1) void applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
+    if (from > -1 && to > -1) applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
   };
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const activeSvc = items.find((x) => x.id === activeId) ?? null;
@@ -245,8 +241,8 @@ export const AdminServicesPage: React.FC = () => {
         : await adminServiceApi.create(input, options);
       setFormOpen(false);
       await load();
-      if (ignored.length) flash(`“${service.name}” saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
-      else flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
+      if (ignored.length) flash(`ΓÇ£${service.name}ΓÇ¥ saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
+      else flash(`${editing ? `ΓÇ£${service.name}ΓÇ¥ updated` : `ΓÇ£${service.name}ΓÇ¥ created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
     } catch (e) {
       const err = e as ServiceApiError;
       setFormError(err.message);
@@ -260,7 +256,7 @@ export const AdminServicesPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(s.id));
     try {
       await adminServiceApi.setActive([s.id], next);
-      flash(`“${s.name}” ${next ? 'activated' : 'deactivated'}`);
+      flash(`ΓÇ£${s.name}ΓÇ¥ ${next ? 'activated' : 'deactivated'}`);
     } catch (e) {
       setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
       flash((e as ServiceApiError).message, 'error');
@@ -298,7 +294,7 @@ export const AdminServicesPage: React.FC = () => {
       const { service } = await adminServiceApi.update(svc.id, { ...toInput(svc), images }, options);
       setItems((prev) => prev.map((x) => (x.id === service.id ? service : x)));
       setPreviewing(service);
-      flash(`Photos for “${service.name}” saved`);
+      flash(`Photos for ΓÇ£${service.name}ΓÇ¥ saved`);
     } catch (e) {
       flash((e as ServiceApiError).message, 'error');
     } finally { setSavingImages(false); }
@@ -309,7 +305,7 @@ export const AdminServicesPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminServiceApi.remove(toDelete.id);
-      flash(`“${toDelete.name}” deleted`);
+      flash(`ΓÇ£${toDelete.name}ΓÇ¥ deleted`);
       setToDelete(null);
       await load();
     } catch (e) {
@@ -342,7 +338,7 @@ export const AdminServicesPage: React.FC = () => {
 
       {!online && <div className="cat-banner" role="status"><WifiOff size={15} /> You are offline. You can browse what has loaded, but changes are disabled until the connection returns.</div>}
       {mode === 'demo' && <div className="cat-banner" role="status"><WifiOff size={15} /> Backend not reachable ({getServiceApiModeReason()}): showing local demo data. Changes are saved in this browser only.</div>}
-      {!canManage && <div className="cat-banner cat-banner--info" role="status">You can view services but need the “{CATALOG_MANAGE}” permission to change them.</div>}
+      {!canManage && <div className="cat-banner cat-banner--info" role="status">You can view services but need the ΓÇ£{CATALOG_MANAGE}ΓÇ¥ permission to change them.</div>}
 
       {toast && (
         <div role="status" className={clsx('cat-toast', toast.tone === 'error' && 'is-error')}>
@@ -358,7 +354,7 @@ export const AdminServicesPage: React.FC = () => {
       </div>
 
       <div className="svc-toolbar">
-        <PageSearch placeholder="Search name, slug or category…" />
+        <PageSearch placeholder="Search name, slug or categoryΓÇª" />
         {filterMenu}
       </div>
       <p className="svc-count-note">{visible.length} of {items.length} services{categoryParam && filterOptions.find((o) => o.id === categoryParam) ? ` in ${filterOptions.find((o) => o.id === categoryParam)!.name}` : ''}</p>
@@ -420,7 +416,7 @@ export const AdminServicesPage: React.FC = () => {
 
       <ConfirmDialog
         open={!!toDelete} tone="danger" loading={deleting} title="Delete service?" confirmLabel="Delete"
-        message={<>“{toDelete?.name}” will be permanently removed and recorded in the audit log. A service that already has bookings cannot be deleted; deactivate it instead.</>}
+        message={<>ΓÇ£{toDelete?.name}ΓÇ¥ will be permanently removed and recorded in the audit log. A service that already has bookings cannot be deleted; deactivate it instead.</>}
         onCancel={() => setToDelete(null)} onConfirm={() => void confirmDelete()}
       />
 
@@ -430,7 +426,7 @@ export const AdminServicesPage: React.FC = () => {
             {audit.map((a) => (
               <li key={a.id}>
                 <button type="button" onClick={() => setAuditEntry({
-                  id: a.id, actor: a.actor, action: a.action, entity: `Service · ${a.entityName}`, entityId: a.entityId,
+                  id: a.id, actor: a.actor, action: a.action, entity: `Service ┬╖ ${a.entityName}`, entityId: a.entityId,
                   time: new Date(a.time).toLocaleString(), before: a.before, after: a.after,
                 })}>
                   <StatusBadge status={a.action} tone={a.action === 'delete' ? 'danger' : a.action === 'create' ? 'success' : 'info'} dot={false} />

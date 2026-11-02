@@ -49,7 +49,7 @@ export default function Sidebar({ open = true, onClose }: SidebarProps) {
               aria-expanded={open}
               aria-controls={CUSTOMER_SIDEBAR_ID}
               className={clsx(
-                "-mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-line bg-gradient-to-b from-white to-brand-soft text-brand shadow-[inset_0_1px_0_#fff,0_4px_10px_-6px_rgba(67,56,202,.45)] transition-[transform,box-shadow] duration-200 hover:shadow-[inset_0_1px_0_#fff,0_8px_14px_-8px_rgba(67,56,202,.55)] active:scale-95",
+                "-mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-gradient-to-b from-white to-brand-soft text-brand shadow-[inset_0_1px_0_#fff,0_4px_10px_-6px_rgba(67,56,202,.45)] transition-[transform,box-shadow] duration-200 hover:shadow-[inset_0_1px_0_#fff,0_8px_14px_-8px_rgba(67,56,202,.55)] active:scale-95",
                 FOCUS_RING,
               )}
             >

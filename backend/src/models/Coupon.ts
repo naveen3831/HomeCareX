@@ -8,12 +8,10 @@ const CouponSchema = new Schema(
     code: {
       type: String,
       required: true,
-      unique: true,
       uppercase: true,
       trim: true,
       minlength: 3,
       maxlength: 30,
-      index: true,
     },
 
     type: {
@@ -85,7 +83,7 @@ const CouponSchema = new Schema(
   },
 );
 
-CouponSchema.index({ code: 1 }, { unique: true });
+// Index for filtering coupons by status and validity dates.
 CouponSchema.index({ active: 1, startAt: 1, endAt: 1 });
 
 export const CouponModel = model("Coupon", CouponSchema);

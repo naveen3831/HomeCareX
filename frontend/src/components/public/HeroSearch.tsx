@@ -1,18 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
-import PincodeInput from "./PincodeInput";
+import { Search, MapPin } from "lucide-react";
 
 const searchSchema = z.object({
   service: z.string().trim().min(1, "Please enter a service"),
-
   pincode: z
     .string()
     .trim()
-    .regex(
-      /^[1-9][0-9]{5}$/,
-      "Please enter a valid 6-digit pincode"
-    ),
+    .regex(/^[1-9][0-9]{5}$/, "Please enter a valid 6-digit pincode"),
 });
 
 const HeroSearch: React.FC = () => {
@@ -26,9 +22,7 @@ const HeroSearch: React.FC = () => {
     pincode?: string;
   }>({});
 
-  const handleSubmit = (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const result = searchSchema.safeParse({
@@ -45,11 +39,9 @@ const HeroSearch: React.FC = () => {
 
       result.error.issues.forEach((issue) => {
         const field = issue.path[0];
-
         if (field === "service") {
           fieldErrors.service = issue.message;
         }
-
         if (field === "pincode") {
           fieldErrors.pincode = issue.message;
         }
@@ -71,92 +63,94 @@ const HeroSearch: React.FC = () => {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="w-full"
-      noValidate
-    >
-      <div className="grid grid-cols-1 gap-4">
-
-        {/* ================= SERVICE ================= */}
-        <div className="w-full">
+    <form onSubmit={handleSubmit} className="w-full" noValidate>
+      <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+        {/* Service Input */}
+        <div className="flex-1 min-w-0">
           <label
             htmlFor="service-search"
-            className="mb-2 block text-sm font-medium text-[#17125f]"
+            className="mb-1.5 block text-xs font-bold text-slate-800"
           >
             What service do you need?
           </label>
-
-          <input
-            id="service-search"
-            name="service"
-            type="text"
-            value={service}
-            onChange={(event) => {
-              setService(event.target.value);
-
-              if (errors.service) {
-                setErrors((previous) => ({
-                  ...previous,
-                  service: undefined,
-                }));
-              }
-            }}
-            placeholder="Search for a service"
-            aria-invalid={Boolean(errors.service)}
-            aria-describedby={
-              errors.service
-                ? "service-error"
-                : undefined
-            }
-            className={`h-12 w-full rounded-lg border bg-white px-4 text-sm outline-none transition focus:ring-2 ${
-              errors.service
-                ? "border-red-500 focus:ring-red-200"
-                : "border-gray-300 focus:border-[#4338ca] focus:ring-indigo-100"
-            }`}
-          />
-
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              id="service-search"
+              name="service"
+              type="text"
+              value={service}
+              onChange={(event) => {
+                setService(event.target.value);
+                if (errors.service) {
+                  setErrors((prev) => ({ ...prev, service: undefined }));
+                }
+              }}
+              placeholder="Search for a service (e.g., AC service, cleaning)"
+              aria-invalid={Boolean(errors.service)}
+              aria-describedby={errors.service ? "service-error" : undefined}
+              className={`h-12 w-full rounded-xl border bg-white pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-200 focus:ring-2 ${
+                errors.service
+                  ? "border-red-500 focus:ring-red-200"
+                  : "border-slate-200 focus:border-[#f97316] focus:ring-[#f97316]/20"
+              }`}
+            />
+          </div>
           {errors.service && (
-            <p
-              id="service-error"
-              className="mt-1 text-sm text-red-600"
-              role="alert"
-            >
+            <p id="service-error" className="mt-1 text-xs text-red-600" role="alert">
               {errors.service}
             </p>
           )}
         </div>
 
-        {/* ================= PINCODE + SEARCH ================= */}
-        <div className="grid grid-cols-[1fr_auto] items-end gap-3">
-
-          {/* Pincode */}
-          <div className="min-w-0">
-            <PincodeInput
+        {/* Pincode Input */}
+        <div className="w-full sm:w-44 md:w-48 lg:w-56 min-w-0">
+          <label
+            htmlFor="pincode"
+            className="mb-1.5 block text-xs font-bold text-slate-800"
+          >
+            Pincode
+          </label>
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              id="pincode"
+              name="pincode"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
               value={pincode}
-              onChange={(value) => {
-                setPincode(value);
-
+              onChange={(event) => {
+                setPincode(event.target.value);
                 if (errors.pincode) {
-                  setErrors((previous) => ({
-                    ...previous,
-                    pincode: undefined,
-                  }));
+                  setErrors((prev) => ({ ...prev, pincode: undefined }));
                 }
               }}
-              error={errors.pincode}
+              placeholder="Enter 6-digit pincode"
+              aria-invalid={Boolean(errors.pincode)}
+              aria-describedby={errors.pincode ? "pincode-error" : undefined}
+              className={`h-12 w-full rounded-xl border bg-white pl-10 pr-3 text-sm text-slate-800 placeholder-slate-400 outline-none transition-all duration-200 focus:ring-2 ${
+                errors.pincode
+                  ? "border-red-500 focus:ring-red-200"
+                  : "border-slate-200 focus:border-[#f97316] focus:ring-[#f97316]/20"
+              }`}
             />
           </div>
-
-          {/* Search Button */}
-          <button
-            type="submit"
-            className="h-12 rounded-lg bg-[#4338ca] px-6 font-semibold text-white shadow-md transition duration-200 hover:-translate-y-0.5 hover:bg-[#ff8a3d] focus:outline-none focus:ring-2 focus:ring-[#4338ca] focus:ring-offset-2"
-          >
-            Search
-          </button>
-
+          {errors.pincode && (
+            <p id="pincode-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.pincode}
+            </p>
+          )}
         </div>
+
+        {/* Search Button */}
+        <button
+          type="submit"
+          className="group h-12 w-full sm:w-auto px-7 rounded-xl bg-gradient-to-r from-[#ff8a3d] to-[#f97316] hover:from-[#f97316] hover:to-[#ea580c] text-white font-bold text-sm shadow-[0_10px_25px_-5px_rgba(249,115,22,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-5px_rgba(249,115,22,0.5)] active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d] focus:ring-offset-2 flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
+        >
+          <span>Search</span>
+          <Search className="h-4 w-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+        </button>
       </div>
     </form>
   );
