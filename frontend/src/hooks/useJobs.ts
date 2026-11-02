@@ -20,6 +20,13 @@ export function useJobs(
 
     retry: 1,
 
-    staleTime: 15_000,
+    staleTime: 5_000,
+
+    // New requests / assignments appear on their own: re-check every 10 s while the
+    // tab is visible, and straight away when the partner returns to the tab or reconnects.
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 }

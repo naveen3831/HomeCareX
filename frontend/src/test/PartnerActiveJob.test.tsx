@@ -27,7 +27,7 @@ const mockBooking: JobDetails = {
     { id: 'inc-1', label: 'Filter cleaning', done: false },
     { id: 'inc-2', label: 'Gas pressure check', done: true },
   ],
-  payment: { status: 'PAID', amount: 599 },
+  payment: { status: 'PAID', phase: 'paid', amount: 599, upi: null },
   actions: [],
   otpRequired: false,
   history: [{ status: 'in_progress', at: '2026-10-12T04:30:00.000Z', actor: 'Partner' }],
@@ -425,9 +425,37 @@ describe('ActiveJobPage Integration', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Job Not In Progress')).toBeInTheDocument();
+      expect(screen.getByText('Job completed')).toBeInTheDocument();
+      expect(screen.getByText('Payment received')).toBeInTheDocument();
       expect(screen.getByText(/View Job Details/i)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Complete Job/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows the payment QR panel when a completed job is still unpaid', async () => {
+    const unpaid: JobDetails = {
+      ...mockBooking,
+      status: 'completed',
+      payment: {
+        status: 'PENDING',
+        phase: 'pending',
+        amount: 599,
+        upi: { payeeId: 'homecarex@bank', payeeName: 'HomeCareX', amount: 599, note: 'n', uri: 'upi://pay?pa=homecarex%40bank' },
+      },
+    };
+    vi.spyOn(apiModule, 'fetchJob').mockResolvedValue(unpaid);
+
+    render(
+      <MemoryRouter initialEntries={['/partner/jobs/unpaid-id/active']}>
+        <Routes>
+          <Route path="/partner/jobs/:id/active" element={<ActiveJobPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('COLLECT PAYMENT')).toBeInTheDocument();
+      expect(screen.getByText('homecarex@bank')).toBeInTheDocument();
     });
   });
 
@@ -695,6 +723,3 @@ describe('JobDetailsPage Integration', () => {
     expect(screen.getByText('Sofa cleaning')).toBeInTheDocument();
   });
 });
-
-
-

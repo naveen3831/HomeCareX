@@ -1,129 +1,79 @@
-﻿import http, { type ApiResponse } from "@/lib/http";
-import type {
-  CustomerMessage,
-  CustomerTicket,
-  NewTicket,
-  TicketDetail,
-  TicketFilters,
-  TicketPage,
-} from "@/features/support/types";
+// Partner support API (D08). Uses the same http client as availability.api.ts.
+import http, { type ApiResponse } from "@/lib/http";
 
-function cleanParams(obj: object): Record<string, string | number> {
-  const out: Record<string, string | number> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === undefined || v === null || v === "") continue;
-    out[k] = v as string | number;
-  }
-  return out;
+import type {
+  PartnerTicketCategory,
+  Ticket,
+  TicketAttachment,
+  TicketMessage,
+} from "@/components/tickets/ticket.types";
+
+const BASE = "/partner/support";
+
+export interface TicketDetail {
+  ticket: Ticket;
+  messages: TicketMessage[];
 }
 
-export const supportApi = {
-  /** GET /support/tickets -> { items, meta } */
-  async list(filters: TicketFilters, signal?: AbortSignal): Promise<TicketPage> {
-    const response = await http.get<{
-      data?: TicketPage | CustomerTicket[];
-      items?: CustomerTicket[];
-      meta?: TicketPage["meta"];
-    } | CustomerTicket[]>("/support/tickets", {
-      params: cleanParams(filters),
-      signal,
-    });
-    const body = response.data;
-    if (Array.isArray(body)) {
-      return {
-        items: body,
-        meta: {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.length,
-          pages: 1,
-        },
-      };
-    }
-    if (Array.isArray(body?.data)) {
-      return {
-        items: body.data,
-        meta: body.meta ?? {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.data.length,
-          pages: 1,
-        },
-      };
-    }
-    if (body?.data && !Array.isArray(body.data) && Array.isArray(body.data.items)) {
-      return {
-        items: body.data.items,
-        meta: body.data.meta ?? {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.data.items.length,
-          pages: 1,
-        },
-      };
-    }
-    if (body?.items && Array.isArray(body.items)) {
-      return {
-        items: body.items,
-        meta: body.meta ?? {
-          page: Number(filters.page) || 1,
-          limit: 10,
-          total: body.items.length,
-          pages: 1,
-        },
-      };
-    }
-    return {
-      items: [],
-      meta: { page: 1, limit: 10, total: 0, pages: 1 },
-    };
-  },
+export interface CreateTicketInput {
+  category: PartnerTicketCategory;
+  subject: string;
+  body: string;
+  bookingId?: string;
+  files: File[];
+}
 
-  /** GET /support/tickets/:id -> { ticket, messages, nextBefore } */
-  async get(id: string, signal?: AbortSignal, before?: string | null): Promise<TicketDetail> {
-    const { data } = await http.get<ApiResponse<TicketDetail>>(
-      `/support/tickets/${encodeURIComponent(id)}`,
-      { params: before ? { before } : undefined, signal },
-    );
-    return data.data;
-  },
+/**
+ * Uploads files and returns the attachment records the ticket APIs expect
+ * ({ url, name, mimeType, sizeBytes }).
+ * NOTE: assumes POST /partner/support/attachments (multipart, field "files").
+ * Adjust here if the backend uses a different upload route.
+ */
+async function uploadAttachments(files: File[]): Promise<TicketAttachment[]> {
+  if (files.length === 0) return [];
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  const res = await http.post<ApiResponse<TicketAttachment[]>>(
+    `${BASE}/attachments`,
+    form
+  );
+  return res.data.data;
+}
 
-  /** POST /support/tickets (multipart, so evidence files can be attached). */
-  async create(input: NewTicket, files?: File[]): Promise<CustomerTicket> {
-    const fd = new FormData();
-    for (const [k, v] of Object.entries(input)) {
-      if (v !== undefined && v !== null) fd.append(k, String(v));
-    }
-    (files ?? []).forEach((f) => fd.append("attachments", f));
-    const { data } = await http.post<ApiResponse<CustomerTicket>>("/support/tickets", fd);
-    return data.data;
-  },
+export async function listTickets(): Promise<Ticket[]> {
+  const res = await http.get<ApiResponse<Ticket[] | { items: Ticket[] }>>(
+    `${BASE}/tickets`
+  );
+  const data = res.data.data;
+  return Array.isArray(data) ? data : data.items;
+}
 
-  /** POST /support/tickets/:id/messages */
-  async reply(id: string, body: string, files?: File[]): Promise<CustomerMessage> {
-    const fd = new FormData();
-    fd.append("body", body);
-    (files ?? []).forEach((f) => fd.append("attachments", f));
-    const { data } = await http.post<ApiResponse<CustomerMessage>>(
-      `/support/tickets/${encodeURIComponent(id)}/messages`,
-      fd,
-    );
-    return data.data;
-  },
+export async function getTicket(id: string): Promise<TicketDetail> {
+  const res = await http.get<ApiResponse<TicketDetail>>(`${BASE}/tickets/${id}`);
+  return res.data.data;
+}
 
-  /** Authenticated file download. */
-  async download(url: string, name: string, admin = false): Promise<void> {
-    const res = await http.get<Blob>(url, {
-      responseType: "blob",
-      params: admin ? { admin: true } : undefined,
-    });
-    const href = URL.createObjectURL(res.data);
-    const a = document.createElement("a");
-    a.href = href;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(href);
-  },
-};
+export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
+  const attachments = await uploadAttachments(input.files);
+  const res = await http.post<ApiResponse<Ticket>>(`${BASE}/tickets`, {
+    category: input.category,
+    subject: input.subject,
+    body: input.body,
+    ...(input.bookingId ? { bookingId: input.bookingId } : {}),
+    ...(attachments.length ? { attachments } : {}),
+  });
+  return res.data.data;
+}
+
+export async function replyToTicket(
+  id: string,
+  body: string,
+  files: File[]
+): Promise<TicketMessage> {
+  const attachments = await uploadAttachments(files);
+  const res = await http.post<ApiResponse<TicketMessage>>(
+    `${BASE}/tickets/${id}/reply`,
+    { body, ...(attachments.length ? { attachments } : {}) }
+  );
+  return res.data.data;
+}

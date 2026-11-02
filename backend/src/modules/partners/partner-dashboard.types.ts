@@ -61,6 +61,20 @@ export interface PartnerDashboardDto {
   acceptanceRate: number;
   completionRate: number;
   activeJob: ActiveJobDto | null;
+  /** Real money from the earnings ledger (what the Earnings page shows). INR. */
+  earnings: { today: number; week: number; month: number; total: number; pending: number };
+  /** Completed jobs of all time. */
+  completedTotal: number;
+  /** Real rates from bookings/offers; null means "no data yet" (not 0%). Rates are 0-100, rating 0-5. */
+  performance: {
+    rating: number | null;
+    ratingCount: number;
+    acceptanceRate: number | null;
+    completionRate: number | null;
+    onTimeRate: number | null;
+  };
+  /** Net earnings per day for the last 7 days, oldest first. date is YYYY-MM-DD in business time. */
+  last7Days: Array<{ date: string; amount: number }>;
   assignedServices?: Array<{ id: string; name: string }>;
   categories?: string[];
 }

@@ -186,10 +186,6 @@ export const PartnerSchedulePage: React.FC = () => {
             <p className="sc-sub">Your working days, blackouts and jobs</p>
           </div>
         </div>
-        <span className={`sc-online ${data.isOnline ? 'sc-online-on' : ''}`}>
-          <span className="sc-online-dot" aria-hidden="true" />
-          {data.isOnline ? 'Online' : 'Offline'}
-        </span>
       </div>
 
       {error && <p className="pa-error sc-alert" role="alert">{error}</p>}
