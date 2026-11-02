@@ -1379,5 +1379,3 @@ function paymentReference(refund: AdminRefundItem) {
 }
 
 export default AdminRefundsPage;
-
-

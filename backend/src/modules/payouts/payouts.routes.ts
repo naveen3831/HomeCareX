@@ -32,7 +32,6 @@ payoutsRoutes.get(
   requirePermission(PAYOUTS_EXPORT),
   asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
 );
-
 payoutsRoutes.get(
   '/payouts/:id/export',
   requirePermission(PAYOUTS_EXPORT),
@@ -71,7 +70,6 @@ payoutsRoutes.get(
   requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.list(req, res)),
 );
-
 payoutsRoutes.post(
   '/payout-batches',
   requirePermission(PAYOUTS_APPROVE),
@@ -88,7 +86,6 @@ payoutsRoutes.get(
   requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.listBatchPayouts(req, res)),
 );
-
 payoutsRoutes.get(
   '/payout-batches/:id/payouts',
   requirePermission('payouts:view'),
