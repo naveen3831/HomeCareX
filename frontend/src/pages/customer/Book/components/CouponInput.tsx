@@ -20,6 +20,7 @@ export function couponErrorText(code: string, minOrder?: number): string {
       return "This coupon isn't applicable to this service.";
 
     case COUPON_ERROR.USAGE_LIMIT:
+    case "COUPON_PER_USER_LIMIT":
       return "This coupon has reached its usage limit.";
 
     case COUPON_ERROR.INVALID:

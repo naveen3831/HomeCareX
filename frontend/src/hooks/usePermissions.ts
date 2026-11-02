@@ -11,8 +11,9 @@ export type PermissionMatch = 'any' | 'all';
 export function usePermissions() {
   const user = useAuthStore((state) => state.user);
   const granted = Array.isArray(user?.permissions) ? (user?.permissions as string[]) : [];
-  const isSuperAdmin = user?.role === 'admin' || granted.includes('*');
-
+const roleKey = (user as { roleKey?: string } | null)?.roleKey;
+const isSuperAdmin =
+  user?.role === 'admin' || roleKey === 'super_admin' || granted.includes('*');
   const can = (required?: string | string[], match: PermissionMatch = 'any'): boolean => {
     const list = required === undefined ? [] : Array.isArray(required) ? required : [required];
     if (list.length === 0 || isSuperAdmin) return true;

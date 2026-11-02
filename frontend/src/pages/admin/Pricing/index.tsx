@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -58,13 +58,13 @@ import "./index.css";
 export const PRICING_MANAGE = "pricing:manage";
 
 type Toast = { text: string; tone: "success" | "error" } | null;
-const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const rupees = (n: number) => `Γé╣${n.toLocaleString("en-IN")}`;
 const duration = (m: number) =>
   m < 60
     ? `${m} min`
     : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ""}`;
 
-/** "Parent › Child" labels so sub-categories are recognisable in a flat list. */
+/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
 function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
   const byId = new Map(cats.map((c) => [c.id, c]));
   return cats
@@ -72,7 +72,7 @@ function toCategoryOptions(cats: AdminCategory[]): CategoryOption[] {
       id: c.id,
       name:
         c.parentId && byId.get(c.parentId)
-          ? `${byId.get(c.parentId)!.name} › ${c.name}`
+          ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}`
           : c.name,
       active: c.active,
     }))
@@ -168,7 +168,7 @@ export const AdminPricingPage: React.FC = () => {
   );
   const labelFor = useCallback(
     (r: { categoryId: string; serviceId: string | null; city: string }) =>
-      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} · ${r.city || "All cities"}`,
+      `${r.serviceId ? serviceName(r.serviceId) : `${categoryName(r.categoryId)} (all services)`} ┬╖ ${r.city || "All cities"}`,
     [categoryName, serviceName],
   );
 
@@ -238,7 +238,7 @@ export const AdminPricingPage: React.FC = () => {
       setFormOpen(false);
       await load();
       flash(
-        `Pricing rule for “${labelFor(saved)}” ${editing ? "updated" : "created"}`,
+        `Pricing rule for ΓÇ£${labelFor(saved)}ΓÇ¥ ${editing ? "updated" : "created"}`,
       );
     } catch (e) {
       const err = e as PricingApiError;
@@ -257,7 +257,7 @@ export const AdminPricingPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(r.id));
     try {
       await adminPricingApi.setActive(r, next, labelFor(r));
-      flash(`Rule for “${labelFor(r)}” ${next ? "activated" : "deactivated"}`);
+      flash(`Rule for ΓÇ£${labelFor(r)}ΓÇ¥ ${next ? "activated" : "deactivated"}`);
     } catch (e) {
       setRules((prev) =>
         prev.map((x) => (x.id === r.id ? { ...x, active: r.active } : x)),
@@ -277,7 +277,7 @@ export const AdminPricingPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminPricingApi.remove(toDelete, labelFor(toDelete));
-      flash(`Rule for “${labelFor(toDelete)}” removed`);
+      flash(`Rule for ΓÇ£${labelFor(toDelete)}ΓÇ¥ removed`);
       setToDelete(null);
       await load();
     } catch (e) {
@@ -328,7 +328,7 @@ export const AdminPricingPage: React.FC = () => {
         }
       />
 
-      <PageSearch placeholder="Search service, category, city or mode…" />
+      <PageSearch placeholder="Search service, category, city or modeΓÇª" />
 
       {!online && (
         <div className="cat-banner" role="status">
@@ -345,7 +345,7 @@ export const AdminPricingPage: React.FC = () => {
       )}
       {!canManage && (
         <div className="cat-banner cat-banner--info" role="status">
-          You can view pricing but need the “{PRICING_MANAGE}” permission to
+          You can view pricing but need the ΓÇ£{PRICING_MANAGE}ΓÇ¥ permission to
           change it.
         </div>
       )}
@@ -563,12 +563,12 @@ export const AdminPricingPage: React.FC = () => {
                       </td>
                       <td className="hcx-hide-sm" data-label="Add-ons">
                         {r.addOns.length || (
-                          <span className="prc-muted">—</span>
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
                       <td className="hcx-hide-sm" data-label="Surge windows">
                         {r.surgeWindows.length || (
-                          <span className="prc-muted">—</span>
+                          <span className="prc-muted">ΓÇö</span>
                         )}
                       </td>
                       <td className="hcx-hide-sm" data-label="Cancellation fee">
@@ -650,9 +650,9 @@ export const AdminPricingPage: React.FC = () => {
         confirmLabel="Remove"
         message={
           <>
-            The rule for “{toDelete ? labelFor(toDelete) : ""}” will be removed
+            The rule for ΓÇ£{toDelete ? labelFor(toDelete) : ""}ΓÇ¥ will be removed
             and recorded in the audit log. Customers will then be quoted by the
-            next most specific rule, or the service’s own price.
+            next most specific rule, or the serviceΓÇÖs own price.
           </>
         }
         onCancel={() => setToDelete(null)}
@@ -678,7 +678,7 @@ export const AdminPricingPage: React.FC = () => {
                       id: a.id,
                       actor: a.actor,
                       action: a.action,
-                      entity: `Pricing rule · ${a.entityName}`,
+                      entity: `Pricing rule ┬╖ ${a.entityName}`,
                       entityId: a.entityId,
                       time: new Date(a.time).toLocaleString(),
                       before: a.before,

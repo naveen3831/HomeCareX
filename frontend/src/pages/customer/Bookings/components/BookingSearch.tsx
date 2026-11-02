@@ -62,7 +62,7 @@ export function BookingSearch({ value, onSearch }: Props) {
           setText(e.target.value);
           commit(e.target.value);
         }}
-        placeholder="Search by service or booking ID, e.g. BK-1A2B3"
+        placeholder="Search by service or booking ID..."
         className={clsx(
           "h-12 w-full rounded-2xl border border-line bg-panel pl-11 pr-11 text-sm text-ink placeholder:text-muted [&::-webkit-search-cancel-button]:hidden",
           FOCUS_RING,

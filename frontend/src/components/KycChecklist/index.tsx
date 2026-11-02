@@ -1,5 +1,5 @@
 import React from "react";
-import { KycItem } from "../../mocks/partnerDetails";
+import type { KycItem } from "@/types/adminPartner";
 
 interface KycChecklistProps {
   items: KycItem[];

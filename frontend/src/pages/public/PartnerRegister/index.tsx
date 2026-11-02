@@ -112,7 +112,7 @@ const DEFAULT_WORKING_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const ALL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export const PartnerRegisterPage: React.FC = () => {
-  const { register, logout, user, isAuthenticated } = useAuth();
+  const { register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   // Current active step (1 to 5)
@@ -294,8 +294,18 @@ export const PartnerRegisterPage: React.FC = () => {
     if (avatarInputRef.current) avatarInputRef.current.value = '';
   }
 
+  /** Reads the real file contents (base64 data: URL) so the backend can store it and admins can preview it. */
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ''));
+      reader.onerror = () => reject(reader.error ?? new Error('Could not read the file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Document upload handling
-  function handleDocUpload(
+  async function handleDocUpload(
     e: React.ChangeEvent<HTMLInputElement>,
     type: 'idProof' | 'addressProof'
   ) {
@@ -326,19 +336,27 @@ export const PartnerRegisterPage: React.FC = () => {
       return copy;
     });
 
+    let dataUrl = '';
+    try {
+      dataUrl = await readFileAsDataUrl(file);
+    } catch {
+      setFieldErrors((prev) => ({ ...prev, [type]: 'Could not read this file. Please try another one.' }));
+      return;
+    }
+
     if (type === 'idProof') {
       setForm((prev) => ({
         ...prev,
         idProofFileName: file.name,
         idProofFileSize: file.size,
-        idProofDocument: `doc_id_${Date.now()}_${file.name}`,
+        idProofDocument: dataUrl,
       }));
     } else {
       setForm((prev) => ({
         ...prev,
         addressProofFileName: file.name,
         addressProofFileSize: file.size,
-        addressProofDocument: `doc_addr_${Date.now()}_${file.name}`,
+        addressProofDocument: dataUrl,
       }));
     }
   }
@@ -622,20 +640,14 @@ export const PartnerRegisterPage: React.FC = () => {
         upiId: form.upiId.trim() || undefined,
       });
 
-      // Clear the local session created by register so partner must wait for verification
-      try {
-        await logout();
-      } catch {
-        // Ignore logout error
-      }
-
-      // Redirect to login page so partner can log in with their credentials
+      // The backend does not sign partners in: an admin verifies the documents first, then emails a
+      // link to set a new password. Send them to the login page with that explanation.
       navigate('/login?registered=partner', {
         replace: true,
         state: {
           registeredEmail: form.email.trim().toLowerCase(),
           registeredMessage:
-            'Registration successful! You can now log in with your credentials.',
+            'Registration submitted! Our team will verify your documents. You will get an email once you are approved, then set your password from it to log in.',
         },
       });
     } catch (err) {

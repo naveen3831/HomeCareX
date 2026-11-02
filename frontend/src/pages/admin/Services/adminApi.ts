@@ -7,7 +7,10 @@ export interface PartnerMember {
   phone?: string;
   gender?: 'male' | 'female' | 'other';
   designation?: string;
-  status: 'active' | 'blocked';
+  /** Login account state (User.status). */
+  status: 'active' | 'blocked' | 'invited';
+  /** Partner profile KYC state; drives the status badge in the list. */
+  kycStatus?: 'not_started' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'suspended';
   createdAt: string;
 }
 

@@ -8,8 +8,13 @@ import {
 const KycDocumentSchema = new Schema(
   {
     type: { type: String, enum: KYC_DOCUMENT_TYPES, required: true },
-    url: { type: String, required: true },
+    /** Human label, e.g. "Aadhaar" / "PAN" / "Driving licence". */
+    label: { type: String },
+    /** Legacy external URL. New uploads use storageKey and are served by the admin-only document endpoint. */
+    url: { type: String },
     storageKey: { type: String },
+    mimeType: { type: String },
+    originalName: { type: String },
     status: { type: String, enum: KYC_DOCUMENT_STATUSES, default: 'pending' },
     reviewNote: { type: String },
     uploadedAt: { type: Date, default: Date.now },

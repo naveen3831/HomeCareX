@@ -9,7 +9,7 @@
    1. Page foundation
 -------------------------------------------- */
 
-.admin-page-container {
+.admin-page-container.reports-page {
   width: 100%;
   min-width: 0;
   margin: 0 auto;
@@ -17,20 +17,20 @@
   box-sizing: border-box;
 }
 
-.admin-page-container *,
-.admin-page-container *::before,
-.admin-page-container *::after {
+.admin-page-container.reports-page *,
+.admin-page-container.reports-page *::before,
+.admin-page-container.reports-page *::after {
   box-sizing: border-box;
 }
 
-.admin-page-container h1,
-.admin-page-container h2,
-.admin-page-container h3 {
+.admin-page-container.reports-page h1,
+.admin-page-container.reports-page h2,
+.admin-page-container.reports-page h3 {
   margin-top: 0;
   line-height: 1.4;
 }
 
-.admin-page-container h1 {
+.admin-page-container.reports-page h1 {
   margin-bottom: 0;
   color: #111827;
   font-size: 28px;
@@ -38,18 +38,18 @@
   letter-spacing: -0.8px;
 }
 
-.admin-page-container h2 {
+.admin-page-container.reports-page h2 {
   color: #172033;
   font-weight: 700;
 }
 
-.admin-page-container p {
+.admin-page-container.reports-page p {
   line-height: 1.6;
 }
 
-.admin-page-container button,
-.admin-page-container input,
-.admin-page-container select {
+.admin-page-container.reports-page button,
+.admin-page-container.reports-page input,
+.admin-page-container.reports-page select {
   font-family: inherit;
 }
 
@@ -57,7 +57,7 @@
    2. Buttons and keyboard accessibility
 -------------------------------------------- */
 
-.admin-page-container button {
+.admin-page-container.reports-page button {
   min-height: 40px;
   border-radius: 9px;
   font-size: 14px;
@@ -71,39 +71,39 @@
     transform 160ms ease;
 }
 
-.admin-page-container button:focus-visible {
+.admin-page-container.reports-page button:focus-visible {
   outline: 3px solid rgb(59 130 246 / 35%);
   outline-offset: 3px;
 }
 
-.admin-page-container button:disabled {
+.admin-page-container.reports-page button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.admin-page-container button:active:not(:disabled) {
+.admin-page-container.reports-page button:active:not(:disabled) {
   transform: translateY(1px);
 }
 
-.admin-page-container button.bg-blue-600 {
+.admin-page-container.reports-page button.bg-blue-600 {
   border: 1px solid #2563eb;
   background: #2563eb;
   color: #ffffff;
 }
 
-.admin-page-container button.bg-blue-600:hover:not(:disabled) {
+.admin-page-container.reports-page button.bg-blue-600:hover:not(:disabled) {
   border-color: #1d4ed8;
   background: #1d4ed8;
   box-shadow: 0 3px 8px rgb(37 99 235 / 16%);
 }
 
-.admin-page-container button.border-gray-300 {
+.admin-page-container.reports-page button.border-gray-300 {
   border: 1px solid #dbe1ea;
   background: #ffffff;
   color: #344054;
 }
 
-.admin-page-container button.border-gray-300:hover:not(:disabled) {
+.admin-page-container.reports-page button.border-gray-300:hover:not(:disabled) {
   border-color: #b8c5d6;
   background: #f8fafc;
 }
@@ -112,7 +112,7 @@
    3. Search and filter toolbar
 -------------------------------------------- */
 
-.admin-page-container .admin-filter-toolbar {
+.admin-page-container.reports-page .admin-filter-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -122,7 +122,7 @@
 
 /* Search box */
 
-.admin-page-container .admin-search-box {
+.admin-page-container.reports-page .admin-search-box {
   display: flex;
   width: min(100%, 560px);
   min-width: 0;
@@ -140,12 +140,12 @@
     box-shadow 160ms ease;
 }
 
-.admin-page-container .admin-search-box:focus-within {
+.admin-page-container.reports-page .admin-search-box:focus-within {
   border-color: #93b4f8;
   box-shadow: 0 0 0 3px rgb(59 130 246 / 10%);
 }
 
-.admin-page-container .admin-search-box input {
+.admin-page-container.reports-page .admin-search-box input {
   width: 100%;
   min-width: 0;
   min-height: 42px;
@@ -159,19 +159,19 @@
   box-shadow: none;
 }
 
-.admin-page-container .admin-search-box input:focus {
+.admin-page-container.reports-page .admin-search-box input:focus {
   border: none;
   outline: none;
   box-shadow: none;
 }
 
-.admin-page-container .admin-search-box input::placeholder {
+.admin-page-container.reports-page .admin-search-box input::placeholder {
   color: #98a2b3;
 }
 
 /* Clear-search button */
 
-.admin-page-container button.admin-search-clear {
+.admin-page-container.reports-page button.admin-search-clear {
   display: inline-flex;
   width: 28px;
   min-width: 28px;
@@ -185,14 +185,14 @@
   color: #667085;
 }
 
-.admin-page-container button.admin-search-clear:hover:not(:disabled) {
+.admin-page-container.reports-page button.admin-search-clear:hover:not(:disabled) {
   background: #f2f4f7;
   color: #172033;
 }
 
 /* Revenue information */
 
-.admin-page-container .admin-search-note {
+.admin-page-container.reports-page .admin-search-note {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -202,7 +202,7 @@
   font-weight: 650;
 }
 
-.admin-page-container .admin-search-note span {
+.admin-page-container.reports-page .admin-search-note span {
   color: #667085;
   font-size: 12px;
   font-weight: 400;
@@ -210,7 +210,7 @@
 
 /* Filter toggle */
 
-.admin-page-container button.admin-filter-toggle {
+.admin-page-container.reports-page button.admin-filter-toggle {
   display: inline-flex;
   min-height: 44px;
   flex-shrink: 0;
@@ -226,13 +226,13 @@
   white-space: nowrap;
 }
 
-.admin-page-container button.admin-filter-toggle:hover:not(:disabled) {
+.admin-page-container.reports-page button.admin-filter-toggle:hover:not(:disabled) {
   border-color: #a9c2fb;
   background: #f8faff;
   color: #1d4ed8;
 }
 
-.admin-page-container button.admin-filter-toggle[aria-expanded="true"] {
+.admin-page-container.reports-page button.admin-filter-toggle[aria-expanded="true"] {
   border-color: #a9c2fb;
   background: #eff6ff;
   color: #1d4ed8;
@@ -240,7 +240,7 @@
 
 /* Active-filter counter */
 
-.admin-page-container .admin-filter-count {
+.admin-page-container.reports-page .admin-filter-count {
   display: inline-flex;
   min-width: 21px;
   height: 21px;
@@ -259,7 +259,7 @@
    4. Expandable filter panel
 -------------------------------------------- */
 
-.admin-page-container section.admin-filter-panel {
+.admin-page-container.reports-page section.admin-filter-panel {
   margin: 0 0 22px;
   padding: 24px;
   border: 1px solid #e4e9f1;
@@ -271,7 +271,7 @@
   animation: admin-filter-open 180ms ease-out;
 }
 
-.admin-page-container .admin-filter-panel-header {
+.admin-page-container.reports-page .admin-filter-panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -280,14 +280,14 @@
   border-bottom: 1px solid #edf0f5;
 }
 
-.admin-page-container .admin-filter-panel-header h2 {
+.admin-page-container.reports-page .admin-filter-panel-header h2 {
   margin: 0 0 5px;
   color: #172033;
   font-size: 18px;
   font-weight: 750;
 }
 
-.admin-page-container .admin-filter-panel-header p {
+.admin-page-container.reports-page .admin-filter-panel-header p {
   margin: 0;
   color: #667085;
   font-size: 13px;
@@ -295,7 +295,7 @@
 
 /* Close button */
 
-.admin-page-container button.admin-filter-close {
+.admin-page-container.reports-page button.admin-filter-close {
   display: inline-flex;
   width: 36px;
   min-width: 36px;
@@ -309,7 +309,7 @@
   color: #667085;
 }
 
-.admin-page-container button.admin-filter-close:hover:not(:disabled) {
+.admin-page-container.reports-page button.admin-filter-close:hover:not(:disabled) {
   border-color: #cbd5e1;
   background: #f8fafc;
   color: #172033;
@@ -319,14 +319,14 @@
    5. Filter fields
 -------------------------------------------- */
 
-.admin-page-container .admin-filter-grid {
+.admin-page-container.reports-page .admin-filter-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
   padding: 22px 0;
 }
 
-.admin-page-container label.admin-filter-field {
+.admin-page-container.reports-page label.admin-filter-field {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -336,15 +336,15 @@
   font-weight: 650;
 }
 
-.admin-page-container .admin-filter-field > span {
+.admin-page-container.reports-page .admin-filter-field > span {
   display: block;
   color: #344054;
   font-size: 13px;
   font-weight: 650;
 }
 
-.admin-page-container .admin-filter-field input,
-.admin-page-container .admin-filter-field select {
+.admin-page-container.reports-page .admin-filter-field input,
+.admin-page-container.reports-page .admin-filter-field select {
   width: 100%;
   min-width: 0;
   min-height: 44px;
@@ -361,17 +361,17 @@
     box-shadow 150ms ease;
 }
 
-.admin-page-container .admin-filter-field input::placeholder {
+.admin-page-container.reports-page .admin-filter-field input::placeholder {
   color: #98a2b3;
 }
 
-.admin-page-container .admin-filter-field input:hover,
-.admin-page-container .admin-filter-field select:hover {
+.admin-page-container.reports-page .admin-filter-field input:hover,
+.admin-page-container.reports-page .admin-filter-field select:hover {
   border-color: #aeb9c9;
 }
 
-.admin-page-container .admin-filter-field input:focus,
-.admin-page-container .admin-filter-field select:focus {
+.admin-page-container.reports-page .admin-filter-field input:focus,
+.admin-page-container.reports-page .admin-filter-field select:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgb(59 130 246 / 12%);
@@ -381,7 +381,7 @@
    6. Filter footer and actions
 -------------------------------------------- */
 
-.admin-page-container .admin-filter-panel-footer {
+.admin-page-container.reports-page .admin-filter-panel-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -390,19 +390,19 @@
   border-top: 1px solid #edf0f5;
 }
 
-.admin-page-container .admin-filter-hint {
+.admin-page-container.reports-page .admin-filter-hint {
   color: #667085;
   font-size: 12px;
 }
 
-.admin-page-container .admin-filter-actions {
+.admin-page-container.reports-page .admin-filter-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
 }
 
-.admin-page-container button.admin-filter-reset {
+.admin-page-container.reports-page button.admin-filter-reset {
   display: inline-flex;
   min-height: 42px;
   align-items: center;
@@ -415,12 +415,12 @@
   color: #344054;
 }
 
-.admin-page-container button.admin-filter-reset:hover:not(:disabled) {
+.admin-page-container.reports-page button.admin-filter-reset:hover:not(:disabled) {
   border-color: #b8c5d6;
   background: #f8fafc;
 }
 
-.admin-page-container button.admin-filter-apply {
+.admin-page-container.reports-page button.admin-filter-apply {
   display: inline-flex;
   min-height: 42px;
   align-items: center;
@@ -433,7 +433,7 @@
   box-shadow: 0 2px 4px rgb(37 99 235 / 12%);
 }
 
-.admin-page-container button.admin-filter-apply:hover:not(:disabled) {
+.admin-page-container.reports-page button.admin-filter-apply:hover:not(:disabled) {
   border-color: #1d4ed8;
   background: #1d4ed8;
   box-shadow: 0 4px 9px rgb(37 99 235 / 16%);
@@ -455,7 +455,7 @@
    7. Report tabs
 -------------------------------------------- */
 
-.admin-page-container nav[aria-label="Report type"] {
+.admin-page-container.reports-page nav[aria-label="Report type"] {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -463,7 +463,7 @@
   padding-bottom: 3px;
 }
 
-.admin-page-container nav[aria-label="Report type"] button {
+.admin-page-container.reports-page nav[aria-label="Report type"] button {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -477,7 +477,7 @@
   white-space: nowrap;
 }
 
-.admin-page-container nav[aria-label="Report type"]
+.admin-page-container.reports-page nav[aria-label="Report type"]
   button[aria-pressed="true"] {
   border-color: #2563eb;
   background: #2563eb;
@@ -485,13 +485,13 @@
   box-shadow: 0 3px 8px rgb(37 99 235 / 18%);
 }
 
-.admin-page-container nav[aria-label="Report type"]
+.admin-page-container.reports-page nav[aria-label="Report type"]
   button[aria-pressed="true"]:hover:not(:disabled) {
   border-color: #1d4ed8;
   background: #1d4ed8;
 }
 
-.admin-page-container nav[aria-label="Report type"]
+.admin-page-container.reports-page nav[aria-label="Report type"]
   button:hover:not(:disabled) {
   border-color: #a9c2fb;
 }
@@ -500,12 +500,12 @@
    8. Report heading and export button
 -------------------------------------------- */
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"] {
   min-width: 0;
 }
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"]
   > div:first-child {
   display: flex;
@@ -515,7 +515,7 @@
   margin-bottom: 20px;
 }
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"]
   > div:first-child
   h2 {
@@ -526,7 +526,7 @@
   letter-spacing: -0.4px;
 }
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"]
   > div:first-child
   > button {
@@ -540,7 +540,7 @@
   box-shadow: 0 1px 2px rgb(16 24 40 / 3%);
 }
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"]
   > div:first-child
   > button:hover:not(:disabled) {
@@ -549,7 +549,7 @@
   color: #1d4ed8;
 }
 
-.admin-page-container
+.admin-page-container.reports-page
   section[aria-labelledby="active-report-title"]
   strong {
   color: #344054;
@@ -560,7 +560,7 @@
    9. Summary card grids
 -------------------------------------------- */
 
-.admin-page-container .admin-report-metrics {
+.admin-page-container.reports-page .admin-report-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: stretch;
@@ -569,25 +569,25 @@
 
 /* Bookings: five cards on wide screens */
 
-.admin-page-container .admin-report-metrics--bookings {
+.admin-page-container.reports-page .admin-report-metrics--bookings {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 /* Partner Performance: eight cards */
 
-.admin-page-container .admin-report-metrics--partners {
+.admin-page-container.reports-page .admin-report-metrics--partners {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* Revenue cards */
 
-.admin-page-container .admin-report-metrics--revenue {
+.admin-page-container.reports-page .admin-report-metrics--revenue {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* Shared metric card styling */
 
-.admin-page-container .admin-report-metrics > article {
+.admin-page-container.reports-page .admin-report-metrics > article {
   display: flex;
   min-width: 0;
   min-height: 116px;
@@ -606,12 +606,12 @@
     box-shadow 160ms ease;
 }
 
-.admin-page-container .admin-report-metrics > article:hover {
+.admin-page-container.reports-page .admin-report-metrics > article:hover {
   border-color: #cbd5e1;
   box-shadow: 0 5px 14px rgb(16 24 40 / 5%);
 }
 
-.admin-page-container .admin-report-metrics > article p:first-child {
+.admin-page-container.reports-page .admin-report-metrics > article p:first-child {
   margin: 0;
   color: #667085;
   font-size: 13px;
@@ -619,7 +619,7 @@
   line-height: 1.5;
 }
 
-.admin-page-container .admin-report-metrics > article p:last-child {
+.admin-page-container.reports-page .admin-report-metrics > article p:last-child {
   margin: 0;
   color: #172033;
   font-size: clamp(20px, 1.5vw, 25px);
@@ -634,7 +634,7 @@
    10. Partner Performance — neutral cards
 -------------------------------------------- */
 
-.admin-page-container
+.admin-page-container.reports-page
   .admin-report-metrics--partners
   > article {
   display: flex;
@@ -659,7 +659,7 @@
 
 /* Uniform hover without colored accents */
 
-.admin-page-container
+.admin-page-container.reports-page
   .admin-report-metrics--partners
   > article:hover {
   border-color: #cbd5e1;
@@ -669,7 +669,7 @@
 
 /* Partner card labels */
 
-.admin-page-container
+.admin-page-container.reports-page
   .admin-report-metrics--partners
   > article
   p:first-child {
@@ -682,7 +682,7 @@
 
 /* Partner card values */
 
-.admin-page-container
+.admin-page-container.reports-page
   .admin-report-metrics--partners
   > article
   p:last-child {
@@ -700,7 +700,7 @@
    11. Data tables
 -------------------------------------------- */
 
-.admin-page-container .overflow-x-auto {
+.admin-page-container.reports-page .overflow-x-auto {
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
@@ -712,26 +712,26 @@
   scrollbar-color: #cbd5e1 #f8fafc;
 }
 
-.admin-page-container table {
+.admin-page-container.reports-page table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 0;
   border-collapse: separate;
   border-spacing: 0;
   background: #ffffff;
   font-size: 13px;
 }
 
-.admin-page-container table th,
-.admin-page-container table td {
+.admin-page-container.reports-page table th,
+.admin-page-container.reports-page table td {
   text-align: left;
   vertical-align: middle;
 }
 
-.admin-page-container thead {
+.admin-page-container.reports-page thead {
   background: #f8fafc;
 }
 
-.admin-page-container th {
+.admin-page-container.reports-page th {
   padding: 15px 17px;
   border-bottom: 1px solid #e4e9f1;
   background: #f8fafc;
@@ -740,64 +740,66 @@
   font-weight: 750;
   letter-spacing: 0.045em;
   text-transform: uppercase;
-  white-space: nowrap;
+  white-space: normal;
 }
 
-.admin-page-container td {
+.admin-page-container.reports-page td {
   padding: 15px 17px;
   border-bottom: 1px solid #eef1f5;
   color: #344054;
   line-height: 1.55;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
-.admin-page-container tbody tr {
+.admin-page-container.reports-page tbody tr {
   transition: background-color 120ms ease;
 }
 
-.admin-page-container tbody tr:hover {
+.admin-page-container.reports-page tbody tr:hover {
   background-color: #f8faff;
 }
 
-.admin-page-container tbody tr:last-child td {
+.admin-page-container.reports-page tbody tr:last-child td {
   border-bottom: none;
 }
 
 /* Shortened IDs */
 
-.admin-page-container td.report-id-cell {
+.admin-page-container.reports-page td.report-id-cell {
   color: #475467;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 
 /* --------------------------------------------
    12. Loading, empty and error states
 -------------------------------------------- */
 
-.admin-page-container [role="status"] {
+.admin-page-container.reports-page [role="status"] {
   color: #667085;
 }
 
-.admin-page-container [role="status"].rounded-xl {
+.admin-page-container.reports-page [role="status"].rounded-xl {
   border: 1px dashed #d0d9e6;
   border-radius: 12px;
   background: #ffffff;
 }
 
-.admin-page-container [role="alert"] {
+.admin-page-container.reports-page [role="alert"] {
   border: 1px solid #fecaca;
   border-radius: 11px;
   background: #fff5f5;
   color: #991b1b;
 }
 
-.admin-page-container [role="alert"] p {
+.admin-page-container.reports-page [role="alert"] p {
   margin: 0;
 }
 
-.admin-page-container [role="alert"] button {
+.admin-page-container.reports-page [role="alert"] button {
   min-height: 36px;
   padding: 6px 12px;
   border: 1px solid #fca5a5;
@@ -806,13 +808,13 @@
   color: #991b1b;
 }
 
-.admin-page-container [role="alert"] button:hover:not(:disabled) {
+.admin-page-container.reports-page [role="alert"] button:hover:not(:disabled) {
   background: #fee2e2;
 }
 
 /* Search result count */
 
-.admin-page-container .admin-search-results {
+.admin-page-container.reports-page .admin-search-results {
   margin: 0 0 12px;
   color: #667085;
   font-size: 12px;
@@ -823,11 +825,11 @@
 -------------------------------------------- */
 
 @media (max-width: 1280px) {
-  .admin-page-container .admin-report-metrics--bookings {
+  .admin-page-container.reports-page .admin-report-metrics--bookings {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .admin-page-container .admin-report-metrics--partners {
+  .admin-page-container.reports-page .admin-report-metrics--partners {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
@@ -837,32 +839,32 @@
 -------------------------------------------- */
 
 @media (max-width: 900px) {
-  .admin-page-container .admin-filter-grid {
+  .admin-page-container.reports-page .admin-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 17px;
   }
 
-  .admin-page-container .admin-report-metrics,
-  .admin-page-container .admin-report-metrics--bookings,
-  .admin-page-container .admin-report-metrics--partners,
-  .admin-page-container .admin-report-metrics--revenue {
+  .admin-page-container.reports-page .admin-report-metrics,
+  .admin-page-container.reports-page .admin-report-metrics--bookings,
+  .admin-page-container.reports-page .admin-report-metrics--partners,
+  .admin-page-container.reports-page .admin-report-metrics--revenue {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .admin-page-container .admin-report-metrics > article {
+  .admin-page-container.reports-page .admin-report-metrics > article {
     min-height: 100px;
     padding: 17px;
   }
 
-  .admin-page-container
+  .admin-page-container.reports-page
     .admin-report-metrics--partners
     > article {
     min-height: 110px;
     padding: 17px;
   }
 
-  .admin-page-container th,
-  .admin-page-container td {
+  .admin-page-container.reports-page th,
+  .admin-page-container.reports-page td {
     padding: 13px 14px;
   }
 }
@@ -872,83 +874,83 @@
 -------------------------------------------- */
 
 @media (max-width: 600px) {
-  .admin-page-container h1 {
+  .admin-page-container.reports-page h1 {
     font-size: 24px;
   }
 
-  .admin-page-container .admin-filter-toolbar {
+  .admin-page-container.reports-page .admin-filter-toolbar {
     align-items: stretch;
     flex-direction: column;
     gap: 12px;
     margin-top: 20px;
   }
 
-  .admin-page-container .admin-search-box {
+  .admin-page-container.reports-page .admin-search-box {
     width: 100%;
     max-width: none;
   }
 
-  .admin-page-container button.admin-filter-toggle {
+  .admin-page-container.reports-page button.admin-filter-toggle {
     align-self: flex-end;
     gap: 7px;
     padding: 9px 11px;
     font-size: 13px;
   }
 
-  .admin-page-container section.admin-filter-panel {
+  .admin-page-container.reports-page section.admin-filter-panel {
     padding: 16px;
   }
 
-  .admin-page-container .admin-filter-panel-header {
+  .admin-page-container.reports-page .admin-filter-panel-header {
     gap: 10px;
     padding-bottom: 15px;
   }
 
-  .admin-page-container .admin-filter-panel-header h2 {
+  .admin-page-container.reports-page .admin-filter-panel-header h2 {
     font-size: 17px;
   }
 
-  .admin-page-container .admin-filter-panel-header p {
+  .admin-page-container.reports-page .admin-filter-panel-header p {
     font-size: 12px;
   }
 
-  .admin-page-container .admin-filter-grid {
+  .admin-page-container.reports-page .admin-filter-grid {
     grid-template-columns: minmax(0, 1fr);
     gap: 15px;
     padding: 18px 0;
   }
 
-  .admin-page-container .admin-filter-panel-footer {
+  .admin-page-container.reports-page .admin-filter-panel-footer {
     align-items: stretch;
     flex-direction: column;
     gap: 12px;
   }
 
-  .admin-page-container .admin-filter-actions {
+  .admin-page-container.reports-page .admin-filter-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 9px;
   }
 
-  .admin-page-container button.admin-filter-reset,
-  .admin-page-container button.admin-filter-apply {
+  .admin-page-container.reports-page button.admin-filter-reset,
+  .admin-page-container.reports-page button.admin-filter-apply {
     width: 100%;
     padding: 10px;
   }
 
-  .admin-page-container nav[aria-label="Report type"] {
+  .admin-page-container.reports-page nav[aria-label="Report type"] {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
   }
 
-  .admin-page-container nav[aria-label="Report type"] button {
+  .admin-page-container.reports-page nav[aria-label="Report type"] button {
     width: 100%;
     min-height: 42px;
     padding: 10px 12px;
   }
 
-  .admin-page-container
+  .admin-page-container.reports-page
     section[aria-labelledby="active-report-title"]
     > div:first-child {
     align-items: flex-start;
@@ -956,37 +958,37 @@
     gap: 12px;
   }
 
-  .admin-page-container
+  .admin-page-container.reports-page
     section[aria-labelledby="active-report-title"]
     > div:first-child
     > button {
     width: 100%;
   }
 
-  .admin-page-container .admin-report-metrics,
-  .admin-page-container .admin-report-metrics--bookings,
-  .admin-page-container .admin-report-metrics--partners,
-  .admin-page-container .admin-report-metrics--revenue {
+  .admin-page-container.reports-page .admin-report-metrics,
+  .admin-page-container.reports-page .admin-report-metrics--bookings,
+  .admin-page-container.reports-page .admin-report-metrics--partners,
+  .admin-page-container.reports-page .admin-report-metrics--revenue {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
 
-  .admin-page-container .admin-report-metrics > article {
+  .admin-page-container.reports-page .admin-report-metrics > article {
     min-height: 92px;
     padding: 13px;
   }
 
-  .admin-page-container .admin-report-metrics > article p:first-child {
+  .admin-page-container.reports-page .admin-report-metrics > article p:first-child {
     font-size: 11px;
   }
 
-  .admin-page-container .admin-report-metrics > article p:last-child {
+  .admin-page-container.reports-page .admin-report-metrics > article p:last-child {
     font-size: 19px;
   }
 
   /* Neutral Partner Performance cards on mobile */
 
-  .admin-page-container
+  .admin-page-container.reports-page
     .admin-report-metrics--partners
     > article {
     min-height: 100px;
@@ -996,14 +998,14 @@
     border-radius: 10px;
   }
 
-  .admin-page-container
+  .admin-page-container.reports-page
     .admin-report-metrics--partners
     > article
     p:first-child {
     font-size: 11px;
   }
 
-  .admin-page-container
+  .admin-page-container.reports-page
     .admin-report-metrics--partners
     > article
     p:last-child {
@@ -1011,8 +1013,8 @@
     letter-spacing: -0.3px;
   }
 
-  .admin-page-container th,
-  .admin-page-container td {
+  .admin-page-container.reports-page th,
+  .admin-page-container.reports-page td {
     padding: 11px 12px;
     font-size: 12px;
   }
@@ -1021,14 +1023,14 @@
 /* Very small mobile screens */
 
 @media (max-width: 360px) {
-  .admin-page-container .admin-report-metrics,
-  .admin-page-container .admin-report-metrics--bookings,
-  .admin-page-container .admin-report-metrics--partners,
-  .admin-page-container .admin-report-metrics--revenue {
+  .admin-page-container.reports-page .admin-report-metrics,
+  .admin-page-container.reports-page .admin-report-metrics--bookings,
+  .admin-page-container.reports-page .admin-report-metrics--partners,
+  .admin-page-container.reports-page .admin-report-metrics--revenue {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .admin-page-container .admin-report-metrics > article {
+  .admin-page-container.reports-page .admin-report-metrics > article {
     min-height: 80px;
   }
 }
@@ -1038,12 +1040,19 @@
 -------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .admin-page-container *,
-  .admin-page-container *::before,
-  .admin-page-container *::after {
+  .admin-page-container.reports-page *,
+  .admin-page-container.reports-page *::before,
+  .admin-page-container.reports-page *::after {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Tables: fit the card on desktop (wrap long text). Only phones / small tablets scroll sideways. */
+@media (max-width: 900px) {
+  .admin-page-container.reports-page table { width: max-content; min-width: 860px; }
+  .admin-page-container.reports-page th,
+  .admin-page-container.reports-page td { white-space: nowrap; }
 }

@@ -20,6 +20,30 @@ const NOTICE_CLASS = {
   warning: 'border-amber-200 bg-amber-50 text-amber-800',
 } as const;
 
+type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'neutral';
+
+/** Real partner state: blocked / KYC progress / active. Falls back to the account status if the API sends no kycStatus. */
+function partnerBadge(p: PartnerMember): { label: string; tone: BadgeTone } {
+  if (p.status === 'blocked') return { label: 'Blocked', tone: 'danger' };
+  if (p.status === 'invited') return { label: 'Invited', tone: 'info' };
+  switch (p.kycStatus) {
+    case undefined:
+    case 'approved':
+      return { label: 'Active', tone: 'success' };
+    case 'rejected':
+      return { label: 'KYC Rejected', tone: 'danger' };
+    case 'suspended':
+      return { label: 'Suspended', tone: 'danger' };
+    default: // not_started, submitted, in_review
+      return { label: 'Pending KYC', tone: 'warning' };
+  }
+}
+
+const PartnerStatus: React.FC<{ partner: PartnerMember }> = ({ partner }) => {
+  const { label, tone } = partnerBadge(partner);
+  return <StatusBadge status={label} tone={tone} />;
+};
+
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
@@ -142,7 +166,7 @@ export const AdminManagePartnersPage: React.FC = () => {
                     <span className="mp-card__name">{s.name}</span>
                     <span className="mp-card__role">{s.designation ?? 'No designation'}</span>
                   </div>
-                  <StatusBadge status={s.status} />
+                  <PartnerStatus partner={s} />
                 </div>
                 <dl className="mp-info">
                   <div><dt>Email</dt><dd>{s.email}</dd></div>
@@ -196,7 +220,7 @@ export const AdminManagePartnersPage: React.FC = () => {
                       <td style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <StatusBadge status={s.status} />
+                          <PartnerStatus partner={s} />
                           <button type="button" className="hcx-btn hcx-btn--ghost" style={{ minHeight: 30, padding: '4px 8px' }} onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`} title="Edit">
                             <Pencil size={15} />
                           </button>

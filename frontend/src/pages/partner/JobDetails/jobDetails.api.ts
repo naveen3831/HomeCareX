@@ -1,4 +1,4 @@
-import api from '@/lib/api';
+﻿import api from '@/lib/api';
 import { getQuickFix, sendSos } from '@/pages/partner/Safety/safety.api';
 import { MAX_PHOTO_BYTES, validatePhoto } from '@/lib/photoValidation';
 import { mapJob, mapJobListItemToJobDetails, getDefaultChecklistForService, type JobListItemLike } from './jobDetails.mapper';
@@ -7,27 +7,16 @@ import type { JobAction, JobStatus } from './jobStatus';
 import { useAuthStore } from '@/store/useAuthStore';
 import { getPartnerServices } from '../MyServices/myServices.api';
 
-const asRecord = (value: unknown): Record<string, unknown> =>
-  value !== null && typeof value === 'object' ? value as Record<string, unknown> : {};
-
-const errorMessage = (error: unknown): string => {
-  const record = asRecord(error);
-  return error instanceof Error ? error.message : String(record.message ?? error);
-};
-
-const errorStatus = (error: unknown): number | undefined =>
-  Number(asRecord(asRecord(error).response).status) || undefined;
-
-const currentUserId = (): string | undefined => {
-  const id = useAuthStore.getState().user?.id;
-  return typeof id === 'string' ? id : undefined;
-};
-
 export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_mock_job_v1';
 export const MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
 
+function getCurrentUserId(): string | undefined {
+  const id = useAuthStore.getState().user?.id;
+  return typeof id === 'string' ? id : undefined;
+}
+
 export function getAssignedCatalogStorageKey(userId?: string): string {
-  const effectiveId = userId || currentUserId();
+  const effectiveId = userId || getCurrentUserId();
   return effectiveId
     ? `homecarex_partner_assigned_services_v3_${effectiveId}`
     : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
@@ -113,7 +102,7 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
     },
     customer: {
       name: 'Bharat S.',
-      phoneMasked: '+91 ••••• ••007',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó007',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -141,7 +130,7 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
     },
     customer: {
       name: 'Priya Reddy',
-      phoneMasked: '+91 ••••• ••202',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó202',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -167,7 +156,7 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
     },
     customer: {
       name: 'Arjun Kumar',
-      phoneMasked: '+91 ••••• ••303',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó303',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -195,7 +184,7 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
     },
     customer: {
       name: 'Sneha Patel',
-      phoneMasked: '+91 ••••• ••404',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó404',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -214,14 +203,14 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
   },
   plumbing: {
     service: {
-      name: 'Plumbing – Tap & Leak Repair',
+      name: 'Plumbing ΓÇô Tap & Leak Repair',
       description: 'Kitchen and Bathroom Tap Leakage & Pipe Repair',
       quantity: 1,
       durationMinutes: 45,
     },
     customer: {
       name: 'Vikram Singh',
-      phoneMasked: '+91 ••••• ••505',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó505',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -241,13 +230,13 @@ const KNOWN_MOCK_SERVICES: Record<string, Partial<JobDetails>> = {
   cleaning: {
     service: {
       name: 'Deep home cleaning',
-      description: '2 BHK · Kitchen, bathrooms, floors',
+      description: '2 BHK ┬╖ Kitchen, bathrooms, floors',
       quantity: 1,
       durationMinutes: 180,
     },
     customer: {
       name: 'Rohan K.',
-      phoneMasked: '+91 ••••• ••214',
+      phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó214',
       subtitle: 'Calls are routed through the app',
     },
     location: {
@@ -285,25 +274,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Rohan K.',
-        phoneMasked: '+91 ••••• ••214',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó214',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Deep home cleaning',
-        description: '2 BHK · Kitchen, bathrooms, floors',
+        description: '2 BHK ┬╖ Kitchen, bathrooms, floors',
         quantity: 1,
         durationMinutes: 180,
       },
       location: {
-        address: 'Flat •••, Green Meadows Apartments',
+        address: 'Flat ΓÇóΓÇóΓÇó, Green Meadows Apartments',
         city: 'Hyderabad',
         pincode: '500039',
-        hint: 'Full address unlocks at start · 6.4 km away',
+        hint: 'Full address unlocks at start ┬╖ 6.4 km away',
       },
       schedule: {
         scheduledAt: '2026-10-14T04:30:00.000Z',
         dateLabel: 'Tue, 14 Oct 2026',
-        slot: '10:00 – 13:00',
+        slot: '10:00 ΓÇô 13:00',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '10:02 AM',
         completedAt: null,
@@ -349,25 +338,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Ananya S.',
-        phoneMasked: '+91 ••••• ••842',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó842',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Bathroom & kitchen sanitization',
-        description: '2 Bathrooms + Modular Kitchen · Steam & descaling',
+        description: '2 Bathrooms + Modular Kitchen ┬╖ Steam & descaling',
         quantity: 1,
         durationMinutes: 120,
       },
       location: {
-        address: 'Flat •••, Prestige High Fields, Gachibowli',
+        address: 'Flat ΓÇóΓÇóΓÇó, Prestige High Fields, Gachibowli',
         city: 'Hyderabad',
         pincode: '500032',
-        hint: 'Full address unlocks at start · 3.8 km away',
+        hint: 'Full address unlocks at start ┬╖ 3.8 km away',
       },
       schedule: {
         scheduledAt: '2026-10-14T09:00:00.000Z',
         dateLabel: 'Tue, 14 Oct 2026',
-        slot: '14:30 – 16:30',
+        slot: '14:30 ΓÇô 16:30',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '02:32 PM',
         completedAt: null,
@@ -412,25 +401,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Vikram R.',
-        phoneMasked: '+91 ••••• ••519',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó519',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'AC foam-jet service & gas check',
-        description: '2 Split AC units · Filter, cooling coil & drain tray wash',
+        description: '2 Split AC units ┬╖ Filter, cooling coil & drain tray wash',
         quantity: 2,
         durationMinutes: 90,
       },
       location: {
-        address: 'Plot •••, Jubilee Enclave, Hitech City',
+        address: 'Plot ΓÇóΓÇóΓÇó, Jubilee Enclave, Hitech City',
         city: 'Hyderabad',
         pincode: '500081',
-        hint: 'Full address unlocks at start · 4.2 km away',
+        hint: 'Full address unlocks at start ┬╖ 4.2 km away',
       },
       schedule: {
         scheduledAt: '2026-10-15T05:30:00.000Z',
         dateLabel: 'Wed, 15 Oct 2026',
-        slot: '11:00 – 12:30',
+        slot: '11:00 ΓÇô 12:30',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '11:04 AM',
         completedAt: null,
@@ -474,25 +463,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Priya M.',
-        phoneMasked: '+91 ••••• ••673',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó673',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Sofa & carpet shampooing',
-        description: '5-seater fabric sofa + living room carpet · Wet extraction',
+        description: '5-seater fabric sofa + living room carpet ┬╖ Wet extraction',
         quantity: 1,
         durationMinutes: 120,
       },
       location: {
-        address: 'Villa •••, My Home Bhooja, Madhapur',
+        address: 'Villa ΓÇóΓÇóΓÇó, My Home Bhooja, Madhapur',
         city: 'Hyderabad',
         pincode: '500081',
-        hint: 'Full address unlocks at start · 5.1 km away',
+        hint: 'Full address unlocks at start ┬╖ 5.1 km away',
       },
       schedule: {
         scheduledAt: '2026-10-15T10:30:00.000Z',
         dateLabel: 'Wed, 15 Oct 2026',
-        slot: '16:00 – 18:00',
+        slot: '16:00 ΓÇô 18:00',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '04:05 PM',
         completedAt: null,
@@ -506,7 +495,7 @@ export function createInitialAssignedServicesCatalog(
         { id: 'addon-20439-1', name: 'Scotchgard fabric protection', quantity: 1, amount: 250 },
         { id: 'addon-20439-2', name: 'Cushion dry vacuuming', quantity: 1, amount: 150 },
       ],
-      instructions: 'Light beige linen sofa — test shampoo on back corner first.',
+      instructions: 'Light beige linen sofa ΓÇö test shampoo on back corner first.',
       checklist: [
         { id: 'chk-20439-1', label: 'Dry vacuum sofa crevices and carpet', done: true },
         { id: 'chk-20439-2', label: 'Spot-treat fabric stains', done: true },
@@ -537,25 +526,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Karthik V.',
-        phoneMasked: '+91 ••••• ••308',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó308',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Herbal pest control & gel treatment',
-        description: '3 BHK · Odorless cockroach, ant & silverfish control',
+        description: '3 BHK ┬╖ Odorless cockroach, ant & silverfish control',
         quantity: 1,
         durationMinutes: 90,
       },
       location: {
-        address: 'Flat •••, Aparna Serene Park, Kondapur',
+        address: 'Flat ΓÇóΓÇóΓÇó, Aparna Serene Park, Kondapur',
         city: 'Hyderabad',
         pincode: '500084',
-        hint: 'Full address unlocks at start · 7.0 km away',
+        hint: 'Full address unlocks at start ┬╖ 7.0 km away',
       },
       schedule: {
         scheduledAt: '2026-10-16T04:00:00.000Z',
         dateLabel: 'Thu, 16 Oct 2026',
-        slot: '09:30 – 11:00',
+        slot: '09:30 ΓÇô 11:00',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '09:33 AM',
         completedAt: null,
@@ -568,7 +557,7 @@ export function createInitialAssignedServicesCatalog(
       addOns: [
         { id: 'addon-20444-1', name: 'Balcony drain spray', quantity: 1, amount: 200 },
       ],
-      instructions: 'Toddler at home — use only herbal gel inside kitchen cabinets.',
+      instructions: 'Toddler at home ΓÇö use only herbal gel inside kitchen cabinets.',
       checklist: [
         { id: 'chk-20444-1', label: 'Apply herbal gel in kitchen hinges and drawers', done: true },
         { id: 'chk-20444-2', label: 'Spray odorless barrier along skirting boards', done: false },
@@ -598,25 +587,25 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Meera N.',
-        phoneMasked: '+91 ••••• ••951',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó951',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Regular home cleaning & floor polish',
-        description: '3 BHK · Living area, bedrooms, windows & floor buffing',
+        description: '3 BHK ┬╖ Living area, bedrooms, windows & floor buffing',
         quantity: 1,
         durationMinutes: 150,
       },
       location: {
-        address: 'Flat •••, Rainbow Vistas, Moosapet',
+        address: 'Flat ΓÇóΓÇóΓÇó, Rainbow Vistas, Moosapet',
         city: 'Hyderabad',
         pincode: '500018',
-        hint: 'Full address unlocks at start · 5.6 km away',
+        hint: 'Full address unlocks at start ┬╖ 5.6 km away',
       },
       schedule: {
         scheduledAt: '2026-10-16T09:30:00.000Z',
         dateLabel: 'Thu, 16 Oct 2026',
-        slot: '15:00 – 17:30',
+        slot: '15:00 ΓÇô 17:30',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '03:02 PM',
         completedAt: null,
@@ -660,7 +649,7 @@ export function createInitialAssignedServicesCatalog(
       status: 'assigned',
       customer: {
         name: 'Bharat S.',
-        phoneMasked: '+91 ••••• ••007',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó007',
         subtitle: 'Calls are routed through the app',
       },
       service: {
@@ -673,12 +662,12 @@ export function createInitialAssignedServicesCatalog(
         address: '14, Road No. 5, Jubilee Hills',
         city: 'Hyderabad',
         pincode: '500033',
-        hint: 'Near Jubilee Hills Checkpost · 2.5 km away',
+        hint: 'Near Jubilee Hills Checkpost ┬╖ 2.5 km away',
       },
       schedule: {
         scheduledAt: new Date(Date.now() + 7200 * 1000).toISOString(),
         dateLabel: 'Today',
-        slot: '14:00 – 16:00',
+        slot: '14:00 ΓÇô 16:00',
         startedAt: null,
         startedTimeLabel: undefined,
         completedAt: null,
@@ -723,7 +712,7 @@ export function createInitialAssignedServicesCatalog(
       status: 'confirmed',
       customer: {
         name: 'Suresh P.',
-        phoneMasked: '+91 ••••• ••410',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó410',
         subtitle: 'Calls are routed through the app',
       },
       service: {
@@ -733,15 +722,15 @@ export function createInitialAssignedServicesCatalog(
         durationMinutes: 90,
       },
       location: {
-        address: 'Tower •••, Lodha Bellezza, KPHB Colony',
+        address: 'Tower ΓÇóΓÇóΓÇó, Lodha Bellezza, KPHB Colony',
         city: 'Hyderabad',
         pincode: '500072',
-        hint: 'Full address unlocks at start · 4.8 km away',
+        hint: 'Full address unlocks at start ┬╖ 4.8 km away',
       },
       schedule: {
         scheduledAt: '2026-10-15T08:00:00.000Z',
         dateLabel: 'Wed, 15 Oct 2026',
-        slot: '13:30 – 15:00',
+        slot: '13:30 ΓÇô 15:00',
         startedAt: started1h24m36sAgo,
         startedTimeLabel: '01:32 PM',
         completedAt: null,
@@ -784,17 +773,17 @@ export function createInitialAssignedServicesCatalog(
       status: 'cancelled_by_partner',
       customer: {
         name: 'Deepak T.',
-        phoneMasked: '+91 ••••• ••190',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó190',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Terrace water tank cleaning',
-        description: '1000L Sintex tank · Sludge removal, high pressure wash & UV sanitization',
+        description: '1000L Sintex tank ┬╖ Sludge removal, high pressure wash & UV sanitization',
         quantity: 1,
         durationMinutes: 90,
       },
       location: {
-        address: 'House •••, Road No. 12, Banjara Hills',
+        address: 'House ΓÇóΓÇóΓÇó, Road No. 12, Banjara Hills',
         city: 'Hyderabad',
         pincode: '500034',
         hint: 'Terrace access via external spiral staircase',
@@ -802,7 +791,7 @@ export function createInitialAssignedServicesCatalog(
       schedule: {
         scheduledAt: '2026-10-13T04:00:00.000Z',
         dateLabel: 'Mon, 13 Oct 2026',
-        slot: '09:30 – 11:00',
+        slot: '09:30 ΓÇô 11:00',
         startedAt: null,
         startedTimeLabel: '',
         completedAt: null,
@@ -844,17 +833,17 @@ export function createInitialAssignedServicesCatalog(
       status: 'completed',
       customer: {
         name: 'Pooja G.',
-        phoneMasked: '+91 ••••• ••772',
+        phoneMasked: '+91 ΓÇóΓÇóΓÇóΓÇóΓÇó ΓÇóΓÇó772',
         subtitle: 'Calls are routed through the app',
       },
       service: {
         name: 'Full bathroom steam sanitization',
-        description: '2 Bathrooms · Tile grouting, steam disinfection & glass scale removal',
+        description: '2 Bathrooms ┬╖ Tile grouting, steam disinfection & glass scale removal',
         quantity: 2,
         durationMinutes: 100,
       },
       location: {
-        address: 'Flat •••, My Home Jewel, Madinaguda',
+        address: 'Flat ΓÇóΓÇóΓÇó, My Home Jewel, Madinaguda',
         city: 'Hyderabad',
         pincode: '500049',
         hint: 'Job completed successfully',
@@ -862,7 +851,7 @@ export function createInitialAssignedServicesCatalog(
       schedule: {
         scheduledAt: '2026-10-12T05:00:00.000Z',
         dateLabel: 'Sun, 12 Oct 2026',
-        slot: '10:30 – 12:10',
+        slot: '10:30 ΓÇô 12:10',
         startedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
         startedTimeLabel: '10:31 AM',
         completedAt: new Date(Date.now() - 22 * 3600 * 1000).toISOString(),
@@ -922,7 +911,7 @@ export function createInitialAssignedServicesCatalog(
           ...job.schedule,
           scheduledAt: new Date(Date.now() + 3600 * 1000).toISOString(),
           dateLabel: 'Today',
-          slot: '11:00 – 13:00',
+          slot: '11:00 ΓÇô 13:00',
           startedAt: null,
           startedTimeLabel: undefined,
           completedAt: null,
@@ -1017,7 +1006,7 @@ export function createInitialPartnerRouteMockJob(
     schedule: {
       scheduledAt: new Date(Date.now() + 3600 * 1000).toISOString(),
       dateLabel: 'Today',
-      slot: '11:00 – 13:00',
+      slot: '11:00 ΓÇô 13:00',
       startedAt: null,
       startedTimeLabel: undefined,
       completedAt: null,
@@ -1130,16 +1119,15 @@ function findKnownJob(requestedId?: string): JobDetails | null {
   try {
     const rawLive = window.sessionStorage.getItem('homecarex_last_live_jobs');
     if (rawLive) {
-      const liveList: unknown = JSON.parse(rawLive);
+      const liveList = JSON.parse(rawLive);
       if (Array.isArray(liveList)) {
-        const found = liveList.find((job) => String(asRecord(job).id).toLowerCase() === cleanId);
+        const found = liveList.find((j: { id?: string | number }) => String(j.id).toLowerCase() === cleanId);
         if (found) {
-          return mapJobListItemToJobDetails(asRecord(found));
+          return mapJobListItemToJobDetails(found);
         }
       }
     }
   } catch {
-    // Invalid cached JSON is ignored; the caller can continue through the remaining fallbacks.
     /* ignore parse failure */
   }
 
@@ -1157,7 +1145,7 @@ function findKnownJob(requestedId?: string): JobDetails | null {
     return createInitialPartnerRouteMockJob(requestedId, 'Kitchen Cleaning');
   }
   if (cleanId === 'job-005' || cleanId === 'hcx-10005' || cleanId.includes('plumb')) {
-    return createInitialPartnerRouteMockJob(requestedId, 'Plumbing – Tap & Leak Repair');
+    return createInitialPartnerRouteMockJob(requestedId, 'Plumbing ΓÇô Tap & Leak Repair');
   }
   if (cleanId === 'job-001' || cleanId === 'hcx-10001') {
     return createInitialPartnerRouteMockJob(requestedId, 'Deep home cleaning');
@@ -1277,7 +1265,7 @@ export interface FetchAssignedServicesOptions {
 export async function fetchAssignedServices(
   options?: FetchAssignedServicesOptions,
 ): Promise<JobDetails[]> {
-  const effectiveUserId = options?.userId || currentUserId();
+  const effectiveUserId = options?.userId || getCurrentUserId();
   let partnerServices = options?.assignedServices;
 
   if (!partnerServices || partnerServices.length === 0) {
@@ -1303,8 +1291,8 @@ export async function fetchAssignedServices(
       saveAssignedCatalogToStorage(filtered, effectiveUserId);
       return filtered;
     }
-  } catch (err: unknown) {
-    console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', errorMessage(err));
+  } catch (err) {
+    console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', err);
   }
   return loadAssignedCatalogFromStorage(effectiveUserId, partnerServices);
 }
@@ -1407,9 +1395,8 @@ export async function fetchJob(id: string): Promise<JobDetails> {
       return mapped;
     }
   } catch (err: unknown) {
-    const status = errorStatus(err);
-    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, errorMessage(err));
-    if (!IS_MOCK_JOBS && (status === 404 || status === 403)) {
+    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
+    if (!IS_MOCK_JOBS && ((err as { response?: { status?: number } })?.response?.status === 404 || (err as { response?: { status?: number } })?.response?.status === 403)) {
       const fallback = findKnownJob(cleanId);
       if (fallback) {
         return withStartVerification(fallback);
@@ -1535,9 +1522,8 @@ export function getMockExtraCharges(bookingId: string): ExtraChargeItem[] {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {
-      // Ignore malformed cached data and try the next storage key.
-    }
     /* ignore parse failure */
+  }
   }
   return [];
 }
@@ -1556,9 +1542,8 @@ export function saveMockExtraCharges(bookingId: string, items: ExtraChargeItem[]
     try {
       localStorage.setItem(k, JSON.stringify(items));
     } catch {
-      // Storage is best-effort; try writing the remaining aliases.
-    }
     /* ignore parse failure */
+  }
   }
 }
 
@@ -1572,7 +1557,6 @@ export async function fetchExtraCharges(bookingId: string): Promise<ExtraChargeI
         return res.data.data;
       }
     } catch (err: unknown) {
-      console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, errorMessage(err));
       console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
     }
   }
@@ -1593,7 +1577,6 @@ export async function createExtraCharge(
         createdFromServer = res.data.data;
       }
     } catch (err: unknown) {
-      console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, errorMessage(err));
       console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, (err as { message?: string })?.message || err);
     }
   }
@@ -1620,14 +1603,12 @@ export async function createExtraCharge(
       extraCharges: next,
     });
   } catch {
-    // The local job cache is optional; the extra charge is still returned to the caller.
     /* ignore parse failure */
   }
 
   try {
     window.dispatchEvent(new Event('storage'));
   } catch {
-    // The event only notifies same-page listeners and is not required for completion.
     /* ignore parse failure */
   }
 

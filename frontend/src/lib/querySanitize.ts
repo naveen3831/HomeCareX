@@ -17,16 +17,16 @@ export const QUERY_LIMITS = {
   pathSegment: 100,
 } as const;
 
-/** Sort values the API accepts (GET /services?sort=). */
-export const API_SORTS = ['popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance'] as const;
+/** Sort values the API accepts (GET /services?sort=). 'order' is the admin-defined order (the default). */
+export const API_SORTS = ['order', 'popular', 'rating', 'price-asc', 'price-desc', 'newest', 'relevance'] as const;
 export type ApiSort = (typeof API_SORTS)[number];
 
-/** Sort values the Services page dropdown shows (kept in the URL as-is). */
+/** Sort values the Services page dropdown shows (kept in the URL as-is). The default "popular" entry is shown as "Featured" and means the admin's order. */
 export const UI_SORTS = ['popular', 'price-low', 'price-high'] as const;
 export type UiSort = (typeof UI_SORTS)[number];
 
 const UI_TO_API_SORT: Record<UiSort, ApiSort> = {
-  popular: 'popular',
+  popular: 'order', // default entry (labelled "Featured"): services in the order the admin set
   'price-low': 'price-asc',
   'price-high': 'price-desc',
 };
@@ -62,9 +62,18 @@ export const sanitizeSearchText = (value: unknown): string => cleanText(value, Q
 
 const CATEGORY_RE = /^[A-Za-z0-9][A-Za-z0-9 _&-]*$/;
 
+const CATEGORY_ALIASES: Record<string, string> = {
+  plumbing: 'electrical-plumbing',
+  electrical: 'electrical-plumbing',
+  'appliance-repair': 'appliance-repair-service',
+  cleaning: 'home-cleaning',
+};
+
 export function sanitizeCategory(value: unknown): string {
   const text = cleanText(value, QUERY_LIMITS.category);
-  return CATEGORY_RE.test(text) ? text : '';
+  if (!CATEGORY_RE.test(text)) return '';
+  const lower = text.toLowerCase();
+  return CATEGORY_ALIASES[lower] || text;
 }
 
 /** Indian pincode: exactly 6 digits, otherwise dropped. */
@@ -83,12 +92,12 @@ export function sanitizeUiSort(value: unknown): UiSort {
   return 'popular';
 }
 
-/** Sort as the API wants it. Anything not on the allow-list becomes "popular". */
+/** Sort as the API wants it. Anything not on the allow-list becomes "order" (the admin's order). */
 export function sanitizeApiSort(value: unknown): ApiSort {
-  if (typeof value !== 'string') return 'popular';
+  if (typeof value !== 'string') return 'order';
   if ((API_SORTS as readonly string[]).includes(value)) return value as ApiSort;
   if ((UI_SORTS as readonly string[]).includes(value)) return UI_TO_API_SORT[value as UiSort];
-  return 'popular';
+  return 'order';
 }
 
 export const uiSortToApi = (sort: UiSort): ApiSort => UI_TO_API_SORT[sort];

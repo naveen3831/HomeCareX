@@ -583,7 +583,7 @@ overscroll-behavior: contain;}
 .admin-topbar__crumbs .breadcrumbs { flex-wrap: nowrap; white-space: nowrap; min-width: 0; }
 .admin-topbar__crumbs .breadcrumbs > * { flex-shrink: 0; }
 .admin-topbar__crumbs .breadcrumbs__current { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.admin-topbar .topbar-right { margin-left: 0; flex-shrink: 0; }
+.admin-topbar .topbar-right { margin-left: auto; flex-shrink: 0; }
 @media (max-width: 640px) {
   /* Phones: keep only the last two crumbs so it fits beside the menu + bell */
   .admin-topbar__crumbs .breadcrumbs > :nth-last-child(n + 4) { display: none; }
@@ -662,3 +662,122 @@ overscroll-behavior: contain;}
 .hcx-pagesearch__input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); outline: 0; }
 .hcx-pagesearch__clear { position: absolute; right: 8px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; color: #64748b; background: none; border: 0; border-radius: 6px; cursor: pointer; }
 .hcx-pagesearch__clear:hover { background: #f1f5f9; }
+
+/* ===== Mobile bottom bar + Profile menu (below 1024px) ===== */
+.hcx-bottomnav { display: none; }
+.hcx-acctmenu, .hcx-profilehero { display: none; }
+
+@media (max-width: 1023px) {
+  /* The sidebar drawer is gone on phones: the bottom bar and the Profile tab replace it. */
+  .admin-sidebar, .sidebar-overlay { display: none; }
+  .admin-layout__main { padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Flat full-width bar. The active tab is an indigo box holding the icon and its label. */
+  .hcx-bottomnav {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 35;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: #ffffff;
+    border-top: 1px solid var(--hcx-line);
+    box-shadow: 0 -8px 24px -12px rgba(15, 23, 42, 0.16);
+  }
+  .hcx-bottomnav__list { display: flex; margin: 0; padding: 0; list-style: none; }
+  .hcx-bottomnav__item { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; }
+  .hcx-bottomnav__link {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-width: 68px; max-width: 100%; min-height: 56px; padding: 7px 10px; border-radius: 16px;
+    color: var(--hcx-muted); text-decoration: none; -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s ease, background-color 0.2s ease, transform 0.12s ease;
+  }
+  .hcx-bottomnav__link:active { transform: scale(0.95); }
+  .hcx-bottomnav__icon { display: flex; align-items: center; justify-content: center; line-height: 0; }
+  .hcx-bottomnav__label { font-size: 11px; font-weight: 500; line-height: 1.1; letter-spacing: -0.01em; white-space: nowrap; }
+  .hcx-bottomnav__link.is-active { background: var(--hcx-accent); color: #fff; box-shadow: 0 6px 14px -6px rgba(67, 56, 202, 0.6); }
+  .hcx-bottomnav__link.is-active .hcx-bottomnav__label { font-weight: 600; }
+  .hcx-bottomnav__link:focus-visible { outline: 2px solid var(--hcx-accent); outline-offset: 2px; }
+
+  /* Profile tab: hero + menu on top, the edit form below */
+  .hcx-profilehero {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 18px; padding: 18px;
+    background: #e9ebff; border: 1px solid #d9dcf7; border-radius: 26px;
+  }
+  .hcx-profilehero__avatar {
+    flex: none; display: flex; align-items: center; justify-content: center;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--hcx-accent); color: #fff; font-size: 24px; font-weight: 700;
+    border: 3px solid #fff; box-shadow: 0 4px 12px rgba(67, 56, 202, 0.3);
+  }
+  .hcx-profilehero__text { min-width: 0; }
+  .hcx-profilehero__text h1 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.2; color: var(--hcx-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hcx-profilehero__text p { margin: 2px 0 0; font-size: 13px; color: var(--hcx-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hcx-profilehero__role { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; background: #fff; color: var(--hcx-accent); font-size: 11px; font-weight: 600; text-transform: capitalize; }
+
+  .hcx-acctmenu { display: block; margin-bottom: 24px; }
+  .hcx-acctmenu section { margin-bottom: 18px; }
+  .hcx-acctmenu__heading { margin: 0 0 8px; padding: 0 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--hcx-muted); }
+  .hcx-acctmenu__card { margin: 0; padding: 0; list-style: none; overflow: hidden; background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 22px; box-shadow: 0 10px 28px -14px rgba(15, 23, 42, 0.18); }
+  .hcx-acctmenu__card li + li { border-top: 1px solid var(--hcx-line); }
+  .hcx-acctmenu__row { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 10px 16px; color: var(--hcx-ink); text-decoration: none; transition: background-color 0.12s ease; }
+  .hcx-acctmenu__row:active { background: var(--hcx-canvas); }
+  .hcx-acctmenu__icon { flex: none; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 14px; }
+  .hcx-acctmenu__label { flex: 1 1 auto; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hcx-acctmenu__chev { flex: none; color: var(--hcx-faint); }
+  .hcx-acctmenu__signout { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 52px; border: 1px solid #fecaca; border-radius: 18px; background: var(--hcx-danger-soft); color: var(--hcx-danger); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .hcx-acctmenu__signout:active { background: #fee2e2; }
+
+  .hcx-tint--indigo { background: #eef2ff; color: #4f46e5; }
+  .hcx-tint--orange { background: #fff7ed; color: #ea580c; }
+  .hcx-tint--emerald { background: #ecfdf5; color: #059669; }
+  .hcx-tint--sky { background: #f0f9ff; color: #0284c7; }
+  .hcx-tint--violet { background: #f5f3ff; color: #7c3aed; }
+  .hcx-tint--amber { background: #fffbeb; color: #d97706; }
+
+  .hcx-profilehero__edit {
+    display: inline-flex; align-items: center; gap: 6px; margin: 8px 0 0 8px; min-height: 34px; padding: 0 14px;
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--hcx-accent);
+    background: #fff; border: 1.5px solid #b9bff2; border-radius: 999px; cursor: pointer;
+  }
+  .hcx-profilehero__edit:active { transform: scale(0.96); }
+  .hcx-profilehero__role { margin-top: 8px; }
+
+  /* Phones: no inline form or header; Account Security is already in the menu. Edit profile opens as a bottom sheet. */
+  .hcx-profile > .profile-page__header,
+  .hcx-profile__security { display: none; }
+  .hcx-profile__form { display: none; }
+  .hcx-profile__form.is-editing {
+    display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 80; margin: 0;
+    max-height: 90vh; overflow-y: auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0; box-shadow: 0 -16px 40px rgba(15, 23, 42, 0.25);
+  }
+  .hcx-profile__form .profile-card__avatar { display: none; }
+  .hcx-sheetbackdrop { position: fixed; inset: 0; z-index: 79; background: rgba(15, 23, 42, 0.5); }
+  .hcx-sheethead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .hcx-sheethead h2 { margin: 0; font-size: 17px; font-weight: 700; color: var(--hcx-ink); }
+  .hcx-sheethead button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--hcx-canvas); color: var(--hcx-muted); cursor: pointer; }
+}
+@media (min-width: 1024px) {
+  .hcx-sheetbackdrop, .hcx-sheethead, .hcx-profilehero__edit { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hcx-bottomnav__link { transition: none; }
+}
+
+/* Home (dashboard) on phones/tablets has its own header with greeting, help and bell, so the top bar and search row are hidden */
+@media (max-width: 1023px) {
+  .admin-layout--home .admin-topbar,
+  .admin-layout--home .breadcrumb-bar { display: none; }
+}
+
+/* Profile on phones/tablets: no top bar (breadcrumbs, help, bell); the profile card and bottom bar cover it */
+@media (max-width: 1023px) {
+  .admin-layout--profile .admin-topbar { display: none; }
+}
+/* Support / Leads switcher (Help group) */
+.help-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+.help-tabs__link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; font-size: 14px; font-weight: 600; color: #64748b; text-decoration: none; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s ease, border-color 0.15s ease; }
+.help-tabs__link:hover { color: #0f172a; }
+.help-tabs__link.is-active { color: #4338ca; border-bottom-color: #4338ca; }

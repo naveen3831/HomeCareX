@@ -5,6 +5,7 @@ import type {
   ChangePasswordResult,
   LoginInput,
   RegisterInput,
+  RegisterResult,
   RevokeResult,
   UserSession,
 } from "@/types/auth";
@@ -13,7 +14,7 @@ export const authApi = {
   login: (input: LoginInput) =>
     http.post<ApiResponse<SessionPayload>>("/auth/login", input).then((r) => r.data.data),
   register: (input: RegisterInput) =>
-    http.post<ApiResponse<SessionPayload>>("/auth/register", input).then((r) => r.data.data),
+    http.post<ApiResponse<RegisterResult>>("/auth/register", input).then((r) => r.data.data),
   // Uses the deduplicated single-flight promise:
   refresh: async (): Promise<SessionPayload> => {
     const session = await refreshAccessToken();

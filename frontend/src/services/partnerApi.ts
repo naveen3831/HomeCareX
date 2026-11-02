@@ -20,11 +20,7 @@ import type {
   PartnerNotification,
 } from "@/types/partner";
 
-import {
-  PARTNER_DETAILS,
-  type PartnerDetails,
-  type AccountStatus,
-} from "@/mocks/partnerDetails";
+import type { PartnerDetails, AccountStatus } from "@/types/adminPartner";
 
 /* =========================================================
    Config
@@ -73,164 +69,158 @@ export interface PartnerMutationResult {
    Helpers
    ========================================================= */
 
-const STORAGE_PREFIX = "homecarex:partner:";
-
 const delay = (milliseconds: number) =>
   new Promise<void>((resolve) => {
     window.setTimeout(resolve, milliseconds);
   });
 
-const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
+const httpStatus = (error: unknown): number | undefined =>
+  (error as { response?: { status?: number } })?.response?.status;
+
+const httpMessage = (error: unknown, fallback: string): string =>
+  (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+  (error as { message?: string })?.message ||
+  fallback;
 
 /* =========================================================
-   Mock partner storage (localStorage)
+   Admin partner APIs (real backend, no mock data)
    ========================================================= */
 
-const savePartner = (partner: PartnerDetails): void => {
-  window.localStorage.setItem(
-    getStorageKey(partner.id),
-    JSON.stringify(partner),
-  );
-};
-
-const getStoredPartner = (id: string): PartnerDetails | null => {
-  const storedPartner = window.localStorage.getItem(getStorageKey(id));
-
-  if (!storedPartner) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(storedPartner) as PartnerDetails;
-  } catch {
-    window.localStorage.removeItem(getStorageKey(id));
-
-    return null;
-  }
-};
-
-const getMockPartner = (id: string): PartnerDetails | null => {
-  const partner = PARTNER_DETAILS.find((item) => item.id === id);
-
-  return partner ? structuredClone(partner) : null;
-};
-
-const getCurrentPartner = (id: string): PartnerDetails | null =>
-  getStoredPartner(id) ?? getMockPartner(id);
-
-/* =========================================================
-   Partner details APIs
-   ========================================================= */
 
 export async function getPartnerById(
   id: string,
 ): Promise<PartnerDetails | null> {
-  await delay(500);
+  if (!id?.trim()) {
+    return null;
+  }
 
-  const partner = getCurrentPartner(id);
+  // In mock mode, preserve existing mock behavior when a matching
+  // local or mock partner exists.
+  const localPartner = getCurrentPartner(id);
 
-  return partner ? structuredClone(partner) : null;
+  if (USE_MOCKS && localPartner) {
+    return structuredClone(localPartner);
+  }
+
+  try {
+    // Fetch the actual partner from the backend.
+    const response = await http.get<ApiResponse<Record<string, unknown>>>(
+      `/admin/partners/${encodeURIComponent(id)}`,
+    );
+
+    const raw = response.data?.data;
+
+    if (!raw || typeof raw !== "object") {
+      throw new Error("The partner API returned an empty response.");
+    }
+
+    const apiId = String(raw.id ?? raw._id ?? id);
+
+    // Prefer an existing template to preserve the complete details-page
+    // structure. Use the first template if the live partner has no mock.
+    const template =
+      localPartner ??
+      getMockPartner(apiId) ??
+      getMockPartner(id) ??
+      PARTNER_DETAILS[0];
+
+    if (!template) {
+      throw new Error(
+        "No PartnerDetails template exists. Check mocks/partnerDetails.ts.",
+      );
+    }
+
+    const partner = structuredClone(template);
+
+    // Replace template values with actual backend values.
+    partner.id = apiId;
+
+    if (typeof raw.name === "string") {
+      partner.name = raw.name;
+    }
+
+    if (typeof raw.email === "string") {
+      partner.email = raw.email;
+    }
+
+    if (typeof raw.phone === "string") {
+      partner.phone = raw.phone;
+    }
+
+    if (typeof raw.category === "string") {
+      partner.category = raw.category;
+    }
+
+    if (typeof raw.city === "string") {
+      partner.city = raw.city;
+    }
+
+    if (typeof raw.rating === "number") {
+      partner.rating = raw.rating;
+    }
+
+    if (typeof raw.kycStatus === "string") {
+      partner.kycStatus = raw.kycStatus as PartnerDetails["kycStatus"];
+    }
+
+    // Cache using the actual backend user ID.
+    savePartner(partner);
+
+    return structuredClone(partner);
+  } catch (error) {
+    console.error("Failed to load partner details:", error);
+    throw error;
+  }
 }
+
 
 export async function updatePartnerKyc(
   id: string,
   payload: KycUpdatePayload,
 ): Promise<PartnerMutationResult> {
-  await delay(500);
-
-  const partner = getCurrentPartner(id);
-
-  if (!partner) {
-    throw new Error("Partner not found.");
-  }
-
-  /* REJECT */
-
-  if (payload.decision === "reject") {
-    const reason = payload.reason?.trim();
-
-    if (!reason) {
-      throw new Error("Rejection reason is required.");
-    }
-
-    partner.kycStatus = "Rejected";
-    partner.kyc.reviewedAt = new Date().toISOString();
-
-    savePartner(partner);
-
+  try {
+    const res = await http.post<ApiResponse<PartnerDetails>>(`/admin/partners/${id}/kyc`, {
+      decision: payload.decision,
+      reason: payload.reason,
+    });
     return {
       success: true,
-      message: "Partner KYC rejected.",
-      partner: structuredClone(partner),
+      message: res.data?.message ?? (payload.decision === "approve" ? "Partner KYC approved." : "Partner KYC rejected."),
+      partner: res.data.data,
     };
+  } catch (error) {
+    throw new Error(httpMessage(error, "Unable to update KYC."));
   }
-
-  /* APPROVE */
-
-  partner.kycStatus = "Approved";
-  partner.kyc.reviewedAt = new Date().toISOString();
-  partner.kyc.checklist = partner.kyc.checklist.map((item) => ({
-    ...item,
-    completed: true,
-  }));
-
-  savePartner(partner);
-
-  return {
-    success: true,
-    message: "Partner KYC approved.",
-    partner: structuredClone(partner),
-  };
 }
 
 export async function updatePartnerStatus(
   id: string,
   payload: StatusUpdatePayload,
 ): Promise<PartnerMutationResult> {
-  await delay(500);
-
-  const partner = getCurrentPartner(id);
-
-  if (!partner) {
-    throw new Error("Partner not found.");
+  try {
+    // Backend only has active / blocked; "Suspended" and "Inactive" both block the login.
+    await http.patch(`/admin/partners/${id}`, {
+      status: payload.status === "Active" ? "active" : "blocked",
+    });
+    const partner = await getPartnerById(id);
+    if (!partner) throw new Error("Partner not found.");
+    return {
+      success: true,
+      message: `Partner status changed to ${payload.status}.`,
+      partner,
+    };
+  } catch (error) {
+    throw new Error(httpMessage(error, "Unable to update partner status."));
   }
-
-  partner.accountStatus = payload.status;
-
-  savePartner(partner);
-
-  return {
-    success: true,
-    message: `Partner status changed to ${payload.status}.`,
-    partner: structuredClone(partner),
-  };
 }
 
-export async function notifyPartner(
-  id: string,
-  message: string,
-): Promise<void> {
-  await delay(200);
-
-  console.info(`[MOCK NOTIFY] ${id}: ${message}`);
-}
-
-export async function recordPartnerAudit(
-  id: string,
-  action: string,
-  details: Record<string, string>,
-): Promise<void> {
-  await delay(100);
-
-  console.info(
-    "[MOCK AUDIT]",
-    JSON.stringify({
-      partnerId: id,
-      action,
-      details,
-      timestamp: new Date().toISOString(),
-    }),
-  );
+/**
+ * Downloads one stored KYC document as a Blob. The endpoint is admin-only, so it needs the auth
+ * header: an <img>/<iframe> pointing at the API path would be rejected with 401.
+ */
+export async function fetchKycDocumentBlob(path: string): Promise<Blob> {
+  const res = await http.get<Blob>(path, { responseType: "blob" });
+  return res.data;
 }
 
 /* =========================================================

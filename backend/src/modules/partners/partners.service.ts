@@ -1,10 +1,15 @@
+
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Types } from 'mongoose';
 
 import BookingModel from '../../models/Booking';
 import CategoryModel from '../../models/Category';
 import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
+import PayoutModel from '../../models/Payout';
+import ReviewModel from '../../models/Review';
+import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
 
@@ -13,6 +18,10 @@ import { HttpError } from '../auth/auth.types';
 import { designationsService } from '../designations/designations.service';
 import { mailService } from '../../services/mail.service';
 import { auditService } from '../audit/audit.service';
+import { readKycDocument } from './kyc-storage';
+
+/** The set-password link in the approval email works this long. */
+const APPROVAL_LINK_HOURS = 72;
 
 import type {
   CreatePartnerInput,
@@ -25,12 +34,8 @@ interface AuditActor {
 }
 
 /**
- * ---------------------------------------------------------
- * SAFE PARTNER AUDIT SNAPSHOT
- * ---------------------------------------------------------
- *
- * Nullable fields match the User model.
- * Never include passwords, password hashes, or tokens.
+ * Safe audit snapshot.
+ * Never include password hashes or tokens.
  */
 function partnerAuditSnapshot(user: {
   _id: unknown;
@@ -55,12 +60,7 @@ function partnerAuditSnapshot(user: {
 }
 
 /**
- * ---------------------------------------------------------
- * PARTNER AUDIT HELPER
- * ---------------------------------------------------------
- *
- * A failed audit insert must not undo a successful
- * partner operation. Log the failure for reconciliation.
+ * Partner audit helper.
  */
 async function recordPartnerAudit(input: {
   actor: AuditActor;
@@ -89,9 +89,7 @@ async function recordPartnerAudit(input: {
 }
 
 /**
- * ---------------------------------------------------------
- * CANONICAL DESIGNATION
- * ---------------------------------------------------------
+ * Canonical designation.
  */
 async function canonicalDesignation(
   name: string,
@@ -111,11 +109,19 @@ async function canonicalDesignation(
 }
 
 /**
- * ---------------------------------------------------------
- * FIND PARTNER USER
- * ---------------------------------------------------------
+ * Find a partner's User record by User ID.
+ *
+ * The directory's `id` is the User ID.
  */
 async function findPartnerUser(id: string) {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new HttpError(
+      400,
+      'Invalid partner ID',
+      'INVALID_PARTNER_ID',
+    );
+  }
+
   const user = await UserModel.findOne({
     _id: id,
     role: 'partner',
@@ -133,9 +139,7 @@ async function findPartnerUser(id: string) {
 }
 
 /**
- * ---------------------------------------------------------
- * ENSURE PARTNER PROFILE
- * ---------------------------------------------------------
+ * Ensure a partner profile exists.
  */
 export async function ensurePartnerProfile(
   userId: string | Types.ObjectId,
@@ -145,7 +149,10 @@ export async function ensurePartnerProfile(
       ? userId
       : new Types.ObjectId(userId);
 
-  let partner = await PartnerModel.findOne({ userId: normalizedUserId });
+  let partner = await PartnerModel.findOne({
+    userId: normalizedUserId,
+  });
+
   if (!partner) {
     partner = await PartnerModel.create({
       userId: normalizedUserId,
@@ -169,73 +176,66 @@ export async function ensurePartnerProfile(
     });
   }
 
-  if (partner.kyc && (partner.kyc as any).status === 'not_submitted') {
+  if (
+    partner.kyc &&
+    (partner.kyc as any).status === 'not_submitted'
+  ) {
     partner.kyc.status = 'not_started';
   }
 
-  // Auto-assign services if categories or services are empty
-  const hasCategories = Array.isArray(partner.categories) && partner.categories.length > 0;
-  const hasServices = Array.isArray((partner as any).services) && (partner as any).services.length > 0;
+  const hasCategories =
+    Array.isArray(partner.categories) &&
+    partner.categories.length > 0;
+
+  const hasServices =
+    Array.isArray((partner as any).services) &&
+    (partner as any).services.length > 0;
 
   if (!hasCategories || !hasServices) {
-    let catDoc = null;
+    let category = null;
+
     if (hasCategories) {
-      catDoc = await CategoryModel.findById(partner.categories[0]);
-    }
-    if (!catDoc) {
-      catDoc = await CategoryModel.findOne({ active: true }).sort({ sortOrder: 1, name: 1 });
+      category = await CategoryModel.findById(
+        partner.categories[0],
+      );
     }
 
-    if (catDoc) {
+    if (!category) {
+      category = await CategoryModel.findOne({
+        active: true,
+      }).sort({
+        sortOrder: 1,
+        name: 1,
+      });
+    }
+
+    if (category) {
       if (!hasCategories) {
-        partner.categories = [catDoc._id as Types.ObjectId];
+        partner.categories = [
+          category._id as Types.ObjectId,
+        ];
       }
+
       if (!hasServices) {
-        const matched = await ServiceModel.find({ categoryId: catDoc._id, active: true }).select('_id');
-        (partner as any).services = matched.map((s: any) => s._id as Types.ObjectId);
+        const services = await ServiceModel.find({
+          categoryId: category._id,
+          active: true,
+        }).select('_id');
+
+        (partner as any).services = services.map(
+          (service: any) => service._id as Types.ObjectId,
+        );
       }
+
       await partner.save();
     }
   }
 
   return partner;
-  return PartnerModel.findOneAndUpdate(
-    {
-      userId: normalizedUserId,
-    },
-    {
-      $setOnInsert: {
-        userId: normalizedUserId,
-        categories: [],
-        skills: [],
-        serviceRadiusKm: 10,
-        ratingAvg: 0,
-        ratingCount: 0,
-        stats: {
-          offersReceived: 0,
-          offersAccepted: 0,
-          jobsAssigned: 0,
-          jobsCompleted: 0,
-        },
-        kyc: {
-          status: 'not_started',
-          documents: [],
-        },
-        trainingCompleted: false,
-      },
-    },
-    {
-      upsert: true,
-      new: true,
-      setDefaultsOnInsert: true,
-    },
-  );
 }
 
 /**
- * ---------------------------------------------------------
- * PARTNERS SERVICE
- * ---------------------------------------------------------
+ * Partner service.
  */
 export class PartnersService {
   /**
@@ -274,9 +274,6 @@ export class PartnersService {
       role: 'partner',
     });
 
-    /**
-     * Roll back User creation if profile creation fails.
-     */
     try {
       await ensurePartnerProfile(partner._id);
     } catch (error) {
@@ -284,9 +281,6 @@ export class PartnersService {
       throw error;
     }
 
-    /**
-     * Audit successful partner creation.
-     */
     await recordPartnerAudit({
       actor,
       action: 'partner.created',
@@ -295,9 +289,6 @@ export class PartnersService {
       after: partnerAuditSnapshot(partner),
     });
 
-    /**
-     * Send partner credentials email.
-     */
     let emailSent = true;
 
     try {
@@ -309,12 +300,11 @@ export class PartnersService {
         },
         input.password,
       );
-    } catch (err) {
+    } catch (error) {
       emailSent = false;
-
       console.error(
         'Partner credentials email failed:',
-        err,
+        error,
       );
     }
 
@@ -334,63 +324,311 @@ export class PartnersService {
       .sort({ createdAt: -1 })
       .limit(500);
 
-    /**
-     * Repair old partner Users missing a Partner profile.
-     */
     for (const partner of partners) {
-      await ensurePartnerProfile(partner._id);
+      const profile = await ensurePartnerProfile(partner._id);
+      kycByUser.set(String(partner._id), String(profile.kyc?.status ?? 'not_started'));
     }
 
-    return partners.map(toDto);
+    return partners.map((p) => toDto(p, kycByUser.get(String(p._id))));
   }
 
   /**
    * PARTNERS & KYC DIRECTORY
-   * One row per partner with KYC state and performance, read from the Partner profile (real data).
-   * Rates come from the counters kept by matching / booking services.
    */
   async directory() {
-    const partners = await PartnerModel.find({}).sort({ createdAt: -1 }).limit(500).lean();
-    const userIds = partners.map((p) => p.userId);
+    const partners = await PartnerModel.find({})
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean();
 
-    const [users, lastCities, categories] = await Promise.all([
-      UserModel.find({ _id: { $in: userIds }, role: 'partner' }).select('name email phone status designation').lean(),
-      // A partner has no address of their own: use the city of their most recent booking.
-      BookingModel.aggregate<{ _id: unknown; city?: string }>([
-        { $match: { partnerId: { $in: partners.map((p) => p._id) }, 'address.city': { $exists: true, $ne: '' } } },
+    const userIds = partners.map((partner) => partner.userId);
+
+    const [
+      users,
+      lastCities,
+      categories,
+    ] = await Promise.all([
+      UserModel.find({
+        _id: { $in: userIds },
+        role: 'partner',
+      })
+        .select('name email phone status designation')
+        .lean(),
+
+      BookingModel.aggregate<{
+        _id: unknown;
+        city?: string;
+      }>([
+        {
+          $match: {
+            partnerId: {
+              $in: partners.map((partner) => partner._id),
+            },
+            'address.city': {
+              $exists: true,
+              $ne: '',
+            },
+          },
+        },
         { $sort: { createdAt: -1 } },
-        { $group: { _id: '$partnerId', city: { $first: '$address.city' } } },
+        {
+          $group: {
+            _id: '$partnerId',
+            city: { $first: '$address.city' },
+          },
+        },
       ]),
-      CategoryModel.find({}).select('name').lean(),
+
+      CategoryModel.find({})
+        .select('name')
+        .lean(),
     ]);
 
-    const userById = new Map(users.map((u) => [String(u._id), u]));
-    const cityByPartner = new Map(lastCities.map((r) => [String(r._id), r.city ?? '']));
-    const categoryName = new Map(categories.map((c) => [String(c._id), c.name as string]));
-    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
+    const userById = new Map(
+      users.map((user) => [
+        String(user._id),
+        user,
+      ]),
+    );
 
-    return partners.flatMap((p) => {
-      const user = userById.get(String(p.userId));
-      if (!user) return [];
-      const stats = p.stats ?? { offersReceived: 0, offersAccepted: 0, jobsAssigned: 0, jobsCompleted: 0 };
+    const cityByPartner = new Map(
+      lastCities.map((row) => [
+        String(row._id),
+        row.city ?? '',
+      ]),
+    );
+
+    const categoryName = new Map(
+      categories.map((category) => [
+        String(category._id),
+        category.name as string,
+      ]),
+    );
+
+    const percentage = (numerator: number, denominator: number) =>
+      denominator > 0
+        ? Math.round((numerator / denominator) * 100)
+        : 0;
+
+    return partners.flatMap((partner) => {
+      const user = userById.get(String(partner.userId));
+
+      if (!user) {
+        return [];
+      }
+
+      const stats = partner.stats ?? {
+        offersReceived: 0,
+        offersAccepted: 0,
+        jobsAssigned: 0,
+        jobsCompleted: 0,
+      };
+
       return [
         {
-          id: String(user._id), // same id the other /admin/partners endpoints use (the login user id)
-          partnerId: String(p._id),
+          id: String(user._id),
+          partnerId: String(partner._id),
           name: user.name,
           email: user.email,
           phone: user.phone ?? '',
-          kycStatus: p.kyc?.status ?? 'not_started',
-          accountStatus: user.status === 'blocked' ? 'blocked' : user.status === 'invited' ? 'invited' : 'active',
-          category: (p.categories ?? []).map((c) => categoryName.get(String(c))).filter(Boolean).join(', ') || user.designation || '',
-          city: cityByPartner.get(String(p._id)) ?? '',
-          rating: Math.round((p.ratingAvg ?? 0) * 10) / 10,
-          ratingCount: p.ratingCount ?? 0,
-          acceptance: pct(stats.offersAccepted, stats.offersReceived),
-          completion: pct(stats.jobsCompleted, stats.jobsAssigned),
+          kycStatus: partner.kyc?.status ?? 'not_started',
+          accountStatus:
+            user.status === 'blocked'
+              ? 'blocked'
+              : user.status === 'invited'
+                ? 'invited'
+                : 'active',
+          category:
+            (partner.categories ?? [])
+              .map((categoryId) =>
+                categoryName.get(String(categoryId)),
+              )
+              .filter(Boolean)
+              .join(', ') ||
+            user.designation ||
+            '',
+          city:
+            cityByPartner.get(String(partner._id)) ?? '',
+          rating:
+            Math.round((partner.ratingAvg ?? 0) * 10) / 10,
+          ratingCount: partner.ratingCount ?? 0,
+          acceptance: percentage(
+            stats.offersAccepted,
+            stats.offersReceived,
+          ),
+          completion: percentage(
+            stats.jobsCompleted,
+            stats.jobsAssigned,
+          ),
         },
       ];
     });
+  }
+
+  /**
+   * GET ONE PARTNER BY USER ID
+   *
+   * The View URL contains the User ID, not the Partner
+   * profile ID. Load the User and associated profile.
+   */
+  async getById(id: string) {
+    const user = await findPartnerUser(id);
+
+    const profile = await PartnerModel.findOne({
+      userId: user._id,
+    }).lean();
+
+    if (!profile) {
+      throw new HttpError(
+        404,
+        'Partner profile not found',
+        'PARTNER_PROFILE_NOT_FOUND',
+      );
+    }
+
+    const categoryIds = profile.categories ?? [];
+
+    const [
+      categories,
+      bookings,
+    ] = await Promise.all([
+      categoryIds.length
+        ? CategoryModel.find({
+            _id: { $in: categoryIds },
+          })
+            .select('name')
+            .lean()
+        : Promise.resolve([]),
+
+      BookingModel.find({
+        partnerId: profile._id,
+      })
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean(),
+    ]);
+
+    const categoryNames = categories.map(
+      (category: any) => String(category.name),
+    );
+
+    const normalizedBookings = bookings.map(
+      (booking: any) => ({
+        id: String(booking._id),
+        customer:
+          typeof booking.customerName === 'string'
+            ? booking.customerName
+            : typeof booking.customer === 'string'
+              ? booking.customer
+              : 'Customer',
+        service:
+          typeof booking.serviceName === 'string'
+            ? booking.serviceName
+            : typeof booking.service === 'string'
+              ? booking.service
+              : 'Home Service',
+        date: booking.createdAt
+          ? new Date(booking.createdAt).toISOString()
+          : '',
+        status: String(booking.status ?? 'unknown'),
+        amount: Number(
+          booking.amount ??
+          booking.totalAmount ??
+          0,
+        ),
+      }),
+    );
+
+    const stats = profile.stats ?? {
+      jobsCompleted: 0,
+      jobsAssigned: 0,
+      offersReceived: 0,
+      offersAccepted: 0,
+    };
+
+    return {
+      ...toDto(user),
+
+      partnerId: String(profile._id),
+
+      kycStatus: profile.kyc?.status ?? 'not_started',
+
+      accountStatus:
+        user.status === 'blocked'
+          ? 'blocked'
+          : user.status === 'invited'
+            ? 'invited'
+            : 'active',
+
+      category:
+        categoryNames.join(', ') ||
+        user.designation ||
+        '',
+
+      city: '',
+
+      rating: Number(profile.ratingAvg ?? 0),
+
+      ratingCount: Number(profile.ratingCount ?? 0),
+
+      joined: user.createdAt
+        ? new Date(user.createdAt).toISOString().slice(0, 10)
+        : '',
+
+      address: '',
+
+      profile: {
+        experience: Number((profile as any).experience ?? 0),
+        bio: String((profile as any).bio ?? ''),
+      },
+
+      categories: categoryNames,
+
+      kyc: {
+        status: profile.kyc?.status ?? 'not_started',
+        submittedAt: (profile.kyc as any)?.submittedAt
+          ? new Date(
+              (profile.kyc as any).submittedAt,
+            ).toISOString()
+          : '',
+        checklist: [],
+        documents: Array.isArray(profile.kyc?.documents)
+          ? profile.kyc.documents.map(
+              (document: any, index: number) => ({
+                id: String(document._id ?? document.id ?? index),
+                name: String(
+                  document.name ??
+                  document.type ??
+                  `Document ${index + 1}`,
+                ),
+                status: String(
+                  document.status ?? 'Pending',
+                ),
+                url: String(document.url ?? ''),
+                type: String(
+                  document.type ?? '',
+                ).toLowerCase().includes('pdf')
+                  ? 'pdf'
+                  : 'image',
+              }),
+            )
+          : [],
+      },
+
+      performance: {
+        completedBookings: Number(stats.jobsCompleted ?? 0),
+        cancelledBookings: 0,
+        averageResponseTime: 'N/A',
+        customerSatisfaction: 0,
+      },
+
+      bookings: normalizedBookings,
+      earnings: [],
+      payouts: [],
+      reviews: [],
+      support: [],
+      activity: [],
+    };
   }
 
   /**
@@ -402,17 +640,10 @@ export class PartnersService {
     actor: AuditActor,
   ) {
     const user = await findPartnerUser(id);
-
-    /**
-     * Capture the original state before modifications.
-     */
     const before = partnerAuditSnapshot(user);
 
     await ensurePartnerProfile(user._id);
 
-    /**
-     * EMAIL
-     */
     if (
       input.email !== undefined &&
       input.email !== user.email
@@ -433,9 +664,6 @@ export class PartnersService {
       user.email = input.email;
     }
 
-    /**
-     * PHONE
-     */
     if (
       input.phone !== undefined &&
       input.phone !== user.phone
@@ -456,9 +684,6 @@ export class PartnersService {
       user.phone = input.phone;
     }
 
-    /**
-     * BASIC DETAILS
-     */
     if (input.name !== undefined) {
       user.name = input.name;
     }
@@ -473,18 +698,12 @@ export class PartnersService {
       );
     }
 
-    /**
-     * ACCOUNT STATUS
-     */
     if (
       input.status !== undefined &&
       input.status !== user.status
     ) {
       user.status = input.status;
 
-      /**
-       * Invalidate existing sessions when blocking a partner.
-       */
       if (input.status === 'blocked') {
         user.tokenVersion = (user.tokenVersion ?? 0) + 1;
       }
@@ -492,9 +711,6 @@ export class PartnersService {
 
     await user.save();
 
-    /**
-     * Audit the successful update with before/after snapshots.
-     */
     await recordPartnerAudit({
       actor,
       action: 'partner.updated',
@@ -503,7 +719,9 @@ export class PartnersService {
       after: partnerAuditSnapshot(user),
     });
 
-    return toDto(user);
+    const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.status').lean();
+
+    return toDto(user, String(profile?.kyc?.status ?? 'not_started'));
   }
 
   /**
@@ -514,27 +732,18 @@ export class PartnersService {
     actor: AuditActor,
   ): Promise<void> {
     const user = await findPartnerUser(id);
-
-    /**
-     * Capture the original state before deletion.
-     */
     const before = partnerAuditSnapshot(user);
 
     const profile = await PartnerModel.findOne(
-      {
-        userId: user._id,
-      },
+      { userId: user._id },
       '_id',
     ).lean();
 
-    /**
-     * Don't delete partners with booking history.
-     */
     if (
       profile &&
-      (await BookingModel.exists({
+      await BookingModel.exists({
         partnerId: profile._id,
-      }))
+      })
     ) {
       throw new HttpError(
         409,
@@ -545,9 +754,7 @@ export class PartnersService {
 
     await Promise.all([
       profile
-        ? PartnerModel.deleteOne({
-            _id: profile._id,
-          })
+        ? PartnerModel.deleteOne({ _id: profile._id })
         : Promise.resolve(),
 
       NotificationModel.deleteMany({
@@ -557,9 +764,6 @@ export class PartnersService {
 
     await user.deleteOne();
 
-    /**
-     * Audit the successful deletion.
-     */
     await recordPartnerAudit({
       actor,
       action: 'partner.deleted',
@@ -574,13 +778,8 @@ export class PartnersService {
    */
   async stats() {
     const [partners, customers] = await Promise.all([
-      UserModel.countDocuments({
-        role: 'partner',
-      }),
-
-      UserModel.countDocuments({
-        role: 'customer',
-      }),
+      UserModel.countDocuments({ role: 'partner' }),
+      UserModel.countDocuments({ role: 'customer' }),
     ]);
 
     return {
@@ -591,28 +790,24 @@ export class PartnersService {
 }
 
 /**
- * ---------------------------------------------------------
- * PARTNER DTO
- * ---------------------------------------------------------
+ * Safe User DTO.
  */
 function toDto(
-  u: InstanceType<typeof UserModel>,
+  user: InstanceType<typeof UserModel>,
 ) {
   return {
-    id: u.id,
-    name: u.name,
-    email: u.email,
-    phone: u.phone,
-    gender: u.gender,
-    designation: u.designation,
-    status: u.status,
-    createdAt: u.createdAt,
+    id: String(user._id),
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    gender: user.gender,
+    designation: user.designation,
+    status: user.status,
+    createdAt: user.createdAt,
   };
 }
 
 /**
- * ---------------------------------------------------------
- * EXPORT SERVICE
- * ---------------------------------------------------------
+ * Export service.
  */
 export const partnersService = new PartnersService();

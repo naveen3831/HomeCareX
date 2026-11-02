@@ -20,6 +20,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src","scripts"],
-  "exclude": ["src/modules", "src/routes/index.ts"]
+  "include": ["src", "scripts"],
+  "exclude": ["src/modules", "src/routes/index.ts", "src/test", "node_modules", "dist"]
 }

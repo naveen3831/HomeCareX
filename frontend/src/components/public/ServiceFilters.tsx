@@ -12,8 +12,15 @@ export type SortOption =
   | "price-low"
   | "price-high";
 
+export interface CategoryOption {
+  label: string;
+  value: string;
+}
+
 interface ServiceFiltersProps {
   q: string;
+  /** Real categories, already in the admin's order. Empty or missing: the built-in list below is used. */
+  categories?: CategoryOption[];
   category: string;
   sort: SortOption;
   pincode: string;
@@ -74,12 +81,9 @@ const indigoChip =
 const orangeChip =
   "flex items-center gap-1.5 rounded-full border border-[#ffe4d3] bg-[#fff5ef] px-3 py-1.5 text-xs font-semibold text-[#e0600f] transition hover:bg-[#ffe9db]";
 
-const getCategoryLabel = (value: string) =>
-  CATEGORIES.find((item) => item.value === value)?.label ??
-  value;
-
 const ServiceFilters: React.FC<ServiceFiltersProps> = ({
   q,
+  categories,
   category,
   sort,
   pincode,
@@ -91,10 +95,14 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
+  const categoryList = categories && categories.length > 0 ? categories : CATEGORIES;
+  const getCategoryLabel = (value: string) =>
+    categoryList.find((item) => item.value === value)?.label ?? value;
+
   // Supports old URLs such as ?category=Painting.
  
 const normalizedCategory =
-  CATEGORIES.find(
+  categoryList.find(
     (item) =>
       item.value === category ||
       item.label.toLowerCase() === category.toLowerCase(),
@@ -219,7 +227,7 @@ const normalizedCategory =
               >
                 <option value="">All Categories</option>
 
-                {CATEGORIES.map((item) => (
+                {categoryList.map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
                   </option>
@@ -241,7 +249,7 @@ const normalizedCategory =
                 className={selectClass}
                 style={chevronStyle}
               >
-                <option value="popular">Popular</option>
+                <option value="popular">Featured</option>
                 <option value="price-low">
                   Price: Low to High
                 </option>

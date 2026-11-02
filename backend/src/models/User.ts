@@ -33,6 +33,8 @@ const UserSchema = new Schema(
     passwordResetTokenHash: { type: String, select: false },
     /** Expiration date for password reset token (30m). */
     passwordResetExpiresAt: { type: Date },
+    /** Partners: set when admin approves KYC. Login stays blocked until they set a password from the emailed link. */
+    passwordSetupRequired: { type: Boolean, default: false },
     /** Active login sessions across devices/browsers. */
     sessions: [
       {

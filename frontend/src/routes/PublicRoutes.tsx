@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
 import PageLoader from "../components/common/PageLoader";
@@ -27,6 +27,10 @@ const FAQ = lazy(
 
 const Contact = lazy(
   () => import("../pages/public/Contact/Contact")
+);
+
+const Reviews = lazy(
+  () => import("../pages/public/Reviews")
 );
 
 const Terms = lazy(
@@ -61,13 +65,10 @@ const PublicRoutes: React.FC = () => {
           />
 
           {/* Service Details */}
-         
-{/* Service Details */}
-<Route
-  path="/services/:slug"
-  element={<ServiceDetails />}
-/>
-
+          <Route
+            path="/services/:slug"
+            element={<ServiceDetails />}
+          />
 
           {/* About */}
           <Route
@@ -85,6 +86,18 @@ const PublicRoutes: React.FC = () => {
           <Route
             path={ROUTES.CONTACT}
             element={<Contact />}
+          />
+
+          {/* Support alias -> Contact */}
+          <Route
+            path="/support"
+            element={<Navigate to={ROUTES.CONTACT} replace />}
+          />
+
+          {/* Customer Reviews & Stories (Full Page) */}
+          <Route
+            path={ROUTES.REVIEWS}
+            element={<Reviews />}
           />
 
           {/* Terms */}

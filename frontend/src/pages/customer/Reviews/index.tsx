@@ -91,7 +91,7 @@ export default function Reviews() {
         onSuccess: (saved) => {
           setOpenId(null);
           clearBookingParam();
-          setNotice({ kind: "success", text: `Thanks! Your review of ${saved.serviceName ?? serviceName} was submitted. It appears on the service page once our team approves it.` });
+          setNotice({ kind: "success", text: `Thanks! Your review of ${saved.serviceName ?? serviceName} was submitted. It is now live on the service page.` });
         },
         onError: (err) => {
           // Already reviewed / not yours / not completed: the form can't succeed, so close it and explain.
@@ -147,7 +147,7 @@ export default function Reviews() {
       <header>
         {/* The top bar shows the page name; keep a real heading for screen readers. */}
         <h1 className="sr-only">Reviews</h1>
-        <p className="mt-1 text-sm text-muted">Rate your completed services. Every review is checked by our team before it is published.</p>
+        <p className="mt-1 text-sm text-muted">Rate your completed services. Your review is published on the service page right away, and our team may remove anything that breaks our guidelines.</p>
       </header>
 
       {notice && (

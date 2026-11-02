@@ -67,6 +67,8 @@
   .cx-foot { padding-left: 0; }
   .cx-hero { padding: 14px; }
   .cx-hero .cx-media--lg { width: 96px; height: 72px; }
-  .cx-hero__actions .hcx-btn { flex: 1; justify-content: center; }
+  /* Buttons share the row but wrap to a new line instead of shrinking and clipping their labels */
+  .cx-hero__actions { justify-content: stretch; }
+  .cx-hero__actions .hcx-btn { flex: 1 1 auto; justify-content: center; padding-left: 12px; padding-right: 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .cx-row, .cx-open { transition: none; } }

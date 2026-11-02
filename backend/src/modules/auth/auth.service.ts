@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -29,6 +30,9 @@ import { ServiceModel } from '../../models/Service';
 import PartnerModel from '../../models/Partner';
 import { ensurePartnerProfile } from '../partners/partners.service';
 import { StaffModel } from '../../models/Staff';
+import { UserModel } from '../../models/User';
+import { saveKycDocument, type StoredKycFile } from '../partners/kyc-storage';
+import { notifyAdminsKycSubmitted } from '../partners/partner-kyc.notify';
 import { mailService } from '../../services/mail.service';
 
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
@@ -124,6 +128,38 @@ function issueTokens(user: UserDoc, sid?: string, sessionTokenVersion?: number) 
   };
 }
 
+/**
+ * Partners may only sign in once an admin approved their KYC, and after they set a password from the
+ * emailed link. Called after the password check so the status is not revealed to someone guessing.
+ */
+async function assertPartnerMayLogin(user: UserDoc): Promise<void> {
+  const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.status kyc.rejectionReason').lean();
+  const status = String(profile?.kyc?.status ?? 'not_started');
+
+  if (status === 'approved') {
+    if (user.passwordSetupRequired) {
+      throw new HttpError(
+        403,
+        'Your KYC is approved. Open the email we sent you and set your new password, then log in.',
+        'PASSWORD_SETUP_REQUIRED',
+      );
+    }
+    return;
+  }
+  if (status === 'rejected') {
+    const reason = profile?.kyc?.rejectionReason ? `: ${profile.kyc.rejectionReason}` : '';
+    throw new HttpError(403, `Your KYC verification was rejected${reason}. Please contact support.`, 'PARTNER_KYC_REJECTED');
+  }
+  if (status === 'suspended') {
+    throw new HttpError(403, 'Your partner account is suspended. Please contact support.', 'PARTNER_SUSPENDED');
+  }
+  throw new HttpError(
+    403,
+    'Your account is awaiting admin approval. We will email you as soon as your KYC is verified.',
+    'PARTNER_PENDING_APPROVAL',
+  );
+}
+
 const sessionExpired = (code: string) => new HttpError(401, 'Your session has expired. Please log in again.', code);
 
 export const authService = {
@@ -147,6 +183,10 @@ export const authService = {
       }
       await user.save();
       throw invalid;
+    }
+
+    if (user.role === 'partner' && mongoose.connection?.readyState === 1) {
+      await assertPartnerMayLogin(user);
     }
 
     user.failedLogins = 0;
@@ -198,6 +238,19 @@ export const authService = {
     if (await authRepository.existsByEmailOrPhone(input.email, input.phone)) {
       throw new HttpError(409, 'An account with this email or phone already exists', 'DUPLICATE_ACCOUNT');
     }
+    const dbReady = mongoose.connection?.readyState === 1;
+    const isPartner = input.role === 'partner';
+
+    // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
+    let storedId: StoredKycFile | undefined;
+    let storedAddress: StoredKycFile | undefined;
+    if (isPartner && dbReady) {
+      if (!input.idProofDocument) throw new HttpError(400, 'ID proof document is required.', 'VALIDATION_ERROR');
+      if (!input.addressProofDocument) throw new HttpError(400, 'Address proof document is required.', 'VALIDATION_ERROR');
+      storedId = await saveKycDocument(input.idProofDocument, 'ID proof');
+      storedAddress = await saveKycDocument(input.addressProofDocument, 'Address proof');
+    }
+
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await authRepository.create({
       name: input.name,
@@ -214,6 +267,7 @@ export const authService = {
       try {
         let categoryIds: Types.ObjectId[] = [];
         let serviceIds: Types.ObjectId[] = [];
+        let categoryName: string | undefined;
 
         if (input.category) {
           const categoryDoc = await CategoryModel.findOne({
@@ -224,6 +278,7 @@ export const authService = {
             ],
           });
           if (categoryDoc) {
+            categoryName = categoryDoc.name as string;
             categoryIds = [categoryDoc._id as Types.ObjectId];
             const matched = await ServiceModel.find({
               categoryId: categoryDoc._id,
@@ -236,6 +291,7 @@ export const authService = {
         if (categoryIds.length === 0) {
           const defaultCat = await CategoryModel.findOne({ active: true }).sort({ sortOrder: 1, name: 1 });
           if (defaultCat) {
+            categoryName = defaultCat.name as string;
             categoryIds = [defaultCat._id as Types.ObjectId];
             const matched = await ServiceModel.find({
               categoryId: defaultCat._id,
@@ -255,25 +311,30 @@ export const authService = {
               }
             : undefined;
 
-        const kycDocs = [];
-        if (input.idProofDocument) {
-          const docType =
-            input.idProofType === 'pan'
-              ? 'pan_card'
-              : input.idProofType === 'driving_license'
-                ? 'driving_license'
-                : 'government_id';
+        const ID_LABELS: Record<string, string> = {
+          aadhaar: 'Aadhaar',
+          pan: 'PAN',
+          driving_license: 'Driving licence',
+          voter_id: 'Voter ID',
+          passport: 'Passport',
+        };
+        const kycDocs: Array<Record<string, unknown>> = [];
+        if (storedId) {
           kycDocs.push({
-            type: docType,
-            url: input.idProofDocument,
+            type: 'id_proof',
+            label: `ID proof (${ID_LABELS[input.idProofType ?? ''] ?? input.idProofType ?? 'ID'})`,
+            storageKey: storedId.storageKey,
+            mimeType: storedId.mimeType,
             status: 'pending' as const,
             uploadedAt: new Date(),
           });
         }
-        if (input.addressProofDocument) {
+        if (storedAddress) {
           kycDocs.push({
-            type: 'address_proof' as const,
-            url: input.addressProofDocument,
+            type: 'address_proof',
+            label: 'Address proof',
+            storageKey: storedAddress.storageKey,
+            mimeType: storedAddress.mimeType,
             status: 'pending' as const,
             uploadedAt: new Date(),
           });
@@ -309,9 +370,29 @@ export const authService = {
           },
           { upsert: true, new: true, setDefaultsOnInsert: true },
         );
+
+        notifyAdminsKycSubmitted({
+          userId: String(user._id || user.id),
+          name: user.name,
+          email: user.email,
+          phone: user.phone ?? undefined,
+          category: categoryName,
+        });
       } catch (err) {
         console.error('Failed to provision partner profile during registration', err);
+        // A partner without a profile and documents is unusable: roll back so they can register again.
+        await UserModel.deleteOne({ _id: user._id || user.id }).catch(() => undefined);
+        throw new HttpError(500, 'We could not complete your registration. Please try again.', 'REGISTRATION_FAILED');
       }
+    }
+
+    // Partners are not logged in: an admin must approve their KYC first, then they set a password by email.
+    if (isPartner) {
+      return {
+        user: toAuthUser(user),
+        pendingApproval: true as const,
+        message: 'Registration received. We will email you once an admin verifies your documents.',
+      };
     }
 
     try {
@@ -405,7 +486,6 @@ export const authService = {
   },
 
   /** Logout ends the caller session, or every session for legacy/test tokens. */
-  /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
@@ -928,6 +1008,7 @@ export const authService = {
     user.passwordHash = passwordHash;
     user.passwordResetTokenHash = undefined;
     user.passwordResetExpiresAt = undefined;
+    user.passwordSetupRequired = false; // partner finished the post-approval password setup
     user.tokenVersion = (user.tokenVersion ?? 0) + 1; // Invalidate all previous sessions
     user.failedLogins = 0;
     user.lockedUntil = undefined;
@@ -939,3 +1020,4 @@ export const authService = {
     };
   },
 };
+export default authService;

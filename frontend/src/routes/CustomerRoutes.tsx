@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, Navigate } from 'react-router-dom';
 
 import CustomerLayout from '../layouts/CustomerLayout';
 import PageLoader from '@/components/common/PageLoader';
@@ -29,7 +29,11 @@ const TrackingRedirect = lazy(
 const Wallet = lazy(() => import('../pages/customer/Wallet'));
 
 const BookServiceShell = lazy(() => import('../pages/customer/Book'));
-const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfile'));
+const EditProfile = lazy(() => import('@/pages/customer/Profile/EditProfilePage'));
+const ChangePasswordPage = lazy(() => import('@/pages/customer/Profile/ChangePasswordPage'));
+const NotificationsSettingsPage = lazy(() => import('@/pages/customer/Profile/NotificationsPage'));
+const TermsPage = lazy(() => import('@/pages/customer/Profile/TermsPage'));
+const PrivacyPage = lazy(() => import('@/pages/customer/Profile/PrivacyPage'));
 const AccountSecurityPage = lazy(() => import('@/pages/shared/AccountSecurity'));
 
 const BookingSuccess = lazy(() => import('../pages/customer/BookingSuccess'));
@@ -62,7 +66,14 @@ export default function CustomerRoutes() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/account/delete" element={<Profile defaultDeleteOpen />} />
+          <Route path="/delete-account" element={<Profile defaultDeleteOpen />} />
           <Route path="/profile/edit" element={<EditProfile />} />
+          <Route path="/profile/password" element={<ChangePasswordPage />} />
+          <Route path="/profile/notifications" element={<NotificationsSettingsPage />} />
+          <Route path="/profile/terms" element={<TermsPage />} />
+          <Route path="/profile/privacy" element={<PrivacyPage />} />
           <Route path="/security" element={<AccountSecurityPage />} />
           <Route path="/profile/security" element={<AccountSecurityPage />} />
           <Route path="/account/security" element={<AccountSecurityPage />} />
@@ -80,6 +91,9 @@ export default function CustomerRoutes() {
           <Route path="/booking/success/:id" element={<BookingSuccess />} />
           <Route path="/booking/failed/:id" element={<BookingFailed />} />
           <Route path="/booking/booked/:id" element={<ServiceBooked />} />
+
+          {/* Catch-all fallback inside customer to avoid blank screen on unmatched route */}
+          <Route path="*" element={<Navigate to="/customer" replace />} />
         </Route>
       </Routes>
     </Suspense>

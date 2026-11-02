@@ -1,4 +1,4 @@
-
+﻿
 import React, {
   useCallback,
   useEffect,
@@ -18,7 +18,9 @@ import {
 } from '@/services/adminSettingsApi';
 import { SettingField } from './SettingField';
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+const same = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 export const AdminSettingsPage: React.FC = () => {
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -50,6 +52,12 @@ export const AdminSettingsPage: React.FC = () => {
           ])
         )
       )
+    );
+
+    setActiveId((current) =>
+      next.some((section) => section.id === current)
+        ? current
+        : next[0]?.id ?? "business",
     );
   }, []);
 
@@ -293,7 +301,7 @@ export const AdminSettingsPage: React.FC = () => {
         className="rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3730a3] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving
-          ? "Saving…"
+          ? "SavingΓÇª"
           : isMobile
             ? "Save changes"
             : "Save"}
@@ -347,7 +355,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="h-12 animate-pulse rounded-2xl bg-slate-100" />
           <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
           <p className="text-sm text-gray-500">
-            Loading settings…
+            Loading settingsΓÇª
           </p>
         </div>
       )}

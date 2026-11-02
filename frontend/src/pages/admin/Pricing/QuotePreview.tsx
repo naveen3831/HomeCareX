@@ -209,11 +209,6 @@ export const QuotePreview: React.FC<Props> = ({ values, scope, services, saved }
           {quote && (
             <div className="prc-qres" aria-live="polite">
               <div className="prc-qmeta">
-                {quote.expiresAt && (
-                  <span className="prc-validity">
-                    Valid for {Math.max(1, Math.ceil((new Date(quote.expiresAt).getTime() - Date.now()) / 60000))} minutes
-                  </span>
-                )}
                 {couponEndAt && (
                   <span className={clsx('prc-expiry', couponExpired && 'is-expired')}>
                     <Timer size={12} aria-hidden /> {couponExpired ? 'Coupon expired' : `Coupon valid till ${fmtDateTime(couponEndAt)}`}

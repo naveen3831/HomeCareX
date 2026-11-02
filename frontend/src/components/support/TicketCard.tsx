@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+﻿import { Link } from 'react-router-dom';
 import {
   label,
   ticketRef,
@@ -28,11 +28,10 @@ export default function TicketCard({ ticket }: { ticket: CustomerTicket }) {
         <span
           className={`hcx-support-badge hcx-support-badge--${ticket.status || 'open'}`}
         >
-          {label(ticket.status || 'open')}
+          {ticket.status || 'open'}
         </span>
-        <span>{label(ticket.priority || 'normal')} priority</span>
-        <time dateTime={ticket.updatedAt || ticket.createdAt}>
-          {when(ticket.updatedAt || ticket.createdAt)}
+        <time dateTime={ticket.createdAt}>
+          {when(ticket.createdAt)}
         </time>
       </div>
     </li>

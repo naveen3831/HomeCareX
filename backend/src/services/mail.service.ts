@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
-import { accountCreatedEmail, accountCreatedUrls, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, type AccountCreatedEmailData } from './mail.templates';
+import { accountCreatedEmail, accountCreatedUrls, adminPartnerKycEmail, partnerApprovedEmail, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, type AccountCreatedEmailData } from './mail.templates';
 
 let transporter: Transporter | null = null;
 
@@ -118,6 +118,37 @@ export const mailService = {
     await getTransporter().sendMail({
       from: process.env.MAIL_FROM || process.env.SMTP_USER,
       to: data.email,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+  },
+
+  /** Partner KYC approved: link to set a new password (login is blocked until they do). */
+  async sendPartnerApprovedEmail(data: { name: string; email: string; setPasswordUrl: string; validHours: number }) {
+    const { src, attachments } = logo();
+    const { subject, html, text } = partnerApprovedEmail({ ...data, logoSrc: src, supportEmail: process.env.SUPPORT_EMAIL });
+
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to: data.email,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+  },
+
+  /** Tells the admin team a partner is waiting for KYC review. `to` may hold several addresses. */
+  async sendAdminPartnerKycEmail(to: string[], data: { partnerName: string; partnerEmail: string; partnerPhone?: string; category?: string; reviewUrl: string }) {
+    if (to.length === 0) return;
+    const { src, attachments } = logo();
+    const { subject, html, text } = adminPartnerKycEmail({ ...data, logoSrc: src, supportEmail: process.env.SUPPORT_EMAIL });
+
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to,
       subject,
       text,
       html,

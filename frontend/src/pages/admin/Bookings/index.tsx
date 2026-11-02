@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookingDrawer,
-} from "@/components/admin/BookingDrawer";
-import {
-  BookingTable,
-} from "@/components/admin/BookingTable";
-import {
-  AssignPartnerDialog,
-} from "@/components/admin/AssignPartnerDialog";
-import {
-  StatusOverrideDialog,
-} from "@/components/admin/StatusOverrideDialog";
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+import { BookingDrawer } from "@/components/admin/BookingDrawer";
+import { BookingTable } from "@/components/admin/BookingTable";
+import { AssignPartnerDialog } from "@/components/admin/AssignPartnerDialog";
+import { StatusOverrideDialog } from "@/components/admin/StatusOverrideDialog";
 import { adminBookingApi } from "@/services/adminBookingApi";
 import type {
   AdminBooking,
@@ -20,6 +17,13 @@ import type {
   PaymentStatus,
 } from "@/types/adminBooking";
 import "./index.css";
+
+
+/**
+ * Last loaded list, kept for the session. Coming back to the page shows it straight away
+ * while a fresh copy loads in the background.
+ */
+let bookingsCache: { key: string; data: AdminBooking[] } | null = null;
 
 const INITIAL_FILTERS: BookingFilters = {
   search: "",
@@ -71,9 +75,7 @@ function filtersAreEqual(
   );
 }
 
-function hasAnyFilters(
-  filters: BookingFilters,
-): boolean {
+function hasAnyFilters(filters: BookingFilters): boolean {
   return Boolean(
     filters.search.trim() ||
       filters.status ||
@@ -86,22 +88,17 @@ function hasAnyFilters(
   );
 }
 
-function formatStatus(
-  status: string,
-): string {
+function formatStatus(status: string): string {
   return status
     .split("_")
     .map(
       (word) =>
-        word.charAt(0).toUpperCase() +
-        word.slice(1),
+        word.charAt(0).toUpperCase() + word.slice(1),
     )
     .join(" ");
 }
 
-function escapeCsv(
-  value: unknown,
-): string {
+function escapeCsv(value: unknown): string {
   const text = String(value ?? "");
 
   if (
@@ -109,18 +106,13 @@ function escapeCsv(
     text.includes('"') ||
     text.includes("\n")
   ) {
-    return `"${text.replace(
-      /"/g,
-      '""',
-    )}"`;
+    return `"${text.replace(/"/g, '""')}"`;
   }
 
   return text;
 }
 
-function downloadCsv(
-  bookings: AdminBooking[],
-): void {
+function downloadCsv(bookings: AdminBooking[]): void {
   const headers = [
     "Booking ID",
     "Customer",
@@ -137,194 +129,132 @@ function downloadCsv(
     "Created At",
   ];
 
-  const rows = bookings.map(
-    (booking) => [
-      booking.id,
-      booking.customer.name,
-      booking.partner?.name ??
-        "Not Assigned",
-      booking.service.name,
-      booking.service.category,
-      booking.city,
-      booking.slot.date,
-      booking.slot.startTime,
-      booking.slot.endTime,
-      booking.pricing.totalAmount,
-      booking.payment.status,
-      formatStatus(
-        booking.status,
-      ),
-      booking.createdAt,
-    ],
-  );
+  const rows = bookings.map((booking) => [
+    booking.id,
+    booking.customer.name,
+    booking.partner?.name ?? "Not Assigned",
+    booking.service.name,
+    booking.service.category,
+    booking.city,
+    booking.slot.date,
+    booking.slot.startTime,
+    booking.slot.endTime,
+    booking.pricing.totalAmount,
+    booking.payment.status,
+    formatStatus(booking.status),
+    booking.createdAt,
+  ]);
 
   const csv = [
-    headers
-      .map(escapeCsv)
-      .join(","),
-    ...rows.map((row) =>
-      row
-        .map(escapeCsv)
-        .join(","),
-    ),
+    headers.map(escapeCsv).join(","),
+    ...rows.map((row) => row.map(escapeCsv).join(",")),
   ].join("\n");
 
-  const blob = new Blob(
-    [csv],
-    {
-      type: "text/csv;charset=utf-8;",
-    },
-  );
+  const blob = new Blob([csv], {
+    type: "text/csv;charset=utf-8;",
+  });
 
-  const url =
-    URL.createObjectURL(blob);
-
-  const link =
-    document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
 
   link.href = url;
-
-  link.download =
-    `admin-bookings-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
+  link.download = `admin-bookings-${new Date()
+    .toISOString()
+    .slice(0, 10)}.csv`;
 
   document.body.appendChild(link);
-
   link.click();
-
   document.body.removeChild(link);
-
   URL.revokeObjectURL(url);
 }
 
 export default function Bookings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // /admin/bookings/:bookingId[/assign|/status|/cancel]
+  const { bookingId, action } = useParams<{
+    bookingId?: string;
+    action?: string;
+  }>();
+
   const [filters, setFilters] =
-    useState<BookingFilters>(
-      INITIAL_FILTERS,
-    );
+    useState<BookingFilters>(INITIAL_FILTERS);
 
   const [draftFilters, setDraftFilters] =
-    useState<BookingFilters>(
-      INITIAL_FILTERS,
-    );
+    useState<BookingFilters>(INITIAL_FILTERS);
 
-  const [bookings, setBookings] =
-    useState<AdminBooking[]>([]);
+  const [bookings, setBookings] = useState<AdminBooking[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [fetched, setFetched] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [offline, setOffline] = useState<boolean>(
+    !navigator.onLine,
+  );
+  const [filterOpen, setFilterOpen] = useState<boolean>(false);
 
-  const [loading, setLoading] =
-    useState<boolean>(true);
+  const [selectedBooking, setSelectedBooking] =
+    useState<AdminBooking | null>(null);
 
-  const [error, setError] =
-    useState<string>("");
 
-  const [offline, setOffline] =
-    useState<boolean>(
-      !navigator.onLine,
-    );
+  const [eligiblePartners, setEligiblePartners] =
+    useState<BookingPartnerCandidate[]>([]);
 
-  const [filterOpen, setFilterOpen] =
+  const [eligiblePartnersLoading, setEligiblePartnersLoading] =
     useState<boolean>(false);
 
-  const [
-    selectedBooking,
-    setSelectedBooking,
-  ] =
-    useState<AdminBooking | null>(
-      null,
-    );
+  // Every screen is driven by the URL so it can be opened, shared and
+  // reached with the browser back button.
+  const hasBooking =
+    Boolean(bookingId) && selectedBooking?.id === bookingId;
+  const drawerOpen =
+    hasBooking && (!action || action === "cancel");
+  const cancelOpen = hasBooking && action === "cancel";
+  const assignDialogOpen = hasBooking && action === "assign";
+  const statusDialogOpen = hasBooking && action === "status";
 
-  const [drawerOpen, setDrawerOpen] =
-    useState<boolean>(false);
+  const bookingsPath = "/admin/bookings";
+  const bookingPath = (id: string) =>
+    `${bookingsPath}/${encodeURIComponent(id)}`;
 
-  const [
-    assignDialogOpen,
-    setAssignDialogOpen,
-  ] =
-    useState<boolean>(false);
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
 
-  const [
-    statusDialogOpen,
-    setStatusDialogOpen,
-  ] =
-    useState<boolean>(false);
+    if (filters.status) count += 1;
+    if (filters.city.trim()) count += 1;
+    if (filters.category.trim()) count += 1;
+    if (filters.customer.trim()) count += 1;
+    if (filters.partner.trim()) count += 1;
+    if (filters.date) count += 1;
+    if (filters.paymentStatus) count += 1;
 
-  const [
-    eligiblePartners,
-    setEligiblePartners,
-  ] =
-    useState<
-      BookingPartnerCandidate[]
-    >([]);
-
-  const [
-    eligiblePartnersLoading,
-    setEligiblePartnersLoading,
-  ] =
-    useState<boolean>(false);
-
-  const activeFilterCount =
-    useMemo(() => {
-      let count = 0;
-
-      if (filters.status) {
-        count += 1;
-      }
-
-      if (filters.city.trim()) {
-        count += 1;
-      }
-
-      if (
-        filters.category.trim()
-      ) {
-        count += 1;
-      }
-
-      if (
-        filters.customer.trim()
-      ) {
-        count += 1;
-      }
-
-      if (
-        filters.partner.trim()
-      ) {
-        count += 1;
-      }
-
-      if (filters.date) {
-        count += 1;
-      }
-
-      if (
-        filters.paymentStatus
-      ) {
-        count += 1;
-      }
-
-      return count;
-    }, [filters]);
+    return count;
+  }, [filters]);
 
   const loadBookings = async (
-    activeFilters: BookingFilters =
-      filters,
+    activeFilters: BookingFilters = filters,
   ) => {
-    setLoading(true);
+    const key = JSON.stringify(activeFilters);
+
+    if (bookingsCache?.key === key) {
+      // Show the last list right away; refresh quietly.
+      setBookings(bookingsCache.data);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     setError("");
 
     try {
       const data =
-        await adminBookingApi.getBookings(
-          activeFilters,
-        );
+        await adminBookingApi.getBookings(activeFilters);
 
+      bookingsCache = { key, data };
       setBookings(data);
+      setFetched(true);
     } catch (err) {
-      const normalized =
-        err as {
-          message?: string;
-        };
+      const normalized = err as { message?: string };
 
       setError(
         normalized?.message ||
@@ -337,7 +267,7 @@ export default function Bookings() {
 
   useEffect(() => {
     void loadBookings(filters);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filters.search,
     filters.status,
@@ -349,69 +279,103 @@ export default function Bookings() {
     filters.paymentStatus,
   ]);
 
+  // Dashboard links here with ?open=<bookingId>: open that booking's details once the list is loaded.
+  const openId = searchParams.get("open");
+
   useEffect(() => {
-    const handleOnline = () => {
-      setOffline(false);
-    };
+    if (!openId || loading || !fetched) {
+      return;
+    }
 
-    const handleOffline = () => {
-      setOffline(true);
-    };
+    const match = bookings.find((booking) => booking.id === openId);
 
-    window.addEventListener(
-      "online",
-      handleOnline,
-    );
+    if (match) {
+      navigate(bookingPath(match.id), { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, loading, fetched, bookings, setSearchParams]);
 
-    window.addEventListener(
-      "offline",
-      handleOffline,
-    );
+  // Load the booking named in the URL (from the list, or from the API).
+  useEffect(() => {
+    if (!bookingId) {
+      return;
+    }
+
+    if (selectedBooking?.id === bookingId) {
+      return;
+    }
+
+    const match = bookings.find((item) => item.id === bookingId);
+
+    if (match) {
+      setSelectedBooking(match);
+      return;
+    }
+
+    if (loading && !fetched) {
+      return;
+    }
+
+    let cancelled = false;
+
+    adminBookingApi
+      .getBookingById(bookingId)
+      .then((booking) => {
+        if (!cancelled) setSelectedBooking(booking);
+      })
+      .catch((err: { message?: string }) => {
+        if (cancelled) return;
+        setError(err?.message || "Unable to open this booking.");
+        navigate(bookingsPath, { replace: true });
+      });
 
     return () => {
-      window.removeEventListener(
-        "online",
-        handleOnline,
-      );
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, bookings, loading, fetched, selectedBooking?.id]);
 
-      window.removeEventListener(
-        "offline",
-        handleOffline,
-      );
+  useEffect(() => {
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   const updateDraftFilter = <
-    K extends keyof BookingFilters
+    K extends keyof BookingFilters,
   >(
     key: K,
     value: BookingFilters[K],
   ) => {
-    setDraftFilters(
-      (current) => ({
-        ...current,
-        [key]: value,
-      }),
-    );
+    setDraftFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
   };
 
   const handleSearchChange = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const value =
-      event.target.value;
+    const value = event.target.value;
 
     setFilters((current) => ({
       ...current,
       search: value,
     }));
 
-    setDraftFilters(
-      (current) => ({
-        ...current,
-        search: value,
-      }),
-    );
+    setDraftFilters((current) => ({
+      ...current,
+      search: value,
+    }));
   };
 
   const applyFilters = () => {
@@ -420,104 +384,76 @@ export default function Bookings() {
   };
 
   const clearFilters = () => {
-    setFilters(
-      INITIAL_FILTERS,
-    );
-
-    setDraftFilters(
-      INITIAL_FILTERS,
-    );
+    setFilters(INITIAL_FILTERS);
+    setDraftFilters(INITIAL_FILTERS);
   };
 
   const handleExportCsv = () => {
-    if (!bookings.length) {
-      return;
-    }
-
+    if (!bookings.length) return;
     downloadCsv(bookings);
   };
 
-  const handleBookingSelect = (
-    booking: AdminBooking,
-  ) => {
+  const handleBookingSelect = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(true);
+    navigate(bookingPath(booking.id));
   };
 
   const handleCloseDrawer = () => {
-    setDrawerOpen(false);
+    navigate(bookingsPath);
   };
 
-  const handleAssignPartner = (
-    booking: AdminBooking,
-  ) => {
+  const handleAssignPartner = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(false);
-    setAssignDialogOpen(true);
+    navigate(`${bookingPath(booking.id)}/assign`);
   };
 
-  const handleStatusOverride = (
-    booking: AdminBooking,
-  ) => {
+  const handleStatusOverride = (booking: AdminBooking) => {
     setSelectedBooking(booking);
-    setDrawerOpen(false);
-    setStatusDialogOpen(true);
+    navigate(`${bookingPath(booking.id)}/status`);
+  };
+
+  const handleCancelOpen = () => {
+    if (bookingId) navigate(`${bookingPath(bookingId)}/cancel`);
+  };
+
+  const handleCancelClose = () => {
+    if (bookingId) navigate(bookingPath(bookingId));
   };
 
   /**
-   * Cancel booking.
-   *
-   * IMPORTANT:
-   * The cancellation reason now comes from
-   * the BookingDrawer.
-   *
-   * There is NO window.prompt here.
-   *
-   * This prevents the reason from being asked
-   * twice.
+   * The cancellation reason comes from BookingDrawer.
+   * Do not use window.prompt here, so the reason is not
+   * requested twice.
    */
   const handleCancelBooking = async (
     booking: AdminBooking,
     reason: string,
   ) => {
-    const trimmedReason =
-      reason.trim();
+    const trimmedReason = reason.trim();
 
     if (!trimmedReason) {
-      setError(
-        "Cancellation reason is required.",
-      );
-
+      setError("Cancellation reason is required.");
       return;
     }
 
     try {
       const updatedBooking =
-        await adminBookingApi.cancelBooking(
-          booking.id,
-          {
-            reason:
-              trimmedReason,
-          },
-        );
+        await adminBookingApi.cancelBooking(booking.id, {
+          reason: trimmedReason,
+        });
 
       setBookings((current) =>
         current.map((item) =>
-          item.id ===
-          updatedBooking.id
+          item.id === updatedBooking.id
             ? updatedBooking
             : item,
         ),
       );
 
-      setSelectedBooking(
-        updatedBooking,
-      );
+      setSelectedBooking(updatedBooking);
+      setError("");
     } catch (err) {
-      const normalized =
-        err as {
-          message?: string;
-        };
+      const normalized = err as { message?: string };
 
       setError(
         normalized?.message ||
@@ -530,118 +466,80 @@ export default function Bookings() {
     updatedBooking: AdminBooking,
   ) => {
     setBookings((current) =>
-      current.map(
-        (booking) =>
-          booking.id ===
-          updatedBooking.id
-            ? updatedBooking
-            : booking,
+      current.map((booking) =>
+        booking.id === updatedBooking.id
+          ? updatedBooking
+          : booking,
       ),
     );
 
-    setSelectedBooking(
-      updatedBooking,
-    );
+    setSelectedBooking(updatedBooking);
   };
 
-  /*
-   * Load eligible partners.
-   *
-   * Only real partners from the backend are shown. A failed call shows an error
-   * instead of a made-up partner.
+  /**
+   * Load eligible partners from the backend.
+   * No mock partners are used.
    */
-  const handleLoadEligiblePartners =
-    async (
-      booking: AdminBooking,
-    ) => {
-      setEligiblePartnersLoading(
-        true,
+  const handleLoadEligiblePartners = async (
+    booking: AdminBooking,
+  ) => {
+    setEligiblePartnersLoading(true);
+
+    try {
+      const partners =
+        await adminBookingApi.getEligiblePartners(booking.id);
+
+      setEligiblePartners(partners);
+      setError("");
+    } catch (err) {
+      const normalized = err as { message?: string };
+
+      setEligiblePartners([]);
+
+      setError(
+        normalized?.message ||
+          "Could not load eligible partners. Please try again.",
       );
-
-      try {
-        const partners =
-          await adminBookingApi.getEligiblePartners(
-            booking.id,
-          );
-
-        setEligiblePartners(
-          partners,
-        );
-      } catch (err) {
-        const normalized =
-          err as {
-            message?: string;
-          };
-
-        setEligiblePartners([]);
-        setError(
-          normalized?.message ||
-            "Could not load eligible partners. Please try again.",
-        );
-      } finally {
-        setEligiblePartnersLoading(
-          false,
-        );
-      }
-    };
+    } finally {
+      setEligiblePartnersLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (
-      !assignDialogOpen ||
-      !selectedBooking
-    ) {
+    if (!assignDialogOpen || !selectedBooking) {
       return;
     }
 
-    void handleLoadEligiblePartners(
-      selectedBooking,
-    );
-  }, [
-    assignDialogOpen,
-    selectedBooking,
-  ]);
+    void handleLoadEligiblePartners(selectedBooking);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignDialogOpen, selectedBooking?.id]);
 
-  const handleAssignDialogClose =
-    () => {
-      setAssignDialogOpen(
-        false,
-      );
-
-      setEligiblePartners([]);
-    };
+  const handleAssignDialogClose = () => {
+    setEligiblePartners([]);
+    handleCancelClose();
+  };
 
   const handlePartnerAssigned = (
     updatedBooking: AdminBooking,
   ) => {
-    handleBookingUpdated(
-      updatedBooking,
-    );
-
-    setAssignDialogOpen(false);
-
+    // The dialog calls onClose next, which returns to the booking.
+    handleBookingUpdated(updatedBooking);
     setEligiblePartners([]);
   };
 
-  const handleStatusDialogClose =
-    () => {
-      setStatusDialogOpen(false);
-    };
+  const handleStatusDialogClose = () => {
+    handleCancelClose();
+  };
 
   const handleStatusUpdated = (
     updatedBooking: AdminBooking,
   ) => {
-    handleBookingUpdated(
-      updatedBooking,
-    );
-
-    setStatusDialogOpen(false);
+    handleBookingUpdated(updatedBooking);
   };
 
   const filterButtonClassName = [
     "booking-filter-button",
-
-    filterOpen ||
-    activeFilterCount > 0
+    filterOpen || activeFilterCount > 0
       ? "booking-filter-button--active"
       : "",
   ]
@@ -650,32 +548,21 @@ export default function Bookings() {
 
   return (
     <main className="bookings-page">
-
       {/* PAGE HEADER */}
-
       <header className="bookings-page__header">
         <div className="bookings-page__title-section">
-
           <h1>Bookings</h1>
-
           <p>
-            Monitor and manage customer
-            bookings and service requests.
+            Monitor and manage customer bookings and service requests.
           </p>
-
         </div>
 
         <div className="bookings-page__actions">
           <button
             type="button"
             className="booking-top-button"
-            onClick={
-              handleExportCsv
-            }
-            disabled={
-              !bookings.length ||
-              loading
-            }
+            onClick={handleExportCsv}
+            disabled={!bookings.length || loading}
           >
             <svg
               viewBox="0 0 24 24"
@@ -684,37 +571,24 @@ export default function Bookings() {
               strokeWidth="1.8"
               aria-hidden="true"
             >
-              <path
-                d="M12 3v11"
-                strokeLinecap="round"
-              />
-
+              <path d="M12 3v11" strokeLinecap="round" />
               <path
                 d="m7.5 10.5 4.5 4.5 4.5-4.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-
-              <path
-                d="M5 20h14"
-                strokeLinecap="round"
-              />
+              <path d="M5 20h14" strokeLinecap="round" />
             </svg>
-
             Export CSV
           </button>
         </div>
       </header>
 
       {/* ALERTS */}
-
       {offline && (
         <div className="bookings-alert bookings-alert--warning">
           <div>
-            <strong>
-              You are offline.
-            </strong>
-
+            <strong>You are offline.</strong>
             <span>
               Booking data may not be up to date.
             </span>
@@ -725,22 +599,13 @@ export default function Bookings() {
       {error && (
         <div className="bookings-alert bookings-alert--error">
           <div>
-            <strong>
-              Unable to load bookings.
-            </strong>
-
-            <span>
-              {error}
-            </span>
+            <strong>Unable to load bookings.</strong>
+            <span>{error}</span>
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              void loadBookings(
-                filters,
-              )
-            }
+            onClick={() => void loadBookings(filters)}
           >
             Retry
           </button>
@@ -748,21 +613,15 @@ export default function Bookings() {
       )}
 
       {/* BOOKINGS */}
-
       <section className="booking-results">
-
         <div className="booking-results__header">
           <div>
-            <h2>
-              Booking List
-            </h2>
-
+            <h2>Booking List</h2>
             <p>
               {loading
                 ? "Loading bookings..."
                 : `${bookings.length} ${
-                    bookings.length ===
-                    1
+                    bookings.length === 1
                       ? "booking"
                       : "bookings"
                   } found`}
@@ -771,9 +630,7 @@ export default function Bookings() {
         </div>
 
         {/* SEARCH + FILTER */}
-
         <div className="booking-toolbar">
-
           <div className="booking-search">
             <svg
               viewBox="0 0 24 24"
@@ -782,26 +639,14 @@ export default function Bookings() {
               strokeWidth="1.8"
               aria-hidden="true"
             >
-              <circle
-                cx="11"
-                cy="11"
-                r="6.5"
-              />
-
-              <path
-                d="m16 16 5 5"
-                strokeLinecap="round"
-              />
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 5 5" strokeLinecap="round" />
             </svg>
 
             <input
               type="search"
-              value={
-                filters.search
-              }
-              onChange={
-                handleSearchChange
-              }
+              value={filters.search}
+              onChange={handleSearchChange}
               placeholder="Search bookings..."
               aria-label="Search bookings"
             />
@@ -809,18 +654,11 @@ export default function Bookings() {
 
           <button
             type="button"
-            className={
-              filterButtonClassName
-            }
+            className={filterButtonClassName}
             onClick={() =>
-              setFilterOpen(
-                (current) =>
-                  !current,
-              )
+              setFilterOpen((current) => !current)
             }
-            aria-expanded={
-              filterOpen
-            }
+            aria-expanded={filterOpen}
           >
             <svg
               viewBox="0 0 24 24"
@@ -829,56 +667,31 @@ export default function Bookings() {
               strokeWidth="1.8"
               aria-hidden="true"
             >
-              <path
-                d="M4 6h16"
-                strokeLinecap="round"
-              />
-
-              <path
-                d="M7 12h10"
-                strokeLinecap="round"
-              />
-
-              <path
-                d="M10 18h4"
-                strokeLinecap="round"
-              />
+              <path d="M4 6h16" strokeLinecap="round" />
+              <path d="M7 12h10" strokeLinecap="round" />
+              <path d="M10 18h4" strokeLinecap="round" />
             </svg>
 
-            <span>
-              Filter
-            </span>
+            <span>Filter</span>
 
-            {activeFilterCount >
-              0 && (
+            {activeFilterCount > 0 && (
               <span className="booking-filter-count">
-                {
-                  activeFilterCount
-                }
+                {activeFilterCount}
               </span>
             )}
           </button>
-
         </div>
 
         {/* FILTER PANEL */}
-
         {filterOpen && (
           <div className="booking-filter-section">
-
             <div className="booking-filter-header">
-              <h3>
-                Filters
-              </h3>
+              <h3>Filters</h3>
 
               <button
                 type="button"
                 className="booking-filter-close"
-                onClick={() =>
-                  setFilterOpen(
-                    false,
-                  )
-                }
+                onClick={() => setFilterOpen(false)}
                 aria-label="Close filters"
               >
                 ×
@@ -886,71 +699,38 @@ export default function Bookings() {
             </div>
 
             <div className="booking-filter-body">
-
               <div className="booking-filter-grid">
-
                 <label className="booking-filter-field">
-                  <span>
-                    Status
-                  </span>
+                  <span>Status</span>
 
                   <select
-                    value={
-                      draftFilters.status
-                    }
-                    onChange={(
-                      event,
-                    ) =>
+                    value={draftFilters.status}
+                    onChange={(event) =>
                       updateDraftFilter(
                         "status",
-                        event.target
-                          .value as
-                          | BookingStatus
-                          | "",
+                        event.target.value as BookingStatus | "",
                       )
                     }
                   >
-                    <option value="">
-                      All statuses
-                    </option>
+                    <option value="">All statuses</option>
 
-                    {STATUS_OPTIONS.map(
-                      (status) => (
-                        <option
-                          key={
-                            status
-                          }
-                          value={
-                            status
-                          }
-                        >
-                          {formatStatus(
-                            status,
-                          )}
-                        </option>
-                      ),
-                    )}
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {formatStatus(status)}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    Payment Status
-                  </span>
+                  <span>Payment Status</span>
 
                   <select
-                    value={
-                      draftFilters.paymentStatus
-                    }
-                    onChange={(
-                      event,
-                    ) =>
+                    value={draftFilters.paymentStatus}
+                    onChange={(event) =>
                       updateDraftFilter(
                         "paymentStatus",
-                        event.target
-                          .value as
-                          | PaymentStatus
-                          | "",
+                        event.target.value as PaymentStatus | "",
                       )
                     }
                   >
@@ -958,85 +738,49 @@ export default function Bookings() {
                       All payment statuses
                     </option>
 
-                    {PAYMENT_STATUS_OPTIONS.map(
-                      (status) => (
-                        <option
-                          key={
-                            status
-                          }
-                          value={
-                            status
-                          }
-                        >
-                          {status}
-                        </option>
-                      ),
-                    )}
+                    {PAYMENT_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    Booking Date
-                  </span>
+                  <span>Booking Date</span>
 
                   <input
                     type="date"
-                    value={
-                      draftFilters.date
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateDraftFilter(
-                        "date",
-                        event.target
-                          .value,
-                      )
+                    value={draftFilters.date}
+                    onChange={(event) =>
+                      updateDraftFilter("date", event.target.value)
                     }
                   />
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    City
-                  </span>
+                  <span>City</span>
 
                   <input
                     type="text"
-                    value={
-                      draftFilters.city
-                    }
-                    onChange={(
-                      event,
-                    ) =>
-                      updateDraftFilter(
-                        "city",
-                        event.target
-                          .value,
-                      )
+                    value={draftFilters.city}
+                    onChange={(event) =>
+                      updateDraftFilter("city", event.target.value)
                     }
                     placeholder="Enter city"
                   />
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    Category
-                  </span>
+                  <span>Category</span>
 
                   <input
                     type="text"
-                    value={
-                      draftFilters.category
-                    }
-                    onChange={(
-                      event,
-                    ) =>
+                    value={draftFilters.category}
+                    onChange={(event) =>
                       updateDraftFilter(
                         "category",
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
                     placeholder="Enter category"
@@ -1044,22 +788,15 @@ export default function Bookings() {
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    Customer
-                  </span>
+                  <span>Customer</span>
 
                   <input
                     type="text"
-                    value={
-                      draftFilters.customer
-                    }
-                    onChange={(
-                      event,
-                    ) =>
+                    value={draftFilters.customer}
+                    onChange={(event) =>
                       updateDraftFilter(
                         "customer",
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
                     placeholder="Customer name or ID"
@@ -1067,45 +804,29 @@ export default function Bookings() {
                 </label>
 
                 <label className="booking-filter-field">
-                  <span>
-                    Partner
-                  </span>
+                  <span>Partner</span>
 
                   <input
                     type="text"
-                    value={
-                      draftFilters.partner
-                    }
-                    onChange={(
-                      event,
-                    ) =>
+                    value={draftFilters.partner}
+                    onChange={(event) =>
                       updateDraftFilter(
                         "partner",
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
                     placeholder="Partner name or ID"
                   />
                 </label>
-
               </div>
-
             </div>
 
             <div className="booking-filter-footer">
-
               <button
                 type="button"
                 className="booking-filter-clear"
-                onClick={
-                  clearFilters
-                }
-                disabled={
-                  !hasAnyFilters(
-                    draftFilters,
-                  )
-                }
+                onClick={clearFilters}
+                disabled={!hasAnyFilters(draftFilters)}
               >
                 Clear
               </button>
@@ -1113,100 +834,72 @@ export default function Bookings() {
               <button
                 type="button"
                 className="booking-filter-apply"
-                onClick={
-                  applyFilters
-                }
-                disabled={filtersAreEqual(
-                  filters,
-                  draftFilters,
-                )}
+                onClick={applyFilters}
+                disabled={filtersAreEqual(filters, draftFilters)}
               >
                 Apply Filters
               </button>
-
             </div>
-
           </div>
         )}
 
         {/* TABLE */}
-
         <div className="booking-results__table">
+          {loading &&
+          bookings.length === 0 ? (
+            <div
+              className="booking-skeleton"
+              aria-busy="true"
+              aria-label="Loading bookings"
+            >
+              {Array.from({ length: 6 }).map(
+                (_, index) => (
+                  <div
+                    key={index}
+                    className="booking-skeleton__row"
+                  />
+                ),
+              )}
+            </div>
+          ) : (
           <BookingTable
-            bookings={
-              bookings
-            }
-            onBookingSelect={
-              handleBookingSelect
-            }
+            bookings={bookings}
+            onBookingSelect={handleBookingSelect}
           />
+          )}
         </div>
-
       </section>
 
       {/* DRAWER */}
-
       <BookingDrawer
-        booking={
-          selectedBooking
-        }
-        open={
-          drawerOpen
-        }
-        onClose={
-          handleCloseDrawer
-        }
-        onAssignPartner={
-          handleAssignPartner
-        }
-        onStatusOverride={
-          handleStatusOverride
-        }
-        onCancelBooking={
-          handleCancelBooking
-        }
+        booking={selectedBooking}
+        open={drawerOpen}
+        onClose={handleCloseDrawer}
+        onAssignPartner={handleAssignPartner}
+        onStatusOverride={handleStatusOverride}
+        onCancelBooking={handleCancelBooking}
+        cancelOpen={cancelOpen}
+        onCancelOpen={handleCancelOpen}
+        onCancelClose={handleCancelClose}
       />
 
       {/* ASSIGN PARTNER */}
-
       <AssignPartnerDialog
-        booking={
-          selectedBooking
-        }
-        open={
-          assignDialogOpen
-        }
-        partners={
-          eligiblePartners
-        }
-        loading={
-          eligiblePartnersLoading
-        }
-        onClose={
-          handleAssignDialogClose
-        }
-        onAssigned={
-          handlePartnerAssigned
-        }
+        booking={selectedBooking}
+        open={assignDialogOpen}
+        partners={eligiblePartners}
+        loading={eligiblePartnersLoading}
+        onClose={handleAssignDialogClose}
+        onAssigned={handlePartnerAssigned}
       />
 
       {/* STATUS OVERRIDE */}
-
       <StatusOverrideDialog
-        booking={
-          selectedBooking
-        }
-        open={
-          statusDialogOpen
-        }
-        onClose={
-          handleStatusDialogClose
-        }
-        onUpdated={
-          handleStatusUpdated
-        }
+        booking={selectedBooking}
+        open={statusDialogOpen}
+        onClose={handleStatusDialogClose}
+        onUpdated={handleStatusUpdated}
       />
-
     </main>
   );
 }
