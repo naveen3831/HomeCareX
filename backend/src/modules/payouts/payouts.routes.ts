@@ -3,107 +3,131 @@ import { authenticate } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
 import { requirePermission } from '../../middleware/permission.middleware';
 import { asyncHandler } from '../../utils/asyncHandler';
+
 import {
   PAYOUTS_APPROVE,
   PAYOUTS_EXPORT,
-  PAYOUTS_VIEW,
 } from './payouts.constants';
+
 import { payoutsController } from './payouts.controller';
 
+const payoutsRoutes = Router();
+
 /**
- * Payout routes. Mounted at /api/v1/admin.
+ * This router is mounted at /admin.
  *
- * Auth is applied per-route (not via router.use) so it does not leak onto
- * other routers that share the /admin mount prefix.
+ * All payout routes require authentication and admin access.
  */
-export const payoutsRoutes = Router();
+payoutsRoutes.use(authenticate, requireAdmin);
 
-const adminOnly = [authenticate, requireAdmin];
-const canView = [...adminOnly, requirePermission(PAYOUTS_VIEW)];
-const canApprove = [...adminOnly, requirePermission(PAYOUTS_APPROVE)];
-const canExport = [...adminOnly, requirePermission(PAYOUTS_EXPORT)];
-
-// --- CSV export (must be registered before '/payouts/:id') ---
+/**
+ * CSV export routes.
+ *
+ * Register specific export routes before generic parameter routes
+ * to prevent route parameters from capturing "export".
+ */
 payoutsRoutes.get(
   '/payouts/export',
-  ...canExport,
+  requirePermission(PAYOUTS_EXPORT),
   asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
 );
 
 payoutsRoutes.get(
   '/payouts/:id/export',
-  ...canExport,
+  requirePermission(PAYOUTS_EXPORT),
   asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
 );
 
 payoutsRoutes.get(
   '/payout-batches/:id/export',
-  ...canExport,
+  requirePermission(PAYOUTS_EXPORT),
   asyncHandler((req, res) => payoutsController.exportCsv(req, res)),
 );
 
-// --- List / generate batches ---
+/**
+ * List payout batches.
+ */
 payoutsRoutes.get(
   '/payouts',
-  ...canView,
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.list(req, res)),
+);
+
+/**
+ * Generate a payout batch.
+ */
+payoutsRoutes.post(
+  '/payouts',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.generate(req, res)),
+);
+
+/**
+ * Compatibility aliases for older payout-batch endpoints.
+ */
+payoutsRoutes.get(
+  '/payout-batches',
+  requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.list(req, res)),
 );
 
 payoutsRoutes.post(
-  '/payouts',
-  ...canApprove,
+  '/payout-batches',
+  requirePermission(PAYOUTS_APPROVE),
   asyncHandler((req, res) => payoutsController.generate(req, res)),
 );
 
-payoutsRoutes.get(
-  '/payout-batches',
-  ...canView,
-  asyncHandler((req, res) => payoutsController.list(req, res)),
-);
-
-payoutsRoutes.post(
-  '/payout-batches',
-  ...canApprove,
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
-);
-
-// --- Individual payouts belonging to a batch ---
+/**
+ * List payouts belonging to a batch.
+ *
+ * Register these before the generic batch-detail routes.
+ */
 payoutsRoutes.get(
   '/payouts/:id/payouts',
-  ...canView,
-  asyncHandler((req, res) => payoutsController.listPayouts(req, res)),
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.listBatchPayouts(req, res)),
 );
 
 payoutsRoutes.get(
   '/payout-batches/:id/payouts',
-  ...canView,
+  requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.listPayouts(req, res)),
 );
 
-// --- Batch details ---
+/**
+ * Mark an individual payout as paid.
+ *
+ * The mark-paid route must be registered before PATCH /payouts/:id.
+ */
+payoutsRoutes.patch(
+  '/payouts/:id/mark-paid',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
+);
+
+/**
+ * Compatibility endpoint for marking an individual payout as paid.
+ */
+payoutsRoutes.patch(
+  '/payouts/:id',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
+);
+
+/**
+ * Retrieve payout batch details.
+ */
 payoutsRoutes.get(
   '/payouts/:id',
-  ...canView,
+  requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.getBatch(req, res)),
 );
 
 payoutsRoutes.get(
   '/payout-batches/:id',
-  ...canView,
-  asyncHandler((req, res) => payoutsController.getBatch(req, res)),
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.get(req, res)),
 );
 
-// --- Mark an individual payout as paid ---
-payoutsRoutes.patch(
-  '/payouts/:id',
-  ...canApprove,
-  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
-);
-
-payoutsRoutes.patch(
-  '/payouts/:id/mark-paid',
-  ...canApprove,
-  asyncHandler((req, res) => payoutsController.markPaid(req, res)),
-);
-
+export { payoutsRoutes };
 export default payoutsRoutes;

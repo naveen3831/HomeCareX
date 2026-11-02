@@ -1,6 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { http } from "@/lib/http"; // if @/lib/http has only a default export, use: import http from "@/lib/http";
+import { http } from "@/lib/http";
 import "./index.css";
 
 type BatchStatus = "Pending" | "Processing" | "Completed" | "Failed";
@@ -54,6 +59,7 @@ const firstValue = (...values: unknown[]): string => {
       return String(value);
     }
   }
+
   return "";
 };
 
@@ -61,22 +67,43 @@ const getErrorMessage = (error: unknown): string => {
   const root = asObject(error);
   const response = asObject(root.response);
   const data = asObject(response.data);
-  return firstValue(data.message, data.error, root.message, "Something went wrong. Please try again.");
+
+  return firstValue(
+    data.message,
+    data.error,
+    root.message,
+    "Something went wrong. Please try again."
+  );
 };
 
+/**
+ * Supports Axios responses and APIs that return a nested data object.
+ */
 const getPayload = (response: unknown): unknown => {
   const root = asObject(response);
-  const body = asObject(root.data ?? response);
-  return body.data ?? body;
+  const body = root.data ?? response;
+  const bodyObject = asObject(body);
+
+  return bodyObject.data ?? body;
 };
 
 const extractArray = (value: unknown): unknown[] => {
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) {
+    return value;
+  }
 
   const payload = asObject(value);
 
-  for (const key of ["items", "payouts", "results", "records"]) {
-    if (Array.isArray(payload[key])) return payload[key];
+  for (const key of [
+    "items",
+    "payouts",
+    "batches",
+    "results",
+    "records",
+  ]) {
+    if (Array.isArray(payload[key])) {
+      return payload[key] as unknown[];
+    }
   }
 
   return [];
@@ -85,43 +112,72 @@ const extractArray = (value: unknown): unknown[] => {
 const normalizeBatchStatus = (value: unknown): BatchStatus => {
   const status = String(value ?? "").toLowerCase();
 
-  if (["completed", "complete", "paid", "success", "successful"].includes(status)) {
+  if (
+    ["completed", "complete", "paid", "success", "successful"].includes(
+      status
+    )
+  ) {
     return "Completed";
   }
-  if (["processing", "in_progress", "initiated"].includes(status)) {
+
+  if (
+    ["processing", "in_progress", "initiated"].includes(status)
+  ) {
     return "Processing";
   }
+
   if (["failed", "failure", "error"].includes(status)) {
     return "Failed";
   }
+
   return "Pending";
 };
 
 const normalizePayoutStatus = (value: unknown): PayoutStatus => {
   const status = String(value ?? "").toLowerCase();
 
-  if (["paid", "completed", "success", "successful"].includes(status)) {
+  if (
+    ["paid", "completed", "success", "successful"].includes(status)
+  ) {
     return "Paid";
   }
-  if (["processing", "in_progress", "initiated"].includes(status)) {
+
+  if (
+    ["processing", "in_progress", "initiated"].includes(status)
+  ) {
     return "Processing";
   }
+
   if (["failed", "failure", "error"].includes(status)) {
     return "Failed";
   }
+
   return "Pending";
 };
 
 const normalizeBatch = (item: unknown): PayoutBatch => {
   const raw = asObject(item);
+  const period = asObject(raw.period);
 
   return {
     id: firstValue(raw._id, raw.id, raw.batchId),
-    periodStart: firstValue(raw.periodStart, raw.startDate, asObject(raw.period).from),
-    periodEnd: firstValue(raw.periodEnd, raw.endDate, asObject(raw.period).to),
-    gross: Number(raw.gross ?? 0),
-    commission: Number(raw.commission ?? 0),
-    net: Number(raw.net ?? 0),
+    periodStart: firstValue(
+      raw.periodStart,
+      raw.startDate,
+      period.from,
+      period.start
+    ),
+    periodEnd: firstValue(
+      raw.periodEnd,
+      raw.endDate,
+      period.to,
+      period.end
+    ),
+    gross: Number(raw.gross ?? raw.grossAmount ?? 0),
+    commission: Number(
+      raw.commission ?? raw.commissionAmount ?? 0
+    ),
+    net: Number(raw.net ?? raw.netAmount ?? 0),
     status: normalizeBatchStatus(raw.status),
     createdAt: firstValue(raw.createdAt),
     updatedAt: firstValue(raw.updatedAt),
@@ -138,12 +194,17 @@ const normalizeBatch = (item: unknown): PayoutBatch => {
 
 const normalizePayout = (item: unknown): IndividualPayout => {
   const raw = asObject(item);
-  const partner = asObject(raw.partnerId ?? raw.partner ?? raw.partnerDetails);
+  const partner = asObject(
+    raw.partnerId ?? raw.partner ?? raw.partnerDetails
+  );
+
+  const amountInPaise =
+    raw.amountInPaise ??
+    raw.amountPaise ??
+    raw.netAmountInPaise;
 
   const amountValue = Number(
-    raw.amountInPaise ??
-      raw.amountPaise ??
-      raw.netAmountInPaise ??
+    amountInPaise ??
       raw.amount ??
       raw.net ??
       raw.netAmount ??
@@ -151,19 +212,21 @@ const normalizePayout = (item: unknown): IndividualPayout => {
   );
 
   const amount =
-    raw.amountInPaise != null ||
-    raw.amountPaise != null ||
-    raw.netAmountInPaise != null
-      ? amountValue / 100
-      : amountValue;
+    amountInPaise != null ? amountValue / 100 : amountValue;
+
+  const partnerId =
+    typeof raw.partnerId === "object" && raw.partnerId !== null
+      ? firstValue(partner._id, partner.id)
+      : firstValue(
+          raw.partnerId,
+          partner._id,
+          partner.id,
+          raw.userId
+        );
 
   return {
     id: firstValue(raw._id, raw.id, raw.payoutId),
-    partnerId: firstValue(
-      typeof raw.partnerId === "object" ? partner._id : raw.partnerId,
-      partner.id,
-      raw.userId
-    ),
+    partnerId,
     partnerName: firstValue(
       raw.partnerName,
       partner.name,
@@ -173,9 +236,13 @@ const normalizePayout = (item: unknown): IndividualPayout => {
     ),
     partnerEmail: firstValue(raw.partnerEmail, partner.email),
     amount: Number.isFinite(amount) ? amount : 0,
-    gross: Number(raw.gross ?? 0),
-    commission: Number(raw.commission ?? 0),
-    status: normalizePayoutStatus(raw.status ?? raw.payoutStatus),
+    gross: Number(raw.gross ?? raw.grossAmount ?? 0),
+    commission: Number(
+      raw.commission ?? raw.commissionAmount ?? 0
+    ),
+    status: normalizePayoutStatus(
+      raw.status ?? raw.payoutStatus
+    ),
     paidAt: firstValue(raw.paidAt),
     createdAt: firstValue(raw.createdAt),
     raw,
@@ -193,6 +260,7 @@ const formatDate = (value: string): string => {
   if (!value) return "—";
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return "—";
 
   return date.toLocaleString("en-IN", {
@@ -206,11 +274,15 @@ const formatDate = (value: string): string => {
 
 const shortId = (value: string, length = 18): string => {
   if (!value) return "—";
-  if (value.length <= length) return value;
-  return `${value.slice(0, 8)}…${value.slice(-5)}`;
+
+  return value.length <= length
+    ? value
+    : `${value.slice(0, 8)}…${value.slice(-5)}`;
 };
 
-const statusClass = (status: BatchStatus | PayoutStatus): string => {
+const statusClass = (
+  status: BatchStatus | PayoutStatus
+): string => {
   const classes: Record<string, string> = {
     Pending: "payout-status-pending",
     Processing: "payout-status-processing",
@@ -227,7 +299,10 @@ export const AdminPayoutsPage: React.FC = () => {
   const { id: routeId } = useParams<{ id: string }>();
 
   const [batches, setBatches] = useState<PayoutBatch[]>([]);
-  const [individualPayouts, setIndividualPayouts] = useState<IndividualPayout[]>([]);
+  const [individualPayouts, setIndividualPayouts] = useState<
+    IndividualPayout[]
+  >([]);
+
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
     limit: PAGE_SIZE,
@@ -255,22 +330,43 @@ export const AdminPayoutsPage: React.FC = () => {
       );
 
       const payload = getPayload(response);
-      const rows = extractArray(payload).map(normalizeBatch);
+      const payloadObject = asObject(payload);
+
+      const rows = extractArray(payload)
+        .map(normalizeBatch)
+        .filter((batch) => Boolean(batch.id));
 
       setBatches(rows);
 
-      const serverPagination = asObject(asObject(payload).pagination);
+      const serverPagination = asObject(
+        payloadObject.pagination ?? payloadObject.meta
+      );
+
       const total = Number(serverPagination.total ?? rows.length);
+      const serverPage = Number(serverPagination.page ?? page);
+      const limit = Number(
+        serverPagination.limit ?? PAGE_SIZE
+      );
+
       setPagination({
-        page: Number(serverPagination.page ?? page),
-        limit: Number(serverPagination.limit ?? PAGE_SIZE),
+        page: serverPage,
+        limit,
         total,
-        pages: Number(serverPagination.pages ?? Math.ceil(total / PAGE_SIZE)),
+        pages: Number(
+          serverPagination.pages ??
+            Math.ceil(total / Math.max(1, limit))
+        ),
       });
     } catch (error) {
       setLoadError(getErrorMessage(error));
       setBatches([]);
-      setPagination({ page, limit: PAGE_SIZE, total: 0, pages: 0 });
+
+      setPagination({
+        page,
+        limit: PAGE_SIZE,
+        total: 0,
+        pages: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -282,35 +378,60 @@ export const AdminPayoutsPage: React.FC = () => {
     setIndividualPayouts([]);
 
     try {
-      const [batchResponse, payoutsResponse] = await Promise.all([
-        http.get(`/admin/payouts/${encodeURIComponent(batchId)}`),
-        http.get(`/admin/payouts/${encodeURIComponent(batchId)}/payouts`),
-      ]);
+      const response = await http.get(
+        `/admin/payouts/${encodeURIComponent(batchId)}`
+      );
 
-      const batchPayload = getPayload(batchResponse);
-      const payoutPayload = getPayload(payoutsResponse);
+      const payload = getPayload(response);
+      const payloadObject = asObject(payload);
 
-      const batchRecord = asObject(batchPayload);
       const batchData =
-        batchRecord.batch ??
-        batchRecord.item ??
-        batchRecord.data ??
-        batchRecord;
+        payloadObject.batch ??
+        payloadObject.item ??
+        payloadObject.data ??
+        payload;
 
       const normalizedBatch = normalizeBatch(batchData);
 
+      if (!normalizedBatch.id) {
+        throw new Error(
+          "The server returned invalid payout batch details."
+        );
+      }
+
       setBatches((current) => {
-        const exists = current.some((item) => item.id === normalizedBatch.id);
+        const exists = current.some(
+          (item) => item.id === normalizedBatch.id
+        );
+
         return exists
           ? current.map((item) =>
-              item.id === normalizedBatch.id ? normalizedBatch : item
+              item.id === normalizedBatch.id
+                ? normalizedBatch
+                : item
             )
           : [normalizedBatch, ...current];
       });
-
-      setIndividualPayouts(extractArray(payoutPayload).map(normalizePayout));
     } catch (error) {
       setLoadError(getErrorMessage(error));
+      setDetailLoading(false);
+      return;
+    }
+
+    try {
+      const response = await http.get(
+        `/admin/payouts/${encodeURIComponent(batchId)}/payouts`
+      );
+
+      const payouts = extractArray(getPayload(response))
+        .map(normalizePayout)
+        .filter((payout) => Boolean(payout.id));
+
+      setIndividualPayouts(payouts);
+    } catch (error) {
+      setLoadError(
+        `Batch loaded, but individual payouts could not be loaded: ${getErrorMessage(error)}`
+      );
     } finally {
       setDetailLoading(false);
     }
@@ -332,34 +453,49 @@ export const AdminPayoutsPage: React.FC = () => {
     setPage(1);
   }, [statusFilter]);
 
-  // Note: search and status filters apply to the batches on the current page only.
   const filteredBatches = useMemo(() => {
     const query = search.trim().toLowerCase();
 
     return batches.filter((batch) => {
+      const values = [
+        batch.id,
+        batch.status,
+        batch.periodStart,
+        batch.periodEnd,
+        String(batch.gross),
+        String(batch.commission),
+        String(batch.net),
+      ];
+
       const matchesSearch =
         !query ||
-        [
-          batch.id,
-          batch.status,
-          batch.periodStart,
-          batch.periodEnd,
-          String(batch.gross),
-          String(batch.commission),
-          String(batch.net),
-        ].some((value) => value.toLowerCase().includes(query));
+        values.some((value) =>
+          value.toLowerCase().includes(query)
+        );
 
       const matchesStatus =
-        statusFilter === "All" || batch.status === statusFilter;
+        statusFilter === "All" ||
+        batch.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [batches, search, statusFilter]);
 
-  const pendingBatches = batches.filter((batch) => batch.status === "Pending");
-  const processingBatches = batches.filter((batch) => batch.status === "Processing");
-  const completedBatches = batches.filter((batch) => batch.status === "Completed");
-  const failedBatches = batches.filter((batch) => batch.status === "Failed");
+  const pendingBatches = batches.filter(
+    (batch) => batch.status === "Pending"
+  );
+
+  const processingBatches = batches.filter(
+    (batch) => batch.status === "Processing"
+  );
+
+  const completedBatches = batches.filter(
+    (batch) => batch.status === "Completed"
+  );
+
+  const failedBatches = batches.filter(
+    (batch) => batch.status === "Failed"
+  );
 
   const goBack = () => navigate("/admin/payouts");
 
@@ -369,6 +505,7 @@ export const AdminPayoutsPage: React.FC = () => {
       return;
     }
 
+    setActionError("");
     navigate(`/admin/payouts/${encodeURIComponent(batch.id)}`);
   };
 
@@ -376,21 +513,32 @@ export const AdminPayoutsPage: React.FC = () => {
     setActionError("");
     setActionSuccess("");
 
+    let objectUrl = "";
+
     try {
       const endpoint = batchId
         ? `/admin/payouts/${encodeURIComponent(batchId)}/export`
         : "/admin/payouts/export";
 
-      const response = await http.get(endpoint, { responseType: "blob" });
+      const response = await http.get(endpoint, {
+        responseType: "blob",
+      });
+
+      const responseData = asObject(response);
+      const responseBlob = responseData.data;
 
       const blob =
-        response.data instanceof Blob
-          ? response.data
-          : new Blob([response.data], { type: "text/csv;charset=utf-8;" });
+        responseBlob instanceof Blob
+          ? responseBlob
+          : new Blob(
+              [responseBlob as BlobPart],
+              { type: "text/csv;charset=utf-8;" }
+            );
 
-      const url = URL.createObjectURL(blob);
+      objectUrl = URL.createObjectURL(blob);
+
       const anchor = document.createElement("a");
-      anchor.href = url;
+      anchor.href = objectUrl;
       anchor.download = batchId
         ? `homecarex-payout-batch-${batchId}.csv`
         : "homecarex-payouts.csv";
@@ -398,19 +546,26 @@ export const AdminPayoutsPage: React.FC = () => {
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(url);
+
+      setActionSuccess("CSV export started.");
     } catch (error) {
       setActionError(getErrorMessage(error));
+    } finally {
+      if (objectUrl) {
+        window.setTimeout(
+          () => URL.revokeObjectURL(objectUrl),
+          1000
+        );
+      }
     }
   };
 
   const markPayoutPaid = async (payout: IndividualPayout) => {
-    if (!payout.id || updatingId) return;
+    if (!payout.id || updatingId || payout.status === "Paid") {
+      return;
+    }
 
-    if (
-      payout.status === "Paid" ||
-      !window.confirm(`Mark payout ${payout.id} as paid?`)
-    ) {
+    if (!window.confirm(`Mark payout ${payout.id} as paid?`)) {
       return;
     }
 
@@ -419,11 +574,13 @@ export const AdminPayoutsPage: React.FC = () => {
     setActionSuccess("");
 
     try {
-      // Confirm your backend treats an empty PATCH body as "mark paid".
-      // If it expects a status, send { status: "paid" } instead.
-      await http.patch(`/admin/payouts/${encodeURIComponent(payout.id)}`, {});
+      await http.patch(
+        `/admin/payouts/${encodeURIComponent(payout.id)}`,
+        { status: "paid" }
+      );
 
       setActionSuccess("Payout marked as paid.");
+
       if (routeId) {
         await loadBatchDetails(routeId);
       }
@@ -434,38 +591,43 @@ export const AdminPayoutsPage: React.FC = () => {
     }
   };
 
-  // ------------------------------------------------------------
-  // Batch details view
-  // ------------------------------------------------------------
   if (routeId) {
     const batch = batches.find((item) => item.id === routeId);
 
     return (
       <main className="admin-page-container payout-page">
         <div className="payout-details-page">
-          <button type="button" className="payout-back-link" onClick={goBack}>
-            ← Back to payout batches
+          <button
+            type="button"
+            className="payout-back-link"
+            onClick={goBack}
+          >
+            <span aria-hidden="true">←</span>
+            Back to payout batches
           </button>
 
           <header className="payout-details-page-header">
-            <div>
-              <div className="payout-breadcrumb">
-                Admin <span>/</span> Finance <span>/</span> Payouts{" "}
-                <span>/</span> Batch details
-              </div>
+            <div className="payout-details-heading">
               <h1>Payout batch details</h1>
               <p className="payout-subtitle">
-                Review batch totals and the individual payouts included in this batch.
+                Review batch totals, settlement status, and the payouts
+                included in this batch.
               </p>
             </div>
+
             {batch && (
-              <span className={statusClass(batch.status)}>{batch.status}</span>
+              <span className={statusClass(batch.status)}>
+                {batch.status}
+              </span>
             )}
           </header>
 
           {loadError && (
-            <div className="payout-alert payout-alert-error" role="alert">
-              {loadError}
+            <div
+              className="payout-alert payout-alert-error"
+              role="alert"
+            >
+              <span>{loadError}</span>
               <button
                 type="button"
                 className="payout-text-button"
@@ -477,13 +639,19 @@ export const AdminPayoutsPage: React.FC = () => {
           )}
 
           {actionError && (
-            <div className="payout-alert payout-alert-error" role="alert">
+            <div
+              className="payout-alert payout-alert-error"
+              role="alert"
+            >
               {actionError}
             </div>
           )}
 
           {actionSuccess && (
-            <div className="payout-alert payout-alert-warning" role="status">
+            <div
+              className="payout-alert payout-alert-success"
+              role="status"
+            >
               {actionSuccess}
             </div>
           )}
@@ -492,6 +660,9 @@ export const AdminPayoutsPage: React.FC = () => {
             <section className="payout-state" aria-live="polite">
               <span className="payout-spinner" />
               <h2>Loading batch details</h2>
+              <p>
+                Please wait while the batch and payout records are retrieved.
+              </p>
             </section>
           )}
 
@@ -499,8 +670,8 @@ export const AdminPayoutsPage: React.FC = () => {
             <section className="payout-state">
               <h2>Batch not found</h2>
               <p>
-                This payout batch could not be found. It may have been removed or
-                the ID may be invalid.
+                This payout batch could not be found. It may have been
+                removed or the ID may be invalid.
               </p>
               <button
                 type="button"
@@ -514,67 +685,96 @@ export const AdminPayoutsPage: React.FC = () => {
 
           {!detailLoading && batch && (
             <>
-              <section className="payout-detail-summary-grid">
-                <article className="payout-detail-summary-card payout-detail-indigo">
-                  <span className="payout-summary-label">Gross amount</span>
+              <section
+                className="payout-detail-summary-grid"
+                aria-label="Batch totals"
+              >
+                <article className="payout-detail-summary-card">
+                  <span className="payout-summary-label">
+                    Gross amount
+                  </span>
                   <strong>{formatCurrency(batch.gross)}</strong>
                 </article>
-                <article className="payout-detail-summary-card payout-detail-blue">
-                  <span className="payout-summary-label">Commission</span>
+
+                <article className="payout-detail-summary-card">
+                  <span className="payout-summary-label">
+                    Commission
+                  </span>
                   <strong>{formatCurrency(batch.commission)}</strong>
                 </article>
-                <article className="payout-detail-summary-card payout-detail-purple">
-                  <span className="payout-summary-label">Net payout</span>
+
+                <article className="payout-detail-summary-card payout-net-card">
+                  <span className="payout-summary-label">
+                    Net payout
+                  </span>
                   <strong>{formatCurrency(batch.net)}</strong>
                 </article>
               </section>
 
-              <section className="payout-detail-card">
-                <h2>Batch information</h2>
+              <section className="payout-detail-card payout-batch-information">
+                <div className="payout-section-heading">
+                  <div>
+                    <h2>Batch information</h2>
+                    <p>Period and audit timestamps for this batch.</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="payout-button payout-button-secondary"
+                    onClick={() => void exportBatchCsv(batch.id)}
+                  >
+                    <span aria-hidden="true">↓</span>
+                    Export batch CSV
+                  </button>
+                </div>
+
                 <dl className="payout-info-list">
                   <div className="payout-info-row">
                     <dt>Batch ID</dt>
-                    <dd title={batch.id}>{batch.id}</dd>
+                    <dd className="payout-mono" title={batch.id}>
+                      {batch.id}
+                    </dd>
                   </div>
+
                   <div className="payout-info-row">
                     <dt>Period start</dt>
                     <dd>{formatDate(batch.periodStart)}</dd>
                   </div>
+
                   <div className="payout-info-row">
                     <dt>Period end</dt>
                     <dd>{formatDate(batch.periodEnd)}</dd>
                   </div>
+
                   <div className="payout-info-row">
                     <dt>Created</dt>
                     <dd>{formatDate(batch.createdAt)}</dd>
                   </div>
+
                   <div className="payout-info-row">
                     <dt>Last updated</dt>
                     <dd>{formatDate(batch.updatedAt)}</dd>
                   </div>
                 </dl>
-
-                <button
-                  type="button"
-                  className="payout-button payout-button-secondary"
-                  onClick={() => void exportBatchCsv(batch.id)}
-                >
-                  Export batch CSV
-                </button>
               </section>
 
-              <section className="payout-table-card">
-                <header className="payout-page-header">
+              <section className="payout-table-card payout-individual-card">
+                <header className="payout-individual-header">
                   <div>
                     <h2>Individual payouts</h2>
-                    <p className="payout-subtitle">
-                      {individualPayouts.length} payout record(s) in this batch.
+                    <p>
+                      {individualPayouts.length} payout record
+                      {individualPayouts.length === 1 ? "" : "s"} in this batch
                     </p>
                   </div>
+
+                  <span className="payout-record-count">
+                    {individualPayouts.length} records
+                  </span>
                 </header>
 
                 <div className="payout-table-scroll">
-                  <table className="payout-table">
+                  <table className="payout-table payout-individual-table">
                     <thead>
                       <tr>
                         <th>Payout ID</th>
@@ -587,35 +787,58 @@ export const AdminPayoutsPage: React.FC = () => {
                         <th>Actions</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {individualPayouts.map((payout) => (
                         <tr key={payout.id}>
-                          <td>{shortId(payout.id)}</td>
-                          <td>
+                          <td className="payout-mono">
+                            {shortId(payout.id)}
+                          </td>
+
+                          <td className="payout-partner-cell">
                             <span className="payout-partner-name">
                               {payout.partnerName}
                             </span>
                             <span className="payout-id">
-                              {payout.partnerEmail || payout.partnerId || "—"}
+                              {payout.partnerEmail ||
+                                payout.partnerId ||
+                                "—"}
                             </span>
                           </td>
-                          <td>{formatCurrency(payout.gross)}</td>
-                          <td>{formatCurrency(payout.commission)}</td>
+
+                          <td className="payout-nowrap">
+                            {formatCurrency(payout.gross)}
+                          </td>
+
+                          <td className="payout-nowrap">
+                            {formatCurrency(payout.commission)}
+                          </td>
+
                           <td className="payout-amount">
                             {formatCurrency(payout.amount)}
                           </td>
+
                           <td>
                             <span className={statusClass(payout.status)}>
                               {payout.status}
                             </span>
                           </td>
-                          <td>{formatDate(payout.paidAt)}</td>
+
+                          <td className="payout-nowrap">
+                            {formatDate(payout.paidAt)}
+                          </td>
+
                           <td>
                             <button
                               type="button"
-                              className="payout-button payout-button-primary"
+                              className={`payout-button payout-button-small ${
+                                payout.status === "Paid"
+                                  ? "payout-button-paid"
+                                  : "payout-button-secondary"
+                              }`}
                               disabled={
-                                payout.status === "Paid" || Boolean(updatingId)
+                                payout.status === "Paid" ||
+                                Boolean(updatingId)
                               }
                               onClick={() => void markPayoutPaid(payout)}
                             >
@@ -629,18 +852,20 @@ export const AdminPayoutsPage: React.FC = () => {
                         </tr>
                       ))}
 
-                      {!detailLoading && individualPayouts.length === 0 && (
-                        <tr>
-                          <td colSpan={8}>
-                            <div className="payout-state">
-                              <h2>No payouts in this batch</h2>
-                              <p>
-                                The backend returned no individual payout records for this batch.
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
+                      {!detailLoading &&
+                        individualPayouts.length === 0 && (
+                          <tr>
+                            <td colSpan={8}>
+                              <div className="payout-state payout-empty-table">
+                                <h2>No payouts in this batch</h2>
+                                <p>
+                                  No individual payout records were returned
+                                  for this batch.
+                                </p>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                     </tbody>
                   </table>
                 </div>
@@ -652,19 +877,14 @@ export const AdminPayoutsPage: React.FC = () => {
     );
   }
 
-  // ------------------------------------------------------------
-  // Batch list view
-  // ------------------------------------------------------------
   return (
     <main className="admin-page-container payout-page">
       <header className="payout-page-header">
         <div className="payout-heading">
-          <div className="payout-breadcrumb">
-            Admin <span>/</span> Finance <span>/</span> Payouts
-          </div>
-          <h1>Admin Payouts</h1>
+          <h1>Payouts</h1>
           <p className="payout-subtitle">
-            Review payout batches, track settlement progress, and inspect individual payout records.
+            Review payout batches, track settlement progress, and inspect
+            individual payout records.
           </p>
         </div>
 
@@ -677,6 +897,7 @@ export const AdminPayoutsPage: React.FC = () => {
           >
             {loading ? "Refreshing…" : "↻ Refresh"}
           </button>
+
           <button
             type="button"
             className="payout-button payout-button-primary"
@@ -689,7 +910,7 @@ export const AdminPayoutsPage: React.FC = () => {
 
       {loadError && (
         <div className="payout-alert payout-alert-error" role="alert">
-          {loadError}
+          <span>{loadError}</span>
           <button
             type="button"
             className="payout-text-button"
@@ -707,7 +928,7 @@ export const AdminPayoutsPage: React.FC = () => {
       )}
 
       {actionSuccess && (
-        <div className="payout-alert payout-alert-warning" role="status">
+        <div className="payout-alert payout-alert-success" role="status">
           {actionSuccess}
         </div>
       )}
@@ -717,14 +938,17 @@ export const AdminPayoutsPage: React.FC = () => {
           <p>Batches on this page</p>
           <strong>{batches.length}</strong>
         </article>
+
         <article className="payout-summary-card">
           <p>Pending batches</p>
           <strong>{pendingBatches.length}</strong>
         </article>
+
         <article className="payout-summary-card">
           <p>Processing batches</p>
           <strong>{processingBatches.length}</strong>
         </article>
+
         <article className="payout-summary-card">
           <p>Completed / Failed</p>
           <strong>
@@ -741,7 +965,7 @@ export const AdminPayoutsPage: React.FC = () => {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search batch ID or period..."
+              placeholder="Search batch ID or period…"
               aria-label="Search payout batches"
             />
           </label>
@@ -771,7 +995,7 @@ export const AdminPayoutsPage: React.FC = () => {
 
         {!loading && (
           <div className="payout-table-scroll">
-            <table className="payout-table">
+            <table className="payout-table payout-batches-table">
               <thead>
                 <tr>
                   <th>Batch ID</th>
@@ -784,28 +1008,42 @@ export const AdminPayoutsPage: React.FC = () => {
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredBatches.map((batch) => (
                   <tr key={batch.id}>
-                    <td>
-                      <span className="payout-partner-name">
-                        {shortId(batch.id, 22)}
-                      </span>
+                    <td className="payout-mono">
+                      {shortId(batch.id, 22)}
                     </td>
+
                     <td className="payout-period-cell">
                       {formatDate(batch.periodStart)}
                       <span className="payout-period-separator">→</span>
                       {formatDate(batch.periodEnd)}
                     </td>
-                    <td>{formatCurrency(batch.gross)}</td>
-                    <td>{formatCurrency(batch.commission)}</td>
-                    <td className="payout-amount">{formatCurrency(batch.net)}</td>
+
+                    <td className="payout-nowrap">
+                      {formatCurrency(batch.gross)}
+                    </td>
+
+                    <td className="payout-nowrap">
+                      {formatCurrency(batch.commission)}
+                    </td>
+
+                    <td className="payout-amount">
+                      {formatCurrency(batch.net)}
+                    </td>
+
                     <td>
                       <span className={statusClass(batch.status)}>
                         {batch.status}
                       </span>
                     </td>
-                    <td>{formatDate(batch.createdAt)}</td>
+
+                    <td className="payout-nowrap">
+                      {formatDate(batch.createdAt)}
+                    </td>
+
                     <td>
                       <button
                         type="button"
@@ -813,7 +1051,7 @@ export const AdminPayoutsPage: React.FC = () => {
                         onClick={() => openDetails(batch)}
                         disabled={!batch.id}
                       >
-                        View details →
+                        View details <span aria-hidden="true">→</span>
                       </button>
                     </td>
                   </tr>
@@ -828,11 +1066,13 @@ export const AdminPayoutsPage: React.FC = () => {
                             ? "No payout batches found"
                             : "No matching payout batches"}
                         </h2>
+
                         <p>
                           {batches.length === 0
-                            ? "The API is responding, but it has not returned any payout batches."
+                            ? "The API returned no payout batches."
                             : "Try changing the search text or selecting All statuses."}
                         </p>
+
                         {batches.length > 0 && (
                           <button
                             type="button"
@@ -856,33 +1096,38 @@ export const AdminPayoutsPage: React.FC = () => {
 
         <footer className="payout-table-footer">
           <span>
-            Showing <strong>{batches.length}</strong> batch(es) on this page
-            {" · "}
-            <strong>{pagination.total}</strong> total
+            Showing <strong>{filteredBatches.length}</strong> matching
+            batch(es) on this page · <strong>{pagination.total}</strong> total
           </span>
 
-          <div className="payout-header-actions">
+          <div className="payout-pagination">
             <button
               type="button"
-              className="payout-button payout-button-secondary"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              className="payout-button payout-button-secondary payout-button-small"
+              onClick={() =>
+                setPage((current) => Math.max(1, current - 1))
+              }
               disabled={page <= 1 || loading}
             >
               Previous
             </button>
+
             <span>
               Page {pagination.page} of {Math.max(1, pagination.pages)}
             </span>
+
             <button
               type="button"
-              className="payout-button payout-button-secondary"
+              className="payout-button payout-button-secondary payout-button-small"
               onClick={() =>
                 setPage((current) =>
                   Math.min(Math.max(1, pagination.pages), current + 1)
                 )
               }
               disabled={
-                loading || pagination.pages === 0 || page >= pagination.pages
+                loading ||
+                pagination.pages === 0 ||
+                page >= pagination.pages
               }
             >
               Next

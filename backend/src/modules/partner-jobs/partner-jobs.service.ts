@@ -23,6 +23,13 @@ import type {
 } from "./partner-jobs.types";
 import { alertSos } from "../notifications/admin-alerts";
 import { environmentConfig } from "../../config/environment";
+import {
+  alertCustomerJobCompleted,
+  alertCustomerJobStarted,
+  alertCustomerPartnerArrived,
+  alertCustomerPartnerAssigned,
+  alertCustomerPartnerEnRoute,
+} from "../notifications/customer-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
 
@@ -401,6 +408,12 @@ export const partnerJobsService = {
       );
     }
 
+    // Tell the customer a partner took the job (best effort, never fails the accept).
+    const accepted = await repo.findBooking(bookingId).catch(() => null);
+    if (accepted) {
+      alertCustomerPartnerAssigned({ customerId: accepted.customerId, bookingId });
+    }
+
     return {
       success: true,
       message: "Job accepted successfully",
@@ -584,6 +597,12 @@ export const partnerJobsService = {
 
     trackingService.emitStatus(bookingId, target, entry.at);
 
+    if (target === "en_route") {
+      alertCustomerPartnerEnRoute({ customerId: booking.customerId, bookingId });
+    } else if (target === "arrived") {
+      alertCustomerPartnerArrived({ customerId: booking.customerId, bookingId });
+    }
+
     const fresh = await repo.findBooking(bookingId);
 
     if (!fresh) {
@@ -679,6 +698,7 @@ export const partnerJobsService = {
     }
 
     trackingService.emitStatus(bookingId, "in_progress", entry.at);
+    alertCustomerJobStarted({ customerId: booking.customerId, bookingId });
 
     const fresh = await repo.findBooking(bookingId);
 
@@ -750,6 +770,7 @@ export const partnerJobsService = {
     }
 
     trackingService.emitStatus(bookingId, "completed", entry.at);
+    alertCustomerJobCompleted({ customerId: booking.customerId, bookingId });
 
     const fresh = await repo.findBooking(bookingId);
 

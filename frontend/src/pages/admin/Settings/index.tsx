@@ -1,4 +1,3 @@
-
 import React, {
   useCallback,
   useEffect,
@@ -18,7 +17,8 @@ import {
 } from '@/services/adminSettingsApi';
 import { SettingField } from './SettingField';
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+const same = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(a) === JSON.stringify(b);
 
 export const AdminSettingsPage: React.FC = () => {
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -50,6 +50,12 @@ export const AdminSettingsPage: React.FC = () => {
           ])
         )
       )
+    );
+
+    setActiveId((current) =>
+      next.some((section) => section.id === current)
+        ? current
+        : next[0]?.id ?? "business",
     );
   }, []);
 

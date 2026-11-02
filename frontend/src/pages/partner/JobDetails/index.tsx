@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowRight,
   CalendarDays,
@@ -8,6 +8,8 @@ import {
   StickyNote,
   Wallet,
 } from 'lucide-react';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
   acceptAssignedService,
   declineAssignedService,
@@ -84,6 +86,11 @@ export default function JobDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const online = useOnline();
+
+  const authCtx = useContext(AuthContext);
+  const storeUserId = useAuthStore((s) => s.user?.id);
+  void authCtx;
+  void storeUserId;
 
   // /partner/jobs/:id  -> that job's details.
   // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.

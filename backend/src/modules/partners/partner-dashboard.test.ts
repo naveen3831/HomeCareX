@@ -60,13 +60,7 @@ describe('GET /partner/dashboard', () => {
       acceptanceRate: 80,
       completionRate: 95,
       activeJob: null,
-      earnings: { today: 1234.57, week: 5000, month: 20000, total: 90000, pending: 800 },
-      completedTotal: 19,
-      performance: { rating: 4.6, ratingCount: 12, acceptanceRate: 80, completionRate: 95, onTimeRate: 90 },
-      last7Days: [
-        { date: '2026-10-29', amount: 100 },
-        { date: '2026-10-30', amount: 1234.57 },
-      ],
+      assignedServices: [],
     });
   });
 

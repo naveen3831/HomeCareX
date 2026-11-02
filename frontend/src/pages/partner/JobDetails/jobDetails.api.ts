@@ -10,13 +10,7 @@ import { getPartnerServices } from '../MyServices/myServices.api';
 const asRecord = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === 'object' ? value as Record<string, unknown> : {};
 
-const errorMessage = (error: unknown): string => {
-  const record = asRecord(error);
-  return error instanceof Error ? error.message : String(record.message ?? error);
-};
-
-
-const currentUserId = (): string | undefined => {
+const getCurrentUserId = (): string | undefined => {
   const id = useAuthStore.getState().user?.id;
   return typeof id === 'string' ? id : undefined;
 };
@@ -25,7 +19,7 @@ export const MOCK_PARTNER_ROUTE_STORAGE_KEY = 'homecarex_partner_route_mock_job_
 export const MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY = 'homecarex_partner_assigned_services_v2';
 
 export function getAssignedCatalogStorageKey(userId?: string): string {
-  const effectiveId = userId || currentUserId();
+  const effectiveId = userId || getCurrentUserId();
   return effectiveId
     ? `homecarex_partner_assigned_services_v3_${effectiveId}`
     : MOCK_PARTNER_ASSIGNED_LIST_STORAGE_KEY;
@@ -1150,16 +1144,15 @@ function findKnownJob(requestedId?: string): JobDetails | null {
   try {
     const rawLive = window.sessionStorage.getItem('homecarex_last_live_jobs');
     if (rawLive) {
-      const liveList: unknown = JSON.parse(rawLive);
+      const liveList = JSON.parse(rawLive);
       if (Array.isArray(liveList)) {
-        const found = liveList.find((job) => String(asRecord(job).id).toLowerCase() === cleanId);
+        const found = liveList.find((j: { id?: string | number }) => String(j.id).toLowerCase() === cleanId);
         if (found) {
-          return mapJobListItemToJobDetails(asRecord(found));
+          return mapJobListItemToJobDetails(found);
         }
       }
     }
   } catch {
-    // Invalid cached JSON is ignored; the caller can continue through the remaining fallbacks.
     /* ignore parse failure */
   }
 
@@ -1297,7 +1290,7 @@ export interface FetchAssignedServicesOptions {
 export async function fetchAssignedServices(
   options?: FetchAssignedServicesOptions,
 ): Promise<JobDetails[]> {
-  const effectiveUserId = options?.userId || currentUserId();
+  const effectiveUserId = options?.userId || getCurrentUserId();
   let partnerServices = options?.assignedServices;
 
   if (!partnerServices || partnerServices.length === 0) {
@@ -1323,8 +1316,8 @@ export async function fetchAssignedServices(
       saveAssignedCatalogToStorage(filtered, effectiveUserId);
       return filtered;
     }
-  } catch (err: unknown) {
-    console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', errorMessage(err));
+  } catch (err) {
+    console.warn('[fetchAssignedServices] API fetch failed, falling back to storage:', err);
   }
   return loadAssignedCatalogFromStorage(effectiveUserId, partnerServices);
 }
@@ -1458,9 +1451,14 @@ export async function fetchJob(id: string): Promise<JobDetails> {
       return withLocalTicks(mapped);
     }
   } catch (err: unknown) {
-    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, errorMessage(err));
-    // Real mode: never show demo data. Surface the error instead.
-    if (!IS_MOCK_JOBS) throw err;
+    console.warn(`[fetchJob] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
+    if (!IS_MOCK_JOBS && ((err as { response?: { status?: number } })?.response?.status === 404 || (err as { response?: { status?: number } })?.response?.status === 403)) {
+      const fallback = findKnownJob(cleanId);
+      if (fallback) {
+        return withStartVerification(fallback);
+      }
+      throw err;
+    }
   }
 
   if (!IS_MOCK_JOBS) throw new Error('Could not load this job.');
@@ -1590,7 +1588,7 @@ export function getMockExtraCharges(bookingId: string): ExtraChargeItem[] {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {
-      // Ignore malformed cached data and try the next storage key.
+      /* ignore parse failure */
     }
   }
   return [];
@@ -1610,7 +1608,7 @@ export function saveMockExtraCharges(bookingId: string, items: ExtraChargeItem[]
     try {
       localStorage.setItem(k, JSON.stringify(items));
     } catch {
-      // Storage is best-effort; try writing the remaining aliases.
+      /* ignore parse failure */
     }
   }
 }
@@ -1625,7 +1623,6 @@ export async function fetchExtraCharges(bookingId: string): Promise<ExtraChargeI
         return res.data.data;
       }
     } catch (err: unknown) {
-      console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, errorMessage(err));
       console.warn(`[fetchExtraCharges] Failed fetching from API for ${cleanId}:`, (err as { message?: string })?.message || err);
     }
   }
@@ -1646,7 +1643,6 @@ export async function createExtraCharge(
         createdFromServer = res.data.data;
       }
     } catch (err: unknown) {
-      console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, errorMessage(err));
       console.warn(`[createExtraCharge] Server request failed for ${cleanId}, falling back to local sync:`, (err as { message?: string })?.message || err);
     }
   }
@@ -1673,14 +1669,12 @@ export async function createExtraCharge(
       extraCharges: next,
     });
   } catch {
-    // The local job cache is optional; the extra charge is still returned to the caller.
     /* ignore parse failure */
   }
 
   try {
     window.dispatchEvent(new Event('storage'));
   } catch {
-    // The event only notifies same-page listeners and is not required for completion.
     /* ignore parse failure */
   }
 

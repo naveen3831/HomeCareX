@@ -1,15 +1,12 @@
-import type { PayoutStatus } from "./payouts.calc";
+import type { PayoutStatus } from './payouts.calc';
+import type { PayoutBatchStatus } from './payouts.constants';
 
 export type { PayoutStatus };
 
 /**
  * Status of a payout batch.
  */
-export type PayoutBatchStatus =
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+export type { PayoutBatchStatus };
 
 /**
  * Input for generating a payout batch.
@@ -20,11 +17,6 @@ export interface GeneratePayoutBatchInput {
   adminId: string;
   ip: string;
 }
-
-/**
- * Backward-compatible alias used by payouts.service.ts.
- */
-export type GenerateBatchInput = GeneratePayoutBatchInput;
 
 /**
  * Pagination details.
@@ -64,10 +56,21 @@ export interface PayoutRecord {
   batchId: unknown;
   amount: number;
   status: PayoutStatus;
+  notes?: string;
   method?: string | null;
   transactionId?: string | null;
   paidAt: Date | null;
   createdAt: Date;
+}
+
+/**
+ * Input for generating a payout batch.
+ */
+export interface GenerateBatchInput {
+  periodStart: string | Date;
+  periodEnd: string | Date;
+  adminId: string;
+  ip: string;
 }
 
 /**
@@ -141,9 +144,9 @@ export interface PayoutCsvRow {
   partner: string;
   email: string;
   amount: number;
-  gross: number;
-  commission: number;
   status: string;
+  method: string;
+  transactionId: string;
   paidAt: string;
 }
 
