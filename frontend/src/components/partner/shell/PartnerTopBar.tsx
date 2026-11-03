@@ -22,7 +22,7 @@ interface Props {
 const HAMBURGER = "-ml-2 flex h-11 w-11 items-center justify-center rounded text-ink hover:bg-canvas";
 
 export default function PartnerTopBar({
-  menuOpen, onMenuClick, menuButtonRef, sidebarOpen, onToggleSidebar, online, onOnlineChange, unread = 0,
+  menuOpen, onMenuClick, menuButtonRef, sidebarOpen, onToggleSidebar, unread = 0,
 }: Props) {
   const { pathname } = useLocation();
   return (

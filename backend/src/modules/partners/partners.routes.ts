@@ -5,6 +5,7 @@ import { authenticate } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
 
 import { PartnersController } from './partners.controller';
+import { partnerTrainingAdminRoutes } from './partner-training.admin.routes';
 
 /**
  * Mounted at /api/v1/admin/partners.
@@ -15,6 +16,9 @@ export const partnersRoutes = Router();
 const controller = new PartnersController();
 
 partnersRoutes.use(authenticate, requireAdmin);
+
+// Training (demo) review: approve a partner who finished it, or send them back to step 1
+partnersRoutes.use('/:id/training', partnerTrainingAdminRoutes);
 
 // Statistics
 partnersRoutes.get('/stats', controller.getStats);
