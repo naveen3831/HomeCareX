@@ -37,12 +37,16 @@ export const pricingApi = {
     }
   },
 
-  /** Assumed contract: POST /coupons/available with the same body as a quote, returns AvailableCoupon[]. */
-  async listCoupons(req: QuoteRequest): Promise<AvailableCoupon[]> {
-    if (PRICING_IS_MOCK) return pricingMock.listCoupons(req);
+  /** Assumed contract: POST /coupons/available with quote params, or GET /coupons/available for all active coupons. */
+  async listCoupons(req?: QuoteRequest | null): Promise<AvailableCoupon[]> {
+    if (PRICING_IS_MOCK) return pricingMock.listCoupons(req || ({} as QuoteRequest));
     if (!COUPONS_BACKEND_READY) return [];
     try {
-      const { data } = await http.post<ApiResponse<AvailableCoupon[]>>("/coupons/available", req);
+      if (req && req.serviceId) {
+        const { data } = await http.post<ApiResponse<AvailableCoupon[]>>("/coupons/available", req);
+        return data.data;
+      }
+      const { data } = await http.get<ApiResponse<AvailableCoupon[]>>("/coupons/available");
       return data.data;
     } catch (err) {
       throw toNormalized(err);

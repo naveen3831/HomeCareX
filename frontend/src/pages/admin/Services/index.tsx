@@ -3,20 +3,22 @@ import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { useSearchParams } from 'react-router-dom';
 import {
   DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import {
+  SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { PageSearch } from '@/components/admin/PageSearch';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { FullScreenPanel } from '@/components/admin/FullScreenPanel';
 import { AuditDiffDrawer, type AuditEntry } from '@/components/admin/AuditDiffDrawer';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { PageSearch } from '@/components/admin/PageSearch';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { CategoryFilterMenu } from '@/components/admin/CategoryFilterMenu';
 import { PermissionGate } from '@/components/admin/PermissionGate';
 import { ServiceForm, type CategoryOption } from '@/components/admin/ServiceForm';
@@ -48,56 +50,72 @@ function toOptions(cats: AdminCategory[]): CategoryOption[] {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-interface RowProps {
-  s: AdminService; index: number; count: number; busy: boolean; reorderEnabled: boolean; canManage: boolean; online: boolean;
-  selected: boolean; onSelect: (checked: boolean) => void;
-  onMove: (d: -1 | 1) => void; onToggle: () => void; onPreview: () => void; onEdit: () => void; onDelete: () => void;
-}
-
-const ServiceRow: React.FC<RowProps> = ({ s, index, count, busy, reorderEnabled, canManage, online, selected, onSelect, onMove, onToggle, onPreview, onEdit, onDelete }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !reorderEnabled });
-  const cover = s.images.find((i) => i.isPrimary) ?? s.images[0];
-  return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className="cat-group">
-      <div className={clsx('svc-row-item', !s.active && 'is-inactive', busy && 'is-busy', isDragging && 'is-dragging')}>
-        {canManage && (
-          <input
-            type="checkbox" className="svc-select" checked={selected} disabled={busy || !online}
-            aria-label={`Select ${s.name}`} onChange={(e) => onSelect(e.target.checked)}
-          />
-        )}
-        <button type="button" className="cat-grip" disabled={!reorderEnabled} aria-label={`Drag ${s.name} to reorder`} {...attributes} {...listeners}><GripVertical size={18} /></button>
-        <div className="cat-media">
-          <span className="cat-cover">{cover ? <img src={cover.url} alt="" loading="lazy" /> : <span className="cat-cover__empty"><ImageIcon size={18} aria-hidden /></span>}</span>
-          {s.images.length > 1 && <span className="svc-count">{s.images.length} photos</span>}
-        </div>
-        <div className="cat-main">
-          <div className="cat-name"><span>{s.name}</span>{!s.active && <span className="cat-meta">Inactive</span>}</div>
-          <div className="cat-sub"><code>/{s.slug}</code></div>
-          <div className="svc-facts"><b>{rupees(s.basePrice)}</b><span><Clock size={12} aria-hidden /> {duration(s.durationMinutes)}</span></div>
-        </div>
-        <button
-          type="button" role="switch" aria-checked={s.active} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
-          className={clsx('cat-switch', s.active && 'is-on')} disabled={!canManage || !online || busy} onClick={onToggle}
-        ><span /></button>
-        <div className="cat-actions">
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={onPreview} aria-label={`Preview ${s.name}`} title="Preview"><Eye size={16} /></button>
-          <PermissionGate permission={CATALOG_MANAGE}>
-            <button type="button" className="cat-iconbtn" onClick={onEdit} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={16} /></button>
-            <button type="button" className="cat-iconbtn cat-iconbtn--danger" onClick={onDelete} disabled={!online} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={16} /></button>
-          </PermissionGate>
-        </div>
-      </div>
-    </li>
-  );
-};
-
 const toInput = (s: AdminService): ServiceInput => ({
   name: s.name, categoryId: s.categoryId, description: s.description, basePrice: s.basePrice, durationMinutes: s.durationMinutes,
   images: s.images, inclusions: s.inclusions, exclusions: s.exclusions, faqs: s.faqs, addOns: s.addOns, checklist: s.checklist, active: s.active,
 });
+
+interface ServiceRowProps {
+  s: AdminService; index: number; count: number; busy: boolean; reorderEnabled: boolean;
+  canManage: boolean; online: boolean; selected: boolean;
+  onSelect: (checked: boolean) => void; onMove: (dir: -1 | 1) => void; onToggle: () => void;
+  onPreview: () => void; onEdit: () => void; onDelete: () => void;
+}
+
+/** One service in the list: select box, drag handle, cover, details, status switch and actions. */
+const ServiceRow: React.FC<ServiceRowProps> = ({
+  s, index, count, busy, reorderEnabled, canManage, online, selected, onSelect, onMove, onToggle, onPreview, onEdit, onDelete,
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !reorderEnabled });
+  const cover = s.images.find((i) => i.isPrimary) ?? s.images[0];
+  const editable = canManage && online;
+  return (
+    <li
+      ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={clsx('svc-row-item', !s.active && 'is-inactive', isDragging && 'is-dragging', busy && 'is-busy')}
+    >
+      {canManage && (
+        <input type="checkbox" className="svc-select" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={`Select ${s.name}`} />
+      )}
+      <button
+        type="button" className="cat-grip" disabled={!reorderEnabled} aria-label={`Drag ${s.name}`}
+        title={reorderEnabled ? 'Drag to reorder' : 'Clear the search / filter to drag'} {...attributes} {...listeners}
+      ><GripVertical size={16} /></button>
+      <span className="cat-media">
+        <span className="cat-cover">
+          {cover ? <img src={cover.url} alt="" loading="lazy" /> : <span className="cat-cover__empty"><ImageIcon size={18} /></span>}
+        </span>
+      </span>
+      <div
+        className="cat-main" role="button" tabIndex={0} onClick={onPreview} aria-label={`Preview ${s.name}`}
+        onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPreview(); } }}
+      >
+        <div className="cat-name"><span>{s.name}</span></div>
+        <div className="cat-sub"><code>/{s.slug}</code>{s.categoryName && <span className="cat-desc">{s.categoryName}</span>}</div>
+        <div className="svc-facts">
+          <b>{rupees(s.basePrice)}</b>
+          <span><Clock size={11} aria-hidden /> {duration(s.durationMinutes)}</span>
+          <span>{s.images.length} photo{s.images.length === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+      <div className="cat-actions">
+        <button
+          type="button" role="switch" aria-checked={s.active} className={clsx('cat-toggle', s.active && 'is-on')}
+          onClick={onToggle} disabled={busy || !editable} aria-label={`${s.active ? 'Deactivate' : 'Activate'} ${s.name}`}
+        >
+          <span className="cat-toggle__track"><i /></span>
+          <span className="cat-toggle__text">{s.active ? 'Active' : 'Inactive'}</span>
+        </button>
+        <span className="cat-actions__move">
+          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0 || busy} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={15} /></button>
+          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1 || busy} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={15} /></button>
+        </span>
+        <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
+        <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
+      </div>
+    </li>
+  );
+};
 
 export const AdminServicesPage: React.FC = () => {
   const online = useOnlineStatus();
@@ -111,12 +129,13 @@ export const AdminServicesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -163,11 +182,13 @@ export const AdminServicesPage: React.FC = () => {
   const filtered = search.trim() !== '' || categoryParam !== '';
   const reorderEnabled = !filtered && canManage && online;
 
-  // The admin's saved order (stored on the server, same one customers see). Ties fall back to name.
-  const ordered = useMemo(
-    () => [...items].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
-    [items],
-  );
+  // Saved manual order first; services not in it yet (new ones) sit on top, newest first.
+  const ordered = useMemo(() => {
+    const pos = new Map(order.map((id, n) => [id, n]));
+    const known = items.filter((s) => pos.has(s.id)).sort((a, b) => pos.get(a.id)! - pos.get(b.id)!);
+    const fresh = items.filter((s) => !pos.has(s.id)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return [...fresh, ...known];
+  }, [items, order]);
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -186,30 +207,23 @@ export const AdminServicesPage: React.FC = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  async function applyOrder(ids: string[], movedId: string, from: number, to: number) {
+  function applyOrder(ids: string[], movedId: string, from: number, to: number) {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
-    const before = items;
-    const pos = new Map(ids.map((id, n) => [id, n]));
-    setItems((cur) => cur.map((s) => (pos.has(s.id) ? { ...s, sortOrder: pos.get(s.id)! } : s))); // show it at once
-    try {
-      await adminServiceApi.reorder(ids, { id: movedId, name, from, to });
-      flash(`“${name}” moved to position ${to + 1}. Customers will see this order.`);
-    } catch (e) {
-      setItems(before); // the server refused: put the list back so the screen never lies
-      flash((e as ServiceApiError).message, 'error');
-    }
+    setOrder(ids);
+    adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+    flash(`“${name}” moved to position ${to + 1}`);
   }
   const move = (id: string, dir: -1 | 1) => {
     const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
     if (to < 0 || to >= ids.length) return;
-    void applyOrder(arrayMove(ids, from, to), id, from, to);
+    applyOrder(arrayMove(ids, from, to), id, from, to);
   };
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
     if (!e.over || e.active.id === e.over.id) return;
     const ids = ordered.map((x) => x.id);
     const from = ids.indexOf(String(e.active.id)); const to = ids.indexOf(String(e.over.id));
-    if (from > -1 && to > -1) void applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
+    if (from > -1 && to > -1) applyOrder(arrayMove(ids, from, to), String(e.active.id), from, to);
   };
   const onDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const activeSvc = items.find((x) => x.id === activeId) ?? null;

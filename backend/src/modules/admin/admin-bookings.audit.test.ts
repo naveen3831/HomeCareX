@@ -1,4 +1,3 @@
-
 import assert from 'node:assert/strict';
 import { afterEach, test } from 'node:test';
 import { Types } from 'mongoose';
@@ -243,8 +242,13 @@ test('admin partner assignment records before and after snapshots', async () => 
   assert.equal(recorded.before.partnerId, null);
   assert.equal(recorded.before.status, 'searching_for_partner');
 
+  // The partner is offered the job and must accept it, so it is not "assigned" yet.
   assert.equal(recorded.after.partnerId, partnerId);
-  assert.equal(recorded.after.status, 'assigned');
+  assert.equal(recorded.after.status, 'searching_for_partner');
+  assert.equal(recorded.after.offered, true);
+  assert.equal(booking.offers.length, 1);
+  assert.equal(booking.offers[0].response, 'pending');
+  assert.equal(String(booking.offers[0].partnerId), partnerId);
   assert.equal(
     recorded.after.reason,
     'Customer requested reassignment',

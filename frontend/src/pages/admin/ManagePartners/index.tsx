@@ -53,6 +53,8 @@ export const AdminManagePartnersPage: React.FC = () => {
   const [partners, setPartners] = useState<PartnerMember[]>([]);
   // Search text comes from the search bar below the header
   const search = useUIStore((state) => state.pageSearch);
+  const setPageSearch = useUIStore((state) => state.setPageSearch);
+  useEffect(() => { setPageSearch(''); }, [setPageSearch]);
   const visiblePartners = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return partners;
@@ -72,19 +74,14 @@ export const AdminManagePartnersPage: React.FC = () => {
 
   const [toRemove, setToRemove] = useState<PartnerMember | null>(null);
   const [removing, setRemoving] = useState(false);
-
-  const loadAll = useCallback(async () => {
-    try {
-      const [p, d] = await Promise.all([adminApi.listPartners(), adminApi.listDesignations()]);
-      setPartners(p);
-      setDesignations(d);
-      setLoadError('');
-    } catch (e) {
-      setLoadError((e as ApiError).message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+const loadAll = useCallback(async () => {
+  const [p, d] = await Promise.allSettled([adminApi.listPartners(), adminApi.listDesignations()]);
+  if (p.status === 'fulfilled') setPartners(p.value);
+  if (d.status === 'fulfilled') setDesignations(d.value);
+  const failed = p.status === 'rejected' ? p.reason : d.status === 'rejected' ? d.reason : null;
+  setLoadError(failed ? ((failed as ApiError).message ?? 'Could not load partners.') : '');
+  setLoading(false);
+}, []);
 
   useEffect(() => {
     void loadAll();
