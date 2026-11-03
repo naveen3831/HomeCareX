@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   Filter,
   MapPin,
@@ -152,20 +151,12 @@ function JobCard({ job, onAccept, onReject, accepting, rejecting }: CardProps) {
         </div>
       </Link>
 
+      {/* Status pill only (the arrow link was removed; the whole row above already opens the job). */}
       {!isRequest && (
         <div className="pj-footer">
           <span className={`pj-status pj-status-${job.status}`}>
             {STATUS_LABELS[job.status]}
           </span>
-
-          <Link
-            to={detailsPath}
-            className="pj-chevron"
-            aria-label={`Open ${job.service}`}
-            tabIndex={-1}
-          >
-            <ChevronRight size={18} aria-hidden="true" />
-          </Link>
         </div>
       )}
 
@@ -192,15 +183,9 @@ function JobCard({ job, onAccept, onReject, accepting, rejecting }: CardProps) {
         </div>
       )}
 
+      {/* The "View Details" button was removed; only Start Job remains. */}
       {job.status === "active" && (
         <div className="pj-actions">
-          <button
-            type="button"
-            className="pj-btn pj-btn-outline"
-            onClick={() => navigate(detailsPath)}
-          >
-            View Details
-          </button>
           <button
             type="button"
             className="pj-btn pj-btn-primary"
