@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 
+import "./DataTable.css";
+
 export interface Column<T> {
   key: string;
   header: string;

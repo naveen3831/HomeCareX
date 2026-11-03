@@ -211,6 +211,31 @@ export async function updatePartnerKyc(
   }
 }
 
+/**
+ * Approve / reject the training a partner submitted after KYC approval.
+ * The backend must only let the partner log in to their dashboard once this is approved.
+ */
+export async function updatePartnerTraining(
+  id: string,
+  payload: KycUpdatePayload,
+): Promise<PartnerMutationResult> {
+  try {
+    const res = await http.post<ApiResponse<PartnerDetails>>(`/admin/partners/${id}/training`, {
+      decision: payload.decision,
+      reason: payload.reason,
+    });
+    return {
+      success: true,
+      message:
+        res.data?.message ??
+        (payload.decision === "approve" ? "Partner training approved." : "Partner training rejected."),
+      partner: res.data.data,
+    };
+  } catch (error) {
+    throw new Error(httpMessage(error, "Unable to update training."));
+  }
+}
+
 export async function updatePartnerStatus(
   id: string,
   payload: StatusUpdatePayload,

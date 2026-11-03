@@ -151,7 +151,30 @@ function getPaymentClass(status: PaymentStatus): string {
       return "booking-table__status booking-table__status--payment-pending";
   }
 }
+const SLOT_RANGE = /^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/;
 
+const toClock = (value?: string) => {
+  if (!value) return "";
+  if (/^\d{1,2}:\d{2}$/.test(value)) return value;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? ""
+    : d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "Asia/Kolkata",
+      });
+};
+
+/** startTime may already be a "18:00-20:00" range, and endTime may be an ISO timestamp. Show one clean range. */
+const formatSlotRange = (slot?: { startTime?: string; endTime?: string }) => {
+  const start = slot?.startTime ?? "";
+  if (SLOT_RANGE.test(start)) return start.replace(/\s+/g, "");
+  const a = toClock(start);
+  const b = toClock(slot?.endTime);
+  return a && b && a !== b ? `${a}-${b}` : a || b || "-";
+};
 export const BookingTable: React.FC<BookingTableProps> = ({
   bookings,
   onBookingSelect,
@@ -222,6 +245,9 @@ export const BookingTable: React.FC<BookingTableProps> = ({
           font-size: 13px;
           font-weight: 600;
           white-space: nowrap;
+           position: sticky;                  /* new */
+  top: 0;                            /* new */
+  z-index: 1;  
         }
 
         .booking-table td {
@@ -529,11 +555,9 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                     {formatDate(booking.slot?.date || "")}
                   </div>
 
-                  <div className="booking-table__secondary">
-                    {booking.slot?.startTime || "-"}
-                    {" - "}
-                    {booking.slot?.endTime || "-"}
-                  </div>
+                 <div className="booking-table__secondary">
+  {formatSlotRange(booking.slot)}
+</div>
                 </td>
 
                 {/* AMOUNT */}

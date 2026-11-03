@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   DndContext, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors, type DragEndEvent,
 } from '@dnd-kit/core';
@@ -67,8 +67,11 @@ const Tile: React.FC<{
 };
 
 /** Multi-image gallery: drop / pick many, preview, drag or arrow reorder, pick the primary. */
-export const MultiImageUploader: React.FC<Props> = ({ images, onChange, max = 8, maxSizeMB = 3, minEdge = 0, label = 'Images', disabled }) => {
+export const MultiImageUploader: React.FC<Props> = ({ images: imagesProp, onChange, max = 8, maxSizeMB = 3, minEdge = 0, label = 'Images', disabled }) => {
   const input = useRef<HTMLInputElement>(null);
+  // The backend stores only url/alt/isPrimary, so images loaded from it have no id. Without one every tile
+  // matches every other (undefined === undefined) and "Set as primary" / remove / reorder act on the wrong image.
+  const images = useMemo(() => imagesProp.map((x, i) => (x.id ? x : { ...x, id: `img-${i}` })), [imagesProp]);
   const [errors, setErrors] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);

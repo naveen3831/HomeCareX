@@ -49,13 +49,12 @@ const PartnerSchema = new Schema(
       suspensionReason: { type: String },
     },
     trainingCompleted: { type: Boolean, default: false },
-    /** "How HomeCareX works" demo shown after admin approval. completedSteps only ever moves forward, one step at a time. */
-    onboarding: {
-      completedSteps: { type: Number, default: 0, min: 0 },
-      completedAt: { type: Date },
-      /** Set by an admin after the partner finishes the demo. Until then the partner cannot use the app. */
-      approvedAt: { type: Date },
-      approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    /** Home address the partner gave at registration. Shown on the admin Partners & KYC pages. */
+    address: {
+      line1: { type: String, trim: true, maxlength: 200 },
+      city: { type: String, trim: true, maxlength: 60 },
+      state: { type: String, trim: true, maxlength: 60 },
+      pincode: { type: String, trim: true, maxlength: 10 },
     },
     /** Never store the full account number here; keep it with the payout provider. */
     bankDetails: {

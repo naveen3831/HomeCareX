@@ -44,7 +44,7 @@ export const NotificationBell: React.FC = () => {
         <Bell size={20} />
         {unread > 0 && (
           <span className={`hcx-bell__count${hasUnreadSos ? ' hcx-bell__count--sos' : ''}`} data-testid="bell-count">
-            {unread > 9 ? '9+' : unread}
+            {unread}
           </span>
         )}
       </button>

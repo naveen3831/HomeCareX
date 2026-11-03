@@ -64,7 +64,7 @@ describe('admin notification bell', () => {
   it('shows the unread count from GET /notifications', async () => {
     mFetch.mockResolvedValueOnce({ items: [row('a', 'booking.created'), row('b', 'ticket.reply')], unread: 12 });
     renderBell();
-    await waitFor(() => expect(badge()).toHaveTextContent('9+')); // 12 is capped
+    await waitFor(() => expect(badge()).toHaveTextContent('12')); // shows the real count, no cap
     expect(screen.getByRole('button', { name: 'Notifications, 12 unread' })).toBeInTheDocument();
   });
 
