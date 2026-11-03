@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { ERROR_CODES } from '../../constants/errorCodes';
 import { HttpError } from '../auth/auth.types';
+import { primaryImageUrl } from '../categories/categories.media';
 import { summarizeAvailability } from './catalog.availability';
 import { buildServiceQuery } from './catalog.query';
 import { catalogRepository as repo, type CategoryRow, type ServiceRow } from './catalog.repository';
@@ -17,7 +18,7 @@ const toService = (s: ServiceRow, cat: CategoryLite): PublicServiceDto => ({
   name: s.name,
   description: s.description ?? '',
   icon: s.icon ?? '',
-  iconUrl: s.iconUrl ?? '',
+  ...(s.iconUrl ? { iconUrl: s.iconUrl } : {}),
   category: cat,
   basePrice: s.basePrice,
   durationMinutes: s.durationMinutes,
@@ -30,7 +31,7 @@ export const catalogService = {
   /** Active categories in admin-defined order, each with its number of active services. */
   async listCategories(query: unknown): Promise<PublicCategoryDto[]> {
     categoryQuerySchema.parse(query);
-    const [cats, stats] = await Promise.all([repo.activeCategories(), repo.activeServiceStats()]);
+    const [cats, stats] = await Promise.all([repo.activeCategories(true), repo.activeServiceStats()]);
     const top = Math.max(0, ...[...stats.values()].map((x) => x.bookings));
     // Exactly one category is "popular": the first with the highest bookings (none while nothing is booked yet).
     const popularId = top > 0 ? cats.find((c) => stats.get(String(c._id))?.bookings === top)?._id : undefined;
@@ -48,7 +49,7 @@ export const catalogService = {
         description: c.description ?? '',
         icon: c.icon ?? '',
         iconUrl: c.iconUrl ?? '',
-        image: c.images?.find((i) => i.isPrimary)?.url || c.images?.[0]?.url || '',
+        imageUrl: primaryImageUrl(c.images),
         sortOrder: c.sortOrder ?? 0,
         serviceCount: stats.get(id)?.count ?? 0,
         fromPrice: stats.get(id)?.fromPrice ?? 0,
@@ -80,7 +81,7 @@ export const catalogService = {
     const emptyMeta: PageMeta = { page, limit, total: 0, totalPages: 0 };
     if (scope.length === 0) return { items: [], meta: emptyMeta };
 
-    const categoryScope = parsed.category ? scope.map((c) => new Types.ObjectId(String(c._id))) : undefined;
+    const categoryScope = scope.map((c) => new Types.ObjectId(String(c._id)));
     const built = buildServiceQuery(parsed, categoryScope);
     const [rows, total] = await Promise.all([repo.findServices(built, (page - 1) * limit, limit), repo.countServices(built)]);
 

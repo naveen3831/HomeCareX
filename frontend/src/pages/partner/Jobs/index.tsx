@@ -1,17 +1,26 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Search,
-  MapPin,
   CalendarDays,
+  CheckCircle2,
   Clock3,
-  IndianRupee,
-  Check,
-  X,
+  Filter,
+  MapPin,
   RefreshCw,
+  Search,
+  User,
+  X,
 } from "lucide-react";
 
+import {
+  ServiceThumb,
+  formatClock,
+  formatInr,
+  useCountdown,
+  whenLabel,
+} from "@/components/partner/jobs/jobUi";
+import RejectReasonDialog from "@/components/partner/RejectReasonDialog";
 import { useJobs } from "@/hooks/useJobs";
 import { partnerApi } from "@/services/partnerApi";
 import type { JobTab, PartnerJob } from "@/types/partner";
@@ -21,11 +30,15 @@ import "./index.css";
 const PAGE_SIZE = 10;
 
 const TABS: { key: JobTab; label: string }[] = [
-  { key: "all", label: "All" },
   { key: "requests", label: "Requests" },
   { key: "upcoming", label: "Upcoming" },
   { key: "active", label: "Active" },
   { key: "completed", label: "Completed" },
+];
+
+/* Not in the 4-tab design, so they live behind the filter icon. */
+const FILTER_OPTIONS: { key: JobTab; label: string }[] = [
+  { key: "all", label: "All jobs" },
   { key: "cancelled", label: "Cancelled" },
 ];
 
@@ -39,13 +52,14 @@ const EMPTY_LABELS: Record<JobTab, string> = {
 };
 
 const STATUS_LABELS: Record<PartnerJob["status"], string> = {
-  requested: "Requested",
+  requested: "New Request",
   upcoming: "Upcoming",
-  active: "Active",
+  active: "In Progress",
   completed: "Completed",
   cancelled: "Cancelled",
 };
 
+/* Default landing tab is Upcoming (design step 4).  */
 function getInitialTab(pathname: string, search: string): JobTab {
   if (pathname.endsWith("/requests")) {
     return "requests";
@@ -54,6 +68,7 @@ function getInitialTab(pathname: string, search: string): JobTab {
   const tab = new URLSearchParams(search).get("tab");
 
   if (
+    tab === "all" ||
     tab === "requests" ||
     tab === "upcoming" ||
     tab === "active" ||
@@ -63,112 +78,14 @@ function getInitialTab(pathname: string, search: string): JobTab {
     return tab;
   }
 
-  return "all";
+  return "upcoming";
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value);
+/* =========================================================
+   Card
+========================================================= */
 
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatTime(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "—";
-  }
-
-  return date.toLocaleTimeString("en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function formatAmount(value: number): string {
-  return `₹${value.toLocaleString("en-IN")}`;
-}
-
-function getCountdown(expiresAt?: string): number {
-  if (!expiresAt) {
-    return 0;
-  }
-
-  const expiry = new Date(expiresAt).getTime();
-
-  if (Number.isNaN(expiry)) {
-    return 0;
-  }
-
-  return Math.max(0, Math.ceil((expiry - Date.now()) / 1000));
-}
-
-function formatCountdown(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
-/* Re-renders every second until the offer expires. */
-function useCountdown(expiresAt?: string): number {
-  const [seconds, setSeconds] = useState(() => getCountdown(expiresAt));
-
-  useEffect(() => {
-    setSeconds(getCountdown(expiresAt));
-
-    if (!expiresAt) {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      const next = getCountdown(expiresAt);
-
-      setSeconds(next);
-
-      if (next <= 0) {
-        window.clearInterval(timer);
-      }
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [expiresAt]);
-
-  return seconds;
-}
-
-function JobStatusBadge({ status }: { status: PartnerJob["status"] }) {
-  return (
-    <span className={`partner-job-status partner-job-status-${status}`}>
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-function RequestCountdown({ expiresAt }: { expiresAt?: string }) {
-  const seconds = useCountdown(expiresAt);
-
-  if (!expiresAt || seconds <= 0) {
-    return <span className="partner-job-countdown expired">Expired</span>;
-  }
-
-  return (
-    <span className="partner-job-countdown">
-      <Clock3 size={14} aria-hidden="true" />
-      {formatCountdown(seconds)}
-    </span>
-  );
-}
-
-interface JobActionProps {
+interface CardProps {
   job: PartnerJob;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
@@ -176,144 +93,115 @@ interface JobActionProps {
   rejecting: boolean;
 }
 
-function JobActions({
-  job,
-  onAccept,
-  onReject,
-  accepting,
-  rejecting,
-}: JobActionProps) {
-  /* Hook must run before any early return. */
+function JobCard({ job, onAccept, onReject, accepting, rejecting }: CardProps) {
+  const navigate = useNavigate();
   const seconds = useCountdown(job.expiresAt);
 
-  if (job.status !== "requested") {
-    return <span className="partner-job-no-action">—</span>;
-  }
-
-  const expired = seconds <= 0;
+  const isRequest = job.status === "requested";
+  const expired = isRequest && seconds <= 0;
   const busy = accepting || rejecting;
+  const detailsPath = `/partner/jobs/${job.id}`;
 
   return (
-    <div className="partner-job-actions">
-      <button
-        type="button"
-        className="partner-job-action partner-job-action-reject"
-        onClick={() => onReject(job.id)}
-        disabled={busy}
-        aria-label={`Reject ${job.service}`}
-      >
-        <X size={15} aria-hidden="true" />
-        Reject
-      </button>
-
-      <button
-        type="button"
-        className="partner-job-action partner-job-action-accept"
-        onClick={() => onAccept(job.id)}
-        disabled={expired || busy}
-        aria-label={`Accept ${job.service}`}
-      >
-        <Check size={15} aria-hidden="true" />
-        Accept
-      </button>
-    </div>
-  );
-}
-
-function JobCard({
-  job,
-  onAccept,
-  onReject,
-  accepting,
-  rejecting,
-}: JobActionProps) {
-  return (
-    <article className="partner-job-card">
-      <div className="partner-job-card-header">
-        <div>
-          <p className="partner-job-service">{job.service}</p>
-          <p className="partner-job-booking">Booking ID: {job.bookingId}</p>
-        </div>
-
-        <JobStatusBadge status={job.status} />
-      </div>
-
-      {job.status === "requested" && (
-        <div className="partner-job-request-time">
-          <span>Response time</span>
-          <RequestCountdown expiresAt={job.expiresAt} />
-        </div>
-      )}
-
-      <div className="partner-job-card-details">
-        <div className="partner-job-detail">
-          <span className="partner-job-detail-icon">
-            <span aria-hidden="true">●</span>
+    <article className={`pj-card pj-card-${job.status}`}>
+      {isRequest && (
+        <div className="pj-request-head">
+          <span className="pj-request-title">
+            <span className="pj-request-icon" aria-hidden="true">
+              <X size={12} strokeWidth={3} />
+            </span>
+            New Job Request
           </span>
 
-          <div>
-            <span className="partner-job-detail-label">Customer</span>
-            <strong>{job.customer}</strong>
-          </div>
-        </div>
-
-        <div className="partner-job-detail">
-          <MapPin size={17} aria-hidden="true" />
-
-          <div>
-            <span className="partner-job-detail-label">Location</span>
-            <strong>{job.location}</strong>
-            <small>{job.distance.toFixed(1)} km away</small>
-          </div>
-        </div>
-
-        <div className="partner-job-detail">
-          <CalendarDays size={17} aria-hidden="true" />
-
-          <div>
-            <span className="partner-job-detail-label">Date</span>
-            <strong>{formatDate(job.scheduledAt)}</strong>
-          </div>
-        </div>
-
-        <div className="partner-job-detail">
-          <Clock3 size={17} aria-hidden="true" />
-
-          <div>
-            <span className="partner-job-detail-label">Time</span>
-            <strong>{formatTime(job.scheduledAt)}</strong>
-          </div>
-        </div>
-
-        <div className="partner-job-detail">
-          <IndianRupee size={17} aria-hidden="true" />
-
-          <div>
-            <span className="partner-job-detail-label">Amount</span>
-            <strong>{formatAmount(job.amount)}</strong>
-          </div>
-        </div>
-      </div>
-
-      {job.instructions && (
-        <div className="partner-job-instructions">
-          <span>Instructions</span>
-          <p>{job.instructions}</p>
+          <span
+            className={expired ? "pj-timer pj-timer-expired" : "pj-timer"}
+            role="timer"
+          >
+            {expired ? "Expired" : formatClock(seconds)}
+          </span>
         </div>
       )}
 
-      <div className="partner-job-card-footer">
-        <JobActions
-          job={job}
-          onAccept={onAccept}
-          onReject={onReject}
-          accepting={accepting}
-          rejecting={rejecting}
-        />
-      </div>
+      {/* Whole row opens the job, except the action buttons below. */}
+      <Link
+        to={detailsPath}
+        className="pj-row"
+        aria-label={`${job.service}, ${STATUS_LABELS[job.status]}`}
+      >
+        <ServiceThumb service={job.service} image={job.image} />
+
+        <div className="pj-info">
+          <div className="pj-top">
+            <strong className="pj-service">{job.service}</strong>
+            <strong className="pj-price">{formatInr(job.amount)}</strong>
+          </div>
+
+          <p className="pj-meta">
+            <CalendarDays size={13} aria-hidden="true" />
+            {whenLabel(job.scheduledAt)}
+          </p>
+          <p className="pj-meta">
+            <MapPin size={13} aria-hidden="true" />
+            {job.location}
+          </p>
+          <p className="pj-meta">
+            <User size={13} aria-hidden="true" />
+            {job.customer}
+          </p>
+        </div>
+      </Link>
+
+      {/* Status pill only (the arrow link was removed; the whole row above already opens the job). */}
+      {!isRequest && (
+        <div className="pj-footer">
+          <span className={`pj-status pj-status-${job.status}`}>
+            {STATUS_LABELS[job.status]}
+          </span>
+        </div>
+      )}
+
+      {isRequest && (
+        <div className="pj-actions">
+          <button
+            type="button"
+            className="pj-btn pj-btn-reject"
+            onClick={() => onReject(job.id)}
+            disabled={busy}
+            aria-label={`Reject ${job.service}`}
+          >
+            Reject
+          </button>
+          <button
+            type="button"
+            className="pj-btn pj-btn-primary"
+            onClick={() => onAccept(job.id)}
+            disabled={busy || expired}
+            aria-label={`Accept ${job.service}`}
+          >
+            Accept
+          </button>
+        </div>
+      )}
+
+      {/* The "View Details" button was removed; only Start Job remains. */}
+      {job.status === "active" && (
+        <div className="pj-actions">
+          <button
+            type="button"
+            className="pj-btn pj-btn-primary"
+            onClick={() => navigate(`${detailsPath}/navigation`)}
+          >
+            Start Job
+          </button>
+        </div>
+      )}
     </article>
   );
 }
+
+/* =========================================================
+   Page
+========================================================= */
 
 export const PartnerJobsPage = () => {
   const location = useLocation();
@@ -328,7 +216,11 @@ export const PartnerJobsPage = () => {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [showFilter, setShowFilter] = useState(false);
   const [page, setPage] = useState(1);
+  const [acceptedId, setAcceptedId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<PartnerJob | null>(null);
 
   useEffect(() => {
     setPage(1);
@@ -350,13 +242,16 @@ export const PartnerJobsPage = () => {
 
   const acceptMutation = useMutation({
     mutationFn: (id: string) => partnerApi.acceptJob(id),
+    onSuccess: (_res, id) => setAcceptedId(id),
     onSettled: () => {
       void invalidateJobs();
     },
   });
 
   const rejectMutation = useMutation({
-    mutationFn: (id: string) => partnerApi.rejectJob(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      partnerApi.rejectJob(id, reason),
+    onSuccess: () => setRejectTarget(null),
     onSettled: () => {
       void invalidateJobs();
     },
@@ -374,10 +269,12 @@ export const PartnerJobsPage = () => {
   }, [jobsQuery.data, page, totalPages]);
 
   const handleTabChange = (tab: JobTab) => {
+    setAcceptedId(null);
+
+    setShowFilter(false);
+
     if (tab === "requests") {
       navigate("/partner/jobs/requests");
-    } else if (tab === "all") {
-      navigate("/partner/jobs");
     } else {
       navigate(`/partner/jobs?tab=${tab}`);
     }
@@ -387,73 +284,86 @@ export const PartnerJobsPage = () => {
     setSearch(event.target.value);
   };
 
-  const handleAccept = (id: string) => {
-    acceptMutation.mutate(id);
-  };
-
-  const handleReject = (id: string) => {
-    rejectMutation.mutate(id);
-  };
-
   const handleRetry = () => {
     void jobsQuery.refetch();
   };
 
-  /* Only the row being acted on is locked, not the whole list. */
+  const toggleSearch = () => {
+    if (showSearch) {
+      setSearch("");
+    }
+
+    setShowSearch((v) => !v);
+  };
+
+  /* Only the card being acted on is locked, not the whole list. */
   const isAccepting = (id: string) =>
     acceptMutation.isPending && acceptMutation.variables === id;
 
   const isRejecting = (id: string) =>
-    rejectMutation.isPending && rejectMutation.variables === id;
+    rejectMutation.isPending && rejectMutation.variables?.id === id;
 
   return (
-    <main className="partner-jobs-page">
-      <div className="partner-jobs-container">
-        {/* Page header */}
-        <header className="partner-jobs-header">
-          <div>
-            <h1>My Jobs</h1>
-            <p>Manage job requests and your scheduled jobs.</p>
-          </div>
+    <main className="pj-page">
+      <div className="pj-container">
+        {/* Header */}
+        <header className="pj-header">
+          <h1>My Jobs</h1>
 
-          <button
-            type="button"
-            className="partner-jobs-refresh"
-            onClick={handleRetry}
-            disabled={jobsQuery.isFetching}
-          >
-            <RefreshCw
-              size={17}
-              className={jobsQuery.isFetching ? "partner-spin" : ""}
-              aria-hidden="true"
-            />
-            Refresh
-          </button>
+          <div className="pj-header-actions">
+            <button
+              type="button"
+              className="pj-icon-btn"
+              onClick={toggleSearch}
+              aria-label={showSearch ? "Close search" : "Search jobs"}
+              aria-expanded={showSearch}
+            >
+              {showSearch ? (
+                <X size={18} aria-hidden="true" />
+              ) : (
+                <Search size={18} aria-hidden="true" />
+              )}
+            </button>
+
+            <div className="pj-filter-wrap">
+              <button
+                type="button"
+                className="pj-icon-btn"
+                onClick={() => setShowFilter((v) => !v)}
+                aria-label="Filter jobs"
+                aria-haspopup="menu"
+                aria-expanded={showFilter}
+              >
+                <Filter size={18} aria-hidden="true" />
+              </button>
+
+              {showFilter && (
+                <div className="pj-menu" role="menu">
+                  {FILTER_OPTIONS.map((o) => (
+                    <button
+                      key={o.key}
+                      type="button"
+                      role="menuitem"
+                      className={
+                        activeTab === o.key
+                          ? "pj-menu-item pj-menu-item-active"
+                          : "pj-menu-item"
+                      }
+                      onClick={() => handleTabChange(o.key)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
-        {/* Tabs */}
-        <nav className="partner-jobs-tabs" aria-label="Job status">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={
-                activeTab === tab.key
-                  ? "partner-job-tab active"
-                  : "partner-job-tab"
-              }
-              onClick={() => handleTabChange(tab.key)}
-              aria-current={activeTab === tab.key ? "page" : undefined}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-
         {/* Search */}
-        <section className="partner-jobs-toolbar">
-          <div className="partner-jobs-search">
-            <Search size={18} aria-hidden="true" />
+        {showSearch && (
+          <div className="pj-search">
+            <Search size={16} aria-hidden="true" />
 
             <label htmlFor="partner-job-search" className="sr-only">
               Search jobs
@@ -466,47 +376,89 @@ export const PartnerJobsPage = () => {
               onChange={handleSearchChange}
               placeholder="Search by booking ID, service or customer..."
               autoComplete="off"
+              autoFocus
             />
           </div>
+        )}
 
-          <div className="partner-jobs-count">
-            {total} {total === 1 ? "job" : "jobs"}
+        {/* Tabs */}
+        <nav className="pj-tabs" aria-label="Job status">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={
+                activeTab === tab.key ? "pj-tab pj-tab-active" : "pj-tab"
+              }
+              onClick={() => handleTabChange(tab.key)}
+              aria-current={activeTab === tab.key ? "page" : undefined}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {(activeTab === "all" || activeTab === "cancelled") && (
+          <div className="pj-filter-chip">
+            Showing: {activeTab === "all" ? "All jobs" : "Cancelled jobs"}
+            <button
+              type="button"
+              onClick={() => handleTabChange("upcoming")}
+              aria-label="Clear filter"
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
           </div>
-        </section>
+        )}
+
+        {/* Accepted banner */}
+        {acceptedId && (
+          <div className="pj-success" role="status">
+            <CheckCircle2 size={20} aria-hidden="true" />
+            <div>
+              <strong>Job accepted successfully!</strong>
+              <p>The job has been added to your upcoming jobs.</p>
+            </div>
+            <button
+              type="button"
+              className="pj-success-link"
+              onClick={() => handleTabChange("upcoming")}
+            >
+              View
+            </button>
+          </div>
+        )}
 
         {/* Mutation error */}
         {(acceptMutation.isError || rejectMutation.isError) && (
-          <div className="partner-jobs-alert" role="alert">
+          <div className="pj-alert" role="alert">
             <strong>Action could not be completed.</strong>
-            <span>Please refresh the list and try again.</span>
+            <span>
+              {acceptMutation.error instanceof Error
+                ? acceptMutation.error.message
+                : "Please refresh the list and try again."}
+            </span>
           </div>
         )}
 
         {/* Loading */}
         {jobsQuery.isLoading && (
-          <div
-            className="partner-jobs-loading"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="partner-jobs-spinner" />
+          <div className="pj-state" role="status" aria-live="polite">
+            <div className="pj-spinner" />
             <p>Loading jobs...</p>
           </div>
         )}
 
         {/* Error */}
         {jobsQuery.isError && !jobsQuery.isLoading && (
-          <div className="partner-jobs-error" role="alert">
+          <div className="pj-state" role="alert">
             <h2>Unable to load jobs</h2>
-
-            <p>
-              Something went wrong while loading your jobs. Please try again.
-            </p>
+            <p>Something went wrong while loading your jobs. Please try again.</p>
 
             <button
               type="button"
               onClick={handleRetry}
-              className="partner-jobs-primary-button"
+              className="pj-btn pj-btn-primary"
             >
               <RefreshCw size={16} aria-hidden="true" />
               Try again
@@ -516,15 +468,15 @@ export const PartnerJobsPage = () => {
 
         {/* Empty */}
         {!jobsQuery.isLoading && !jobsQuery.isError && jobs.length === 0 && (
-          <div className="partner-jobs-empty" role="status">
-            <div className="partner-jobs-empty-icon">
-              <CalendarDays size={28} aria-hidden="true" />
+          <div className="pj-state" role="status">
+            <div className="pj-empty-icon">
+              <Clock3 size={26} aria-hidden="true" />
             </div>
 
             <h2>{EMPTY_LABELS[activeTab]}</h2>
 
             <p>
-              {search
+              {debouncedSearch
                 ? "Try changing your search or clearing the search field."
                 : activeTab === "requests"
                   ? "New job requests will appear here when they are available."
@@ -534,7 +486,7 @@ export const PartnerJobsPage = () => {
             {search && (
               <button
                 type="button"
-                className="partner-jobs-secondary-button"
+                className="pj-btn pj-btn-outline"
                 onClick={() => setSearch("")}
               >
                 Clear search
@@ -546,130 +498,72 @@ export const PartnerJobsPage = () => {
         {/* Results */}
         {!jobsQuery.isLoading && !jobsQuery.isError && jobs.length > 0 && (
           <>
-            {/* Desktop table */}
-            <section className="partner-jobs-table-section">
-              <div className="partner-jobs-table-wrapper">
-                <table className="partner-jobs-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Booking</th>
-                      <th scope="col">Service</th>
-                      <th scope="col">Customer</th>
-                      <th scope="col">Location</th>
-                      <th scope="col">Date &amp; Time</th>
-                      <th scope="col">Amount</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Actions</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {jobs.map((job) => (
-                      <tr key={job.id}>
-                        <td>
-                          <span className="partner-job-id">
-                            {job.bookingId}
-                          </span>
-                        </td>
-
-                        <td>
-                          <div className="partner-job-service-cell">
-                            <strong>{job.service}</strong>
-                            {job.instructions && (
-                              <small>{job.instructions}</small>
-                            )}
-                          </div>
-                        </td>
-
-                        <td>{job.customer}</td>
-
-                        <td>
-                          <div className="partner-job-location-cell">
-                            <span>{job.location}</span>
-                            <small>{job.distance.toFixed(1)} km</small>
-                          </div>
-                        </td>
-
-                        <td>
-                          <div className="partner-job-datetime">
-                            <span>{formatDate(job.scheduledAt)}</span>
-                            <small>{formatTime(job.scheduledAt)}</small>
-                          </div>
-                        </td>
-
-                        <td>
-                          <strong>{formatAmount(job.amount)}</strong>
-                        </td>
-
-                        <td>
-                          <div className="partner-job-status-cell">
-                            <JobStatusBadge status={job.status} />
-
-                            {job.status === "requested" && (
-                              <RequestCountdown expiresAt={job.expiresAt} />
-                            )}
-                          </div>
-                        </td>
-
-                        <td>
-                          <JobActions
-                            job={job}
-                            onAccept={handleAccept}
-                            onReject={handleReject}
-                            accepting={isAccepting(job.id)}
-                            rejecting={isRejecting(job.id)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-
-            {/* Mobile cards */}
-            <section className="partner-jobs-cards" aria-label="Jobs list">
+            <section className="pj-list" aria-label="Jobs list">
               {jobs.map((job) => (
                 <JobCard
                   key={job.id}
                   job={job}
-                  onAccept={handleAccept}
-                  onReject={handleReject}
+                  onAccept={(id) => acceptMutation.mutate(id)}
+                  onReject={(id) => {
+                    rejectMutation.reset();
+                    setRejectTarget(jobs.find((j) => j.id === id) ?? null);
+                  }}
                   accepting={isAccepting(job.id)}
                   rejecting={isRejecting(job.id)}
                 />
               ))}
             </section>
 
-            {/* Pagination */}
-            <div className="partner-jobs-pagination">
-              <span>
-                Page {Math.min(page, totalPages)} of {totalPages}
-              </span>
+            {totalPages > 1 && (
+              <div className="pj-pagination">
+                <span>
+                  Page {Math.min(page, totalPages)} of {totalPages}
+                </span>
 
-              <div className="partner-jobs-pagination-buttons">
-                <button
-                  type="button"
-                  disabled={page <= 1 || jobsQuery.isFetching}
-                  onClick={() => setPage((current) => Math.max(1, current - 1))}
-                >
-                  Previous
-                </button>
+                <div className="pj-pagination-buttons">
+                  <button
+                    type="button"
+                    disabled={page <= 1 || jobsQuery.isFetching}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  >
+                    Previous
+                  </button>
 
-                <button
-                  type="button"
-                  disabled={page >= totalPages || jobsQuery.isFetching}
-                  onClick={() =>
-                    setPage((current) => Math.min(totalPages, current + 1))
-                  }
-                >
-                  Next
-                </button>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages || jobsQuery.isFetching}
+                    onClick={() =>
+                      setPage((current) => Math.min(totalPages, current + 1))
+                    }
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </>
         )}
       </div>
+
+      <RejectReasonDialog
+        open={rejectTarget !== null}
+        jobLabel={rejectTarget?.service}
+        busy={rejectMutation.isPending}
+        error={
+          rejectMutation.isError
+            ? rejectMutation.error instanceof Error
+              ? rejectMutation.error.message
+              : "Couldn't reject this job. Please try again."
+            : null
+        }
+        onCancel={() => {
+          rejectMutation.reset();
+          setRejectTarget(null);
+        }}
+        onConfirm={(reason) => {
+          if (rejectTarget) rejectMutation.mutate({ id: rejectTarget.id, reason });
+        }}
+      />
     </main>
   );
 };

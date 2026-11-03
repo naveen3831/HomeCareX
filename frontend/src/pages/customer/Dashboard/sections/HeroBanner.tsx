@@ -4,9 +4,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
+import CategoryIcon from "@/components/customer/CategoryIcon";
 import { tintAt } from "@/components/customer";
 import type { DashboardCategoryDto } from "@/features/customer";
-import { resolveCategoryPhoto } from "./dashboardImages";
+import { CATEGORY_FALLBACK_PHOTOS, isBuiltInPhoto, resolveCategoryPhoto } from "./dashboardImages";
 
 const AUTO_MS = 5500;
 const MAX_SLIDES = 8;
@@ -151,6 +152,7 @@ export default function HeroBanner({ categories, children }: HeroBannerProps) {
 function Slide({ category: c, index, isActive }: { category: DashboardCategoryDto; index: number; isActive: boolean }) {
   const photo = resolveCategoryPhoto(c, index);
   const [failed, setFailed] = useState(false);
+  const builtIn = isBuiltInPhoto(c);
 
   // Exclude emoji or icon paths from banner images
   const cleanCategoryImg =
@@ -159,7 +161,7 @@ function Slide({ category: c, index, isActive }: { category: DashboardCategoryDt
       : null;
 
   const initialSrc =
-    BANNER_IMAGE[c.slug] ??
+    (builtIn ? BANNER_IMAGE[c.slug] : undefined) ??
     cleanCategoryImg ??
     photo?.src ??
     `${import.meta.env.BASE_URL}images/home-cleaning.jpg`;
@@ -168,15 +170,15 @@ function Slide({ category: c, index, isActive }: { category: DashboardCategoryDt
 
   useEffect(() => {
     const updated =
-      BANNER_IMAGE[c.slug] ??
+      (builtIn ? BANNER_IMAGE[c.slug] : undefined) ??
       cleanCategoryImg ??
       photo?.src ??
       `${import.meta.env.BASE_URL}images/home-cleaning.jpg`;
     setSrc(updated);
     setFailed(false);
-  }, [c.slug, cleanCategoryImg, photo?.src]);
+  }, [builtIn, c.slug, cleanCategoryImg, photo?.src]);
 
-  const fallback = `${import.meta.env.BASE_URL}images/home-cleaning.jpg`;
+  const fallback = CATEGORY_FALLBACK_PHOTOS[index % CATEGORY_FALLBACK_PHOTOS.length].src;
 
   const handleImgError = () => {
     if (src !== fallback) {
@@ -198,7 +200,7 @@ function Slide({ category: c, index, isActive }: { category: DashboardCategoryDt
         !showPhoto && tintAt(index)
       )}
     >
-      {showPhoto && (
+      {showPhoto ? (
         // Phones: photo is the top 180px. md+: photo takes the right ~68% and fades into the dark panel.
         <Link
           to={targetUrl}
@@ -211,10 +213,12 @@ function Slide({ category: c, index, isActive }: { category: DashboardCategoryDt
             decoding="async"
             draggable={false}
             onError={handleImgError}
-            style={{ objectPosition: BANNER_POSITION[c.slug] ?? photo?.position ?? "50% 50%" }}
+            style={{ objectPosition: (builtIn ? BANNER_POSITION[c.slug] : undefined) ?? photo?.position ?? "50% 50%" }}
             className="h-full w-full object-cover"
           />
         </Link>
+      ) : (
+        <CategoryIcon iconUrl={c.iconUrl} hints={[c.icon, c.name, c.slug]} size={180} className="absolute bottom-6 right-10" />
       )}
       {/* Desktop-only soft shade; on phones the text is below the photo, so nothing needs a fade. */}
       {showPhoto && (

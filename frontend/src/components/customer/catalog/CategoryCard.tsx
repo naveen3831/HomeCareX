@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { categoryVisual } from "@/pages/customer/Shared/visuals";
 import type { CatalogCategory } from "@/types/catalog";
-import Icon3D from "../Icon3D";
+import CategoryIcon from "../CategoryIcon";
 import { FOCUS_RING } from "../focusRing";
 import { plural } from "./format";
 
@@ -23,17 +23,15 @@ interface Props {
  * Opens the Services page already filtered to this category.
  */
 export function CategoryCard({ category: c, index, featured = false }: Props) {
-  const v = categoryVisual(c.slug, c.image);
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const photoCandidate = c.image || v.image;
-  const photo = photoCandidate && !photoFailed ? photoCandidate : null;
-  const displayName = c.name;
-  const hints = [c.icon, displayName, c.slug];
+  const v = categoryVisual(c.slug);
+  const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
+  const photo = [c.imageUrl?.trim(), v.image].find((src): src is string => !!src && !failedPhotos.includes(src)) ?? null;
+  const hints = [c.icon, c.name, c.slug];
 
   return (
     <Link
       to={`${customerPath("/services")}?category=${encodeURIComponent(c.slug)}`}
-      aria-label={`${displayName}, ${plural(c.serviceCount, "service")}`}
+      aria-label={`${c.name}, ${plural(c.serviceCount, "service")}`}
       className={clsx(
         "group relative flex h-full w-full flex-col justify-end overflow-hidden rounded-[22px]   transition-shadow duration-200 md:rounded-[26px] md:p-5",
         "hover:shadow-[0_18px_30px_-16px_rgba(67,56,202,.55)]",
@@ -48,8 +46,8 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
             alt=""
             loading={index < 4 ? "eager" : "lazy"}
             decoding="async"
-            onError={() => setPhotoFailed(true)}
-            style={{ objectPosition: v.focus }}
+            onError={() => setFailedPhotos((list) => list.includes(photo) ? list : [...list, photo])}
+            style={{ objectPosition: photo === v.image ? v.focus : undefined }}
             className="absolute inset-0 h-full w-full object-cover"
           />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-b from-transparent from-35% to-[#0F0C28]/80" />
@@ -60,11 +58,12 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
               featured ? "h-14 w-14 md:h-16 md:w-16" : "h-10 w-10 md:h-12 md:w-12",
             )}
           >
-            <Icon3D hints={hints} size={featured ? 44 : 30} float={false} />
+            <CategoryIcon iconUrl={c.iconUrl} hints={hints} size={featured ? 44 : 30} float={false} />
           </span>
         </>
       ) : (
-        <Icon3D
+        <CategoryIcon
+          iconUrl={c.iconUrl}
           hints={hints}
           size={featured ? 150 : 96}
           delay={index * 0.65}
@@ -73,7 +72,7 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
       )}
 
       <div className="relative max-w-[78%]">
-        <h2 className={clsx("line-clamp-2 font-semibold leading-snug", featured ? "text-xl md:text-[28px]" : "text-sm md:text-[17px]")}>{displayName}</h2>
+        <h2 className={clsx("line-clamp-2 font-semibold leading-snug", featured ? "text-xl md:text-[28px]" : "text-sm md:text-[17px]")}>{c.name}</h2>
         <p className={clsx("mt-0.5 text-[11px] md:text-[13px]", photo ? "text-white/85" : "text-ink/60")}>{plural(c.serviceCount, "service")}</p>
       </div>
 

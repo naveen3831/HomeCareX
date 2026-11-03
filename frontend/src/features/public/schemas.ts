@@ -20,6 +20,9 @@ export const categorySchema = z.object({
   slug: z.string(),
   description: z.string().default(''),
   icon: z.string().default(''),
+  /** Cover photo and icon image the admin set in Categories ('' when none). */
+  imageUrl: z.string().default(''),
+  iconUrl: z.string().default(''),
   sortOrder: z.number().default(0),
   serviceCount: z.number().default(0),
 });

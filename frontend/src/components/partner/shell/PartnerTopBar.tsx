@@ -2,7 +2,6 @@ import type { RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bell, Menu } from "lucide-react";
 import clsx from "clsx";
-import OnlineIndicator from "../OnlineIndicator";
 import PartnerProfileMenu from "./PartnerProfileMenu";
 import { PARTNER_DRAWER_ID } from "./PartnerMobileDrawer";
 import { PARTNER_SIDEBAR_ID } from "./PartnerSidebar";
@@ -23,7 +22,7 @@ interface Props {
 const HAMBURGER = "-ml-2 flex h-11 w-11 items-center justify-center rounded text-ink hover:bg-canvas";
 
 export default function PartnerTopBar({
-  menuOpen, onMenuClick, menuButtonRef, sidebarOpen, onToggleSidebar, online, onOnlineChange, unread = 0,
+  menuOpen, onMenuClick, menuButtonRef, sidebarOpen, onToggleSidebar, unread = 0,
 }: Props) {
   const { pathname } = useLocation();
   return (
@@ -57,7 +56,6 @@ export default function PartnerTopBar({
       </div>
 
       <div className="flex items-center gap-1 md:gap-3">
-        <OnlineIndicator online={online} onChange={onOnlineChange} />
         <Link
           to={partnerPath("/system/notifications")}
           aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
@@ -66,7 +64,7 @@ export default function PartnerTopBar({
           <Bell className="h-5 w-5" aria-hidden="true" />
           {unread > 0 && (
             <span aria-hidden="true" className="absolute right-1 top-1 h-4 min-w-[16px] rounded-full bg-danger px-1 text-center text-[10px] font-medium leading-4 text-white">
-              {unread > 9 ? "9+" : unread}
+              {unread}
             </span>
           )}
         </Link>

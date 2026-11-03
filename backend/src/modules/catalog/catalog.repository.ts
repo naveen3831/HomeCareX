@@ -9,6 +9,7 @@ export interface CategoryRow {
   slug: string;
   description?: string;
   icon?: string;
+  /** Only loaded by activeCategories(true). */
   iconUrl?: string;
   images?: { url: string; alt?: string; isPrimary?: boolean }[];
   sortOrder?: number;
@@ -42,14 +43,16 @@ export interface ServiceRow {
   faqs?: { _id: Types.ObjectId; question: string; answer: string }[];
 }
 
-const CATEGORY_FIELDS = 'name slug description icon iconUrl sortOrder';
+const CATEGORY_FIELDS = 'name slug description icon sortOrder';
+/** Photos and icons can be large (data: URLs), so only the category list endpoint loads them. */
+const CATEGORY_MEDIA_FIELDS = `${CATEGORY_FIELDS} iconUrl images`;
 const LIST_FIELDS = 'slug name description icon iconUrl categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
-const DETAIL_FIELDS = `${LIST_FIELDS} media addOns inclusions exclusions faqs`;
+const DETAIL_FIELDS = `${LIST_FIELDS} addOns media inclusions exclusions faqs`;
 
 /** Only layer that talks to Mongo. Tests swap these methods for in-memory versions. */
 export const catalogRepository = {
-  activeCategories(): Promise<CategoryRow[]> {
-    return CategoryModel.find({ active: { $ne: false } }, CATEGORY_FIELDS).sort({ sortOrder: 1 }).lean<CategoryRow[]>().exec();
+  activeCategories(withMedia = false): Promise<CategoryRow[]> {
+    return CategoryModel.find({ active: { $ne: false } }, withMedia ? CATEGORY_MEDIA_FIELDS : CATEGORY_FIELDS).sort({ sortOrder: 1, name: 1 }).lean<CategoryRow[]>().exec();
   },
 
   /** Per category, over active services: how many, the cheapest price and total bookings (used only to flag the most booked). */

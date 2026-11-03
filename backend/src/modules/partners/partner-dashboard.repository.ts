@@ -1,4 +1,3 @@
-
 import { Types } from 'mongoose';
 import BookingModel from '../../models/Booking';
 import PartnerModel from '../../models/Partner';
@@ -40,6 +39,10 @@ export const partnerDashboardRepository = {
       { $group: { _id: null, count: { $sum: 1 }, earnings: { $sum: '$partnerEarning' } } },
     ]);
     return { count: row?.count ?? 0, earnings: row?.earnings ?? 0 };
+  },
+
+  completedTotal(partnerId: Types.ObjectId) {
+    return BookingModel.countDocuments({ partnerId, status: { $in: COMPLETED_STATUSES } });
   },
 
   findActiveJob(partnerId: Types.ObjectId) {

@@ -57,30 +57,24 @@ const CATEGORY_REAL_IMAGES: Record<string, string> = {
 };
 
 export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => {
-  let img: string | null = null;
-  if (row.images && Array.isArray(row.images) && row.images.length > 0) {
-    // Prefer clean relative/absolute image paths over inline base64 data URLs
-    const cleanUrl = row.images.find((i) => i.url && !i.url.startsWith('data:') && !i.url.includes('/icons/3d/'));
-    const primary = row.images.find((i) => i.isPrimary && !i.url?.includes('/icons/3d/'));
-    img = (cleanUrl ?? primary ?? row.images[0])?.url ?? null;
-  }
-
   const isEmojiOrIcon = (url?: string | null) =>
     !url || url.includes('/icons/3d/') || url.includes('/icons/');
-
-  const resolvedUrl =
-    (!isEmojiOrIcon(row.imageUrl) && !row.imageUrl?.startsWith('data:'))
-      ? row.imageUrl!
-      : (img && !isEmojiOrIcon(img)
-          ? img
-          : (CATEGORY_REAL_IMAGES[row.slug] ?? null));
+  const usableImage = (url?: string | null) =>
+    !!url && !url.startsWith('data:') && !isEmojiOrIcon(url);
+  const imageFromList = row.images?.find((image) => usableImage(image.url))
+    ?? row.images?.find((image) => image.isPrimary && !isEmojiOrIcon(image.url))
+    ?? row.images?.[0];
+  const resolvedUrl = (usableImage(row.imageUrl) ? row.imageUrl : undefined)
+    ?? (usableImage(imageFromList?.url) ? imageFromList?.url : undefined)
+    ?? CATEGORY_REAL_IMAGES[row.slug]
+    ?? '';
 
   return {
     id: row._id.toString(),
     name: row.name,
     slug: row.slug,
     icon: row.icon ?? null,
-    iconUrl: row.iconUrl ?? null,
+    iconUrl: row.iconUrl ?? '',
     imageUrl: resolvedUrl,
     serviceCount: row.serviceCount,
   };

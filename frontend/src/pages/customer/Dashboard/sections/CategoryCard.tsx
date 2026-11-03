@@ -1,47 +1,24 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import clsx from "clsx";
-import { customerPath } from "@/routes/customerPath";
-import { FOCUS_RING } from "@/components/customer/focusRing";
+import CategoryIcon from "@/components/customer/CategoryIcon";
 import { tintAt } from "@/components/customer";
+import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { DashboardCategoryDto } from "@/features/customer";
-import { resolveCategoryPhoto, CATEGORY_FALLBACK_PHOTOS } from "./dashboardImages";
+import { customerPath } from "@/routes/customerPath";
+import { resolveCategoryPhoto } from "./dashboardImages";
 
 /**
- * Category tile. Shows the category photo with the name over a dark fade; if there is no photo
- * (or it fails to load) it falls back to the tinted tile with a floating 3D icon.
- * `index` picks the tint and offsets the float.
+ * Category tile. Shows the category photo with the name over a dark fade; if it fails to load,
+ * it falls back to the tinted tile with the category icon.
  */
 export default function CategoryCard({ category: c, index = 0 }: { category: DashboardCategoryDto; index?: number }) {
   const photo = resolveCategoryPhoto(c, index);
-
-  // Real photo URL: exclude emoji or icon paths
-  const cleanCategoryImg =
-    c.imageUrl && !c.imageUrl.includes("/icons/3d/") && !c.imageUrl.includes("/icons/")
-      ? c.imageUrl
-      : null;
-
-  const initialSrc = cleanCategoryImg || photo.src;
-  const [src, setSrc] = useState(initialSrc);
-  const displayName = c.name;
+  const [failedPhoto, setFailedPhoto] = useState<string>();
+  const showPhoto = photo.src !== failedPhoto;
   const count = `${c.serviceCount} ${c.serviceCount === 1 ? "service" : "services"}`;
   const targetUrl = `${customerPath("/services")}?category=${encodeURIComponent(c.slug)}`;
-
-  useEffect(() => {
-    const validSrc =
-      (c.imageUrl && !c.imageUrl.includes("/icons/3d/") && !c.imageUrl.includes("/icons/")
-        ? c.imageUrl
-        : null) || photo.src;
-    setSrc(validSrc);
-  }, [c.imageUrl, c.slug, photo.src]);
-
-  const handleImgError = () => {
-    const fallback = CATEGORY_FALLBACK_PHOTOS[index % CATEGORY_FALLBACK_PHOTOS.length].src;
-    if (src !== fallback) {
-      setSrc(fallback);
-    }
-  };
 
   return (
     <Link
@@ -52,17 +29,29 @@ export default function CategoryCard({ category: c, index = 0 }: { category: Das
         FOCUS_RING,
       )}
     >
-      <img
-        src={src}
-        alt={displayName}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-        onError={handleImgError}
-        style={{ objectPosition: photo.position }}
-        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
-      />
-      <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[rgba(20,18,36,.85)] via-[rgba(20,18,36,.45)] via-[36%] to-transparent to-[64%]" />
+      {showPhoto ? (
+        <img
+          src={photo.src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailedPhoto(photo.src)}
+          style={{ objectPosition: photo.position }}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
+        />
+      ) : (
+        <CategoryIcon
+          iconUrl={c.iconUrl}
+          hints={[c.icon, c.name, c.slug]}
+          size={76}
+          delay={index * -0.7}
+          className="absolute -bottom-1 right-1 md:right-2 md:h-[88px] md:w-[88px]"
+        />
+      )}
+      {showPhoto && (
+        <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-[rgba(20,18,36,.85)] via-[rgba(20,18,36,.45)] via-[36%] to-transparent to-[64%]" />
+      )}
 
       <span
         aria-hidden="true"
@@ -72,8 +61,8 @@ export default function CategoryCard({ category: c, index = 0 }: { category: Das
       </span>
 
       <span className="absolute inset-x-3.5 bottom-3.5 flex flex-col gap-0.5">
-        <span className="text-[13px] font-semibold leading-tight text-white md:text-sm">{displayName}</span>
-        <span className="text-xs text-white/90">{count}</span>
+        <span className={clsx("text-[13px] font-semibold leading-tight md:text-sm", showPhoto ? "text-white" : "text-ink")}>{c.name}</span>
+        <span className={clsx("text-xs", showPhoto ? "text-white/90" : "text-muted")}>{count}</span>
       </span>
     </Link>
   );

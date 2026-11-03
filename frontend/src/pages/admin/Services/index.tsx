@@ -1,19 +1,11 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
-import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
-} from '@dnd-kit/core';
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { PageSearch } from '@/components/admin/PageSearch';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
-import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { FullScreenPanel } from '@/components/admin/FullScreenPanel';
 import { AuditDiffDrawer, type AuditEntry } from '@/components/admin/AuditDiffDrawer';
 import { StatusBadge } from '@/components/admin/StatusBadge';
@@ -23,6 +15,7 @@ import { ServiceForm, type CategoryOption } from '@/components/admin/ServiceForm
 import { ServicePreview } from '@/components/admin/ServicePreview';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useUIStore } from '@/store/useUIStore';
+import { TablePagination, usePagination } from '@/components/tables';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { adminServiceApi, getServiceApiMode, getServiceApiModeReason, type ServiceApiError } from '@/services/adminServiceApi';
 import { adminCategoryApi } from './adminCategoryApi';
@@ -36,62 +29,16 @@ import './index.css';
 export const CATALOG_MANAGE = 'catalog:manage';
 
 type Toast = { text: string; tone: 'success' | 'error' } | null;
-const rupees = (n: number) => `Γé╣${n.toLocaleString('en-IN')}`;
+const rupees = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const duration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr${m % 60 ? ` ${m % 60} min` : ''}`);
 
-/** "Parent ΓÇ║ Child" labels so sub-categories are recognisable in a flat list. */
+/** "Parent › Child" labels so sub-categories are recognisable in a flat list. */
 function toOptions(cats: AdminCategory[]): CategoryOption[] {
   const byId = new Map(cats.map((c) => [c.id, c]));
   return cats
-    .map((c) => ({ id: c.id, name: c.parentId && byId.get(c.parentId) ? `${byId.get(c.parentId)!.name} ΓÇ║ ${c.name}` : c.name, active: c.active }))
+    .map((c) => ({ id: c.id, name: c.parentId && byId.get(c.parentId) ? `${byId.get(c.parentId)!.name} › ${c.name}` : c.name, active: c.active }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
-
-interface RowProps {
-  s: AdminService; index: number; count: number; busy: boolean; reorderEnabled: boolean; canManage: boolean; online: boolean;
-  selected: boolean; onSelect: (checked: boolean) => void;
-  onMove: (d: -1 | 1) => void; onToggle: () => void; onPreview: () => void; onEdit: () => void; onDelete: () => void;
-}
-
-const ServiceRow: React.FC<RowProps> = ({ s, index, count, busy, reorderEnabled, canManage, online, selected, onSelect, onMove, onToggle, onPreview, onEdit, onDelete }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !reorderEnabled });
-  const cover = s.images.find((i) => i.isPrimary) ?? s.images[0];
-  return (
-    <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className="cat-group">
-      <div className={clsx('svc-row-item', !s.active && 'is-inactive', busy && 'is-busy', isDragging && 'is-dragging')}>
-        {canManage && (
-          <input
-            type="checkbox" className="svc-select" checked={selected} disabled={busy || !online}
-            aria-label={`Select ${s.name}`} onChange={(e) => onSelect(e.target.checked)}
-          />
-        )}
-        <button type="button" className="cat-grip" disabled={!reorderEnabled} aria-label={`Drag ${s.name} to reorder`} {...attributes} {...listeners}><GripVertical size={18} /></button>
-        <div className="cat-media">
-          <span className="cat-cover">{cover ? <img src={cover.url} alt="" loading="lazy" /> : <span className="cat-cover__empty"><ImageIcon size={18} aria-hidden /></span>}</span>
-          {s.images.length > 1 && <span className="svc-count">{s.images.length} photos</span>}
-        </div>
-        <div className="cat-main">
-          <div className="cat-name"><span>{s.name}</span>{!s.active && <span className="cat-meta">Inactive</span>}</div>
-          <div className="cat-sub"><code>/{s.slug}</code></div>
-          <div className="svc-facts"><b>{rupees(s.basePrice)}</b><span><Clock size={12} aria-hidden /> {duration(s.durationMinutes)}</span></div>
-        </div>
-        <button
-          type="button" role="switch" aria-checked={s.active} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
-          className={clsx('cat-switch', s.active && 'is-on')} disabled={!canManage || !online || busy} onClick={onToggle}
-        ><span /></button>
-        <div className="cat-actions">
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={16} /></button>
-          <button type="button" className="cat-iconbtn" onClick={onPreview} aria-label={`Preview ${s.name}`} title="Preview"><Eye size={16} /></button>
-          <PermissionGate permission={CATALOG_MANAGE}>
-            <button type="button" className="cat-iconbtn" onClick={onEdit} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={16} /></button>
-            <button type="button" className="cat-iconbtn cat-iconbtn--danger" onClick={onDelete} disabled={!online} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={16} /></button>
-          </PermissionGate>
-        </div>
-      </div>
-    </li>
-  );
-};
 
 const toInput = (s: AdminService): ServiceInput => ({
   name: s.name, categoryId: s.categoryId, description: s.description, basePrice: s.basePrice, durationMinutes: s.durationMinutes,
@@ -115,8 +62,6 @@ export const AdminServicesPage: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -181,6 +126,8 @@ export const AdminServicesPage: React.FC = () => {
       return [s.name, s.slug, s.categoryName].some((v) => (v ?? '').toLowerCase().includes(needle));
     });
   }, [ordered, categories, search, categoryParam]);
+  const pager = usePagination(visible, { resetKey: `${search}|${categoryParam}` });
+  const pageOffset = (pager.page - 1) * pager.pageSize;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -190,7 +137,7 @@ export const AdminServicesPage: React.FC = () => {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
     setOrder(ids);
     adminServiceApi.reorder(ids, { id: movedId, name, from, to });
-    flash(`ΓÇ£${name}ΓÇ¥ moved to position ${to + 1}`);
+    flash(`“${name}” moved to position ${to + 1}`);
   }
   const move = (id: string, dir: -1 | 1) => {
     const ids = ordered.map((x) => x.id); const from = ids.indexOf(id); const to = from + dir;
@@ -241,8 +188,8 @@ export const AdminServicesPage: React.FC = () => {
         : await adminServiceApi.create(input, options);
       setFormOpen(false);
       await load();
-      if (ignored.length) flash(`ΓÇ£${service.name}ΓÇ¥ saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
-      else flash(`${editing ? `ΓÇ£${service.name}ΓÇ¥ updated` : `ΓÇ£${service.name}ΓÇ¥ created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
+      if (ignored.length) flash(`“${service.name}” saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
+      else flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
     } catch (e) {
       const err = e as ServiceApiError;
       setFormError(err.message);
@@ -256,7 +203,7 @@ export const AdminServicesPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(s.id));
     try {
       await adminServiceApi.setActive([s.id], next);
-      flash(`ΓÇ£${s.name}ΓÇ¥ ${next ? 'activated' : 'deactivated'}`);
+      flash(`“${s.name}” ${next ? 'activated' : 'deactivated'}`);
     } catch (e) {
       setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
       flash((e as ServiceApiError).message, 'error');
@@ -294,7 +241,7 @@ export const AdminServicesPage: React.FC = () => {
       const { service } = await adminServiceApi.update(svc.id, { ...toInput(svc), images }, options);
       setItems((prev) => prev.map((x) => (x.id === service.id ? service : x)));
       setPreviewing(service);
-      flash(`Photos for ΓÇ£${service.name}ΓÇ¥ saved`);
+      flash(`Photos for “${service.name}” saved`);
     } catch (e) {
       flash((e as ServiceApiError).message, 'error');
     } finally { setSavingImages(false); }
@@ -305,7 +252,7 @@ export const AdminServicesPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminServiceApi.remove(toDelete.id);
-      flash(`ΓÇ£${toDelete.name}ΓÇ¥ deleted`);
+      flash(`“${toDelete.name}” deleted`);
       setToDelete(null);
       await load();
     } catch (e) {
@@ -338,7 +285,7 @@ export const AdminServicesPage: React.FC = () => {
 
       {!online && <div className="cat-banner" role="status"><WifiOff size={15} /> You are offline. You can browse what has loaded, but changes are disabled until the connection returns.</div>}
       {mode === 'demo' && <div className="cat-banner" role="status"><WifiOff size={15} /> Backend not reachable ({getServiceApiModeReason()}): showing local demo data. Changes are saved in this browser only.</div>}
-      {!canManage && <div className="cat-banner cat-banner--info" role="status">You can view services but need the ΓÇ£{CATALOG_MANAGE}ΓÇ¥ permission to change them.</div>}
+      {!canManage && <div className="cat-banner cat-banner--info" role="status">You can view services but need the “{CATALOG_MANAGE}” permission to change them.</div>}
 
       {toast && (
         <div role="status" className={clsx('cat-toast', toast.tone === 'error' && 'is-error')}>
@@ -354,7 +301,7 @@ export const AdminServicesPage: React.FC = () => {
       </div>
 
       <div className="svc-toolbar">
-        <PageSearch placeholder="Search name, slug or categoryΓÇª" />
+        <PageSearch placeholder="Search name, slug or category…" />
         {filterMenu}
       </div>
       <p className="svc-count-note">{visible.length} of {items.length} services{categoryParam && filterOptions.find((o) => o.id === categoryParam) ? ` in ${filterOptions.find((o) => o.id === categoryParam)!.name}` : ''}</p>
@@ -386,12 +333,12 @@ export const AdminServicesPage: React.FC = () => {
             />
           )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
-            <SortableContext items={visible.map((x) => x.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={pager.pageItems.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               <div className="cat-tree">
                 <ul className="cat-list" aria-label="Services">
-                  {visible.map((s, i) => (
+                  {pager.pageItems.map((s, i) => (
                     <ServiceRow
-                      key={s.id} s={s} index={i} count={visible.length} busy={busyIds.has(s.id)} reorderEnabled={reorderEnabled}
+                      key={s.id} s={s} index={pageOffset + i} count={visible.length} busy={busyIds.has(s.id)} reorderEnabled={reorderEnabled}
                       canManage={canManage} online={online}
                       selected={selectedIds.has(s.id)}
                       onSelect={(checked) => setSelectedIds((prev) => { const n = new Set(prev); if (checked) n.add(s.id); else n.delete(s.id); return n; })}
@@ -404,6 +351,7 @@ export const AdminServicesPage: React.FC = () => {
             </SortableContext>
             <DragOverlay>{activeSvc && <div className="cat-overlay"><GripVertical size={16} /><strong>{activeSvc.name}</strong></div>}</DragOverlay>
           </DndContext>
+          <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label="services" />
         </>
       )}
 
@@ -416,7 +364,7 @@ export const AdminServicesPage: React.FC = () => {
 
       <ConfirmDialog
         open={!!toDelete} tone="danger" loading={deleting} title="Delete service?" confirmLabel="Delete"
-        message={<>ΓÇ£{toDelete?.name}ΓÇ¥ will be permanently removed and recorded in the audit log. A service that already has bookings cannot be deleted; deactivate it instead.</>}
+        message={<>“{toDelete?.name}” will be permanently removed and recorded in the audit log. A service that already has bookings cannot be deleted; deactivate it instead.</>}
         onCancel={() => setToDelete(null)} onConfirm={() => void confirmDelete()}
       />
 
@@ -426,7 +374,7 @@ export const AdminServicesPage: React.FC = () => {
             {audit.map((a) => (
               <li key={a.id}>
                 <button type="button" onClick={() => setAuditEntry({
-                  id: a.id, actor: a.actor, action: a.action, entity: `Service ┬╖ ${a.entityName}`, entityId: a.entityId,
+                  id: a.id, actor: a.actor, action: a.action, entity: `Service · ${a.entityName}`, entityId: a.entityId,
                   time: new Date(a.time).toLocaleString(), before: a.before, after: a.after,
                 })}>
                   <StatusBadge status={a.action} tone={a.action === 'delete' ? 'danger' : a.action === 'create' ? 'success' : 'info'} dot={false} />

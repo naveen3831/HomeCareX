@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Link,
   useNavigate,
@@ -6,13 +6,10 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import {
-  ArrowLeft,
-  Clock,
-  Home,
-  MapPin,
-  Radio,
-  Route,
-  User,
+  LifeBuoy,
+  MessageCircle,
+  Navigation as NavigationIcon,
+  X,
 } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import LiveMap from "@/components/partner/LiveMap";
@@ -24,31 +21,13 @@ import {
   updateBookingStatus,
 } from "../JobDetails/jobDetails.api";
 import type { ApiJob } from "../JobDetails/jobDetails.types";
-import { STATUS_LABEL } from "../JobDetails/jobStatus";
 import { useLocationSharing } from "../LocationSharing/useLocationSharing";
-import {
-  distanceKm,
-  estimateEtaMinutes,
-  formatDistance,
-  formatEta,
-  mapsDirectionsUrl,
-} from "./geo";
+import { mapsDirectionsUrl } from "./geo";
 import { isBookingId } from "./bookingId";
 import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
+import JobStepPanel from "./components/JobStepPanel";
 import "./navigation.css";
-
-const whenText = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        timeZone: "Asia/Kolkata",
-      })
-    : null;
 
 function DemoJobNotice() {
   const go = useNavigate();
@@ -118,9 +97,8 @@ function NavigationContent({ id }: { id: string }) {
 
   // ?panel=chat / ?panel=call come from the buttons on the Job Requests card.
   const [params] = useSearchParams();
-  const chatRef = useRef<HTMLElement>(null);
-  const actionsRef = useRef<HTMLElement>(null);
   const panel = params.get("panel");
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Step 1: booking id, status and customer address.
   useEffect(() => {
@@ -145,20 +123,50 @@ function NavigationContent({ id }: { id: string }) {
     };
   }, [id, reloadKey]);
 
-  // Scroll to the chat or the quick actions when opened from a job card.
+  // Keep the job fresh without a reload: re-read it every 10 s (only while the tab is visible and
+  // the job is not finished) and when the tab comes back to the front. Statuses and the start
+  // verification state (attempts, lock) change on the server, e.g. when support unlocks a job.
+  const doneStatus = job?.status === "completed" || job?.status === "rated";
   useEffect(() => {
-    if (state !== "ready" || sharing.load === "loading") return;
-    if (panel === "chat") {
-      chatRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      chatRef.current?.querySelector<HTMLElement>("textarea, input")?.focus();
-    } else if (panel === "call") {
-      // Scroll only. A URL parameter must never start a call by itself.
-      actionsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    if (state !== "ready" || doneStatus) return undefined;
+    const refresh = () => {
+      if (document.visibilityState === "hidden" || !navigator.onLine) return;
+      fetchNavigationJob(id)
+        .then((j) => setJob(j))
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 10_000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [id, state, doneStatus]);
+
+  // ?panel=chat (from a job card) opens the chat straight away.
+  // A URL parameter must never start a call by itself, so ?panel=call does nothing.
+  useEffect(() => {
+    if (state === "ready" && sharing.load !== "loading" && panel === "chat") {
+      setChatOpen(true);
     }
   }, [state, sharing.load, panel]);
+
+  // While the chat sheet is open: Esc closes it and the page behind does not scroll.
+  useEffect(() => {
+    if (!chatOpen) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChatOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [chatOpen]);
 
   if (
     state === "loading" ||
@@ -224,30 +232,16 @@ function NavigationContent({ id }: { id: string }) {
   ]
     .filter(Boolean)
     .join(", ");
+  const finished = job.status === "completed" || job.status === "rated";
   const canShare = SHARING_STATUSES.has(job.status);
   const canCall = CALL_STATUSES.has(job.status);
-  const km = customer && partner ? distanceKm(partner, customer) : null;
-  const travelling = job.status === "assigned" || job.status === "en_route";
   const geoProblem = sharing.geoProblem ?? (local.error ? "unavailable" : null);
+  const mapSummary = customer
+    ? "Your location and the customer location"
+    : "Customer location unavailable";
 
-  const mapSummary =
-    km !== null
-      ? `${formatDistance(km)} from you to the customer`
-      : customer
-        ? "Customer location shown"
-        : "Customer location unavailable";
-
-  // Optional fields: shown only if the backend returns them.
-  const extras = job as ApiJob & {
-    service?: { name?: string };
-    scheduledAt?: string;
-    slot?: string | null;
-    partnerEarning?: number;
-  };
-  const serviceName = extras.service?.name;
-  const scheduled = whenText(extras.scheduledAt);
-
-  // Step 2: open turn-by-turn directions and start tracking.
+  // Opens Google Maps directions to the customer. No start point is passed, so Maps
+  // starts from the partner's present location. Also starts live location sharing.
   const startNavigation = () => {
     if (canShare) sharing.start();
     else local.start();
@@ -273,7 +267,7 @@ function NavigationContent({ id }: { id: string }) {
   };
 
   return (
-    <div className="nav-page nav-page-wide">
+    <div className="nav-page nv-page">
       <h2 className="nav-sr">Navigation</h2>
 
       {!online && (
@@ -282,215 +276,139 @@ function NavigationContent({ id }: { id: string }) {
         </p>
       )}
 
-      <Link className="nav-back" to="/partner/jobs">
-        <ArrowLeft size={14} aria-hidden="true" /> Back to My Jobs
-      </Link>
-
-      {/* Summary */}
-      <section className="nav-card nav-summary" aria-label="Booking summary">
-        <div>
-          <span className="nav-icon-box" aria-hidden="true">
-            <Home size={22} />
-          </span>
-          <div>
-            <div className="nav-row">
-              <p className="nav-strong">
-                Booking #{id.slice(-8).toUpperCase()}
-              </p>
-              <span className="nav-badge" role="status">
-                {STATUS_LABEL[job.status]}
-              </span>
-            </div>
-            {serviceName && <p className="nav-strong">{serviceName}</p>}
-            {scheduled && (
-              <p className="nav-muted">
-                Scheduled · {scheduled}
-                {extras.slot ? ` · ${extras.slot}` : ""}
-              </p>
-            )}
-          </div>
-        </div>
-        <div>
-          <span className="nav-icon-circle" aria-hidden="true">
-            <User size={20} />
-          </span>
-          <div>
-            <p className="nav-strong">{job.customer.name}</p>
-            <p className="nav-muted">Customer</p>
-          </div>
-        </div>
-        <div className="nav-summary-addr">
-          <MapPin size={18} aria-hidden="true" />
-          <div>
-            <p className="nav-strong">Service Address</p>
-            <p className="nav-muted">{addressText}</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="nav-grid">
-        {/* Map + stats + alerts */}
-        <div className="nav-mapblock">
+      {!finished && (
+        <section className="nv-map" aria-label="Map">
           <LiveMap customer={customer} partner={partner} summary={mapSummary} />
+        </section>
+      )}
 
-          {!customer && (
-            <p className="nav-note" role="status">
-              This booking has no map pin, so distance and ETA are unavailable.
-              Start Navigation will search the address instead.
-            </p>
-          )}
+      {!finished && (
+        <button type="button" className="nv-go" onClick={startNavigation}>
+          <NavigationIcon size={20} aria-hidden="true" />
+          Navigation
+        </button>
+      )}
 
-          <dl className="nav-stats">
-            <div className="nav-stat">
-              <Route size={20} aria-hidden="true" />
-              <dt>Distance</dt>
-              <dd>{km !== null ? `~${formatDistance(km)}` : "—"}</dd>
-            </div>
-            <div className="nav-stat">
-              <Clock size={20} aria-hidden="true" />
-              <dt>ETA</dt>
-              <dd>
-                {km !== null && travelling
-                  ? `~${formatEta(estimateEtaMinutes(km))}`
-                  : km !== null
-                    ? "At location"
-                    : "—"}
-              </dd>
-            </div>
-            <div className="nav-stat">
-              <Radio size={20} aria-hidden="true" />
-              <dt>Location Sharing</dt>
-              <dd>
-                {sharing.sharing ? "Active" : partner ? "Only you" : "Off"}
-              </dd>
-            </div>
-          </dl>
-          <p className="nav-hint">
-            Distance is straight-line and ETA assumes city driving, so treat
-            both as estimates. Your maps app has live traffic.
-          </p>
-
-          {geoProblem === "denied" && (
-            <p className="nav-alert" role="alert">
-              Location permission is blocked. Allow it in your browser settings,
-              then tap Start Navigation again.
-            </p>
-          )}
-          {geoProblem === "unsupported" && (
-            <p className="nav-alert" role="alert">
-              This browser does not support location sharing.
-            </p>
-          )}
-          {local.error && !sharing.geoProblem && (
-            <p className="nav-alert" role="alert">
-              {local.error}
-            </p>
-          )}
-          {sharing.ended && (
-            <p className="nav-alert" role="alert">
-              Sharing stopped because this job is no longer active.
-            </p>
-          )}
-          {sharing.sendProblem && (
-            <p className="nav-alert" role="alert">
-              {sharing.sendProblem}
-            </p>
-          )}
-          {actionError && (
-            <p className="nav-alert" role="alert">
-              {actionError}
-            </p>
-          )}
-        </div>
-
-        {/* Quick actions */}
-        <section
-          className="nav-card nav-actions-card"
-          ref={actionsRef}
-          aria-label="Quick actions"
+      {job.actions.map((a) => (
+        <button
+          key={a.status}
+          type="button"
+          className="nv-step"
+          onClick={() => void runAction(a.status)}
+          disabled={busyAction !== null}
         >
-          <h3 className="nav-card-title">Quick Actions</h3>
-          <button
-            type="button"
-            className="nav-btn nav-btn-primary nav-btn-block"
-            onClick={startNavigation}
-          >
-            Start Navigation
-          </button>
-          {job.actions.map((a) => (
-            <button
-              key={a.status}
-              type="button"
-              className="nav-btn nav-btn-block"
-              onClick={() => void runAction(a.status)}
-              disabled={busyAction !== null}
-            >
-              {busyAction === a.status ? "Updating…" : a.label}
-            </button>
-          ))}
-          <div className="nav-split">
-            <div className="nav-call">
-              <MaskedCallButton bookingId={id} disabled={!canCall} />
-            </div>
-            <Link className="nav-btn" to={`/partner/jobs/${id}/location`}>
-              <MapPin size={16} aria-hidden="true" />
-              &nbsp;Location Sharing
-            </Link>
-          </div>
-          {sharing.sharing && (
-            <button
-              type="button"
-              className="nav-btn nav-btn-danger nav-btn-block"
-              onClick={() => void sharing.stop()}
-              disabled={sharing.stopping}
-            >
-              {sharing.stopping ? "Stopping…" : "Stop sharing"}
-            </button>
-          )}
-          {!canShare && job.status === "assigned" && (
-            <p className="nav-hint">
-              Tap “
-              {job.actions.find((a) => a.status === "en_route")?.label ??
-                "On the way"}
-              ” when you leave so the customer can follow you live.
-            </p>
-          )}
-        </section>
+          {busyAction === a.status ? "Updating…" : a.label}
+        </button>
+      ))}
 
-        {/* Service details (collapsible) */}
-        <details className="nav-card nav-details" open>
-          <summary>Service Details</summary>
-          <dl className="nav-kv">
-            <div>
-              <dt>Service</dt>
-              <dd>{serviceName ?? "—"}</dd>
-            </div>
-            {scheduled && (
-              <div>
-                <dt>Scheduled</dt>
-                <dd>{scheduled}</dd>
-              </div>
-            )}
-            {extras.slot && (
-              <div>
-                <dt>Slot</dt>
-                <dd>{extras.slot}</dd>
-              </div>
-            )}
-            {typeof extras.partnerEarning === "number" && (
-              <div>
-                <dt>Your earning</dt>
-                <dd>₹{extras.partnerEarning.toLocaleString("en-IN")}</dd>
-              </div>
-            )}
-          </dl>
-        </details>
+      <JobStepPanel
+        job={job}
+        online={online}
+        onChanged={() => setReloadKey((k) => k + 1)}
+      />
 
-        {/* Chat */}
-        <section className="nav-chat" ref={chatRef} aria-label="Customer chat">
-          <ChatPanel bookingId={id} viewerRole="partner" />
-        </section>
+      <div className="nv-tiles">
+        <div className="nv-call">
+          <MaskedCallButton bookingId={id} disabled={!canCall} />
+        </div>
+        <button
+          type="button"
+          className="nv-tile nv-tile-chat"
+          onClick={() => setChatOpen(true)}
+        >
+          <MessageCircle size={22} aria-hidden="true" />
+          <span>Chat</span>
+        </button>
+        <Link className="nv-tile nv-tile-help" to="/partner/help">
+          <LifeBuoy size={22} aria-hidden="true" />
+          <span>Help</span>
+        </Link>
       </div>
+
+      {!customer && (
+        <p className="nav-note" role="status">
+          This booking has no map pin. Navigation will search the address instead.
+        </p>
+      )}
+      {geoProblem === "denied" && (
+        <p className="nav-alert" role="alert">
+          Location permission is blocked. Allow it in your browser settings,
+          then tap Navigation again.
+        </p>
+      )}
+      {geoProblem === "unsupported" && (
+        <p className="nav-alert" role="alert">
+          This browser does not support location sharing.
+        </p>
+      )}
+      {local.error && !sharing.geoProblem && (
+        <p className="nav-alert" role="alert">
+          {local.error}
+        </p>
+      )}
+      {sharing.ended && (
+        <p className="nav-alert" role="alert">
+          Sharing stopped because this job is no longer active.
+        </p>
+      )}
+      {sharing.sendProblem && (
+        <p className="nav-alert" role="alert">
+          {sharing.sendProblem}
+        </p>
+      )}
+      {actionError && (
+        <p className="nav-alert" role="alert">
+          {actionError}
+        </p>
+      )}
+      {sharing.sharing && (
+        <button
+          type="button"
+          className="nv-stop"
+          onClick={() => void sharing.stop()}
+          disabled={sharing.stopping}
+        >
+          {sharing.stopping ? "Stopping…" : "Stop sharing location"}
+        </button>
+      )}
+      {!canShare && job.status === "assigned" && (
+        <p className="nav-hint">
+          Tap “
+          {job.actions.find((a) => a.status === "en_route")?.label ?? "On the way"}
+          ” when you leave so the customer can follow you live.
+        </p>
+      )}
+
+      {chatOpen && (
+        <div
+          className="nv-overlay"
+          role="presentation"
+          onClick={() => setChatOpen(false)}
+        >
+          <div
+            className="nv-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chat with customer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="nv-sheet-bar">
+              <strong>Chat</strong>
+              <button
+                type="button"
+                className="nv-sheet-close"
+                onClick={() => setChatOpen(false)}
+                aria-label="Close chat"
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="nv-sheet-body">
+              <ChatPanel bookingId={id} viewerRole="partner" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

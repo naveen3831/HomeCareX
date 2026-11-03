@@ -37,6 +37,7 @@ interface RefundResult {
 
 interface AdminBookingSource {
   _id: { toString(): string };
+
   customerId?: { toString(): string };
   customerName?: string;
   categoryId?: { toString(): string };
@@ -206,27 +207,27 @@ export class AdminBookingsController {
   }
 
   private getSlotTimes(slot?: string): { start: string; end: string } {
-  if (!slot || typeof slot !== 'string') {
-    return { start: '', end: '' };
+    if (!slot || typeof slot !== 'string') {
+      return { start: '', end: '' };
+    }
+
+    const parts = slot.split(/\s*-\s*/).map((part) => part.trim());
+
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      return { start: '', end: '' };
+    }
+
+    const start = this.normalizeAvailabilityTime(parts[0]);
+    const end = this.normalizeAvailabilityTime(parts[1]);
+
+    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+    if (!timeRegex.test(start) || !timeRegex.test(end)) {
+      return { start: '', end: '' };
+    }
+
+    return { start, end };
   }
-
-  const parts = slot.split(/\s*-\s*/).map((part) => part.trim());
-
-  if (parts.length !== 2 || !parts[0] || !parts[1]) {
-    return { start: '', end: '' };
-  }
-
-  const start = this.normalizeAvailabilityTime(parts[0]);
-  const end = this.normalizeAvailabilityTime(parts[1]);
-
-  const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-  if (!timeRegex.test(start) || !timeRegex.test(end)) {
-    return { start: '', end: '' };
-  }
-
-  return { start, end };
-}
 
   private mapPaymentStatus(status?: string): AdminPaymentStatus {
     switch ((status ?? '').toUpperCase()) {
@@ -298,18 +299,18 @@ export class AdminBookingsController {
     bookings: AdminBookingSource[],
   ): Promise<BookingLookups> {
     const unique = (values: Array<string | undefined>): string[] => {
-  return [
-    ...new Set(
-      values.filter((value): value is string => {
-        if (typeof value !== 'string' || value.trim() === '') {
-          return false;
-        }
+      return [
+        ...new Set(
+          values.filter((value): value is string => {
+            if (typeof value !== 'string' || value.trim() === '') {
+              return false;
+            }
 
-        return Types.ObjectId.isValid(value);
-      }),
-    ),
-  ];
-};
+            return Types.ObjectId.isValid(value);
+          }),
+        ),
+      ];
+    };
 
     const partnerIds = unique(
       bookings.map((booking) => booking.partnerId?.toString()),
@@ -733,7 +734,7 @@ export class AdminBookingsController {
     res.status(200).json({ success: true, data });
   }
 
-    /**
+  /**
    * GET /api/v1/admin/bookings/:bookingId/eligible-partners
    *
    * Returns all partners with their eligibility information.

@@ -70,7 +70,9 @@ export interface IBooking extends Document {
   statusHistory: StatusHistoryItem[];
   paymentStatus: BookingPaymentStatus;
   /** Razorpay order/payment refs for the customer checkout; signature is never sent to clients. */
-  paymentDetails?: { orderId?: string; paymentId?: string; signature?: string; status?: string; paidAt?: Date };
+  paymentDetails?: { orderId?: string; paymentId?: string; signature?: string; status?: string; paidAt?: Date; method?: string; collectedBy?: string };
+  /** The partner's rating of the customer after the job. One per booking. */
+  customerRating?: { rating?: number; comment?: string; ratedAt?: Date };
   refundStatus?: string;
   refundDetails?: {
     refundId?: Types.ObjectId | string;
@@ -84,8 +86,10 @@ export interface IBooking extends Document {
     walletTransactionRef?: string;
   };
   cancellationReason?: string;
-  offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired' }>;
+  offers: Array<{ partnerId: Types.ObjectId; offeredAt: Date; expiresAt: Date; response: 'pending' | 'accepted' | 'rejected' | 'expired'; rejectReason?: string; respondedAt?: Date }>;
   otpCodes?: { start?: string; end?: string };
+  /** Wrong start-code tries by the partner; the job locks at START_OTP_MAX_ATTEMPTS. */
+  startOtpAttempts?: number;
   extraCharges?: Array<{
     _id: Types.ObjectId;
     title: string;
@@ -123,6 +127,9 @@ const OfferSchema = new Schema(
     offeredAt: { type: Date, default: Date.now },
     expiresAt: { type: Date, required: true },
     response: { type: String, enum: ['pending', 'accepted', 'rejected', 'expired'], default: 'pending' },
+    /** Why the partner declined (only set when response === 'rejected'). */
+    rejectReason: { type: String, trim: true, maxlength: 300 },
+    respondedAt: { type: Date },
   },
   { _id: false },
 );
@@ -188,6 +195,14 @@ const BookingSchema = new Schema<IBooking>(
       signature: { type: String, trim: true },
       status: { type: String, trim: true },
       paidAt: { type: Date },
+      /** How the partner collected payment on site: cash or upi. */
+      method: { type: String, trim: true },
+      collectedBy: { type: String, trim: true },
+    },
+    customerRating: {
+      rating: { type: Number, min: 1, max: 5 },
+      comment: { type: String, trim: true, maxlength: 300 },
+      ratedAt: { type: Date },
     },
     refundStatus: { type: String, trim: true, index: true },
     refundDetails: {
@@ -208,6 +223,7 @@ const BookingSchema = new Schema<IBooking>(
       start: { type: String, select: false },
       end: { type: String, select: false },
     },
+    startOtpAttempts: { type: Number, default: 0, min: 0 },
     extraCharges: {
       type: [{
         title: { type: String, required: true, trim: true },

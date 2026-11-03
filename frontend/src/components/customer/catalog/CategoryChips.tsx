@@ -34,22 +34,23 @@ export function CategoryChips({ categories, total, selected, onSelect }: Props) 
         </span>
       </button>
       {uniqueCategories.map((c, i) => {
-        const v = categoryVisual(c.slug, c.image);
-        const photo = c.image || v.image;
-        const displayName = c.name;
+        const v = categoryVisual(c.slug);
         const on = c.slug === selected;
+        const photo = c.imageUrl?.trim() || v.image; // admin's cover first, built-in photo until one is set
+        const iconUrl = c.iconUrl?.trim();
         return (
           <button key={c.id} type="button" aria-pressed={on} onClick={() => onSelect(on ? undefined : c.slug)} className={clsx(base, state(on), FOCUS_RING)}>
             <span className={clsx("relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full", v.tint)}>
               {photo ? (
-                <img src={photo} alt="" loading="lazy" decoding="async" style={{ objectPosition: v.focus }} className="h-full w-full object-cover" />
-
+                <img src={photo} alt="" loading="lazy" decoding="async" style={{ objectPosition: photo === v.image ? v.focus : undefined }} className="h-full w-full object-cover" />
+              ) : iconUrl ? (
+                <img src={iconUrl} alt="" loading="lazy" decoding="async" className="h-6 w-6 object-contain" />
               ) : (
                 <Icon3D asset={v.asset} emoji={c.icon} delayMs={i * 500} className="h-6 w-6" />
               )}
             </span>
             <span className="min-w-0">
-              <span className="block max-w-[150px] truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
+              <span className="block max-w-[150px] truncate text-[13px] font-semibold leading-tight text-ink">{c.name}</span>
               <span className="block text-[10.5px] leading-tight text-muted">{plural(c.serviceCount, "service")}</span>
             </span>
           </button>
