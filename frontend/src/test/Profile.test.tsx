@@ -471,6 +471,21 @@ describe("Profile pages", () => {
     );
     expect(await screen.findByLabelText(/^current password/i)).toBeInTheDocument();
   });
+
+  it("renders Logout button before Delete account button on mobile profile", async () => {
+    homeData();
+    okProfile();
+    wrapAt("/customer/profile");
+
+    const logoutSection = await screen.findByRole("region", { name: "Sign out" });
+    const deleteSection = screen.getByRole("region", { name: "Delete account" });
+
+    expect(logoutSection).toBeInTheDocument();
+    expect(deleteSection).toBeInTheDocument();
+
+    // Verify DOM order: logoutSection comes before deleteSection
+    expect(logoutSection.compareDocumentPosition(deleteSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe("Forgot password inside Change password", () => {

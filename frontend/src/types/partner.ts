@@ -17,6 +17,19 @@ export interface PartnerDashboard {
   acceptanceRate: number;
   completionRate: number;
   activeJob: ActiveJob | null;
+  /** Real money from the earnings ledger (same source as the Earnings page). INR. */
+  earnings?: { today: number; week: number; month: number; total: number; pending: number };
+  completedTotal?: number;
+  /** Real rates; null = no data yet (show "No data", not 0%). */
+  performance?: {
+    rating: number | null;
+    ratingCount: number;
+    acceptanceRate: number | null;
+    completionRate: number | null;
+    onTimeRate: number | null;
+  };
+  /** Net earnings for each of the last 7 days, oldest first. */
+  last7Days?: Array<{ date: string; amount: number }>;
   assignedServices?: Array<{ id: string; name: string }>;
 }
 
@@ -77,6 +90,8 @@ export interface PartnerJob {
   status: PartnerJobStatus;
   instructions?: string;
   expiresAt?: string;
+  /** Service photo URL, when the backend sends one. */
+  image?: string;
 }
 
 export interface JobsResponse {

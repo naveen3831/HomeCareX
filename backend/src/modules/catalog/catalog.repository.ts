@@ -78,8 +78,22 @@ export const catalogRepository = {
     return ServiceModel.countDocuments(built.filter).exec();
   },
 
-  findService(idOrSlug: string): Promise<ServiceRow | null> {
+  async findService(idOrSlug: string): Promise<ServiceRow | null> {
     const where = Types.ObjectId.isValid(idOrSlug) ? { _id: idOrSlug } : { slug: idOrSlug };
-    return ServiceModel.findOne({ ...where, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    const direct = await ServiceModel.findOne({ ...where, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    if (direct) return direct;
+    const slugAliases: Record<string, string> = {
+      'home-cleaning': 'deep-home-cleaning',
+      'plumbing': 'plumbing-tap-leak-repair',
+      'electrical': 'electrician-visit-general',
+      'appliance-repair': 'ac-service-gas-refill',
+      'ac-service': 'ac-service-gas-refill',
+      'home-maintenance': 'furniture-assembly',
+    };
+    const targetSlug = slugAliases[idOrSlug];
+    if (targetSlug) {
+      return ServiceModel.findOne({ slug: targetSlug, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    }
+    return ServiceModel.findOne({ slug: new RegExp('^' + idOrSlug, 'i'), active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
   },
 };

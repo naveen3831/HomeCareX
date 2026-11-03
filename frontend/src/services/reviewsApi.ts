@@ -1,4 +1,5 @@
 import http, { type ApiResponse } from "@/lib/http";
+import { normalizeApiError } from "@/services/bookingApi";
 
 export type ReviewStatus = "pending" | "approved" | "rejected";
 
@@ -89,15 +90,28 @@ export interface CreateReviewInput {
   bookingId?: string;
 }
 
-/** Convert backend review records into the frontend's review shape. */
-function toMyReview(review: CustomerReview): MyReview {
+/**
+ * The backend sends `null` for names it could not resolve. The UI types use optional strings,
+ * so turn null into undefined once, here.
+ */
+type MyReviewWire = Omit<MyReview, "serviceId" | "serviceName" | "partnerId" | "partnerName" | "bookingId"> & {
+  bookingId: string | null;
+  serviceId: string | null;
+  serviceName: string | null;
+  partnerId: string | null;
+  partnerName: string | null;
+};
+
+function toMyReview(r: MyReviewWire): MyReview {
   return {
-    ...review,
-    id: review._id,
-    comment: review.message,
-    tags: [],
-    visible: review.status === "approved",
-    verified: review.verified ?? false,
+    ...r,
+    bookingId: r.bookingId ?? undefined,
+    serviceId: r.serviceId ?? undefined,
+    serviceName: r.serviceName ?? undefined,
+    partnerId: r.partnerId ?? undefined,
+    partnerName: r.partnerName ?? undefined,
+    comment: r.comment ?? "",
+    tags: r.tags ?? [],
   };
 }
 
@@ -114,45 +128,42 @@ export const createReview = async (
 };
 
 /**
- * Submit a review for a specific completed booking.
- * Backend requires a message between 20 and 2000 characters.
- *
- * Note: tags are not persisted because the current backend model
- * and validation schema do not support them.
+ * POST /bookings/:id/review
+ * Reviews one of the signed-in customer's completed bookings. The server takes the service and partner
+ * from the booking, so only rating, tags and an optional comment are sent. Rejects with a NormalizedApiError
+ * (409 = already reviewed / not completed yet, 404 = not this customer's booking).
  */
 export const createBookingReview = async (
   bookingId: string,
-  input: CreateBookingReviewInput & { serviceId?: string },
+  input: CreateBookingReviewInput,
 ): Promise<MyReview> => {
-  const message = input.comment?.trim() ?? "";
+  const comment = input.comment?.trim();
 
-  if (message.length < 20) {
-    throw new Error("Please enter a review of at least 20 characters.");
+  if (comment && comment.length > REVIEW_COMMENT_MAX) {
+    throw normalizeApiError({
+      status: 400,
+      code: "VALIDATION_ERROR",
+      message: `Review must be ${REVIEW_COMMENT_MAX} characters or fewer.`,
+    });
   }
 
-  if (message.length > REVIEW_COMMENT_MAX) {
-    throw new Error(
-      `Review must be ${REVIEW_COMMENT_MAX} characters or fewer.`,
+  try {
+    const response = await http.post<ApiResponse<MyReviewWire>>(
+      `/bookings/${encodeURIComponent(bookingId)}/review`,
+      {
+        rating: input.rating,
+        tags: input.tags,
+        ...(comment ? { comment } : {}),
+      },
     );
+
+    return toMyReview(response.data.data);
+  } catch (err) {
+    throw normalizeApiError(err);
   }
-
-  const serviceId = input.serviceId;
-
-  if (!serviceId) {
-    throw new Error("Service ID is required to submit a booking review.");
-  }
-
-  const review = await createReview({
-    rating: input.rating,
-    message,
-    serviceId,
-    bookingId,
-  });
-
-  return toMyReview(review);
 };
 
-/** GET /reviews/mine */
+/** GET /reviews/mine (legacy raw documents) */
 export const fetchMyReviews = async (): Promise<CustomerReview[]> => {
   const response = await http.get<ApiResponse<CustomerReview[]>>(
     "/reviews/mine",
@@ -161,30 +172,35 @@ export const fetchMyReviews = async (): Promise<CustomerReview[]> => {
   return response.data.data;
 };
 
-/** GET /reviews/mine — booking-review hook shape */
+/** GET /reviews: the signed-in customer's reviews with service/partner names, tags and moderation status. */
 export const fetchMyBookingReviews = async (
   signal?: AbortSignal,
 ): Promise<MyReview[]> => {
-  const response = await http.get<ApiResponse<CustomerReview[]>>(
-    "/reviews/mine",
-    { signal },
-  );
+  try {
+    const response = await http.get<ApiResponse<MyReviewWire[]>>("/reviews", {
+      signal,
+    });
 
-  return response.data.data.map(toMyReview);
+    return response.data.data.map(toMyReview);
+  } catch (err) {
+    throw normalizeApiError(err);
+  }
 };
 
-/**
- * No pending-bookings-for-review endpoint has been confirmed in the
- * backend routes provided so far.
- *
- * Return an empty list until a real backend endpoint is implemented.
- * This prevents an invalid network request, but does not discover
- * bookings that still need reviews.
- */
+/** GET /reviews/pending: completed bookings the customer has not reviewed yet. */
 export const fetchPendingReviews = async (
-  _signal?: AbortSignal,
+  signal?: AbortSignal,
 ): Promise<PendingReview[]> => {
-  return [];
+  try {
+    const response = await http.get<ApiResponse<PendingReview[]>>(
+      "/reviews/pending",
+      { signal },
+    );
+
+    return response.data.data;
+  } catch (err) {
+    throw normalizeApiError(err);
+  }
 };
 
 /** GET /admin/reviews */
@@ -270,6 +286,91 @@ export const fetchServiceReviews = async (
       totalPages: Math.ceil(
         data.summary.count / (params.limit ?? 10),
       ),
+    },
+  };
+};
+
+/** Public customer review shape for the Reviews page & Testimonials */
+export interface PublicCustomerReview {
+  id: string;
+  name: string;
+  city: string;
+  service: string;
+  category: "Cleaning" | "Plumbing" | "Electrical" | "Appliances" | "Carpentry" | string;
+  tag: string;
+  headline: string;
+  review: string;
+  rating: number;
+  avatar: string;
+  date: string;
+  verifiedBookingsCount: number;
+  helpfulCount: number;
+  verified?: boolean;
+  createdAt?: string;
+}
+
+export interface PublicReviewsStats {
+  averageRating: number;
+  totalReviews: number;
+  satisfactionRate: number;
+  homesServed: string;
+  categoryCounts: Record<string, number>;
+}
+
+export interface PublicReviewsResponse {
+  reviews: PublicCustomerReview[];
+  stats: PublicReviewsStats;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface FetchPublicReviewsParams {
+  category?: string;
+  rating?: number | string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+/** GET /public/reviews — site-wide customer reviews and platform stats */
+export const fetchPublicReviews = async (
+  params: FetchPublicReviewsParams = {},
+): Promise<PublicReviewsResponse> => {
+  const query: Record<string, unknown> = {};
+  if (params.category && params.category !== "All") {
+    query.category = params.category;
+  }
+  if (params.rating && params.rating !== "all") {
+    query.rating = params.rating;
+  }
+  if (params.search && params.search.trim()) {
+    query.search = params.search.trim();
+  }
+  if (params.page) query.page = params.page;
+  if (params.limit) query.limit = params.limit;
+
+  const response = await http.get<
+    ApiResponse<{
+      reviews: PublicCustomerReview[];
+      stats: PublicReviewsStats;
+    }> & { meta?: PublicReviewsResponse["meta"] }
+  >("/public/reviews", { params: query });
+
+  const data = response.data.data;
+  const meta = response.data.meta;
+
+  return {
+    reviews: data.reviews,
+    stats: data.stats,
+    meta: meta ?? {
+      page: params.page ?? 1,
+      limit: params.limit ?? 20,
+      total: data.reviews.length,
+      totalPages: 1,
     },
   };
 };

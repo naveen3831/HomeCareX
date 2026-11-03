@@ -10,4 +10,11 @@ export const environmentConfig = {
   get redisUrl(): string | undefined {
     return process.env.REDIS_URL || undefined;
   },
+  /** HomeCareX UPI ID the customer pays to when the partner shows the QR code (e.g. homecarex@okhdfcbank). */
+  get upiPayeeId(): string | undefined {
+    return process.env.UPI_PAYEE_ID?.trim() || undefined;
+  },
+  get upiPayeeName(): string {
+    return process.env.UPI_PAYEE_NAME?.trim() || 'HomeCareX';
+  },
 };

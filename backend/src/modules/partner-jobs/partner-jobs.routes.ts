@@ -1,4 +1,5 @@
 import { Router } from "express";
+import multer from "multer";
 
 import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
@@ -7,22 +8,37 @@ import { validationMiddleware } from "../../middleware/validation.middleware";
 
 import {
   acceptJobOffer,
+  collectJobPayment,
+  completePartnerJob,
   getPartnerJob,
   listJobRequests,
   listPartnerJobs,
   raiseJobSos,
+  rateJobCustomer,
   rejectJobOffer,
   updateBookingStatus,
+  verifyJobStart,
 } from "./partner-jobs.controller";
 
 import {
+  collectPaymentBodySchema,
+  completeBodySchema,
   jobParamsSchema,
+  rateCustomerBodySchema,
+  rejectBodySchema,
   sosBodySchema,
   statusBodySchema,
+  verifyStartBodySchema,
 } from "./partner-jobs.validation";
 
 /** Mounted at /partner/jobs */
 export const partnerJobsRoutes = Router();
+
+/** Start and complete may arrive as multipart with a photo. The photo is optional and is not stored. */
+const optionalPhoto = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+}).single("photo");
 
 // GET /api/v1/partner/jobs
 // Partner's live jobs
@@ -79,7 +95,7 @@ partnerJobsRoutes.post(
   authenticate,
   requireRole("partner"),
   requirePermission("partner:jobs:update"),
-  validationMiddleware({ params: jobParamsSchema }),
+  validationMiddleware({ params: jobParamsSchema, body: rejectBodySchema }),
   rejectJobOffer,
 );
 
@@ -91,6 +107,48 @@ partnerJobsRoutes.post(
   requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema, body: sosBodySchema }),
   raiseJobSos,
+);
+
+// POST /api/v1/partner/jobs/:id/verify-start   body: { otp }
+partnerJobsRoutes.post(
+  "/:id/verify-start",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  optionalPhoto,
+  validationMiddleware({ params: jobParamsSchema, body: verifyStartBodySchema }),
+  verifyJobStart,
+);
+
+// POST /api/v1/partner/jobs/:id/complete   body: { notes? }
+partnerJobsRoutes.post(
+  "/:id/complete",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  optionalPhoto,
+  validationMiddleware({ params: jobParamsSchema, body: completeBodySchema }),
+  completePartnerJob,
+);
+
+// POST /api/v1/partner/jobs/:id/collect-payment   body: { method: "cash" | "upi" }
+partnerJobsRoutes.post(
+  "/:id/collect-payment",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: jobParamsSchema, body: collectPaymentBodySchema }),
+  collectJobPayment,
+);
+
+// POST /api/v1/partner/jobs/:id/rate-customer   body: { rating: 1-5, comment? }
+partnerJobsRoutes.post(
+  "/:id/rate-customer",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: jobParamsSchema, body: rateCustomerBodySchema }),
+  rateJobCustomer,
 );
 
 /** Mounted at /partner/job-requests */

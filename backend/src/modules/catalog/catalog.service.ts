@@ -57,7 +57,16 @@ export const catalogService = {
     const cats = await repo.activeCategories();
     let scope = cats;
     if (parsed.category) {
-      scope = cats.filter((c) => String(c._id) === parsed.category || c.slug === parsed.category);
+      const catKey = parsed.category.toLowerCase();
+      scope = cats.filter((c) => {
+        const idStr = String(c._id);
+        const slug = c.slug.toLowerCase();
+        if (idStr === catKey || slug === catKey) return true;
+        if ((catKey === 'plumbing' || catKey === 'electrical') && slug === 'electrical-plumbing') return true;
+        if (catKey === 'appliance-repair' && slug === 'appliance-repair-service') return true;
+        if (catKey === 'cleaning' && slug === 'home-cleaning') return true;
+        return false;
+      });
     }
     const emptyMeta: PageMeta = { page, limit, total: 0, totalPages: 0 };
     if (scope.length === 0) return { items: [], meta: emptyMeta };

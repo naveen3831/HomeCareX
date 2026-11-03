@@ -239,8 +239,172 @@ describe('partner jobs', () => {
       const json = (await res.json()) as { success: boolean; data: { success: boolean } };
       assert.equal(json.data.success, true);
     });
+    it('200: accepts a rejection reason and passes it to the repository', async () => {
+      let seen: string | undefined;
+      const original = repo.rejectOffer;
+      repo.rejectOffer = (async (_bid: string, _pid: Types.ObjectId, reason?: string) => {
+        seen = reason;
+        return 'REJECTED';
+      }) as unknown as typeof repo.rejectOffer;
+      try {
+        const res = await fetch(`${base}/api/v1/partner/jobs/${bookingId.toString()}/reject`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token('partner')}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: '  Too far from my service area  ' }),
+        });
+        assert.equal(res.status, 200);
+        assert.equal(seen, 'Too far from my service area');
+      } finally {
+        repo.rejectOffer = original;
+      }
+    });
+    it('400: rejects a too-short reason', async () => {
+      const res = await fetch(`${base}/api/v1/partner/jobs/${bookingId.toString()}/reject`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token('partner')}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'x' }),
+      });
+      assert.equal(res.status, 400);
+    });
     it('401: unauthenticated reject rejected', async () => {
       const res = await postReject(bookingId.toString());
+      assert.equal(res.status, 401);
+    });
+  });
+
+  describe('start, complete, payment and rating', () => {
+    const post = (path: string, body: unknown, bearer = token('partner')) =>
+      fetch(`${base}/api/v1/partner/jobs/${bookingId.toString()}/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    type Detail = {
+      status: string;
+      payment: { status: string; method: string | null; amountDue: number; upiUri: string | null };
+      customerRating: { rating: number; comment: string | null } | null;
+    };
+    const detail = async (res: Response) => ((await res.json()) as { data: Detail }).data;
+
+    before(() => {
+      repo.getStartOtp = (async () => '5127') as typeof repo.getStartOtp;
+      repo.recordFailedStartAttempt = (async () => {
+        booking.startOtpAttempts = (booking.startOtpAttempts ?? 0) + 1;
+        return booking.startOtpAttempts;
+      }) as typeof repo.recordFailedStartAttempt;
+      // These mimic the atomic compare-and-set updates done in Mongo.
+      repo.verifyStartJob = (async (_id, pid) => {
+        if (booking.partnerId?.toString() !== pid.toString() || booking.status !== 'arrived') return false;
+        booking.status = 'in_progress';
+        return true;
+      }) as typeof repo.verifyStartJob;
+      repo.completePartnerJob = (async (_id, pid) => {
+        if (booking.partnerId?.toString() !== pid.toString() || booking.status !== 'in_progress') return false;
+        booking.status = 'completed';
+        return true;
+      }) as typeof repo.completePartnerJob;
+      repo.markPaid = (async (_id, _pid, method, now) => {
+        if (booking.paymentStatus === 'PAID') return false;
+        booking.paymentStatus = 'PAID';
+        booking.paymentDetails = { paidAt: now, method };
+        return true;
+      }) as typeof repo.markPaid;
+      repo.saveCustomerRating = (async (_id, _pid, rating, comment, now) => {
+        if (typeof booking.customerRating?.rating === 'number') return false;
+        booking.customerRating = { rating, comment, ratedAt: now };
+        return true;
+      }) as typeof repo.saveCustomerRating;
+    });
+
+    it('200: arrived + correct start code moves the job to in_progress', async () => {
+      booking = makeBooking('arrived');
+      const res = await post('verify-start', { otp: '5127' });
+      assert.equal(res.status, 200);
+      assert.equal((await detail(res)).status, 'in_progress');
+    });
+    it('422: wrong start code, 400: malformed code, 422: not arrived yet', async () => {
+      booking = makeBooking('arrived');
+      assert.equal((await post('verify-start', { otp: '9999' })).status, 422);
+      assert.equal((await post('verify-start', { otp: 'abc' })).status, 400);
+      assert.equal(booking.status, 'arrived');
+      booking = makeBooking('en_route');
+      assert.equal((await post('verify-start', { otp: '5127' })).status, 422);
+    });
+    it('1234 is no longer a master code; 5 wrong tries lock the job (423)', async () => {
+      booking = makeBooking('arrived');
+      assert.equal((await post('verify-start', { otp: '1234' })).status, 422);
+      for (let i = 0; i < 3; i++) await post('verify-start', { otp: '0000' });
+      assert.equal((await post('verify-start', { otp: '0000' })).status, 423);
+      assert.equal((await post('verify-start', { otp: '5127' })).status, 423);
+      assert.equal(booking.status, 'arrived');
+    });
+    it('200: in_progress job can be completed, 422 otherwise', async () => {
+      booking = makeBooking('in_progress');
+      const res = await post('complete', {});
+      assert.equal(res.status, 200);
+      assert.equal((await detail(res)).status, 'completed');
+      booking = makeBooking('assigned');
+      assert.equal((await post('complete', {})).status, 422);
+    });
+
+    it('amountDue adds approved extra charges; upiUri only while unpaid and a UPI ID is set', async () => {
+      process.env.UPI_PAYEE_ID = 'homecarex@upi';
+      try {
+        booking = { ...makeBooking('completed'), paymentStatus: 'PENDING' };
+        booking.extraCharges = [
+          { _id: new Types.ObjectId(), title: 'Extra', amount: 100, quantity: 2, status: 'approved', requestedAt: new Date() },
+          { _id: new Types.ObjectId(), title: 'Skipped', amount: 500, quantity: 1, status: 'rejected', requestedAt: new Date() },
+        ];
+        const unpaid = await detail(await get(bookingId.toString(), token('partner')));
+        assert.equal(unpaid.payment.amountDue, 799);
+        assert.ok(unpaid.payment.upiUri?.startsWith('upi://pay?pa=homecarex%40upi'));
+        assert.ok(unpaid.payment.upiUri?.includes('am=799.00'));
+        booking.paymentStatus = 'PAID';
+        assert.equal((await detail(await get(bookingId.toString(), token('partner')))).payment.upiUri, null);
+        delete process.env.UPI_PAYEE_ID;
+        booking.paymentStatus = 'PENDING';
+        assert.equal((await detail(await get(bookingId.toString(), token('partner')))).payment.upiUri, null);
+      } finally {
+        delete process.env.UPI_PAYEE_ID;
+      }
+    });
+
+    it('collect-payment: marks a completed job paid with the method, and is safe to repeat', async () => {
+      booking = { ...makeBooking('completed'), paymentStatus: 'PENDING' };
+      const res = await post('collect-payment', { method: 'cash' });
+      assert.equal(res.status, 200);
+      const d = await detail(res);
+      assert.equal(d.payment.status, 'PAID');
+      assert.equal(d.payment.method, 'cash');
+      assert.equal((await post('collect-payment', { method: 'upi' })).status, 200);
+      assert.equal(booking.paymentDetails?.method, 'cash');
+    });
+    it('collect-payment: 422 before completion, 400 for a bad method, 403 for another partner', async () => {
+      booking = { ...makeBooking('in_progress'), paymentStatus: 'PENDING' };
+      assert.equal((await post('collect-payment', { method: 'cash' })).status, 422);
+      booking = { ...makeBooking('completed'), paymentStatus: 'PENDING' };
+      assert.equal((await post('collect-payment', { method: 'card' })).status, 400);
+      assert.equal((await post('collect-payment', { method: 'cash' }, token('partner', otherUserId))).status, 403);
+      assert.equal(booking.paymentStatus, 'PENDING');
+    });
+
+    it('rate-customer: needs payment first, saves once, keeps the first rating', async () => {
+      booking = { ...makeBooking('completed'), paymentStatus: 'PENDING' };
+      assert.equal((await post('rate-customer', { rating: 5 })).status, 422);
+      booking.paymentStatus = 'PAID';
+      const res = await post('rate-customer', { rating: 4, comment: 'Polite and on time' });
+      assert.equal(res.status, 200);
+      assert.deepEqual((await detail(res)).customerRating, { rating: 4, comment: 'Polite and on time' });
+      const again = await post('rate-customer', { rating: 1 });
+      assert.equal(again.status, 200);
+      assert.equal((await detail(again)).customerRating?.rating, 4);
+    });
+    it('rate-customer: 400 for out-of-range or missing rating, 401 without a token', async () => {
+      booking = makeBooking('completed');
+      assert.equal((await post('rate-customer', { rating: 6 })).status, 400);
+      assert.equal((await post('rate-customer', { rating: 0 })).status, 400);
+      assert.equal((await post('rate-customer', {})).status, 400);
+      const res = await fetch(`${base}/api/v1/partner/jobs/${bookingId.toString()}/rate-customer`, { method: 'POST' });
       assert.equal(res.status, 401);
     });
   });

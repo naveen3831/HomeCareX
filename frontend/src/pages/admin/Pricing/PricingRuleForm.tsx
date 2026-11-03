@@ -125,7 +125,7 @@ export const PricingRuleForm: React.FC<Props> = ({ open, editing, categories, se
         <section className="cat-form__sec prc-card" aria-labelledby="pf-scope">
           <header className="prc-card__head">
             <span className="prc-step">1</span>
-            <div><h3 id="pf-scope">Service &amp; scope</h3><p>Who this rule applies to</p></div>
+            <div><h3 id="pf-scope">Rule scope</h3><p>Who this rule applies to</p></div>
           </header>
           <div className="prc-grid2">
             <label className="cat-field">

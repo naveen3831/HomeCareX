@@ -16,7 +16,7 @@ import type { BookingDetailPartner } from "@/types/bookingDetail";
 import { formatRating } from "../../Bookings/bookingModel";
 
 const ACTION_BTN =
-  "flex h-9 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold leading-none text-ink transition";
+  "flex h-8 sm:h-8.5 items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold leading-none text-ink transition";
 
 /** Who is coming: photo (or initial), name, rating, role/ID, Call / Chat / Details, and the ETA and distance tiles. */
 export default function PartnerCard({
@@ -67,7 +67,7 @@ export default function PartnerCard({
     : "Service Specialist";
 
   return (
-    <div className="flex shrink-0 flex-col gap-2.5">
+    <div className="flex shrink-0 flex-col gap-2">
       {/* Partner Avatar + Name + Rating + Specialist Subtitle */}
       <div className="flex shrink-0 items-center gap-2.5">
         <span

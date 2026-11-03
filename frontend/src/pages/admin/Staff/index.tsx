@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { usePermissions } from '@/hooks/usePermissions';
 import { StaffTab } from '../Roles/StaffTab';
@@ -18,11 +18,13 @@ export const AdminStaffPage: React.FC = () => {
         title="Staff"
         description="Invite teammates, change their role, deactivate them or sign them out."
       />
+
       {can(RBAC_PERMISSIONS.staffView) ? (
         <StaffTab notify={toast.show} />
       ) : (
-        <p className="rbac-muted">You don’t have access to staff.</p>
+        <p className="rbac-muted">You donΓÇÖt have access to staff.</p>
       )}
+
       {toast.node}
     </div>
   );

@@ -2,7 +2,6 @@ import type { RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Bell, Menu } from "lucide-react";
 import clsx from "clsx";
-import OnlineIndicator from "../OnlineIndicator";
 import PartnerProfileMenu from "./PartnerProfileMenu";
 import { PARTNER_DRAWER_ID } from "./PartnerMobileDrawer";
 import { PARTNER_SIDEBAR_ID } from "./PartnerSidebar";
@@ -57,7 +56,6 @@ export default function PartnerTopBar({
       </div>
 
       <div className="flex items-center gap-1 md:gap-3">
-        <OnlineIndicator online={online} onChange={onOnlineChange} />
         <Link
           to={partnerPath("/system/notifications")}
           aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}

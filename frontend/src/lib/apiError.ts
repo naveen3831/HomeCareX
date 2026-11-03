@@ -1,6 +1,11 @@
-import type { ApiError } from './http';
+﻿import type { ApiError } from './http';
 
-export type ApiErrorKind = 'offline' | 'network' | 'timeout' | 'http' | 'unknown';
+export type ApiErrorKind =
+  | 'offline'
+  | 'network'
+  | 'timeout'
+  | 'http'
+  | 'unknown';
 
 export interface ClassifiedApiError {
   kind: ApiErrorKind;
@@ -11,33 +16,48 @@ export interface ClassifiedApiError {
 }
 
 /**
- * Accepts both the normalized ApiError (status/code/message at the top level) and a raw axios-style
- * error ({ response: { status, data: { code, message, details } } }), and returns the former.
+ * Accepts both normalized ApiError objects and raw Axios-style errors.
  */
 function normalizeRaw(err: unknown): ApiError | undefined {
-  if (!err || typeof err !== 'object') return err as ApiError | undefined;
-  const e = err as Record<string, unknown>;
-  const res = e.response as { status?: unknown; data?: Record<string, unknown> } | undefined;
-  if (typeof e.status !== 'number' && res && typeof res.status === 'number') {
-    const data = res.data ?? {};
+  if (!err || typeof err !== 'object') {
+    return undefined;
+  }
+
+  const error = err as Record<string, unknown>;
+
+  const response = error.response as
+    | {
+        status?: unknown;
+        data?: Record<string, unknown>;
+      }
+    | undefined;
+
+  if (
+    typeof error.status !== 'number' &&
+    response &&
+    typeof response.status === 'number'
+  ) {
+    const data = response.data ?? {};
+
     return {
-      ...e,
-      status: res.status,
-      code: e.code ?? data.code,
-      message: e.message ?? data.message,
-      details: e.details ?? data.details,
+      ...error,
+      status: response.status,
+      code: error.code ?? data.code,
+      message: error.message ?? data.message,
+      details: error.details ?? data.details,
     } as ApiError;
   }
+
   return err as ApiError;
 }
 
 /**
  * Classifies frontend API errors into distinct categories:
- * - 'offline': browser network adapter is disconnected (navigator.onLine === false)
- * - 'network': backend is unreachable, refused connection, or CORS failure (error.response == null)
- * - 'timeout': request exceeded client timeout (ECONNABORTED / ETIMEDOUT)
- * - 'http': actual HTTP status response received from backend (4xx, 5xx)
- * - 'unknown': unrecognized or unexpected runtime error
+ * - offline: browser reports that it is offline
+ * - network: backend is unreachable or no HTTP response was received
+ * - timeout: request exceeded its timeout
+ * - http: an HTTP status response was received
+ * - unknown: an unrecognized or unexpected error
  */
 export function classifyApiError(
   err: unknown,
@@ -48,17 +68,34 @@ export function classifyApiError(
     return {
       kind: 'offline',
       status: 0,
-      message: 'Unable to connect to the server. Please check your internet connection.',
+      message:
+        'Unable to connect to the server. Please check your internet connection.',
     };
   }
 
   const apiErr = normalizeRaw(err);
+
   if (!apiErr) {
     return {
       kind: 'unknown',
       message: 'Something went wrong. Please try again.',
     };
   }
+  const normalized: ApiError = {
+    ...apiErr,
+    message: apiErr.message || defaultHttpMsg,
+  };
+
+  const responseData = (apiErr as ApiError & {
+    response?: { data?: { message?: string; code?: string; details?: ApiError['details'] } };
+  }).response?.data;
+  const normalized: ApiError = {
+    message: apiErr?.message || responseData?.message || defaultHttpMsg,
+    status: apiErr?.status,
+    code: apiErr?.code || responseData?.code,
+    isTimeout: apiErr?.isTimeout,
+    details: apiErr?.details ?? responseData?.details,
+  };
 
   // 2. Request Timeout
   if (
@@ -85,7 +122,22 @@ export function classifyApiError(
     };
   }
 
-  // 4. Network error without HTTP status (server stopped, connection refused)
+  // 4. Network error without an HTTP response
+  if (
+    normalized.code === 'ERR_NETWORK' ||
+    normalized.code === 'ECONNREFUSED' ||
+    normalized.code === 'ERR_CONNECTION_REFUSED' ||
+    !normalized.status
+  ) {
+    return {
+      kind: 'network',
+      code: normalized.code,
+      message:
+        'Unable to connect to the server. Please check your connection and try again.',
+    };
+  }
+
+  // 5. Unexpected error
   return {
     kind: 'network',
     code: apiErr.code,

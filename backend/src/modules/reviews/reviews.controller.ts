@@ -110,6 +110,33 @@ export class ReviewsController {
   };
 
   /**
+   * GET /public/reviews & GET /reviews/public
+   * Public site-wide reviews with platform stats and filters.
+   */
+  listPublicReviews = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const result = await this.reviewsService.listPublicReviews(
+        req.query,
+      );
+
+      sendSuccess(
+        res,
+        {
+          reviews: result.reviews,
+          stats: result.stats,
+        },
+        { meta: { ...result.meta } },
+      );
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * GET /services/:id/reviews
    * Public endpoint.
    * Returns the summary, reviews, and pagination metadata.

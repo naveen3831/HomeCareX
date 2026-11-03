@@ -1,12 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bell,
   CalendarCheck,
   CreditCard,
+  FileText,
   Gift,
   Home,
   LayoutDashboard,
   LayoutGrid,
   LifeBuoy,
+  Lock,
   MapPin,
   Navigation,
   ShieldCheck,
@@ -88,15 +91,35 @@ export const BOTTOM_NAV_ITEMS: CustomerNavItem[] = [
 /** Pages the bottom nav already reaches (or that are the Profile page itself). */
 const NOT_IN_PROFILE_MENU = new Set([customerPath(), customerPath("/categories"), customerPath("/services"), customerPath("/profile")]);
 
+/** Settings pages shown on the desktop Profile cards but absent from the sidebar, keyed by the sidebar link they follow. */
+const PROFILE_EXTRA_AFTER: Record<string, CustomerNavItem[]> = {
+  [customerPath("/security")]: [
+    { label: "Change password", to: customerPath("/profile/password"), icon: Lock },
+    { label: "Notifications", to: customerPath("/profile/notifications"), icon: Bell },
+  ],
+};
+
 /**
  * Mobile replacement for the hamburger drawer. Derived from SIDEBAR_GROUPS, so a link added to the
  * desktop sidebar automatically shows up in the Profile menu too — minus Dashboard, Categories,
  * Services (bottom nav) and Profile (you're on it).
  */
-export const PROFILE_MENU_GROUPS: CustomerNavGroup[] = SIDEBAR_GROUPS.map((g) => ({
-  heading: g.heading,
-  items: g.items.filter((i) => !NOT_IN_PROFILE_MENU.has(i.to)),
-})).filter((g) => g.items.length > 0);
+export const PROFILE_MENU_GROUPS: CustomerNavGroup[] = [
+  ...SIDEBAR_GROUPS.map((g) => ({
+    heading: g.heading,
+    // Insert the settings pages that exist on the desktop Profile cards but not in the sidebar.
+    items: g.items
+      .filter((i) => !NOT_IN_PROFILE_MENU.has(i.to))
+      .flatMap((i) => [i, ...(PROFILE_EXTRA_AFTER[i.to] ?? [])]),
+  })).filter((g) => g.items.length > 0),
+  {
+    heading: "Legal",
+    items: [
+      { label: "Terms & Conditions", to: customerPath("/profile/terms"), icon: FileText },
+      { label: "Privacy Policy", to: customerPath("/profile/privacy"), icon: ShieldCheck },
+    ],
+  },
+];
 
 export type ProfileTint = "indigo" | "orange" | "emerald" | "amber" | "sky" | "rose" | "violet";
 
@@ -112,4 +135,8 @@ export const PROFILE_ITEM_META: Record<string, { description: string; tint: Prof
   "Help Center": { description: "FAQs & contact support", tint: "sky" },
   "My Tickets": { description: "Your support requests", tint: "indigo" },
   Referrals: { description: "Invite friends, earn rewards", tint: "violet" },
+  "Change password": { description: "Keep your account secure", tint: "orange" },
+  Notifications: { description: "Choose alerts & your language", tint: "rose" },
+  "Terms & Conditions": { description: "Read the rules for using HomeCareX", tint: "indigo" },
+  "Privacy Policy": { description: "How we handle your data", tint: "emerald" },
 };

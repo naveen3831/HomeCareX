@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import clsx from "clsx";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
 import { Pagination } from "@/components/customer/catalog/Pagination";
@@ -10,13 +10,14 @@ import { canPayOnline, usePayBooking } from "@/features/payments";
 import { useBookings } from "@/hooks/useBookings";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { customerPath } from "@/routes/customerPath";
+import type { BookingSort } from "@/types/bookingList";
 import { BTN_OUTLINE, BTN_PRIMARY } from "./BookingCards";
 import { BookingCard } from "./components/BookingCard";
 import { BookingFilters, FilterToggle } from "./components/BookingFilters";
 import { BookingListSkeleton } from "./components/BookingListSkeleton";
 import { BookingSearch } from "./components/BookingSearch";
 import { BookingTabs, tabId } from "./components/BookingTabs";
-import { DEFAULT_SORT, EMPTY_COPY, PAGE_SIZE } from "./bookingTabs";
+import { DEFAULT_SORT, EMPTY_COPY, PAGE_SIZE, SORT_OPTIONS } from "./bookingTabs";
 import {
   cancelNote,
   getBookingCode,
@@ -31,6 +32,8 @@ import { useBookingsUrlState } from "./useBookingsUrlState";
 const PANEL_ID = "bookings-panel";
 
 export default function MyBookingsPage() {
+  const navigate = useNavigate();
+ const location = useLocation();
   const {
     state,
     hasFilters,
@@ -72,6 +75,18 @@ export default function MyBookingsPage() {
       setPage(totalPages, true);
   }, [isPlaceholderData, totalPages, state.page, setPage]);
 
+  // Go back to referring page (Home or Profile) if available, otherwise Home.
+  const goBack = () => {
+    const from =
+      (location.state as { from?: string; origin?: string })?.from ||
+      (location.state as { from?: string; origin?: string })?.origin;
+    if (from && !from.includes("/bookings")) {
+      navigate(from);
+      return;
+    }
+    navigate(customerPath());
+  };
+
   /** Pay-now strip and the payment result for one booking. Kept here so payment state lives in one place. */
   const renderFooter = (b: BookingListItem): ReactNode => {
     const id = getBookingId(b);
@@ -91,9 +106,9 @@ export default function MyBookingsPage() {
       <>
         {payable && (
           <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5">
-            <p className="text-sm text-muted">
+            <p className="text-xs sm:text-sm text-slate-600">
               {awaitingPayment ? "Payment pending" : "Cash on service"} ·{" "}
-              <span className="font-semibold text-ink">
+              <span className="font-bold text-slate-900">
                 {rupees(getTotal(b))}
               </span>{" "}
               due
@@ -103,11 +118,11 @@ export default function MyBookingsPage() {
               onClick={() => void pay(id)}
               disabled={payBusy}
               className={clsx(
-                "inline-flex min-h-[44px] items-center justify-center rounded-xl bg-brand px-5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60",
+                "inline-flex min-h-[38px] items-center justify-center rounded-xl bg-[#4338ca] px-5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#3730a3] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60",
                 FOCUS_RING,
               )}
             >
-              {thisBusy ? "Please wait…" : retry ? "Try again" : "Pay now"}
+              {thisBusy ? "Please wait..." : retry ? "Try again" : "Pay now"}
               <span className="sr-only">
                 {" "}
                 for {name}, {getBookingCode(b)}
@@ -215,13 +230,37 @@ export default function MyBookingsPage() {
             </button>
           </div>
         )}
-        <p className="mb-3 text-sm text-muted" aria-live="polite">
-          Showing {from}–{to} of {total} {total === 1 ? "booking" : "bookings"}
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-sm text-slate-600 font-normal" aria-live="polite">
+            Showing {from}–{to} of {total} {total === 1 ? "booking" : "bookings"}
+          </p>
+          <div className="relative inline-flex items-center gap-1 text-sm font-medium text-slate-700 md:hidden">
+            <span>Sort by</span>
+            <ChevronDown className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            <select
+              value={state.sort}
+              onChange={(e) => setFilters({ sort: e.target.value as BookingSort })}
+              className="absolute inset-0 cursor-pointer opacity-0 w-full h-full"
+              aria-label="Sort bookings"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {state.tab === "overdue" && (
+          <p className="mb-3 rounded-xl border border-line bg-panel px-4 py-3 text-sm text-muted">
+            These bookings passed their scheduled time without the service being
+            completed. Open one to see its details or contact support.
+          </p>
+        )}
         <ul
           aria-busy={isPlaceholderData}
           className={clsx(
-            "grid grid-cols-[repeat(auto-fill,minmax(min(20rem,100%),1fr))] gap-4 transition-opacity",
+            "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 transition-opacity",
             isPlaceholderData && "opacity-60",
           )}
         >
@@ -250,8 +289,43 @@ export default function MyBookingsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="w-full min-w-0">
+      {/* Mobile-only Header (md:hidden) */}
+      <div className="space-y-3 md:hidden">
+        <div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goBack}
+              aria-label="Back to Profile"
+              className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-xl text-slate-900 transition-all hover:bg-slate-100 active:scale-95"
+            >
+              <ChevronLeft className="h-6 w-6 stroke-[2.5]" aria-hidden="true" />
+            </button>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              My Bookings
+            </h1>
+          </div>
+          <p className="mt-1 pl-1 text-xs sm:text-sm text-slate-500 font-normal">
+            Manage and track your service bookings
+          </p>
+        </div>
+
+        {/* Full-width Book a service button */}
+        <Link
+          to={customerPath("/services")}
+          className="flex w-full items-center justify-between rounded-2xl bg-[#4338ca] px-5 py-3.5 text-white shadow-md transition-all hover:bg-[#3730a3] active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold">
+            <Plus className="h-5 w-5 stroke-[2.5]" aria-hidden="true" />
+            Book a service
+          </span>
+          <ChevronRight className="h-5 w-5 stroke-[2.5]" aria-hidden="true" />
+        </Link>
+      </div>
+
+      {/* Desktop Header (hidden md:flex) - preserved exactly */}
+      <div className="hidden md:flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="sr-only">
             My Bookings
@@ -272,7 +346,7 @@ export default function MyBookingsPage() {
       </div>
 
       {/* Search + filter button */}
-      <div className="mt-6 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2.5 md:mt-6">
         <div className="min-w-0 flex-1">
           <BookingSearch value={state.search} onSearch={setSearch} />
         </div>
@@ -307,7 +381,7 @@ export default function MyBookingsPage() {
         role="tabpanel"
         id={PANEL_ID}
         aria-labelledby={tabId(state.tab)}
-        className="mt-6"
+        className="mt-5 md:mt-6"
       >
         {content}
       </div>

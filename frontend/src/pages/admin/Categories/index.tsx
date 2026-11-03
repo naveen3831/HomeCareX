@@ -30,6 +30,7 @@ export const AdminCategoriesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  useEffect(() => { setPageSearch(''); }, [setPageSearch]);
   const [services, setServices] = useState<AdminService[]>([]);
   const [servicesStatus, setServicesStatus] = useState<'idle' | 'loading' | 'ready'>('idle');
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());

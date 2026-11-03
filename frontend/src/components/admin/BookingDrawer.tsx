@@ -8,6 +8,7 @@ import type {
   TimelineActorType,
 } from "@/types/adminBooking";
 
+import { BookingActionPanel } from "@/components/admin/BookingActionPanel";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 
 import Timeline, {
@@ -21,6 +22,10 @@ interface BookingDrawerProps {
 
   onAssignPartner?: (booking: AdminBooking) => void;
   onStatusOverride?: (booking: AdminBooking) => void;
+  /** When provided, the cancel screen is controlled by the URL. */
+  cancelOpen?: boolean;
+  onCancelOpen?: () => void;
+  onCancelClose?: () => void;
 
   onCancelBooking?: (
     booking: AdminBooking,
@@ -222,9 +227,30 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
   onAssignPartner,
   onStatusOverride,
   onCancelBooking,
+  cancelOpen,
+  onCancelOpen,
+  onCancelClose,
 }) => {
-  const [showCancelForm, setShowCancelForm] =
+  const [localCancelOpen, setLocalCancelOpen] =
     useState(false);
+
+  const cancelControlled = cancelOpen !== undefined;
+  const showCancelForm = cancelControlled
+    ? Boolean(cancelOpen)
+    : localCancelOpen;
+
+  const setShowCancelForm = (value: boolean) => {
+    if (cancelControlled) {
+      if (value) {
+        onCancelOpen?.();
+      } else {
+        onCancelClose?.();
+      }
+      return;
+    }
+
+    setLocalCancelOpen(value);
+  };
 
   const [cancelReason, setCancelReason] =
     useState("");
@@ -292,7 +318,7 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
 
   useEffect(() => {
     if (!open || !booking) {
-      setShowCancelForm(false);
+      setLocalCancelOpen(false);
       setCancelReason("");
       setCancelError("");
       setCancelling(false);
@@ -916,260 +942,40 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
           color: #64748b;
         }
 
-        /* ==========================================
-           SIMPLE FULL SCREEN CANCEL BOOKING
-        ========================================== */
 
-        .booking-cancel-screen {
-          position: fixed;
-          inset: 0;
-          z-index: 1300;
-          width: 100vw;
-          height: 100vh;
-          background: #ffffff;
-          color: #0f172a;
-          overflow-y: auto;
-        }
 
-        .booking-cancel-screen__header {
-          width: 100%;
-          border-bottom: 1px solid #e2e8f0;
-          background: #ffffff;
-        }
 
-        .booking-cancel-screen__header-inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          width: 100%;
-          min-height: 72px;
-          padding: 0 40px;
-        }
 
-        .booking-cancel-screen__header-title {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          color: #0f172a;
-        }
 
-        .booking-cancel-screen__close {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 40px;
-          height: 40px;
-          border: 1px solid #dbe2ea;
-          border-radius: 8px;
-          background: #ffffff;
-          color: #475569;
-          font-size: 22px;
-          cursor: pointer;
-        }
 
-        .booking-cancel-screen__close:hover {
-          background: #f8fafc;
-          border-color: #cbd5e1;
-        }
 
-        .booking-cancel-screen__close:disabled {
-          cursor: not-allowed;
-          opacity: 0.55;
-        }
 
-        .booking-cancel-screen__content {
-          width: 100%;
-          max-width: 760px;
-          margin: 0 auto;
-          padding: 56px 32px 140px;
-        }
 
-        .booking-cancel-screen__intro {
-          margin-bottom: 32px;
-        }
 
-        .booking-cancel-screen__eyebrow {
-          margin: 0 0 8px;
-          color: #64748b;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
 
-        .booking-cancel-screen__title {
-          margin: 0;
-          color: #0f172a;
-          font-size: 30px;
-          font-weight: 750;
-          line-height: 1.25;
-        }
 
-        .booking-cancel-screen__description {
-          max-width: 680px;
-          margin: 10px 0 0;
-          color: #64748b;
-          font-size: 14px;
-          line-height: 1.6;
-        }
 
-        .booking-cancel-screen__booking {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 12px;
-          margin-bottom: 28px;
-        }
 
-        .booking-cancel-screen__booking-item {
-          padding: 16px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          background: #f8fafc;
-        }
 
-        .booking-cancel-screen__booking-label {
-          display: block;
-          margin-bottom: 6px;
-          color: #64748b;
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
 
-        .booking-cancel-screen__booking-value {
-          color: #0f172a;
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 1.4;
-          word-break: break-word;
-        }
 
-        .booking-cancel-screen__form {
-          padding: 24px;
-          border: 1px solid #e2e8f0;
-          border-radius: 10px;
-          background: #ffffff;
-        }
 
-        .booking-cancel-screen__label {
-          display: block;
-          margin-bottom: 8px;
-          color: #334155;
-          font-size: 14px;
-          font-weight: 700;
-        }
 
-        .booking-cancel-screen__required {
-          color: #dc2626;
-        }
 
-        .booking-cancel-screen__textarea {
-          display: block;
-          width: 100%;
-          min-height: 150px;
-          padding: 13px 14px;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
-          background: #ffffff;
-          color: #0f172a;
-          font: inherit;
-          font-size: 14px;
-          line-height: 1.5;
-          resize: vertical;
-        }
 
-        .booking-cancel-screen__textarea:hover {
-          border-color: #94a3b8;
-        }
 
-        .booking-cancel-screen__textarea:focus {
-          border-color: #2563eb;
-          outline: none;
-          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
 
-        .booking-cancel-screen__textarea--error {
-          border-color: #dc2626;
-        }
 
-        .booking-cancel-screen__help {
-          margin: 8px 0 0;
-          color: #64748b;
-          font-size: 12px;
-        }
 
-        .booking-cancel-screen__error {
-          margin: 8px 0 0;
-          color: #b91c1c;
-          font-size: 12px;
-        }
 
-        .booking-cancel-screen__footer {
-          position: fixed;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          border-top: 1px solid #e2e8f0;
-          background: #ffffff;
-          z-index: 20;
-        }
 
-        .booking-cancel-screen__footer-inner {
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-          gap: 10px;
-          width: 100%;
-          max-width: 760px;
-          min-height: 76px;
-          margin: 0 auto;
-          padding: 12px 32px;
-        }
 
-        .booking-cancel-screen__button {
-          min-height: 42px;
-          padding: 9px 18px;
-          border-radius: 8px;
-          font: inherit;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-        }
 
-        .booking-cancel-screen__button--secondary {
-          border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: #334155;
-        }
 
-        .booking-cancel-screen__button--secondary:hover:not(:disabled) {
-          background: #f8fafc;
-          border-color: #94a3b8;
-        }
 
-        .booking-cancel-screen__button--danger {
-          border: 1px solid #dc2626;
-          background: #dc2626;
-          color: #ffffff;
-        }
 
-        .booking-cancel-screen__button--danger:hover:not(:disabled) {
-          background: #b91c1c;
-          border-color: #b91c1c;
-        }
 
-        .booking-cancel-screen__button:disabled {
-          cursor: not-allowed;
-          opacity: 0.55;
-        }
 
-        .booking-cancel-screen__close:focus-visible,
-        .booking-cancel-screen__button:focus-visible,
-        .booking-cancel-screen__textarea:focus-visible {
-          outline: 2px solid #2563eb;
-          outline-offset: 2px;
-        }
 
         .booking-details__footer {
           position: fixed;
@@ -1357,30 +1163,11 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
             flex: 1 1 100%;
           }
 
-          .booking-cancel-screen__header-inner {
-            min-height: 64px;
-            padding: 0 18px;
-          }
 
-          .booking-cancel-screen__content {
-            padding: 32px 18px 140px;
-          }
 
-          .booking-cancel-screen__title {
-            font-size: 24px;
-          }
 
-          .booking-cancel-screen__booking {
-            grid-template-columns: 1fr;
-          }
 
-          .booking-cancel-screen__form {
-            padding: 20px;
-          }
 
-          .booking-cancel-screen__footer-inner {
-            padding: 10px 18px;
-          }
         }
 
         @media (max-width: 480px) {
@@ -1427,47 +1214,18 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
             padding: 12px;
           }
 
-          .booking-cancel-screen__header-inner {
-            padding: 0 12px;
-          }
 
-          .booking-cancel-screen__content {
-            padding: 24px 12px 160px;
-          }
 
-          .booking-cancel-screen__title {
-            font-size: 22px;
-          }
 
-          .booking-cancel-screen__form {
-            padding: 16px;
-          }
 
-          .booking-cancel-screen__textarea {
-            min-height: 140px;
-          }
 
-          .booking-cancel-screen__footer-inner {
-            flex-direction: column;
-            align-items: stretch;
-            padding: 10px 12px;
-          }
 
-          .booking-cancel-screen__button {
-            width: 100%;
-          }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .booking-details *,
           .booking-details *::before,
           .booking-details *::after,
-          .booking-cancel-screen *,
-          .booking-cancel-screen *::before,
-          .booking-cancel-screen *::after {
-            scroll-behavior: auto !important;
-            transition: none !important;
-          }
         }
       `}</style>
 
@@ -2229,135 +1987,18 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
       {showCancelForm &&
         !isCancelled &&
         !isCompleted && (
-          <div
-            className="booking-cancel-screen"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="booking-cancel-screen-title"
-          >
-            <header className="booking-cancel-screen__header">
-              <div className="booking-cancel-screen__header-inner">
-                <h1 className="booking-cancel-screen__header-title">
-                  Cancel Booking
-                </h1>
-
+          <BookingActionPanel
+            title="Cancel Booking"
+            subtitle="The reason will be recorded in the booking activity history."
+            titleId="booking-cancel-screen-title"
+            onClose={handleCloseCancelForm}
+            closeDisabled={cancelling}
+            closeLabel="Close cancellation"
+            footer={
+              <>
                 <button
                   type="button"
-                  className="booking-cancel-screen__close"
-                  onClick={handleCloseCancelForm}
-                  disabled={cancelling}
-                  aria-label="Close cancellation"
-                >
-                  ×
-                </button>
-              </div>
-            </header>
-
-            <main className="booking-cancel-screen__content">
-              <div className="booking-cancel-screen__intro">
-                <p className="booking-cancel-screen__eyebrow">
-                  Booking Action
-                </p>
-
-                <h2
-                  id="booking-cancel-screen-title"
-                  className="booking-cancel-screen__title"
-                >
-                  Cancel this booking?
-                </h2>
-
-                <p className="booking-cancel-screen__description">
-                  Please provide a reason for
-                  cancellation. The reason will be
-                  recorded in the booking activity
-                  history.
-                </p>
-              </div>
-
-              <div className="booking-cancel-screen__booking">
-                <div className="booking-cancel-screen__booking-item">
-                  <span className="booking-cancel-screen__booking-label">
-                    Customer
-                  </span>
-
-                  <div className="booking-cancel-screen__booking-value">
-                    {booking.customer.name || "-"}
-                  </div>
-                </div>
-
-                <div className="booking-cancel-screen__booking-item">
-                  <span className="booking-cancel-screen__booking-label">
-                    Service
-                  </span>
-
-                  <div className="booking-cancel-screen__booking-value">
-                    {booking.service.name}
-                  </div>
-                </div>
-              </div>
-
-              <section className="booking-cancel-screen__form">
-                <label
-                  htmlFor="booking-cancel-reason"
-                  className="booking-cancel-screen__label"
-                >
-                  Cancellation reason{" "}
-                  <span className="booking-cancel-screen__required">
-                    *
-                  </span>
-                </label>
-
-                <textarea
-                  id="booking-cancel-reason"
-                  className={[
-                    "booking-cancel-screen__textarea",
-                    cancelError
-                      ? "booking-cancel-screen__textarea--error"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  value={cancelReason}
-                  onChange={(event) => {
-                    setCancelReason(
-                      event.target.value,
-                    );
-                    setCancelError("");
-                  }}
-                  placeholder="Enter the reason for cancelling this booking"
-                  disabled={cancelling}
-                  aria-required="true"
-                  aria-invalid={Boolean(
-                    cancelError,
-                  )}
-                  autoFocus
-                />
-
-                {!cancelError && (
-                  <p className="booking-cancel-screen__help">
-                    Example: Customer requested
-                    cancellation, partner unavailable,
-                    duplicate booking, or other
-                    operational reason.
-                  </p>
-                )}
-
-                {cancelError && (
-                  <p
-                    className="booking-cancel-screen__error"
-                    role="alert"
-                  >
-                    {cancelError}
-                  </p>
-                )}
-              </section>
-            </main>
-
-            <footer className="booking-cancel-screen__footer">
-              <div className="booking-cancel-screen__footer-inner">
-                <button
-                  type="button"
-                  className="booking-cancel-screen__button booking-cancel-screen__button--secondary"
+                  className="bk-btn"
                   onClick={handleCloseCancelForm}
                   disabled={cancelling}
                 >
@@ -2366,20 +2007,79 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
 
                 <button
                   type="button"
-                  className="booking-cancel-screen__button booking-cancel-screen__button--danger"
+                  className="bk-btn bk-btn--danger"
                   onClick={handleCancelBooking}
-                  disabled={
-                    cancelling ||
-                    !cancelReason.trim()
-                  }
+                  disabled={cancelling || !cancelReason.trim()}
                 >
                   {cancelling
                     ? "Cancelling..."
                     : "Confirm Cancellation"}
                 </button>
+              </>
+            }
+          >
+            <div className="bk-facts">
+              <div className="bk-fact">
+                <span className="bk-fact__label">Customer</span>
+                <div className="bk-fact__value">
+                  {booking.customer.name || "-"}
+                </div>
               </div>
-            </footer>
-          </div>
+
+              <div className="bk-fact">
+                <span className="bk-fact__label">Service</span>
+                <div className="bk-fact__value">
+                  {booking.service.name}
+                </div>
+              </div>
+            </div>
+
+            <div className="bk-card">
+              <div className="bk-field">
+                <label
+                  htmlFor="booking-cancel-reason"
+                  className="bk-label"
+                >
+                  Cancellation reason{" "}
+                  <span className="bk-required">*</span>
+                </label>
+
+                <textarea
+                  id="booking-cancel-reason"
+                  className={[
+                    "bk-textarea",
+                    cancelError ? "bk-textarea--error" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  value={cancelReason}
+                  onChange={(event) => {
+                    setCancelReason(event.target.value);
+                    setCancelError("");
+                  }}
+                  placeholder="Enter the reason for cancelling this booking"
+                  disabled={cancelling}
+                  aria-required="true"
+                  aria-invalid={Boolean(cancelError)}
+                  autoFocus
+                />
+
+                {!cancelError && (
+                  <p className="bk-help">
+                    Example: Customer requested cancellation, partner
+                    unavailable, duplicate booking, or other
+                    operational reason.
+                  </p>
+                )}
+
+                {cancelError && (
+                  <p className="bk-error" role="alert">
+                    {cancelError}
+                  </p>
+                )}
+              </div>
+            </div>
+          </BookingActionPanel>
         )}
     </>
   );

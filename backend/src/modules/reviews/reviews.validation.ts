@@ -152,6 +152,21 @@ export const serviceReviewsQuerySchema = z
   })
   .strict();
 
+/** Public site-wide reviews query schema */
+export const publicReviewsQuerySchema = z.object({
+  category: z.preprocess(blankToUndefined, z.string().trim().optional()),
+  rating: z.preprocess(blankToUndefined, z.coerce.number().min(1).max(5).optional()),
+  search: z.preprocess(blankToUndefined, z.string().trim().optional()),
+  page: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).default(1),
+  ),
+  limit: z.preprocess(
+    blankToUndefined,
+    z.coerce.number().int().min(1).max(100).default(20),
+  ),
+});
+
 export type ReviewStatus = z.infer<typeof reviewStatusSchema>;
 
 export type ReviewVisibilityInput = z.infer<

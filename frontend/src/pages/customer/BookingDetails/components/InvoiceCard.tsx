@@ -44,7 +44,7 @@ function loadLogo(): Promise<string> {
 }
 
 /** Puts the real logo into the invoice; if it can't be loaded the server's built-in logo stays. */
-async function withLogo(html: string): Promise<string> {
+export async function withLogo(html: string): Promise<string> {
   const uri = await loadLogo();
   if (!uri) return html;
   return html.replace(
@@ -54,7 +54,7 @@ async function withLogo(html: string): Promise<string> {
 }
 
 /** Saves the invoice as an .html file the customer can keep or open in any browser. */
-function saveHtml(html: string, filename: string): void {
+export function saveHtml(html: string, filename: string): void {
   const url = URL.createObjectURL(
     new Blob([html], { type: "text/html;charset=utf-8" }),
   );
@@ -71,7 +71,7 @@ function saveHtml(html: string, filename: string): void {
  * Opens the browser's print dialog for the invoice ("Save as PDF" is one of its choices).
  * A hidden frame is used instead of a new tab, so a popup blocker can't swallow it after the request.
  */
-function printHtml(html: string): void {
+export function printHtml(html: string): void {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.tabIndex = -1;

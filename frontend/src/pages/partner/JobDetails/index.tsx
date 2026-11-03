@@ -1,23 +1,33 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import {
-  DEMO_START_OTP,
+  ArrowRight,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  StickyNote,
+  Wallet,
+} from 'lucide-react';
+import { AuthContext } from '@/context/AuthContext';
+import { useAuthStore } from '@/store/useAuthStore';
+import {
   acceptAssignedService,
   declineAssignedService,
   fetchAssignedServices,
   fetchJob,
   getErrorMessage,
   getHttpStatus,
-  persistChecklistItem,
-  resetAllAssignedServices,
-  resetMockPartnerJob,
   startJob,
-  updateBookingStatus,
   verifyJobOtp,
 } from './jobDetails.api';
+import ServiceHeroImage from './ServiceHeroImage';
+import PaymentPanel from '@/components/partner/PaymentPanel';
 import type { JobDetails } from './jobDetails.types';
-import { STATUS_LABEL, type JobStatus } from './jobStatus';
+import { STATUS_LABEL } from './jobStatus';
 import './jobDetails.css';
+import './jobDetailsModern.css';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'notfound';
 type ViewMode = 'list' | 'details';
@@ -79,6 +89,13 @@ export default function JobDetailsPage() {
   const navigate = useNavigate();
   const online = useOnline();
 
+  const authCtx = useContext(AuthContext);
+  const storeUserId = useAuthStore((s) => s.user?.id);
+  void authCtx;
+  void storeUserId;
+
+  // /partner/jobs/:id  -> that job's details.
+  // /partner/assigned (no :id) -> the Assigned Services list. The URL decides, so Back/refresh/deep links all work.
   // If route has an explicit :id (/partner/jobs/:id), open details directly;
   // If on /partner/work (no :id), first show Assigned Service Cards.
   const [viewMode, setViewMode] = useState<ViewMode>(() => (id ? 'details' : 'list'));
@@ -171,48 +188,21 @@ export default function JobDetailsPage() {
     setAssignedServices(remaining);
   };
 
-  const handleToggleChecklist = async (itemId: string, currentDone: boolean) => {
-    if (!job || !online) return;
-    try {
-      const updatedList = await persistChecklistItem(job.id, itemId, !currentDone);
-      const nextChecklist =
-        updatedList.length > 0
-          ? updatedList
-          : job.checklist.map((c) => (c.id === itemId ? { ...c, done: !currentDone } : c));
-      const updatedJob = { ...job, checklist: nextChecklist };
-      setJob(updatedJob);
-      setAssignedServices((prev) =>
-        prev.map((item) => (item.id === updatedJob.id ? updatedJob : item)),
-      );
-    } catch {
-      /* keep current state */
-    }
-  };
-
-  const handleStatusChange = async (nextStatus: JobStatus) => {
-    if (!job || actionBusy || !online) return;
-    setActionBusy(true);
-    try {
-      const updated = await updateBookingStatus(job.id, nextStatus as 'en_route' | 'arrived');
-      setJob(updated);
-      setAssignedServices((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item)),
-      );
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'Could not update status.'));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
   const handlePrimaryStartClick = () => {
     if (!job) return;
     if (job.status === 'in_progress') {
       navigate(`/partner/jobs/${job.id}/active`);
       return;
     }
-    setOtpError(null);
-    setOtpModalOpen(true);
+    // The customer's start OTP is only accepted once the partner has arrived,
+    // so that is the one step where the OTP popup is still shown.
+    if (job.status === 'arrived') {
+      setOtpError(null);
+      setOtpModalOpen(true);
+      return;
+    }
+    // Before arriving: go to the page with map, call, chat and help.
+    navigate(`/partner/jobs/${job.id}/navigation`);
   };
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -223,7 +213,7 @@ export default function JobDetailsPage() {
       return;
     }
     if (!otpCode.trim()) {
-      setOtpError(`Please enter the 6-digit customer OTP (Demo: ${DEMO_START_OTP}).`);
+      setOtpError(`Please enter the 6-digit customer OTP .`);
       return;
     }
 
@@ -232,7 +222,7 @@ export default function JobDetailsPage() {
     try {
       const res = await verifyJobOtp(job.id, otpCode.trim());
       if (!res.verified) {
-        setOtpError(res.message || `Incorrect OTP. Use demo OTP ${DEMO_START_OTP}.`);
+        setOtpError(res.message || 'Incorrect OTP. Please check the code with the customer.');
       } else {
         setOtpVerifiedLocal(true);
       }
@@ -248,7 +238,7 @@ export default function JobDetailsPage() {
     setActionBusy(true);
     setOtpError(null);
     try {
-      const updated = await startJob(job.id, otpCode.trim() || DEMO_START_OTP);
+      const updated = await startJob(job.id, otpCode.trim());
       setJob(updated);
       setOtpModalOpen(false);
       navigate(`/partner/jobs/${updated.id}/active`);
@@ -257,18 +247,6 @@ export default function JobDetailsPage() {
     } finally {
       setActionBusy(false);
     }
-  };
-
-  const handleResetDemo = () => {
-    const fresh = resetMockPartnerJob(job?.id || id || 'BK-20418');
-    const freshCatalog = resetAllAssignedServices();
-    setAssignedServices(freshCatalog);
-    setJob(fresh);
-    setOtpCode('');
-    setOtpError(null);
-    setOtpVerifiedLocal(false);
-    setOtpModalOpen(false);
-    setJustAcceptedBanner(false);
   };
 
   if (state === 'loading') {
@@ -667,224 +645,157 @@ export default function JobDetailsPage() {
     .filter(Boolean)
     .join(', ');
 
-  const addOnsTotal = job.addOns.reduce((sum, a) => sum + a.amount, 0);
-  const baseServicePrice =
-    job.price.basePrice ?? Math.max(0, job.price.total - addOnsTotal);
+  // The backend sends the status in capitals ("PAID"), so compare ignoring case.
+  const isPaid = job.payment.phase === 'paid';
+  const paymentLabel = isPaid
+    ? 'Payment completed'
+    : (job.payment.method ?? 'Pay after service is completed');
 
-  const isDefaultConfirmedDemo =
-    job.bookingCode === '#BK-20418' && job.status === 'confirmed';
-  const displayedChecklist = isDefaultConfirmedDemo
-    ? job.checklist
-        .filter((item) => !item.label.includes('(add-on)'))
-        .map((item) => ({ ...item, done: false }))
-    : job.checklist;
+  const initials =
+    job.customer.name
+      .replace(/[^A-Za-z ]/g, '')
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() || 'C';
 
   return (
-    <div className="jd-ref-page">
+    <div className="jdx-page">
       {!online && (
         <p className="jd-offline" role="status">
           You are offline. Status changes will not work until you reconnect.
         </p>
       )}
 
-      <div className="jd-ref-container">
-        {/* Top Back Navigation Bar to return to Assigned Service Cards */}
-        <div className="jd-back-bar">
-          <button
-            type="button"
-            onClick={() => {
-              setJustAcceptedBanner(false);
-              setViewMode('list');
-            }}
-            className="jd-back-to-services-btn"
-          >
-            ← Back to Assigned Services ({assignedServices.length || 6})
-          </button>
-
-          {justAcceptedBanner && (
-            <span className="jd-accepted-toast" role="status">
+      <div className="jdx-container">
+        {justAcceptedBanner && (
+          <div className="jdx-topbar">
+            <span className="jdx-toast" role="status">
               ✓ Service accepted — Total booked details unlocked
             </span>
-          )}
-        </div>
-
-        {/* Header: BOOKING #BK-20418 | Confirmed */}
-        <header className="jd-ref-header">
-          <div>
-            <p className="jd-ref-eyebrow">BOOKING</p>
-            <h2 className="jd-ref-booking-code">{job.bookingCode}</h2>
           </div>
-          <span className={`jd-ref-status-pill jd-ref-status-${job.status}`}>
-            {STATUS_LABEL[job.status] ?? 'Confirmed'}
-          </span>
-        </header>
+        )}
 
-        {/* Card 1: SERVICE */}
-        <section className="jd-ref-card jd-card-service" aria-label="Service">
-          <p className="jd-ref-card-label">SERVICE</p>
-          <div className="jd-ref-row-between">
-            <h3 className="jd-ref-card-title">{job.service.name}</h3>
-            <span className="jd-ref-card-right">
-              {formatDuration(job.service.durationMinutes)}
+        {/* 1. Service picture */}
+        <ServiceHeroImage serviceName={job.service.name} />
+
+        {/* 2. Booking details + how the customer will pay */}
+        <header className="jdx-hero">
+          <div className="jdx-hero-top">
+            <span className={`jdx-status jdx-status-${job.status}`}>
+              <span className="jdx-status-dot" aria-hidden="true" />
+              {STATUS_LABEL[job.status] ?? 'Confirmed'}
             </span>
+
+            <div className="jdx-code-wrap">
+              <span className="jdx-code-label">Booking</span>
+              <span className="jdx-code">{job.bookingCode}</span>
+            </div>
           </div>
+
+          <h2 className="jdx-title">{job.service.name}</h2>
           {job.service.description && (
-            <p className="jd-ref-card-sub">{job.service.description}</p>
+            <p className="jdx-subtitle">{job.service.description}</p>
           )}
-        </section>
 
-        {/* Card 2: CUSTOMER (MASKED) */}
-        <section className="jd-ref-card jd-card-customer" aria-label="Customer">
-          <p className="jd-ref-card-label">CUSTOMER (MASKED)</p>
-          <div className="jd-ref-row-between">
-            <p className="jd-ref-card-title">{job.customer.name}</p>
-            <span className="jd-ref-card-right">{job.customer.phoneMasked}</span>
-          </div>
-          <p className="jd-ref-card-sub">
-            {job.customer.subtitle ?? 'Calls are routed through the app'}
-          </p>
-        </section>
-
-        {/* Card 3: LOCATION */}
-        <section className="jd-ref-card jd-card-location" aria-label="Location">
-          <p className="jd-ref-card-label">LOCATION</p>
-          <p className="jd-ref-body-text">{fullAddress}</p>
-          <p className="jd-ref-location-hint">
-            {job.location.hint ?? 'Full address unlocks at start · 6.4 km away'}
-          </p>
-        </section>
-
-        {/* Card 4: SCHEDULE */}
-        <section className="jd-ref-card jd-card-schedule" aria-label="Schedule">
-          <p className="jd-ref-card-label">SCHEDULE</p>
-          <div className="jd-ref-row-between">
-            <p className="jd-ref-card-title">
+          <div className="jdx-chips">
+            <span className="jdx-chip">
+              <CalendarDays size={14} aria-hidden="true" />
               {job.schedule.dateLabel ?? formatDate(job.schedule.scheduledAt)}
-            </p>
-            <span className="jd-ref-card-right">
+            </span>
+            <span className="jdx-chip">
+              <Clock3 size={14} aria-hidden="true" />
               {job.schedule.slot ?? (time || '—')}
             </span>
+            <span className="jdx-chip">{formatDuration(job.service.durationMinutes)}</span>
+          </div>
+
+          <div className="jdx-paynote">
+            <span className="jdx-paynote-icon" aria-hidden="true">
+              <Wallet size={18} />
+            </span>
+            <div className="jdx-paynote-body">
+              <span className="jdx-paynote-label">{isPaid ? 'Payment' : 'Customer will pay'}</span>
+              <strong className="jdx-paynote-value">{paymentLabel}</strong>
+            </div>
+          </div>
+        </header>
+
+        {/* 3. Customer name + address (no navigate / maps buttons) */}
+        <section className="jdx-sheet" aria-label="Customer and address">
+          <div className="jdx-row">
+            <span className="jdx-avatar" aria-hidden="true">
+              {initials}
+            </span>
+            <div className="jdx-row-body">
+              <span className="jdx-eyebrow">CUSTOMER</span>
+              <strong>{job.customer.name}</strong>
+              {job.customer.subtitle && <small>{job.customer.subtitle}</small>}
+            </div>
+          </div>
+
+          <div className="jdx-row">
+            <span className="jdx-tile" aria-hidden="true">
+              <MapPin size={18} />
+            </span>
+            <div className="jdx-row-body">
+              <span className="jdx-eyebrow">ADDRESS</span>
+              <strong>{fullAddress}</strong>
+              {job.location.hint && <small>{job.location.hint}</small>}
+            </div>
           </div>
         </section>
 
-        {/* Card 5: PRICE & ADD-ONS */}
-        <section className="jd-ref-card jd-card-price" aria-label="Price and add-ons">
-          <p className="jd-ref-card-label">PRICE &amp; ADD-ONS</p>
-          <div className="jd-ref-price-list">
-            <div className="jd-ref-price-row">
-              <span>Base service</span>
-              <strong>{money.format(baseServicePrice)}</strong>
-            </div>
-            {job.addOns.map((addon) => (
-              <div className="jd-ref-price-row" key={addon.id}>
-                <span>
-                  {addon.name}
-                  {addon.quantity > 1 ? ` × ${addon.quantity}` : ''}
-                </span>
-                <strong>{money.format(addon.amount)}</strong>
-              </div>
-            ))}
-            <div className="jd-ref-price-divider" />
-            <div className="jd-ref-price-row jd-ref-price-total">
-              <span>Total</span>
-              <strong>{money.format(job.price.total)}</strong>
-            </div>
+        {/* 4. Instructions (always shown) */}
+        <section className="jdx-note" aria-label="Instructions">
+          <StickyNote size={20} aria-hidden="true" />
+          <div>
+            <strong>Instructions</strong>
+            <p>{job.instructions?.trim() || 'No special instructions.'}</p>
           </div>
         </section>
 
-        {/* Card 6: INSTRUCTIONS */}
-        <section className="jd-ref-card jd-card-instructions" aria-label="Instructions">
-          <p className="jd-ref-card-label">INSTRUCTIONS</p>
-          <p className="jd-ref-body-text">
-            {job.instructions ?? 'No special instructions.'}
-          </p>
-        </section>
+        {/* 4b. Payment: QR after completion, status once paid */}
+        {(job.status === 'completed' || job.status === 'rated') && (
+          <PaymentPanel job={job} onJobChange={setJob} online={online} />
+        )}
 
-        {/* Card 7: CHECKLIST */}
-        <section className="jd-ref-card jd-card-checklist" aria-label="Checklist">
-          <p className="jd-ref-card-label">CHECKLIST</p>
-          {displayedChecklist.length === 0 ? (
-            <p className="jd-ref-body-text">No checklist for this job.</p>
-          ) : (
-            <ul className="jd-ref-checklist">
-              {displayedChecklist.map((item) => (
-                <li key={item.id} className="jd-ref-check-item">
-                  <label className="jd-ref-check-label">
-                    <input
-                      type="checkbox"
-                      checked={item.done}
-                      onChange={() => void handleToggleChecklist(item.id, item.done)}
-                      className="jd-ref-checkbox"
-                    />
-                    <span>{item.label}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+        {/* 5. Total, then Start job */}
+        <section className="jdx-total-card" aria-label="Total">
+          <div className="jdx-total jdx-total-flat">
+            <span>Total</span>
+            <strong>{money.format(job.price.total)}</strong>
+          </div>
+
+          {/* Start only makes sense before the job is done. Finished jobs go back to the list; cancelled ones get no button. */}
+          {(job.status === 'completed' || job.status === 'rated') && (
+            <div className="jdx-action">
+              <button type="button" className="jdx-cta" onClick={() => navigate('/partner/jobs')}>
+                Back to my jobs
+                <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            </div>
           )}
-        </section>
-
-        {/* Card 8: PAYMENT */}
-        <section className="jd-ref-card jd-card-payment" aria-label="Payment">
-          <p className="jd-ref-card-label">PAYMENT</p>
-          <div className="jd-ref-price-list">
-            <div className="jd-ref-price-row">
-              <span>Method</span>
-              <strong>{job.payment.method ?? 'Pay after service (UPI / cash)'}</strong>
-            </div>
-            <div className="jd-ref-price-row">
-              <span>Your payout</span>
-              <strong>{money.format(job.price.partnerEarning)}</strong>
-            </div>
-          </div>
-        </section>
-
-        {/* Primary Bottom Button: Start job */}
-        <div className="jd-ref-cta-wrap">
-          <button
-            type="button"
-            className="jd-ref-primary-btn"
-            disabled={!online || actionBusy}
-            onClick={handlePrimaryStartClick}
-          >
-            {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
-          </button>
-
-          {/* Subtle navigation & demo controls */}
-          <div className="jd-ref-demo-footer">
-            <Link
-              to={`/partner/jobs/${job.id}/active`}
-              className="jd-ref-demo-link"
-            >
-              Open Active Job Screen →
-            </Link>
-            {job.status !== 'en_route' && job.status !== 'arrived' && job.status !== 'in_progress' && (
-              <button
-                type="button"
-                onClick={() => void handleStatusChange('en_route')}
-                className="jd-ref-demo-link-btn"
-              >
-                Mark En Route
-              </button>
+          {job.status !== 'completed' &&
+            job.status !== 'rated' &&
+            !job.status.startsWith('cancelled') &&
+            job.status !== 'no_show' &&
+            job.status !== 'disputed' && (
+              <div className="jdx-action">
+                <button
+                  type="button"
+                  className="jdx-cta"
+                  disabled={!online || actionBusy}
+                  onClick={handlePrimaryStartClick}
+                >
+                  {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+              </div>
             )}
-            {job.status === 'en_route' && (
-              <button
-                type="button"
-                onClick={() => void handleStatusChange('arrived')}
-                className="jd-ref-demo-link-btn"
-              >
-                Mark Arrived
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              className="jd-ref-demo-link-btn"
-            >
-              Reset demo
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
 
       {/* Start Job Customer OTP Verification Modal */}
@@ -900,7 +811,6 @@ export default function JobDetailsPage() {
               <h3 id="jd-otp-modal-title" className="jd-ref-modal-title">
                 Verify Customer Start OTP
               </h3>
-              <span className="jd-ref-otp-badge">Demo OTP: {DEMO_START_OTP}</span>
             </div>
 
             <p className="jd-ref-modal-desc">
@@ -923,19 +833,9 @@ export default function JobDetailsPage() {
                     setOtpVerifiedLocal(false);
                     if (otpError) setOtpError(null);
                   }}
-                  placeholder={`Enter ${DEMO_START_OTP}`}
+                  placeholder="Enter start OTP"
                   className="jd-ref-otp-input"
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtpCode(DEMO_START_OTP);
-                    setOtpError(null);
-                  }}
-                  className="jd-ref-otp-fill-btn"
-                >
-                  Fill {DEMO_START_OTP}
-                </button>
                 <button
                   type="submit"
                   disabled={actionBusy}
