@@ -48,6 +48,8 @@ export interface DashboardCategoryDto {
   name: string;
   slug: string;
   icon: string | null;
+  iconUrl?: string | null;
+  imageUrl?: string | null;
   serviceCount: number;
 }
 

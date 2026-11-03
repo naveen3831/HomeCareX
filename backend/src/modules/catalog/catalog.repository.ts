@@ -9,6 +9,8 @@ export interface CategoryRow {
   slug: string;
   description?: string;
   icon?: string;
+  iconUrl?: string;
+  images?: { url: string; alt?: string; isPrimary?: boolean }[];
   sortOrder?: number;
 }
 
@@ -24,6 +26,8 @@ export interface ServiceRow {
   name: string;
   description?: string;
   icon?: string;
+  iconUrl?: string;
+  images?: { url: string; alt?: string; isPrimary?: boolean }[];
   categoryId: Types.ObjectId;
   basePrice: number;
   durationMinutes: number;
@@ -38,14 +42,14 @@ export interface ServiceRow {
   faqs?: { _id: Types.ObjectId; question: string; answer: string }[];
 }
 
-const CATEGORY_FIELDS = 'name slug description icon sortOrder';
-const LIST_FIELDS = 'slug name description icon categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
-const DETAIL_FIELDS = `${LIST_FIELDS} addOns media inclusions exclusions faqs`;
+const CATEGORY_FIELDS = 'name slug description icon iconUrl sortOrder';
+const LIST_FIELDS = 'slug name description icon iconUrl categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
+const DETAIL_FIELDS = `${LIST_FIELDS} media addOns inclusions exclusions faqs`;
 
 /** Only layer that talks to Mongo. Tests swap these methods for in-memory versions. */
 export const catalogRepository = {
   activeCategories(): Promise<CategoryRow[]> {
-    return CategoryModel.find({ active: { $ne: false } }, CATEGORY_FIELDS).sort({ sortOrder: 1, name: 1 }).lean<CategoryRow[]>().exec();
+    return CategoryModel.find({ active: { $ne: false } }, CATEGORY_FIELDS).sort({ sortOrder: 1 }).lean<CategoryRow[]>().exec();
   },
 
   /** Per category, over active services: how many, the cheapest price and total bookings (used only to flag the most booked). */

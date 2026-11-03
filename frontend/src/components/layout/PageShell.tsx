@@ -15,7 +15,7 @@ export default function PageShell({
   children,
 }: PageShellProps) {
   return (
-    <div className="min-w-0 rounded-xl border border-line bg-panel p-4 sm:p-6">
+    <div className="w-full min-w-0 rounded-xl border border-line bg-panel p-4 sm:p-6">
       {/* The customer top bar already shows the page name; keep a real heading for screen readers. */}
       <h1 className="sr-only">{title}</h1>
       {description && <p className="text-muted text-sm mt-1">{description}</p>}

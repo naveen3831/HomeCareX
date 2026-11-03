@@ -533,7 +533,7 @@ export default function Support() {
 
   // DESKTOP / WEB VIEW (>= 768px): Matches web reference design exactly
   return (
-    <div className="mx-auto max-w-6xl space-y-6 pb-12">
+    <div className="w-full min-w-0 space-y-6 pb-12">
       {/* Hero Header Card */}
       <header className="flex items-center justify-between rounded-2xl border border-indigo-50/80 bg-gradient-to-r from-[#f9faff] via-[#f5f7ff] to-[#eff3ff] p-6 lg:p-7 shadow-2xs">
         <div className="flex items-start gap-4">

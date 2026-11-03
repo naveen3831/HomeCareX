@@ -32,11 +32,16 @@ const T = {
 export const CATEGORY_VISUALS: Record<string, Visual> = {
   "home-cleaning": { asset: "Broom/3D/broom_3d", tint: T.indigo, image: "/images/home-cleaning.jpg" },
   "appliance-repair": { asset: "Wrench/3D/wrench_3d", tint: T.peach, image: "/images/appliance-repair.jpg" },
-  "salon-spa": { asset: "Person%20getting%20massage/Default/3D/person_getting_massage_3d_default", tint: T.rose, image: "/images/Home-spa-women.png" },
+  "salon-spa": { asset: "Person%20getting%20massage/Default/3D/person_getting_massage_3d_default", tint: T.rose, image: "/images/Home-spa-women-banner.jpg" },
   "electrical-plumbing": { asset: "Light%20bulb/3D/light_bulb_3d", tint: T.sun, image: "/images/electrical.jpg" },
   painting: { asset: "Paintbrush/3D/paintbrush_3d", tint: T.sky, image: "/images/painting-category.png" },
   "pest-control": { asset: "Bug/3D/bug_3d", tint: T.mint, image: "/images/pest-control-clean.png", focus: "60% 50%" },
-  carpentry: { asset: "Carpentry%20saw/3D/carpentry_saw_3d", tint: T.sand, image: "/images/home-maintenance.jpg" },
+  carpentry: { asset: "Carpentry%20saw/3D/carpentry_saw_3d", tint: T.sand, image: "/images/furniture-assembly.jpg" },
+  "appliance-repair-service": { asset: "Wrench/3D/wrench_3d", tint: T.peach, image: "/images/appliance-repair.jpg" },
+  "painting-waterproofing": { asset: "Paintbrush/3D/paintbrush_3d", tint: T.sky, image: "/images/painting-category.png" },
+  "carpentry-furniture-assembly": { asset: "Carpentry%20saw/3D/carpentry_saw_3d", tint: T.sand, image: "/images/furniture-assembly.jpg" },
+  "full-home-sanitization": { asset: "Soap/3D/soap_3d", tint: T.indigo, image: "/images/full-home-sanitization.png" },
+  "home-sanitization": { asset: "Soap/3D/soap_3d", tint: T.indigo, image: "/images/full-home-sanitization.png" },
 };
 
 /** Service-specific icons (by slug); anything not listed falls back to its category's icon (keyed by category slug; admin-added categories get the sparkles fallback + their own emoji). */
@@ -83,10 +88,11 @@ const SERVICE_IMAGES: Record<string, string> = {
   "electrician-visit-general": PHOTO.electrical,
   "fan-light-installation": PHOTO.electrical,
   "plumbing-tap-leak-repair": PHOTO.plumbing,
-  "furniture-assembly": PHOTO.carpentry,
-  "door-lock-repair": PHOTO.carpentry,
-  "wardrobe-repair": PHOTO.carpentry,
-  "custom-shelf-installation": PHOTO.carpentry,
+  "furniture-assembly": "/images/furniture-assembly.jpg",
+  "door-lock-repair": "/images/door-lock-repair.jpg",
+  "wardrobe-repair": "/images/wardrobe-repair.jpg",
+  "custom-shelf-installation": "/images/custom-shelf-installation.jpg",
+  "shelf-curtain-rod-installation": "/images/custom-shelf-installation.jpg",
   "general-pest-control": PHOTO.pest,
   "termite-treatment": PHOTO.termite,
   "at-home-spa-for-women": PHOTO.spa,
@@ -101,17 +107,27 @@ const SERVICE_FOCUS: Record<string, string> = {
   [PHOTO.pest]: "50% 50%",
   [PHOTO.termite]: "14% 50%",
   [PHOTO.carpentry]: "50% 65%",
+  "/images/furniture-assembly.jpg": "50% 50%",
+  "/images/door-lock-repair.jpg": "50% 40%",
+  "/images/wardrobe-repair.jpg": "50% 50%",
+  "/images/custom-shelf-installation.jpg": "50% 35%",
 };
 
-const FALLBACK: Visual = { asset: "Sparkles/3D/sparkles_3d", tint: T.indigo };
+const FALLBACK: Visual = { asset: "Wrench/3D/wrench_3d", tint: T.indigo, image: "/images/home-maintenance.jpg" };
 
-export const categoryVisual = (categorySlug: string): Visual => CATEGORY_VISUALS[categorySlug] ?? FALLBACK;
+export const categoryVisual = (categorySlug: string, imageCandidate?: string): Visual => {
+  const base = CATEGORY_VISUALS[categorySlug] ?? FALLBACK;
+  if (imageCandidate) {
+    return { ...base, image: imageCandidate };
+  }
+  return base;
+};
 
-export const serviceVisual = (slug: string, categorySlug: string): Visual => {
+export const serviceVisual = (slug: string, categorySlug: string, imageCandidate?: string): Visual => {
   const base = categoryVisual(categorySlug);
-  const image = SERVICE_IMAGES[slug] ?? base.image;
+  const image = imageCandidate || SERVICE_IMAGES[slug] || base.image;
   // Use the category's crop only when the service shows the same photo as its category.
-  const focus = image === base.image ? base.focus : image ? SERVICE_FOCUS[image] : undefined;
+  const focus = image === base.image ? base.focus : image ? (SERVICE_FOCUS[image] ?? "50% 50%") : undefined;
   return { ...base, asset: SERVICE_ASSETS[slug] ?? base.asset, image, focus };
 };
 
@@ -129,7 +145,7 @@ export function Icon3D({ asset, emoji, className, delayMs = 0 }: Icon3DProps) {
   if (failed) {
     return (
       <span aria-hidden="true" className={clsx("flex items-center justify-center text-4xl", className)}>
-        {emoji ?? "✨"}
+        {emoji ?? "🔧"}
       </span>
     );
   }

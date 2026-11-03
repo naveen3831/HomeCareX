@@ -143,7 +143,7 @@ export default function Reviews() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5">
+    <div className="w-full min-w-0 space-y-5">
       <header>
         {/* The top bar shows the page name; keep a real heading for screen readers. */}
         <h1 className="sr-only">Reviews</h1>

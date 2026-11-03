@@ -123,8 +123,12 @@ export function buildCategoriesPipeline(
   c: CollectionNames = defaultCollections(),
 ): PipelineStage[] {
   return [
-    { $match: { active: { $ne: false } } },
-    { $sort: { sortOrder: 1, name: 1 } },
+    {
+      $match: {
+        active: { $ne: false },
+      },
+    },
+    { $sort: { sortOrder: 1, _id: 1 } },
     { $limit: MAX_CATEGORIES },
     {
       $lookup: {
@@ -147,6 +151,8 @@ export function buildCategoriesPipeline(
         name: 1,
         slug: 1,
         icon: 1,
+        iconUrl: 1,
+        imageUrl: 1,
         serviceCount: { $ifNull: [{ $arrayElemAt: ["$svc.n", 0] }, 0] },
       },
     },
@@ -155,7 +161,11 @@ export function buildCategoriesPipeline(
 
 export function buildRecommendedPipeline(): PipelineStage[] {
   return [
-    { $match: { active: { $ne: false } } },
+    {
+      $match: {
+        active: { $ne: false },
+      },
+    },
     { $sort: { bookingsCount: -1, ratingAvg: -1, _id: 1 } },
     { $limit: MAX_RECOMMENDED_SERVICES },
     {

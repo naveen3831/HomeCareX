@@ -1,10 +1,9 @@
-﻿
+
 import { useState, type ComponentType, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
-  ArrowLeft,
   CalendarDays,
   CalendarClock,
   CircleAlert,
@@ -214,7 +213,7 @@ export default function BookingDetails() {
 
   // CustomerLayout already provides the main page spacing.
   const shell = (children: ReactNode) => (
-    <div className="mx-auto w-full max-w-6xl min-w-0 px-3.5 py-4 outline-none sm:px-6 sm:py-6">
+    <div className="w-full min-w-0 outline-none">
       {children}
     </div>
   );
@@ -393,20 +392,6 @@ function DetailsBody({
 
   return (
     <>
-      {/* Back navigation */}
-      <div className="mb-4">
-        <Link
-          to={customerPath("/bookings")}
-          className={clsx(
-            "inline-flex items-center gap-1.5 text-xs font-semibold text-muted transition hover:text-ink",
-            FOCUS_RING,
-          )}
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          <span>Back to My Bookings</span>
-        </Link>
-      </div>
-
       {/* Booking header */}
       <header className="mb-5 rounded-2xl border border-line bg-panel p-4 shadow-[0_1px_2px_rgba(30,27,46,0.04)] sm:mb-6 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

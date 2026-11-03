@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import clsx from "clsx";
@@ -31,7 +31,15 @@ export function MostBooked() {
       </section>
     );
   }
-  const items = data?.items ?? [];
+  const items = useMemo(() => {
+    const raw = data?.items ?? [];
+    const seen = new Set<string>();
+    return raw.filter((s) => {
+      if (!s.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }, [data?.items]);
   if (items.length === 0) return null;
 
   return (
@@ -57,7 +65,7 @@ export function MostBooked() {
 
       <ul ref={rail} className={clsx("relative flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain p-1 pb-3", NO_SCROLLBAR)}>
         {items.map((s, i) => {
-          const v = serviceVisual(s.slug, s.category.slug);
+          const v = serviceVisual(s.slug, s.category.slug, s.image);
           return (
             <li key={s.id} className="relative w-[232px] shrink-0 snap-start">
               <Link

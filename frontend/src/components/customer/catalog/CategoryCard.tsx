@@ -23,15 +23,17 @@ interface Props {
  * Opens the Services page already filtered to this category.
  */
 export function CategoryCard({ category: c, index, featured = false }: Props) {
-  const v = categoryVisual(c.slug);
+  const v = categoryVisual(c.slug, c.image);
   const [photoFailed, setPhotoFailed] = useState(false);
-  const photo = v.image && !photoFailed ? v.image : null;
-  const hints = [c.icon, c.name, c.slug];
+  const photoCandidate = c.image || v.image;
+  const photo = photoCandidate && !photoFailed ? photoCandidate : null;
+  const displayName = c.name;
+  const hints = [c.icon, displayName, c.slug];
 
   return (
     <Link
       to={`${customerPath("/services")}?category=${encodeURIComponent(c.slug)}`}
-      aria-label={`${c.name}, ${plural(c.serviceCount, "service")}`}
+      aria-label={`${displayName}, ${plural(c.serviceCount, "service")}`}
       className={clsx(
         "group relative flex h-full w-full flex-col justify-end overflow-hidden rounded-[22px]   transition-shadow duration-200 md:rounded-[26px] md:p-5",
         "hover:shadow-[0_18px_30px_-16px_rgba(67,56,202,.55)]",
@@ -71,7 +73,7 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
       )}
 
       <div className="relative max-w-[78%]">
-        <h2 className={clsx("line-clamp-2 font-semibold leading-snug", featured ? "text-xl md:text-[28px]" : "text-sm md:text-[17px]")}>{c.name}</h2>
+        <h2 className={clsx("line-clamp-2 font-semibold leading-snug", featured ? "text-xl md:text-[28px]" : "text-sm md:text-[17px]")}>{displayName}</h2>
         <p className={clsx("mt-0.5 text-[11px] md:text-[13px]", photo ? "text-white/85" : "text-ink/60")}>{plural(c.serviceCount, "service")}</p>
       </div>
 

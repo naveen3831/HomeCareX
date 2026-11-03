@@ -15,6 +15,13 @@ interface Props {
 
 /** One-tap category switcher with a photo thumbnail. Scrolls sideways on small screens. */
 export function CategoryChips({ categories, total, selected, onSelect }: Props) {
+  const seen = new Set<string>();
+  const uniqueCategories = categories.filter((c) => {
+    if (!c.id || seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+
   const base = "group flex shrink-0 snap-start items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-4 text-left transition-all duration-200";
   const state = (on: boolean) => (on ? "border-brand bg-brand-soft shadow-[inset_0_0_0_1px_#4338CA]" : "border-line bg-panel hover:border-brand/30 hover:shadow-sm");
   return (
@@ -26,20 +33,23 @@ export function CategoryChips({ categories, total, selected, onSelect }: Props) 
           <span className="block text-[10.5px] leading-tight text-muted">{plural(total, "service")}</span>
         </span>
       </button>
-      {categories.map((c, i) => {
-        const v = categoryVisual(c.slug);
+      {uniqueCategories.map((c, i) => {
+        const v = categoryVisual(c.slug, c.image);
+        const photo = c.image || v.image;
+        const displayName = c.name;
         const on = c.slug === selected;
         return (
           <button key={c.id} type="button" aria-pressed={on} onClick={() => onSelect(on ? undefined : c.slug)} className={clsx(base, state(on), FOCUS_RING)}>
             <span className={clsx("relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full", v.tint)}>
-              {v.image ? (
-                <img src={v.image} alt="" loading="lazy" decoding="async" style={{ objectPosition: v.focus }} className="h-full w-full object-cover" />
+              {photo ? (
+                <img src={photo} alt="" loading="lazy" decoding="async" style={{ objectPosition: v.focus }} className="h-full w-full object-cover" />
+
               ) : (
                 <Icon3D asset={v.asset} emoji={c.icon} delayMs={i * 500} className="h-6 w-6" />
               )}
             </span>
             <span className="min-w-0">
-              <span className="block max-w-[150px] truncate text-[13px] font-semibold leading-tight text-ink">{c.name}</span>
+              <span className="block max-w-[150px] truncate text-[13px] font-semibold leading-tight text-ink">{displayName}</span>
               <span className="block text-[10.5px] leading-tight text-muted">{plural(c.serviceCount, "service")}</span>
             </span>
           </button>

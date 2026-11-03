@@ -12,9 +12,16 @@ interface Props {
 }
 
 export function ServiceGrid({ services, busy = false }: Props) {
+  const seen = new Set<string>();
+  const unique = services.filter((s) => {
+    if (!s.id || seen.has(s.id)) return false;
+    seen.add(s.id);
+    return true;
+  });
+
   return (
     <ul aria-busy={busy} className={clsx(GRID, "transition-opacity duration-150", busy && "opacity-60")}>
-      {services.map((s, i) => (
+      {unique.map((s, i) => (
         <li key={s.id}>
           <ServiceCard service={s} index={i} />
         </li>

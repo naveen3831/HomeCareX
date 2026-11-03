@@ -288,7 +288,7 @@ export const SERVICE_DETAILS_SEED: Record<string, ServiceDetailsSeed> = {
 
   // ---- Carpentry & Furniture Assembly
   'furniture-assembly': {
-    images: [`${IMG}home-maintenance.jpg`, `${IMG}home-maintenance-2.jpg`, `${IMG}home-maintenance-3.jpg`, `${IMG}home-maintenance-4.jpg`],
+    images: [`${IMG}furniture-assembly.jpg`, `${IMG}home-maintenance-3.jpg`, `${IMG}home-maintenance-4.jpg`],
     inclusions: ['Assembly of beds, wardrobes, tables and shelves', 'Fitting as per the manufacturer\'s manual', 'Placement in your chosen spot'],
     exclusions: ['The furniture and hardware itself', 'Dismantling of old furniture', 'Wall mounting (optional add-on)'],
     faqs: [
@@ -297,7 +297,7 @@ export const SERVICE_DETAILS_SEED: Record<string, ServiceDetailsSeed> = {
     ],
   },
   'door-lock-repair': {
-    images: [`${IMG}home-maintenance.jpg`, `${IMG}home-maintenance-4.jpg`, `${IMG}home-maintenance-3.jpg`],
+    images: [`${IMG}door-lock-repair.jpg`, `${IMG}home-maintenance-4.jpg`, `${IMG}home-maintenance-3.jpg`],
     inclusions: ['Hinge, handle and lock repair or replacement', 'Door alignment', 'Test after repair'],
     exclusions: ['Cost of a new lock or hardware', 'Repair or replacement of the door or frame'],
     faqs: [
@@ -306,7 +306,7 @@ export const SERVICE_DETAILS_SEED: Record<string, ServiceDetailsSeed> = {
     ],
   },
   'wardrobe-repair': {
-    images: [`${IMG}home-maintenance.jpg`, `${IMG}home-maintenance-3.jpg`, `${IMG}home-maintenance-2.jpg`],
+    images: [`${IMG}wardrobe-repair.jpg`, `${IMG}home-maintenance-3.jpg`, `${IMG}home-maintenance-2.jpg`],
     inclusions: ['Channel and hinge repair', 'Shutter alignment', 'Drawer repair'],
     exclusions: ['Replacement hardware', 'Polishing or repainting', 'Panel or board replacement'],
     faqs: [
@@ -315,7 +315,7 @@ export const SERVICE_DETAILS_SEED: Record<string, ServiceDetailsSeed> = {
     ],
   },
   'custom-shelf-installation': {
-    images: [`${IMG}home-maintenance.jpg`, `${IMG}home-maintenance-2.jpg`, `${IMG}home-maintenance-4.jpg`],
+    images: [`${IMG}custom-shelf-installation.jpg`, `${IMG}home-maintenance-2.jpg`, `${IMG}home-maintenance-4.jpg`],
     inclusions: ['Drilling and fixing of wall shelves', 'Curtain rod installation', 'TV bracket mounting', 'Levelling check'],
     exclusions: ['The shelf, rod or bracket itself', 'Wall repair or plastering after drilling', 'Concealing cables or wiring'],
     faqs: [

@@ -115,7 +115,7 @@ export default function EditProfile() {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
+    <div className="w-full min-w-0 max-w-xl space-y-6">
       <div className="flex items-center gap-4">
         <span
           className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand to-[#7C6CF6] text-xl font-bold text-white shadow-lg"

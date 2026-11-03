@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { ErrorState, OfflineState } from "@/components/customer";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { useCustomerDashboard } from "@/features/customer";
+import { useCustomerDashboard, type DashboardCategoryDto } from "@/features/customer";
 import { useCustomerCoupons } from "@/hooks/useCoupons";
 import { useReferral } from "@/hooks/useReferral";
 import DashboardSkeleton from "./sections/DashboardSkeleton";
@@ -38,15 +38,45 @@ export default function Dashboard() {
   const { data: coupons = [], isLoading: couponsLoading } = useCustomerCoupons();
   const { data: referralData, isLoading: referralLoading } = useReferral();
 
+  const categories = useMemo(() => {
+    const rawList = data?.categories ?? [];
+    const isTestOrDummy = (c: { slug?: string; name: string }) =>
+      !c.name ||
+      c.name.toLowerCase().includes("test") ||
+      c.name.toLowerCase().includes("dummy") ||
+      c.slug?.toLowerCase().includes("test") ||
+      c.slug?.toLowerCase().includes("dummy");
+
+    const seen = new Set<string>();
+    const list: DashboardCategoryDto[] = [];
+    for (const c of rawList) {
+      if (isTestOrDummy(c)) continue;
+      const key = c.id || c.slug;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push(c);
+    }
+    return list;
+  }, [data?.categories]);
+
   const offers = useMemo(() => {
-    // 1. Map real-time coupons configured by admin in backend & database
-    const list: Offer[] = (coupons || []).map((c, index) => ({
+    // 1. Map real-time coupons configured by admin in backend & database - only customer eligible offers!
+    const isNew = data?.isNewCustomer;
+    const eligibleCoupons = (coupons || []).filter((c) => {
+      // Must be eligible according to server response
+      if (c.eligible === false) return false;
+      // If customer is an existing customer (has previous/active bookings), welcome/first-order coupons are not eligible
+      const isWelcome = c.code.toUpperCase().includes("WELCOME") || c.code.toUpperCase().includes("FIRST");
+      if (isWelcome && isNew === false) return false;
+      return true;
+    });
+
+    const list: Offer[] = eligibleCoupons.map((c, index) => ({
       id: c.id || c.code,
       title: c.title,
       description: c.description,
       code: c.code,
       accent: index % 2 === 0 ? "brand" : "accent",
-      isReferral: false,
     }));
 
     // 2. Real-time dynamic referral card based on backend configured reward & user's referral code
@@ -66,7 +96,7 @@ export default function Dashboard() {
     });
 
     return list;
-  }, [coupons, referralData]);
+  }, [coupons, referralData, data?.isNewCustomer]);
 
   if (isPending) return <DashboardSkeleton />;
 
@@ -85,7 +115,7 @@ export default function Dashboard() {
     );
   }
 
-  const { activeBookings, upcomingBookings, categories, recommendedServices, isNewCustomer } = data;
+  const { activeBookings, upcomingBookings, recommendedServices, isNewCustomer } = data;
 
   return (
     <div className="dashboard-mobile mx-auto w-full min-w-0 max-w-[1440px] space-y-6 md:space-y-5">
@@ -146,10 +176,12 @@ export default function Dashboard() {
         </section>
       )}
 
-      <section className="dashboard-section dashboard-section--offers">
+      {offers.length > 0 && (
+        <section className="dashboard-section dashboard-section--offers">
         <SectionHeader title="Offers for you" />
         <OffersCarousel offers={offers} isLoading={couponsLoading || referralLoading} />
       </section>
+      )}
     </div>
   );
 }

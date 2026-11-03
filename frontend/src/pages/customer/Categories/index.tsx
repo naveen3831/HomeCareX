@@ -19,10 +19,15 @@ export default function Categories() {
   const online = useOnlineStatus();
 
   const q = query.trim().toLowerCase();
-  const categories = useMemo(
-    () => (data ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q)),
-    [data, q],
-  );
+  const categories = useMemo(() => {
+    const raw = (data ?? []).filter((c) => !q || c.name.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
+    const seen = new Set<string>();
+    return raw.filter((c) => {
+      if (!c.id || seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  }, [data, q]);
   const totalServices = useMemo(() => (data ?? []).reduce((sum, c) => sum + c.serviceCount, 0), [data]);
 
   let body;
@@ -58,7 +63,7 @@ export default function Categories() {
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[1200px] space-y-5 md:space-y-6">
+    <div className="w-full min-w-0 space-y-5 md:space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <header>
           <h1 className="sr-only">Categories</h1>

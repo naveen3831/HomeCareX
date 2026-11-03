@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/customer/Skeleton";
 /** Same grid as the real page, so nothing jumps when the data arrives. */
 export default function ServiceDetailsSkeleton() {
   return (
-    <div role="status" aria-label="Loading service details" className="mx-auto max-w-[1280px]">
+    <div role="status" aria-label="Loading service details" className="w-full min-w-0">
       <Skeleton className="h-5 w-64 max-w-full" />
       <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-8">
         <div className="xl:col-start-1 xl:row-start-1">

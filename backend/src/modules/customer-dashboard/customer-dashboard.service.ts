@@ -41,13 +41,50 @@ export function toBookingDto(row: BookingRow): DashboardBookingDto {
   };
 }
 
-export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => ({
-  id: row._id.toString(),
-  name: row.name,
-  slug: row.slug,
-  icon: row.icon ?? null,
-  serviceCount: row.serviceCount,
-});
+const CATEGORY_REAL_IMAGES: Record<string, string> = {
+  'home-cleaning': '/images/home-cleaning.jpg',
+  'appliance-repair': '/images/appliance-repair.jpg',
+  'appliance-repair-service': '/images/appliance-repair.jpg',
+  'salon-spa': '/images/Home-spa-women-banner.jpg',
+  'electrical-plumbing': '/images/electrical.jpg',
+  painting: '/images/painting-category.png',
+  'painting-waterproofing': '/images/painting-category.png',
+  'pest-control': '/images/pest-control-clean.png',
+  carpentry: '/images/furniture-assembly.jpg',
+  'carpentry-furniture-assembly': '/images/furniture-assembly.jpg',
+  'full-home-sanitization': '/images/pest-control-clean.png',
+  'home-sanitization': '/images/pest-control-clean.png',
+};
+
+export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => {
+  let img: string | null = null;
+  if (row.images && Array.isArray(row.images) && row.images.length > 0) {
+    // Prefer clean relative/absolute image paths over inline base64 data URLs
+    const cleanUrl = row.images.find((i) => i.url && !i.url.startsWith('data:') && !i.url.includes('/icons/3d/'));
+    const primary = row.images.find((i) => i.isPrimary && !i.url?.includes('/icons/3d/'));
+    img = (cleanUrl ?? primary ?? row.images[0])?.url ?? null;
+  }
+
+  const isEmojiOrIcon = (url?: string | null) =>
+    !url || url.includes('/icons/3d/') || url.includes('/icons/');
+
+  const resolvedUrl =
+    (!isEmojiOrIcon(row.imageUrl) && !row.imageUrl?.startsWith('data:'))
+      ? row.imageUrl!
+      : (img && !isEmojiOrIcon(img)
+          ? img
+          : (CATEGORY_REAL_IMAGES[row.slug] ?? null));
+
+  return {
+    id: row._id.toString(),
+    name: row.name,
+    slug: row.slug,
+    icon: row.icon ?? null,
+    iconUrl: row.iconUrl ?? null,
+    imageUrl: resolvedUrl,
+    serviceCount: row.serviceCount,
+  };
+};
 
 export const toServiceDto = (row: ServiceRow): DashboardServiceDto => ({
   id: row._id.toString(),
@@ -90,8 +127,12 @@ export const customerDashboardService = {
       defaultAddress: address,
       activeBookings: bookings.active.map(toBookingDto),
       upcomingBookings: bookings.upcoming.map(toBookingDto),
-      categories: categories.map(toCategoryDto),
-      recommendedServices: services.map(toServiceDto),
+      categories: categories
+        .filter((c) => !/test/i.test(c.slug) && !/test/i.test(c.name))
+        .map(toCategoryDto),
+      recommendedServices: services
+        .filter((s) => !/test/i.test(s.slug) && !/test/i.test(s.name))
+        .map(toServiceDto),
       unreadNotifications: unread,
     };
   },

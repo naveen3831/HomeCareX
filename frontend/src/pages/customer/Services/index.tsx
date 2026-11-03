@@ -108,7 +108,7 @@ export default function Services() {
   }
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 md:space-y-6">
+    <div className="w-full min-w-0 space-y-5 md:space-y-6">
       <header>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">

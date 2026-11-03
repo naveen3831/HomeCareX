@@ -19,6 +19,8 @@ export interface DashboardCategoryDto {
   name: string;
   slug: string;
   icon: string | null;
+  iconUrl?: string | null;
+  imageUrl?: string | null;
   serviceCount: number;
 }
 
@@ -69,6 +71,9 @@ export interface CategoryRow {
   name: string;
   slug: string;
   icon?: string | null;
+  iconUrl?: string | null;
+  imageUrl?: string | null;
+  images?: Array<{ url: string; alt?: string; isPrimary?: boolean }>;
   serviceCount: number;
 }
 

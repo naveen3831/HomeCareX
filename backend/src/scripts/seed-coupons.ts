@@ -71,7 +71,8 @@ async function main() {
 
   const now = new Date();
   const startAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
-  const endAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+  const defaultEndAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const endAt = defaultEndAt;
 
   for (const c of SEED_COUPONS) {
     const existing = await CouponModel.findOne({ code: c.code });

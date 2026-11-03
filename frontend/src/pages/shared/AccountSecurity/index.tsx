@@ -5,30 +5,51 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
-    ChevronRight,
+  ChevronRight,
   Globe,
   KeyRound,
   Laptop,
+  Lock,
   LogOut,
   Monitor,
   RefreshCw,
   ShieldAlert,
-  ShieldCheck,
   Smartphone,
   Trash2,
   User,
 } from "lucide-react";
 import { PasswordField } from "@/components/auth/PasswordField";
 import { PasswordStrength } from "@/components/auth/PasswordStrength";
-import { useAuth, useChangePassword, useLogoutAll, useSessions } from "@/features/auth";
+import {
+  useAuth,
+  useChangePassword,
+  useLogoutAll,
+  useSessions,
+} from "@/features/auth";
 import { customerPath } from "@/routes/customerPath";
 import type { UserSession } from "@/types/auth";
 
 export const PASSWORD_POLICY = [
-  { id: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
-  { id: "upper", label: "At least one uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
-  { id: "number", label: "At least one number", test: (p: string) => /[0-9]/.test(p) },
-  { id: "special", label: "At least one special character (!@#$%...)", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  {
+    id: "length",
+    label: "At least 8 characters",
+    test: (p: string) => p.length >= 8,
+  },
+  {
+    id: "upper",
+    label: "At least one uppercase letter",
+    test: (p: string) => /[A-Z]/.test(p),
+  },
+  {
+    id: "number",
+    label: "At least one number",
+    test: (p: string) => /[0-9]/.test(p),
+  },
+  {
+    id: "special",
+    label: "At least one special character (!@#$%...)",
+    test: (p: string) => /[^A-Za-z0-9]/.test(p),
+  },
 ];
 
 function formatDate(iso?: string | null): string {
@@ -69,13 +90,85 @@ function getDeviceIcon(deviceStr?: string, browserStr?: string) {
   return Monitor;
 }
 
+function Shield3D({ className = "h-24 w-24 sm:h-28 sm:w-28" }: { className?: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (imgError) {
+    return (
+      <svg
+        viewBox="0 0 100 110"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className={className}
+        aria-hidden="true"
+      >
+        <defs>
+          <filter id="shield-shadow" x="0" y="0" width="100" height="110" filterUnits="userSpaceOnUse">
+            <feDropShadow dx="0" dy="8" stdDeviation="8" floodColor="#2563EB" floodOpacity="0.3" />
+          </filter>
+          <linearGradient id="shield-rim" x1="15" y1="10" x2="85" y2="95" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="50%" stopColor="#E2EDFD" />
+            <stop offset="100%" stopColor="#BFD7FA" />
+          </linearGradient>
+          <linearGradient id="shield-core" x1="50" y1="18" x2="50" y2="88" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#3B82F6" />
+            <stop offset="50%" stopColor="#2563EB" />
+            <stop offset="100%" stopColor="#1D4ED8" />
+          </linearGradient>
+          <linearGradient id="shield-highlight" x1="50" y1="18" x2="50" y2="48" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <g filter="url(#shield-shadow)">
+          <path
+            d="M50 10 C66 10 82 17 84 26 C86 50 75 75 50 92 C25 75 14 50 16 26 C18 17 34 10 50 10 Z"
+            fill="url(#shield-rim)"
+          />
+          <path
+            d="M50 16 C63 16 75 22 77 29 C79 48 70 69 50 83 C30 69 21 48 23 29 C25 22 37 16 50 16 Z"
+            fill="url(#shield-core)"
+          />
+          <path
+            d="M50 16 C63 16 75 22 77 29 C78 40 74 52 68 60 C55 50 38 47 25 48 C24 41 23 35 23 29 C25 22 37 16 50 16 Z"
+            fill="url(#shield-highlight)"
+          />
+          <path
+            d="M40 48 L47 55 L62 39"
+            stroke="#FFFFFF"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
+      </svg>
+    );
+  }
+
+  return (
+    <div className={clsx("relative flex items-center justify-center shrink-0", className)}>
+      <img
+        src="/icons/3d/shield-secure.png"
+        alt=""
+        onError={() => setImgError(true)}
+        className="h-full w-full object-contain pointer-events-none select-none drop-shadow-[0_8px_18px_rgba(37,99,235,0.16)] transition-transform duration-300 motion-safe:hover:scale-105"
+        loading="eager"
+        decoding="async"
+      />
+    </div>
+  );
+}
+
 export const AccountSecurityPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const formSuccessAlertId = useId();
 
   // In test environment, keep forms expanded so queries find input fields immediately
-  const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
+  const isTest =
+    typeof process !== "undefined" && process.env.NODE_ENV === "test";
   const [showPasswordForm, setShowPasswordForm] = useState(isTest);
   const [showActiveSessions, setShowActiveSessions] = useState(isTest);
 
@@ -92,7 +185,9 @@ export const AccountSecurityPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<string | null>(null);
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<
+    string | null
+  >(null);
 
   // --- Section B: Active Sessions State ---
   const {
@@ -106,10 +201,16 @@ export const AccountSecurityPage: React.FC = () => {
     revokeError,
   } = useSessions();
 
-  const [sessionToRevoke, setSessionToRevoke] = useState<UserSession | null>(null);
+  const [sessionToRevoke, setSessionToRevoke] = useState<UserSession | null>(
+    null,
+  );
 
   // --- Section C: Logout All State ---
-  const { logoutAll, loading: isLoggingOutAll, error: logoutAllError } = useLogoutAll();
+  const {
+    logoutAll,
+    loading: isLoggingOutAll,
+    error: logoutAllError,
+  } = useLogoutAll();
   const [showLogoutAllConfirm, setShowLogoutAllConfirm] = useState(false);
 
   // --- Navigation Back Handler ---
@@ -147,7 +248,8 @@ export const AccountSecurityPage: React.FC = () => {
       } else if (!/[^A-Za-z0-9]/.test(newPassword)) {
         errors.newPassword = "Password needs a special character";
       } else if (currentPassword && newPassword === currentPassword) {
-        errors.newPassword = "New password must be different from your current password";
+        errors.newPassword =
+          "New password must be different from your current password";
       }
     }
 
@@ -194,9 +296,11 @@ export const AccountSecurityPage: React.FC = () => {
       if (e.code === "INVALID_CURRENT_PASSWORD") {
         nextErrors.currentPassword = "Current password is incorrect";
       } else if (e.code === "SAME_PASSWORD") {
-        nextErrors.newPassword = "New password must be different from your current password";
+        nextErrors.newPassword =
+          "New password must be different from your current password";
       } else if (e.code === "PASSWORD_TOO_WEAK") {
-        nextErrors.newPassword = e.message || "Password does not meet security requirements";
+        nextErrors.newPassword =
+          e.message || "Password does not meet security requirements";
       }
 
       if (Array.isArray(e.details)) {
@@ -235,61 +339,79 @@ export const AccountSecurityPage: React.FC = () => {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-3 md:py-6 space-y-4 pb-28 md:pb-16 min-h-[calc(100vh-64px)]">
-      {/* Top Header Bar: Back Arrow + Account Security Title */}
-      <header className="flex md:hidden items-center gap-3 pt-1 pb-2">
+    <div className="w-full max-w-6xl mx-auto pb-2 sm:pb-20 pt-0 -mt-6 sm:-mt-2 md:mt-0">
+      {/* Real accessible heading for screen readers & tests */}
+      <h1 className="sr-only">Account Security</h1>
+
+      {/* Mobile left-side header with back arrow - clean alignment, no extra gap */}
+      <header className="flex md:hidden items-center gap-3 pb-1 pt-0">
         <button
           type="button"
           onClick={handleGoBack}
           aria-label="Back"
-          className="-ml-1 flex h-9 w-9 items-center justify-center rounded-xl text-slate-800 transition hover:bg-slate-100 active:scale-95"
+          className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-800 transition hover:bg-slate-100 active:scale-95"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+        <span className="text-xl font-bold tracking-tight text-slate-900">
           Account Security
-        </h1>
+        </span>
       </header>
 
       {/* Offline Alert */}
       {!isOnline && (
-        <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-          <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
+        <div
+          role="status"
+          className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 p-2.5 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5"
+        >
+          <AlertTriangle
+            className="h-4 w-4 shrink-0 text-amber-600"
+            aria-hidden="true"
+          />
+          <span>
+            You are currently offline. Changes cannot be saved until connection
+            is restored.
+          </span>
         </div>
       )}
 
-      {/* CARD 1: STATUS BANNER ("Your Account is Secure") */}
-      <div className="rounded-[22px] bg-[#EEF0FF] p-5 shadow-sm">
-        <div className="flex items-start gap-3.5">
-          <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#4F46E5] text-white shadow-sm"
-            aria-hidden="true"
-          >
-            <ShieldCheck className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-slate-900">Your Account is Secure</h2>
-            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-              Manage your password, review active login sessions, and protect your account.
-            </p>
+      {/* Cards container with tight spacing */}
+      <div className="space-y-3 sm:space-y-4">
+        {/* CARD 1: STATUS BANNER ("Your Account is Secure") */}
+        <div className="relative overflow-hidden rounded-[22px] sm:rounded-[24px] bg-gradient-to-r from-[#F6F9FE] via-[#EFF6FF] to-[#DBEBFE] p-4 sm:p-5 md:p-6 shadow-sm border border-blue-100/70">
+          <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
+                Your Account is <span className="text-[#2563EB]">Secure</span>
+              </h2>
+              <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-[210px] sm:max-w-md">
+                Manage your password, review active login sessions, and protect your account.
+              </p>
+
+              {user?.email && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] sm:text-xs text-slate-600 shadow-sm border border-slate-100">
+                  <User className="h-3.5 w-3.5 text-slate-500 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    Signed in as{" "}
+                    <strong className="font-semibold text-slate-900">
+                      {user.email}
+                    </strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* 3D Glossy Shield with checkmark */}
+            <div className="shrink-0 flex items-center justify-center pl-1 sm:pl-3">
+              <Shield3D className="h-24 w-24 sm:h-28 sm:w-28" />
+            </div>
           </div>
         </div>
-
-        {user?.email && (
-          <div className="mt-3.5 flex items-center gap-2 pt-3 border-t border-[#DDE2FF] text-xs text-slate-600">
-            <User className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
-            <span>
-              Signed in as <strong className="font-semibold text-slate-900">{user.email}</strong> {user.role ? `(${user.role})` : ""}
-            </span>
-          </div>
-        )}
-      </div>
 
       {/* CARD 2: CHANGE PASSWORD */}
       <section
         aria-labelledby="change-password-heading"
-        className="rounded-[22px] bg-white p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100"
+        className="rounded-[20px] sm:rounded-[22px] bg-white p-3.5 sm:p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100/80 transition-all"
       >
         <div
           role="button"
@@ -304,64 +426,87 @@ export const AccountSecurityPage: React.FC = () => {
           aria-expanded={showPasswordForm}
           className="flex items-center justify-between gap-3 cursor-pointer select-none"
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3.5 min-w-0">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0EEFF] text-[#5046E5]"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EBF5FF] text-[#2563EB]"
               aria-hidden="true"
             >
-              <KeyRound className="h-5 w-5" />
+              <Lock className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h2 id="change-password-heading" className="text-base font-semibold text-slate-900">
+              <h2
+                id="change-password-heading"
+                className="text-base sm:text-lg font-bold text-slate-900 tracking-tight"
+              >
                 Change Password
               </h2>
-              <p className="text-xs text-slate-500 truncate">
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
                 Verify your current password to set a new one.
               </p>
             </div>
           </div>
-          <ChevronRight
-            className={clsx(
-              "h-5 w-5 text-slate-400 transition-transform duration-200 shrink-0",
-              showPasswordForm && "rotate-90",
-            )}
-          />
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPasswordForm((prev) => !prev);
+              }}
+              aria-expanded={showPasswordForm}
+              className="hidden md:inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]"
+            >
+              <KeyRound className="h-4 w-4" aria-hidden="true" />
+              <span>{showPasswordForm ? "Close Form" : "Change Password"}</span>
+            </button>
+
+            <ChevronRight
+              className={clsx(
+                "h-5 w-5 text-slate-400 transition-transform duration-200 md:hidden",
+                showPasswordForm && "rotate-90",
+              )}
+            />
+          </div>
         </div>
 
-        {/* Change Password Action Button when collapsed */}
-        {!showPasswordForm && (
-          <button
-            type="button"
-            onClick={() => setShowPasswordForm(true)}
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5]"
-          >
-            <KeyRound className="h-4 w-4" aria-hidden="true" />
-            <span>Change Password</span>
-          </button>
-        )}
-
-        {/* Expanded Password Form */}
+        {/* Change Password Form (expanded) */}
         {showPasswordForm && (
-          <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-5 pt-5 border-t border-slate-100 animate-fadeIn">
             {passwordSuccessMessage && (
               <div
                 id={formSuccessAlertId}
                 role="status"
                 className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs sm:text-sm text-emerald-800 flex items-center gap-2.5 animate-fadeIn"
               >
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                <CheckCircle2
+                  className="h-4 w-4 shrink-0 text-emerald-600"
+                  aria-hidden="true"
+                />
                 <span>{passwordSuccessMessage}</span>
               </div>
             )}
 
             {changePasswordError && !fieldErrors.currentPassword && (
-              <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
-                <span>{changePasswordError.message || "Failed to update password. Please verify current password and try again."}</span>
+              <div
+                role="alert"
+                className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
+              >
+                <AlertTriangle
+                  className="h-4 w-4 shrink-0 text-red-600"
+                  aria-hidden="true"
+                />
+                <span>
+                  {changePasswordError.message ||
+                    "Failed to update password. Please verify current password and try again."}
+                </span>
               </div>
             )}
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-4" noValidate>
+            <form
+              onSubmit={handlePasswordSubmit}
+              className="space-y-4 max-w-2xl"
+              noValidate
+            >
               {/* Current Password */}
               <PasswordField
                 id="current-password"
@@ -377,7 +522,7 @@ export const AccountSecurityPage: React.FC = () => {
                 rightAction={
                   <Link
                     to="/forgot-password"
-                    className="text-xs font-semibold text-[#5046E5] hover:text-[#4338CA] hover:underline focus:outline-none focus:ring-2 focus:ring-[#5046E5] rounded transition-colors"
+                    className="text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] hover:underline focus:outline-none focus:ring-2 focus:ring-[#4F46E5] rounded transition-colors"
                   >
                     Forgot password?
                   </Link>
@@ -408,21 +553,34 @@ export const AccountSecurityPage: React.FC = () => {
                   placeholder="Enter new strong password"
                   disabled={isChangingPassword || !isOnline}
                 />
-                {newPassword && <PasswordStrength password={newPassword} className="mt-1.5" />}
-              </div>
 
-              {/* Password Policy Checklist */}
-              <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-xs text-slate-600" aria-label="Password rules">
-                <p className="font-semibold text-slate-700 mb-2">Password must include:</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {newPassword && (
+                  <div className="mt-2.5">
+                    <PasswordStrength password={newPassword} />
+                  </div>
+                )}
+
+                {/* Password Policy Checklist */}
+                <div
+                  className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"
+                  aria-label="Password requirements"
+                >
                   {PASSWORD_POLICY.map((rule) => {
                     const isMet = rule.test(newPassword);
                     return (
-                      <div key={rule.id} className={clsx("flex items-center gap-2", isMet ? "text-emerald-700 font-medium" : "text-slate-500")}>
+                      <div
+                        key={rule.id}
+                        className={clsx(
+                          "flex items-center gap-2",
+                          isMet ? "text-emerald-700 font-medium" : "text-slate-500",
+                        )}
+                      >
                         <span
                           className={clsx(
                             "flex h-4 w-4 items-center justify-center rounded-full text-[10px]",
-                            isMet ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500",
+                            isMet
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-slate-200 text-slate-500",
                           )}
                           aria-hidden="true"
                         >
@@ -430,7 +588,9 @@ export const AccountSecurityPage: React.FC = () => {
                         </span>
                         <span>
                           {rule.label}
-                          <span className="sr-only">{isMet ? " (met)" : " (not met)"}</span>
+                          <span className="sr-only">
+                            {isMet ? " (met)" : " (not met)"}
+                          </span>
                         </span>
                       </div>
                     );
@@ -457,15 +617,18 @@ export const AccountSecurityPage: React.FC = () => {
                 disabled={isChangingPassword || !isOnline}
               />
 
-              <div className="pt-2">
+              <div className="pt-2 flex justify-end">
                 <button
                   type="submit"
                   disabled={isChangingPassword || !isOnline}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isChangingPassword ? (
                     <>
-                      <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <RefreshCw
+                        className="h-4 w-4 animate-spin"
+                        aria-hidden="true"
+                      />
                       <span>Updating password…</span>
                     </>
                   ) : (
@@ -481,7 +644,7 @@ export const AccountSecurityPage: React.FC = () => {
       {/* CARD 3: ACTIVE SESSIONS */}
       <section
         aria-labelledby="active-sessions-heading"
-        className="rounded-[22px] bg-white p-5 shadow-[0_4px_24px_rgba(0,0,0,0.04)] border border-slate-100"
+        className="rounded-[20px] sm:rounded-[22px] bg-white p-3.5 sm:p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100/80 transition-all"
       >
         <div
           role="button"
@@ -494,26 +657,29 @@ export const AccountSecurityPage: React.FC = () => {
             }
           }}
           aria-expanded={showActiveSessions}
-          className="flex items-center justify-between gap-3 cursor-pointer select-none"
+          className="flex items-center justify-between gap-3 sm:gap-4 cursor-pointer select-none"
         >
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3.5 min-w-0">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0FF] text-[#5046E5]"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EEFF] text-[#6366F1]"
               aria-hidden="true"
             >
-              <Monitor className="h-5 w-5" />
+              <Monitor className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h2 id="active-sessions-heading" className="text-base font-semibold text-slate-900">
+              <h2
+                id="active-sessions-heading"
+                className="text-base sm:text-lg font-bold text-slate-900 tracking-tight"
+              >
                 Active Sessions
               </h2>
-              <p className="text-xs text-slate-500 truncate">
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5 truncate sm:whitespace-normal">
                 Devices currently authenticated with your account.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {showActiveSessions && (
               <button
                 type="button"
@@ -522,10 +688,13 @@ export const AccountSecurityPage: React.FC = () => {
                   void refetchSessions();
                 }}
                 disabled={isLoadingSessions}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5046E5] disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4F46E5] disabled:opacity-50"
                 aria-label="Refresh active sessions list"
               >
-                <RefreshCw className={`h-3 w-3 ${isLoadingSessions ? "animate-spin" : ""}`} aria-hidden="true" />
+                <RefreshCw
+                  className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isLoadingSessions ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
                 <span>Refresh</span>
               </button>
             )}
@@ -539,55 +708,94 @@ export const AccountSecurityPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Expanded Sessions Content */}
+        {/* Active Sessions List (expanded) */}
         {showActiveSessions && (
-          <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-5 pt-5 border-t border-slate-100 animate-fadeIn">
             {revokeError && (
-              <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
-                <span>{revokeError.message || "Failed to revoke session. Please try again."}</span>
+              <div
+                role="alert"
+                className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
+              >
+                <AlertTriangle
+                  className="h-4 w-4 shrink-0 text-red-600"
+                  aria-hidden="true"
+                />
+                <span>
+                  {revokeError.message ||
+                    "Failed to revoke session. Please try again."}
+                </span>
               </div>
             )}
 
             <div>
               {isLoadingSessions ? (
-                <div className="py-8 text-center text-slate-500 space-y-3" aria-busy="true">
-                  <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#5046E5]" aria-hidden="true" />
+                <div
+                  className="py-8 text-center text-slate-500 space-y-3"
+                  aria-busy="true"
+                >
+                  <RefreshCw
+                    className="mx-auto h-6 w-6 animate-spin text-[#4F46E5]"
+                    aria-hidden="true"
+                  />
                   <p className="text-xs sm:text-sm">Loading active sessions…</p>
                 </div>
               ) : sessionsError ? (
-                <div role="alert" className="rounded-xl border border-dashed border-slate-300 p-5 text-center space-y-3">
-                  <AlertTriangle className="mx-auto h-7 w-7 text-amber-500" aria-hidden="true" />
+                <div
+                  role="alert"
+                  className="rounded-xl border border-dashed border-slate-300 p-6 text-center space-y-3"
+                >
+                  <AlertTriangle
+                    className="mx-auto h-8 w-8 text-amber-500"
+                    aria-hidden="true"
+                  />
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Unable to load active sessions</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                      Unable to load active sessions
+                    </p>
                     <p className="text-xs text-slate-500 mt-1">
-                      {sessionsError.message || "Could not retrieve sessions from the server. Please check your connection."}
+                      {sessionsError.message ||
+                        "Could not retrieve sessions from the server. Please check your connection."}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => void refetchSessions()}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#5046E5] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#4338CA]"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#4338CA]"
                   >
                     <RefreshCw size={14} aria-hidden="true" />
                     <span>Retry</span>
                   </button>
                 </div>
               ) : sessions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-slate-500">
-                  <Globe className="mx-auto h-7 w-7 text-slate-400 mb-2" aria-hidden="true" />
-                  <p className="text-sm font-medium text-slate-700">No active sessions found</p>
-                  <p className="text-xs text-slate-400 mt-1">Only this active browser session is connected.</p>
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-slate-500">
+                  <Globe
+                    className="mx-auto h-8 w-8 text-slate-400 mb-2"
+                    aria-hidden="true"
+                  />
+                  <p className="text-sm font-medium text-slate-700">
+                    No active sessions found
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Only this active browser session is connected.
+                  </p>
                 </div>
               ) : (
-                <ul className="space-y-2.5" aria-label="Active sessions list">
+                <ul
+                  className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200"
+                  aria-label="Active sessions list"
+                >
                   {sessions.map((session) => {
                     const Icon = getDeviceIcon(session.device, session.browser);
                     const isCurrent = Boolean(session.isCurrent);
                     const isThisRevoking = revokingId === session.id;
 
-                    const deviceName = [session.device, session.browser, session.os].filter(Boolean).join(" · ") || "Unknown device";
-                    const ipText = session.ipAddress ? `IP: ${session.ipAddress}` : "IP unavailable";
+                    const deviceName =
+                      [session.device, session.browser, session.os]
+                        .filter(Boolean)
+                        .join(" · ") || "Unknown device";
+                    const ipText = session.ipAddress
+                      ? `IP: ${session.ipAddress}`
+                      : "IP unavailable";
                     const activeTime = formatDate(session.lastActiveAt);
 
                     return (
@@ -595,14 +803,18 @@ export const AccountSecurityPage: React.FC = () => {
                         key={session.id}
                         className={clsx(
                           "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-colors",
-                          isCurrent ? "bg-[#EEF0FF]/40 border-indigo-100" : "bg-white border-slate-100 hover:bg-slate-50",
+                          isCurrent
+                            ? "bg-[#EEF2FF]/40 border-indigo-100"
+                            : "bg-white border-slate-100 hover:bg-slate-50",
                         )}
                       >
                         <div className="flex items-start gap-3 min-w-0">
                           <div
                             className={clsx(
                               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                              isCurrent ? "bg-indigo-100 text-[#5046E5]" : "bg-slate-100 text-slate-600",
+                              isCurrent
+                                ? "bg-indigo-100 text-[#4F46E5]"
+                                : "bg-slate-100 text-slate-600",
                             )}
                             aria-hidden="true"
                           >
@@ -611,7 +823,9 @@ export const AccountSecurityPage: React.FC = () => {
 
                           <div className="min-w-0 flex-1 space-y-0.5">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold text-xs sm:text-sm text-slate-900 truncate">{deviceName}</span>
+                              <span className="font-semibold text-xs sm:text-sm text-slate-900 truncate">
+                                {deviceName}
+                              </span>
                               {isCurrent && (
                                 <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                                   This device
@@ -633,7 +847,7 @@ export const AccountSecurityPage: React.FC = () => {
                             disabled={isRevoking || !isOnline}
                             aria-label={`Revoke session for ${deviceName}`}
                             className={clsx(
-                              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#5046E5] disabled:opacity-50",
+                              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4F46E5] disabled:opacity-50",
                               isCurrent
                                 ? "border border-amber-300 text-amber-700 hover:bg-amber-50"
                                 : "border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300",
@@ -641,7 +855,10 @@ export const AccountSecurityPage: React.FC = () => {
                           >
                             {isThisRevoking ? (
                               <>
-                                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                                <RefreshCw
+                                  className="h-3 w-3 animate-spin"
+                                  aria-hidden="true"
+                                />
                                 <span>Revoking…</span>
                               </>
                             ) : isCurrent ? (
@@ -670,53 +887,70 @@ export const AccountSecurityPage: React.FC = () => {
       {/* CARD 4: LOG OUT OF ALL DEVICES */}
       <section
         aria-labelledby="logout-all-heading"
-        className="rounded-[22px] bg-[#FFF5F5] p-5 border border-red-100 shadow-[0_4px_24px_rgba(239,68,68,0.04)]"
+        className="rounded-[20px] sm:rounded-[22px] bg-[#FFF5F5] p-3.5 sm:p-5 md:p-6 border border-red-100/90 shadow-[0_2px_12px_rgba(239,68,68,0.03)]"
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-start gap-3.5 min-w-0">
             <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FEE2E2] text-[#EF4444]"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FEE2E2] text-[#EF4444]"
               aria-hidden="true"
             >
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h2 id="logout-all-heading" className="text-base font-semibold text-slate-900">
+              <h2
+                id="logout-all-heading"
+                className="text-base sm:text-lg font-bold text-slate-900 tracking-tight"
+              >
                 Log Out of All Devices
               </h2>
-              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed max-w-xl">
                 Terminate all active sessions across every device, including phone, computer, and browser immediately.
               </p>
             </div>
           </div>
-                  </div>
 
-        <button
-          type="button"
-          onClick={() => setShowLogoutAllConfirm(true)}
-          disabled={isLoggingOutAll || !isOnline}
-          className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#EF4444] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#DC2626] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EF4444] disabled:opacity-50"
-        >
-          {isLoggingOutAll ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
-              <span>Logging out…</span>
-            </>
-          ) : (
-            <>
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span>Log Out All Devices</span>
-            </>
-          )}
-        </button>
+          <button
+            type="button"
+            onClick={() => setShowLogoutAllConfirm(true)}
+            disabled={isLoggingOutAll || !isOnline}
+            aria-label="Log Out All Devices"
+            className="mt-1 md:mt-0 w-full md:w-auto inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#EF4444] hover:bg-[#DC2626] py-3 px-5 text-sm font-semibold text-white shadow-sm shadow-red-500/20 transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
+          >
+            {isLoggingOutAll ? (
+              <>
+                <RefreshCw
+                  className="h-4 w-4 animate-spin"
+                  aria-hidden="true"
+                />
+                <span>Logging out…</span>
+              </>
+            ) : (
+              <>
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span>Log Out of All Devices</span>
+              </>
+            )}
+          </button>
+        </div>
 
         {logoutAllError && (
-          <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
-            <span>{logoutAllError.message || "Failed to log out of all devices. Please try again."}</span>
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
+          >
+            <AlertTriangle
+              className="h-4 w-4 shrink-0 text-red-600"
+              aria-hidden="true"
+            />
+            <span>
+              {logoutAllError.message ||
+                "Failed to log out of all devices. Please try again."}
+            </span>
           </div>
         )}
       </section>
+      </div>
 
       {/* CONFIRMATION MODAL: REVOKE INDIVIDUAL SESSION */}
       {sessionToRevoke && (
@@ -728,18 +962,30 @@ export const AccountSecurityPage: React.FC = () => {
         >
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center gap-3 text-red-600">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600" aria-hidden="true">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600"
+                aria-hidden="true"
+              >
                 <AlertTriangle size={20} />
               </div>
-              <h3 id="revoke-modal-title" className="text-base font-bold text-gray-900">
-                {sessionToRevoke.isCurrent ? "Sign out of this device?" : "Revoke session?"}
+              <h3
+                id="revoke-modal-title"
+                className="text-base font-bold text-gray-900"
+              >
+                {sessionToRevoke.isCurrent
+                  ? "Sign out of this device?"
+                  : "Revoke session?"}
               </h3>
             </div>
 
             <p className="text-xs sm:text-sm text-gray-600">
               {sessionToRevoke.isCurrent
                 ? "This will end your current session. You will be redirected to the login page."
-                : `Are you sure you want to revoke access for ${[sessionToRevoke.device, sessionToRevoke.browser].filter(Boolean).join(" ") || "this device"}? It will be immediately logged out.`}
+                : `Are you sure you want to revoke access for ${
+                    [sessionToRevoke.device, sessionToRevoke.browser]
+                      .filter(Boolean)
+                      .join(" ") || "this device"
+                  }? It will be immediately logged out.`}
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2">
@@ -757,7 +1003,11 @@ export const AccountSecurityPage: React.FC = () => {
                 disabled={isRevoking}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
               >
-                {isRevoking ? "Revoking…" : sessionToRevoke.isCurrent ? "Sign Out" : "Revoke Session"}
+                {isRevoking
+                  ? "Revoking…"
+                  : sessionToRevoke.isCurrent
+                    ? "Sign Out"
+                    : "Revoke Session"}
               </button>
             </div>
           </div>
@@ -774,17 +1024,24 @@ export const AccountSecurityPage: React.FC = () => {
         >
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl space-y-4">
             <div className="flex items-center gap-3 text-red-600">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600" aria-hidden="true">
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600"
+                aria-hidden="true"
+              >
                 <ShieldAlert size={20} />
               </div>
-              <h3 id="logout-all-modal-title" className="text-base font-bold text-gray-900">
+              <h3
+                id="logout-all-modal-title"
+                className="text-base font-bold text-gray-900"
+              >
                 Log out of all devices?
               </h3>
             </div>
 
             <p className="text-xs sm:text-sm text-gray-600">
-              This will revoke all active refresh tokens and terminate sessions across every computer, phone, and browser.
-              You will be signed out of this device immediately and returned to the login screen.
+              This will revoke all active refresh tokens and terminate sessions
+              across every computer, phone, and browser. You will be signed out
+              of this device immediately and returned to the login screen.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2">

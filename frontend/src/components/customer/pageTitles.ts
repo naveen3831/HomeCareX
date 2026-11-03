@@ -18,7 +18,7 @@ const PAGES: Array<[RegExp, CustomerPageMeta]> = [
   [/^\/categories$/, { title: "Categories", parent: HOME }],
   [/^\/services$/, { title: "Services", parent: HOME }],
   [/^\/services\/[^/]+$/, { title: "Service details", parent: SERVICES }],
-  [/^\/book\/[^/]+$/, { title: "Book service", parent: SERVICES }],
+  [/^\/book\/[^/]+$/, { title: "Book Service", parent: SERVICES }],
   [/^\/bookings$/, { title: "My Bookings", parent: HOME }],
   [/^\/bookings\/[^/]+\/track$/, { title: "Track booking", parent: BOOKINGS }],
   [/^\/bookings\/[^/]+$/, { title: "Booking details", parent: BOOKINGS }],

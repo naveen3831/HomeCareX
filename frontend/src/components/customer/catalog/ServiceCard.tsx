@@ -20,7 +20,7 @@ const AVAILABILITY_LABEL: Record<CatalogService["availability"], string | null> 
 };
 
 export function ServiceCard({ service: s, index }: { service: CatalogService; index: number }) {
-  const v = serviceVisual(s.slug, s.category.slug);
+  const v = serviceVisual(s.slug, s.category.slug, s.image);
   const badge = badgeFor(s);
   const when = AVAILABILITY_LABEL[s.availability];
 

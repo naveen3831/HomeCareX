@@ -1,7 +1,16 @@
 import { useEffect, useRef } from "react";
-import clsx from "clsx";
-import { Sparkles } from "lucide-react";
+import {
+  Bug,
+  Droplet,
+  Hammer,
+  PaintRoller,
+  Scissors,
+  Sparkles,
+  Wrench,
+  Zap,
+} from "lucide-react";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
+import clsx from "clsx";
 import { useBookingDraftStore } from "@/features/booking";
 import { useService } from "@/hooks/useService";
 import { customerPath } from "@/routes/customerPath";
@@ -10,6 +19,35 @@ import StepService from "./StepService";
 import StepAddress from "./StepAddress";
 import StepSlot from "./StepSlot";
 import StepReview from "./StepReview";
+
+function getServiceIcon(serviceName?: string, categorySlug?: string) {
+  const text = `${serviceName ?? ""} ${categorySlug ?? ""}`.toLowerCase();
+  if (text.includes("paint") || text.includes("wall") || text.includes("waterproof")) {
+    return PaintRoller;
+  }
+  if (text.includes("clean") || text.includes("sanit") || text.includes("maid")) {
+    return Sparkles;
+  }
+  if (text.includes("ac") || text.includes("appliance") || text.includes("repair") || text.includes("fridge") || text.includes("microwave")) {
+    return Wrench;
+  }
+  if (text.includes("plumb") || text.includes("water") || text.includes("tap") || text.includes("tank")) {
+    return Droplet;
+  }
+  if (text.includes("electr") || text.includes("wire") || text.includes("light") || text.includes("fan")) {
+    return Zap;
+  }
+  if (text.includes("pest") || text.includes("bug") || text.includes("termite") || text.includes("mosquito")) {
+    return Bug;
+  }
+  if (text.includes("carpent") || text.includes("furniture") || text.includes("lock") || text.includes("shelf")) {
+    return Hammer;
+  }
+  if (text.includes("salon") || text.includes("spa") || text.includes("hair") || text.includes("massage") || text.includes("makeup")) {
+    return Scissors;
+  }
+  return Sparkles;
+}
 
 export default function BookServiceShell() {
   const { serviceSlug } = useParams<{ serviceSlug: string }>();
@@ -74,9 +112,12 @@ export default function BookServiceShell() {
 
   if (!serviceSlug) return <Navigate to={customerPath("/services")} replace />;
 
+  const ServiceIcon = getServiceIcon(currentService?.name, currentService?.category?.slug);
+
   return (
-    <div className={clsx("mx-auto w-full min-w-0", "max-w-5xl space-y-5 pb-4 sm:space-y-6 sm:pb-6 lg:max-w-6xl")}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="w-full min-w-0 -mt-5 sm:-mt-2 lg:mt-0 space-y-3 sm:space-y-4 lg:space-y-6 pb-4 sm:pb-6">
+      {/* Desktop header: title + service chip */}
+      <div className={clsx("hidden lg:flex flex-wrap items-end justify-between gap-3", effectiveStep === 4 && "hidden md:flex")}>
         <div>
           <h1 className="sr-only">Book a Service</h1>
           <p className="mt-1 text-sm text-muted">Complete the steps below to confirm your booking.</p>
@@ -88,6 +129,24 @@ export default function BookServiceShell() {
           </span>
         )}
       </div>
+
+      {/* Mobile top pill banner (matches reference design) */}
+      {currentService && (
+        <div className="lg:hidden flex items-center justify-between gap-3 rounded-[18px] bg-[#F4F5FD] px-4 py-3 text-slate-800 shadow-xs border border-[#E2E6FA]/90">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <ServiceIcon className="h-5 w-5 text-[#4F46E5] shrink-0" strokeWidth={2.2} aria-hidden="true" />
+            <span className="font-bold text-sm text-slate-900 truncate">
+              {currentService.name}
+            </span>
+          </div>
+          {effectiveStep === 2 && (
+            <span className="shrink-0 text-xs font-bold text-[#4F46E5]">
+              Step 2 of 4
+            </span>
+          )}
+        </div>
+      )}
+
       {notice && (
         <div role="alert" className="flex items-start justify-between gap-3 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm text-ink">
           <span>{notice}</span>
@@ -96,7 +155,11 @@ export default function BookServiceShell() {
           </button>
         </div>
       )}
-      <BookingStepper currentStep={effectiveStep} focusOnMount={redirectedByGuard.current} compact={false} onStepSelect={setStep} />
+
+      <div>
+        <BookingStepper currentStep={effectiveStep} focusOnMount={redirectedByGuard.current} compact={false} onStepSelect={setStep} />
+      </div>
+
       <div className="min-w-0">
         {effectiveStep === 1 && <StepService serviceSlug={serviceSlug} />}
         {effectiveStep === 2 && <StepAddress />}
