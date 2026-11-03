@@ -25,6 +25,39 @@ export interface PartnerDocument {
   status: KycDocumentStatus;
 }
 
+/** Training submitted by the partner after KYC approval. "Not Submitted" = nothing uploaded yet. */
+export type TrainingStatus =
+  | "Not Submitted"
+  | "Pending"
+  | "Approved"
+  | "Rejected";
+
+export type TrainingItemStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected";
+
+export interface PartnerTrainingItem {
+  id: string;
+  /** e.g. "Safety training certificate", "Skill assessment" */
+  name: string;
+  type: "image" | "pdf";
+  /** Same rule as PartnerDocument.url / secure. */
+  url: string;
+  secure?: boolean;
+  status: TrainingItemStatus;
+  submittedAt?: string;
+}
+
+export interface PartnerTraining {
+  status: TrainingStatus;
+  submittedAt?: string;
+  reviewedAt?: string;
+  /** Shown to the partner when status is Rejected. */
+  rejectionReason?: string;
+  items: PartnerTrainingItem[];
+}
+
 export interface KycItem {
   id: string;
   label: string;
@@ -123,4 +156,7 @@ export interface PartnerDetails {
   }[];
 
   activity: PartnerActivity[];
+
+  /** Optional so an older backend that has no training data keeps working. */
+  training?: PartnerTraining;
 }

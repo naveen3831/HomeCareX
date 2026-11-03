@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Ban, CalendarClock, CalendarDays, ChevronRight, Clock } from 'lucide-react';
-import { Availability, getAvailability, setOnline } from './availability.api';
+import { Availability, getAvailability } from './availability.api';
 import { getSchedule, Schedule as ScheduleData } from '../Schedule/schedule.api';
 import { formatTime, todayName } from './time';
 import { usePartnerStatus } from '@/layouts/PartnerLayout';
@@ -67,11 +67,11 @@ const LinkCard: React.FC<{
 );
 
 export const PartnerAvailabilityPage: React.FC = () => {
-  const { setOnline: setHeaderOnline } = usePartnerStatus();
+  // The single online/offline switch lives in the top bar; this page only reflects it.
+  const { online } = usePartnerStatus();
   const [data, setData] = useState<Availability | null>(null);
   const [sched, setSched] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -85,32 +85,16 @@ export const PartnerAvailabilityPage: React.FC = () => {
       ]);
       setData(avail);
       setSched(schedule);
-      setHeaderOnline(avail.isOnline); // keep the header pill in sync
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
-  }, [setHeaderOnline]);
+  }, []);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  const toggle = async () => {
-    if (!data || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const updated = await setOnline(!data.isOnline);
-      setData(updated);
-      setHeaderOnline(updated.isOnline);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update status');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const stats = useMemo(() => {
     if (!data) return null;
@@ -175,30 +159,19 @@ export const PartnerAvailabilityPage: React.FC = () => {
 
       {error && <p className="pa-error" role="alert">{error}</p>}
 
-      <section className={`av-hero av-rise ${data.isOnline ? 'av-hero-on' : ''}`} style={delay(60)}>
+      <section className={`av-hero av-rise ${online ? 'av-hero-on' : ''}`} style={delay(60)}>
         <div className="av-hero-main">
           <span className="av-dot" aria-hidden="true" />
           <div>
-            <h2 className="av-hero-title">{data.isOnline ? 'Online' : 'Offline'}</h2>
+            <h2 className="av-hero-title">{online ? 'Online' : 'Offline'}</h2>
             <p className="av-hero-sub">
-              {data.isOnline ? 'You are visible to customers and can receive new jobs' : 'You are hidden from customers'}
+              {online ? 'You are visible to customers and can receive new jobs' : 'You are hidden from customers. Use the switch at the top to go online'}
             </p>
             <p className={`av-hero-today ${todayBlackout ? 'av-hero-today-blackout' : ''}`}>
               <Clock size={14} aria-hidden="true" /> {todayLabel}
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={data.isOnline}
-          aria-label="Available for jobs"
-          className={`av-switch ${data.isOnline ? 'av-switch-on' : ''}`}
-          onClick={toggle}
-          disabled={saving}
-        >
-          <span className="av-knob" />
-        </button>
       </section>
 
       <div className="av-grid">

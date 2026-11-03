@@ -97,11 +97,6 @@ describe("Public Routes WCAG 2.1 AA Accessibility Audit with axe-core", () => {
   const renderRoute = (initialPath: string, ui: React.ReactNode) => {
     return render(
       <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>
-        </AuthProvider>
-      </QueryClientProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <MemoryRouter initialEntries={[initialPath]}>{ui}</MemoryRouter>

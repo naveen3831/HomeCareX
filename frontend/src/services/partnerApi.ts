@@ -1,13 +1,5 @@
 import http, { type ApiResponse } from "@/lib/http";
 
-import {
-  mockDashboard,
-  mockEarningsSummary,
-  mockJobRequests,
-  mockNotifications,
-} from "@/mocks/partnerDashboard";
-import { PARTNER_DETAILS } from "@/mocks/partnerDetails";
-
 import type {
   ActiveJob,
   EarningsSummary,
@@ -22,15 +14,48 @@ import type {
 } from "@/types/partner";
 
 import type { PartnerDetails, AccountStatus } from "@/types/adminPartner";
+import { PARTNER_DETAILS } from "@/mocks/partnerDetails";
 
 /* =========================================================
    Config
    ========================================================= */
 
-/**
- * Mocks are ON unless VITE_USE_MOCKS=false.
- */
-const USE_MOCKS = String(import.meta.env.VITE_USE_MOCKS ?? "true") !== "false";
+/** "true" serves the demo partners from mocks/partnerDetails.ts when no live record exists. */
+const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
+
+const PARTNER_CACHE_KEY = "homecarex_admin_partner_cache_v1";
+
+function readPartnerCache(): Record<string, PartnerDetails> {
+  try {
+    const raw = window.localStorage.getItem(PARTNER_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, PartnerDetails>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Demo partner with this id, if there is one. */
+function getMockPartner(id: string): PartnerDetails | undefined {
+  return PARTNER_DETAILS.find((partner) => partner.id === id) as PartnerDetails | undefined;
+}
+
+/** Partner we already know about: the cached live record first, then (in mock mode) the demo one. */
+function getCurrentPartner(id: string): PartnerDetails | undefined {
+  return readPartnerCache()[id] ?? (USE_MOCKS ? getMockPartner(id) : undefined);
+}
+
+/** Remembers a partner so the details page can reuse its full structure next time. */
+function savePartner(partner: PartnerDetails): void {
+  try {
+    window.localStorage.setItem(
+      PARTNER_CACHE_KEY,
+      JSON.stringify({ ...readPartnerCache(), [partner.id]: partner }),
+    );
+  } catch {
+    /* storage full or blocked: the record just is not cached */
+  }
+}
 
 /* =========================================================
    Types
@@ -69,12 +94,6 @@ export interface PartnerMutationResult {
 /* =========================================================
    Helpers
    ========================================================= */
-
-const delay = (milliseconds: number) =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(resolve, milliseconds);
-  });
-
 
 const httpMessage = (error: unknown, fallback: string): string =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
@@ -220,6 +239,31 @@ export async function updatePartnerKyc(
   }
 }
 
+/**
+ * Approve / reject the training a partner submitted after KYC approval.
+ * The backend must only let the partner log in to their dashboard once this is approved.
+ */
+export async function updatePartnerTraining(
+  id: string,
+  payload: KycUpdatePayload,
+): Promise<PartnerMutationResult> {
+  try {
+    const res = await http.post<ApiResponse<PartnerDetails>>(`/admin/partners/${id}/training`, {
+      decision: payload.decision,
+      reason: payload.reason,
+    });
+    return {
+      success: true,
+      message:
+        res.data?.message ??
+        (payload.decision === "approve" ? "Partner training approved." : "Partner training rejected."),
+      partner: res.data.data,
+    };
+  } catch (error) {
+    throw new Error(httpMessage(error, "Unable to update training."));
+  }
+}
+
 export async function updatePartnerStatus(
   id: string,
   payload: StatusUpdatePayload,
@@ -251,92 +295,117 @@ export async function fetchKycDocumentBlob(path: string): Promise<Blob> {
 }
 
 /* =========================================================
-   P02 - Partner Jobs / My Jobs
+   P02 - Partner Jobs / My Jobs (all data comes from the backend)
    ========================================================= */
-
-/**
- * Mock jobs used by the My Jobs page until GET /partner/jobs
- * is available.
- */
-const MOCK_PARTNER_JOBS: PartnerJob[] = [
-  {
-    id: "job-001",
-    bookingId: "HCX-10001",
-    service: "Deep Home Cleaning",
-    customer: "Rahul Sharma",
-    location: "Gachibowli, Hyderabad",
-    distance: 2.4,
-    scheduledAt: "2026-10-08T14:00:00+05:30",
-    amount: 1499,
-    status: "requested",
-    instructions: "Please call the customer before arriving.",
-    expiresAt: new Date(Date.now() + 60 * 1000).toISOString(),
-  },
-  {
-    id: "job-002",
-    bookingId: "HCX-10002",
-    service: "Washing Machine Repair",
-    customer: "Priya Reddy",
-    location: "Kondapur, Hyderabad",
-    distance: 4.1,
-    scheduledAt: "2026-10-09T10:30:00+05:30",
-    amount: 599,
-    status: "upcoming",
-    instructions: "Customer reported unusual vibration.",
-  },
-  {
-    id: "job-003",
-    bookingId: "HCX-10003",
-    service: "AC Service",
-    customer: "Arjun Kumar",
-    location: "Madhapur, Hyderabad",
-    distance: 5.2,
-    scheduledAt: "2026-10-08T12:30:00+05:30",
-    amount: 899,
-    status: "active",
-    instructions: "Check cooling performance and clean filters.",
-  },
-  {
-    id: "job-004",
-    bookingId: "HCX-10004",
-    service: "Kitchen Cleaning",
-    customer: "Sneha Patel",
-    location: "Jubilee Hills, Hyderabad",
-    distance: 7.8,
-    scheduledAt: "2026-10-05T11:00:00+05:30",
-    amount: 1299,
-    status: "completed",
-    instructions: "Focus on kitchen cabinets and chimney area.",
-  },
-  {
-    id: "job-005",
-    bookingId: "HCX-10005",
-    service: "Plumbing Repair",
-    customer: "Vikram Singh",
-    location: "Manikonda, Hyderabad",
-    distance: 6.3,
-    scheduledAt: "2026-10-04T15:30:00+05:30",
-    amount: 749,
-    status: "cancelled",
-    instructions: "Customer cancelled the booking.",
-  },
-];
 
 /** Maps the UI tab ("requests") to the job status ("requested"). */
 const matchesJobTab = (job: PartnerJob, tab: JobTab): boolean => {
-  if (tab === "all") {
-    return true;
-  }
-
-  if (tab === "requests") {
-    return job.status === "requested";
-  }
-
+  if (tab === "all") return true;
+  if (tab === "requests") return job.status === "requested";
   return job.status === tab;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+const toJobStatus = (raw: string): PartnerJobStatus => {
+  if (["en_route", "arrived", "in_progress"].includes(raw)) return "active";
+  if (raw === "completed" || raw === "rated") return "completed";
+  if (raw.startsWith("cancelled")) return "cancelled";
+  return "upcoming"; // "assigned"
+};
+
+const shortId = (id: string): string => `#${id.slice(-6).toUpperCase()}`;
+
+/* The backend has used different names for the partner's money on a job.
+   Try the likely ones (partner earning first) so the amount is never blank. */
+const AMOUNT_KEYS = [
+  "partnerEarning", "partnerPayout", "partnerAmount", "payout", "earning", "netEarning",
+  "partnerFee", "price", "amount", "totalAmount", "total", "finalAmount",
+];
+
+const toNumber = (v: unknown): number =>
+  typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+
+const pickAmount = (item: Record<string, unknown>): number => {
+  const scopes = [item, asRecord(item.pricing), asRecord(item.payment), asRecord(item.booking), asRecord(item.earnings)];
+  for (const scope of scopes) {
+    for (const key of AMOUNT_KEYS) {
+      const n = toNumber(scope[key]);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return 0;
+};
+
+const IMAGE_KEYS = ["imageUrl", "image", "thumbnail", "thumbnailUrl", "coverImage", "photo"];
+
+const pickImage = (...scopes: Array<Record<string, unknown>>): string | undefined => {
+  for (const scope of scopes) {
+    for (const key of IMAGE_KEYS) {
+      const v = scope[key];
+      if (typeof v === "string" && v) return v;
+    }
+    const list = scope.images;
+    if (Array.isArray(list) && list.length > 0) {
+      const first = list[0];
+      if (typeof first === "string" && first) return first;
+      const url = asRecord(first).url;
+      if (typeof url === "string" && url) return url;
+    }
+  }
+  return undefined;
+};
+
+const mapRequest = (req: JobRequest): PartnerJob => ({
+  id: req.id,
+  bookingId: shortId(req.id),
+  service: req.service,
+  customer: "Customer",
+  location: req.area || "Hyderabad",
+  distance: 0,
+  scheduledAt: req.scheduledAt,
+  amount: req.price > 0 ? req.price : pickAmount(asRecord(req)),
+  status: "requested",
+  expiresAt: req.expiresAt,
+  image: pickImage(asRecord(req)),
+});
+
+const mapLiveJob = (rawItem: unknown): PartnerJob => {
+  const item = asRecord(rawItem);
+  const rawId = item.id ?? item._id;
+  const id = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "";
+  const service = asRecord(item.service);
+
+  return {
+    id,
+    bookingId: shortId(id),
+    service: typeof service.name === "string" ? service.name : "Home Service",
+    customer: typeof item.customerName === "string" ? item.customerName : "Customer",
+    location: typeof item.address === "string" ? item.address : "",
+    distance: 0,
+    scheduledAt: typeof item.scheduledAt === "string" ? item.scheduledAt : new Date().toISOString(),
+    amount: pickAmount(item),
+    status: toJobStatus(typeof item.status === "string" ? item.status : ""),
+    image: pickImage(service, item),
+  };
+};
+
+async function fetchRequests(): Promise<PartnerJob[]> {
+  const res = await http.get<ApiResponse<JobRequest[]>>("/partner/job-requests");
+  return (res.data.data ?? []).map(mapRequest);
+}
+
+async function fetchLive(scope?: "completed" | "cancelled"): Promise<PartnerJob[]> {
+  const res = await http.get<ApiResponse<unknown[]>>("/partner/jobs", {
+    params: scope ? { scope } : undefined,
+  });
+  return (res.data.data ?? []).map(mapLiveJob);
+}
+
 /**
- * GET /partner/jobs?tab=all|requests|upcoming|active|completed|cancelled
+ * GET jobs for a tab. Requests come from /partner/job-requests, everything else
+ * from /partner/jobs (live, or ?scope=completed|cancelled for history).
  */
 async function getJobs(
   tab: JobTab = "all",
@@ -344,262 +413,75 @@ async function getJobs(
   limit = 10,
   search = "",
 ): Promise<JobsResponse> {
-  const trimmedSearch = search.trim();
+  let jobs: PartnerJob[];
 
-  try {
-    if (tab === "requests") {
-      const res = await http.get<ApiResponse<JobRequest[]>>("/partner/job-requests");
-      const requests = Array.isArray(res.data?.data) ? res.data.data : [];
-      if (requests.length > 0 || !USE_MOCKS) {
-        const mappedJobs: PartnerJob[] = requests.map((req) => ({
-          id: req.id,
-          bookingId: `#${req.id.slice(-6).toUpperCase()}`,
-          service: req.service,
-          customer: "Customer",
-          location: req.area || "Hyderabad",
-          distance: 2.0,
-          scheduledAt: req.scheduledAt,
-          amount: req.price,
-          status: "requested" as PartnerJobStatus,
-          expiresAt: req.expiresAt,
-        }));
-
-        const normalizedSearch = trimmedSearch.toLowerCase();
-        const filtered = mappedJobs.filter((job) => {
-          if (!normalizedSearch) return true;
-          return [job.bookingId, job.service, job.customer, job.location, job.status].some(
-            (val) => val.toLowerCase().includes(normalizedSearch),
-          );
-        });
-
-        const startIndex = (page - 1) * limit;
-        return {
-          jobs: filtered.slice(startIndex, startIndex + limit),
-          total: filtered.length,
-          page,
-          limit,
-        };
-      }
-    } else {
-      const res = await http.get<ApiResponse<unknown>>("/partner/jobs");
-      const rawData = res.data?.data;
-      if (Array.isArray(rawData)) {
-        const liveJobs: PartnerJob[] = rawData.map((rawItem: unknown) => {
-          const item = (rawItem && typeof rawItem === "object" ? rawItem : {}) as Record<string, unknown>;
-          let status: PartnerJobStatus = "upcoming";
-          const itemStatus = typeof item.status === "string" ? item.status : "";
-          if (["en_route", "arrived", "in_progress"].includes(itemStatus)) {
-            status = "active";
-          } else if (itemStatus === "completed") {
-            status = "completed";
-          } else if (itemStatus.startsWith("cancelled")) {
-            status = "cancelled";
-          } else {
-            status = "upcoming"; // "assigned"
-          }
-
-          const rawId = item.id || item._id;
-          const id = typeof rawId === "string" || typeof rawId === "number" ? String(rawId) : "";
-          const serviceName =
-            typeof item.service === "object" && item.service !== null && "name" in item.service
-              ? String((item.service as { name?: unknown }).name)
-              : typeof item.service === "string"
-                ? item.service
-                : "Home Service";
-          const customer =
-            typeof item.customerName === "string"
-              ? item.customerName
-              : typeof item.customer === "string"
-                ? item.customer
-                : "Customer";
-          const location =
-            typeof item.address === "string"
-              ? item.address
-              : typeof item.location === "string"
-                ? item.location
-                : "Hyderabad";
-          const scheduledAt =
-            typeof item.scheduledAt === "string" ? item.scheduledAt : new Date().toISOString();
-          const amount =
-            typeof item.partnerEarning === "number"
-              ? item.partnerEarning
-              : typeof item.amount === "number"
-                ? item.amount
-                : 1499;
-
-          return {
-            id,
-            bookingId: `#${id.slice(-6).toUpperCase()}`,
-            service: serviceName,
-            customer,
-            location,
-            distance: 2.5,
-            scheduledAt,
-            amount,
-            status,
-            instructions: typeof item.instructions === "string" ? item.instructions : undefined,
-          };
-        });
-
-        const normalizedSearch = trimmedSearch.toLowerCase();
-        const filtered = liveJobs.filter((job) => {
-          if (!matchesJobTab(job, tab)) return false;
-          if (!normalizedSearch) return true;
-          return [job.bookingId, job.service, job.customer, job.location, job.status].some(
-            (val) => val.toLowerCase().includes(normalizedSearch),
-          );
-        });
-
-        if (filtered.length > 0 || !USE_MOCKS) {
-          const startIndex = (page - 1) * limit;
-          return {
-            jobs: filtered.slice(startIndex, startIndex + limit),
-            total: filtered.length,
-            page,
-            limit,
-          };
-        }
-      }
-    }
-  } catch {
-    // If live API is unavailable, fall back to mock data
+  if (tab === "requests") {
+    jobs = await fetchRequests();
+  } else if (tab === "completed" || tab === "cancelled") {
+    jobs = await fetchLive(tab);
+  } else if (tab === "all") {
+    const [requests, live, done, cancelled] = await Promise.all([
+      fetchRequests(),
+      fetchLive(),
+      fetchLive("completed"),
+      fetchLive("cancelled"),
+    ]);
+    jobs = [...requests, ...live, ...done, ...cancelled];
+  } else {
+    jobs = (await fetchLive()).filter((job) => matchesJobTab(job, tab));
   }
 
-  await delay(400);
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? jobs.filter((job) =>
+        [job.bookingId, job.service, job.customer, job.location, job.status].some((v) =>
+          v.toLowerCase().includes(q),
+        ),
+      )
+    : jobs;
 
-  const normalizedSearch = trimmedSearch.toLowerCase();
-
-  const filteredJobs = MOCK_PARTNER_JOBS.filter((job) => {
-    if (!matchesJobTab(job, tab)) {
-      return false;
-    }
-
-    if (!normalizedSearch) {
-      return true;
-    }
-
-    return [
-      job.bookingId,
-      job.service,
-      job.customer,
-      job.location,
-      job.status,
-    ].some((value) => value.toLowerCase().includes(normalizedSearch));
-  });
-
-  const startIndex = (page - 1) * limit;
-
-  return {
-    jobs: filteredJobs
-      .slice(startIndex, startIndex + limit)
-      .map((job) => structuredClone(job)),
-    total: filteredJobs.length,
-    page,
-    limit,
-  };
+  const start = (page - 1) * limit;
+  return { jobs: filtered.slice(start, start + limit), total: filtered.length, page, limit };
 }
 
-/**
- * POST /partner/jobs/:id/accept
- * In mock mode this updates the in-memory job for this session.
- */
+/** POST /partner/jobs/:id/accept */
 async function acceptJob(id: string): Promise<JobMutationResult> {
-  if (!USE_MOCKS) {
-    const res = await http.post<ApiResponse<JobMutationResult>>(
-      `/partner/jobs/${id}/accept`,
-    );
-
-    return res.data.data;
-  }
-
-  await delay(400);
-
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
-
-  if (jobIndex === -1) {
-    throw new Error("Job not found.");
-  }
-
-  const job = MOCK_PARTNER_JOBS[jobIndex];
-
-  if (job.status !== "requested") {
-    throw new Error("This job is no longer available.");
-  }
-
-  if (job.expiresAt && new Date(job.expiresAt).getTime() <= Date.now()) {
-    throw new Error("This job request has expired.");
-  }
-
-  MOCK_PARTNER_JOBS[jobIndex] = { ...job, status: "upcoming" };
-
-  return { success: true, message: "Job accepted successfully." };
+  const res = await http.post<ApiResponse<JobMutationResult>>(`/partner/jobs/${id}/accept`);
+  return res.data.data;
 }
 
-/**
- * POST /partner/jobs/:id/reject
- * In mock mode the job is marked cancelled so it leaves the requests tab.
- */
-async function rejectJob(id: string): Promise<JobMutationResult> {
-  if (!USE_MOCKS) {
-    const res = await http.post<ApiResponse<JobMutationResult>>(
-      `/partner/jobs/${id}/reject`,
-    );
-
-    return res.data.data;
-  }
-
-  await delay(400);
-
-  const jobIndex = MOCK_PARTNER_JOBS.findIndex((job) => job.id === id);
-
-  if (jobIndex === -1) {
-    throw new Error("Job not found.");
-  }
-
-  const job = MOCK_PARTNER_JOBS[jobIndex];
-
-  if (job.status !== "requested") {
-    throw new Error("This job is no longer available.");
-  }
-
-  MOCK_PARTNER_JOBS[jobIndex] = { ...job, status: "cancelled" };
-
-  return { success: true, message: "Job rejected successfully." };
+/** POST /partner/jobs/:id/reject */
+async function rejectJob(id: string, reason?: string): Promise<JobMutationResult> {
+  const trimmed = reason?.trim();
+  const res = await http.post<ApiResponse<JobMutationResult>>(
+    `/partner/jobs/${id}/reject`,
+    trimmed ? { reason: trimmed } : {},
+  );
+  return res.data.data;
 }
 
 /* =========================================================
    Partner API
    ========================================================= */
 
+const humanize = (type: string): string => {
+  const text = type.replace(/[._:-]+/g, " ").trim();
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : "Notification";
+};
+
 export const partnerApi = {
   /* Dashboard */
 
   async getDashboard(): Promise<PartnerDashboard> {
-    if (USE_MOCKS) {
-      return mockDashboard();
-    }
-
-    const res = await http.get<ApiResponse<PartnerDashboard>>(
-      "/partner/dashboard",
-    );
-
+    const res = await http.get<ApiResponse<PartnerDashboard>>("/partner/dashboard");
     return res.data.data;
   },
 
   /* Job requests (open offers) */
 
-  async getJobRequests(partnerId?: string): Promise<JobRequest[]> {
-    if (USE_MOCKS) {
-      return mockJobRequests();
-    }
-
-    /* Assumed endpoint; adjust to match the backend contract. */
-    const res = await http.get<ApiResponse<JobRequest[]>>(
-      "/partner/jobs/requests",
-      { params: partnerId ? { partnerId } : undefined },
-    );
-
-    return res.data.data;
+  async getJobRequests(): Promise<JobRequest[]> {
+    const res = await http.get<ApiResponse<JobRequest[]>>("/partner/job-requests");
+    return res.data.data ?? [];
   },
 
   /* P02 - My Jobs */
@@ -611,30 +493,41 @@ export const partnerApi = {
   /* Earnings */
 
   async getEarningsSummary(): Promise<EarningsSummary> {
-    if (USE_MOCKS) {
-      return mockEarningsSummary();
-    }
-
-    const res = await http.get<ApiResponse<EarningsSummary>>(
-      "/partner/earnings/summary",
-    );
-
+    const res = await http.get<ApiResponse<EarningsSummary>>("/partner/earnings/summary");
     return res.data.data;
   },
 
   /* Profile */
 
-  async updateProfile(
-    input: PartnerProfileInput,
-  ): Promise<PartnerProfileInput> {
-    await delay(500);
-
-    return input;
+  async updateProfile(input: PartnerProfileInput): Promise<PartnerProfileInput> {
+    const res = await http.patch<ApiResponse<PartnerProfileInput>>("/partner/profile", input);
+    return res.data.data;
   },
 
   /* Notifications */
 
   async getNotifications(): Promise<PartnerNotification[]> {
-    return mockNotifications();
+    const res = await http.get<
+      ApiResponse<
+        Array<{
+          id: string;
+          type: string;
+          payload: unknown;
+          readAt: string | null;
+          createdAt: string;
+        }>
+      >
+    >("/partner/notifications", { params: { limit: 20 } });
+
+    return (res.data.data ?? []).map((n) => {
+      const payload = asRecord(n.payload);
+      const title =
+        typeof payload.title === "string"
+          ? payload.title
+          : typeof payload.message === "string"
+            ? payload.message
+            : humanize(n.type);
+      return { id: n.id, title, createdAt: n.createdAt, read: n.readAt !== null };
+    });
   },
 };

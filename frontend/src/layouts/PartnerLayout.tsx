@@ -1,5 +1,4 @@
-
-import {
+﻿import {
   useState,
   useEffect,
   useCallback,
@@ -48,7 +47,7 @@ import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
-import OnlineIndicator from "@/components/partner/OnlineIndicator";
+import OnlineToggle from "@/components/partner/OnlineToggle";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
@@ -90,14 +89,6 @@ export const NAV: NavItem[] = [
     label: "My Jobs",
     to: "/partner/jobs",
     icon: ClipboardList,
-    children: [
-      {
-        key: "job-requests",
-        label: "Job Requests",
-        to: "/partner/jobs/requests",
-        icon: ClipboardList,
-      },
-    ],
   },
   {
     key: "work",
@@ -322,10 +313,10 @@ const BOTTOM_NAV = [
   },
   {
     key: "work",
-    label: "Work",
-    to: "/partner/work",
+    label: "Jobs",
+    to: "/partner/jobs",
     icon: Briefcase,
-    match: ["/partner/work"],
+    match: ["/partner/jobs", "/partner/work"],
     exact: false,
   },
   {
@@ -484,12 +475,10 @@ const NAV_GROUPS: {
 function PartnerSidebar({
   collapsed,
   currentKey,
-  currentLabel,
   onToggle,
 }: {
   collapsed: boolean;
   currentKey?: string;
-  currentLabel?: string;
   onToggle: () => void;
 }) {
   const { pathname } = useLocation();
@@ -586,6 +575,7 @@ function PartnerSidebar({
             )}
           </div>
 
+          {/* The only sidebar collapse / expand arrow (the header one was removed). */}
           <button
             type="button"
             onClick={onToggle}
@@ -606,11 +596,7 @@ function PartnerSidebar({
         </div>
 
         {!collapsed && (
-          <p className="sidebar-brand__guide">
-            {currentLabel
-              ? `Partner / ${currentLabel}`
-              : "Partner Console"}
-          </p>
+          <p className="sidebar-brand__guide">Partner Dashboard</p>
         )}
       </div>
 
@@ -943,11 +929,6 @@ export default function PartnerLayout() {
     cleanPath,
   );
 
-  const hideStatusPill = Object.prototype.hasOwnProperty.call(
-    EXTRA_TITLES,
-    cleanPath,
-  );
-
   const fullBleed =
     cleanPath === "/partner/support" ||
     cleanPath.startsWith("/partner/support/") ||
@@ -959,7 +940,8 @@ export default function PartnerLayout() {
   const hideBottomNav =
     HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
 
-  const showBack = cleanPath !== "/partner";
+  const isHome = cleanPath === "/partner";
+  const showBack = !isHome;
 
   const isTabRoot = BOTTOM_NAV.some(
     (item) => item.to === cleanPath,
@@ -1001,7 +983,6 @@ export default function PartnerLayout() {
         <PartnerSidebar
           collapsed={collapsed}
           currentKey={current?.key}
-          currentLabel={current?.label}
           onToggle={() =>
             setCollapsedPref((value) => !value)
           }
@@ -1030,52 +1011,41 @@ export default function PartnerLayout() {
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() =>
-                  setCollapsedPref((value) => !value)
-                }
-                aria-label={
-                  collapsed ? "Expand sidebar" : "Collapse sidebar"
-                }
-                className="hidden rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
-              >
-                {collapsed ? (
-                  <PanelLeftOpen size={20} aria-hidden="true" />
-                ) : (
-                  <PanelLeftClose size={20} aria-hidden="true" />
-                )}
-              </button>
+              {isHome ? (
+                <NavLink
+                  to="/partner"
+                  end
+                  aria-label="HomeCareX home"
+                  className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:hidden"
+                >
+                  <HomeCarexMark size={30} />
+                  <span className="truncate bg-gradient-to-r from-[#4338ca] via-[#7c3aed] to-[#ff8a3d] bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
+                    HomeCareX
+                  </span>
+                </NavLink>
+              ) : null}
 
-              <h1 className="truncate text-base font-semibold text-[#4338ca] sm:text-lg">
-                {title}
+              {/* Home shows "Partner Dashboard" on desktop; mobile keeps the brand above. */}
+              <h1
+                className={
+                  isHome
+                    ? "hidden truncate text-base font-semibold text-[#4338ca] sm:text-lg lg:block"
+                    : "truncate text-base font-semibold text-[#4338ca] sm:text-lg"
+                }
+              >
+                {isHome ? "Partner Dashboard" : title}
               </h1>
             </div>
 
-            <div
-              className={`shrink-0 items-center gap-0.5 sm:gap-3 ${
-                minimalHeader ? "hidden lg:flex" : "flex"
-              }`}
-            >
-              {!hideStatusPill &&
-                (fullBleed ? (
-                  <div className="hidden lg:block">
-                    <OnlineIndicator
-                      online={online}
-                      onChange={setOnline}
-                    />
-                  </div>
-                ) : (
-                  <OnlineIndicator
-                    online={online}
-                    onChange={setOnline}
-                  />
-                ))}
-
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+              {/* Online/Offline is controlled from the Home page only. */}
+              {isHome && <OnlineToggle online={online} onChange={setOnline} />}
               <button
                 type="button"
                 aria-label="Notifications"
-                className="relative inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                className={`relative min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-orange-500 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
+                  minimalHeader ? "hidden lg:inline-flex" : "inline-flex"
+                }`}
               >
                 <Bell size={20} aria-hidden="true" />
               </button>

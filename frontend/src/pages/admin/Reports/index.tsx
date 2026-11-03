@@ -9,6 +9,7 @@ import {
   Search,
 } from 'lucide-react';
 import http from '@/lib/http';
+import { TablePagination, usePagination } from '@/components/tables';
 import './index.css';
 
 type ReportFilters = {
@@ -255,6 +256,32 @@ function toParams(
   }
 
   return params;
+}
+
+/** Pages the rows of one report table (10 per page). A plain function cannot hold the page state. */
+function ReportRowsPager({
+  rows,
+  resetKey,
+  children,
+}: {
+  rows: ReportRow[];
+  resetKey: string;
+  children: (pageRows: ReportRow[]) => React.ReactNode;
+}) {
+  const pager = usePagination(rows, { resetKey });
+
+  return (
+    <>
+      {children(pager.pageItems)}
+
+      <TablePagination
+        {...pager}
+        onPageChange={pager.setPage}
+        onPageSizeChange={pager.setPageSize}
+        label="report rows"
+      />
+    </>
+  );
 }
 
 const AdminReportsPage: React.FC = () => {
@@ -620,6 +647,11 @@ const AdminReportsPage: React.FC = () => {
           </p>
         )}
 
+        <ReportRowsPager
+          rows={rows}
+          resetKey={`${reportType}|${normalizedSearch}|${rows.length}`}
+        >
+          {(pageRows) => (
         <div className="w-full overflow-x-auto rounded-xl border border-gray-200 bg-white">
           <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
             <thead className="bg-gray-50">
@@ -637,7 +669,7 @@ const AdminReportsPage: React.FC = () => {
             </thead>
 
             <tbody className="divide-y divide-gray-100">
-              {rows.map((row, index) => (
+              {pageRows.map((row, index) => (
                 <tr
                   key={String(
                     row.bookingId ?? row.partnerId ?? index,
@@ -700,6 +732,8 @@ const AdminReportsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+          )}
+        </ReportRowsPager>
       </>
     );
   };

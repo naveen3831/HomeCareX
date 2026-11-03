@@ -1,4 +1,3 @@
-﻿
 import React, {
   useCallback,
   useEffect,
@@ -17,7 +16,6 @@ import {
   type SettingValue,
 } from '@/services/adminSettingsApi';
 import { SettingField } from './SettingField';
-
 
 const same = (a: unknown, b: unknown): boolean =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -301,7 +299,7 @@ export const AdminSettingsPage: React.FC = () => {
         className="rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3730a3] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {saving
-          ? "SavingΓÇª"
+          ? "Saving…"
           : isMobile
             ? "Save changes"
             : "Save"}
@@ -355,7 +353,7 @@ export const AdminSettingsPage: React.FC = () => {
           <div className="h-12 animate-pulse rounded-2xl bg-slate-100" />
           <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
           <p className="text-sm text-gray-500">
-            Loading settingsΓÇª
+            Loading settings…
           </p>
         </div>
       )}

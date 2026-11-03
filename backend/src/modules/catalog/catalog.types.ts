@@ -7,6 +7,10 @@ export interface PublicCategoryDto {
   slug: string;
   description: string;
   icon: string;
+  /** Cover photo set by the admin (primary image, else the first). Empty when none is uploaded. */
+  imageUrl: string;
+  /** Uploaded icon image set by the admin. Wins over the emoji `icon` when present. */
+  iconUrl: string;
   sortOrder: number;
   /** Active services in this category. */
   serviceCount: number;

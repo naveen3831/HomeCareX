@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 // The HomeCareX icon mark: an indigo house roofline (with a 2x2 window and a
 // chimney notch) sitting on an orange leaf/hand shape, matching the brand kit
 // colors (#4338CA indigo, #FF8A3D orange).
-export const HomeCarexMark: React.FC<{ size?: number }> = ({ size = 20 }) => (
+export const HomeCarexMark: React.FC<{ size?: number }> = ({ size = 20 }) => {
+  // Unique gradient id per instance: when the mark is rendered twice (sidebar + header) a shared id
+  // can resolve to a copy inside a display:none parent, which paints the orange leaf blank.
+  const gradId = `hcx-orange-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  return (
   <svg
     width={size}
     height={size}
@@ -13,7 +17,7 @@ export const HomeCarexMark: React.FC<{ size?: number }> = ({ size = 20 }) => (
     role="img"
   >
     <defs>
-      <linearGradient id="hcx-orange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="#FFB25E" />
         <stop offset="100%" stopColor="#FF8A3D" />
       </linearGradient>
@@ -30,7 +34,7 @@ export const HomeCarexMark: React.FC<{ size?: number }> = ({ size = 20 }) => (
          C 40 53, 39 58, 33 57
          C 28 56, 25 51, 20 54
          C 18.5 55, 18 56.5, 18 58 Z"
-      fill="url(#hcx-orange)"
+      fill={`url(#${gradId})`}
     />
 
     {/* Indigo house roofline with chimney notch */}
@@ -51,6 +55,7 @@ export const HomeCarexMark: React.FC<{ size?: number }> = ({ size = 20 }) => (
       <rect x="52" y="47" width="9" height="9" rx="1.5" />
     </g>
   </svg>
-);
+  );
+};
 
 export default HomeCarexMark;

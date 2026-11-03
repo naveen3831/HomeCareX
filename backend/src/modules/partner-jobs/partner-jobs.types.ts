@@ -42,6 +42,8 @@ export interface JobListItemDto {
   scheduledAt: string;
   slot: string | null;
   partnerEarning: number;
+  /** First service photo, or null when the service has none. */
+  imageUrl: string | null;
 }
 
 export interface JobDetailDto {
@@ -77,7 +79,15 @@ export interface JobDetailDto {
   payment: {
     status: string;
     paidAt: string | null;
+    /** "cash" or "upi" once the partner has collected it. */
+    method: string | null;
+    /** Service price plus approved extra charges: what the customer owes. */
+    amountDue: number;
+    /** upi://pay link for the QR code. Null when already paid or no UPI ID is configured. */
+    upiUri: string | null;
   };
+  /** The partner's rating of the customer, once given. */
+  customerRating: { rating: number; comment: string | null } | null;
   actions: JobActionDto[];
   otpRequired: boolean;
   statusHistory: Array<{
@@ -124,7 +134,8 @@ export interface JobBookingDoc {
   priceBreakdown?: { total?: number };
   partnerEarning?: number;
   paymentStatus: string;
-  paymentDetails?: { paidAt?: Date };
+  paymentDetails?: { paidAt?: Date; method?: string };
+  customerRating?: { rating?: number; comment?: string; ratedAt?: Date };
   instructions?: string;
   checklist?: Array<{ id: string; label: string; done: boolean }>;
 }

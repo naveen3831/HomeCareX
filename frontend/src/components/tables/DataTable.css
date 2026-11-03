@@ -1,0 +1,194 @@
+/* Shared DataTable styles. Imported by the component so every page that uses it is styled,
+   not only the Audit Logs page that used to be the only place loading them. */
+
+.datatable-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.datatable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #ffffff;
+  text-align: left;
+}
+
+.datatable th {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f1f5f9;
+  color: #334155;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.datatable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf2f7;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+  vertical-align: middle;
+}
+
+.datatable tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.datatable tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.datatable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Table Sorting */
+
+.datatable-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.datatable-sort-button:hover {
+  color: #2563eb;
+}
+
+.datatable-sort-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+
+/* Table Footer */
+
+.datatable-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 14px 16px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.datatable-page-size {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.datatable-page-size label {
+  font-weight: 500;
+}
+
+.datatable-page-size select {
+  min-height: 34px;
+  padding: 6px 28px 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  outline: none;
+  background-color: #ffffff;
+  color: #334155;
+  font: inherit;
+  cursor: pointer;
+}
+
+.datatable-page-size select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* Pagination */
+
+.datatable-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.datatable-pagination span {
+  margin: 0 4px;
+  color: #475569;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.datatable-pagination button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background-color: #ffffff;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.datatable-pagination button:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background-color: #f1f5f9;
+}
+
+.datatable-pagination button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.datatable-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Empty State */
+
+.datatable-empty {
+  padding: 48px 24px;
+  background-color: #ffffff;
+  text-align: center;
+}
+
+.datatable-empty h3 {
+  margin: 0 0 8px;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.datatable-empty p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.datatable-range {
+  margin-left: 8px;
+  color: #64748b;
+  white-space: nowrap;
+}

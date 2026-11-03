@@ -4,9 +4,9 @@ import { ArrowRight } from "lucide-react";
 import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { Icon3D, tintAt } from "@/components/customer";
+import { CategoryIcon, tintAt } from "@/components/customer";
 import type { DashboardCategoryDto } from "@/features/customer";
-import { categoryPhoto } from "./dashboardImages";
+import { categoryPhotoFor } from "./dashboardImages";
 
 /**
  * Category tile. Shows the category photo with the name over a dark fade; if there is no photo
@@ -14,11 +14,11 @@ import { categoryPhoto } from "./dashboardImages";
  * `index` picks the tint and offsets the float.
  */
 export default function CategoryCard({ category: c, index = 0 }: { category: DashboardCategoryDto; index?: number }) {
-  const photo = categoryPhoto(c.slug);
-  const [photoFailed, setPhotoFailed] = useState(false);
+  const photo = categoryPhotoFor(c);
+  const [failedSrc, setFailedSrc] = useState<string>();
   const count = `${c.serviceCount} ${c.serviceCount === 1 ? "service" : "services"}`;
 
-  if (photo && !photoFailed) {
+  if (photo && photo.src !== failedSrc) {
     return (
       <Link
         to={customerPath("/services")}
@@ -34,7 +34,7 @@ export default function CategoryCard({ category: c, index = 0 }: { category: Das
           loading="lazy"
           decoding="async"
           draggable={false}
-          onError={() => setPhotoFailed(true)}
+          onError={() => setFailedSrc(photo.src)}
           style={{ objectPosition: photo.position }}
           className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
         />
@@ -76,7 +76,7 @@ export default function CategoryCard({ category: c, index = 0 }: { category: Das
         <ArrowRight className="h-3.5 w-3.5" />
       </span>
 
-      <Icon3D hints={[c.icon, c.name, c.slug]} size={76} delay={index * -0.7} className="absolute -bottom-1 right-1 md:right-2 md:h-[88px] md:w-[88px]" />
+      <CategoryIcon iconUrl={c.iconUrl} hints={[c.icon, c.name, c.slug]} size={76} delay={index * -0.7} className="absolute -bottom-1 right-1 md:right-2 md:h-[88px] md:w-[88px]" />
     </Link>
   );
 }

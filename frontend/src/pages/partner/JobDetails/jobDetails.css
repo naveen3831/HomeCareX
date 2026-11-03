@@ -1,5 +1,22 @@
 /* Partner Job Details — Clean Professional Typography & HomeCareX Brand Palette */
 
+/* Variables for the details view (.jdx-page) so the OTP popup buttons render */
+.jdx-page {
+  --jd-indigo: #4338ca;
+  --jd-indigo-deep: #1e1b6e;
+  --jd-indigo-hover: #3730a3;
+  --jd-indigo-tint: #eef2ff;
+  --jd-orange: #ff8a3d;
+  --jd-orange-deep: #c2410c;
+  --jd-orange-tint: #fff7ed;
+  --jd-ink: #0f172a;
+  --jd-body: #334155;
+  --jd-muted: #64748b;
+  --jd-border: #e2e8f0;
+  --jd-card-bg: #ffffff;
+  --jd-canvas: #f8fafc;
+}
+
 .jd-ref-page {
   --jd-indigo: #4338ca;
   --jd-indigo-deep: #1e1b6e;

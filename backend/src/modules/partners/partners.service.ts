@@ -9,6 +9,7 @@ import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
 import ReviewModel from '../../models/Review';
+import ServiceAreaModel from '../../models/ServiceArea';
 import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
@@ -237,6 +238,18 @@ export async function ensurePartnerProfile(
 /**
  * Partner service.
  */
+/**
+ * City shown on the admin Partners & KYC pages. Prefer what the partner gave at registration, then
+ * their service area, then the city of their latest booking (older partners have nothing stored).
+ */
+function resolveCity(...candidates: Array<string | null | undefined>): string {
+  for (const c of candidates) {
+    const v = typeof c === 'string' ? c.trim() : '';
+    if (v) return v;
+  }
+  return '';
+}
+
 export class PartnersService {
   /**
    * CREATE PARTNER

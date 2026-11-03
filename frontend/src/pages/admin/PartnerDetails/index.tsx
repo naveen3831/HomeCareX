@@ -11,10 +11,12 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
   PartnerDocument,
+  PartnerTraining,
 } from "@/types/adminPartner";
 
 import {
@@ -22,6 +24,7 @@ import {
   getPartnerById,
   updatePartnerKyc,
   updatePartnerStatus,
+  updatePartnerTraining,
 } from "../../../services/partnerApi";
 
 import "./index.css";
@@ -29,6 +32,7 @@ import "./index.css";
 type Tab =
   | "profile"
   | "kyc"
+  | "training"
   | "categories"
   | "performance"
   | "bookings"
@@ -49,6 +53,10 @@ const tabs: {
   {
     id: "kyc",
     label: "KYC",
+  },
+  {
+    id: "training",
+    label: "Training",
   },
   {
     id: "categories",
@@ -122,6 +130,12 @@ const AdminPartnerDetailsPage: React.FC =
       useState(false);
 
     const [rejectReason, setRejectReason] =
+      useState("");
+
+    const [trainingRejectOpen, setTrainingRejectOpen] =
+      useState(false);
+
+    const [trainingRejectReason, setTrainingRejectReason] =
       useState("");
 
     useEffect(() => {
@@ -277,6 +291,95 @@ const AdminPartnerDetailsPage: React.FC =
       }
     };
 
+    const approveTraining = async () => {
+      if (!partner) {
+        return;
+      }
+
+      if (!hasKycApprovalPermission) {
+        setActionError(
+          "You do not have permission to approve training."
+        );
+        return;
+      }
+
+      try {
+        setActionLoading(true);
+        setActionError("");
+        setNotice("");
+
+        const result =
+          await updatePartnerTraining(
+            partner.id,
+            { decision: "approve" }
+          );
+
+        setNotice(result.message);
+
+        await refreshPartner();
+      } catch (requestError) {
+        setActionError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to approve training."
+        );
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
+    const rejectTraining = async () => {
+      if (!partner) {
+        return;
+      }
+
+      if (!hasKycApprovalPermission) {
+        setActionError(
+          "You do not have permission to reject training."
+        );
+        return;
+      }
+
+      const reason =
+        trainingRejectReason.trim();
+
+      if (!reason) {
+        setActionError(
+          "Rejection reason is required."
+        );
+        return;
+      }
+
+      try {
+        setActionLoading(true);
+        setActionError("");
+        setNotice("");
+
+        const result =
+          await updatePartnerTraining(
+            partner.id,
+            {
+              decision: "reject",
+              reason,
+            }
+          );
+
+        setNotice(result.message);
+        setTrainingRejectOpen(false);
+        setTrainingRejectReason("");
+
+        await refreshPartner();
+      } catch (requestError) {
+        setActionError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Unable to reject training."
+        );
+      } finally {
+        setActionLoading(false);
+      }
+    };
+
     const suspendPartner = async () => {
       if (!partner) {
         return;
@@ -388,14 +491,27 @@ const AdminPartnerDetailsPage: React.FC =
             >
               Account: {partner.accountStatus}
             </span>
+
+            {partner.training && (
+              <span
+                className={`partner-status training-${trainingClass(partner.training.status)}`}
+              >
+                Training: {partner.training.status}
+              </span>
+            )}
           </div>
         </div>
+
+        <TrainingApprovalCard
+          partnerId={partner.id}
+          canApprove={hasKycApprovalPermission}
+        />
 
         <div className="partner-details-summary">
           <div>
             <strong>Email</strong>
-            <span>
-              {partner.email}
+            <span title={partner.email}>
+              {partner.email || "—"}
             </span>
           </div>
 
@@ -409,14 +525,14 @@ const AdminPartnerDetailsPage: React.FC =
           <div>
             <strong>Category</strong>
             <span>
-              {partner.category}
+              {partner.category || "—"}
             </span>
           </div>
 
           <div>
             <strong>City</strong>
             <span>
-              {partner.city}
+              {partner.city || "—"}
             </span>
           </div>
 
@@ -521,6 +637,33 @@ const AdminPartnerDetailsPage: React.FC =
             />
           )}
 
+          {activeTab === "training" && (
+            <TrainingTab
+              training={partner.training}
+              kycStatus={partner.kycStatus}
+              actionLoading={
+                actionLoading
+              }
+              rejectOpen={
+                trainingRejectOpen
+              }
+              rejectReason={
+                trainingRejectReason
+              }
+              setRejectOpen={
+                setTrainingRejectOpen
+              }
+              setRejectReason={
+                setTrainingRejectReason
+              }
+              onApprove={approveTraining}
+              onReject={rejectTraining}
+              hasPermission={
+                hasKycApprovalPermission
+              }
+            />
+          )}
+
           {activeTab === "categories" && (
             <CategoriesTab
               partner={partner}
@@ -601,7 +744,7 @@ const ProfileTab: React.FC<
 
       <div>
         <strong>Address</strong>
-        <span>{partner.address}</span>
+        <span>{partner.address || "—"}</span>
       </div>
 
       <div>
@@ -809,13 +952,242 @@ const KycTab: React.FC<KycTabProps> = ({
   </div>
 );
 
+const trainingClass = (
+  status: PartnerTraining["status"]
+) => status.toLowerCase().replace(/\s+/g, "-");
+
+interface TrainingTabProps {
+  training?: PartnerTraining;
+  kycStatus: PartnerDetailsType["kycStatus"];
+  actionLoading: boolean;
+  rejectOpen: boolean;
+  rejectReason: string;
+  setRejectOpen: (value: boolean) => void;
+  setRejectReason: (value: string) => void;
+  onApprove: () => Promise<void>;
+  onReject: () => Promise<void>;
+  hasPermission: boolean;
+}
+
+/**
+ * Training the partner submits after KYC approval. The admin previews each item, then approves
+ * or rejects with a reason. The partner can open their dashboard only after approval.
+ */
+const TrainingTab: React.FC<TrainingTabProps> = ({
+  training,
+  kycStatus,
+  actionLoading,
+  rejectOpen,
+  rejectReason,
+  setRejectOpen,
+  setRejectReason,
+  onApprove,
+  onReject,
+  hasPermission,
+}) => {
+  const status = training?.status ?? "Not Submitted";
+  const items = training?.items ?? [];
+  const kycApproved = kycStatus === "Approved";
+  const canDecide =
+    kycApproved &&
+    status === "Pending" &&
+    items.length > 0;
+
+  return (
+    <div className="partner-kyc-layout">
+      <section className="detail-card">
+        <div className="detail-card-header">
+          <div>
+            <h2>Training Review</h2>
+
+            <p>
+              {training?.submittedAt
+                ? `Submitted: ${training.submittedAt}`
+                : "Not submitted yet"}
+            </p>
+          </div>
+
+          <span
+            className={`partner-status training-${trainingClass(status)}`}
+          >
+            {status}
+          </span>
+        </div>
+
+        {!kycApproved && (
+          <p className="permission-warning">
+            Approve the partner&apos;s KYC first. Training
+            is reviewed only after KYC is approved.
+          </p>
+        )}
+
+        {kycApproved && status === "Not Submitted" && (
+          <p className="training-note">
+            The partner has not uploaded any training
+            details yet.
+          </p>
+        )}
+
+        {status === "Pending" && (
+          <p className="training-note">
+            Waiting for admin approval. The partner cannot
+            open their dashboard until you approve.
+          </p>
+        )}
+
+        {status === "Approved" && (
+          <p className="training-note">
+            Approved
+            {training?.reviewedAt
+              ? ` on ${training.reviewedAt}`
+              : ""}
+            . The partner can log in to their dashboard.
+          </p>
+        )}
+
+        {status === "Rejected" && (
+          <div className="training-rejected">
+            <strong>Rejected</strong>
+            {training?.rejectionReason && (
+              <p>{training.rejectionReason}</p>
+            )}
+          </div>
+        )}
+
+        <div className="kyc-actions">
+          <button
+            type="button"
+            className="partner-primary-btn"
+            disabled={
+              actionLoading ||
+              !hasPermission ||
+              !canDecide
+            }
+            onClick={() => {
+              void onApprove();
+            }}
+          >
+            {actionLoading
+              ? "Processing..."
+              : "Approve Training"}
+          </button>
+
+          <button
+            type="button"
+            className="partner-danger-btn"
+            disabled={
+              actionLoading ||
+              !hasPermission ||
+              !canDecide
+            }
+            onClick={() => setRejectOpen(true)}
+          >
+            Reject Training
+          </button>
+        </div>
+
+        {!hasPermission && (
+          <p className="permission-warning">
+            You do not have the <code>kyc:approve</code>{" "}
+            permission.
+          </p>
+        )}
+
+        {rejectOpen && (
+          <div className="reject-panel">
+            <label htmlFor="training-reject-reason">
+              Rejection reason
+            </label>
+
+            <textarea
+              id="training-reject-reason"
+              value={rejectReason}
+              onChange={(event) =>
+                setRejectReason(event.target.value)
+              }
+              placeholder="Tell the partner what to fix before re-submitting"
+              rows={4}
+              autoFocus
+            />
+
+            <div className="reject-panel-actions">
+              <button
+                type="button"
+                className="partner-secondary-btn"
+                disabled={actionLoading}
+                onClick={() => {
+                  setRejectOpen(false);
+                  setRejectReason("");
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="partner-danger-btn"
+                disabled={
+                  actionLoading ||
+                  !rejectReason.trim()
+                }
+                onClick={() => {
+                  void onReject();
+                }}
+              >
+                Confirm Reject
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="detail-card">
+        <h2>Training Documents</h2>
+
+        {items.length === 0 ? (
+          <p className="training-note">
+            Nothing to preview yet.
+          </p>
+        ) : (
+          <div className="kyc-documents">
+            {items.map((item) => (
+              <div
+                key={item.id}
+                className="kyc-document-card"
+              >
+                <div className="kyc-document-header">
+                  <strong>{item.name}</strong>
+
+                  <span
+                    className={`document-status ${item.status.toLowerCase()}`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+
+                <SecureDocument
+                  document={item}
+                  height={360}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+};
+
 /**
  * Shows one KYC document. Stored files live behind an admin-only endpoint, so they are downloaded
  * with the auth header and shown from a temporary blob: URL (an <img>/<iframe> pointing at the API
  * path would get 401). Plain URLs are shown as they are.
  */
 const SecureDocument: React.FC<{
-  document: PartnerDocument;
+  document: Pick<
+    PartnerDocument,
+    "id" | "name" | "type" | "url" | "secure"
+  >;
   height?: number;
 }> = ({ document, height = 360 }) => {
   const [blobUrl, setBlobUrl] = useState("");

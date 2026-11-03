@@ -81,7 +81,6 @@ export function classifyApiError(
       message: 'Something went wrong. Please try again.',
     };
   }
-
   const responseData = (apiErr as ApiError & {
     response?: { data?: { message?: string; code?: string; details?: ApiError['details'] } };
   }).response?.data;

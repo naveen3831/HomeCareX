@@ -19,9 +19,7 @@ const num = (value: unknown): number | undefined => {
 };
 
 const str = (value: unknown): string | undefined =>
-  typeof value === 'string' && value.trim()
-    ? value.trim()
-    : undefined;
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
 
 export const payoutsController = {
   /**
@@ -32,14 +30,12 @@ export const payoutsController = {
    */
   async generate(req: Request, res: Response) {
     const admin = getAuthUser(req);
-
     const batch = await payoutsService.generateBatch({
       periodStart: String(req.body?.periodStart ?? ''),
       periodEnd: String(req.body?.periodEnd ?? ''),
       adminId: admin.id,
       ip: getIp(req),
     });
-
     sendSuccess(res, batch, { status: 201 });
   },
 

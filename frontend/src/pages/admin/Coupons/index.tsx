@@ -5,6 +5,7 @@ import {
   useParams,
 } from "react-router-dom";
 import http, { type ApiResponse } from "@/lib/http";
+import { TablePagination, usePagination } from "@/components/tables";
 import "./index.css";
 
 type CouponType = "PERCENT" | "FLAT";
@@ -296,6 +297,9 @@ export const AdminCouponsPage: React.FC =
 
     const [coupons, setCoupons] =
       useState<Coupon[]>([]);
+
+    // Must stay above the early return that opens the create / edit form.
+    const pager = usePagination(coupons);
 
     const [
       categories,
@@ -2042,6 +2046,7 @@ export const AdminCouponsPage: React.FC =
               </button>
             </div>
           ) : (
+            <>
             <div className="admin-coupons-table-wrapper">
               <table className="admin-coupons-table">
                 <thead>
@@ -2085,7 +2090,7 @@ export const AdminCouponsPage: React.FC =
                 </thead>
 
                 <tbody>
-                  {coupons.map(
+                  {pager.pageItems.map(
                     (
                       coupon,
                     ) => {
@@ -2336,6 +2341,14 @@ export const AdminCouponsPage: React.FC =
                 </tbody>
               </table>
             </div>
+
+            <TablePagination
+              {...pager}
+              onPageChange={pager.setPage}
+              onPageSizeChange={pager.setPageSize}
+              label="coupons"
+            />
+            </>
           )}
         </div>
       </div>

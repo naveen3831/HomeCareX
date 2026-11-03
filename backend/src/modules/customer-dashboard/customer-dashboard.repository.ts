@@ -147,6 +147,8 @@ export function buildCategoriesPipeline(
         name: 1,
         slug: 1,
         icon: 1,
+        iconUrl: 1,
+        images: 1,
         serviceCount: { $ifNull: [{ $arrayElemAt: ["$svc.n", 0] }, 0] },
       },
     },

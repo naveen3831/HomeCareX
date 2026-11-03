@@ -2,6 +2,7 @@
 import { Router } from "express";
 
 import { authMiddleware } from "../middleware/auth.middleware";
+import { requireTrainingApproved } from "../modules/partner-onboarding/partner-onboarding.middleware";
 import { requireAdmin } from "../middleware/role.middleware";
 import { requirePermission, requireResourceAccess } from "../middleware/permission.middleware";
 
@@ -68,6 +69,7 @@ import {
   partnerJobsRoutes,
 } from "../modules/partner-jobs/partner-jobs.routes";
 import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
+import { partnerOnboardingRoutes } from "../modules/partner-onboarding/partner-onboarding.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
@@ -199,26 +201,29 @@ rootRouter.use("/referrals", referralsRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
 
 // ---- Partner ----
-rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
-rootRouter.use("/partner/availability", availabilityRoutes);
-rootRouter.use("/partner/blackout-dates", blackoutRoutes);
-rootRouter.use("/partner/schedule", scheduleRoutes);
-rootRouter.use("/partner/earnings", earningsRoutes);
-rootRouter.use("/partner/transactions", partnerWalletRoutes);
-rootRouter.use("/partner/wallet", partnerWalletSummaryRoutes);
-rootRouter.use("/partner/payouts", partnerPayoutsRoutes);
-rootRouter.use("/partner/incentives", incentivesRoutes);
-rootRouter.use("/partner/services", partnerServicesRoutes);
-rootRouter.use("/partner/service-area", partnerServiceAreaRoutes);
-rootRouter.use("/partner/performance", partnerPerformanceRoutes);
-rootRouter.use("/partner/reviews", partnerReviewsRoutes);
+// Pages that need the finished + admin-approved training go through requireTrainingApproved.
+// Open on purpose: onboarding, kyc, notifications, support tickets, settings, safety (SOS).
+rootRouter.use("/partner/dashboard", authMiddleware, requireTrainingApproved, partnerDashboardRoutes);
+rootRouter.use("/partner/onboarding", partnerOnboardingRoutes);
+rootRouter.use("/partner/availability", authMiddleware, requireTrainingApproved, availabilityRoutes);
+rootRouter.use("/partner/blackout-dates", authMiddleware, requireTrainingApproved, blackoutRoutes);
+rootRouter.use("/partner/schedule", authMiddleware, requireTrainingApproved, scheduleRoutes);
+rootRouter.use("/partner/earnings", authMiddleware, requireTrainingApproved, earningsRoutes);
+rootRouter.use("/partner/transactions", authMiddleware, requireTrainingApproved, partnerWalletRoutes);
+rootRouter.use("/partner/wallet", authMiddleware, requireTrainingApproved, partnerWalletSummaryRoutes);
+rootRouter.use("/partner/payouts", authMiddleware, requireTrainingApproved, partnerPayoutsRoutes);
+rootRouter.use("/partner/incentives", authMiddleware, requireTrainingApproved, incentivesRoutes);
+rootRouter.use("/partner/services", authMiddleware, requireTrainingApproved, partnerServicesRoutes);
+rootRouter.use("/partner/service-area", authMiddleware, requireTrainingApproved, partnerServiceAreaRoutes);
+rootRouter.use("/partner/performance", authMiddleware, requireTrainingApproved, partnerPerformanceRoutes);
+rootRouter.use("/partner/reviews", authMiddleware, requireTrainingApproved, partnerReviewsRoutes);
 rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/settings", partnerSettingsRoutes);
 rootRouter.use("/partner/safety", sosRoutes);
-rootRouter.use("/partner/jobs", partnerJobsRoutes);
-rootRouter.use("/partner/job-requests", partnerJobRequestsRoutes);
-rootRouter.use("/partner/jobs", maskedCallRoutes);
-rootRouter.use("/partner/jobs", partnerLocationRoutes);
+rootRouter.use("/partner/jobs", authMiddleware, requireTrainingApproved, partnerJobsRoutes);
+rootRouter.use("/partner/job-requests", authMiddleware, requireTrainingApproved, partnerJobRequestsRoutes);
+rootRouter.use("/partner/jobs", authMiddleware, requireTrainingApproved, maskedCallRoutes);
+rootRouter.use("/partner/jobs", authMiddleware, requireTrainingApproved, partnerLocationRoutes);
 
 // ---- Bookings, chat & reviews ----
 rootRouter.use(bookingsRoutes);

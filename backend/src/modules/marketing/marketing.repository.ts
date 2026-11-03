@@ -47,7 +47,8 @@ export class MarketingRepository {
     };
 
     if (placement) {
-      filter.placement = placement;
+      // The app asks for "home"; the database stores "HOME". Match case-insensitively.
+      filter.placement = placement.trim().toUpperCase();
     }
 
     return BannerModel.find(filter)
@@ -57,7 +58,7 @@ export class MarketingRepository {
       })
       .lean();
   }
-}
+} // <-- ee brace miss ayindi (class close)
 
 export const marketingRepository =
   new MarketingRepository();

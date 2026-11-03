@@ -10,6 +10,10 @@ export interface CatalogCategory {
   slug: string;
   description: string;
   icon: string;
+  /** Cover photo the admin set in Categories. Empty when none: cards fall back to the built-in photo. */
+  imageUrl?: string;
+  /** Icon image the admin uploaded. Empty when none: cards fall back to the emoji / 3D icon. */
+  iconUrl?: string;
   sortOrder: number;
   /** Active services in this category. */
   serviceCount: number;

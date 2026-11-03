@@ -111,6 +111,32 @@ export function useBookingChat(bookingId: string) {
     };
   }, [bookingId]);
 
+  // Safety net: the socket can drop without telling us (sleeping phone, proxy, expired token).
+  // Re-read the newest page on a timer (fast while not live, slow while live) and when the tab
+  // comes back to the front. merge() dedupes by id, so this never shows a message twice.
+  useEffect(() => {
+    if (load !== "ready") return undefined;
+    let cancelled = false;
+    const catchUp = () => {
+      if (document.visibilityState === "hidden" || !navigator.onLine) return;
+      fetchMessages(bookingId)
+        .then(
+          (page) =>
+            !cancelled && setMessages((prev) => merge(prev, page.messages)),
+        )
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(catchUp, live ? 20_000 : 4_000);
+    document.addEventListener("visibilitychange", catchUp);
+    window.addEventListener("focus", catchUp);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", catchUp);
+      window.removeEventListener("focus", catchUp);
+    };
+  }, [bookingId, load, live]);
+
   const loadOlder = useCallback(async () => {
     if (!nextCursor || loadingOlder) return;
     setLoadingOlder(true);

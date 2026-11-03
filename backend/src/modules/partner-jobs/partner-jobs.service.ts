@@ -1,4 +1,3 @@
-
 import { Types } from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { HttpError } from "../auth/auth.types";
@@ -23,6 +22,7 @@ import type {
   JobRequestDto,
 } from "./partner-jobs.types";
 import { alertSos } from "../notifications/admin-alerts";
+import { environmentConfig } from "../../config/environment";
 import {
   alertCustomerJobCompleted,
   alertCustomerJobStarted,
@@ -32,6 +32,31 @@ import {
 } from "../notifications/customer-alerts";
 
 const money = (n: number): number => Math.round(n * 100) / 100;
+
+/** What the customer owes on site: the service price plus any extra charges they approved. */
+const amountDueOf = (booking: JobBookingDoc): number =>
+  money(
+    Number(booking.priceBreakdown?.total ?? 0) +
+      (booking.extraCharges ?? [])
+        .filter((charge) => charge.status === "approved")
+        .reduce((sum, charge) => sum + Number(charge.amount) * Number(charge.quantity || 1), 0),
+  );
+
+/** upi://pay deep link that every UPI app turns into a pay screen when the QR is scanned. */
+const buildUpiUri = (booking: JobBookingDoc, amount: number): string | null => {
+  const payee = environmentConfig.upiPayeeId;
+  if (!payee || amount <= 0) return null;
+
+  const params = new URLSearchParams({
+    pa: payee,
+    pn: environmentConfig.upiPayeeName,
+    am: amount.toFixed(2),
+    cu: "INR",
+    tn: `Booking ${booking._id.toString().slice(-6).toUpperCase()}`,
+  });
+
+  return `upi://pay?${params.toString()}`;
+};
 
 /** "Rahul Kumar" -> "Rahul K." */
 export const maskName = (name?: string): string => {
@@ -143,6 +168,8 @@ async function getPartnerProfile(userId: string) {
 }
 
 /** Loads a booking and verifies ownership by the signed-in partner. */
+const START_OTP_MAX_ATTEMPTS = 5;
+
 async function loadOwnedBooking(userId: string, bookingId: string) {
   const partner = await getPartnerProfile(userId);
   const booking = await repo.findBooking(bookingId);
@@ -217,7 +244,20 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
       paidAt: booking.paymentDetails?.paidAt
         ? booking.paymentDetails.paidAt.toISOString()
         : null,
+      method: booking.paymentDetails?.method ?? null,
+      amountDue: amountDueOf(booking),
+      upiUri:
+        booking.paymentStatus === "PAID"
+          ? null
+          : buildUpiUri(booking, amountDueOf(booking)),
     },
+    customerRating:
+      typeof booking.customerRating?.rating === "number"
+        ? {
+            rating: booking.customerRating.rating,
+            comment: booking.customerRating.comment ?? null,
+          }
+        : null,
     actions: actionsFor(booking.status),
     otpRequired: booking.status === "arrived",
     statusHistory: booking.statusHistory.map((history) => ({
@@ -244,12 +284,35 @@ const LIVE_STATUSES: BookingStatus[] = [
 
 export const partnerJobsService = {
   /** GET /partner/jobs */
-  async listLiveJobs(userId: string): Promise<JobListItemDto[]> {
+  async listLiveJobs(
+    userId: string,
+    scope: "live" | "completed" | "cancelled" = "live",
+  ): Promise<JobListItemDto[]> {
     const partner = await getPartnerProfile(userId);
-    const rows = await repo.listLiveForPartner(
-      partner._id,
-      LIVE_STATUSES,
-    );
+    const statuses: BookingStatus[] =
+      scope === "completed"
+        ? ["completed", "rated"]
+        : scope === "cancelled"
+          ? ["cancelled_by_customer", "cancelled_by_admin"]
+          : LIVE_STATUSES;
+    const rows = await repo.listLiveForPartner(partner._id, statuses);
+
+    // One query for all service photos (skip very large inline data: images).
+    const serviceIds = [
+      ...new Set(
+        rows.flatMap((b) => (b.serviceId ? [b.serviceId.toString()] : [])),
+      ),
+    ].map((id) => new Types.ObjectId(id));
+    const services = serviceIds.length
+      ? await repo.findServiceMedia(serviceIds)
+      : [];
+    const imageByService = new Map<string, string>();
+    for (const svc of services) {
+      const url = svc.media?.[0]?.url;
+      if (url && !(url.startsWith("data:") && url.length > 100_000)) {
+        imageByService.set(svc._id.toString(), url);
+      }
+    }
 
     return rows.map((booking) => ({
       id: booking._id.toString(),
@@ -265,7 +328,14 @@ export const partnerJobsService = {
         .join(", "),
       scheduledAt: booking.scheduledAt.toISOString(),
       slot: booking.slot ?? null,
-      partnerEarning: money(booking.partnerEarning ?? 0),
+      // partnerEarning is 0 until payout is calculated, so fall back to the
+      // booking total (same rule as the job-request cards).
+      partnerEarning: money(
+        booking.partnerEarning || booking.priceBreakdown?.total || 0,
+      ),
+      imageUrl: booking.serviceId
+        ? (imageByService.get(booking.serviceId.toString()) ?? null)
+        : null,
     }));
   },
 
@@ -351,9 +421,9 @@ export const partnerJobsService = {
   },
 
   /** POST /partner/jobs/:id/reject */
-  async rejectOffer(userId: string, bookingId: string) {
+  async rejectOffer(userId: string, bookingId: string, reason?: string) {
     const partner = await getPartnerProfile(userId);
-    const result = await repo.rejectOffer(bookingId, partner._id);
+    const result = await repo.rejectOffer(bookingId, partner._id, reason);
 
     if (result === "NOT_FOUND") {
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
@@ -363,6 +433,77 @@ export const partnerJobsService = {
       success: true,
       message: "Job rejected",
     };
+  },
+
+  /** POST /partner/jobs/:id/collect-payment: the partner took cash or a UPI payment on site. */
+  async collectPayment(
+    userId: string,
+    bookingId: string,
+    method: "cash" | "upi",
+    now: Date = new Date(),
+  ): Promise<JobDetailDto> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+
+    if (booking.status !== "completed" && booking.status !== "rated") {
+      throw invalid("Payment can be collected only after the service is completed");
+    }
+
+    if (booking.paymentStatus !== "PAID") {
+      const applied = await repo.markPaid(bookingId, partner._id, method, now);
+
+      if (!applied) {
+        throw invalid("This job was already updated. Refresh to see its latest status");
+      }
+    }
+
+    const fresh = await repo.findBooking(bookingId);
+
+    if (!fresh) {
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    }
+
+    return buildDetail(fresh);
+  },
+
+  /** POST /partner/jobs/:id/rate-customer: only after payment, and only once. */
+  async rateCustomer(
+    userId: string,
+    bookingId: string,
+    rating: number,
+    comment?: string,
+    now: Date = new Date(),
+  ): Promise<JobDetailDto> {
+    const { partner, booking } = await loadOwnedBooking(userId, bookingId);
+
+    if (booking.status !== "completed" && booking.status !== "rated") {
+      throw invalid("You can rate the customer only after the service is completed");
+    }
+
+    if (booking.paymentStatus !== "PAID") {
+      throw invalid("Collect the payment before rating the customer");
+    }
+
+    if (typeof booking.customerRating?.rating !== "number") {
+      const applied = await repo.saveCustomerRating(
+        bookingId,
+        partner._id,
+        rating,
+        comment,
+        now,
+      );
+
+      if (!applied) {
+        throw invalid("This job was already updated. Refresh to see its latest status");
+      }
+    }
+
+    const fresh = await repo.findBooking(bookingId);
+
+    if (!fresh) {
+      throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+    }
+
+    return buildDetail(fresh);
   },
 
   /** POST /partner/jobs/:id/sos */
@@ -491,14 +632,42 @@ export const partnerJobsService = {
       throw invalid("You can only start a job after you have arrived");
     }
 
-    const expectedOtp = booking.otpCodes?.start || "1234";
+    const used = booking.startOtpAttempts ?? 0;
 
-    if (otp !== expectedOtp && otp !== "1234") {
+    if (used >= START_OTP_MAX_ATTEMPTS) {
+      throw httpError(
+        423,
+        ERROR_CODES.OTP_LOCKED,
+        "Too many incorrect codes. This job is locked, please contact support",
+      );
+    }
+
+    // otpCodes.start is `select: false`, so the plain booking load never has it.
+    const expectedOtp = await repo.getStartOtp(bookingId);
+
+    if (!expectedOtp) {
+      throw invalid(
+        "The customer's start code is not ready yet. Ask the customer to open the booking and try again",
+      );
+    }
+
+    if (otp !== expectedOtp) {
+      const total = await repo.recordFailedStartAttempt(bookingId);
+      const remaining = Math.max(0, START_OTP_MAX_ATTEMPTS - total);
+
+      if (remaining === 0) {
+        throw httpError(
+          423,
+          ERROR_CODES.OTP_LOCKED,
+          "Too many incorrect codes. This job is locked, please contact support",
+        );
+      }
+
       throw httpError(
         422,
         ERROR_CODES.INVALID_OTP,
-        "Incorrect code. Please verify with the customer.",
-        [{ field: "attemptsRemaining", message: "3" }],
+        `Incorrect code. ${remaining} ${remaining === 1 ? "attempt" : "attempts"} left`,
+        [{ field: "attemptsRemaining", message: String(remaining) }],
       );
     }
 
