@@ -54,7 +54,7 @@ const columns: { title: string; links: FooterLink[] }[] = [
       { to: "/", label: "Home" },
       { to: "/about", label: "About" },
       { to: "/contact", label: "Contact" },
-      { to: "/careers", label: "Careers" },
+      { to: ROUTES.CAREERS, label: "Careers" },
     ],
   },
   {
@@ -309,7 +309,7 @@ const Footer: React.FC = () => {
               <span className="text-white/20">•</span>
               <NavLink to={ROUTES.TERMS} className="hover:text-white transition-colors">Terms &amp; Conditions</NavLink>
               <span className="text-white/20">•</span>
-              <NavLink to="/cookies" className="hover:text-white transition-colors">Cookie Policy</NavLink>
+              <NavLink to={ROUTES.COOKIES} className="hover:text-white transition-colors">Cookie Policy</NavLink>
             </div>
           </div>
         </div>
