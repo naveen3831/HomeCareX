@@ -128,10 +128,18 @@ export const authController = {
    * POST /api/v1/auth/register
    */
   register: wrap(async (req, res) => {
-    const { user, accessToken, refreshToken } =
-      await authService.register(
-        parseBody(registerSchema, req.body),
-      );
+    const result = await authService.register(
+      parseBody(registerSchema, req.body),
+    );
+
+    if ('pendingApproval' in result && result.pendingApproval) {
+      res.status(201).json({
+        success: true,
+        data: result,
+        message: result.message,
+      });
+      return;
+    }
 
     clearRefreshCookies(res);
     res.cookie(REFRESH_COOKIE, result.refreshToken, cookieOptions());
