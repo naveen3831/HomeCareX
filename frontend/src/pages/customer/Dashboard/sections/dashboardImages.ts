@@ -49,6 +49,28 @@ const SERVICE_PHOTOS: Record<string, DashboardPhoto> = {
 };
 
 export const categoryPhoto = (slug: string): DashboardPhoto | undefined => CATEGORY_PHOTOS[slug];
+
+const fileName = (url: string) => url.split("?")[0].split("/").pop() ?? "";
+
+/**
+ * Photo for a category tile / hero slide. The cover the admin set in Categories wins; the built-in
+ * photo (by slug) is used only while the admin has not set one. When the admin's cover is the same
+ * file as the built-in photo (the seeded default), the tuned crop is kept.
+ */
+export function categoryPhotoFor(category: { slug: string; imageUrl?: string | null }): DashboardPhoto | undefined {
+  const builtIn = categoryPhoto(category.slug);
+  const adminUrl = category.imageUrl?.trim();
+  if (!adminUrl) return builtIn;
+  const sameFile = !!builtIn && fileName(adminUrl) === fileName(builtIn.src);
+  return { src: adminUrl, position: sameFile ? builtIn.position : "50% 50%" };
+}
+
+/** True when the category is still showing the built-in photo (so slug-specific banner crops still apply). */
+export const isBuiltInPhoto = (category: { slug: string; imageUrl?: string | null }): boolean => {
+  const adminUrl = category.imageUrl?.trim();
+  const builtIn = categoryPhoto(category.slug);
+  return !adminUrl || (!!builtIn && fileName(adminUrl) === fileName(builtIn.src));
+};
 export const servicePhoto = (slug: string): DashboardPhoto | undefined => SERVICE_PHOTOS[slug];
 
 /** Square thumbnails need a different focal point than the wide service cards. */

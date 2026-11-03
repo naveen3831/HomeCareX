@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { Link } from 'react-router-dom';
+import { TablePagination, usePagination } from '@/components/tables';
 import type { AdminCategory, ReorderItem } from '@/types/adminCatalog';
 import type { AdminService } from '@/types/adminService';
 import './CategoryExplorer.css';
@@ -28,6 +29,26 @@ const duration = (m: number) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 type ServicesStatus = 'idle' | 'loading' | 'ready';
+
+/**
+ * Pages one list of rows (10 per page). `children` gets this page's rows and the index of the first one
+ * in the whole list, so Move up / Move down still work on the real position. The footer only shows
+ * once the list is longer than the smallest page size.
+ */
+function Paged<T>({ items, label, resetKey, children }: {
+  items: T[]; label: string; resetKey?: unknown;
+  children: (pageItems: T[], offset: number) => React.ReactNode;
+}) {
+  const pager = usePagination(items, { resetKey });
+  return (
+    <>
+      {children(pager.pageItems, (pager.page - 1) * pager.pageSize)}
+      {pager.total > 10 && (
+        <TablePagination {...pager} onPageChange={pager.setPage} onPageSizeChange={pager.setPageSize} label={label} />
+      )}
+    </>
+  );
+}
 
 interface Props {
   /** Full, unfiltered category list. */
@@ -54,8 +75,12 @@ const Cover: React.FC<{ c: AdminCategory; size?: 'sm' | 'lg' }> = ({ c, size }) 
       <span className="cat-cover" title={cover ? 'Cover image' : 'No cover image uploaded'}>
         {cover ? <img src={cover} alt={`${c.name} cover`} /> : <span className="cat-cover__empty"><ImageIcon size={18} /></span>}
       </span>
-      <span className="cat-icon" title={c.iconUrl ? 'Icon' : 'No icon uploaded'}>
-        {c.iconUrl ? <img src={c.iconUrl} alt={`${c.name} icon`} /> : <FolderTree size={13} />}
+      <span className="cat-icon" title={c.iconUrl ? 'Icon' : c.icon ? 'Emoji icon' : 'No icon set'}>
+        {c.iconUrl
+          ? <img src={c.iconUrl} alt={`${c.name} icon`} />
+          : c.icon
+            ? <span className="cat-icon__emoji" role="img" aria-label={`${c.name} icon`}>{c.icon}</span>
+            : <FolderTree size={13} />}
       </span>
     </span>
   );
@@ -100,7 +125,7 @@ const CatRow: React.FC<CatRowProps> = ({
         <div className="cat-pills">
           {isParent && <span className="cat-pill" title="Sub-categories">{plural(subCount, 'sub-category', 'sub-categories')}</span>}
           <span className={clsx('cat-pill', serviceTotal > 0 && 'is-link')} title="Services in this category">{plural(serviceTotal, 'service')}</span>
-          {!c.images.length && !c.iconUrl && <span className="cat-pill is-warn">No images yet</span>}
+          {!c.images.length && !c.iconUrl && !c.icon && <span className="cat-pill is-warn">No images yet</span>}
         </div>
       </div>
       <div className="cx-foot">
@@ -163,7 +188,11 @@ const ServiceList: React.FC<{ list: AdminService[]; status: ServicesStatus; empt
     return <div className="cx-skel" aria-label="Loading services">{[0, 1].map((n) => <span key={n} className="hcx-skeleton hcx-skeleton--block" style={{ height: 78 }} />)}</div>;
   }
   if (list.length === 0) return <p className="cx-none">{emptyText}</p>;
-  return <ul className="cx-list" aria-label="Services">{list.map((s) => <ServiceLine key={s.id} s={s} />)}</ul>;
+  return (
+    <Paged items={list} label="services">
+      {(pageItems) => <ul className="cx-list" aria-label="Services">{pageItems.map((s) => <ServiceLine key={s.id} s={s} />)}</ul>}
+    </Paged>
+  );
 };
 
 /* ---------------- explorer ---------------- */
@@ -215,12 +244,14 @@ export const CategoryExplorer: React.FC<Props> = ({
   };
 
   const renderCategories = (list: AdminCategory[], parentId: string | null, label: string) => (
+    <Paged items={list} label={label} resetKey={`${parentId}|${searching}`}>
+    {(pageItems, offset) => (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActiveId(null)}>
-      <SortableContext items={list.map((c) => c.id)} strategy={verticalListSortingStrategy} disabled={searching}>
+      <SortableContext items={pageItems.map((c) => c.id)} strategy={verticalListSortingStrategy} disabled={searching}>
         <ul className="cx-list" aria-label={label}>
-          {list.map((c, i) => (
+          {pageItems.map((c, i) => (
             <CatRow
-              key={c.id} c={c} index={i} count={list.length}
+              key={c.id} c={c} index={offset + i} count={list.length}
               subCount={c.parentId ? 0 : subsOf(c.id).length} serviceTotal={serviceTotal(c)}
               trail={searching && c.parentId ? byId.get(c.parentId)?.name : undefined}
               reorderEnabled={!searching} busy={busyIds.has(c.id)}
@@ -233,6 +264,8 @@ export const CategoryExplorer: React.FC<Props> = ({
       </SortableContext>
       <DragOverlay>{dragged && <div className="cat-overlay"><GripVertical size={16} /><strong>{dragged.name}</strong></div>}</DragOverlay>
     </DndContext>
+    )}
+    </Paged>
   );
 
   /* ---- search: flat list across every level ---- */

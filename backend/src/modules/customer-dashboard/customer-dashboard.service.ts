@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { Errors } from '../../utils/errors';
 import { addressesService } from '../addresses/addresses.service';
+import { primaryImageUrl } from '../categories/categories.media';
 import { LIVE_PROGRESS_STEP } from './customer-dashboard.constants';
 import { customerDashboardRepository as repo } from './customer-dashboard.repository';
 import type {
@@ -46,6 +47,8 @@ export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => ({
   name: row.name,
   slug: row.slug,
   icon: row.icon ?? null,
+  imageUrl: primaryImageUrl(row.images),
+  iconUrl: row.iconUrl ?? '',
   serviceCount: row.serviceCount,
 });
 

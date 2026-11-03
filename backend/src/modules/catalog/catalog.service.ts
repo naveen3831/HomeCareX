@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { ERROR_CODES } from '../../constants/errorCodes';
 import { HttpError } from '../auth/auth.types';
+import { primaryImageUrl } from '../categories/categories.media';
 import { summarizeAvailability } from './catalog.availability';
 import { buildServiceQuery } from './catalog.query';
 import { catalogRepository as repo, type CategoryRow, type ServiceRow } from './catalog.repository';
@@ -29,7 +30,7 @@ export const catalogService = {
   /** Active categories in admin-defined order, each with its number of active services. */
   async listCategories(query: unknown): Promise<PublicCategoryDto[]> {
     categoryQuerySchema.parse(query);
-    const [cats, stats] = await Promise.all([repo.activeCategories(), repo.activeServiceStats()]);
+    const [cats, stats] = await Promise.all([repo.activeCategories(true), repo.activeServiceStats()]);
     const top = Math.max(0, ...[...stats.values()].map((x) => x.bookings));
     // Exactly one category is "popular": the first with the highest bookings (none while nothing is booked yet).
     const popularId = top > 0 ? cats.find((c) => stats.get(String(c._id))?.bookings === top)?._id : undefined;
@@ -39,6 +40,8 @@ export const catalogService = {
       slug: c.slug,
       description: c.description ?? '',
       icon: c.icon ?? '',
+      imageUrl: primaryImageUrl(c.images),
+      iconUrl: c.iconUrl ?? '',
       sortOrder: c.sortOrder ?? 0,
       serviceCount: stats.get(String(c._id))?.count ?? 0,
       fromPrice: stats.get(String(c._id))?.fromPrice ?? 0,

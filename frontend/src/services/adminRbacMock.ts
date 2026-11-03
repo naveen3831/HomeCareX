@@ -39,7 +39,7 @@ const CATALOG: Record<string, string[]> = {
   payments: ['view', 'refund', 'export'],
   refunds: ['view', 'approve'],
   payouts: ['view', 'approve', 'export'],
-  reviews: ['view', 'delete'],
+  reviews: ['view', 'moderate'],
   reports: ['view', 'export'],
   roles: ['view', 'create', 'update', 'delete'],
   staff: ['view', 'create', 'update'],
@@ -78,7 +78,7 @@ function seed(): MockDb {
     { id: 'role_support_agent', key: 'support_agent', name: 'Support Agent', description: 'Handles tickets and looks up bookings and customers.', permissions: [...viewOf(['bookings', 'customers', 'tickets', 'leads']), 'tickets:update', 'leads:update'], isSystem: true, updatedAt: ago(60) },
     { id: 'role_finance', key: 'finance', name: 'Finance', description: 'Payments, refunds and payouts.', permissions: [...viewOf(['payments', 'refunds', 'payouts', 'reports']), 'payments:refund', 'payments:export', 'refunds:approve', 'payouts:approve', 'payouts:export', 'reports:export'], isSystem: true, updatedAt: ago(60) },
     { id: 'role_content_editor', name: 'Content Editor', description: 'Catalog, pricing and marketing only.', permissions: [...viewOf(['catalog', 'pricing', 'coupons', 'marketing']), 'catalog:manage', 'coupons:create', 'coupons:update', 'marketing:manage'], isSystem: false, updatedAt: ago(12) },
-    { id: 'role_ops_supervisor', name: 'Ops Supervisor', description: 'Bookings, partners and KYC approvals.', permissions: [...viewOf(['bookings', 'partners', 'customers', 'reviews']), 'bookings:update', 'bookings:export', 'partners:update', 'kyc:approve'], isSystem: false, updatedAt: ago(5) },
+    { id: 'role_ops_supervisor', name: 'Ops Supervisor', description: 'Bookings, partners and KYC approvals.', permissions: [...viewOf(['bookings', 'partners', 'customers', 'reviews']), 'bookings:update', 'bookings:export', 'partners:update', 'kyc:approve', 'reviews:moderate'], isSystem: false, updatedAt: ago(5) },
   ];
   const m = (n: number, name: string, email: string, roleId: string, status: StaffStatus, last: string | null): StaffMember => {
     const r = roles.find((x) => x.id === roleId)!;

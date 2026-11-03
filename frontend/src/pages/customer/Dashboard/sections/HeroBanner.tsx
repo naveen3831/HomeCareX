@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { Icon3D, tintAt } from "@/components/customer";
+import { CategoryIcon, tintAt } from "@/components/customer";
 import type { DashboardCategoryDto } from "@/features/customer";
-import { categoryPhoto } from "./dashboardImages";
+import { categoryPhotoFor, isBuiltInPhoto } from "./dashboardImages";
 
 const AUTO_MS = 5500;
 const MAX_SLIDES = 6;
@@ -120,9 +120,11 @@ export default function HeroBanner({ categories, children }: HeroBannerProps) {
 }
 
 function Slide({ category: c, index, isActive }: { category: DashboardCategoryDto; index: number; isActive: boolean }) {
-  const photo = categoryPhoto(c.slug);
-  const [failed, setFailed] = useState(false);
-  const showPhoto = photo && !failed;
+  const photo = categoryPhotoFor(c);
+  const [failedSrc, setFailedSrc] = useState<string>();
+  const showPhoto = photo && photo.src !== failedSrc;
+  // Banner-only crops are made for the built-in photos; a photo the admin uploaded is shown as is.
+  const builtIn = isBuiltInPhoto(c);
 
   return (
     <div
@@ -134,18 +136,18 @@ function Slide({ category: c, index, isActive }: { category: DashboardCategoryDt
         // Phones: photo is the top 180px. md+: photo takes the right ~68% and fades into the dark panel.
         <div className="relative h-[180px] shrink-0 overflow-hidden rounded-[26px] shadow-[0_14px_34px_-18px_rgba(30,27,46,.55)] md:absolute md:inset-0 md:left-auto md:h-auto md:w-[68%] md:rounded-none md:shadow-none md:[mask-image:linear-gradient(to_right,transparent,#000_28%)]">
           <img
-            src={BANNER_IMAGE[c.slug] ?? photo.src}
+            src={(builtIn && BANNER_IMAGE[c.slug]) || photo.src}
             alt=""
             loading={index === 0 ? "eager" : "lazy"}
             decoding="async"
             draggable={false}
-            onError={() => setFailed(true)}
-            style={{ objectPosition: BANNER_POSITION[c.slug] ?? photo.position }}
+            onError={() => setFailedSrc(photo.src)}
+            style={{ objectPosition: (builtIn && BANNER_POSITION[c.slug]) || photo.position }}
             className="h-full w-full object-cover"
           />
         </div>
       ) : (
-        <Icon3D hints={[c.icon, c.name, c.slug]} size={180} className="absolute bottom-6 right-10" />
+        <CategoryIcon iconUrl={c.iconUrl} hints={[c.icon, c.name, c.slug]} size={180} className="absolute bottom-6 right-10" />
       )}
       {/* Desktop-only soft shade; on phones the text is below the photo, so nothing needs a fade. */}
       {showPhoto && <span aria-hidden="true" className="absolute inset-0 hidden bg-gradient-to-r from-[rgba(20,18,36,.35)] via-transparent to-transparent md:block" />}

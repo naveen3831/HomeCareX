@@ -19,6 +19,10 @@ export interface DashboardCategoryDto {
   name: string;
   slug: string;
   icon: string | null;
+  /** Cover photo set by the admin in Categories ('' when none). */
+  imageUrl: string;
+  /** Uploaded icon image set by the admin ('' when none). */
+  iconUrl: string;
   serviceCount: number;
 }
 
@@ -69,6 +73,8 @@ export interface CategoryRow {
   name: string;
   slug: string;
   icon?: string | null;
+  iconUrl?: string | null;
+  images?: { url: string; isPrimary?: boolean }[] | null;
   serviceCount: number;
 }
 

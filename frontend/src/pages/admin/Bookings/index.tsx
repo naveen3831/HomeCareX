@@ -16,6 +16,8 @@ import type {
   BookingStatus,
   PaymentStatus,
 } from "@/types/adminBooking";
+import { TablePagination, usePagination } from "@/components/tables";
+
 import "./index.css";
 
 
@@ -862,10 +864,20 @@ export default function Bookings() {
               )}
             </div>
           ) : (
+          <>
           <BookingTable
             bookings={bookings}
             onBookingSelect={handleBookingSelect}
           />
+          {bookings.length > 0 && (
+            <TablePagination
+              {...pager}
+              onPageChange={pager.setPage}
+              onPageSizeChange={pager.setPageSize}
+              label="bookings"
+            />
+          )}
+          </>
           )}
         </div>
       </section>
