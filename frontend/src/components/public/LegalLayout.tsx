@@ -11,7 +11,7 @@ import { ROUTES } from "../../constants/routes";
 
 const renderInteractiveText = (text: string): React.ReactNode => {
   const tokenRegex =
-    /(support@homecarex\.com|privacy@homecarex\.com|\+91\s*93902\s*12572|\/contact|Privacy Policy|Terms and Conditions|Terms & Conditions|Help Center|refund policy|cancellation policy)/gi;
+    /(support@homecarex\.com|privacy@homecarex\.com|\+91\s*93902\s*12572|\/contact|Privacy Policy|Cookie Policy|Terms and Conditions|Terms & Conditions|Help Center|refund policy|cancellation policy)/gi;
 
   const parts = text.split(tokenRegex);
   return parts.map((part, index) => {
@@ -65,6 +65,17 @@ const renderInteractiveText = (text: string): React.ReactNode => {
         <Link
           key={index}
           to={ROUTES.PRIVACY}
+          className="font-semibold text-brand-600 underline underline-offset-2 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
+        >
+          {part}
+        </Link>
+      );
+    }
+    if (lower === "cookie policy") {
+      return (
+        <Link
+          key={index}
+          to={ROUTES.COOKIES}
           className="font-semibold text-brand-600 underline underline-offset-2 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
         >
           {part}

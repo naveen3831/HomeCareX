@@ -41,6 +41,14 @@ const Privacy = lazy(
   () => import("../pages/public/Privacy")
 );
 
+const Cookies = lazy(
+  () => import("../pages/public/Cookies")
+);
+
+const Careers = lazy(
+  () => import("../pages/public/Careers")
+);
+
 const NotFound = lazy(
   () => import("../pages/public/NotFound")
 );
@@ -110,6 +118,18 @@ const PublicRoutes: React.FC = () => {
           <Route
             path={ROUTES.PRIVACY}
             element={<Privacy />}
+          />
+
+          {/* Cookie Policy */}
+          <Route
+            path={ROUTES.COOKIES}
+            element={<Cookies />}
+          />
+
+          {/* Careers */}
+          <Route
+            path={ROUTES.CAREERS}
+            element={<Careers />}
           />
 
           {/* 404 */}

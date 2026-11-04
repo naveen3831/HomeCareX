@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Clock, Mail, Phone, MapPin, ChevronDown, Bell, Check, X, Tag, ArrowRight } from "lucide-react";
+import { MapPin, ChevronDown, Bell, Check, X, Tag, ArrowRight } from "lucide-react";
 import MobileDrawer from "./MobileDrawer";
 
 /* =========================================================
@@ -38,39 +38,6 @@ const styles = `
 
   .hcx-header-drop {
     animation: hcx-header-drop 0.5s cubic-bezier(.2,.7,.2,1) both;
-  }
-
-  /* TOP BAR */
-
-  .hcx-topbar {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition:
-      grid-template-rows 0.35s ease,
-      opacity 0.25s ease;
-  }
-
-  .hcx-topbar.collapsed {
-    grid-template-rows: 0fr;
-    opacity: 0;
-  }
-
-  .hcx-topbar > div {
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .hcx-top-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #cbd5e1;
-    transition: color 0.2s ease;
-  }
-
-  .hcx-top-link:hover {
-    color: #ffffff;
   }
 
   /* DESKTOP NAVIGATION */
@@ -170,10 +137,6 @@ const styles = `
     border-radius: 10px;
   }
 
-  .hcx-top-link:focus-visible {
-    outline-color: #ffffff;
-  }
-
   /* REDUCED MOTION */
 
   @media (prefers-reduced-motion: reduce) {
@@ -185,25 +148,12 @@ const styles = `
     }
   }
 
-  /* MOBILE */
-
-  @media (max-width: 767px) {
-    .hcx-topbar {
-      display: none !important;
-    }
-  }
 `;
 
 /* =========================================================
    CONTACT INFORMATION
 ========================================================= */
 
-const contact = {
-  phone: "+91 98765 43210",
-  phoneHref: "tel:+919876543210",
-  email: "support@homecarex.com",
-  hours: "Mon to Sat, 8 AM to 8 PM",
-};
 
 /* =========================================================
    NAVIGATION
@@ -445,37 +395,7 @@ const Header: React.FC = () => {
     >
       <style>{styles}</style>
 
-      {/* TOP INFORMATION BAR */}
-      <div
-        className={`hcx-topbar hidden md:grid ${scrolled ? "collapsed" : ""}`}
-      >
-        <div>
-          <div className="flex min-h-10 items-center justify-between bg-[#0e2439] px-6 text-xs text-slate-300">
-            <div className="hidden items-center gap-6 lg:inline-flex">
-              <span className="inline-flex items-center gap-2 text-slate-300">
-                <Clock size={14} aria-hidden="true" />
-                {contact.hours}
-              </span>
-              <a href={contact.phoneHref} className="hcx-top-link text-slate-300 hover:text-white">
-                <Phone size={14} aria-hidden="true" />
-                {contact.phone}
-              </a>
-              <a href={`mailto:${contact.email}`} className="hcx-top-link text-slate-300 hover:text-white">
-                <Mail size={14} aria-hidden="true" />
-                {contact.email}
-              </a>
-            </div>
-
-            <NavLink
-              to="/register/partner"
-              className="hcx-top-link ml-auto font-medium text-slate-300 hover:text-white"
-            >
-              Are you a service professional?
-              <span className="font-bold text-[#ff8a3d] ml-1.5">Join us</span>
-            </NavLink>
-          </div>
-        </div>
-      </div>
+      {/* TOP INFORMATION BAR REMOVED */}
 
       {/* MAIN HEADER */}
       <div
@@ -496,11 +416,11 @@ const Header: React.FC = () => {
             <img
               src="/logo.webp"
               alt="HomeCareX"
-              width={326}
-              height={128}
+              width={712}
+              height={166}
               fetchPriority="high"
               decoding="async"
-              className="h-14 w-auto object-contain mix-blend-multiply transition-transform duration-300 hover:scale-105 sm:h-16"
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
             />
           </NavLink>
 

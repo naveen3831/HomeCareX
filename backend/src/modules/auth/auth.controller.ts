@@ -135,11 +135,8 @@ export const authController = {
     if ('pendingApproval' in result && result.pendingApproval) {
       res.status(201).json({
         success: true,
-        data: {
-          user: result.user,
-          pendingApproval: true,
-          message: result.message,
-        },
+        data: result,
+        message: result.message,
       });
       return;
     }

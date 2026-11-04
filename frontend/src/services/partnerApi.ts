@@ -100,6 +100,34 @@ const httpMessage = (error: unknown, fallback: string): string =>
   (error as { message?: string })?.message ||
   fallback;
 
+const STORAGE_PREFIX = "homecarex:partner:";
+const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
+
+const savePartner = (partner: PartnerDetails): void => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(partner.id), JSON.stringify(partner));
+};
+
+const getStoredPartner = (id: string): PartnerDetails | null => {
+  if (typeof window === "undefined") return null;
+  const stored = window.localStorage.getItem(getStorageKey(id));
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored) as PartnerDetails;
+  } catch {
+    window.localStorage.removeItem(getStorageKey(id));
+    return null;
+  }
+};
+
+const getMockPartner = (id: string): PartnerDetails | null => {
+  const partner = PARTNER_DETAILS.find((item) => item.id === id);
+  return partner ? structuredClone(partner) : null;
+};
+
+const getCurrentPartner = (id: string): PartnerDetails | null =>
+  getStoredPartner(id) ?? getMockPartner(id);
+
 /* =========================================================
    Admin partner APIs (real backend, no mock data)
    ========================================================= */

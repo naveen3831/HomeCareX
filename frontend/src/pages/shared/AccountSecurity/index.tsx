@@ -339,12 +339,9 @@ export const AccountSecurityPage: React.FC = () => {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
   return (
-    <div className="w-full max-w-6xl mx-auto pb-2 sm:pb-20 pt-0 -mt-6 sm:-mt-2 md:mt-0">
-      {/* Real accessible heading for screen readers & tests */}
-      <h1 className="sr-only">Account Security</h1>
-
-      {/* Mobile left-side header with back arrow - clean alignment, no extra gap */}
-      <header className="flex md:hidden items-center gap-3 pb-1 pt-0">
+    <div className="mx-auto w-full bg-white md:bg-transparent md:max-w-xl md:px-4 md:py-6 md:space-y-4 pb-24 md:pb-16 min-h-[calc(100vh-64px)]">
+      {/* Top Header Bar: Back Arrow + Account Security Title */}
+      <header className={clsx("items-center gap-3 px-4 pt-3 pb-2 md:hidden", user?.role === "partner" ? "hidden" : "flex")}>
         <button
           type="button"
           onClick={handleGoBack}
@@ -360,58 +357,42 @@ export const AccountSecurityPage: React.FC = () => {
 
       {/* Offline Alert */}
       {!isOnline && (
-        <div
-          role="status"
-          className="mb-2 rounded-2xl border border-amber-200 bg-amber-50 p-2.5 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5"
-        >
-          <AlertTriangle
-            className="h-4 w-4 shrink-0 text-amber-600"
-            aria-hidden="true"
-          />
-          <span>
-            You are currently offline. Changes cannot be saved until connection
-            is restored.
-          </span>
+        <div role="status" className="border-y md:border md:rounded-2xl border-amber-200 bg-amber-50 px-4 py-2.5 md:p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+          <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
         </div>
       )}
 
-      {/* Cards container with tight spacing */}
-      <div className="space-y-3 sm:space-y-4">
-        {/* CARD 1: STATUS BANNER ("Your Account is Secure") */}
-        <div className="relative overflow-hidden rounded-[22px] sm:rounded-[24px] bg-gradient-to-r from-[#F6F9FE] via-[#EFF6FF] to-[#DBEBFE] p-4 sm:p-5 md:p-6 shadow-sm border border-blue-100/70">
-          <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight leading-tight">
-                Your Account is <span className="text-[#2563EB]">Secure</span>
-              </h2>
-              <p className="mt-1 text-xs sm:text-sm text-slate-500 leading-relaxed max-w-[210px] sm:max-w-md">
-                Manage your password, review active login sessions, and protect your account.
-              </p>
+      {/* CARD 1: STATUS BANNER ("Your Account is Secure") */}
+      <div className="bg-[#EEF0FF] px-4 py-3.5 md:rounded-[22px] md:p-5 md:shadow-sm">
+        <div className="flex items-start gap-3.5">
+          <div
+            className="flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl bg-[#4F46E5] text-white shadow-sm"
+            aria-hidden="true"
+          >
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-bold text-slate-900">Your Account is Secure</h2>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+              Manage your password, review active login sessions, and protect your account.
+            </p>
+          </div>
+        </div>
 
-              {user?.email && (
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[11px] sm:text-xs text-slate-600 shadow-sm border border-slate-100">
-                  <User className="h-3.5 w-3.5 text-slate-500 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    Signed in as{" "}
-                    <strong className="font-semibold text-slate-900">
-                      {user.email}
-                    </strong>
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* 3D Glossy Shield with checkmark */}
-            <div className="shrink-0 flex items-center justify-center pl-1 sm:pl-3">
-              <Shield3D className="h-24 w-24 sm:h-28 sm:w-28" />
-            </div>
+        {user?.email && (
+          <div className="mt-3 flex items-center gap-2 pt-2.5 md:pt-3 border-t border-[#DDE2FF] text-xs text-slate-600 min-w-0">
+            <User className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 break-words">
+              Signed in as <strong className="font-semibold text-slate-900">{user.email}</strong> {user.role ? `(${user.role})` : ""}
+            </span>
           </div>
         </div>
 
       {/* CARD 2: CHANGE PASSWORD */}
       <section
         aria-labelledby="change-password-heading"
-        className="rounded-[20px] sm:rounded-[22px] bg-white p-3.5 sm:p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100/80 transition-all"
+        className="bg-white px-4 py-3.5 border-b border-slate-100 md:rounded-[22px] md:p-5 md:shadow-[0_4px_24px_rgba(0,0,0,0.04)] md:border"
       >
         <div
           role="button"
@@ -446,19 +427,17 @@ export const AccountSecurityPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPasswordForm((prev) => !prev);
-              }}
-              aria-expanded={showPasswordForm}
-              className="hidden md:inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98]"
-            >
-              <KeyRound className="h-4 w-4" aria-hidden="true" />
-              <span>{showPasswordForm ? "Close Form" : "Change Password"}</span>
-            </button>
+        {/* Change Password Action Button when collapsed */}
+        {!showPasswordForm && (
+          <button
+            type="button"
+            onClick={() => setShowPasswordForm(true)}
+            className="mt-3 md:mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-4 py-2.5 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5]"
+          >
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+            <span>Change Password</span>
+          </button>
+        )}
 
             <ChevronRight
               className={clsx(
@@ -471,7 +450,7 @@ export const AccountSecurityPage: React.FC = () => {
 
         {/* Change Password Form (expanded) */}
         {showPasswordForm && (
-          <div className="mt-5 pt-5 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-100 animate-fadeIn">
             {passwordSuccessMessage && (
               <div
                 id={formSuccessAlertId}
@@ -621,7 +600,7 @@ export const AccountSecurityPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isChangingPassword || !isOnline}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-5 py-3 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isChangingPassword ? (
                     <>
@@ -644,7 +623,7 @@ export const AccountSecurityPage: React.FC = () => {
       {/* CARD 3: ACTIVE SESSIONS */}
       <section
         aria-labelledby="active-sessions-heading"
-        className="rounded-[20px] sm:rounded-[22px] bg-white p-3.5 sm:p-5 md:p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-slate-100/80 transition-all"
+        className="bg-white px-4 py-3.5 border-b border-slate-100 md:rounded-[22px] md:p-5 md:shadow-[0_4px_24px_rgba(0,0,0,0.04)] md:border"
       >
         <div
           role="button"
@@ -710,7 +689,7 @@ export const AccountSecurityPage: React.FC = () => {
 
         {/* Active Sessions List (expanded) */}
         {showActiveSessions && (
-          <div className="mt-5 pt-5 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-100 animate-fadeIn">
             {revokeError && (
               <div
                 role="alert"
@@ -780,10 +759,7 @@ export const AccountSecurityPage: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                <ul
-                  className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200"
-                  aria-label="Active sessions list"
-                >
+                <ul className="md:space-y-2.5 -mx-4 px-4 md:mx-0 md:px-0" aria-label="Active sessions list">
                   {sessions.map((session) => {
                     const Icon = getDeviceIcon(session.device, session.browser);
                     const isCurrent = Boolean(session.isCurrent);
@@ -802,13 +778,11 @@ export const AccountSecurityPage: React.FC = () => {
                       <li
                         key={session.id}
                         className={clsx(
-                          "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border transition-colors",
-                          isCurrent
-                            ? "bg-[#EEF2FF]/40 border-indigo-100"
-                            : "bg-white border-slate-100 hover:bg-slate-50",
+                          "flex flex-row items-center justify-between gap-3 py-3 md:p-3.5 md:rounded-xl md:border border-b border-slate-100 transition-colors",
+                          isCurrent ? "bg-[#EEF0FF]/40 md:border-indigo-100" : "bg-white md:hover:bg-slate-50",
                         )}
                       >
-                        <div className="flex items-start gap-3 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
                           <div
                             className={clsx(
                               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
@@ -887,7 +861,7 @@ export const AccountSecurityPage: React.FC = () => {
       {/* CARD 4: LOG OUT OF ALL DEVICES */}
       <section
         aria-labelledby="logout-all-heading"
-        className="rounded-[20px] sm:rounded-[22px] bg-[#FFF5F5] p-3.5 sm:p-5 md:p-6 border border-red-100/90 shadow-[0_2px_12px_rgba(239,68,68,0.03)]"
+        className="bg-[#FFF5F5] px-4 py-4 md:rounded-[22px] md:p-5 md:border md:border-red-100 md:shadow-[0_4px_24px_rgba(239,68,68,0.04)]"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-start gap-3.5 min-w-0">
@@ -910,29 +884,24 @@ export const AccountSecurityPage: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowLogoutAllConfirm(true)}
-            disabled={isLoggingOutAll || !isOnline}
-            aria-label="Log Out All Devices"
-            className="mt-1 md:mt-0 w-full md:w-auto inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#EF4444] hover:bg-[#DC2626] py-3 px-5 text-sm font-semibold text-white shadow-sm shadow-red-500/20 transition active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:opacity-50"
-          >
-            {isLoggingOutAll ? (
-              <>
-                <RefreshCw
-                  className="h-4 w-4 animate-spin"
-                  aria-hidden="true"
-                />
-                <span>Logging out…</span>
-              </>
-            ) : (
-              <>
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span>Log Out of All Devices</span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setShowLogoutAllConfirm(true)}
+          disabled={isLoggingOutAll || !isOnline}
+          className="mt-3 md:mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#EF4444] px-4 py-2.5 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#DC2626] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EF4444] disabled:opacity-50"
+        >
+          {isLoggingOutAll ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Logging out…</span>
+            </>
+          ) : (
+            <>
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+              <span>Log Out All Devices</span>
+            </>
+          )}
+        </button>
 
         {logoutAllError && (
           <div

@@ -7,6 +7,8 @@ export const ROUTES = {
   REVIEWS: "/reviews",
   TERMS: "/terms",
   PRIVACY: "/privacy",
+  COOKIES: "/cookies",
+  CAREERS: "/careers",
 
   LOGIN: "/login",
   REGISTER: "/register",

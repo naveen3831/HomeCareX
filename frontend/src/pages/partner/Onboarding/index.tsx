@@ -11,7 +11,7 @@ import {
 import { DEMO_STEPS } from './onboarding.content';
 
 /** Video that cannot be skipped forward: the partner can pause and replay, but not jump ahead. */
-function StepVideo({ src, onDone }: { src: string; onDone: () => void }) {
+function StepVideo({ src, onDone, onFail }: { src: string; onDone: () => void; onFail: () => void }) {
   const furthest = useRef(0);
   const [broken, setBroken] = useState(false);
 
@@ -31,10 +31,16 @@ function StepVideo({ src, onDone }: { src: string; onDone: () => void }) {
       playsInline
       preload="metadata"
       className="aspect-video w-full rounded-xl bg-black"
-      onError={() => setBroken(true)}
+      onError={() => {
+        setBroken(true);
+        onFail(); // cannot play: let the page fall back to the read timer
+      }}
       onTimeUpdate={(e) => {
-        const t = e.currentTarget.currentTime;
+        const v = e.currentTarget;
+        const t = v.currentTime;
         if (t > furthest.current && t - furthest.current < 1.5) furthest.current = t;
+        // 'ended' does not fire in every browser, so also unlock when playback reaches the end.
+        if (Number.isFinite(v.duration) && v.duration > 0 && t >= v.duration - 0.3) onDone();
       }}
       onSeeking={(e) => {
         const v = e.currentTarget;
@@ -98,7 +104,7 @@ function Photo({ src, caption }: { src: string; caption: string }) {
 
 export default function PartnerOnboardingPage() {
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [leaving, setLeaving] = useState(false);
   const [status, setStatus] = useState<OnboardingStatus | null>(null);
   const [loadError, setLoadError] = useState('');
@@ -157,7 +163,11 @@ export default function PartnerOnboardingPage() {
     setBusy(true);
     setError('');
     try {
-      setStatus(await completeOnboardingStep(step));
+      const updated = await completeOnboardingStep(step);
+      if (!updated.completed && updated.currentStep === step) {
+        setError('Your progress was not saved. Please press Next step again.');
+      }
+      setStatus(updated);
     } catch (err) {
       setError(onboardingErrorMessage(err, 'Could not save your progress. Try again.'));
       void load(); // the server may be on a different step
@@ -182,9 +192,21 @@ export default function PartnerOnboardingPage() {
   const waiting = status?.stage === 'awaiting_approval';
   useEffect(() => {
     if (!waiting) return;
-    const t = window.setInterval(() => void load(), 20000);
-    return () => window.clearInterval(t);
+    const t = window.setInterval(() => void load(), 10000);
+    const recheck = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', recheck);
+    window.addEventListener('focus', recheck);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', recheck);
+      window.removeEventListener('focus', recheck);
+    };
   }, [waiting, load]);
+
+  // Once an admin approves, go straight into the app.
+  useEffect(() => {
+    if (status?.approved) navigate('/partner', { replace: true });
+  }, [status?.approved, navigate]);
 
   if (loadError) {
     return (
@@ -212,6 +234,7 @@ export default function PartnerOnboardingPage() {
         <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden="true" />
         <h1 className="mt-3 text-xl font-bold text-ink">Training complete</h1>
         <p className="mt-2 text-sm text-muted">You finished all {status.totalSteps} steps. An admin will check and approve your account. You can use the app after that.</p>
+        {user && <p className="mt-3 text-xs text-muted">Signed in as {user.name}{user.email ? ` (${user.email})` : ''}<br />Login ID: {user.id}</p>}
         <div className="mt-5 flex justify-center gap-3">
           <button type="button" onClick={() => void load()} className="rounded-xl border border-line px-4 py-2.5 text-sm font-semibold text-ink">Check again</button>
           <button type="button" onClick={() => void leave()} disabled={leaving} className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Log out</button>
@@ -258,7 +281,7 @@ export default function PartnerOnboardingPage() {
         </div>
 
         {hasVideo ? (
-          <StepVideo src={content.video} onDone={() => setVideoDone(true)} />
+          <StepVideo src={content.video} onDone={() => setVideoDone(true)} onFail={() => setHasVideo(false)} />
         ) : (
           <div className="flex aspect-video w-full items-center justify-center rounded-xl bg-canvas text-muted">
             <PlayCircle className="h-12 w-12" aria-hidden="true" />
@@ -282,9 +305,8 @@ export default function PartnerOnboardingPage() {
         )}
       </section>
 
-      {error && <p role="alert" className="text-sm font-semibold text-red-600">{error}</p>}
-
       <div className="sticky bottom-0 -mx-4 mt-auto border-t border-line bg-panel p-4 sm:-mx-6 sm:px-6">
+        {error && <p role="alert" className="mb-2 text-center text-sm font-semibold text-red-600">{error}</p>}
         <button
           type="button"
           onClick={() => void next()}

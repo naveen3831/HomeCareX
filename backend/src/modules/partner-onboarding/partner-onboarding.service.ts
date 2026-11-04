@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import PartnerModel from '../../models/Partner';
 import { ERROR_CODES } from '../../constants/errorCodes';
 import { Errors } from '../../utils/errors';
@@ -28,6 +29,7 @@ export interface OnboardingStatus {
 }
 
 interface Row {
+  _id?: unknown;
   kyc?: { status?: string };
   onboarding?: { completedSteps?: number; completedAt?: Date; approvedAt?: Date };
 }
@@ -53,6 +55,20 @@ function toStatus(row: Row): OnboardingStatus {
   };
 }
 
+/** Training stage of a partner profile (used by the admin partner list). Accepts a Mongoose document or a lean row. */
+export const trainingStageOf = (profile: {
+  kyc?: { status?: string | null } | null;
+  onboarding?: { completedSteps?: number | null; completedAt?: Date | null; approvedAt?: Date | null } | null;
+}): OnboardingStage =>
+  toStatus({
+    kyc: { status: profile.kyc?.status ?? undefined },
+    onboarding: {
+      completedSteps: profile.onboarding?.completedSteps ?? undefined,
+      completedAt: profile.onboarding?.completedAt ?? undefined,
+      approvedAt: profile.onboarding?.approvedAt ?? undefined,
+    },
+  }).stage;
+
 const SELECT = 'kyc.status onboarding';
 
 async function load(userId: string): Promise<Row> {
@@ -76,7 +92,10 @@ async function audit(actor: Actor, action: string, userId: string, before: Onboa
 
 export const partnerOnboardingService = {
   async get(userId: string): Promise<OnboardingStatus> {
-    return toStatus(await load(userId));
+    const row = await load(userId);
+    const status = toStatus(row);
+    console.log(`[partner-onboarding] partner checks status user=${userId} stage=${status.stage} approved=${status.approved} steps=${status.completedSteps}`);
+    return status;
   },
 
   /**
@@ -84,25 +103,25 @@ export const partnerOnboardingService = {
    * completed twice. The filter makes this atomic: two quick taps cannot advance two steps.
    */
   async completeStep(userId: string, step: number): Promise<OnboardingStatus> {
-    const current = toStatus(await load(userId));
+    const row = await load(userId);
+    const current = toStatus(row);
+    console.log(`[partner-onboarding] completeStep v3 user=${userId} step=${step} stored=${JSON.stringify(row.onboarding)} kyc=${row.kyc?.status}`);
     if (!current.eligible) throw Errors.forbidden('The demo opens after your account is approved');
     if (current.completed) return current;
     if (step !== current.currentStep) {
       throw Errors.conflict(ERROR_CODES.CONFLICT, `Finish step ${current.currentStep} first`);
     }
-    const finishing = step === ONBOARDING_TOTAL_STEPS;
-    const filter =
-      step === 1
-        ? { userId, 'kyc.status': 'approved', $or: [{ 'onboarding.completedSteps': { $exists: false } }, { 'onboarding.completedSteps': 0 }] }
-        : { userId, 'kyc.status': 'approved', 'onboarding.completedSteps': step - 1 };
-    const set: Record<string, unknown> = { 'onboarding.completedSteps': step };
-    if (finishing) set['onboarding.completedAt'] = new Date();
-    const updated = await PartnerModel.findOneAndUpdate(filter, { $set: set }, { new: true })
-      .select(SELECT)
-      .lean<Row | null>()
-      .exec();
-    if (!updated) return toStatus(await load(userId)); // lost a race: report where we really are
-    return toStatus(updated);
+    const set: Record<string, unknown> = { 'onboarding.completedSteps': step, updatedAt: new Date() };
+    if (step === ONBOARDING_TOTAL_STEPS) set['onboarding.completedAt'] = new Date();
+    // Native driver, targeted by _id: no Mongoose casting or strict-mode stripping can interfere.
+    // The filter only skips the write when the counter is already at or past `step` (double tap).
+    const result = await PartnerModel.collection.updateOne(
+      { _id: row._id as never, 'onboarding.completedSteps': { $not: { $gte: step } } },
+      { $set: set },
+    );
+    const after = await load(userId);
+    console.log(`[partner-onboarding] completeStep result matched=${result.matchedCount} modified=${result.modifiedCount} now=${JSON.stringify(after.onboarding)}`);
+    return toStatus(after);
   },
 
   /** True when the partner may use the app. Partners whose KYC is not approved are not judged here. */
@@ -120,35 +139,38 @@ export const partnerOnboardingService = {
 
   /** Admin: let a partner who finished all steps into the app. */
   async adminApprove(userId: string, actor: Actor): Promise<OnboardingStatus> {
-    const before = toStatus(await load(userId));
+    const row = await load(userId);
+    const before = toStatus(row);
     if (!before.eligible) throw Errors.badRequest('Approve the partner KYC first');
     if (!before.completed) throw Errors.conflict(ERROR_CODES.CONFLICT, `The partner has finished ${before.completedSteps} of ${before.totalSteps} steps`);
     if (before.approved) return before;
-    const updated = await PartnerModel.findOneAndUpdate(
-      { userId, 'onboarding.completedSteps': { $gte: ONBOARDING_TOTAL_STEPS } },
-      { $set: { 'onboarding.approvedAt': new Date(), 'onboarding.approvedBy': actor.id } },
-      { new: true },
-    )
-      .select(SELECT)
-      .lean<Row | null>()
-      .exec();
-    const after = updated ? toStatus(updated) : await this.adminGet(userId);
+    // Native driver, targeted by _id (same reason as completeStep: no Mongoose casting can drop the write).
+    const now = new Date();
+    const result = await PartnerModel.collection.updateOne(
+      { _id: row._id as never },
+      { $set: { 'onboarding.approvedAt': now, 'onboarding.approvedBy': new Types.ObjectId(actor.id), updatedAt: now } },
+    );
+    const after = toStatus(await load(userId));
+    console.log(`[partner-onboarding] approve user=${userId} matched=${result.matchedCount} modified=${result.modifiedCount} approved=${after.approved}`);
+    if (!after.approved) throw Errors.conflict(ERROR_CODES.CONFLICT, 'The approval could not be saved. Please try again.');
     await audit(actor, 'partner.training.approve', userId, before, after);
     return after;
   },
 
   /** Admin: send the partner back to step 1 and remove access until they finish again and are approved. */
   async adminReset(userId: string, actor: Actor): Promise<OnboardingStatus> {
-    const before = toStatus(await load(userId));
-    const updated = await PartnerModel.findOneAndUpdate(
-      { userId },
-      { $set: { 'onboarding.completedSteps': 0 }, $unset: { 'onboarding.completedAt': '', 'onboarding.approvedAt': '', 'onboarding.approvedBy': '' } },
-      { new: true },
-    )
-      .select(SELECT)
-      .lean<Row | null>()
-      .exec();
-    const after = updated ? toStatus(updated) : before;
+    const row = await load(userId);
+    const before = toStatus(row);
+    const result = await PartnerModel.collection.updateOne(
+      { _id: row._id as never },
+      {
+        $set: { 'onboarding.completedSteps': 0, updatedAt: new Date() },
+        $unset: { 'onboarding.completedAt': '', 'onboarding.approvedAt': '', 'onboarding.approvedBy': '' },
+      },
+    );
+    const after = toStatus(await load(userId));
+    console.log(`[partner-onboarding] reset user=${userId} matched=${result.matchedCount} modified=${result.modifiedCount} completedSteps=${after.completedSteps}`);
+    if (after.completedSteps !== 0) throw Errors.conflict(ERROR_CODES.CONFLICT, 'The reset could not be saved. Please try again.');
     await audit(actor, 'partner.training.reset', userId, before, after);
     return after;
   },

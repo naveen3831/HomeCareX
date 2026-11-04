@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -357,6 +356,14 @@ export const authService = {
               skills: input.skills || [],
               serviceRadiusKm: input.serviceRadiusKm || 15,
               ...(bankDetails ? { bankDetails } : {}),
+              // $set (not $setOnInsert) so the files are saved even if a profile row already exists.
+              ...(kycDocs.length > 0
+                ? {
+                    'kyc.status': 'submitted',
+                    'kyc.documents': kycDocs,
+                    'kyc.submittedAt': new Date(),
+                  }
+                : { 'kyc.status': 'not_started', 'kyc.documents': [] }),
             },
             $setOnInsert: {
               userId: user._id || user.id,
@@ -367,11 +374,6 @@ export const authService = {
                 offersAccepted: 0,
                 jobsAssigned: 0,
                 jobsCompleted: 0,
-              },
-              kyc: {
-                status: kycDocs.length > 0 ? 'submitted' : 'not_started',
-                documents: kycDocs,
-                submittedAt: kycDocs.length > 0 ? new Date() : undefined,
               },
               trainingCompleted: false,
             },
@@ -494,6 +496,7 @@ export const authService = {
   },
 
   /** Logout ends the caller session, or every session for legacy/test tokens. */
+  /** Logout ends every session of the user by bumping tokenVersion. */
   async logout(refreshToken?: string) {
     if (!refreshToken) return;
     try {
@@ -1028,4 +1031,3 @@ export const authService = {
     };
   },
 };
-export default authService;
