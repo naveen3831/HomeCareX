@@ -13,7 +13,7 @@ export const AuthFormHeader: React.FC<AuthFormHeaderProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`text-center mb-6 ${className}`}>
+    <div className={`text-center mb-4 sm:mb-6 ${className}`}>
       {/* Centered Brand Logo */}
       <Link
         to="/"
@@ -23,16 +23,16 @@ export const AuthFormHeader: React.FC<AuthFormHeaderProps> = ({
         <img
           src="/logo.png"
           alt="HomeCareX"
-          className="h-10 sm:h-12 w-auto mx-auto object-contain mix-blend-multiply"
+          className="h-7 sm:h-8 md:h-9 w-auto mx-auto object-contain"
         />
       </Link>
 
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-4 tracking-tight">
+      <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mt-2.5 sm:mt-3.5 tracking-tight">
         {title}
       </h1>
 
       {subtitle && (
-        <p className="text-xs sm:text-sm text-gray-500 mt-1.5 leading-relaxed">
+        <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-1.5 leading-relaxed max-w-sm mx-auto">
           {subtitle}
         </p>
       )}

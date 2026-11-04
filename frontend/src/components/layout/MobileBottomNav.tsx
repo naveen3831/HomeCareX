@@ -59,7 +59,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ className = ""
               type="button"
               onClick={() => navigate(item.to)}
               className={`group flex min-w-[54px] flex-col items-center justify-center gap-1 rounded-xl py-1 transition-all duration-200 active:scale-95 ${
-                active ? "text-blue-600 font-bold" : "text-slate-500 hover:text-slate-900 font-medium"
+                active ? "text-blue-600 font-semibold" : "text-slate-500 hover:text-slate-900 font-medium"
               }`}
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
@@ -72,8 +72,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ className = ""
               >
                 <Icon
                   className="h-5 w-5"
-                  strokeWidth={active ? 2.4 : 1.9}
-                  fill={active && item.label === "Home" ? "currentColor" : "none"}
+                  strokeWidth={active ? 2.2 : 1.8}
                 />
               </span>
               <span className="text-[10px] leading-none tracking-tight">

@@ -6,25 +6,69 @@ import {
   ArrowRight,
   Star,
   Heart,
-  Tag,
   ShieldCheck,
   Clock,
   Headphones,
-  Sparkles,
-  Wrench,
   Flower2,
-  Paintbrush,
   Bug,
-  Tv,
   ChevronDown,
   CheckCircle2,
   Home as HomeIcon,
+  Percent,
+  PaintRoller,
+  Armchair,
+  Wrench,
+  LayoutGrid,
 } from "lucide-react";
 import { AuthContext } from "@/context/AuthContext";
 
 /* =========================================================
-   MOBILE HOME VIEW
-   Native mobile app experience matching reference mockup
+   CUSTOM CATEGORY ICONS MATCHING MOCKUP DESIGN
+========================================================= */
+
+// Clean Vacuum / Mop Cleaner Icon
+const VacuumIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 3v9" />
+    <path d="M7 12h10l-1.5 7H8.5L7 12z" />
+    <circle cx="12" cy="3" r="1" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
+// Clean AC / Appliance Split Unit Icon
+const AcIcon: React.FC<{ className?: string }> = ({ className = "h-6 w-6" }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <rect x="3" y="5" width="18" height="9" rx="2" />
+    <path d="M7 14v2" />
+    <path d="M17 14v2" />
+    <path d="M6 10h12" />
+    <path d="M6 18l2 2" />
+    <path d="M18 18l-2 2" />
+    <path d="M12 18v3" />
+  </svg>
+);
+
+/* =========================================================
+   DATA DEFINITIONS
 ========================================================= */
 
 interface ServiceCardData {
@@ -76,78 +120,63 @@ const popularServicesData: ServiceCardData[] = [
   },
 ];
 
+// 8 Service Categories matching exact 4x2 grid from mockup
 const categoryIcons = [
   {
     id: "home-cleaning",
     name: "Home Cleaning",
-    icon: Sparkles,
-    bgClass: "bg-purple-100/80 text-purple-600 border-purple-200/50",
+    icon: VacuumIcon,
+    iconColor: "text-blue-500",
     link: "/services?category=home-cleaning",
   },
   {
     id: "appliance-repair",
     name: "Appliance Repair",
-    icon: Tv,
-    bgClass: "bg-blue-100/80 text-blue-600 border-blue-200/50",
+    icon: AcIcon,
+    iconColor: "text-blue-500",
     link: "/services?category=appliance-repair-service",
   },
   {
     id: "salon-spa",
     name: "Salon & Spa",
     icon: Flower2,
-    bgClass: "bg-pink-100/80 text-pink-500 border-pink-200/50",
+    iconColor: "text-pink-500",
     link: "/services?category=salon-spa",
   },
   {
     id: "electrical-plumbing",
     name: "Electrical & Plumbing",
     icon: Wrench,
-    bgClass: "bg-amber-100/80 text-amber-600 border-amber-200/50",
+    iconColor: "text-amber-500",
     link: "/services?category=electrical-plumbing",
   },
   {
     id: "painting-waterproofing",
     name: "Painting & Waterproofing",
-    icon: Paintbrush,
-    bgClass: "bg-teal-100/80 text-teal-600 border-teal-200/50",
+    icon: PaintRoller,
+    iconColor: "text-emerald-500",
     link: "/services?category=painting-waterproofing",
   },
   {
     id: "pest-control",
     name: "Pest Control",
     icon: Bug,
-    bgClass: "bg-rose-100/80 text-rose-500 border-rose-200/50",
+    iconColor: "text-rose-500",
     link: "/services?category=pest-control",
   },
-];
-
-const heroSlides = [
   {
-    eyebrow: "CLEANER HOMES, HAPPIER LIVES",
-    titlePrimary: "Professional",
-    titleAccent: "Home Services",
-    titleSuffix: "at Your Doorstep",
-    subtitle: "Verified professionals. Transparent pricing. Hassle-free booking.",
-    cta: "Book a Service",
+    id: "carpentry-assembly",
+    name: "Carpentry & Assembly",
+    icon: Armchair,
+    iconColor: "text-indigo-500",
+    link: "/services?category=carpentry-assembly",
+  },
+  {
+    id: "more-services",
+    name: "More Services",
+    icon: LayoutGrid,
+    iconColor: "text-blue-600",
     link: "/services",
-  },
-  {
-    eyebrow: "REPAIR & INSTALLATION",
-    titlePrimary: "Expert AC &",
-    titleAccent: "Appliance Repair",
-    titleSuffix: "Starting at ₹399",
-    subtitle: "Trained mechanics with genuine spare parts & 30-day warranty.",
-    cta: "Explore Repairs",
-    link: "/services?category=appliance-repair-service",
-  },
-  {
-    eyebrow: "HYGIENE & DISINFECTION",
-    titlePrimary: "Deep Home",
-    titleAccent: "Cleaning & Spa",
-    titleSuffix: "Right at Home",
-    subtitle: "Safe, chemical-grade deep clean for kitchens, bathrooms & sofas.",
-    cta: "Book Cleaning",
-    link: "/services?category=home-cleaning",
   },
 ];
 
@@ -248,22 +277,16 @@ const getGreetingDetails = () => {
   const hour = new Date().getHours();
   if (hour < 12) {
     return {
-      text: "Good morning",
-      icon: "☀️",
-      sub: "Start your day with sparkling doorstep services",
+      text: "Good Morning",
     };
   }
   if (hour < 17) {
     return {
-      text: "Good afternoon",
-      icon: "🌤️",
-      sub: "Book trusted professionals for today's maintenance",
+      text: "Good Afternoon",
     };
   }
   return {
-    text: "Good evening",
-    icon: "🌙",
-    sub: "Relax while our verified experts handle your home care",
+    text: "Good Evening",
   };
 };
 
@@ -282,7 +305,7 @@ export const MobileHome: React.FC = () => {
   // Auto rotate hero carousel every 5 seconds
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % heroSlides.length);
+      setActiveSlide((prev) => (prev + 1) % 3);
     }, 5000);
     return () => clearInterval(timer);
   }, []);
@@ -308,133 +331,186 @@ export const MobileHome: React.FC = () => {
     setTimeout(() => setCopiedCoupon(false), 2500);
   };
 
-  const currentSlide = heroSlides[activeSlide];
-
   return (
-    <div className="block md:hidden bg-[#fdfdfd] pb-24 px-4 pt-3 space-y-4">
-      {/* ================= GREETING CARD ================= */}
-      <div className="relative overflow-hidden rounded-[22px] bg-gradient-to-r from-white via-indigo-50/40 to-orange-50/50 border border-slate-200/80 p-3.5 shadow-2xs">
-        {/* Soft background ambient glow */}
-        <div className="pointer-events-none absolute -right-6 -bottom-6 h-28 w-28 rounded-full bg-orange-100/40 blur-xl" aria-hidden="true" />
-        <div className="pointer-events-none absolute -left-6 -top-6 h-24 w-24 rounded-full bg-indigo-100/30 blur-xl" aria-hidden="true" />
-
-        <div className="relative z-10">
-          {/* Top Row: Greeting Pill & Quick Action Button */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 shadow-2xs border border-slate-200/70 text-[11px] font-semibold text-slate-700">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <span>{greeting.text} {greeting.icon}</span>
-              <span className="text-slate-300">•</span>
-              <span className="text-[10px] font-bold text-emerald-600">Active in Hyderabad</span>
-            </div>
-
-            <Link
-              to={user ? "/bookings" : "/services"}
-              className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-[#ff8a3d] to-[#f97316] px-2.5 py-1 text-[10px] font-bold text-white shadow-2xs transition-transform active:scale-95 hover:opacity-95"
-            >
-              <span>{user ? "Bookings" : "Flat 20% OFF"}</span>
-              <ArrowRight className="h-2.5 w-2.5" />
-            </Link>
-          </div>
-
-          {/* Bottom Row: Full-width Headline & Subtext (NO TRUNCATION) */}
-          <div className="mt-2.5">
-            <h2 className="text-[17px] font-extrabold tracking-tight text-slate-900 leading-snug">
-              {user?.name ? (
-                <>Hey, <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">{user.name.split(" ")[0]}</span>! 👋</>
-              ) : (
-                <>Welcome to <span className="bg-gradient-to-r from-[#4338ca] via-indigo-600 to-[#ff8a3d] bg-clip-text text-transparent">HomeCareX</span> 👋</>
-              )}
-            </h2>
-            <p className="mt-1 text-xs text-slate-500 font-medium leading-relaxed">
-              {greeting.sub}
-            </p>
-          </div>
-        </div>
+    <div className="block md:hidden bg-[#fdfdfd] pb-24 px-4 pt-2.5 space-y-4">
+      {/* ================= GREETING HEADER (EXACT MOCKUP STYLE) ================= */}
+      <div className="pt-0.5">
+        <p className="text-xs sm:text-sm font-semibold text-slate-500">
+          {greeting.text},
+        </p>
+        <h2 className="mt-0.5 text-[22px] sm:text-2xl font-black text-slate-900 tracking-tight leading-snug">
+          {user?.name ? (
+            <>Welcome, <span className="text-blue-600">{user.name.split(" ")[0]}</span></>
+          ) : (
+            <>Welcome to <span className="text-blue-600">HomeCareX</span></>
+          )}
+        </h2>
+        <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+          Book trusted professionals for your home needs.
+        </p>
       </div>
 
-      {/* ================= HERO CAROUSEL CARD ================= */}
-      <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#eff3ff] via-[#e5edfb] to-[#f5f2ff] border border-indigo-100/70 p-4 sm:p-5 shadow-xs">
-        {/* Soft background ambient gradient glow */}
-        <div
-          className="pointer-events-none absolute -right-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-200/40 blur-2xl"
-          aria-hidden="true"
-        />
+      {/* ================= HERO CAROUSEL CARD (EXACT MOCKUP STYLE) ================= */}
+      <div className="space-y-2">
+        <div className="relative overflow-hidden rounded-3xl shadow-xs border border-slate-100">
+          <div
+            className="flex transition-transform duration-500 ease-out will-change-transform"
+            style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+          >
+            {/* Slide 1: Home Cleaning Services (Crisp vector text + sofa image, no duplicate dots) */}
+            <div className="w-full shrink-0">
+              <div className="relative w-full aspect-[436/216] overflow-hidden rounded-3xl bg-gradient-to-r from-[#edf2f8] via-[#eef3f8] to-[#f4f7fb] shadow-xs">
+                {/* Left Column: 100% Vector Crisp Text */}
+                <div className="absolute inset-y-0 left-0 w-[58%] sm:w-[60%] p-3.5 sm:p-4.5 flex flex-col justify-between z-10">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 shadow-2xs border border-blue-100/60">
+                      <ShieldCheck className="h-3 w-3 text-blue-600 shrink-0" />
+                      <span>Verified Professionals</span>
+                    </div>
+                    <h2 className="mt-1.5 text-base sm:text-lg font-black text-slate-900 leading-tight">
+                      Home Cleaning<br />Services
+                    </h2>
+                    <p className="mt-1 text-[11px] text-slate-600 font-medium leading-snug line-clamp-2">
+                      Deep cleaning for a healthier and happier home.
+                    </p>
+                  </div>
+                  <div>
+                    <Link
+                      to="/services?category=home-cleaning"
+                      className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-blue-700"
+                    >
+                      <span>Book Now</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
 
-        <div className="relative z-10 flex flex-col justify-between min-h-[185px]">
-          {/* Text Content */}
-          <div className="max-w-[62%]">
-            <span className="text-[10px] font-extrabold tracking-wider text-[#4f46e5] uppercase">
-              {currentSlide.eyebrow}
-            </span>
+                {/* Right Image: Sofa & Plant smoothly blended into background with smooth curves, no borders */}
+                <div className="absolute inset-y-0 right-0 w-[48%] sm:w-[45%] flex items-end justify-end pointer-events-none overflow-hidden rounded-r-3xl">
+                  <img
+                    src="/images/mobile/sofa-clean.png"
+                    alt="Home Cleaning Living Room"
+                    className="h-full w-auto object-contain object-bottom-right select-none"
+                    style={{
+                      maskImage: 'linear-gradient(to right, transparent 0%, black 15%, black 100%)',
+                      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 15%, black 100%)',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
 
-            <h2 className="mt-1 text-[21px] font-black leading-[1.18] tracking-tight text-slate-900">
-              {currentSlide.titlePrimary}{" "}
-              <span className="text-[#4338ca]">{currentSlide.titleAccent}</span>{" "}
-              {currentSlide.titleSuffix}
-            </h2>
+            {/* Slide 2: Appliance Repair Services */}
+            <div className="w-full shrink-0">
+              <div className="relative w-full aspect-[436/216] overflow-hidden rounded-3xl bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100/70 shadow-xs">
+                {/* Left Column: 100% Vector Crisp Text */}
+                <div className="absolute inset-y-0 left-0 w-[58%] sm:w-[56%] p-3.5 sm:p-4.5 flex flex-col justify-between z-10">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-blue-700 shadow-2xs border border-blue-100/60">
+                      <ShieldCheck className="h-3 w-3 text-blue-600 shrink-0" />
+                      <span>30-Day Warranty</span>
+                    </div>
+                    <h2 className="mt-1.5 text-base sm:text-lg font-black text-slate-900 leading-tight">
+                      Appliance Repair<br />Services
+                    </h2>
+                    <p className="mt-1 text-[11px] sm:text-xs text-slate-600 font-medium leading-snug line-clamp-2">
+                      Expert technician at your doorstep within 60 minutes.
+                    </p>
+                  </div>
+                  <div>
+                    <Link
+                      to="/services?category=appliance-repair-service"
+                      className="inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-blue-700"
+                    >
+                      <span>Book Now</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
 
-            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-600 font-medium line-clamp-2">
-              {currentSlide.subtitle}
-            </p>
+                {/* Right Image: Smoothly blended in the background with curves, zero borders, completely fits section */}
+                <div className="absolute inset-y-0 right-0 w-[48%] sm:w-[45%] pointer-events-none overflow-hidden rounded-r-3xl">
+                  <img
+                    src="/images/card/appliance-repair.webp"
+                    alt="Appliance Repair Technician"
+                    className="h-full w-full object-cover object-center select-none"
+                    style={{
+                      maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 22%, black 65%)',
+                      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 22%, black 65%)',
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50/90 via-blue-50/20 to-transparent pointer-events-none" />
+                </div>
+              </div>
+            </div>
 
-            <Link
-              to={currentSlide.link}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#ff8a3d] px-3.5 py-2 text-xs font-bold text-white shadow-[0_4px_12px_rgba(255,138,61,0.35)] transition-transform active:scale-95 hover:bg-[#f97316]"
-            >
-              <span>{currentSlide.cta}</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            {/* Slide 3: Electrical & Plumbing Care */}
+            <div className="w-full shrink-0">
+              <div className="relative w-full aspect-[436/216] overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 via-orange-50/50 to-amber-100/60 shadow-xs">
+                {/* Left Column: 100% Vector Crisp Text */}
+                <div className="absolute inset-y-0 left-0 w-[58%] sm:w-[56%] p-3.5 sm:p-4.5 flex flex-col justify-between z-10">
+                  <div>
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 shadow-2xs border border-amber-100/60">
+                      <ShieldCheck className="h-3 w-3 text-amber-600 shrink-0" />
+                      <span>Certified Experts</span>
+                    </div>
+                    <h2 className="mt-1.5 text-base sm:text-lg font-black text-slate-900 leading-tight">
+                      Electrical &amp;<br />Plumbing Care
+                    </h2>
+                    <p className="mt-1 text-[11px] text-slate-600 font-medium leading-snug line-clamp-2">
+                      Quick fixes, safety checks, and emergency home care.
+                    </p>
+                  </div>
+                  <div>
+                    <Link
+                      to="/services?category=electrical-plumbing"
+                      className="inline-flex items-center gap-1 rounded-full bg-[#f97316] px-3.5 py-1.5 text-[11px] sm:text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-orange-600"
+                    >
+                      <span>Book Now</span>
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Right Image: Smoothly blended in the background with curves, zero borders, completely fits section */}
+                <div className="absolute inset-y-0 right-0 w-[48%] sm:w-[45%] pointer-events-none overflow-hidden rounded-r-3xl">
+                  <img
+                    src="/images/card/electrical.webp"
+                    alt="Electrical and plumbing"
+                    className="h-full w-full object-cover object-center select-none"
+                    style={{
+                      maskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 22%, black 65%)',
+                      WebkitMaskImage: 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.5) 22%, black 65%)',
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-amber-50/90 via-amber-50/20 to-transparent pointer-events-none" />
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Cleaner Technician Cutout Image */}
-          <div className="absolute -right-2 bottom-0 w-[42%] max-w-[195px] pointer-events-none select-none">
-            <img
-              src="/images/mobile/hero-cleaner.png"
-              alt="Verified home service professional"
-              className="h-[185px] w-auto object-contain object-bottom ml-auto"
-              onError={(e) => {
-                // Fallback if cropped asset not loaded
-                e.currentTarget.src = "/images/home-cleaning.webp";
-              }}
+        {/* Carousel Dots */}
+        <div className="flex items-center justify-center gap-1.5 pt-0.5">
+          {[0, 1, 2].map((idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setActiveSlide(idx)}
+              aria-label={`Go to slide ${idx + 1}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                activeSlide === idx
+                  ? "w-6 bg-blue-600"
+                  : "w-1.5 bg-blue-200 hover:bg-blue-300"
+              }`}
             />
-          </div>
-
-          {/* Floating Verified Professionals Badge */}
-          <div className="absolute right-3 top-3 z-20 flex items-center gap-1.5 rounded-xl bg-white/95 px-2.5 py-1 shadow-sm border border-slate-100 backdrop-blur-xs">
-            <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-              <ShieldCheck className="h-3.5 w-3.5" />
-            </span>
-            <div className="text-[9px] font-bold text-slate-800 leading-tight">
-              Verified<br />Professionals
-            </div>
-          </div>
-
-          {/* Carousel Dots */}
-          <div className="flex items-center justify-center gap-1.5 pt-4">
-            {heroSlides.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                onClick={() => setActiveSlide(index)}
-                aria-label={`Go to slide ${index + 1}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  activeSlide === index
-                    ? "w-4 bg-slate-900"
-                    : "w-1.5 bg-indigo-200 hover:bg-indigo-300"
-                }`}
-              />
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* ================= SEARCH & FILTER BAR ================= */}
+      {/* ================= SEARCH & FILTER BAR (EXACT MOCKUP STYLE) ================= */}
       <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
-        <div className="flex flex-1 items-center gap-2.5 rounded-2xl border border-slate-200/90 bg-[#f8fafc] px-3.5 py-2.5 shadow-2xs focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+        <div className="flex flex-1 items-center gap-2.5 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2.5 sm:py-3 shadow-2xs focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
           <Search className="h-4 w-4 text-slate-400 shrink-0" />
           <input
             type="search"
@@ -447,35 +523,75 @@ export const MobileHome: React.FC = () => {
 
         <Link
           to="/services"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-[#f1f5f9] text-slate-700 shadow-2xs transition-all active:scale-95 hover:bg-slate-200"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200/90 bg-white text-slate-700 shadow-2xs transition-all active:scale-95 hover:bg-slate-50"
           aria-label="Filter services"
         >
-          <SlidersHorizontal className="h-4 w-4 text-slate-700" />
+          <SlidersHorizontal className="h-4.5 w-4.5 text-slate-700" />
         </Link>
       </form>
 
-      {/* ================= QUICK CATEGORY ICONS ================= */}
-      <div className="py-1">
-        <div className="grid grid-cols-6 gap-2 text-center">
+      {/* ================= SERVICE CATEGORIES (EXACT 4x2 GRID FROM MOCKUP) ================= */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+            Service Categories
+          </h2>
+          <Link
+            to="/services"
+            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            <span>View All</span>
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
           {categoryIcons.map((cat) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.id}
                 to={cat.link}
-                className="group flex flex-col items-center transition-transform active:scale-95"
+                className="flex flex-col items-center justify-center rounded-2xl border border-slate-100 bg-[#f8fafc] hover:bg-white hover:border-slate-200/80 p-2 text-center shadow-2xs transition-all duration-200 active:scale-95 group min-h-[92px]"
               >
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-xs transition-transform duration-200 group-hover:scale-105 ${cat.bgClass}`}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={2.2} />
+                <div className="flex h-9 w-9 items-center justify-center transition-transform duration-200 group-hover:scale-110">
+                  <Icon className={`h-6 w-6 ${cat.iconColor}`} />
                 </div>
-                <span className="mt-1.5 block text-[10px] font-semibold text-slate-700 leading-tight">
+                <span className="mt-1 text-[10px] font-bold text-slate-800 leading-tight text-center">
                   {cat.name}
                 </span>
               </Link>
             );
           })}
+        </div>
+      </div>
+
+      {/* ================= PROMO / DISCOUNT BANNER (EXACT MOCKUP STYLE) ================= */}
+      <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-gradient-to-r from-[#eff6ff] via-[#f0f7ff] to-[#e0f2fe]/80 p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-xs">
+              <Percent className="h-5 w-5" strokeWidth={2.5} />
+            </div>
+
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                Flat 20% OFF
+              </h3>
+              <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                On Your First Booking
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyCoupon}
+            className="shrink-0 rounded-full border border-dashed border-blue-600 bg-white px-3.5 py-1.5 text-xs font-bold text-blue-600 shadow-2xs transition-all active:scale-95 hover:bg-blue-50/50"
+            aria-label="Copy coupon code HOME20"
+          >
+            <span>{copiedCoupon ? "Copied! ✓" : "Use Code: HOME20"}</span>
+          </button>
         </div>
       </div>
 
@@ -558,44 +674,6 @@ export const MobileHome: React.FC = () => {
               </Link>
             );
           })}
-        </div>
-      </div>
-
-      {/* ================= PROMO / DISCOUNT BANNER ================= */}
-      <div className="relative overflow-hidden rounded-2xl border border-orange-200/80 bg-gradient-to-r from-orange-100/90 via-amber-50 to-orange-50/80 p-4 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <div className="max-w-[62%]">
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-500 text-white shadow-xs">
-              <Tag className="h-4 w-4" />
-            </span>
-
-            <h3 className="mt-1.5 text-base font-black text-slate-900 leading-tight">
-              Flat <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">20% OFF</span>
-            </h3>
-
-            <p className="text-[11px] font-medium text-slate-600">
-              On Your First Booking
-            </p>
-
-            <button
-              type="button"
-              onClick={handleCopyCoupon}
-              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-dashed border-[#f97316] bg-white/90 px-2.5 py-1 text-[10px] font-bold text-[#f97316] shadow-2xs transition-all active:scale-95 hover:bg-white"
-            >
-              <span>{copiedCoupon ? "Copied! ✓" : "Use Code: HOME20"}</span>
-            </button>
-          </div>
-
-          <div className="w-[36%] max-w-[130px] shrink-0 select-none">
-            <img
-              src="/images/mobile/promo-woman.png"
-              alt="Special discount offer"
-              className="h-auto w-full rounded-xl object-cover shadow-2xs"
-              onError={(e) => {
-                e.currentTarget.src = "/images/home-cleaning.webp";
-              }}
-            />
-          </div>
         </div>
       </div>
 
