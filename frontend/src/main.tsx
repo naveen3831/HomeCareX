@@ -6,6 +6,7 @@ import { HelmetProvider } from "react-helmet-async";
 
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 import { registerServiceWorker } from "./registerServiceWorker";
 
@@ -42,9 +43,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <App />
-            </AuthProvider>
+            <LanguageProvider>
+              <AuthProvider>
+                <App />
+              </AuthProvider>
+            </LanguageProvider>
           </QueryClientProvider>
         </ErrorBoundary>
       </BrowserRouter>

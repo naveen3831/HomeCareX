@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { Check, Loader2, LocateFixed, Plus } from "lucide-react";
 import EmptyState from "@/components/common/EmptyState";
 import ErrorState from "@/components/common/ErrorState";
 import OfflineState from "@/components/common/OfflineState";
@@ -22,142 +22,46 @@ import {
   validateForm,
   type AreaForm,
 } from "./serviceAreaModel";
+import { suggestCities } from "./indianCities";
+import AreaMap from "./AreaMap";
+import SavedDialog from "./SavedDialog";
 
 /* ------------------------------------------------------------------ */
-/* City suggestions (bundled list, no network calls while typing)     */
-/* ------------------------------------------------------------------ */
-const INDIAN_CITIES: string[] = [
-  // Andhra Pradesh
-  "Eluru", "Vijayawada", "Visakhapatnam", "Guntur", "Nellore", "Tirupati", "Kakinada", "Rajahmundry",
-  "Kurnool", "Anantapur", "Kadapa", "Ongole", "Machilipatnam", "Bhimavaram", "Tadepalligudem", "Tenali",
-  "Narasaraopet", "Chittoor", "Srikakulam", "Vizianagaram", "Amaravati", "Nandyal", "Hindupur", "Proddatur",
-  "Madanapalle", "Dharmavaram", "Gudivada", "Tanuku", "Palakollu", "Narsapur", "Amalapuram", "Mangalagiri",
-  "Chilakaluripet", "Sattenapalli", "Bapatla", "Chirala", "Markapur", "Gudur", "Adoni", "Yemmiganur",
-  "Jangareddygudem", "Nuzvid", "Jaggaiahpet", "Samalkot", "Peddapuram", "Mandapeta", "Ravulapalem",
-  // Telangana
-  "Hyderabad", "Secunderabad", "Warangal", "Karimnagar", "Nizamabad", "Khammam", "Ramagundam", "Mahbubnagar",
-  "Nalgonda", "Adilabad", "Suryapet", "Siddipet", "Miryalaguda", "Mancherial", "Kothagudem", "Jagtial",
-  // Metros and major cities
-  "Mumbai", "Delhi", "New Delhi", "Bengaluru", "Bangalore", "Chennai", "Kolkata", "Pune", "Ahmedabad", "Surat",
-  "Jaipur", "Lucknow", "Kanpur", "Nagpur", "Indore", "Bhopal", "Patna", "Vadodara", "Ghaziabad", "Ludhiana",
-  "Agra", "Nashik", "Faridabad", "Meerut", "Rajkot", "Varanasi", "Srinagar", "Aurangabad", "Dhanbad", "Amritsar",
-  "Navi Mumbai", "Allahabad", "Prayagraj", "Ranchi", "Howrah", "Coimbatore", "Jabalpur", "Gwalior", "Jodhpur",
-  "Madurai", "Raipur", "Kota", "Chandigarh", "Guwahati", "Solapur", "Mysuru", "Mysore", "Hubballi", "Dharwad",
-  "Mangaluru", "Belagavi", "Kalaburagi", "Ballari", "Davanagere", "Shivamogga", "Tumakuru", "Thane", "Noida",
-  "Gurugram", "Gurgaon", "Dehradun", "Jammu", "Shimla", "Bhubaneswar", "Cuttack", "Puducherry", "Pondicherry",
-  "Tiruchirappalli", "Salem", "Tirunelveli", "Erode", "Vellore", "Thoothukudi", "Thanjavur", "Hosur",
-  "Kochi", "Thiruvananthapuram", "Kozhikode", "Thrissur", "Kollam", "Kannur", "Alappuzha", "Palakkad",
-  "Panaji", "Margao", "Vasco da Gama", "Udaipur", "Ajmer", "Bikaner", "Jamshedpur", "Bokaro", "Siliguri",
-  "Durgapur", "Asansol", "Gorakhpur", "Bareilly", "Aligarh", "Moradabad", "Jhansi", "Mathura", "Haridwar",
-];
-
-/** Normalises for matching: lower case, accents and extra spaces removed. */
-const norm = (s: string): string =>
-  s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-
-/**
- * Up to `limit` cities for what the partner has typed so far. Starts-with matches come first,
- * then contains matches. Needs at least 2 letters; cities already added are left out.
- */
-function suggestCities(query: string, exclude: string[] = [], limit = 6): string[] {
-  const q = norm(query);
-  if (q.length < 2) return [];
-  const taken = new Set(exclude.map(norm));
-  const starts: string[] = [];
-  const contains: string[] = [];
-  for (const city of INDIAN_CITIES) {
-    const n = norm(city);
-    if (taken.has(n)) continue;
-    if (n.startsWith(q)) starts.push(city);
-    else if (n.includes(q)) contains.push(city);
-  }
-  return [...starts, ...contains].slice(0, limit);
-}
-
-
-/* ------------------------------------------------------------------ */
-/* Shared styles                                                       */
+/* Shared styles (app palette: indigo text, orange action)            */
 /* ------------------------------------------------------------------ */
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
-const inputCls = `min-h-[44px] w-full min-w-0 rounded border border-line px-3 text-base sm:text-sm ${focusRing}`;
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-700 focus-visible:ring-offset-2";
+const inputCls = `h-11 w-full min-w-0 rounded-xl border border-[#c7cbe8] bg-white px-3 text-base text-ink placeholder:text-muted/60 hover:border-indigo-400 focus:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-100 sm:text-sm`;
+const cardCls = "rounded-2xl border border-line bg-white p-4 shadow-sm";
+const RADIUS_PRESETS = [3, 5, 10, 15, 25, 50] as const;
+
 type GeoNote = { kind: "info" | "success" | "error"; text: string };
 
 /* ------------------------------------------------------------------ */
-/* Success popup (rendered in document.body so no parent can clip it)  */
+/* Small pieces                                                        */
 /* ------------------------------------------------------------------ */
-const prefersReducedMotion = () =>
-  typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-
-function SavedDialog({ title, details, onClose }: { title: string; details: string[]; onClose: () => void }) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const [entered, setEntered] = useState(false);
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden"; // page behind must not scroll while the dialog is open
-    buttonRef.current?.focus();
-    const raf = requestAnimationFrame(() => setEntered(true));
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      cancelAnimationFrame(raf);
-      previous?.focus?.();
-    };
-  }, []);
-
-  return createPortal(
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto", background: "rgba(0,0,0,0.45)", opacity: entered ? 1 : 0, transition: prefersReducedMotion() ? "none" : "opacity 200ms" }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Escape") onClose();
-        if (e.key === "Tab") {
-          e.preventDefault();
-          buttonRef.current?.focus();
-        }
-      }}
+function StepBadge({ n, done }: { n: number; done: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+        done ? "bg-indigo-700 text-white" : "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200"
+      }`}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="saved-dialog-title"
-        aria-describedby="saved-dialog-desc"
-        style={{ width: "100%", maxWidth: 384, maxHeight: "calc(100dvh - 32px)", overflowY: "auto", background: "#fff", borderRadius: 16, padding: 24, textAlign: "center", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.35)", transform: entered ? "scale(1)" : "scale(0.95)", transition: prefersReducedMotion() ? "none" : "transform 200ms" }}
-      >
-        <div style={{ margin: "0 auto 16px", width: 64, height: 64, borderRadius: "50%", background: "#dcfce7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 id="saved-dialog-title" className="text-lg font-semibold text-brand">
-          {title}
-        </h2>
-        <div id="saved-dialog-desc" className="mt-2 space-y-1 text-sm text-muted">
-          {details.map((d) => (
-            <p key={d} className="break-words">
-              {d}
-            </p>
-          ))}
-        </div>
-        <button
-          ref={buttonRef}
-          type="button"
-          onClick={onClose}
-          className="mt-6 min-h-[44px] w-full rounded-lg bg-brand-500 px-5 text-sm font-medium text-white transition hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-        >
-          Done
-        </button>
+      {done ? <Check size={13} /> : n}
+    </span>
+  );
+}
+
+function CardHeading({ n, done, title, hint }: { n?: number; done?: boolean; title: string; hint?: string }) {
+  return (
+    <div className="mb-3 flex items-start gap-2.5">
+      {n !== undefined && <StepBadge n={n} done={!!done} />}
+      <div className="min-w-0">
+        <h2 className="text-sm font-bold leading-6 text-brand">{title}</h2>
+        {hint && <p className="text-xs leading-snug text-muted">{hint}</p>}
       </div>
-    </div>,
-    document.body,
+    </div>
   );
 }
 
@@ -211,7 +115,7 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
 
   return (
     <div className="min-w-0">
-      <label htmlFor={id} className="mb-1 block text-sm font-medium text-brand">
+      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-brand">
         {label}
       </label>
       {hint && <p className="mb-2 text-xs text-muted">{hint}</p>}
@@ -262,7 +166,7 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
               id={listId}
               role="listbox"
               aria-label={`${label} suggestions`}
-              style={{ position: "absolute", left: 0, right: 0, top: "100%", marginTop: 4, zIndex: 50, maxHeight: "min(240px, 50dvh)", overflowY: "auto", background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "4px 0", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.15)" }}
+              className="absolute inset-x-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-xl border border-line bg-white py-1 shadow-lg"
             >
               {options.map((opt, i) => (
                 <li
@@ -276,7 +180,11 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
                     commit(opt);
                   }}
                   onMouseEnter={() => setActive(i)}
-                  style={{ cursor: "pointer", display: "flex", alignItems: "center", minHeight: 44, padding: "6px 12px", fontSize: 15, background: i === active ? "#e0e7ff" : "#fff", boxShadow: i === active ? "inset 4px 0 0 #4338ca" : "none", fontWeight: i === active ? 600 : 400 }}
+                  className={`flex min-h-[44px] cursor-pointer items-center px-3 py-1.5 text-[15px] ${
+                    i === active
+                      ? "bg-indigo-50 font-semibold text-indigo-900 shadow-[inset_3px_0_0_0_#4338ca]"
+                      : "bg-white"
+                  }`}
                 >
                   {opt}
                 </li>
@@ -287,7 +195,7 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
         <button
           type="button"
           onClick={add}
-          className={`min-h-[44px] shrink-0 rounded border border-brand-500 px-4 text-sm font-medium text-brand ${focusRing}`}
+          className={`h-11 shrink-0 rounded-xl border border-brand-500 bg-white px-4 text-sm font-semibold text-brand transition hover:bg-[#fff5ef] ${focusRing}`}
         >
           Add
         </button>
@@ -298,18 +206,18 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
         </p>
       )}
       {values.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-2" aria-label={`${label} added`}>
+        <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={`${label} added`}>
           {values.map((v) => (
             <li
               key={v}
-              className="inline-flex max-w-full items-center gap-1 rounded-full border border-line bg-panel py-1 pl-3 pr-1 text-sm"
+              className="inline-flex max-w-full items-center gap-0.5 rounded-full border border-indigo-100 bg-indigo-50 py-0.5 pl-3 pr-0.5 text-sm text-indigo-900"
             >
               <span className="min-w-0 break-words">{v}</span>
               <button
                 type="button"
                 aria-label={`Remove ${v}`}
                 onClick={() => onChange(values.filter((x) => x !== v))}
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-muted hover:text-red-600 ${focusRing}`}
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-indigo-700/70 hover:bg-indigo-100 hover:text-red-600 ${focusRing}`}
               >
                 <span aria-hidden="true">×</span>
               </button>
@@ -324,6 +232,12 @@ function TagInput({ id: idProp, label, hint, values, max, placeholder, error, on
 /* ------------------------------------------------------------------ */
 /* Page                                                                */
 /* ------------------------------------------------------------------ */
+const toNum = (text: string): number | null => {
+  if (text.trim() === "") return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+};
+
 export default function PartnerServiceAreaPage() {
   const { status, data, error, reload, setData } = useLoad<PartnerServiceArea>(getServiceArea);
   const online = useOnlineStatus();
@@ -334,12 +248,17 @@ export default function PartnerServiceAreaPage() {
   const [saved, setSaved] = useState<PartnerServiceArea | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [geo, setGeo] = useState<GeoNote | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [detected, setDetected] = useState<string | null>(null);
+  /** True while the base-location name was filled in by us, so moving the pin can refresh it. */
+  const labelAuto = useRef(true);
 
   useEffect(() => {
     if (!data) return;
     const f = toForm(data);
     setForm(f);
     setBaseline(f);
+    labelAuto.current = f.label.trim() === "";
   }, [data]);
 
   const errors = useMemo(() => validateForm(form), [form]);
@@ -351,38 +270,56 @@ export default function PartnerServiceAreaPage() {
     setForm((f) => ({ ...f, ...p }));
   };
 
+  /** Names the spot under the pin. Optional: if it fails the coordinates are already set. */
+  const lookup = (lat: number, lng: number, onPlace?: (where: string) => void) => {
+    Promise.resolve(reverseGeocode({ lat, lng }))
+      .then((place) => {
+        if (!place) return;
+        const name = place.area || place.city;
+        setDetected(place.city || null);
+        const where = [place.area, place.city, place.state].filter(Boolean).join(", ");
+        if (where) onPlace?.(where);
+        if (name) setForm((f) => (labelAuto.current || !f.label.trim() ? { ...f, label: name } : f));
+        labelAuto.current = true;
+      })
+      .catch(() => undefined);
+  };
+
+  const pickOnMap = (lat: number, lng: number) => {
+    setGeo(null);
+    patch({ lat: lat.toFixed(5), lng: lng.toFixed(5) });
+    lookup(lat, lng);
+  };
+
   const useMyLocation = () => {
     if (!("geolocation" in navigator)) {
       setGeo({ kind: "error", text: "Your browser cannot share its location. Enter the coordinates instead." });
       return;
     }
     setGeo({ kind: "info", text: "Finding your location…" });
+    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
+        setLocating(false);
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const coords = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         patch({ lat: lat.toFixed(5), lng: lng.toFixed(5) });
         setGeo({ kind: "success", text: `Location fetched successfully (${coords}).` });
-        // Optional lookup to name the place. If it fails the coordinates are already set.
-        reverseGeocode({ lat, lng })
-          .then((place) => {
-            if (!place) return;
-            const where = [place.area, place.city, place.state].filter(Boolean).join(", ");
-            if (!where) return;
-            setGeo({ kind: "success", text: `Location fetched successfully: ${where} (${coords}).` });
-            setForm((f) => (f.label.trim() ? f : { ...f, label: place.area || place.city }));
-          })
-          .catch(() => undefined);
+        lookup(lat, lng, (where) =>
+          setGeo({ kind: "success", text: `Location fetched successfully: ${where} (${coords}).` }),
+        );
       },
-      (err) =>
+      (err) => {
+        setLocating(false);
         setGeo({
           kind: "error",
           text:
             err.code === 1
               ? "Location permission was denied. Allow location access or enter the coordinates."
               : "Could not fetch your location. Try again or enter the coordinates.",
-        }),
+        });
+      },
       { enableHighAccuracy: true, timeout: 10_000 },
     );
   };
@@ -415,24 +352,57 @@ export default function PartnerServiceAreaPage() {
     }
   };
 
-  const radiusNum = Number(form.radius);
-  const sliderValue =
-    Number.isFinite(radiusNum) && radiusNum >= MIN_RADIUS_KM && radiusNum <= MAX_RADIUS_KM ? radiusNum : MIN_RADIUS_KM;
+  const latNum = toNum(form.lat);
+  const lngNum = toNum(form.lng);
+  const mapPoint =
+    latNum !== null && lngNum !== null && Math.abs(latNum) <= 90 && Math.abs(lngNum) <= 180
+      ? { lat: latNum, lng: lngNum }
+      : null;
+  const radiusNum = toNum(form.radius);
+  const radiusValid =
+    radiusNum !== null && Number.isInteger(radiusNum) && radiusNum >= MIN_RADIUS_KM && radiusNum <= MAX_RADIUS_KM;
+  const sliderValue = radiusValid ? (radiusNum as number) : MIN_RADIUS_KM;
+  const coverage = radiusValid ? Math.round(Math.PI * (radiusNum as number) ** 2) : null;
+
+  const locationDone = !validateForm({ ...form, cities: ["x"], radius: "1" }).baseLocation;
+  const radiusDone = radiusValid;
+  const citiesDone = form.cities.length > 0;
+  const stepsDone = [locationDone, radiusDone, citiesDone].filter(Boolean).length;
+
+  const showDetected = detected && !form.cities.some((c) => c.toLowerCase() === detected.toLowerCase());
 
   return (
-    <div className="w-full min-w-0 max-w-full space-y-3 px-3 pt-2 sm:px-4 sm:pt-3" style={{ overflowX: "clip" }} data-page="service-area-v2">
-      <header>
-        <h1 className="sr-only">Service area</h1>
-        <p className="mx-auto max-w-2xl break-words text-center text-sm text-muted">
-          Tell us where you work. Job requests are matched using your base location, cities and radius.
-        </p>
+    <div
+      className="-mx-4 -mt-4 box-border w-auto min-w-0 max-w-none space-y-3 px-3 pb-4 pt-3 sm:mx-auto sm:mt-0 sm:w-full sm:max-w-6xl sm:p-0"
+      style={{ overflowX: "clip" }}
+      data-page="service-area-v3"
+    >
+      <header className="flex items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-sm sm:p-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-base font-bold text-brand sm:text-lg">Service area</h1>
+          <p className="mt-0.5 text-xs leading-snug text-muted">
+            Job requests are matched using your base location, radius and cities.
+          </p>
+        </div>
+        {status === "ready" && (
+          <div className="shrink-0 text-right" aria-live="polite">
+            <p className="text-sm font-bold text-brand">{stepsDone} of 3</p>
+            <div className="mt-1 flex gap-1" aria-hidden="true">
+              {[locationDone, radiusDone, citiesDone].map((d, i) => (
+                <span key={i} className={`h-1.5 w-5 rounded-full ${d ? "bg-indigo-600" : "bg-indigo-100"}`} />
+              ))}
+            </div>
+            <span className="sr-only">steps complete</span>
+          </div>
+        )}
       </header>
 
       {status === "loading" && (
         <div aria-busy="true" aria-live="polite" className="space-y-3" data-testid="area-loading">
           <span className="sr-only">Loading service area</span>
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-16 animate-pulse rounded border border-line bg-panel" />
+          <div className="h-64 animate-pulse rounded-2xl border border-line bg-panel" />
+          {[0, 1].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-2xl border border-line bg-panel" />
           ))}
         </div>
       )}
@@ -456,186 +426,284 @@ export default function PartnerServiceAreaPage() {
             />
           )}
 
-          <form
-            noValidate
-            onSubmit={(e) => {
-              e.preventDefault();
-              void save();
-            }}
-            className="space-y-4"
-          >
-            <fieldset className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3">
-              <legend className="text-sm font-medium text-brand">Base location</legend>
-              <div className="min-w-0">
-                <label htmlFor="area-label" className="mb-1 block text-sm">
-                  Name (optional)
-                </label>
-                <input
-                  id="area-label"
-                  className={inputCls}
-                  value={form.label}
-                  maxLength={120}
-                  placeholder="e.g. Home, Powerpet"
-                  onChange={(e) => patch({ label: e.target.value })}
-                />
-              </div>
-              <div className="contents">
-                <div className="min-w-0">
-                  <label htmlFor="area-lat" className="mb-1 block text-sm">
-                    Latitude
-                  </label>
-                  <input
-                    id="area-lat"
-                    className={inputCls}
-                    inputMode="decimal"
-                    value={form.lat}
-                    aria-invalid={show.baseLocation ? true : undefined}
-                    aria-describedby={show.baseLocation ? "area-loc-err" : undefined}
-                    onChange={(e) => patch({ lat: e.target.value })}
-                  />
-                </div>
-                <div className="min-w-0">
-                  <label htmlFor="area-lng" className="mb-1 block text-sm">
-                    Longitude
-                  </label>
-                  <input
-                    id="area-lng"
-                    className={inputCls}
-                    inputMode="decimal"
-                    value={form.lng}
-                    aria-invalid={show.baseLocation ? true : undefined}
-                    aria-describedby={show.baseLocation ? "area-loc-err" : undefined}
-                    onChange={(e) => patch({ lng: e.target.value })}
-                  />
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={useMyLocation}
-                className={`min-h-[44px] w-full justify-self-start rounded border border-brand-500 px-4 text-sm font-medium text-brand sm:w-auto md:col-span-3 ${focusRing}`}
-              >
-                Use my current location
-              </button>
-              {geo && (
-                <p
-                  role={geo.kind === "error" ? "alert" : "status"}
-                  style={
-                    geo.kind === "success"
-                      ? { background: "#f0fdf4", borderColor: "#bbf7d0", color: "#166534" }
-                      : geo.kind === "error"
-                        ? { background: "#fef2f2", borderColor: "#fecaca", color: "#b91c1c" }
-                        : undefined
-                  }
-                  className="flex items-start gap-2 rounded border border-line px-3 py-2 text-sm md:col-span-3"
-                >
-                  <span aria-hidden="true">{geo.kind === "success" ? "✓" : geo.kind === "error" ? "!" : "…"}</span>
-                  <span className="min-w-0 break-words">{geo.text}</span>
+          <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start lg:gap-4">
+            {/* Map */}
+            <section aria-label="Map" className="min-w-0 overflow-hidden rounded-2xl border border-line bg-white shadow-sm lg:sticky lg:top-20">
+              <AreaMap
+                lat={mapPoint?.lat ?? null}
+                lng={mapPoint?.lng ?? null}
+                radiusKm={radiusValid ? (radiusNum as number) : null}
+                onPick={pickOnMap}
+                onLocate={useMyLocation}
+                className="h-[300px] sm:h-[380px] lg:h-[480px]"
+              />
+              <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2.5 text-xs">
+                <p className="min-w-0 truncate text-muted">
+                  {mapPoint ? (
+                    <>
+                      <span className="font-semibold text-ink">{form.label.trim() || "Base location"}</span>
+                      <span className="text-muted/60"> · </span>
+                      {mapPoint.lat.toFixed(4)}, {mapPoint.lng.toFixed(4)}
+                    </>
+                  ) : (
+                    "No base location yet"
+                  )}
                 </p>
-              )}
-              {show.baseLocation && (
-                <p id="area-loc-err" role="alert" className="text-xs text-red-600 md:col-span-3">
-                  {show.baseLocation}
+                <p className="shrink-0 font-semibold text-brand">
+                  {radiusValid ? `${radiusNum} km` : "– km"}
+                  {coverage !== null && <span className="font-normal text-muted"> · ~{coverage.toLocaleString("en-IN")} km²</span>}
                 </p>
-              )}
-            </fieldset>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <TagInput
-              id="service-cities-input"
-              label="Service cities"
-              hint="Cities where you accept jobs. Type 2 letters to see suggestions."
-              placeholder="Add a city"
-              values={form.cities}
-              max={MAX_CITIES}
-              error={show.cities}
-              suggest={suggestCities}
-              onChange={(cities) => patch({ cities })}
-            />
-
-            <TagInput
-              label="Preferred areas (optional)"
-              hint="Neighbourhoods you prefer within those cities."
-              placeholder="Add an area"
-              values={form.areas}
-              max={MAX_AREAS}
-              onChange={(areas) => patch({ areas })}
-            />
-            </div>
-
-            <div>
-              <label htmlFor="area-radius" className="mb-1 block text-sm font-medium text-brand">
-                Service radius: {form.radius || "–"} km
-              </label>
-              <p className="mb-2 text-xs text-muted">
-                How far from your base location you will travel ({MIN_RADIUS_KM}–{MAX_RADIUS_KM} km).
-              </p>
-              <div className="flex min-w-0 items-center gap-3">
-                <input
-                  id="area-radius"
-                  type="range"
-                  min={MIN_RADIUS_KM}
-                  max={MAX_RADIUS_KM}
-                  step={1}
-                  value={sliderValue}
-                  onChange={(e) => patch({ radius: e.target.value })}
-                  className={`min-w-0 flex-1 accent-brand-500 ${focusRing}`}
-                />
-                <input
-                  id="area-radius-number"
-                  aria-label="Radius in km"
-                  type="number"
-                  inputMode="numeric"
-                  min={MIN_RADIUS_KM}
-                  max={MAX_RADIUS_KM}
-                  value={form.radius}
-                  aria-invalid={show.radiusKm ? true : undefined}
-                  aria-describedby={show.radiusKm ? "area-radius-err" : undefined}
-                  onChange={(e) => patch({ radius: e.target.value })}
-                  className={`${inputCls} !w-20 shrink-0 sm:!w-24`}
-                />
               </div>
-              {show.radiusKm && (
-                <p id="area-radius-err" role="alert" className="mt-1 text-xs text-red-600">
-                  {show.radiusKm}
-                </p>
-              )}
-            </div>
+            </section>
 
-            {!online && (
-              <p role="alert" className="text-sm text-orange-700">
-                You are offline. Reconnect to save your changes.
-              </p>
-            )}
-            {saveError && (
-              <p role="alert" className="text-sm text-red-600">
-                {saveError}
-              </p>
-            )}
-            <div
-              style={{ background: "#fff" }}
-              className="sticky bottom-0 z-10 -mx-3 flex flex-wrap items-center justify-center gap-3 border-t border-line px-3 py-3 sm:-mx-4 sm:px-4"
+            {/* Form */}
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                void save();
+              }}
+              className="min-w-0 space-y-3"
             >
-              <button
-                type="submit"
-                disabled={saving || !online || (data.configured && !dirty)}
-                className={`min-h-[44px] rounded bg-brand-500 px-5 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
-              >
-                {saving ? "Saving…" : "Save service area"}
-              </button>
-              <button
-                type="button"
-                disabled={!dirty || saving}
-                onClick={() => {
-                  setForm(baseline);
-                  setTouched(false);
-                  setSaveError(null);
-                }}
-                className={`min-h-[44px] rounded border border-line px-4 text-sm disabled:opacity-50 ${focusRing}`}
-              >
-                Reset
-              </button>
-            </div>
-          </form>
+              <fieldset className={`${cardCls} min-w-0`}>
+                <legend className="sr-only">Base location</legend>
+                <CardHeading
+                  n={1}
+                  done={locationDone}
+                  title="Base location"
+                  hint="Search, tap the map or drag the pin. Fine-tune the coordinates below."
+                />
+                <div className="space-y-3">
+                  <div className="min-w-0">
+                    <label htmlFor="area-label" className="mb-1 block text-xs font-semibold text-ink">
+                      Name (optional)
+                    </label>
+                    <input
+                      id="area-label"
+                      className={inputCls}
+                      value={form.label}
+                      maxLength={120}
+                      placeholder="e.g. Home, Powerpet"
+                      onChange={(e) => {
+                        labelAuto.current = e.target.value.trim() === "";
+                        patch({ label: e.target.value });
+                      }}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="min-w-0">
+                      <label htmlFor="area-lat" className="mb-1 block text-xs font-semibold text-ink">
+                        Latitude
+                      </label>
+                      <input
+                        id="area-lat"
+                        className={inputCls}
+                        inputMode="decimal"
+                        value={form.lat}
+                        aria-invalid={show.baseLocation ? true : undefined}
+                        aria-describedby={show.baseLocation ? "area-loc-err" : undefined}
+                        onChange={(e) => patch({ lat: e.target.value })}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <label htmlFor="area-lng" className="mb-1 block text-xs font-semibold text-ink">
+                        Longitude
+                      </label>
+                      <input
+                        id="area-lng"
+                        className={inputCls}
+                        inputMode="decimal"
+                        value={form.lng}
+                        aria-invalid={show.baseLocation ? true : undefined}
+                        aria-describedby={show.baseLocation ? "area-loc-err" : undefined}
+                        onChange={(e) => patch({ lng: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    disabled={locating}
+                    className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-500 bg-white px-4 text-sm font-semibold text-brand transition hover:bg-[#fff5ef] disabled:opacity-60 ${focusRing}`}
+                  >
+                    {locating ? (
+                      <Loader2 size={16} aria-hidden="true" className="animate-spin" />
+                    ) : (
+                      <LocateFixed size={16} aria-hidden="true" />
+                    )}
+                    Use my current location
+                  </button>
+                  {geo && (
+                    <p
+                      role={geo.kind === "error" ? "alert" : "status"}
+                      className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${
+                        geo.kind === "success"
+                          ? "border-indigo-100 bg-indigo-50 text-indigo-900"
+                          : geo.kind === "error"
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-line bg-panel text-muted"
+                      }`}
+                    >
+                      <span aria-hidden="true" className="font-bold">
+                        {geo.kind === "success" ? "✓" : geo.kind === "error" ? "!" : "…"}
+                      </span>
+                      <span className="min-w-0 break-words">{geo.text}</span>
+                    </p>
+                  )}
+                  {show.baseLocation && (
+                    <p id="area-loc-err" role="alert" className="text-xs text-red-600">
+                      {show.baseLocation}
+                    </p>
+                  )}
+                </div>
+              </fieldset>
+
+              <section className={cardCls}>
+                <CardHeading
+                  n={2}
+                  done={radiusDone}
+                  title={`Service radius: ${form.radius || "–"} km`}
+                  hint={`How far from your base location you will travel (${MIN_RADIUS_KM}–${MAX_RADIUS_KM} km). The circle on the map updates as you change it.`}
+                />
+                <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Quick radius">
+                  {RADIUS_PRESETS.map((p) => {
+                    const on = form.radius === String(p);
+                    return (
+                      <button
+                        key={p}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => patch({ radius: String(p) })}
+                        className={`h-9 min-w-[3.25rem] rounded-full border px-3 text-xs font-semibold transition ${focusRing} ${
+                          on
+                            ? "border-indigo-700 bg-indigo-50 text-indigo-800 ring-1 ring-indigo-700"
+                            : "border-[#c7cbe8] bg-white text-ink hover:bg-indigo-50"
+                        }`}
+                      >
+                        {p} km
+                      </button>
+                    );
+                  })}
+                </div>
+                <label htmlFor="area-radius" className="sr-only">
+                  Service radius slider
+                </label>
+                <div className="flex min-w-0 items-center gap-3">
+                  <input
+                    id="area-radius"
+                    type="range"
+                    min={MIN_RADIUS_KM}
+                    max={MAX_RADIUS_KM}
+                    step={1}
+                    value={sliderValue}
+                    onChange={(e) => patch({ radius: e.target.value })}
+                    className={`min-w-0 flex-1 accent-indigo-700 ${focusRing}`}
+                  />
+                  <input
+                    id="area-radius-number"
+                    aria-label="Radius in km"
+                    type="number"
+                    inputMode="numeric"
+                    min={MIN_RADIUS_KM}
+                    max={MAX_RADIUS_KM}
+                    value={form.radius}
+                    aria-invalid={show.radiusKm ? true : undefined}
+                    aria-describedby={show.radiusKm ? "area-radius-err" : undefined}
+                    onChange={(e) => patch({ radius: e.target.value })}
+                    className={`${inputCls} !w-20 shrink-0 text-center sm:!w-24`}
+                  />
+                </div>
+                <div className="mt-1 flex justify-between text-[11px] text-muted" aria-hidden="true">
+                  <span>{MIN_RADIUS_KM} km</span>
+                  <span>{MAX_RADIUS_KM} km</span>
+                </div>
+                {show.radiusKm && (
+                  <p id="area-radius-err" role="alert" className="mt-1 text-xs text-red-600">
+                    {show.radiusKm}
+                  </p>
+                )}
+              </section>
+
+              <section className={cardCls}>
+                <CardHeading n={3} done={citiesDone} title="Cities and areas" />
+                <div className="space-y-4">
+                  <div>
+                    <TagInput
+                      id="service-cities-input"
+                      label="Service cities"
+                      hint="Cities where you accept jobs. Type 2 letters to see suggestions."
+                      placeholder="Add a city"
+                      values={form.cities}
+                      max={MAX_CITIES}
+                      error={show.cities}
+                      suggest={suggestCities}
+                      onChange={(cities) => patch({ cities })}
+                    />
+                    {showDetected && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const r = addEntry(form.cities, detected as string, MAX_CITIES);
+                          if (!r.error) patch({ cities: r.list });
+                        }}
+                        className={`mt-2 inline-flex h-9 items-center gap-1.5 rounded-full border border-dashed border-indigo-400 px-3 text-xs font-semibold text-indigo-800 hover:bg-indigo-50 ${focusRing}`}
+                      >
+                        <Plus size={14} aria-hidden="true" />
+                        Add {detected} (near your pin)
+                      </button>
+                    )}
+                  </div>
+                  <TagInput
+                    label="Preferred areas (optional)"
+                    hint="Neighbourhoods you prefer within those cities."
+                    placeholder="Add an area"
+                    values={form.areas}
+                    max={MAX_AREAS}
+                    onChange={(areas) => patch({ areas })}
+                  />
+                </div>
+              </section>
+
+              {!online && (
+                <p role="alert" className="text-sm text-orange-700">
+                  You are offline. Reconnect to save your changes.
+                </p>
+              )}
+              {saveError && (
+                <p role="alert" className="text-sm text-red-600">
+                  {saveError}
+                </p>
+              )}
+
+              <div className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-20 -mx-3 border-t border-line bg-white/95 px-3 py-2 backdrop-blur sm:mx-0 sm:rounded-xl sm:border lg:bottom-3">
+                <div className="flex items-center gap-2">
+                  <p className="hidden min-w-0 flex-1 truncate text-xs text-muted sm:block" aria-live="polite">
+                    {dirty ? "You have unsaved changes" : data.configured ? "All changes saved" : "Not saved yet"}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!dirty || saving}
+                    onClick={() => {
+                      setForm(baseline);
+                      setTouched(false);
+                      setSaveError(null);
+                      setGeo(null);
+                    }}
+                    className={`h-11 rounded-xl border border-[#c7cbe8] bg-white px-4 text-sm font-semibold text-ink transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving || !online || (data.configured && !dirty)}
+                    className={`h-11 flex-1 rounded-xl bg-brand-500 px-6 text-sm font-bold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none ${focusRing}`}
+                  >
+                    {saving ? "Saving…" : "Save service area"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </>
       )}
 

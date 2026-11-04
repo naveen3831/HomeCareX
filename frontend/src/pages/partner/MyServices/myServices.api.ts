@@ -26,3 +26,18 @@ export const savePartnerServices = async (
   });
   return response.data.data;
 };
+
+export interface ServiceCategoryInfo {
+  id: string;
+  name: string;
+  slug?: string;
+  icon?: string;
+  iconUrl?: string;
+  sortOrder?: number;
+}
+
+/** Public category list, used only to group and label the services. */
+export const getServiceCategories = async (): Promise<ServiceCategoryInfo[]> => {
+  const response = await http.get<ApiResponse<ServiceCategoryInfo[]>>("/categories");
+  return response.data.data;
+};

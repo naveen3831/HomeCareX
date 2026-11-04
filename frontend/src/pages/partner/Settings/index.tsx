@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { ChevronRight, LogOut } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { ChevronRight } from 'lucide-react';
+import { isAppLanguage, useLanguage } from '@/i18n/LanguageContext';
 import {
-  LANGUAGES,
   settingsApi,
   settingsErrorMessage,
   type Language,
@@ -14,6 +13,13 @@ import {
 } from './settings.api';
 import { LOGIN_HISTORY_PATH, PASSWORD_PATH, PRIVACY_POLICY_PATH, SESSIONS_PATH, SETTINGS_HOME, TERMS_PATH } from './paths';
 import './settings.css';
+
+// Language names are shown in their own script so people can always find theirs.
+const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: 'hi', label: 'हिन्दी' },
+  { value: 'te', label: 'తెలుగు' },
+];
 
 // Which section shows comes from the URL: /partner/settings/:section (the sidebar links to each one).
 const SECTIONS = {
@@ -37,15 +43,16 @@ type Notice = { kind: 'error'; text: string };
 
 function ToggleRow(props: { label: string; hint?: string; checked: boolean; disabled?: boolean; onChange: (next: boolean) => void }) {
   const id = useId();
+  const { t } = useLanguage();
   return (
     <div className="ps-row">
       <div className="ps-row-text">
         <label htmlFor={id} className="ps-row-label">
-          {props.label}
+          {t(props.label)}
         </label>
         {props.hint ? (
           <p id={`${id}-hint`} className="ps-muted">
-            {props.hint}
+            {t(props.hint)}
           </p>
         ) : null}
       </div>
@@ -66,11 +73,12 @@ function ToggleRow(props: { label: string; hint?: string; checked: boolean; disa
 }
 
 function LinkRow({ to, label, hint }: { to: string; label: string; hint?: string }) {
+  const { t } = useLanguage();
   return (
     <Link to={to} className="ps-row ps-link">
       <span className="ps-row-text">
-        <span className="ps-row-label">{label}</span>
-        {hint ? <span className="ps-muted">{hint}</span> : null}
+        <span className="ps-row-label">{t(label)}</span>
+        {hint ? <span className="ps-muted">{t(hint)}</span> : null}
       </span>
       <ChevronRight size={18} className="ps-chevron" aria-hidden="true" />
     </Link>
@@ -78,17 +86,17 @@ function LinkRow({ to, label, hint }: { to: string; label: string; hint?: string
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
+  const { t } = useLanguage();
   return (
     <div className="ps-group">
-      <h3 className="ps-subhead">{title}</h3>
+      <h3 className="ps-subhead">{t(title)}</h3>
       <div className="ps-list">{children}</div>
     </div>
   );
 }
 
 export default function PartnerSettingsPage() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
+  const { t, setLanguage } = useLanguage();
   const { section } = useParams<{ section: string }>();
 
   const [status, setStatus] = useState<Status>('loading');
@@ -97,7 +105,6 @@ export default function PartnerSettingsPage() {
   const [data, setData] = useState<PartnerSettings | null>(null);
   const [pending, setPending] = useState<Set<string>>(() => new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [signingOut, setSigningOut] = useState(false);
 
   // The ref always holds the latest settings, so quick successive changes never overwrite each other.
   const dataRef = useRef<PartnerSettings | null>(null);
@@ -111,6 +118,8 @@ export default function PartnerSettingsPage() {
     settingsApi.get(ctrl.signal).then(
       (d) => {
         commit(d);
+        // The saved language is the source of truth: apply it to the whole app.
+        if (isAppLanguage(d.language)) setLanguage(d.language);
         setStatus('ready');
       },
       (err: unknown) => {
@@ -120,12 +129,12 @@ export default function PartnerSettingsPage() {
       },
     );
     return () => ctrl.abort();
-  }, [reloadKey, commit]);
+  }, [reloadKey, commit, setLanguage]);
 
   useEffect(() => {
     if (!notice) return;
-    const t = window.setTimeout(() => setNotice(null), 5000);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setNotice(null), 5000);
+    return () => window.clearTimeout(timer);
   }, [notice]);
 
   const reload = () => {
@@ -167,6 +176,7 @@ export default function PartnerSettingsPage() {
     if (!current) return;
     const previous = current.language;
     commit({ ...current, language });
+    setLanguage(language); // the whole app switches at once
     markPending('language', true);
     try {
       const saved = await settingsApi.patchLanguage(language);
@@ -175,19 +185,10 @@ export default function PartnerSettingsPage() {
     } catch (err) {
       const latest = dataRef.current;
       if (latest) commit({ ...latest, language: previous });
+      setLanguage(previous);
       setNotice({ kind: 'error', text: settingsErrorMessage(err) });
     } finally {
       markPending('language', false);
-    }
-  };
-
-  // Same sign-out as the sidebar button.
-  const signOut = async () => {
-    setSigningOut(true);
-    try {
-      await logout();
-    } finally {
-      navigate('/login', { replace: true });
     }
   };
 
@@ -209,10 +210,10 @@ export default function PartnerSettingsPage() {
     if (status === 'error' || !data) {
       return (
         <div className="ps-state" role="alert">
-          <p className="ps-state-title">Could not load your settings</p>
+          <p className="ps-state-title">{t('Could not load your settings')}</p>
           <p className="ps-muted">{errorText}</p>
           <button type="button" className="ps-btn ps-btn-primary" onClick={reload}>
-            Try again
+            {t('Try again')}
           </button>
         </div>
       );
@@ -252,7 +253,7 @@ export default function PartnerSettingsPage() {
         return (
           <>
             <Group title="Location sharing">
-              <div role="radiogroup" aria-label="Location sharing">
+              <div role="radiogroup" aria-label={t('Location sharing')}>
                 {LOCATION_OPTIONS.map((o) => (
                   <label key={o.value} className={`ps-choice${privacy.locationSharing === o.value ? ' is-selected' : ''}`}>
                     <input
@@ -264,8 +265,8 @@ export default function PartnerSettingsPage() {
                       onChange={() => void save('privacy', 'locationSharing', o.value)}
                     />
                     <span className="ps-row-text">
-                      <span className="ps-row-label">{o.label}</span>
-                      <span className="ps-muted">{o.hint}</span>
+                      <span className="ps-row-label">{t(o.label)}</span>
+                      <span className="ps-muted">{t(o.hint)}</span>
                     </span>
                   </label>
                 ))}
@@ -303,10 +304,10 @@ export default function PartnerSettingsPage() {
               />
               <div className="ps-row">
                 <span className="ps-row-text">
-                  <span className="ps-row-label">Two-factor authentication</span>
-                  <span className="ps-muted">An extra verification step when you sign in.</span>
+                  <span className="ps-row-label">{t('Two-factor authentication')}</span>
+                  <span className="ps-muted">{t('An extra verification step when you sign in.')}</span>
                 </span>
-                <span className="ps-badge">Coming soon</span>
+                <span className="ps-badge">{t('Coming soon')}</span>
               </div>
             </Group>
             <Group title="Password and devices">
@@ -323,8 +324,8 @@ export default function PartnerSettingsPage() {
             <Group title="Language">
               <div className="ps-row">
                 <label htmlFor="ps-language" className="ps-row-text">
-                  <span className="ps-row-label">App language</span>
-                  <span className="ps-muted">Used for your partner app and messages.</span>
+                  <span className="ps-row-label">{t('App language')}</span>
+                  <span className="ps-muted">{t('Used for your partner app and messages.')}</span>
                 </label>
                 <select
                   id="ps-language"
@@ -333,7 +334,7 @@ export default function PartnerSettingsPage() {
                   disabled={busy('language')}
                   onChange={(e) => void saveLanguage(e.target.value as Language)}
                 >
-                  {LANGUAGES.map((l) => (
+                  {LANGUAGE_OPTIONS.map((l) => (
                     <option key={l.value} value={l.value}>
                       {l.label}
                     </option>
@@ -346,12 +347,6 @@ export default function PartnerSettingsPage() {
               <LinkRow to={TERMS_PATH} label="Terms of service" />
               <LinkRow to={PRIVACY_POLICY_PATH} label="Privacy policy" />
             </Group>
-            <div className="ps-group">
-              <button type="button" className="ps-btn ps-btn-danger" onClick={() => void signOut()} disabled={signingOut}>
-                <LogOut size={18} aria-hidden="true" />
-                {signingOut ? 'Signing out...' : 'Log out'}
-              </button>
-            </div>
           </>
         );
     }
@@ -359,7 +354,7 @@ export default function PartnerSettingsPage() {
 
   return (
     <div className="ps-root">
-      <p className="ps-lead">{SECTIONS[section].blurb}</p>
+      <p className="ps-lead">{t(SECTIONS[section].blurb)}</p>
       {body}
 
       {notice ? (
