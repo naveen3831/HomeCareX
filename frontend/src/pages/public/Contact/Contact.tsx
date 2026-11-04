@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Headphones,
   LucideIcon,
   Mail,
   MapPin,
@@ -20,6 +22,9 @@ import PartnerInterestForm from '@/components/public/PartnerInterestForm';
 import Seo from '@/components/common/Seo';
 import { breadcrumbLd } from '@/lib/jsonld';
 import './Contact.css';
+
+const PHONE_DISPLAY = '+91 93902 12572';
+const PHONE_HREF = 'tel:+919390212572';
 
 const CAROUSEL_INTERVAL_MS = 4000;
 
@@ -408,7 +413,7 @@ const Contact: React.FC = () => {
                 <span className="contact-way__note">{note}</span>
               </a>
             ))}
-          </aside>
+          </div>
         </div>
       </section>
 

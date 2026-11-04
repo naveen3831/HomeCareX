@@ -170,9 +170,7 @@ export const PartnerRegisterPage: React.FC = () => {
   const [error, setError] = useState('');
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string>('');
 
-  const avatarInputRef = useRef<HTMLInputElement>(null);
   const idDocInputRef = useRef<HTMLInputElement>(null);
   const addressDocInputRef = useRef<HTMLInputElement>(null);
 
@@ -266,34 +264,6 @@ export const PartnerRegisterPage: React.FC = () => {
   }
 
   // Profile photo handling
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setFieldErrors((prev) => ({ ...prev, avatar: 'Please select a valid image (JPEG, PNG or WebP).' }));
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setFieldErrors((prev) => ({ ...prev, avatar: 'Profile photo size must be under 2MB.' }));
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setAvatarPreview(dataUrl);
-      handleChange('avatar', dataUrl);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removeAvatar() {
-    setAvatarPreview('');
-    handleChange('avatar', '');
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
-  }
 
   /** Reads the real file contents (base64 data: URL) so the backend can store it and admins can preview it. */
   function readFileAsDataUrl(file: File): Promise<string> {
@@ -684,7 +654,7 @@ export const PartnerRegisterPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-[560px] lg:max-w-[580px] xl:max-w-[620px] 2xl:max-w-[640px] bg-white/85 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-5 sm:p-6 relative transition-all my-auto max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3.5rem)] overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
+    <div className="w-full max-w-[560px] lg:max-w-[580px] xl:max-w-[620px] 2xl:max-w-[640px] bg-white/95 sm:bg-white/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-4 sm:p-6 relative transition-all my-auto max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3.5rem)] overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
       {/* Top Action Bar: Back to Home + Top Right Logo */}
       <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100/80 shrink-0">
         <Link
@@ -807,74 +777,6 @@ export const PartnerRegisterPage: React.FC = () => {
                 Step 1 of 5
               </span>
             </div>
-
-            {/* Profile Photo Preview / Replace / Remove (Ultra-compact inline avatar) */}
-            <div className="p-1.5 px-2.5 bg-slate-50/80 border border-slate-200/70 rounded-xl flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="relative shrink-0">
-                  {avatarPreview ? (
-                    <img
-                      src={avatarPreview}
-                      alt="Profile preview"
-                      className="w-7 h-7 rounded-full object-cover border-2 border-blue-600 shadow-2xs"
-                    />
-                  ) : (
-                    <label
-                      htmlFor="partner-avatar-input"
-                      className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 hover:bg-blue-100 cursor-pointer transition-colors shadow-2xs"
-                      title="Upload profile photo"
-                    >
-                      <User size={14} />
-                    </label>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-slate-700">Profile Photo</span>
-                    <span className="text-[9px] font-medium text-slate-500 bg-slate-200/70 px-1 py-0.2 rounded">Optional</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 truncate">Clear front-facing photo (JPG, PNG or WebP, max 2MB)</p>
-                </div>
-              </div>
-
-              {/* Upload / Replace / Remove Button */}
-              <div className="flex items-center gap-1 shrink-0">
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  id="partner-avatar-input"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleAvatarChange}
-                  className="sr-only"
-                  aria-label="Upload profile photo"
-                />
-                <label
-                  htmlFor="partner-avatar-input"
-                  className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 px-2 py-0.5 rounded-lg shadow-2xs transition-all active:scale-95 whitespace-nowrap"
-                >
-                  <Upload size={11} className="text-blue-600" />
-                  <span>{avatarPreview ? 'Change' : 'Upload Photo'}</span>
-                </label>
-                {avatarPreview && (
-                  <button
-                    type="button"
-                    onClick={removeAvatar}
-                    aria-label="Remove profile photo"
-                    title="Remove profile photo"
-                    className="inline-flex items-center justify-center h-6 px-1.5 rounded-lg text-[11px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200/60 transition-colors"
-                  >
-                    <Trash2 size={11} className="mr-0.5" />
-                    <span>Remove</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {fieldErrors.avatar && (
-              <p role="alert" className="text-[10px] text-red-600 font-medium pl-1">
-                {fieldErrors.avatar}
-              </p>
-            )}
 
             {/* Full Name */}
             <div className="group">

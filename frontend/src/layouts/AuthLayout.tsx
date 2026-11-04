@@ -52,13 +52,33 @@ const AuthLayout: React.FC = () => {
     <div
       className={`w-full ${
         isPartner
-          ? 'min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden py-4 sm:py-6 lg:py-8 px-6 sm:px-10 lg:px-14 xl:px-20'
+          ? 'min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden py-3 sm:py-6 lg:py-8 px-3 sm:px-6 lg:px-14 xl:px-20'
           : 'min-h-screen lg:h-screen lg:overflow-hidden py-2 sm:py-3 lg:py-4 px-3 sm:px-6 lg:px-8'
       } relative flex flex-col items-center justify-center`}
     >
-      {/* Fixed Fullscreen Background: Viewport-anchored to show complete background without distortion */}
+      {/* Mobile Background: Clean, professional, elegant modern gradient without distorted photo artifacts */}
       <div
-        className={`fixed inset-0 -z-10 pointer-events-none ${
+        className={`fixed inset-0 -z-10 pointer-events-none lg:hidden ${
+          isPartner
+            ? 'bg-gradient-to-b from-[#f0f5ff] via-[#f8fafc] to-[#eef4ff]'
+            : 'bg-gradient-to-b from-[#faf8f5] via-[#f8fafc] to-[#f1f5f9]'
+        }`}
+      >
+        <div
+          className={`absolute -top-24 -right-24 h-72 w-72 rounded-full ${
+            isPartner ? 'bg-blue-400/10' : 'bg-orange-400/10'
+          } blur-3xl`}
+        />
+        <div
+          className={`absolute -bottom-24 -left-24 h-72 w-72 rounded-full ${
+            isPartner ? 'bg-indigo-400/10' : 'bg-blue-400/10'
+          } blur-3xl`}
+        />
+      </div>
+
+      {/* Desktop Fullscreen Illustration Background: only visible on lg (1024px+) screens */}
+      <div
+        className={`fixed inset-0 -z-10 pointer-events-none hidden lg:block ${
           isPartner ? 'bg-[#F7FAFF]' : 'bg-[#FAF7F2]'
         } bg-no-repeat transition-all duration-300 ${
           isPartner

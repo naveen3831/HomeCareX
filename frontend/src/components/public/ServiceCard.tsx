@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { ArrowRight, Star, Clock, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/useAuthStore";
 import { safeAlt } from "@/lib/querySanitize";
 
 interface ServiceCardProps {
@@ -27,6 +29,21 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   duration,
   priority = false,
 }) => {
+  const navigate = useNavigate();
+  const auth = useContext(AuthContext);
+  const storeAuth = useAuthStore((st) => st.isAuthenticated);
+  const isAuthenticated = Boolean(auth?.isAuthenticated || storeAuth);
+
+  const handleBookNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const bookPath = `/customer/book/${encodeURIComponent(id)}`;
+    if (isAuthenticated) {
+      navigate(bookPath);
+    } else {
+      navigate(`/login?returnUrl=${encodeURIComponent(bookPath)}`);
+    }
+  };
   const webpImage = image.replace(/\.(png|jpe?g)$/i, ".webp");
 
   // If the .webp file is missing, drop the <source> so the browser uses the <img> file.
@@ -128,14 +145,24 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
           </div>
         </div>
 
-        {/* Full-width View Details CTA */}
-        <Link
-          to={`/services/${encodeURIComponent(id)}`}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4338ca] to-[#3730a3] px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all duration-200 hover:from-[#3730a3] hover:to-[#2e2680] hover:shadow-indigo-300/40 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-          <span>View Details</span>
-          <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        {/* Dual Actions CTA: View Details + Book Now side-by-side */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            to={`/services/${encodeURIComponent(id)}`}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-2.5 text-xs sm:text-sm font-bold text-indigo-700 shadow-2xs transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <span>View Details</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleBookNow}
+            className="group/btn flex items-center justify-center gap-1.5 rounded-xl bg-[#ff8a3d] px-3 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/50 cursor-pointer"
+          >
+            <span>Book Now</span>
+            <ArrowRight size={14} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
+          </button>
+        </div>
       </div>
     </article>
   );

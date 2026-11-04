@@ -19,6 +19,7 @@ const toService = (s: ServiceRow, cat: CategoryLite): PublicServiceDto => ({
   description: s.description ?? '',
   icon: s.icon ?? '',
   ...(s.iconUrl ? { iconUrl: s.iconUrl } : {}),
+  ...(s.media?.[0]?.url ? { image: s.media[0].url } : {}),
   category: cat,
   basePrice: s.basePrice,
   durationMinutes: s.durationMinutes,
@@ -67,14 +68,41 @@ export const catalogService = {
     const cats = await repo.activeCategories();
     let scope = cats;
     if (parsed.category) {
-      const catKey = parsed.category.toLowerCase();
+      const catKey = parsed.category.toLowerCase().trim();
       scope = cats.filter((c) => {
-        const idStr = String(c._id);
-        const slug = c.slug.toLowerCase();
-        if (idStr === catKey || slug === catKey) return true;
-        if ((catKey === 'plumbing' || catKey === 'electrical') && slug === 'electrical-plumbing') return true;
-        if (catKey === 'appliance-repair' && slug === 'appliance-repair-service') return true;
-        if (catKey === 'cleaning' && slug === 'home-cleaning') return true;
+        const idStr = String(c._id).toLowerCase();
+        const slug = (c.slug || '').toLowerCase();
+        const name = (c.name || '').toLowerCase();
+        if (idStr === catKey || slug === catKey || name === catKey) return true;
+
+        const isAppliance = (s: string) =>
+          s === 'appliance-repair' || s === 'appliance-repair-service' || s === 'appliance' || s === 'appliances' || s.includes('appliance');
+        if (isAppliance(catKey) && (isAppliance(slug) || isAppliance(name))) return true;
+
+        const isCleaning = (s: string) =>
+          s === 'cleaning' || s === 'home-cleaning' || s === 'deep-cleaning' || s.includes('clean');
+        if (isCleaning(catKey) && (isCleaning(slug) || isCleaning(name))) return true;
+
+        const isPlumbingOrElectrical = (s: string) =>
+          s === 'plumbing' || s === 'electrical' || s === 'electrical-plumbing' || s === 'plumbing-electrical' || s.includes('plumb') || s.includes('electr');
+        if (isPlumbingOrElectrical(catKey) && (isPlumbingOrElectrical(slug) || isPlumbingOrElectrical(name))) return true;
+
+        const isPainting = (s: string) =>
+          s === 'painting' || s === 'waterproofing' || s === 'painting-waterproofing' || s.includes('paint');
+        if (isPainting(catKey) && (isPainting(slug) || isPainting(name))) return true;
+
+        const isPest = (s: string) =>
+          s === 'pest' || s === 'pest-control' || s.includes('pest');
+        if (isPest(catKey) && (isPest(slug) || isPest(name))) return true;
+
+        const isSalon = (s: string) =>
+          s === 'salon' || s === 'spa' || s === 'salon-spa' || s.includes('salon') || s.includes('spa');
+        if (isSalon(catKey) && (isSalon(slug) || isSalon(name))) return true;
+
+        const isCarpentry = (s: string) =>
+          s === 'carpentry' || s === 'furniture-assembly' || s === 'carpentry-furniture-assembly' || s.includes('carpent');
+        if (isCarpentry(catKey) && (isCarpentry(slug) || isCarpentry(name))) return true;
+
         return false;
       });
     }
@@ -89,11 +117,10 @@ export const catalogService = {
     const seenServiceIds = new Set<string>();
     const items: PublicServiceDto[] = [];
     for (const r of rows) {
-      if (/test/i.test(r.slug) || /test/i.test(r.name)) continue;
       const id = String(r._id);
       if (seenServiceIds.has(id)) continue;
       seenServiceIds.add(id);
-      const cat = byId.get(String(r.categoryId));
+      const cat = byId.get(String(r.categoryId)) ?? (scope.length > 0 ? toCategoryLite(scope[0]) : undefined);
       if (cat) {
         items.push(toService(r, cat));
       }

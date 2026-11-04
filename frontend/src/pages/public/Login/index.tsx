@@ -217,7 +217,7 @@ export const LoginPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full max-w-[440px] sm:max-w-[460px] lg:max-w-[480px] bg-white/85 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-5 sm:p-7 md:p-8 relative transition-all">
+    <div className="w-full max-w-[440px] sm:max-w-[460px] lg:max-w-[480px] bg-white/95 sm:bg-white/85 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-xl sm:shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-4 sm:p-7 md:p-8 relative transition-all">
       {/* Top Navigation */}
       <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-gray-200/70 shrink-0">
         <Link

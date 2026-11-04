@@ -1,8 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
 import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
 import clsx from 'clsx';
+import {
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
@@ -47,6 +56,72 @@ const toInput = (s: AdminService): ServiceInput => ({
   images: s.images, inclusions: s.inclusions, exclusions: s.exclusions, faqs: s.faqs, addOns: s.addOns, checklist: s.checklist, active: s.active,
 });
 
+interface ServiceRowProps {
+  s: AdminService; index: number; count: number; busy: boolean; reorderEnabled: boolean;
+  canManage: boolean; online: boolean; selected: boolean;
+  onSelect: (checked: boolean) => void; onMove: (dir: -1 | 1) => void; onToggle: () => void;
+  onPreview: () => void; onEdit: () => void; onDelete: () => void;
+}
+
+/** One service in the list: select box, drag handle, cover, details, status switch and actions. */
+const ServiceRow: React.FC<ServiceRowProps> = ({
+  s, index, count, busy, reorderEnabled, canManage, online, selected, onSelect, onMove, onToggle, onPreview, onEdit, onDelete,
+}) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: s.id, disabled: !reorderEnabled });
+  const cover = s.images.find((i) => i.isPrimary) ?? s.images[0];
+  const editable = canManage && online;
+  return (
+    <li
+      ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={clsx('svc-row-item', !s.active && 'is-inactive', isDragging && 'is-dragging', busy && 'is-busy')}
+    >
+      {canManage && (
+        <input type="checkbox" className="svc-select" checked={selected} onChange={(e) => onSelect(e.target.checked)} aria-label={`Select ${s.name}`} />
+      )}
+      <button
+        type="button" className="cat-grip" disabled={!reorderEnabled} aria-label={`Drag ${s.name}`}
+        title={reorderEnabled ? 'Drag to reorder' : 'Clear the search / filter to drag'} {...attributes} {...listeners}
+      ><GripVertical size={16} /></button>
+      <span className="cat-media">
+        <span className="cat-cover">
+          {cover ? <img src={cover.url} alt="" loading="lazy" /> : <span className="cat-cover__empty"><ImageIcon size={18} /></span>}
+        </span>
+      </span>
+      <div
+        className="cat-main" role="button" tabIndex={0} onClick={onPreview} aria-label={`Preview ${s.name}`}
+        onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPreview(); } }}
+      >
+        <div className="cat-name"><span>{s.name}</span></div>
+        <div className="cat-sub"><code>/{s.slug}</code>{s.categoryName && <span className="cat-desc">{s.categoryName}</span>}</div>
+        <div className="svc-facts">
+          <b>{rupees(s.basePrice)}</b>
+          <span><Clock size={11} aria-hidden /> {duration(s.durationMinutes)}</span>
+          <span>{s.images.length} photo{s.images.length === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+      <div className="cat-actions">
+        <button
+          type="button" role="switch" aria-checked={s.active} className={clsx('cat-toggle', s.active && 'is-on')}
+          onClick={onToggle} disabled={busy || !editable} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
+        >
+          <span className="cat-toggle__track"><i /></span>
+          <span className="cat-toggle__text">{s.active ? 'Active' : 'Inactive'}</span>
+        </button>
+        <span className="cat-actions__move">
+          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0 || busy} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={15} /></button>
+          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1 || busy} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={15} /></button>
+        </span>
+        {canManage && (
+          <>
+            <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
+            <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+};
+
 export const AdminServicesPage: React.FC = () => {
   const online = useOnlineStatus();
   const { can } = usePermissions();
@@ -59,11 +134,21 @@ export const AdminServicesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  const queryClient = React.useContext(QueryClientContext);
+  const invalidateCatalog = useCallback(() => {
+    try {
+      void queryClient?.invalidateQueries({ queryKey: ['catalog'] });
+    } catch {
+      // safe in non-provider test environments
+    }
+  }, [queryClient]);
   const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();
@@ -139,6 +224,7 @@ export const AdminServicesPage: React.FC = () => {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
     setOrder(ids);
     adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+    invalidateCatalog();
     flash(`“${name}” moved to position ${to + 1}`);
   }
   const move = (id: string, dir: -1 | 1) => {
@@ -191,7 +277,8 @@ export const AdminServicesPage: React.FC = () => {
       setFormOpen(false);
       await load();
       if (ignored.length) flash(`“${service.name}” saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
-      else flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
+      else invalidateCatalog();
+      flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
     } catch (e) {
       const err = e as ServiceApiError;
       setFormError(err.message);
@@ -205,6 +292,7 @@ export const AdminServicesPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(s.id));
     try {
       await adminServiceApi.setActive([s.id], next);
+      invalidateCatalog();
       flash(`“${s.name}” ${next ? 'activated' : 'deactivated'}`);
     } catch (e) {
       setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
@@ -227,7 +315,8 @@ export const AdminServicesPage: React.FC = () => {
       if (result.failed.length) {
         flash(`${result.changed.length} ${verb}, ${result.failed.length} failed: ${result.failed.map((f) => `${f.name} (${f.message})`).join('; ')}`, 'error');
       } else {
-        flash(result.changed.length ? `${result.changed.length} service${result.changed.length === 1 ? '' : 's'} ${verb}` : `Already ${next ? 'active' : 'inactive'}`);
+        invalidateCatalog();
+      flash(result.changed.length ? `${result.changed.length} service${result.changed.length === 1 ? '' : 's'} ${verb}` : `Already ${next ? 'active' : 'inactive'}`);
       }
       setSelectedIds(new Set(result.failed.map((f) => f.id)));
     } catch (e) {
@@ -243,6 +332,7 @@ export const AdminServicesPage: React.FC = () => {
       const { service } = await adminServiceApi.update(svc.id, { ...toInput(svc), images }, options);
       setItems((prev) => prev.map((x) => (x.id === service.id ? service : x)));
       setPreviewing(service);
+      invalidateCatalog();
       flash(`Photos for “${service.name}” saved`);
     } catch (e) {
       flash((e as ServiceApiError).message, 'error');
@@ -254,6 +344,7 @@ export const AdminServicesPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminServiceApi.remove(toDelete.id);
+      invalidateCatalog();
       flash(`“${toDelete.name}” deleted`);
       setToDelete(null);
       await load();
