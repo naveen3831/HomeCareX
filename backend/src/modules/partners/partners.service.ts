@@ -1,4 +1,3 @@
-
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { Types } from 'mongoose';
@@ -9,7 +8,6 @@ import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
 import ReviewModel from '../../models/Review';
-import ServiceAreaModel from '../../models/ServiceArea';
 import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
@@ -28,6 +26,7 @@ import type {
   CreatePartnerInput,
   UpdatePartnerInput,
 } from './partners.validation';
+import { trainingStageOf } from '../partner-onboarding/partner-onboarding.service';
 
 interface AuditActor {
   id: string;
@@ -238,18 +237,6 @@ export async function ensurePartnerProfile(
 /**
  * Partner service.
  */
-/**
- * City shown on the admin Partners & KYC pages. Prefer what the partner gave at registration, then
- * their service area, then the city of their latest booking (older partners have nothing stored).
- */
-function resolveCity(...candidates: Array<string | null | undefined>): string {
-  for (const c of candidates) {
-    const v = typeof c === 'string' ? c.trim() : '';
-    if (v) return v;
-  }
-  return '';
-}
-
 export class PartnersService {
   /**
    * CREATE PARTNER
@@ -338,13 +325,15 @@ export class PartnersService {
       .limit(500);
 
     const kycByUser = new Map<string, string>();
+    const trainingByUser = new Map<string, string>();
 
     for (const partner of partners) {
       const profile = await ensurePartnerProfile(partner._id);
       kycByUser.set(String(partner._id), String(profile.kyc?.status ?? 'not_started'));
+      trainingByUser.set(String(partner._id), trainingStageOf(profile));
     }
 
-    return partners.map((p) => toDto(p, kycByUser.get(String(p._id))));
+    return partners.map((p) => toDto(p, kycByUser.get(String(p._id)), trainingByUser.get(String(p._id))));
   }
 
   /**
@@ -1058,6 +1047,7 @@ export class PartnersService {
 function toDto(
   user: InstanceType<typeof UserModel>,
   kycStatus?: string,
+  training?: string,
 ) {
   return {
     id: String(user._id),
@@ -1068,6 +1058,8 @@ function toDto(
     designation: user.designation,
     status: user.status,
     kycStatus: kycStatus ?? 'not_started',
+    ...(kycStatus !== undefined ? { kycStatus } : {}),
+    ...(training !== undefined ? { training } : {}),
     createdAt: user.createdAt,
   };
 }
