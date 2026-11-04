@@ -1,7 +1,6 @@
 import { Types } from 'mongoose';
 import { Errors } from '../../utils/errors';
 import { addressesService } from '../addresses/addresses.service';
-import { primaryImageUrl } from '../categories/categories.media';
 import { LIVE_PROGRESS_STEP } from './customer-dashboard.constants';
 import { customerDashboardRepository as repo } from './customer-dashboard.repository';
 import type {
@@ -42,15 +41,44 @@ export function toBookingDto(row: BookingRow): DashboardBookingDto {
   };
 }
 
-export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => ({
-  id: row._id.toString(),
-  name: row.name,
-  slug: row.slug,
-  icon: row.icon ?? null,
-  imageUrl: primaryImageUrl(row.images),
-  iconUrl: row.iconUrl ?? '',
-  serviceCount: row.serviceCount,
-});
+const CATEGORY_REAL_IMAGES: Record<string, string> = {
+  'home-cleaning': '/images/home-cleaning.jpg',
+  'appliance-repair': '/images/appliance-repair.jpg',
+  'appliance-repair-service': '/images/appliance-repair.jpg',
+  'salon-spa': '/images/Home-spa-women-banner.jpg',
+  'electrical-plumbing': '/images/electrical.jpg',
+  painting: '/images/painting-category.png',
+  'painting-waterproofing': '/images/painting-category.png',
+  'pest-control': '/images/pest-control-clean.png',
+  carpentry: '/images/furniture-assembly.jpg',
+  'carpentry-furniture-assembly': '/images/furniture-assembly.jpg',
+  'full-home-sanitization': '/images/pest-control-clean.png',
+  'home-sanitization': '/images/pest-control-clean.png',
+};
+
+export const toCategoryDto = (row: CategoryRow): DashboardCategoryDto => {
+  const isEmojiOrIcon = (url?: string | null) =>
+    !url || url.includes('/icons/3d/') || url.includes('/icons/');
+  const usableImage = (url?: string | null) =>
+    !!url && !url.startsWith('data:') && !isEmojiOrIcon(url);
+  const imageFromList = row.images?.find((image) => usableImage(image.url))
+    ?? row.images?.find((image) => image.isPrimary && !isEmojiOrIcon(image.url))
+    ?? row.images?.[0];
+  const resolvedUrl = (usableImage(row.imageUrl) ? row.imageUrl : undefined)
+    ?? (usableImage(imageFromList?.url) ? imageFromList?.url : undefined)
+    ?? CATEGORY_REAL_IMAGES[row.slug]
+    ?? '';
+
+  return {
+    id: row._id.toString(),
+    name: row.name,
+    slug: row.slug,
+    icon: row.icon ?? null,
+    iconUrl: row.iconUrl ?? '',
+    imageUrl: resolvedUrl,
+    serviceCount: row.serviceCount,
+  };
+};
 
 export const toServiceDto = (row: ServiceRow): DashboardServiceDto => ({
   id: row._id.toString(),
@@ -93,8 +121,12 @@ export const customerDashboardService = {
       defaultAddress: address,
       activeBookings: bookings.active.map(toBookingDto),
       upcomingBookings: bookings.upcoming.map(toBookingDto),
-      categories: categories.map(toCategoryDto),
-      recommendedServices: services.map(toServiceDto),
+      categories: categories
+        .filter((c) => !/test/i.test(c.slug) && !/test/i.test(c.name))
+        .map(toCategoryDto),
+      recommendedServices: services
+        .filter((s) => !/test/i.test(s.slug) && !/test/i.test(s.name))
+        .map(toServiceDto),
       unreadNotifications: unread,
     };
   },

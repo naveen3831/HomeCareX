@@ -5,18 +5,18 @@ import { FOCUS_RING } from "./focusRing";
 import { Bell3D } from "./TopBarIcons";
 
 interface NotificationBellProps {
-  /** Unread count (mock for now, see hooks/useUnreadNotifications). */
+  /** Unread count (live data, see hooks/useUnreadNotifications). */
   count?: number;
 }
 
-/** Bell entry point —a a real link to /customer/notifications with an unread badge. */
+/** Bell entry point: a real link to /customer/notifications with an unread badge. */
 export default function NotificationBell({ count = 0 }: NotificationBellProps) {
   return (
     <Link
       to={customerPath("/notifications")}
       aria-label={count > 0 ? `Notifications, ${count} unread` : "Notifications"}
       className={clsx(
-        "group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full  bg-white text-ink transition-colors hover:border-brand/30 hover:bg-brand-soft/40",
+        "group relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-ink transition-colors hover:bg-brand-soft/40",
         FOCUS_RING,
       )}
     >

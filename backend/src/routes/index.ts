@@ -90,6 +90,7 @@ import {
 } from "../modules/partner-jobs/partner-jobs.routes";
 import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
+import { partnerDocumentsRoutes } from "../modules/partner-documents/partner-documents.routes";
 import {
   partnerWalletRoutes,
   partnerWalletSummaryRoutes,
@@ -150,6 +151,7 @@ rootRouter.use("/coupons", couponCustomerRoutes);
 
 // ---- Partner ----
 rootRouter.use("/partner/kyc", partnerKycRoutes);
+rootRouter.use("/partner/documents", partnerDocumentsRoutes);
 rootRouter.use("/partner/dashboard", partnerDashboardRoutes);
 rootRouter.use("/partner/availability", availabilityRoutes);
 rootRouter.use("/partner/blackout-dates", blackoutRoutes);

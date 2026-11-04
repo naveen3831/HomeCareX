@@ -233,11 +233,6 @@ export default function Bookings() {
     return count;
   }, [filters]);
 
-  // Client-side paging for the loaded list; back to page 1 whenever a filter changes.
-  const pager = usePagination(bookings, {
-    resetKey: JSON.stringify(filters),
-  });
-
   const loadBookings = async (
     activeFilters: BookingFilters = filters,
   ) => {
@@ -871,7 +866,7 @@ export default function Bookings() {
           ) : (
           <>
           <BookingTable
-            bookings={pager.pageItems}
+            bookings={bookings}
             onBookingSelect={handleBookingSelect}
           />
           {bookings.length > 0 && (

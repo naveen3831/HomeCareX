@@ -222,6 +222,8 @@ export const AssignPartnerDialog: React.FC<
 
   const [assigning, setAssigning] = useState(false);
   const [error, setError] = useState("");
+  const [showAllPartners, setShowAllPartners] =
+    useState(false);
 
   const partnerViews = useMemo(
     () => partners.map(asPartnerView).sort(comparePartners),
@@ -233,13 +235,15 @@ export const AssignPartnerDialog: React.FC<
       setSelectedPartnerId("");
       setAssignmentReason("");
       setError("");
-      setAssigning(false);
+      setAssigning(false);
+      setShowAllPartners(false);
       return;
     }
 
     setSelectedPartnerId(booking?.partner?.id ?? "");
     setAssignmentReason("");
-    setError("");
+    setError("");
+    setShowAllPartners(false);
   }, [open, booking?.id]);
 
   const eligiblePartners = useMemo(
@@ -247,8 +251,17 @@ export const AssignPartnerDialog: React.FC<
     [partnerViews],
   );
 
-  // Only online partners near the customer's location are listed.
-  const displayedPartners = eligiblePartners;
+  const ineligiblePartners = useMemo(
+    () =>
+      partnerViews.filter(
+        (partner) => !isEligiblePartner(partner),
+      ),
+    [partnerViews],
+  );
+
+  const displayedPartners = showAllPartners
+    ? partnerViews
+    : eligiblePartners;
 
   const selectedPartner = useMemo(
     () =>
@@ -383,6 +396,18 @@ export const AssignPartnerDialog: React.FC<
             ? ` · ${unknownOnlineCount} status unknown`
             : ""}
         </span>
+
+        {ineligiblePartners.length > 0 && (
+          <button
+            type="button"
+            className="bk-link-button"
+            onClick={() => setShowAllPartners((value) => !value)}
+          >
+            {showAllPartners
+              ? "Show eligible only"
+              : `Show all (${partnerViews.length})`}
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -391,7 +416,7 @@ export const AssignPartnerDialog: React.FC<
         <div className="bk-empty">
           {partnerViews.length === 0
             ? "No partner records were returned by the server."
-            : "No online partners are available near the customer's location for this booking."}
+            : "No eligible partners are currently available for this booking."}
         </div>
       ) : (
         <div className="bk-partner-list">

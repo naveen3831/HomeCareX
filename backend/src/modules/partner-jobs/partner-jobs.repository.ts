@@ -1,4 +1,3 @@
-
 import { Types } from "mongoose";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
@@ -62,6 +61,12 @@ export interface JobBookingDoc {
   paymentStatus: string;
   paymentDetails?: {
     paidAt?: Date;
+    method?: string;
+  };
+  customerRating?: {
+    rating?: number;
+    comment?: string;
+    ratedAt?: Date;
   };
   instructions?: string;
   checklist?: Array<{
@@ -73,12 +78,15 @@ export interface JobBookingDoc {
     start?: string;
     end?: string;
   };
+  startOtpAttempts?: number;
   extraCharges?: JobExtraCharge[];
   offers?: Array<{
     partnerId: Types.ObjectId;
     offeredAt: Date;
     expiresAt: Date;
     response: "pending" | "accepted" | "rejected" | "expired";
+    rejectReason?: string;
+    respondedAt?: Date;
   }>;
 }
 
@@ -132,6 +140,13 @@ export const partnerJobsRepository = {
     return ServiceModel.findById(serviceId)
       .select("durationMinutes inclusions addOns")
       .lean<JobServiceDoc>();
+  },
+
+  /** First gallery photo per service, for the My Jobs cards. */
+  findServiceMedia(serviceIds: Types.ObjectId[]) {
+    return ServiceModel.find({ _id: { $in: serviceIds } })
+      .select("media")
+      .lean<Array<{ _id: Types.ObjectId; media?: Array<{ url: string }> }>>();
   },
 
   findJobRequests(
@@ -192,6 +207,7 @@ export const partnerJobsRepository = {
           status: "assigned",
           partnerId,
           "offers.$[offer].response": "accepted",
+          "offers.$[offer].respondedAt": now,
         },
         $push: {
           statusHistory: entry,
@@ -215,6 +231,8 @@ export const partnerJobsRepository = {
   async rejectOffer(
     bookingId: string,
     partnerId: Types.ObjectId,
+    reason?: string,
+    now: Date = new Date(),
   ): Promise<"REJECTED" | "NOT_FOUND"> {
     const existing = await BookingModel.findById(bookingId)
       .select("status offers")
@@ -237,6 +255,8 @@ export const partnerJobsRepository = {
       {
         $set: {
           "offers.$[offer].response": "rejected",
+          "offers.$[offer].respondedAt": now,
+          ...(reason ? { "offers.$[offer].rejectReason": reason } : {}),
         },
       },
       {
@@ -276,6 +296,30 @@ export const partnerJobsRepository = {
     );
 
     return result.modifiedCount === 1;
+  },
+
+  /** The stored start code. It is `select: false` on the model, so it must be asked for explicitly. */
+  async getStartOtp(bookingId: string): Promise<string | null> {
+    const doc = (await BookingModel.findById(bookingId)
+      .select("+otpCodes.start")
+      .lean()
+      .exec()) as { otpCodes?: { start?: string } } | null;
+
+    return doc?.otpCodes?.start ?? null;
+  },
+
+  /** Counts one wrong try (atomic) and returns the new total. */
+  async recordFailedStartAttempt(bookingId: string): Promise<number> {
+    const doc = (await BookingModel.findByIdAndUpdate(
+      bookingId,
+      { $inc: { startOtpAttempts: 1 } },
+      { new: true },
+    )
+      .select("startOtpAttempts")
+      .lean()
+      .exec()) as { startOtpAttempts?: number } | null;
+
+    return doc?.startOtpAttempts ?? 0;
   },
 
   async verifyStartJob(
@@ -323,6 +367,62 @@ export const partnerJobsRepository = {
         },
         $push: {
           statusHistory: entry,
+        },
+      },
+    );
+
+    return result.modifiedCount === 1;
+  },
+
+  /** Marks a completed job as paid. Does nothing (returns false) if it is already paid. */
+  async markPaid(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    method: "cash" | "upi",
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        partnerId,
+        status: { $in: ["completed", "rated"] },
+        paymentStatus: { $ne: "PAID" },
+      },
+      {
+        $set: {
+          paymentStatus: "PAID",
+          "paymentDetails.status": "PAID",
+          "paymentDetails.paidAt": now,
+          "paymentDetails.method": method,
+          "paymentDetails.collectedBy": "partner",
+        },
+      },
+    );
+
+    return result.modifiedCount === 1;
+  },
+
+  /** Saves the partner's rating of the customer. Only the first rating is kept. */
+  async saveCustomerRating(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    rating: number,
+    comment: string | undefined,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        partnerId,
+        status: { $in: ["completed", "rated"] },
+        paymentStatus: "PAID",
+        "customerRating.rating": { $exists: false },
+      },
+      {
+        $set: {
+          "customerRating.rating": rating,
+          "customerRating.ratedAt": now,
+          ...(comment ? { "customerRating.comment": comment } : {}),
         },
       },
     );

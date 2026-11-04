@@ -18,6 +18,8 @@ interface Props {
   children: ReactNode;
   /** Skip the lg+ card around the content (used by the Terms / Privacy pages). */
   bare?: boolean;
+  /** Hide the round icon beside the subtitle on md+ (Edit profile). */
+  hideIcon?: boolean;
 }
 
 /**
@@ -27,14 +29,16 @@ interface Props {
  *  - md+: the normal customer shell (sidebar + top bar); the top bar carries the back arrow and page title.
  *  - phone: no bottom nav; the customer top bar (CustomerLayout) provides the back arrow + page title.
  */
-export default function SettingsPageShell({ title, subtitle, icon: Icon, tone, children, bare }: Props) {
+export default function SettingsPageShell({ title, subtitle, icon: Icon, tone, children, bare, hideIcon }: Props) {
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full min-w-0">
       {/* md+: icon + subtitle; the page name and back arrow live in the top bar. */}
-      <header className="mb-8 hidden items-center gap-4 md:flex">
-        <span aria-hidden="true" className={clsx("flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white", DISC, TONES[tone])}>
-          <Icon className="h-6 w-6" />
-        </span>
+      <header className={clsx("hidden items-center gap-4 md:flex", hideIcon ? "mb-5" : "mb-8")}>
+        {!hideIcon && (
+          <span aria-hidden="true" className={clsx("flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-white", DISC, TONES[tone])}>
+            <Icon className="h-6 w-6" />
+          </span>
+        )}
         <p className="text-sm text-muted">{subtitle}</p>
       </header>
       <h1 className="sr-only">{title}</h1>

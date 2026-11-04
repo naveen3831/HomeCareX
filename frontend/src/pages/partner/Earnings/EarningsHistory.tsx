@@ -1,18 +1,22 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ChevronDown, History } from "lucide-react";
 import ErrorState from "@/components/common/ErrorState";
 import Skeleton from "@/components/common/Skeleton";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { earningsApi } from "@/services/earningsApi";
 import type { ApiError } from "@/lib/http";
 import type { EarningsFilters, EarningsLedger } from "@/types/earnings";
 import EarningsChart from "./EarningsChart";
+import EarningsFeed from "./EarningsFeed";
 import EarningsFilterBar from "./EarningsFilters";
 import EarningsTable from "./EarningsTable";
 import { inr, presetRange, rangeError } from "./earningsFormat";
 
 const PAGE_SIZES = [5, 10, 20] as const;
+const FEED_PAGE_SIZE = 20; // rows fetched per scroll step on phones
+const MOBILE_QUERY = "(max-width: 719px)"; // same breakpoint as the phone styles in Earnings.css
 
 /** Slim header with a show/hide button, so the chart and table can be folded away to save space. */
 function SectionToggle({
@@ -53,13 +57,37 @@ export default function EarningsHistory() {
 
   const invalid = rangeError(filters.from, filters.to);
 
-  const { data, isPending, isError, error, isFetching, refetch } = useQuery<EarningsLedger, ApiError>({
+  const isMobile = useMediaQuery(MOBILE_QUERY);
+
+  // Desktop / tablet: classic paged table.
+  const desktop = useQuery<EarningsLedger, ApiError>({
     queryKey: ["partner", "earnings", "ledger", filters, page, pageSize],
     queryFn: () => earningsApi.getLedger({ ...filters, page, limit: pageSize }),
-    enabled: !invalid,
+    enabled: !invalid && !isMobile,
     placeholderData: keepPreviousData, // keep the old rows on screen while the next filter loads
     retry: 1,
   });
+
+  // Phones: endless scroll. Each step fetches the next page; totals and chart come with the first page.
+  const feed = useInfiniteQuery<EarningsLedger, ApiError>({
+    queryKey: ["partner", "earnings", "ledger", "feed", filters],
+    queryFn: ({ pageParam }) => earningsApi.getLedger({ ...filters, page: pageParam as number, limit: FEED_PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.pagination.page < last.pagination.pages ? last.pagination.page + 1 : undefined),
+    enabled: !invalid && isMobile,
+    placeholderData: keepPreviousData,
+    retry: 1,
+  });
+
+  const feedPages = feed.data?.pages;
+  const data: EarningsLedger | undefined = isMobile
+    ? feedPages && { ...feedPages[0], items: feedPages.flatMap((p) => p.items) }
+    : desktop.data;
+  const isPending = isMobile ? feed.isPending : desktop.isPending;
+  const isError = isMobile ? feed.isError : desktop.isError;
+  const error = isMobile ? feed.error : desktop.error;
+  const isFetching = isMobile ? feed.isFetching : desktop.isFetching;
+  const refetch = isMobile ? feed.refetch : desktop.refetch;
 
   const changeFilters = (next: EarningsFilters) => {
     setFilters(next);
@@ -112,7 +140,7 @@ export default function EarningsHistory() {
           </div>
           <div className="earn-split-table">
           <SectionToggle label="Earnings list" open={tableOpen} onToggle={() => setTableOpen((v) => !v)} controls="earn-table-body">
-            {tableOpen && (
+            {tableOpen && !isMobile && (
               <label className="earn-rows">
                 Rows
                 <select
@@ -131,7 +159,19 @@ export default function EarningsHistory() {
           </SectionToggle>
           {tableOpen && (
             <div id="earn-table-body">
-              <EarningsTable rows={data.items} pagination={data.pagination} onPage={setPage} busy={isFetching} />
+              {isMobile ? (
+                <EarningsFeed
+                  rows={data.items}
+                  total={data.pagination.total}
+                  hasMore={!!feed.hasNextPage}
+                  loadingMore={feed.isFetchingNextPage}
+                  loadError={feed.isFetchNextPageError}
+                  onMore={() => void feed.fetchNextPage()}
+                  busy={isFetching}
+                />
+              ) : (
+                <EarningsTable rows={data.items} pagination={data.pagination} onPage={setPage} busy={isFetching} />
+              )}
             </div>
           )}
           </div>

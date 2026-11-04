@@ -15,7 +15,8 @@ export function formatSlotLabel(slot: string): string {
     if (isNaN(h)) return timeStr;
     const period = h >= 12 ? "PM" : "AM";
     const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${hour12}:${m} ${period}`;
+    const hourStr = String(hour12).padStart(2, "0");
+    return `${hourStr}:${m} ${period}`;
   };
 
   return `${formatTime(parts[0])} – ${formatTime(parts[1])}`;

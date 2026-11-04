@@ -4,8 +4,11 @@ export const ROUTES = {
   ABOUT: "/about",
   FAQ: "/faq",
   CONTACT: "/contact",
+  REVIEWS: "/reviews",
   TERMS: "/terms",
   PRIVACY: "/privacy",
+  COOKIES: "/cookies",
+  CAREERS: "/careers",
 
   LOGIN: "/login",
   REGISTER: "/register",

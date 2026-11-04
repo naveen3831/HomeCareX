@@ -6,9 +6,9 @@ import type { ActiveJobDto, PartnerDashboardDto } from './partner-dashboard.type
 import { partnerDashboardRepository as repo } from './partner-dashboard.repository';
 import { ensurePartnerProfile } from './partners.service';
 import ServiceModel from '../../models/Service';
-
-const percent = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 1000) / 10 : 0);
-const money = (n: number): number => Math.round(n * 100) / 100;
+import { businessTzOffsetMinutes, toLocalDateString } from '../../utils/dates';
+import { earningsService } from '../earnings/earnings.service';
+import { partnerPerformanceService } from '../partner-performance/partner-performance.service';
 
 export const partnerDashboardService = {
   /**
@@ -31,11 +31,21 @@ export const partnerDashboardService = {
     if (requestedPartnerId && requestedPartnerId !== partnerId.toString()) throw Errors.notOwner();
 
     const { start, end } = dayBounds(now);
-    const [newJobs, todayJobs, completed, activeDoc] = await Promise.all([
+    const offset = businessTzOffsetMinutes();
+    const to = toLocalDateString(now, offset);
+    const from = toLocalDateString(new Date(now.getTime() - 6 * 86_400_000), offset);
+
+    const [newJobs, todayJobs, completed, completedTotal, activeDoc, earnings, ledger, performance] = await Promise.all([
       repo.countOpenOffers(partnerId, now),
       repo.countScheduled(partnerId, start, end),
       repo.completedToday(partnerId, start, end),
+      repo.completedTotal(partnerId),
       repo.findActiveJob(partnerId),
+      // Money comes from the earnings ledger, the same source as the Earnings page.
+      earningsService.getSummary(userId, undefined, now),
+      earningsService.getLedger(userId, { from, to, page: 1, limit: 1 }),
+      // Rates and rating are calculated from real bookings and offers, same as the Performance page.
+      partnerPerformanceService.getSummary(userId),
     ]);
 
     const activeJob: ActiveJobDto | null = activeDoc
@@ -64,11 +74,27 @@ export const partnerDashboardService = {
       newJobs,
       todayJobs,
       completedJobs: completed.count,
-      todayEarnings: money(completed.earnings),
-      rating: partner.ratingAvg ?? 0,
-      acceptanceRate: percent(partner.stats?.offersAccepted ?? 0, partner.stats?.offersReceived ?? 0),
-      completionRate: percent(partner.stats?.jobsCompleted ?? 0, partner.stats?.jobsAssigned ?? 0),
+      todayEarnings: earnings.today,
+      rating: performance.rating ?? 0,
+      acceptanceRate: performance.acceptanceRate ?? 0,
+      completionRate: performance.completionRate ?? 0,
       activeJob,
+      earnings: {
+        today: earnings.today,
+        week: earnings.week,
+        month: earnings.month,
+        total: earnings.total,
+        pending: earnings.pending,
+      },
+      completedTotal,
+      performance: {
+        rating: performance.rating,
+        ratingCount: performance.ratingCount,
+        acceptanceRate: performance.acceptanceRate,
+        completionRate: performance.completionRate,
+        onTimeRate: performance.onTimeRate,
+      },
+      last7Days: ledger.series.map((d) => ({ date: d.date, amount: d.net })),
       assignedServices,
     };
   },

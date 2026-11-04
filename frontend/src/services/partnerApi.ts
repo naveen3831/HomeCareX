@@ -23,9 +23,38 @@ import { PARTNER_DETAILS } from "@/mocks/partnerDetails";
 /** "true" serves the demo partners from mocks/partnerDetails.ts when no live record exists. */
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
 
-/** Demo partner with this id. Only used when VITE_USE_MOCKS=true. */
+const PARTNER_CACHE_KEY = "homecarex_admin_partner_cache_v1";
+
+function readPartnerCache(): Record<string, PartnerDetails> {
+  try {
+    const raw = window.localStorage.getItem(PARTNER_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, PartnerDetails>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Demo partner with this id, if there is one. */
 function getMockPartner(id: string): PartnerDetails | undefined {
   return PARTNER_DETAILS.find((partner) => partner.id === id) as PartnerDetails | undefined;
+}
+
+/** Partner we already know about: the cached live record first, then (in mock mode) the demo one. */
+function getCurrentPartner(id: string): PartnerDetails | undefined {
+  return readPartnerCache()[id] ?? (USE_MOCKS ? getMockPartner(id) : undefined);
+}
+
+/** Remembers a partner so the details page can reuse its full structure next time. */
+function savePartner(partner: PartnerDetails): void {
+  try {
+    window.localStorage.setItem(
+      PARTNER_CACHE_KEY,
+      JSON.stringify({ ...readPartnerCache(), [partner.id]: partner }),
+    );
+  } catch {
+    /* storage full or blocked: the record just is not cached */
+  }
 }
 
 /* =========================================================
@@ -71,90 +100,38 @@ const httpMessage = (error: unknown, fallback: string): string =>
   (error as { message?: string })?.message ||
   fallback;
 
+const STORAGE_PREFIX = "homecarex:partner:";
+const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
+
+const savePartner = (partner: PartnerDetails): void => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(partner.id), JSON.stringify(partner));
+};
+
+const getStoredPartner = (id: string): PartnerDetails | null => {
+  if (typeof window === "undefined") return null;
+  const stored = window.localStorage.getItem(getStorageKey(id));
+  if (!stored) return null;
+  try {
+    return JSON.parse(stored) as PartnerDetails;
+  } catch {
+    window.localStorage.removeItem(getStorageKey(id));
+    return null;
+  }
+};
+
+const getMockPartner = (id: string): PartnerDetails | null => {
+  const partner = PARTNER_DETAILS.find((item) => item.id === id);
+  return partner ? structuredClone(partner) : null;
+};
+
+const getCurrentPartner = (id: string): PartnerDetails | null =>
+  getStoredPartner(id) ?? getMockPartner(id);
+
 /* =========================================================
    Admin partner APIs (real backend, no mock data)
    ========================================================= */
 
-
-const asNumber = (value: unknown, fallback = 0): number =>
-  typeof value === "number" && Number.isFinite(value) ? value : fallback;
-const asString = (value: unknown, fallback = ""): string =>
-  typeof value === "string" ? value : fallback;
-const asList = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-const asObject = (value: unknown): Record<string, unknown> =>
-  value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-
-const ACCOUNT_STATUS: Record<string, AccountStatus> = {
-  active: "Active",
-  inactive: "Inactive",
-  invited: "Inactive",
-  blocked: "Suspended",
-  suspended: "Suspended",
-};
-
-/** Builds the details-page record from the backend response only. Nothing is borrowed from mock data. */
-function partnerFromApi(raw: Record<string, unknown>, fallbackId: string): PartnerDetails {
-  const kyc = asObject(raw.kyc);
-  const profile = asObject(raw.profile);
-  const performance = asObject(raw.performance);
-
-  const partner: PartnerDetails = {
-    id: String(raw.id ?? raw._id ?? fallbackId),
-    name: asString(raw.name),
-    email: asString(raw.email),
-    phone: asString(raw.phone),
-
-    kycStatus: (asString(raw.kycStatus) || "Pending") as PartnerDetails["kycStatus"],
-    accountStatus: ACCOUNT_STATUS[asString(raw.accountStatus).toLowerCase()] ?? "Active",
-
-    category: asString(raw.category),
-    categories: asList<string>(raw.categories),
-
-    city: asString(raw.city),
-    address: asString(raw.address),
-
-    rating: asNumber(raw.rating),
-    acceptance: asNumber(raw.acceptance),
-    completion: asNumber(raw.completion),
-
-    joined: asString(raw.joined),
-
-    profile: {
-      experience: asNumber(profile.experience),
-      bio: asString(profile.bio),
-    },
-
-    kyc: {
-      submittedAt: asString(kyc.submittedAt),
-      reviewedAt: typeof kyc.reviewedAt === "string" ? kyc.reviewedAt : undefined,
-      documents: asList(kyc.documents),
-      checklist: asList(kyc.checklist),
-    },
-
-    performance: {
-      completedBookings: asNumber(performance.completedBookings),
-      cancelledBookings: asNumber(performance.cancelledBookings),
-      averageResponseTime: asString(performance.averageResponseTime, "N/A"),
-      customerSatisfaction: asNumber(performance.customerSatisfaction),
-    },
-
-    bookings: asList(raw.bookings),
-    earnings: asList(raw.earnings),
-    payouts: asList(raw.payouts),
-    reviews: asList(raw.reviews),
-    support: asList(raw.support),
-    activity: asList(raw.activity),
-  };
-
-  Object.assign(partner, {
-    training:
-      raw.training && typeof raw.training === "object"
-        ? raw.training
-        : { status: "Not Submitted", items: [] },
-  });
-
-  return partner;
-}
 
 export async function getPartnerById(
   id: string,
@@ -163,13 +140,16 @@ export async function getPartnerById(
     return null;
   }
 
-  // Demo mode only: serve the sample partner when one matches this id.
-  if (USE_MOCKS) {
-    const mock = getMockPartner(id);
-    if (mock) return structuredClone(mock);
+  // In mock mode, preserve existing mock behavior when a matching
+  // local or mock partner exists.
+  const localPartner = getCurrentPartner(id);
+
+  if (USE_MOCKS && localPartner) {
+    return structuredClone(localPartner);
   }
 
   try {
+    // Fetch the actual partner from the backend.
     const response = await http.get<ApiResponse<Record<string, unknown>>>(
       `/admin/partners/${encodeURIComponent(id)}`,
     );
@@ -180,7 +160,59 @@ export async function getPartnerById(
       throw new Error("The partner API returned an empty response.");
     }
 
-    return partnerFromApi(raw, id);
+    const apiId = String(raw.id ?? raw._id ?? id);
+
+    // Prefer an existing template to preserve the complete details-page
+    // structure. Use the first template if the live partner has no mock.
+    const template =
+      localPartner ??
+      getMockPartner(apiId) ??
+      getMockPartner(id) ??
+      PARTNER_DETAILS[0];
+
+    if (!template) {
+      throw new Error(
+        "No PartnerDetails template exists. Check mocks/partnerDetails.ts.",
+      );
+    }
+
+    const partner = structuredClone(template);
+
+    // Replace template values with actual backend values.
+    partner.id = apiId;
+
+    if (typeof raw.name === "string") {
+      partner.name = raw.name;
+    }
+
+    if (typeof raw.email === "string") {
+      partner.email = raw.email;
+    }
+
+    if (typeof raw.phone === "string") {
+      partner.phone = raw.phone;
+    }
+
+    if (typeof raw.category === "string") {
+      partner.category = raw.category;
+    }
+
+    if (typeof raw.city === "string") {
+      partner.city = raw.city;
+    }
+
+    if (typeof raw.rating === "number") {
+      partner.rating = raw.rating;
+    }
+
+    if (typeof raw.kycStatus === "string") {
+      partner.kycStatus = raw.kycStatus as PartnerDetails["kycStatus"];
+    }
+
+    // Cache using the actual backend user ID.
+    savePartner(partner);
+
+    return structuredClone(partner);
   } catch (error) {
     console.error("Failed to load partner details:", error);
     throw error;

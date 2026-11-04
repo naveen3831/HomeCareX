@@ -26,6 +26,8 @@ export interface PublicServiceDto {
   name: string;
   description: string;
   icon: string;
+  iconUrl?: string;
+  image?: string;
   category: { id: string; name: string; slug: string };
   basePrice: number;
   durationMinutes: number;

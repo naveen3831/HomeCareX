@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Briefcase, CheckCircle2, Home, Loader2, MapPin, Pencil, Plus, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
+import { ArrowLeft, ArrowRight, Briefcase, Check, CheckCircle2, ChevronRight, Home, Loader2, MapPin, Pencil, Plus, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import BookingSummary from "./components/BookingSummary";
 import MapAddressPicker, { type PickedLocation } from "@/components/customer/maps/MapAddressPicker";
@@ -214,7 +214,7 @@ const backToList = () => {
   setMode("list");
 };
 
-const backBtn = (
+const desktopBackBtn = (
   <button
     type="button"
     onClick={() => setStep(1)}
@@ -225,7 +225,7 @@ const backBtn = (
   </button>
 );
 
-const actions =
+const desktopActions =
   mode === "new" ? (
     <>
       <button
@@ -249,7 +249,7 @@ const actions =
     </>
   ) : (
     <>
-      {backBtn}
+      {desktopBackBtn}
       <button
         type="button"
         onClick={() => setStep(3)}
@@ -262,21 +262,81 @@ const actions =
     </>
   );
 
+const mobileActions =
+  mode === "new" ? (
+    <div className="flex w-full items-center gap-3">
+      <button
+        type="button"
+        onClick={() => {
+          setEditingId(null);
+          setMode("list");
+        }}
+        className={clsx(
+          "inline-flex min-h-[50px] items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50",
+          FOCUS_RING,
+        )}
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        form="address-form"
+        disabled={isCreating}
+        className={clsx(
+          "inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-full bg-[#4F46E5] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#3730A3] disabled:opacity-50",
+          FOCUS_RING,
+        )}
+      >
+        {isCreating ? "Saving…" : editingId ? "Update address" : "Save & select"}
+      </button>
+    </div>
+  ) : (
+    <div className="flex w-full items-center gap-3">
+      <button
+        type="button"
+        onClick={() => setStep(1)}
+        className={clsx(
+          "inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-7 text-sm font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50 active:scale-95",
+          FOCUS_RING,
+        )}
+      >
+        <ArrowLeft className="h-4 w-4 text-slate-700" aria-hidden="true" />
+        Back
+      </button>
+      <button
+        type="button"
+        onClick={() => setStep(3)}
+        disabled={!canContinue}
+        className={clsx(
+          "group inline-flex min-h-[50px] flex-1 items-center justify-center gap-2 rounded-full bg-[#4F46E5] px-6 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#3730A3] disabled:cursor-not-allowed disabled:opacity-50 active:scale-95",
+          FOCUS_RING,
+        )}
+      >
+        Next Step
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" aria-hidden="true" />
+      </button>
+    </div>
+  );
+
 return (
   <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-4 sm:space-y-6 pb-[56px] lg:pb-0">
       {/* Intro */}
       <div className="flex items-start gap-3.5">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand text-white shadow-[0_12px_24px_-12px_rgba(67,56,202,.8)]">
-          <MapPin className="h-5 w-5" aria-hidden="true" />
+        <span className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#EEF2FF] sm:bg-brand text-[#4F46E5] sm:text-white shadow-xs">
+          <MapPin className="h-5 w-5" aria-hidden="true" strokeWidth={2.2} />
         </span>
         <div>
-          <h3 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{addresses.length === 0 ? "Add your service address" : "Where should we come?"}</h3>
-          <p className="mt-0.5 text-sm text-muted">Choose where you'd like the service performed.</p>
+          <h3 className="text-base sm:text-2xl font-bold tracking-tight text-slate-900 sm:text-ink">
+            Choose Service Address
+          </h3>
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-500 sm:text-muted">
+            Choose where you'd like the service performed.
+          </p>
         </div>
       </div>
 
-      <section aria-label="Service address" className="rounded-3xl border border-line bg-panel p-3.5 shadow-[0_24px_60px_-48px_rgba(67,56,202,.55)] sm:p-6">
+      <section aria-label="Service address" className="rounded-3xl border-0 bg-transparent p-0 shadow-none lg:border lg:border-line lg:bg-panel lg:p-6 lg:shadow-[0_24px_60px_-48px_rgba(67,56,202,.55)]">
         {notServiceable && (
           <div role="alert" className="mb-4 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm text-ink">
             Sorry, we don't currently service that area. Please choose a different address.
@@ -315,20 +375,27 @@ return (
               />
             )}
             {!isLoading && !isError && addresses.length > 0 && (
-              <div role="radiogroup" aria-label="Saved addresses" className="grid gap-3">
+              <div role="radiogroup" aria-label="Saved addresses" className="grid gap-3 sm:gap-3.5">
+                {/* Add new address banner matching reference design */}
                 <button
                   type="button"
                   onClick={startNew}
-                  className={clsx("flex items-center gap-3 rounded-2xl border-[1.5px] border-dashed border-brand/50 bg-brand-soft/60 p-3.5 text-left transition-colors hover:bg-brand-soft", FOCUS_RING)}
+                  className={clsx(
+                    "flex w-full items-center gap-3.5 rounded-2xl border border-dashed border-[#C7D2FE] bg-[#F7F8FE] p-3.5 sm:p-4 text-left transition-all hover:bg-[#EEF2FF] hover:border-[#818CF8]",
+                    FOCUS_RING,
+                  )}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-                    <Plus className="h-5 w-5" aria-hidden="true" />
+                  <span className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-[#4F46E5] text-white shadow-xs">
+                    <Plus className="h-5 w-5" strokeWidth={2.5} aria-hidden="true" />
                   </span>
-                  <span>
-                    <span className="block text-sm font-semibold text-brand">Add new address</span>
-                    <span className="block text-xs text-muted">Pin it on the map and we'll fill in the rest</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold text-[#4F46E5]">Add New Address</span>
+                    <span className="block text-xs text-slate-500">Pin it on the map and we'll fill in the details.</span>
                   </span>
+                  <ChevronRight className="h-5 w-5 text-slate-400 shrink-0" aria-hidden="true" />
                 </button>
+
+                {/* Saved address cards */}
                 {sortedAddresses.map((addr) => {
                   const isSelected = selectedAddressId === addr.id;
                   const isDeleting = isDeletingId === addr.id;
@@ -345,68 +412,91 @@ return (
                         if (e.key === "Enter" || e.key === " ") choose(addr);
                       }}
                       className={clsx(
-                        "relative w-full cursor-pointer overflow-hidden rounded-2xl border bg-panel text-left transition-all duration-200 motion-reduce:transition-none",
+                        "relative w-full cursor-pointer overflow-hidden rounded-2xl text-left transition-all duration-200 motion-reduce:transition-none p-3.5 sm:p-4",
                         FOCUS_RING,
                         isSelected
-                          ? "border-brand shadow-[0_14px_26px_-20px_rgba(67,56,202,.8)] ring-2 ring-brand/20"
-                          : addr.serviceable
-                            ? "border-line hover:border-brand/50 motion-safe:hover:-translate-y-px"
-                            : "border-danger/40",
+                          ? "border-2 border-[#4F46E5] bg-white sm:bg-[#F9FAFE] shadow-xs"
+                          : "border border-slate-200/90 bg-white hover:border-[#C7D2FE] shadow-xs",
                         isDeleting && "opacity-50",
                       )}
                     >
-                      <div className="flex items-start gap-3 p-3 sm:gap-3.5 sm:p-4">
-                        <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-11 sm:w-11 sm:rounded-2xl", isSelected ? "bg-brand text-white" : addr.serviceable ? "bg-brand-soft text-brand" : "bg-canvas text-muted")}>
-                          <Icon className="h-5 w-5" aria-hidden="true" />
+                      <div className="flex items-start gap-3 sm:gap-3.5">
+                        <span
+                          className={clsx(
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl",
+                            isSelected ? "bg-[#EEF2FF] text-[#4F46E5]" : "bg-slate-100 text-slate-600",
+                          )}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden="true" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm font-bold text-ink">{addr.label}</span>
-                            {isSelected && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white">
-                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> Selected
-                              </span>
-                            )}
-                            {addr.isDefault && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10px] font-semibold text-brand">Default</span>}
-                            {!addr.serviceable && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-semibold text-danger">Not serviceable</span>}
-                          </span>
-                          <span className="mt-1 block break-words text-sm text-ink">
-                            {addr.line1}
-                            {addr.line2 ? `, ${addr.line2}` : ""}
-                          </span>
-                          <span className="block break-words text-xs text-muted">
-                            {addr.city}, {addr.state} {addr.pincode}
-                            {addr.landmark ? ` · Near ${addr.landmark}` : ""}
-                          </span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-base font-bold text-slate-900">{addr.label}</span>
+                                {isSelected && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#4F46E5] px-2.5 py-0.5 text-[11px] font-bold text-white shadow-xs">
+                                    <Check className="h-3 w-3 stroke-[2.5]" aria-hidden="true" /> Selected
+                                  </span>
+                                )}
+                                {!addr.serviceable && (
+                                  <span className="inline-flex items-center rounded-full bg-[#FEE2E2] px-2.5 py-0.5 text-[11px] font-semibold text-[#EF4444]">
+                                    Not serviceable
+                                  </span>
+                                )}
+                              </div>
+                              {addr.isDefault && (
+                                <span className="mt-1 inline-block rounded-md bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-bold text-[#4F46E5]">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-0.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={(e) => handleEdit(addr, e)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                                aria-label={`Edit ${addr.label} address`}
+                                title="Edit address"
+                              >
+                                <Pencil className="h-4 w-4" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isDeleting}
+                                onClick={(e) => handleDelete(addr.id, e)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
+                                aria-label={`Delete ${addr.label} address`}
+                                title="Delete address"
+                              >
+                                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                            <p className="break-words">{addr.line1}</p>
+                            {addr.line2 && <p className="break-words">{addr.line2}</p>}
+                            <p className="break-words text-slate-500">
+                              {addr.city}, {addr.state} – {addr.pincode}
+                              {addr.landmark ? ` · Near ${addr.landmark}` : ""}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex shrink-0 items-center">
+                      </div>
+
+                      {!addr.serviceable && (
+                        <div className="mt-3.5 flex items-center justify-between rounded-xl bg-[#FEF2F2] border border-[#FEE2E2] px-3 py-2 text-xs text-[#DC2626]">
+                          <span className="inline-flex items-center gap-1.5 font-medium">
+                            <TriangleAlert className="h-4 w-4 text-[#EF4444] shrink-0" aria-hidden="true" />
+                            We don't serve this area yet.
+                          </span>
                           <button
                             type="button"
                             onClick={(e) => handleEdit(addr, e)}
-                            className={clsx("flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-canvas sm:h-10 sm:w-10 hover:text-brand", FOCUS_RING)}
-                            aria-label={`Edit ${addr.label} address`}
-                            title="Edit address"
+                            className="font-semibold text-[#DC2626] underline hover:text-[#B91C1C]"
                           >
-                            <Pencil className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isDeleting}
-                            onClick={(e) => handleDelete(addr.id, e)}
-                            className={clsx("flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-canvas sm:h-10 sm:w-10 hover:text-danger disabled:opacity-50", FOCUS_RING)}
-                            aria-label={`Delete ${addr.label} address`}
-                            title="Delete address"
-                          >
-                            {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
-                          </button>
-                        </div>
-                      </div>
-                      {!addr.serviceable && (
-                        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-danger/20 bg-danger-soft px-3 py-2 text-xs text-ink sm:px-4 sm:py-2.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <TriangleAlert className="h-3.5 w-3.5 text-danger" aria-hidden="true" /> We don&apos;t serve this area yet.
-                          </span>
-                          <button type="button" onClick={(e) => handleEdit(addr, e)} className={clsx("rounded font-semibold text-danger underline", FOCUS_RING)}>
                             Edit pincode
                           </button>
                         </div>
@@ -420,7 +510,8 @@ return (
         )}
 
         {mode === "new" && (
-          <form id="address-form" onSubmit={submitNew} className="space-y-4" noValidate>
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6 shadow-xs">
+            <form id="address-form" onSubmit={submitNew} className="space-y-4" noValidate>
             <div>
               <p className="mb-2 text-xs font-semibold text-ink">Pin your location</p>
               <MapAddressPicker
@@ -524,17 +615,20 @@ return (
               </p>
             </div>
           </form>
-        )}
+        </div>
+      )}
       </section>
 
-      {/* Mobile / tablet: floating action bar */}
-      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4 lg:hidden">
-        <div className="flex items-center gap-2 rounded-3xl border border-line bg-white/90 p-2 shadow-[0_18px_40px_-14px_rgba(30,27,46,.45)] backdrop-blur-xl">{actions}</div>
+        {/* Mobile / tablet: sticky action bar (Back & Next Step) */}
+        <div className="fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] md:bottom-0 z-20 border-t border-slate-100 bg-white/95 px-4 py-3 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.06)] lg:hidden">
+          <div className="mx-auto max-w-md">
+            {mobileActions}
+          </div>
+        </div>
       </div>
-    </div>
 
-    {/* Desktop: sticky summary */}
-    <BookingSummary ariaLabel="Your booking" actions={actions} footnote="Only serviceable areas can be selected" />
-  </div>
+      {/* Desktop: sticky summary */}
+      <BookingSummary ariaLabel="Your booking" actions={desktopActions} footnote="Only serviceable areas can be selected" />
+    </div>
 );
 }

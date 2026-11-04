@@ -11,6 +11,8 @@ process.env.JWT_SECRET = 'test_secret';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const app = require('../../app').default as import('express').Express;
 const { partnerDashboardRepository: repo } = require('./partner-dashboard.repository') as typeof import('./partner-dashboard.repository');
+const { earningsService } = require('../earnings/earnings.service') as typeof import('../earnings/earnings.service');
+const { partnerPerformanceService } = require('../partner-performance/partner-performance.service') as typeof import('../partner-performance/partner-performance.service');
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 const partnerUserId = new Types.ObjectId().toString();
@@ -33,7 +35,12 @@ describe('GET /partner/dashboard', () => {
     repo.countOpenOffers = (async () => 3) as unknown as typeof repo.countOpenOffers;
     repo.countScheduled = (async () => 5) as unknown as typeof repo.countScheduled;
     repo.completedToday = (async () => ({ count: 2, earnings: 1234.567 })) as unknown as typeof repo.completedToday;
+    repo.completedTotal = (async () => 19) as unknown as typeof repo.completedTotal;
     repo.findActiveJob = (async () => null) as unknown as typeof repo.findActiveJob;
+    // Money and rates come from the earnings ledger and the performance module.
+    earningsService.getSummary = (async () => ({ currency: 'INR', today: 1234.57, week: 5000, month: 20000, total: 90000, pending: 800 })) as unknown as typeof earningsService.getSummary;
+    earningsService.getLedger = (async () => ({ series: [{ date: '2026-10-29', net: 100 }, { date: '2026-10-30', net: 1234.57 }] })) as unknown as typeof earningsService.getLedger;
+    partnerPerformanceService.getSummary = (async () => ({ totalJobs: 20, ratingCount: 12, rating: 4.6, acceptanceRate: 80, completionRate: 95, cancellationRate: 2, onTimeRate: 90 })) as unknown as typeof partnerPerformanceService.getSummary;
     server = app.listen(0);
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -53,6 +60,7 @@ describe('GET /partner/dashboard', () => {
       acceptanceRate: 80,
       completionRate: 95,
       activeJob: null,
+      assignedServices: [],
     });
   });
 

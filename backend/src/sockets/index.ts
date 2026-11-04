@@ -1,13 +1,12 @@
-
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
 import { z } from 'zod';
 
-import { authService } from '../modules/auth/auth.service';
-import type { AccessTokenPayload } from '../modules/auth/auth.types';
+import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
 import BookingModel from '../models/Booking';
 import PartnerModel from '../models/Partner';
-import { ERROR_CODES, type ErrorCode } from '../constants/errorCodes';
+import { authService } from '../modules/auth/auth.service';
+import type { AccessTokenPayload } from '../modules/auth/auth.types';
 
 import { registerTrackingSocket } from './tracking.socket';
 import { registerTicketSocket } from './ticket.socket';
@@ -15,14 +14,16 @@ import { registerTicketSocket } from './ticket.socket';
 /**
  * Room names.
  *
- * A socket joins:
+ * A socket automatically joins:
  * - user:<id>
  * - role:<role>
+ *
+ * A socket can join:
  * - booking:<id> after successful booking:join authorization
+ * - tracking:<id> after successful tracking:join authorization
+ * - ticket:admin:<id> after successful ticket:join authorization
  *
  * Tracking and ticket rooms are managed by their respective socket modules.
- * - tracking:<id> after successful tracking:join authorization (see tracking.socket.ts)
- * - ticket:admin:<id> after successful ticket:join authorization (see ticket.socket.ts)
  */
 export const rooms = {
   user: (userId: string) => `user:${userId}`,
@@ -84,12 +85,9 @@ export const emitToBooking = (
 /**
  * Determines whether an authenticated user can join a booking room.
  *
- * - Admin: any existing booking
- * - Customer: only their own booking
- * - Partner: only a booking assigned to them
- * Admins can join existing bookings.
- * Customers can join only their own bookings.
- * Partners can join only bookings assigned to them.
+ * - Admin: any existing booking.
+ * - Customer: only their own booking.
+ * - Partner: only a booking assigned to their partner profile.
  */
 async function canJoinBooking(
   auth: AccessTokenPayload,
@@ -99,14 +97,12 @@ async function canJoinBooking(
     return Boolean(await BookingModel.exists({ _id: bookingId }));
   }
 
-  if (auth.role === 'customer') {
-    return Boolean(
-      await BookingModel.exists({
-        _id: bookingId,
-        customerId: auth.sub,
-      }),
-    );
-  }
+
+  if (auth.role === 'customer')
+    return !!(await BookingModel.exists({
+      _id: bookingId,
+      customerId: auth.sub,
+    }));
 
   if (auth.role === 'partner') {
     const partner = await PartnerModel.findOne({
@@ -180,7 +176,7 @@ export const initSockets = (server: HttpServer): Server => {
     },
   });
 
-  // Authenticate every socket using an access token.
+  // Authenticate every socket connection using an access token.
   io.use((socket, next) => {
     const token = tokenFrom(socket);
 
@@ -249,7 +245,7 @@ export const initSockets = (server: HttpServer): Server => {
       },
     );
 
-    // Leave a booking room.
+    // Leave a booking room when a valid booking ID is provided.
     socket.on('booking:leave', (payload: unknown) => {
       const parsed = bookingPayload.safeParse(payload);
 
@@ -258,11 +254,7 @@ export const initSockets = (server: HttpServer): Server => {
       }
     });
 
-    // Register tracking and support-ticket socket events.
-    // --------------------------------------------------
-    // TRACKING + TICKET SOCKET EVENTS
-    // --------------------------------------------------
-
+    // Preserve the tracking and ticket event implementations.
     registerTrackingSocket(socket);
     registerTicketSocket(socket);
   });

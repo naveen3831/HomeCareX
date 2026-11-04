@@ -12,7 +12,10 @@ import {
   MessageSquare,
   Ticket,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
+import clsx from "clsx";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTickets, useTicketUpdates } from "@/hooks/useTickets";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
@@ -32,7 +35,7 @@ import "./Support.css";
 function HeroIllustration() {
   return (
     <svg
-      className="hcx-support-hero-art"
+      className="w-[170px] lg:w-[190px] h-auto shrink-0 hidden sm:block"
       viewBox="0 0 300 160"
       fill="none"
       aria-hidden="true"
@@ -88,49 +91,62 @@ function HeroIllustration() {
   );
 }
 
-function HelpCenter() {
+function MobileHelpCenter() {
   const [search, setSearch] = useState("");
   const sections = searchHelp(search);
   return (
-    <section aria-label="Help center">
-      <label className="hcx-support-search" htmlFor="help-search">
-        <Search size={19} aria-hidden="true" />
+    <section aria-label="Help center" className="space-y-3">
+      {/* Search Input matching mobile reference */}
+      <label
+        className="relative flex items-center rounded-xl border border-slate-200/90 bg-white px-3.5 py-2.5 shadow-2xs focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20 transition-all"
+        htmlFor="help-search-mobile"
+      >
+        <Search className="h-4 w-4 shrink-0 text-slate-400 mr-2.5" aria-hidden="true" />
         <input
-          id="help-search"
+          id="help-search-mobile"
           type="search"
           value={search}
           maxLength={150}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search payments, bookings, refunds…"
+          placeholder="Search payments, bookings, refunds..."
           aria-label="Search help articles"
+          className="w-full bg-transparent text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none"
         />
       </label>
-      <p className="hcx-support-muted" role="status">
+
+      {/* Sections Counter */}
+      <p className="text-xs font-semibold text-slate-500 pt-0.5 px-0.5" role="status">
         {sections.length} help {sections.length === 1 ? "section" : "sections"}
       </p>
+
+      {/* Accordion FAQ list */}
       {sections.length ? (
-        <div className="hcx-support-help-list">
+        <div className="space-y-2.5">
           {sections.flatMap((section) =>
             section.articles.map((article) => (
               <details
                 key={`${section.category}-${article.question}`}
-                className="hcx-support-faq"
+                className="group rounded-2xl border border-slate-100 bg-white p-3.5 shadow-2xs transition-all open:border-slate-200 open:shadow-xs"
               >
-                <summary>
-                  <span>
-                    <small className="hcx-support-faq-cat">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-left [&::-webkit-details-marker]:hidden">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-slate-400">
                       {section.title}
-                    </small>
-                    <span className="hcx-support-faq-q">
+                    </span>
+                    <span className="mt-0.5 block text-[13.5px] font-bold text-slate-800 leading-snug">
                       {article.question}
                     </span>
-                  </span>
-                  <ChevronDown size={18} aria-hidden="true" />
+                  </div>
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+                    aria-hidden="true"
+                  />
                 </summary>
-                <div className="hcx-support-faq-body">
+                <div className="mt-2.5 border-t border-slate-100 pt-2.5 text-xs text-slate-600 leading-relaxed">
                   <p>{article.answer}</p>
                   <Link
-                    to={`/customer/support?view=new&category=${section.category}`}
+                    to={`/customer/support?view=new&category=${encodeURIComponent(section.category)}`}
+                    className="mt-2 inline-flex items-center gap-1 font-semibold text-[#ea580c] hover:underline"
                   >
                     Get help with {section.title.toLowerCase()} →
                   </Link>
@@ -140,14 +156,141 @@ function HelpCenter() {
           )}
         </div>
       ) : (
-        <div className="hcx-support-state">
-          <h2>No matching help articles</h2>
-          <p>Try a different word, or create a ticket so our team can help.</p>
-          <Link to="/customer/support?view=new">Create a ticket</Link>
+        <div className="rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-xs">
+          <h2 className="text-sm font-bold text-slate-900">No matching help articles</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Try a different word, or create a ticket so our team can help.
+          </p>
+          <Link
+            to="/customer/support?view=new"
+            className="mt-3 inline-block rounded-xl bg-brand px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-brand-hover"
+          >
+            Create a ticket
+          </Link>
         </div>
       )}
     </section>
   );
+}
+
+function DesktopHelpCenter() {
+  const [search, setSearch] = useState("");
+  const sections = searchHelp(search);
+  return (
+    <section aria-label="Help center" className="space-y-3.5">
+      {/* Search Input matching web reference */}
+      <label
+        className="relative flex items-center rounded-xl border border-slate-200/90 bg-[#fbfcfe] px-4 py-3 shadow-2xs focus-within:border-[#4338ca] focus-within:ring-2 focus-within:ring-indigo-100 transition-all"
+        htmlFor="help-search-desktop"
+      >
+        <Search className="h-4 w-4 shrink-0 text-slate-400 mr-3" aria-hidden="true" />
+        <input
+          id="help-search-desktop"
+          type="search"
+          value={search}
+          maxLength={150}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search payments, bookings, refunds..."
+          aria-label="Search help articles"
+          className="w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+        />
+      </label>
+
+      {/* Sections Counter */}
+      <p className="text-xs font-semibold text-slate-500 pt-0.5 px-0.5" role="status">
+        {sections.length} help {sections.length === 1 ? "section" : "sections"}
+      </p>
+
+      {/* Full-width FAQ Accordion Cards List */}
+      {sections.length ? (
+        <div className="space-y-3">
+          {sections.flatMap((section) =>
+            section.articles.map((article) => (
+              <details
+                key={`${section.category}-${article.question}`}
+                className="group rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs transition-all open:border-slate-300 open:shadow-xs"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left [&::-webkit-details-marker]:hidden">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-medium text-slate-400">
+                      {section.title}
+                    </span>
+                    <span className="mt-1 block text-[15px] font-bold text-slate-900 leading-snug">
+                      {article.question}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className="h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+                    aria-hidden="true"
+                  />
+                </summary>
+                <div className="mt-3 border-t border-slate-100 pt-3 text-sm text-slate-600 leading-relaxed">
+                  <p>{article.answer}</p>
+                  <Link
+                    to={`/customer/support?view=new&category=${encodeURIComponent(section.category)}`}
+                    className="mt-2.5 inline-flex items-center gap-1 font-semibold text-[#ea580c] hover:underline"
+                  >
+                    Get help with {section.title.toLowerCase()} →
+                  </Link>
+                </div>
+              </details>
+            )),
+          )}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs">
+          <h2 className="text-base font-bold text-slate-900">No matching help articles</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Try a different word, or create a ticket so our team can help.
+          </p>
+          <Link
+            to="/customer/support?view=new"
+            className="mt-4 inline-block rounded-xl bg-[#4338ca] px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-[#3730a3]"
+          >
+            Create a ticket
+          </Link>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function getTicketPageData(raw: unknown): {
+  items: CustomerTicket[];
+  page: number;
+  pages: number;
+  total: number;
+} {
+  if (Array.isArray(raw)) {
+    return {
+      items: raw as CustomerTicket[],
+      page: 1,
+      pages: 1,
+      total: raw.length,
+    };
+  }
+
+  if (raw && typeof raw === "object") {
+    const data = raw as {
+      items?: CustomerTicket[];
+      meta?: {
+        page?: number;
+        pages?: number;
+        total?: number;
+      };
+    };
+    const items = Array.isArray(data.items) ? data.items : [];
+    const meta = data.meta;
+
+    return {
+      items,
+      page: meta?.page ?? 1,
+      pages: Math.max(1, meta?.pages ?? 1),
+      total: meta?.total ?? items.length,
+    };
+  }
+
+  return { items: [], page: 1, pages: 1, total: 0 };
 }
 
 function TicketList() {
@@ -156,18 +299,8 @@ function TicketList() {
   const [status, setStatus] = useState<TicketStatus | "">("");
   const tickets = useTickets({ page, status: status || undefined });
 
-  const raw = tickets.data as unknown;
-  const items: CustomerTicket[] = Array.isArray(raw)
-    ? (raw as CustomerTicket[])
-    : Array.isArray((raw as { items?: CustomerTicket[] })?.items)
-    ? ((raw as { items: CustomerTicket[] }).items)
-    : [];
-
-  const meta = (raw as { meta?: { pages?: number; page?: number; total?: number } })?.meta ?? {
-    pages: 1,
-    page: 1,
-    total: items.length,
-  };
+  const pageData = getTicketPageData(tickets.data);
+  const { items, pages } = pageData;
 
   return (
     <section aria-label="Ticket list">
@@ -221,24 +354,26 @@ function TicketList() {
             <Link to="/customer/support?view=new">Create a ticket</Link>
           </div>
         ))}
-      {tickets.data && (meta.pages ?? 1) > 1 && (
+      {tickets.data && pages > 1 && (
         <nav className="hcx-support-pagination" aria-label="Ticket pages">
           <button
             type="button"
-            disabled={page === 1 || tickets.isFetching || !online}
-            onClick={() => setPage((p) => p - 1)}
+            disabled={page <= 1 || tickets.isFetching || !online}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
           >
             Previous
           </button>
           <span>
-            Page {page} of {meta.pages}
+            Page {page} of {pages}
           </span>
           <button
             type="button"
             disabled={
-              page >= (meta.pages ?? 1) || tickets.isFetching || !online
+              page >= pages || tickets.isFetching || !online
             }
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() =>
+              setPage((current) => Math.min(pages, current + 1))
+            }
           >
             Next
           </button>
@@ -254,6 +389,8 @@ export default function Support() {
   const location = useLocation();
   const online = useOnlineStatus();
   useTicketUpdates();
+  const isMobile = useMediaQuery("(max-width: 767px)");
+
   const view = ticketId
     ? "thread"
     : (params.get("view") ??
@@ -263,63 +400,243 @@ export default function Support() {
     ? (rawCategory as TicketCategory)
     : "booking";
   const showHelp = !ticketId && view !== "new" && view !== "tickets";
+
+  // MOBILE VIEW (< 768px): Matches mobile reference design
+  if (isMobile) {
+    return (
+      <div className="mx-auto max-w-lg space-y-3.5 pb-20">
+        {ticketId ? (
+          <div className="hcx-support">
+            <CustomerTicketThread key={ticketId} id={ticketId} />
+          </div>
+        ) : view === "new" ? (
+          <div className="hcx-support">
+            <CreateTicketForm key={category} category={category} />
+          </div>
+        ) : (
+          <>
+            {/* Card 1: Raise a New Ticket */}
+            <Link
+              to="/customer/support?view=new"
+              className="flex items-center justify-between rounded-2xl border border-[#dbe6fe] bg-[#f0f4ff] p-3.5 shadow-2xs transition-all active:scale-[0.99] hover:bg-[#e6eeff]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-100/80 bg-white shadow-2xs text-[#2563eb]">
+                  <Ticket className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="text-left">
+                  <div className="text-[14.5px] font-bold text-[#1e1b4b] leading-tight">
+                    Raise a New Ticket
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-500">
+                    Get support for your issue
+                  </div>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-[#2563eb]" aria-hidden="true" />
+            </Link>
+
+            {/* Card 2: How can we help you? Hero Card */}
+            <div className="rounded-2xl border border-blue-100/70 bg-[#f7f9ff] p-4 shadow-2xs">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-orange-100/80 bg-white shadow-2xs text-[#ea580c]">
+                  <LifeBuoy className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#ea580c]">
+                    HERE TO HELP
+                  </div>
+                  <h1 className="mt-0.5 text-lg font-bold text-[#1e1b4b] leading-snug">
+                    How can we help you?
+                  </h1>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                    Find an answer or talk to the HomeCareX team.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Segmented Underline Tabs */}
+            <nav
+              className="flex items-center gap-8 border-b border-slate-200/90 pt-1"
+              aria-label="Support sections"
+            >
+              <Link
+                to="/customer/support"
+                aria-current={showHelp ? "page" : undefined}
+                className={clsx(
+                  "flex items-center gap-2 pb-2.5 text-sm transition-colors",
+                  showHelp
+                    ? "border-b-2 border-[#ea580c] font-semibold text-[#ea580c] -mb-[1px]"
+                    : "font-medium text-slate-500 hover:text-slate-700",
+                )}
+              >
+                <LifeBuoy
+                  className={clsx(
+                    "h-4 w-4 shrink-0",
+                    showHelp ? "text-[#ea580c]" : "text-slate-400",
+                  )}
+                  aria-hidden="true"
+                />
+                <span>Help center</span>
+              </Link>
+              <Link
+                to="/customer/support/tickets"
+                aria-current={
+                  view === "tickets" || view === "thread" ? "page" : undefined
+                }
+                className={clsx(
+                  "flex items-center gap-2 pb-2.5 text-sm transition-colors",
+                  view === "tickets" || view === "thread"
+                    ? "border-b-2 border-[#ea580c] font-semibold text-[#ea580c] -mb-[1px]"
+                    : "font-medium text-slate-500 hover:text-slate-700",
+                )}
+              >
+                <Ticket
+                  className={clsx(
+                    "h-4 w-4 shrink-0",
+                    view === "tickets" || view === "thread"
+                      ? "text-[#ea580c]"
+                      : "text-slate-400",
+                  )}
+                  aria-hidden="true"
+                />
+                <span>My tickets</span>
+              </Link>
+            </nav>
+
+            {!online && (
+              <p
+                className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+                role="status"
+              >
+                You’re offline. You can read help articles and any conversation
+                already loaded. Reconnect to send a request.
+              </p>
+            )}
+
+            {/* View Content Panel */}
+            <div>
+              {view === "tickets" ? (
+                <div className="hcx-support rounded-2xl border border-slate-100 bg-white p-4 shadow-2xs">
+                  <TicketList />
+                </div>
+              ) : (
+                <MobileHelpCenter />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // DESKTOP / WEB VIEW (>= 768px): Matches web reference design exactly
   return (
-    <div className="hcx-support hcx-support--proof hcx-support--reference">
-      <header className="hcx-support-hero">
-        <span className="hcx-support-icon">
-          <LifeBuoy size={30} aria-hidden="true" />
-        </span>
-        <div>
-          <p className="hcx-support-eyebrow">HERE TO HELP</p>
-          <h1>
-            How can we <span className="hcx-support-accent">help you?</span>
-          </h1>
-          <p>Find an answer or talk to the HomeCareX team.</p>
+    <div className="w-full min-w-0 space-y-6 pb-12">
+      {/* Hero Header Card */}
+      <header className="flex items-center justify-between rounded-2xl border border-indigo-50/80 bg-gradient-to-r from-[#f9faff] via-[#f5f7ff] to-[#eff3ff] p-6 lg:p-7 shadow-2xs">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-orange-100/70 bg-white shadow-2xs text-[#ea580c]">
+            <LifeBuoy className="h-7 w-7" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#ea580c]">
+              HERE TO HELP
+            </p>
+            <h1 className="mt-1 text-2xl lg:text-[26px] font-extrabold text-[#1e1b4b] tracking-tight">
+              How can we <span className="text-[#4338ca]">help you?</span>
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Find an answer or talk to the HomeCareX team.
+            </p>
+          </div>
         </div>
         <HeroIllustration />
       </header>
-      <nav className="hcx-support-tabs" aria-label="Support sections">
-        <Link
-          to="/customer/support"
-          aria-current={showHelp ? "page" : undefined}
-        >
-          <LifeBuoy size={18} aria-hidden="true" />
-          Help center
-        </Link>
-        <Link
-          to="/customer/support/tickets"
-          aria-current={
-            view === "tickets" || view === "thread" ? "page" : undefined
-          }
-        >
-          <Ticket size={18} aria-hidden="true" />
-          My tickets
-        </Link>
+
+      {/* Tabs and + New Ticket Bar */}
+      <div className="flex items-center justify-between border-b border-slate-200/90 pt-1">
+        <nav className="flex items-center gap-8" aria-label="Support sections">
+          <Link
+            to="/customer/support"
+            aria-current={showHelp ? "page" : undefined}
+            className={clsx(
+              "flex items-center gap-2 pb-3 text-sm transition-colors",
+              showHelp
+                ? "border-b-2 border-[#ea580c] font-semibold text-[#ea580c] -mb-[1px]"
+                : "font-medium text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <LifeBuoy
+              className={clsx(
+                "h-4 w-4 shrink-0",
+                showHelp ? "text-[#ea580c]" : "text-slate-400",
+              )}
+              aria-hidden="true"
+            />
+            <span>Help center</span>
+          </Link>
+          <Link
+            to="/customer/support/tickets"
+            aria-current={
+              view === "tickets" || view === "thread" ? "page" : undefined
+            }
+            className={clsx(
+              "flex items-center gap-2 pb-3 text-sm transition-colors",
+              view === "tickets" || view === "thread"
+                ? "border-b-2 border-[#ea580c] font-semibold text-[#ea580c] -mb-[1px]"
+                : "font-medium text-slate-500 hover:text-slate-800",
+            )}
+          >
+            <Ticket
+              className={clsx(
+                "h-4 w-4 shrink-0",
+                view === "tickets" || view === "thread"
+                  ? "text-[#ea580c]"
+                  : "text-slate-400",
+              )}
+              aria-hidden="true"
+            />
+            <span>My tickets</span>
+          </Link>
+        </nav>
+
         <Link
           to="/customer/support?view=new"
-          aria-current={view === "new" ? "page" : undefined}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-[#3730a3] active:scale-[0.98] transition-all -mt-1"
         >
-          <Plus size={16} aria-hidden="true" />
-          New ticket
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          <span>New Ticket</span>
         </Link>
-      </nav>
+      </div>
+
       {!online && (
-        <p className="hcx-support-notice" role="status">
+        <p
+          className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-800"
+          role="status"
+        >
           You’re offline. You can read help articles and any conversation
           already loaded. Reconnect to send a request.
         </p>
       )}
-      <div
-        className={`hcx-support-panel${showHelp ? " hcx-support-panel--help" : ""}`}
-      >
+
+      {/* Main View Content */}
+      <div>
         {ticketId ? (
-          <CustomerTicketThread key={ticketId} id={ticketId} />
+          <div className="hcx-support rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
+            <CustomerTicketThread key={ticketId} id={ticketId} />
+          </div>
         ) : view === "new" ? (
-          <CreateTicketForm key={category} category={category} />
+          <div className="hcx-support rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
+            <CreateTicketForm key={category} category={category} />
+          </div>
         ) : view === "tickets" ? (
-          <TicketList />
+          <div className="hcx-support rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs">
+            <TicketList />
+          </div>
         ) : (
-          <HelpCenter />
+          <DesktopHelpCenter />
         )}
       </div>
     </div>

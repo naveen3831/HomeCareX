@@ -27,6 +27,8 @@ export interface ServiceRow {
   name: string;
   description?: string;
   icon?: string;
+  iconUrl?: string;
+  images?: { url: string; alt?: string; isPrimary?: boolean }[];
   categoryId: Types.ObjectId;
   basePrice: number;
   durationMinutes: number;
@@ -44,7 +46,7 @@ export interface ServiceRow {
 const CATEGORY_FIELDS = 'name slug description icon sortOrder';
 /** Photos and icons can be large (data: URLs), so only the category list endpoint loads them. */
 const CATEGORY_MEDIA_FIELDS = `${CATEGORY_FIELDS} iconUrl images`;
-const LIST_FIELDS = 'slug name description icon categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
+const LIST_FIELDS = 'slug name description icon iconUrl categoryId basePrice durationMinutes ratingAvg ratingCount availability sortOrder';
 const DETAIL_FIELDS = `${LIST_FIELDS} addOns media inclusions exclusions faqs`;
 
 /** Only layer that talks to Mongo. Tests swap these methods for in-memory versions. */
@@ -78,8 +80,22 @@ export const catalogRepository = {
     return ServiceModel.countDocuments(built.filter).exec();
   },
 
-  findService(idOrSlug: string): Promise<ServiceRow | null> {
+  async findService(idOrSlug: string): Promise<ServiceRow | null> {
     const where = Types.ObjectId.isValid(idOrSlug) ? { _id: idOrSlug } : { slug: idOrSlug };
-    return ServiceModel.findOne({ ...where, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    const direct = await ServiceModel.findOne({ ...where, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    if (direct) return direct;
+    const slugAliases: Record<string, string> = {
+      'home-cleaning': 'deep-home-cleaning',
+      'plumbing': 'plumbing-tap-leak-repair',
+      'electrical': 'electrician-visit-general',
+      'appliance-repair': 'ac-service-gas-refill',
+      'ac-service': 'ac-service-gas-refill',
+      'home-maintenance': 'furniture-assembly',
+    };
+    const targetSlug = slugAliases[idOrSlug];
+    if (targetSlug) {
+      return ServiceModel.findOne({ slug: targetSlug, active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
+    }
+    return ServiceModel.findOne({ slug: new RegExp('^' + idOrSlug, 'i'), active: { $ne: false } }, DETAIL_FIELDS).lean<ServiceRow>().exec();
   },
 };

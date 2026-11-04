@@ -86,11 +86,16 @@ export interface CouponValidateResponse {
 
 /** One row of the "available coupons" list shown under the coupon box. */
 export interface AvailableCoupon {
+  id?: string;
   code: string;
   title: string;
   description: string;
   /** Whether the server would accept this coupon for the order described in the request. */
   eligible: boolean;
+  type?: "PERCENT" | "FLAT";
+  value?: number;
+  minOrder?: number;
+  maxDiscount?: number | null;
   /** Why it cannot be used right now (only when eligible is false). */
   reason?: { code: CouponErrorCode; minOrder?: number };
 }

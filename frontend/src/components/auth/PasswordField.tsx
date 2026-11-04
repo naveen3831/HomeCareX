@@ -8,6 +8,7 @@ export interface PasswordFieldProps extends React.InputHTMLAttributes<HTMLInputE
   error?: string;
   helperText?: string;
   containerClassName?: string;
+  labelClassName?: string;
   /** Optional element shown on the right of the label row, e.g. a "Forgot password?" link. */
   rightAction?: React.ReactNode;
 }
@@ -26,6 +27,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   required = false,
   disabled = false,
   containerClassName = '',
+  labelClassName,
   className = '',
   ...rest
 }) => {
@@ -37,7 +39,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
   return (
     <div className={`group ${containerClassName}`}>
       <div className="flex items-center justify-between mb-1.5">
-        <label htmlFor={id} className="block text-xs sm:text-sm font-medium text-gray-700">
+        <label htmlFor={id} className={labelClassName || "block text-xs sm:text-sm font-medium text-gray-700"}>
           {label} {required && <span className="text-red-500">*</span>}
         </label>
         {rightAction}
@@ -61,7 +63,7 @@ export const PasswordField: React.FC<PasswordFieldProps> = ({
           required={required}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : helperText ? helperId : undefined}
-          className={`w-full rounded-lg border bg-white pl-9 sm:pl-10 pr-10 py-2 sm:py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] hover:border-gray-400 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
+          className={`w-full rounded-lg border bg-white pl-9 sm:pl-10 pr-10 py-2 sm:py-2.5 ${className && className.includes("text-") ? "" : "text-sm"} text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] hover:border-gray-400 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${
             error ? 'border-red-400 focus:ring-red-400/30 focus:border-red-500' : 'border-gray-300'
           } ${className}`}
         />

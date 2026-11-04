@@ -22,6 +22,12 @@
     <loc>http://localhost:3000/privacy</loc>
   </url>
   <url>
+    <loc>http://localhost:3000/cookies</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/careers</loc>
+  </url>
+  <url>
     <loc>http://localhost:3000/services?category=appliance-repair</loc>
   </url>
   <url>

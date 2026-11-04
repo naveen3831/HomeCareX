@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
+  Users,
   Mail,
   Phone,
   ArrowRight,
@@ -683,34 +684,48 @@ export const PartnerRegisterPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full">
-      {/* Top Navigation */}
-      <div className="flex items-center justify-between gap-2 mb-4 pb-2.5 border-b border-gray-200/70 shrink-0">
+    <div className="w-full max-w-[560px] lg:max-w-[580px] xl:max-w-[620px] 2xl:max-w-[640px] bg-white/85 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-5 sm:p-6 relative transition-all my-auto max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3.5rem)] overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
+      {/* Top Action Bar: Back to Home + Top Right Logo */}
+      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100/80 shrink-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-gray-600 hover:text-[#4338ca] hover:-translate-x-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded py-1 shrink-0 whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors py-0.5 group focus:outline-none focus:ring-2 focus:ring-blue-500/30 rounded"
           aria-label="Back to Home"
         >
-          <ArrowLeft size={16} className="shrink-0" aria-hidden="true" />
+          <ArrowLeft size={14} className="text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
           <span>Back to Home</span>
         </Link>
-        <span className="text-[11px] sm:text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-full shrink-0 whitespace-nowrap">
-          Partner Registration
-        </span>
+
+        <Link
+          to="/"
+          className="inline-flex items-center transition-transform duration-200 hover:scale-105 focus:outline-none"
+          aria-label="HomeCareX Home"
+        >
+          <img
+            src="/logo.webp"
+            alt="HomeCareX"
+            className="h-5 sm:h-5.5 md:h-6 w-auto object-contain"
+          />
+        </Link>
       </div>
 
-      <AuthFormHeader
-        title={
-          <>
-            Become a <span className="text-[#4338ca]">HomeCare<span className="text-[#ff8a3d]">X</span></span> Partner
-          </>
-        }
-        subtitle="Grow your business with verified bookings and prompt payouts"
-      />
+      {/* Partner Registration accessible title */}
+      <span className="sr-only">Partner Registration</span>
+
+      {/* Heading */}
+      <div className="text-center mb-2.5 shrink-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          Become a <span className="text-blue-600">HomeCareX</span> Partner
+        </h1>
+        <p className="text-xs sm:text-[13px] text-slate-500 mt-1 font-medium leading-normal">
+          Register your business and start receiving service bookings.
+        </p>
+      </div>
 
       {/* Stepper progress indicator */}
-      <nav aria-label="Registration Progress" className="mb-6">
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+      <nav aria-label="Registration Progress" className="mb-2 shrink-0">
+        {/* Step pills grid */}
+        <div className="grid grid-cols-5 gap-1 mb-1">
           {[
             { step: 1, label: 'Personal' },
             { step: 2, label: 'Identity' },
@@ -729,36 +744,33 @@ export const PartnerRegisterPage: React.FC = () => {
                 }}
                 disabled={step > currentStep}
                 aria-current={isActive ? 'step' : undefined}
-                className={`flex items-center justify-center gap-1.5 py-2 px-1 sm:px-2.5 rounded-xl text-xs font-semibold transition-all border ${
+                aria-label={`Step ${step}: ${label}${isDone ? ' (Completed)' : isActive ? ' (Current)' : ''}`}
+                className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-[#4338ca] border-[#4338ca] text-white shadow-sm ring-2 ring-indigo-200'
+                    ? 'bg-blue-600 text-white shadow-2xs'
                     : isDone
-                    ? 'bg-indigo-50/80 border-indigo-200 text-[#4338ca] hover:bg-indigo-100 cursor-pointer'
-                    : 'bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed'
+                    ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer border border-blue-200/60'
+                    : 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200/50'
                 }`}
               >
                 <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                  className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${
                     isActive
-                      ? 'bg-white text-[#4338ca]'
+                      ? 'bg-white text-blue-600'
                       : isDone
-                      ? 'bg-[#4338ca] text-white'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-slate-200 text-slate-500'
                   }`}
                 >
                   {isDone ? '✓' : step}
                 </span>
-                <span className="truncate">{label}</span>
+                <span className="hidden sm:inline font-semibold text-[10px] xl:text-[11px] truncate">{label}</span>
               </button>
             );
           })}
         </div>
-        <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-          <div
-            className="bg-gradient-to-r from-[#4338ca] to-[#ff8a3d] h-1.5 transition-all duration-300 ease-out rounded-full"
-            style={{ width: `${(currentStep / 5) * 100}%` }}
-          />
-        </div>
+
+        
       </nav>
 
       {/* Server error alert */}
@@ -766,105 +778,111 @@ export const PartnerRegisterPage: React.FC = () => {
         <div
           role="alert"
           id="partner-register-error"
-          className={`mb-3 text-xs rounded-lg p-2.5 flex items-start gap-2 animate-fadeUp ${
+          className={`mb-2 text-xs rounded-lg p-2 flex items-start gap-2 animate-fadeUp ${
             errorStatus === 409 || errorStatus === 429
               ? 'bg-amber-50 border border-amber-200 text-amber-800'
               : 'bg-red-50 border border-red-200 text-red-700'
           }`}
         >
           {errorStatus === 409 || errorStatus === 429 ? (
-            <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
+            <AlertTriangle size={14} className="shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
           ) : (
-            <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-500" aria-hidden="true" />
+            <AlertCircle size={14} className="shrink-0 mt-0.5 text-red-500" aria-hidden="true" />
           )}
           <span className="leading-snug">{error}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-3">
+      <form onSubmit={handleSubmit} noValidate className="space-y-2">
         {/* ======================================================== */}
         {/* STEP 1: SECTION A - PERSONAL INFORMATION                 */}
         {/* ======================================================== */}
         {currentStep === 1 && (
-          <section aria-labelledby="step-1-title" className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <div>
-                <h2 id="step-1-title" className="text-sm font-bold text-slate-900 tracking-tight">
-                  Section A: Personal Information
-                </h2>
-                <p className="text-xs text-slate-500">Your profile details as they will appear to customers</p>
-              </div>
-              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+          <section aria-labelledby="step-1-title" className="space-y-2">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
+              <h2 id="step-1-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
+                Section A: Personal Information
+              </h2>
+              <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200/70 px-2.5 py-0.5 rounded-full">
                 Step 1 of 5
               </span>
             </div>
 
-            {/* Profile Photo Preview / Replace / Remove */}
-            <div className="flex items-center gap-3.5 p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl shadow-xs">
-              <div className="relative shrink-0">
-                {avatarPreview ? (
-                  <img
-                    src={avatarPreview}
-                    alt="Profile preview"
-                    className="w-14 h-14 rounded-full object-cover border-2 border-[#4338ca] shadow-xs"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 border border-slate-300">
-                    <User size={24} aria-hidden="true" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="block text-xs font-semibold text-slate-900">
-                  Profile Photo <span className="text-slate-400 text-[10px] font-normal">(Optional)</span>
-                </span>
-                <p className="text-[11px] text-slate-500 mb-2">
-                  Clear photo showing your face (JPG/PNG, max 2MB)
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={avatarInputRef}
-                    type="file"
-                    id="partner-avatar-input"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={handleAvatarChange}
-                    className="sr-only"
-                    aria-label="Upload profile photo"
-                  />
-                  <label
-                    htmlFor="partner-avatar-input"
-                    className="cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold bg-white border border-slate-300 hover:border-[#4338ca] text-slate-700 hover:text-[#4338ca] px-3 py-1.5 rounded-lg shadow-xs transition-colors focus-within:ring-2 focus-within:ring-[#4338ca]"
-                  >
-                    <Upload size={13} />
-                    {avatarPreview ? 'Replace' : 'Upload Photo'}
-                  </label>
-                  {avatarPreview && (
-                    <button
-                      type="button"
-                      onClick={removeAvatar}
-                      aria-label="Remove profile photo"
-                      className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1 rounded transition-colors"
+            {/* Profile Photo Preview / Replace / Remove (Ultra-compact inline avatar) */}
+            <div className="p-1.5 px-2.5 bg-slate-50/80 border border-slate-200/70 rounded-xl flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="relative shrink-0">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt="Profile preview"
+                      className="w-7 h-7 rounded-full object-cover border-2 border-blue-600 shadow-2xs"
+                    />
+                  ) : (
+                    <label
+                      htmlFor="partner-avatar-input"
+                      className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 hover:bg-blue-100 cursor-pointer transition-colors shadow-2xs"
+                      title="Upload profile photo"
                     >
-                      <Trash2 size={13} />
-                      Remove
-                    </button>
+                      <User size={14} />
+                    </label>
                   )}
                 </div>
-                {fieldErrors.avatar && (
-                  <p role="alert" className="mt-1 text-[11px] text-red-600">
-                    {fieldErrors.avatar}
-                  </p>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-slate-700">Profile Photo</span>
+                    <span className="text-[9px] font-medium text-slate-500 bg-slate-200/70 px-1 py-0.2 rounded">Optional</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 truncate">Clear front-facing photo (JPG, PNG or WebP, max 2MB)</p>
+                </div>
+              </div>
+
+              {/* Upload / Replace / Remove Button */}
+              <div className="flex items-center gap-1 shrink-0">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  id="partner-avatar-input"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  className="sr-only"
+                  aria-label="Upload profile photo"
+                />
+                <label
+                  htmlFor="partner-avatar-input"
+                  className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 px-2 py-0.5 rounded-lg shadow-2xs transition-all active:scale-95 whitespace-nowrap"
+                >
+                  <Upload size={11} className="text-blue-600" />
+                  <span>{avatarPreview ? 'Change' : 'Upload Photo'}</span>
+                </label>
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    aria-label="Remove profile photo"
+                    title="Remove profile photo"
+                    className="inline-flex items-center justify-center h-6 px-1.5 rounded-lg text-[11px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200/60 transition-colors"
+                  >
+                    <Trash2 size={11} className="mr-0.5" />
+                    <span>Remove</span>
+                  </button>
                 )}
               </div>
             </div>
 
+            {fieldErrors.avatar && (
+              <p role="alert" className="text-[10px] text-red-600 font-medium pl-1">
+                {fieldErrors.avatar}
+              </p>
+            )}
+
             {/* Full Name */}
             <div className="group">
-              <label htmlFor="partner-name" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-name" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
+                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
                   <User size={15} aria-hidden="true" />
                 </div>
                 <input
@@ -877,27 +895,27 @@ export const PartnerRegisterPage: React.FC = () => {
                   placeholder="e.g. Ramesh Kumar"
                   aria-invalid={Boolean(fieldErrors.name)}
                   aria-describedby={fieldErrors.name ? 'name-error' : undefined}
-                  className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.name ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-300'
+                  className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
+                    fieldErrors.name ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
                   }`}
                 />
               </div>
               {fieldErrors.name && (
-                <p id="name-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p id="name-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
                   {fieldErrors.name}
                 </p>
               )}
             </div>
 
             {/* Date of Birth & Gender in 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {/* DOB */}
               <div className="group">
-                <label htmlFor="partner-dob" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-dob" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Date of Birth <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
                     <Calendar size={15} aria-hidden="true" />
                   </div>
                   <input
@@ -907,15 +925,22 @@ export const PartnerRegisterPage: React.FC = () => {
                     max={new Date().toISOString().split('T')[0]}
                     value={form.dob}
                     onChange={(e) => handleChange('dob', e.target.value)}
+                    onClick={(e) => {
+                      try {
+                        e.currentTarget.showPicker();
+                      } catch {}
+                    }}
                     aria-invalid={Boolean(fieldErrors.dob)}
                     aria-describedby={fieldErrors.dob ? 'dob-error' : undefined}
-                    className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                      fieldErrors.dob ? 'border-red-400' : 'border-gray-300'
+                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-2.5 sm:pr-3 text-xs sm:text-sm cursor-pointer ${
+                      !form.dob ? 'text-slate-400' : 'text-slate-800'
+                    } focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 ${
+                      fieldErrors.dob ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
                     }`}
                   />
                 </div>
                 {fieldErrors.dob && (
-                  <p id="dob-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p id="dob-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
                     {fieldErrors.dob}
                   </p>
                 )}
@@ -923,27 +948,34 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Gender */}
               <div className="group">
-                <label htmlFor="partner-gender" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-gender" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Gender <span className="text-red-500">*</span>
                 </label>
-                <select
-                  id="partner-gender"
-                  name="gender"
-                  value={form.gender}
-                  onChange={(e) => handleChange('gender', e.target.value)}
-                  aria-invalid={Boolean(fieldErrors.gender)}
-                  aria-describedby={fieldErrors.gender ? 'gender-error' : undefined}
-                  className={`w-full rounded-lg border bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.gender ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
+                <div className="relative">
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
+                    <Users size={15} aria-hidden="true" />
+                  </div>
+                  <select
+                    id="partner-gender"
+                    name="gender"
+                    value={form.gender}
+                    onChange={(e) => handleChange('gender', e.target.value)}
+                    aria-invalid={Boolean(fieldErrors.gender)}
+                    aria-describedby={fieldErrors.gender ? 'gender-error' : undefined}
+                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-7 sm:pr-8 text-xs sm:text-sm cursor-pointer ${
+                      !form.gender ? 'text-slate-400' : 'text-slate-800'
+                    } focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
+                      fieldErrors.gender ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
+                    }`}
+                  >
+                    <option value="" className="text-slate-400">Select Gender</option>
+                    <option value="male" className="text-slate-800">Male</option>
+                    <option value="female" className="text-slate-800">Female</option>
+                    <option value="other" className="text-slate-800">Other</option>
+                  </select>
+                </div>
                 {fieldErrors.gender && (
-                  <p id="gender-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p id="gender-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
                     {fieldErrors.gender}
                   </p>
                 )}
@@ -951,14 +983,14 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* Mobile Number & Email Address in 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               {/* Mobile Number */}
               <div className="group">
-                <label htmlFor="partner-phone" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-phone" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
                     <Phone size={15} aria-hidden="true" />
                   </div>
                   <input
@@ -971,13 +1003,13 @@ export const PartnerRegisterPage: React.FC = () => {
                     placeholder="9876543210"
                     aria-invalid={Boolean(fieldErrors.phone)}
                     aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
-                    className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                      fieldErrors.phone ? 'border-red-400' : 'border-gray-300'
+                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
+                      fieldErrors.phone ? 'border-red-400' : 'border-slate-300'
                     }`}
                   />
                 </div>
                 {fieldErrors.phone && (
-                  <p id="phone-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p id="phone-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
                     {fieldErrors.phone}
                   </p>
                 )}
@@ -985,11 +1017,11 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Email Address */}
               <div className="group">
-                <label htmlFor="partner-email" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-email" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Email Address <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
+                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
                     <Mail size={15} aria-hidden="true" />
                   </div>
                   <input
@@ -999,16 +1031,16 @@ export const PartnerRegisterPage: React.FC = () => {
                     autoComplete="email"
                     value={form.email}
                     onChange={(e) => handleChange('email', e.target.value)}
-                    placeholder="ramesh.partner@example.com"
+                    placeholder="ramesh@example.com"
                     aria-invalid={Boolean(fieldErrors.email)}
                     aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-                    className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                      fieldErrors.email ? 'border-red-400' : 'border-gray-300'
+                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
+                      fieldErrors.email ? 'border-red-400' : 'border-slate-300'
                     }`}
                   />
                 </div>
                 {fieldErrors.email && (
-                  <p id="email-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p id="email-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
                     {fieldErrors.email}
                   </p>
                 )}
@@ -1016,7 +1048,7 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* Password & Confirm Password */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
               <div>
                 <PasswordField
                   id="partner-password"
@@ -1027,7 +1059,8 @@ export const PartnerRegisterPage: React.FC = () => {
                   value={form.password}
                   onChange={(e) => handleChange('password', e.target.value)}
                   error={fieldErrors.password}
-                  className="!py-1.5 sm:!py-2 text-xs sm:text-sm"
+                  labelClassName="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1"
+                  className="!h-10 sm:!h-10.5 !text-sm !rounded-xl"
                 />
                 <PasswordStrength password={form.password} />
               </div>
@@ -1041,7 +1074,8 @@ export const PartnerRegisterPage: React.FC = () => {
                   value={form.confirmPassword}
                   onChange={(e) => handleChange('confirmPassword', e.target.value)}
                   error={fieldErrors.confirmPassword}
-                  className="!py-1.5 sm:!py-2 text-xs sm:text-sm"
+                  labelClassName="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1"
+                  className="!h-10 sm:!h-10.5 !text-sm !rounded-xl"
                 />
               </div>
             </div>
@@ -1055,7 +1089,7 @@ export const PartnerRegisterPage: React.FC = () => {
           <section aria-labelledby="step-2-title" className="space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div>
-                <h2 id="step-2-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                <h2 id="step-2-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
                   Section B: Identity Proof
                 </h2>
                 <p className="text-xs text-slate-500">Government identity for background verification and customer trust</p>
@@ -1067,7 +1101,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* ID Proof Type */}
             <div>
-              <label htmlFor="partner-id-type" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-id-type" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 ID Proof Type <span className="text-red-500">*</span>
               </label>
               <select
@@ -1087,7 +1121,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* ID Proof Number */}
             <div className="group">
-              <label htmlFor="partner-id-number" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-id-number" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 ID Proof Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -1118,7 +1152,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* ID Proof Document Upload */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Upload ID Proof Document <span className="text-red-500">*</span>
               </label>
               <div
@@ -1198,7 +1232,7 @@ export const PartnerRegisterPage: React.FC = () => {
           <section aria-labelledby="step-3-title" className="space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div>
-                <h2 id="step-3-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                <h2 id="step-3-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
                   Section C: Address Proof
                 </h2>
                 <p className="text-xs text-slate-500">Your base location where nearby customers will discover your services</p>
@@ -1210,7 +1244,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Street Address */}
             <div className="group">
-              <label htmlFor="partner-address" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-address" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Street Address / Locality <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1239,10 +1273,10 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* City & State in 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               {/* City */}
               <div className="group">
-                <label htmlFor="partner-city" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-city" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   City <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1266,7 +1300,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* State */}
               <div>
-                <label htmlFor="partner-state" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-state" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   State <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -1292,7 +1326,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Pincode */}
             <div className="group">
-              <label htmlFor="partner-pincode" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-pincode" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Pincode <span className="text-red-500">*</span>
               </label>
               <input
@@ -1317,7 +1351,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Address Proof Upload */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Upload Address Proof Document <span className="text-red-500">*</span>
               </label>
               <div
@@ -1392,7 +1426,7 @@ export const PartnerRegisterPage: React.FC = () => {
           <section aria-labelledby="step-4-title" className="space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div>
-                <h2 id="step-4-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                <h2 id="step-4-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
                   Section D: Professional Details
                 </h2>
                 <p className="text-xs text-slate-500">Select your core services, skills, and weekly availability</p>
@@ -1404,7 +1438,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Service Category */}
             <div>
-              <label htmlFor="partner-category" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-category" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Primary Service Category <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1437,7 +1471,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Sub-Services / Skills Badges */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Select Your Skills / Services <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50 border border-gray-200 rounded-lg">
@@ -1468,10 +1502,10 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* Experience & Service Radius in 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               {/* Experience Years */}
               <div className="group">
-                <label htmlFor="partner-exp" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-exp" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Years of Experience <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -1498,7 +1532,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Service Radius */}
               <div className="group">
-                <label htmlFor="partner-radius" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-radius" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Service Radius <span className="text-[#4338ca] font-semibold">({form.serviceRadiusKm} km)</span>
                 </label>
                 <div className="flex items-center gap-2 pt-1">
@@ -1527,7 +1561,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Working Days */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Working Days <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-1">
@@ -1559,7 +1593,7 @@ export const PartnerRegisterPage: React.FC = () => {
             {/* Working Hours Start & End */}
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label htmlFor="partner-start-time" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-start-time" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   Start Time
                 </label>
                 <input
@@ -1572,7 +1606,7 @@ export const PartnerRegisterPage: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor="partner-end-time" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-end-time" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   End Time
                 </label>
                 <input
@@ -1600,7 +1634,7 @@ export const PartnerRegisterPage: React.FC = () => {
           <section aria-labelledby="step-5-title" className="space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div>
-                <h2 id="step-5-title" className="text-sm font-bold text-slate-900 tracking-tight">
+                <h2 id="step-5-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
                   Section E: Bank & Payout Details
                 </h2>
                 <p className="text-xs text-slate-500">Secure bank account or UPI ID for weekly earnings deposit</p>
@@ -1628,7 +1662,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Account Holder Name */}
             <div className="group">
-              <label htmlFor="partner-holder-name" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-holder-name" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Account Holder Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1657,7 +1691,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Bank Account Number with concealment toggle */}
             <div className="group">
-              <label htmlFor="partner-account-number" className="block text-xs font-medium text-gray-700 mb-1">
+              <label htmlFor="partner-account-number" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                 Bank Account Number <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1693,10 +1727,10 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* IFSC & UPI ID in 2 columns */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               {/* IFSC */}
               <div className="group">
-                <label htmlFor="partner-ifsc" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-ifsc" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   IFSC Code <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -1726,7 +1760,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* UPI ID (Optional) */}
               <div className="group">
-                <label htmlFor="partner-upi" className="block text-xs font-medium text-gray-700 mb-1">
+                <label htmlFor="partner-upi" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
                   UPI ID <span className="text-gray-400 text-[10px] font-normal">(Optional)</span>
                 </label>
                 <input
@@ -1810,16 +1844,16 @@ export const PartnerRegisterPage: React.FC = () => {
         )}
 
         {/* Stepper Actions: Back, Continue, Submit */}
-        <div className="pt-2 flex items-center gap-2">
+        <div className="pt-1 flex items-center gap-2 shrink-0">
           {currentStep > 1 && (
             <button
               type="button"
               onClick={handleBack}
               disabled={loading}
-              className="w-1/3 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 rounded-lg text-xs sm:text-sm transition flex items-center justify-center gap-1 focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="w-1/3 h-9 sm:h-9.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1 focus:outline-none focus:ring-2 focus:ring-slate-300 shadow-2xs active:scale-98 cursor-pointer"
             >
               <ArrowLeft size={14} />
-              Back
+              <span>Back</span>
             </button>
           )}
 
@@ -1829,16 +1863,16 @@ export const PartnerRegisterPage: React.FC = () => {
               onClick={handleContinue}
               className={`${
                 currentStep > 1 ? 'w-2/3' : 'w-full'
-              } bg-[#4338ca] hover:bg-[#3730a3] text-white font-medium py-2 sm:py-2.5 rounded-lg shadow-sm transition flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#4338ca] text-xs sm:text-sm`}
+              } h-9.5 sm:h-10 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm active:scale-98 cursor-pointer`}
             >
-              Continue to Step {currentStep + 1}
+              <span>Continue to Step {currentStep + 1}</span>
               <ArrowRight size={14} />
             </button>
           ) : (
             <button
               type="submit"
               disabled={loading || !termsAccepted}
-              className="w-2/3 bg-[#ff8a3d] hover:bg-[#e0600f] text-white font-medium py-2 sm:py-2.5 rounded-lg shadow-sm hover:shadow-md hover:shadow-[#ff8a3d]/25 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d] text-xs sm:text-sm"
+              className="w-2/3 h-9.5 sm:h-10 bg-gradient-to-r from-[#ff8a3d] to-[#e0600f] hover:from-[#e0600f] hover:to-[#c24e07] text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:shadow-[#ff8a3d]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d] text-xs sm:text-sm active:scale-98 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -1856,9 +1890,9 @@ export const PartnerRegisterPage: React.FC = () => {
         </div>
       </form>
 
-      <p className="text-center text-xs text-gray-500 mt-3">
+      <p className="text-center text-xs text-slate-500 mt-2 shrink-0">
         Already registered as a partner?{' '}
-        <Link to="/login" className="text-[#4338ca] font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-[#4338ca] rounded">
+        <Link to="/login" className="text-blue-600 font-bold hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
           Sign in here
         </Link>
       </p>

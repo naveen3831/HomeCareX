@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { Clock, Mail, Phone } from "lucide-react";
+import { createPortal } from "react-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { MapPin, ChevronDown, Bell, Check, X, Tag, ArrowRight } from "lucide-react";
 import MobileDrawer from "./MobileDrawer";
 
 /* =========================================================
    HomeCareX Header
    Brand Colors:
-   Indigo: #4338ca
-   Orange: #ff8a3d
+   Navy: #0e2439 / #1e1b4b
+   Orange: #ff8a3d / #f97316
 ========================================================= */
 
 const styles = `
@@ -39,49 +40,14 @@ const styles = `
     animation: hcx-header-drop 0.5s cubic-bezier(.2,.7,.2,1) both;
   }
 
-  /* TOP BAR */
-
-  .hcx-topbar {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition:
-      grid-template-rows 0.35s ease,
-      opacity 0.25s ease;
-  }
-
-  .hcx-topbar.collapsed {
-    grid-template-rows: 0fr;
-    opacity: 0;
-  }
-
-  .hcx-topbar > div {
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .hcx-top-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    color: #dfe1ff;
-    transition: color 0.2s ease;
-  }
-
-  .hcx-top-link:hover {
-    color: #ffffff;
-  }
-
   /* DESKTOP NAVIGATION */
 
   .hcx-nav-link {
     position: relative;
-    padding: 9px 2px;
-    font-weight: 600;
-    color: #3a3a5c;
-    transition:
-      color 0.25s ease,
-      transform 0.25s ease;
+    padding: 8px 2px;
+    font-weight: 500;
+    color: #475569;
+    transition: color 0.2s ease;
   }
 
   .hcx-nav-link::after {
@@ -89,8 +55,8 @@ const styles = `
     position: absolute;
     left: 0;
     right: 0;
-    bottom: 2px;
-    height: 2px;
+    bottom: -2px;
+    height: 3px;
     border-radius: 999px;
     background: #ff8a3d;
     transform: scaleX(0);
@@ -99,7 +65,7 @@ const styles = `
   }
 
   .hcx-nav-link:hover {
-    color: #4338ca;
+    color: #0f172a;
   }
 
   .hcx-nav-link:hover::after,
@@ -108,7 +74,7 @@ const styles = `
   }
 
   .hcx-nav-link.active {
-    color: #4338ca;
+    color: #0f172a;
     font-weight: 700;
   }
 
@@ -126,7 +92,7 @@ const styles = `
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(255, 255, 255, 0.45),
+      rgba(255, 255, 255, 0.4),
       transparent
     );
     transform: translateX(-120%) skewX(-20deg);
@@ -144,7 +110,7 @@ const styles = `
     width: 22px;
     height: 2px;
     border-radius: 999px;
-    background: #4338ca;
+    background: #1e1b4b;
     transition:
       transform 0.3s ease,
       opacity 0.2s ease;
@@ -171,10 +137,6 @@ const styles = `
     border-radius: 10px;
   }
 
-  .hcx-top-link:focus-visible {
-    outline-color: #ffffff;
-  }
-
   /* REDUCED MOTION */
 
   @media (prefers-reduced-motion: reduce) {
@@ -186,25 +148,12 @@ const styles = `
     }
   }
 
-  /* MOBILE */
-
-  @media (max-width: 767px) {
-    .hcx-topbar {
-      display: none !important;
-    }
-  }
 `;
 
 /* =========================================================
    CONTACT INFORMATION
 ========================================================= */
 
-const contact = {
-  phone: "+91 98765 43210",
-  phoneHref: "tel:+919876543210",
-  email: "support@homecarex.com",
-  hours: "Mon to Sat, 8 AM to 8 PM",
-};
 
 /* =========================================================
    NAVIGATION
@@ -213,6 +162,7 @@ const contact = {
 const navItems = [
   { to: "/", label: "Home", end: true },
   { to: "/services", label: "Services", end: false },
+  { to: "/reviews", label: "Reviews", end: true },
   { to: "/about", label: "About", end: true },
   { to: "/contact", label: "Contact", end: true },
 ];
@@ -221,7 +171,126 @@ const navItems = [
    HEADER COMPONENT
 ========================================================= */
 
+const CITIES = [
+  { name: "Hyderabad", state: "Telangana" },
+  { name: "Bengaluru", state: "Karnataka" },
+  { name: "Mumbai", state: "Maharashtra" },
+  { name: "Delhi NCR", state: "Delhi" },
+  { name: "Chennai", state: "Tamil Nadu" },
+  { name: "Pune", state: "Maharashtra" },
+  { name: "Kolkata", state: "West Bengal" },
+  { name: "Ahmedabad", state: "Gujarat" },
+];
+
+interface NotificationItem {
+  id: string;
+  title: string;
+  time: string;
+  message: string;
+  badge?: string;
+  badgeColor?: string;
+  cardBg: string;
+  cardBorder: string;
+  titleColor: string;
+  actionText?: string;
+  actionUrl?: string;
+  couponCode?: string;
+  read: boolean;
+}
+
+const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: "notif-1",
+    title: "Special Welcome Offer",
+    time: "Just now",
+    message: "Get flat 20% off on your first service booking with coupon code HOME20.",
+    badge: "20% OFF",
+    badgeColor: "bg-orange-100 text-orange-700",
+    cardBg: "bg-orange-50/70",
+    cardBorder: "border-orange-200/80",
+    titleColor: "text-orange-800",
+    actionText: "Book Now",
+    actionUrl: "/services",
+    couponCode: "HOME20",
+    read: false,
+  },
+  {
+    id: "notif-2",
+    title: "AC Servicing Season",
+    time: "2h ago",
+    message: "Book AC inspection and gas refill starting from ₹499 with 30-day service warranty.",
+    badge: "Trending",
+    badgeColor: "bg-blue-100 text-blue-700",
+    cardBg: "bg-blue-50/70",
+    cardBorder: "border-blue-200/80",
+    titleColor: "text-blue-800",
+    actionText: "View AC Service",
+    actionUrl: "/services?category=appliance-repair-service",
+    read: false,
+  },
+  {
+    id: "notif-3",
+    title: "Verified Pros in Locality",
+    time: "1d ago",
+    message: "All service partners in your city have completed 100% background and police verification.",
+    badge: "Verified",
+    badgeColor: "bg-emerald-100 text-emerald-700",
+    cardBg: "bg-emerald-50/50",
+    cardBorder: "border-emerald-200/70",
+    titleColor: "text-slate-800",
+    actionText: "Learn More",
+    actionUrl: "/about",
+    read: false,
+  },
+];
+
 const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const [selectedCity, setSelectedCity] = useState<string>(() => {
+    try {
+      return localStorage.getItem("hcx_city") || "Hyderabad";
+    } catch {
+      return "Hyderabad";
+    }
+  });
+  const [isCityModalOpen, setIsCityModalOpen] = useState(false);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
+    try {
+      const saved = localStorage.getItem("hcx_notifications");
+      return saved ? JSON.parse(saved) : DEFAULT_NOTIFICATIONS;
+    } catch {
+      return DEFAULT_NOTIFICATIONS;
+    }
+  });
+  const [copiedCoupon, setCopiedCoupon] = useState<string | null>(null);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAllAsRead = () => {
+    const updated = notifications.map((n) => ({ ...n, read: true }));
+    setNotifications(updated);
+    try {
+      localStorage.setItem("hcx_notifications", JSON.stringify(updated));
+    } catch {}
+  };
+
+  const markAsRead = (id: string) => {
+    const updated = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+    setNotifications(updated);
+    try {
+      localStorage.setItem("hcx_notifications", JSON.stringify(updated));
+    } catch {}
+  };
+
+  const handleCopyCoupon = (code: string) => {
+    try {
+      navigator.clipboard?.writeText(code);
+    } catch {}
+    setCopiedCoupon(code);
+    setTimeout(() => setCopiedCoupon(null), 2500);
+  };
+
   const { pathname } = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -233,23 +302,13 @@ const Header: React.FC = () => {
     setIsMenuOpen(false);
   };
 
-  /* HEADER HEIGHT
-     Uses the ResizeObserver entry size instead of reading offsetHeight,
-     so no synchronous layout read (forced reflow) happens on first render.
-     The observer fires once on observe() and again whenever the size changes,
-     which also covers window resizes. */
-
+  /* HEADER HEIGHT */
   useEffect(() => {
     const element = headerRef.current;
-
-    if (!element) {
-      return undefined;
-    }
+    if (!element) return undefined;
 
     const resizeObserver = new ResizeObserver((entries) => {
-      if (window.scrollY > 8) {
-        return;
-      }
+      if (window.scrollY > 8) return;
 
       const entry = entries[0];
       const height =
@@ -269,17 +328,13 @@ const Header: React.FC = () => {
     };
   }, []);
 
-  /* SCROLL BEHAVIOR
-     Header always stays visible. Only the compact style
-     (smaller padding, collapsed top bar, shadow) changes. */
-
+  /* SCROLL BEHAVIOR */
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 8);
     };
 
     handleScroll();
-
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
@@ -288,17 +343,13 @@ const Header: React.FC = () => {
   }, []);
 
   /* CLOSE MENU WHEN ROUTE CHANGES */
-
   useEffect(() => {
     setIsMenuOpen(false);
   }, [pathname]);
 
   /* ESCAPE KEY */
-
   useEffect(() => {
-    if (!isMenuOpen) {
-      return undefined;
-    }
+    if (!isMenuOpen) return undefined;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -308,92 +359,52 @@ const Header: React.FC = () => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isMenuOpen]);
 
+  /* MODALS ESCAPE & BODY SCROLL LOCK */
+  useEffect(() => {
+    const isAnyModalOpen = isNotificationOpen || isCityModalOpen;
+    if (!isAnyModalOpen) return undefined;
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsNotificationOpen(false);
+        setIsCityModalOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isNotificationOpen, isCityModalOpen]);
+
   return (
     <header
       ref={headerRef}
-      className={`hcx-hd sticky top-0 z-50 transition-shadow duration-500 ${
-        scrolled ? "shadow-[0_12px_40px_-15px_rgba(67,56,202,0.30)]" : ""
+      className={`hcx-hd sticky top-0 z-50 transition-shadow duration-300 ${
+        scrolled ? "shadow-md" : ""
       }`}
     >
       <style>{styles}</style>
 
-      {/* TOP INFORMATION BAR */}
-
-      <div
-        className={`hcx-topbar hidden md:grid ${scrolled ? "collapsed" : ""}`}
-      >
-        <div>
-        <div className="flex min-h-10 items-center justify-between bg-[#242064] px-6 text-xs">
-          <div className="hidden items-center gap-5 lg:inline-flex">
-            <span className="inline-flex items-center gap-2 text-[#dfe1ff]">
-              <Clock size={14} aria-hidden="true" />
-              {contact.hours}
-            </span>
-            <a href={contact.phoneHref} className="hcx-top-link">
-              <Phone size={14} aria-hidden="true" />
-              {contact.phone}
-            </a>
-            <a href={`mailto:${contact.email}`} className="hcx-top-link">
-              <Mail size={14} aria-hidden="true" />
-              {contact.email}
-            </a>
-          </div>
-
-          <NavLink
-            to="/register/partner"
-            className="hcx-top-link ml-auto font-medium"
-          >
-            Are you a service professional?
-            <span className="font-bold text-[#ff8a3d]">Join us</span>
-          </NavLink>
-        </div>
-        </div>
-      </div>
+      {/* TOP INFORMATION BAR REMOVED */}
 
       {/* MAIN HEADER */}
-
       <div
-        className={`relative overflow-hidden backdrop-blur-xl transition-all duration-500 ${
-          scrolled
-            ? "bg-white/95"
-            : "bg-gradient-to-r from-white via-[#eef0ff] to-white"
+        className={`relative overflow-hidden bg-white backdrop-blur-xl transition-all duration-300 ${
+          scrolled ? "py-2 shadow-sm" : "py-3 border-b border-gray-100"
         }`}
       >
-        {/* Indigo decorative glow */}
         <div
-          className={`pointer-events-none absolute -left-24 -top-24 h-56 w-56 rounded-full bg-[#4338ca]/15 blur-3xl transition-opacity duration-500 ${
-            scrolled ? "opacity-0" : "opacity-100"
-          }`}
-          aria-hidden="true"
-        />
-
-        {/* Orange decorative glow */}
-        <div
-          className={`pointer-events-none absolute -bottom-28 -right-20 h-56 w-56 rounded-full bg-[#ff8a3d]/20 blur-3xl transition-opacity duration-500 ${
-            scrolled ? "opacity-0" : "opacity-100"
-          }`}
-          aria-hidden="true"
-        />
-
-        {/* Bottom border */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#4338ca]/30 to-transparent"
-          aria-hidden="true"
-        />
-
-        {/* NOTE: "hcx-header-drop" is intentionally NOT on this wrapper.
-            An animated transform/opacity here would isolate the logo and
-            stop mix-blend-multiply from removing its white background. */}
-        <div
-          className={`relative mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center px-5 sm:px-6 md:grid-cols-[1fr_auto_1fr] ${
-            scrolled ? "py-2" : "py-3"
-          }`}
+          className="relative mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center px-5 sm:px-6 md:grid-cols-[1fr_auto_1fr]"
         >
           {/* LOGO */}
           <NavLink
@@ -402,22 +413,20 @@ const Header: React.FC = () => {
             aria-label="HomeCareX Home"
             className="flex items-center justify-self-start rounded-xl"
           >
-            {/* Resized logo (about 330x128, WebP). width/height reserve space so
-                the header does not shift while the image loads. */}
             <img
               src="/logo.webp"
               alt="HomeCareX"
-              width={326}
-              height={128}
+              width={712}
+              height={166}
               fetchPriority="high"
               decoding="async"
-              className="h-14 w-auto object-contain mix-blend-multiply transition-transform duration-300 hover:scale-105 sm:h-16"
+              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
             />
           </NavLink>
 
           {/* DESKTOP NAVIGATION */}
           <nav
-            className="hcx-header-drop hidden items-center gap-8 rounded-full bg-white/75 px-8 py-2 shadow-sm ring-1 ring-[#4338ca]/10 backdrop-blur-md md:flex"
+            className="hcx-header-drop hidden items-center gap-8 md:flex"
             aria-label="Main navigation"
           >
             {navItems.map((item) => (
@@ -426,7 +435,9 @@ const Header: React.FC = () => {
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) =>
-                  `hcx-nav-link${isActive ? " active" : ""}`
+                  `hcx-nav-link text-base transition-colors duration-200 ${
+                    isActive ? "active font-bold text-[#0f172a]" : "font-medium text-slate-600 hover:text-[#0f172a]"
+                  }`
                 }
               >
                 {item.label}
@@ -438,13 +449,7 @@ const Header: React.FC = () => {
           <div className="hcx-header-drop hidden justify-self-end md:block">
             <NavLink
               to="/login"
-              className={({ isActive }) =>
-                `hcx-login group inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold transition duration-300 hover:-translate-y-0.5 ${
-                  isActive
-                    ? "bg-[#4338ca] text-white shadow-[0_10px_25px_-10px_rgba(67,56,202,0.8)]"
-                    : "bg-[#ff8a3d] text-[#1b1b3a] shadow-[0_10px_25px_-10px_rgba(255,138,61,0.8)] hover:bg-[#f97829]"
-                }`
-              }
+              className="hcx-login group inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-2.5 text-sm font-semibold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5"
             >
               <span className="relative z-10">Login</span>
               <span
@@ -456,27 +461,38 @@ const Header: React.FC = () => {
             </NavLink>
           </div>
 
-          {/* MOBILE MENU BUTTON */}
-          <button
-            ref={menuButtonRef}
-            type="button"
-            onClick={() => setIsMenuOpen((previous) => !previous)}
-            className={`hcx-menu flex h-11 w-11 flex-col items-center justify-center gap-[5px] justify-self-end rounded-xl transition-colors duration-300 hover:bg-[#eef0ff] md:hidden ${
-              isMenuOpen ? "open bg-[#eef0ff]" : ""
-            }`}
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={isMenuOpen}
-            aria-controls="mobile-navigation"
-          >
-            <span className="hcx-menu-bar" />
-            <span className="hcx-menu-bar" />
-            <span className="hcx-menu-bar" />
-          </button>
+          {/* MOBILE CONTROLS: Location Pill & Notification Bell */}
+          <div className="flex md:hidden items-center justify-end gap-2">
+            {/* Location Selector Pill */}
+            <button
+              type="button"
+              onClick={() => setIsCityModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs transition-colors hover:bg-slate-100 active:scale-95"
+              aria-label={`Current location: ${selectedCity}. Tap to change city.`}
+            >
+              <MapPin className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+              <span className="truncate max-w-[85px]">{selectedCity}</span>
+              <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
+            </button>
+
+            {/* Notification Bell Button */}
+            <button
+              type="button"
+              onClick={() => setIsNotificationOpen(true)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/90 bg-slate-50/90 text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 active:scale-95"
+              aria-label={unreadCount > 0 ? `View notifications (${unreadCount} unread)` : "View notifications"}
+              data-testid="mobile-notification-bell"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-orange-500 ring-2 ring-white animate-pulse" />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* MOBILE DRAWER */}
-
       <div id="mobile-navigation">
         <MobileDrawer
           isOpen={isMenuOpen}
@@ -484,6 +500,195 @@ const Header: React.FC = () => {
           menuButtonRef={menuButtonRef}
         />
       </div>
+
+      {/* CITY SELECTION MODAL */}
+      {isCityModalOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setIsCityModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="City selection modal"
+        >
+          <div
+            className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-5 shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] pb-[max(24px,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Mobile drag handle */}
+            <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-300 sm:hidden" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                <h3 className="text-base font-bold text-slate-900">Select Your City</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCityModalOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors active:scale-95"
+                aria-label="Close city selector"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto py-1 pr-0.5">
+              {CITIES.map((c) => {
+                const isSelected = selectedCity === c.name;
+                return (
+                  <button
+                    key={c.name}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCity(c.name);
+                      try {
+                        localStorage.setItem("hcx_city", c.name);
+                      } catch {}
+                      setIsCityModalOpen(false);
+                    }}
+                    className={`flex items-center justify-between p-3 rounded-xl border text-left transition-all active:scale-95 ${
+                      isSelected
+                        ? "border-blue-600 bg-blue-50/80 text-blue-700 font-bold shadow-xs"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div>
+                      <div className="text-sm font-semibold">{c.name}</div>
+                      <div className="text-[10px] text-slate-400 font-normal">{c.state}</div>
+                    </div>
+                    {isSelected && <Check className="h-4 w-4 text-blue-600 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* NOTIFICATIONS MODAL / BOTTOM SHEET */}
+      {isNotificationOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+          onClick={() => setIsNotificationOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Notifications sheet"
+        >
+          <div
+            className="w-full max-w-md rounded-t-3xl sm:rounded-2xl bg-white p-5 shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] pb-[max(24px,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Mobile drag handle */}
+            <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-300 sm:hidden" />
+
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-orange-500" />
+                <h3 className="text-base font-bold text-slate-900">Notifications</h3>
+                {unreadCount > 0 ? (
+                  <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                    {unreadCount} New
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    All caught up
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllAsRead}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700 active:underline"
+                  >
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationOpen(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors active:scale-95"
+                  aria-label="Close notifications"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2.5 max-h-[60vh] overflow-y-auto py-1 pr-0.5">
+              {notifications.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => markAsRead(item.id)}
+                  className={`rounded-2xl border ${item.cardBorder} ${item.cardBg} p-3.5 transition-all cursor-pointer relative ${
+                    item.read ? "opacity-85" : "shadow-2xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {!item.read && (
+                        <span className="h-2 w-2 rounded-full bg-orange-500 shrink-0" />
+                      )}
+                      <span className={`text-xs font-bold leading-tight truncate ${item.titleColor}`}>
+                        {item.title}
+                      </span>
+                      {item.badge && (
+                        <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-extrabold shrink-0 ${item.badgeColor || "bg-orange-100 text-orange-700"}`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 shrink-0">{item.time}</span>
+                  </div>
+
+                  <p className="mt-1.5 text-xs text-slate-600 leading-relaxed font-normal">
+                    {item.message}
+                  </p>
+
+                  {(item.couponCode || item.actionText) && (
+                    <div className="mt-2.5 flex items-center justify-between pt-2 border-t border-slate-200/60">
+                      {item.couponCode ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(item.id);
+                            handleCopyCoupon(item.couponCode!);
+                          }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-dashed border-orange-400 bg-white px-2.5 py-1 text-[11px] font-bold text-orange-600 shadow-2xs hover:bg-orange-50 active:scale-95 transition-all"
+                        >
+                          <Tag className="h-3 w-3" />
+                          <span>{copiedCoupon === item.couponCode ? "Copied! ✓" : `Code: ${item.couponCode}`}</span>
+                        </button>
+                      ) : <span />}
+
+                      {item.actionText && item.actionUrl && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markAsRead(item.id);
+                            setIsNotificationOpen(false);
+                            navigate(item.actionUrl!);
+                          }}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 active:scale-95 transition-all"
+                        >
+                          <span>{item.actionText}</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </header>
   );
 };

@@ -39,27 +39,29 @@ export default function BookingStepper({ currentStep, focusOnMount = false, comp
   const next = STEPS[currentStep]; // the step after the current one (undefined on the last)
 
   return (
-    <div className={clsx("w-full rounded-3xl border border-line bg-panel shadow-[0_24px_60px_-48px_rgba(67,56,202,.55)]", compact ? "p-3.5 sm:p-4" : "p-4 sm:p-5")}>
+    <div className={clsx("w-full rounded-[22px] sm:rounded-3xl border border-slate-100/90 bg-white shadow-sm", compact ? "p-3.5 sm:p-4" : "p-4 sm:p-5")}>
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p aria-hidden="true" className="text-[11px] font-semibold uppercase tracking-wider text-brand">
-            Step {currentStep} of {STEPS.length}
-          </p>
-          <h2 ref={headingRef} tabIndex={-1} className="mt-0.5 rounded text-lg font-bold tracking-tight text-ink outline-none focus:outline-none focus:ring-0 sm:text-xl">
+          {currentStep !== 2 && (
+            <p aria-hidden="true" className="text-xs font-semibold text-[#4F46E5]">
+              Step {currentStep} of {STEPS.length}
+            </p>
+          )}
+          <h2 ref={headingRef} tabIndex={-1} className="mt-0.5 rounded text-base sm:text-lg font-bold tracking-tight text-slate-900 outline-none focus:outline-none focus:ring-0">
             <span className="sr-only">
               Step {currentStep} of {STEPS.length}:{" "}
             </span>
-            {STEPS[currentStep - 1].title}
+            {currentStep === 2 ? "Address Details" : STEPS[currentStep - 1].title}
           </h2>
         </div>
         {next && (
-          <p aria-hidden="true" className="shrink-0 pb-0.5 text-xs text-muted">
-            Next: <span className="font-semibold text-ink">{next.title}</span>
+          <p aria-hidden="true" className="shrink-0 pb-0.5 text-xs text-slate-400">
+            Next: <span className="font-medium text-slate-500">{currentStep === 2 ? "Schedule" : next.title}</span>
           </p>
         )}
       </div>
 
-      {/* Phones: a four-segment bar */}
+      {/* Phones: a four-segment bar matching reference mockup */}
       <div
         role="progressbar"
         aria-label="Booking progress"
@@ -67,10 +69,16 @@ export default function BookingStepper({ currentStep, focusOnMount = false, comp
         aria-valuemax={STEPS.length}
         aria-valuenow={currentStep}
         aria-valuetext={`Step ${currentStep} of ${STEPS.length}`}
-        className="mt-3 flex gap-1.5 sm:hidden"
+        className="mt-3.5 flex gap-2 sm:hidden"
       >
         {STEPS.map((s, i) => (
-          <span key={s.title} className={clsx("h-1.5 flex-1 rounded-full transition-colors duration-300 motion-reduce:transition-none", i < currentStep ? "bg-brand" : "bg-line")} />
+          <span
+            key={s.title}
+            className={clsx(
+              "h-1.5 flex-1 rounded-full transition-colors duration-300 motion-reduce:transition-none",
+              i < currentStep ? "bg-[#4F46E5]" : "bg-slate-200"
+            )}
+          />
         ))}
       </div>
 
@@ -102,25 +110,22 @@ export default function BookingStepper({ currentStep, focusOnMount = false, comp
               </span>
             </>
           );
+
           return (
-            <li key={title} aria-current={current ? "step" : undefined} className={clsx("flex items-center gap-3", !last && "flex-1")}>
+            <li key={title} className={clsx("flex items-center", !last && "flex-1")}>
               {done && onStepSelect ? (
                 <button
                   type="button"
                   onClick={() => onStepSelect(n)}
-                  title={`Go back to ${title}`}
-                  className={clsx("flex items-center gap-3 rounded-full pr-2 transition-opacity hover:opacity-80", FOCUS_RING)}
+                  aria-label={`Jump back to step ${n}: ${title}`}
+                  className={clsx("group flex items-center gap-3 rounded-xl p-1 text-left transition-colors hover:bg-brand-soft", FOCUS_RING)}
                 >
                   {body}
                 </button>
               ) : (
-                <div className="flex items-center gap-3">{body}</div>
+                <div className="flex items-center gap-3 p-1">{body}</div>
               )}
-              {!last && (
-                <span aria-hidden="true" className="mx-1 h-0.5 flex-1 rounded-full bg-line">
-                  <span className="block h-full rounded-full bg-brand transition-[width] duration-500 ease-out motion-reduce:transition-none" style={{ width: done ? "100%" : "0%" }} />
-                </span>
-              )}
+              {!last && <span aria-hidden="true" className={clsx("mx-3 h-0.5 flex-1 transition-colors duration-300", done ? "bg-brand" : "bg-line")} />}
             </li>
           );
         })}

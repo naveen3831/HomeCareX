@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import PublicLayout from "../layouts/PublicLayout";
 import PageLoader from "../components/common/PageLoader";
@@ -29,12 +29,24 @@ const Contact = lazy(
   () => import("../pages/public/Contact/Contact")
 );
 
+const Reviews = lazy(
+  () => import("../pages/public/Reviews")
+);
+
 const Terms = lazy(
   () => import("../pages/public/Terms")
 );
 
 const Privacy = lazy(
   () => import("../pages/public/Privacy")
+);
+
+const Cookies = lazy(
+  () => import("../pages/public/Cookies")
+);
+
+const Careers = lazy(
+  () => import("../pages/public/Careers")
 );
 
 const NotFound = lazy(
@@ -61,13 +73,10 @@ const PublicRoutes: React.FC = () => {
           />
 
           {/* Service Details */}
-         
-{/* Service Details */}
-<Route
-  path="/services/:slug"
-  element={<ServiceDetails />}
-/>
-
+          <Route
+            path="/services/:slug"
+            element={<ServiceDetails />}
+          />
 
           {/* About */}
           <Route
@@ -87,6 +96,18 @@ const PublicRoutes: React.FC = () => {
             element={<Contact />}
           />
 
+          {/* Support alias -> Contact */}
+          <Route
+            path="/support"
+            element={<Navigate to={ROUTES.CONTACT} replace />}
+          />
+
+          {/* Customer Reviews & Stories (Full Page) */}
+          <Route
+            path={ROUTES.REVIEWS}
+            element={<Reviews />}
+          />
+
           {/* Terms */}
           <Route
             path={ROUTES.TERMS}
@@ -97,6 +118,18 @@ const PublicRoutes: React.FC = () => {
           <Route
             path={ROUTES.PRIVACY}
             element={<Privacy />}
+          />
+
+          {/* Cookie Policy */}
+          <Route
+            path={ROUTES.COOKIES}
+            element={<Cookies />}
+          />
+
+          {/* Careers */}
+          <Route
+            path={ROUTES.CAREERS}
+            element={<Careers />}
           />
 
           {/* 404 */}

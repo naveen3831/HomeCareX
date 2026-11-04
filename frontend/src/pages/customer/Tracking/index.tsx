@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
@@ -99,6 +99,27 @@ export default function TrackingPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatFocusKey, setChatFocusKey] = useState(0);
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleBack = () => {
+    if (location.state?.from) {
+      if (location.state.from === customerPath("/tracking") || location.state.from.includes("/payments")) {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate(location.state.from, { replace: true });
+        }
+      } else {
+        navigate(location.state.from);
+      }
+    } else if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(customerPath("/tracking"));
+    }
+  };
+
   // Reset chat visibility when switching bookings
   useEffect(() => {
     setChatOpen(false);
@@ -180,7 +201,7 @@ export default function TrackingPage() {
   const stateShell = (children: ReactNode) => (
     <div
       ref={pageShellRef}
-      className="tk-page-shell mx-auto w-full max-w-6xl px-3 py-4 sm:px-5"
+      className="tk-page-shell w-full min-w-0"
     >
       {children}
     </div>
@@ -392,7 +413,7 @@ export default function TrackingPage() {
     <div
       ref={pageShellRef}
       className={clsx(
-        "tk-page-shell mx-auto w-full max-w-6xl px-3 py-1 sm:px-5",
+        "tk-page-shell w-full min-w-0",
         trackable && "tk-page-shell--fit",
       )}
     >
@@ -408,59 +429,73 @@ export default function TrackingPage() {
         )}
       >
         {/* ---------- header ---------- */}
-        <header className="tk-header !grid w-full min-w-0 grid-cols-1 items-start gap-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:gap-x-4 md:gap-y-1">
-          <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <Link
-                to={detailsHref}
-                className={clsx(BACK_LINK, "shrink-0 whitespace-nowrap", FOCUS_RING)}
-              >
-                <ArrowLeft className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Back to booking
-              </Link>
-              <span aria-hidden="true" className="text-xs text-slate-300">
-                |
+        <header className="tk-header w-full min-w-0 space-y-1 pb-1">
+          {/* Top Row: Back button (left) + Live Tracking badge (right) - Mobile only */}
+          <div className="flex w-full items-center justify-between md:hidden">
+            <button
+              type="button"
+              onClick={handleBack}
+              className={clsx(
+                "inline-flex items-center gap-1.5 text-xs font-semibold text-[#4338ca] transition-colors hover:underline sm:text-sm",
+                FOCUS_RING,
+              )}
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {location.state?.from === customerPath("/bookings")
+                  ? "Back to My Bookings"
+                  : location.state?.from && location.state.from.includes("/bookings/")
+                    ? "Back to booking"
+                    : "Back to Active Bookings"}
               </span>
-              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-semibold text-brand">
-                <Radio className="h-3 w-3 shrink-0" aria-hidden="true" />
-                Live Tracking
-              </span>
-            </div>
+            </button>
 
-            <div className="mt-1 min-w-0">
-              <h1 className="min-w-0 break-words text-lg font-bold leading-snug tracking-tight text-ink sm:text-xl">
-                {serviceName || "Track your service"}
-              </h1>
-              <p className="mt-1 flex min-w-0 flex-col items-start gap-y-0.5 text-xs leading-relaxed text-muted sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
-                <span className="min-w-0 [overflow-wrap:anywhere]">
-                  Booking ID {bookingCode}
-                </span>
-                {bookedOn && (
-                  <>
-                    <span aria-hidden="true" className="hidden sm:inline">•</span>
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
-                      Booked on {bookedOn}
-                    </span>
-                  </>
-                )}
-              </p>
-            </div>
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#eeebf9] px-3 py-1 text-xs font-semibold text-[#4338ca]">
+              <Radio className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Live Tracking</span>
+            </span>
           </div>
 
-          {!cancelled && (
-            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-2.5 gap-y-1 md:flex-col md:items-end md:gap-0.5">
-              <span
-                className={clsx(
-                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-0.5 text-xs font-semibold sm:text-[13px]",
-                  BADGE_STYLE[status] ?? "bg-slate-100 text-slate-700",
+          {/* Service Title Row: Service Name (left) + Live Tracking badge (desktop right) */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-[17px] font-bold tracking-tight text-slate-900 leading-snug min-[360px]:text-[18px] sm:text-[20px] md:text-[21px]">
+                {serviceName || "Track your service"}
+              </h1>
+
+              {/* Sub-header: Booking ID, Booked on, and Track Status all beside each other on Web/Desktop */}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] font-normal text-slate-500 min-[360px]:text-xs md:text-[13px]">
+                <span className="font-medium text-slate-700">Booking ID {bookingCode}</span>
+                {bookedOn && (
+                  <>
+                    <span aria-hidden="true" className="text-slate-300">•</span>
+                    <span>Booked on {bookedOn}</span>
+                  </>
                 )}
-              >
-                <StatusIcon status={status} />
-                {statusLabel(status)}
-              </span>
-              <EtaBadge status={status} minutes={eta} />
+                {!cancelled && (
+                  <>
+                    <span aria-hidden="true" className="text-slate-300 hidden md:inline">•</span>
+                    <span
+                      className={clsx(
+                        "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-0.5 text-xs font-semibold transition-colors",
+                        BADGE_STYLE[status] ?? "bg-[#eeebf9] text-[#4338ca]",
+                      )}
+                    >
+                      <StatusIcon status={status} />
+                      <span>{statusLabel(status)}</span>
+                    </span>
+                    <EtaBadge status={status} minutes={eta} />
+                  </>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* Live Tracking badge on Desktop, aligned with Service Name */}
+            <span className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#eeebf9] px-3.5 py-1 text-xs font-semibold text-[#4338ca] mt-0.5">
+              <Radio className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              <span>Live Tracking</span>
+            </span>
+          </div>
         </header>
 
         {/* ---------- not trackable: say why ---------- */}
@@ -560,21 +595,21 @@ export default function TrackingPage() {
               <div
                 role="status"
                 className={clsx(
-                  "mt-auto flex shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1.5",
+                  "mt-auto flex shrink-0 items-start gap-2.5 rounded-xl border px-3 py-2 transition-colors",
                   locationUnavailable
-                    ? "border-amber-200/80 bg-amber-50/80"
-                    : "border-emerald-200/80 bg-emerald-50/80",
+                    ? "border-amber-200 bg-amber-50/95 text-amber-900"
+                    : "border-emerald-200 bg-emerald-50/95 text-emerald-900",
                 )}
               >
                 <span
                   aria-hidden="true"
                   className={clsx(
-                    "h-2 w-2 shrink-0 rounded-full",
-                    locationUnavailable ? "bg-amber-500" : "bg-emerald-500",
+                    "h-2 w-2 shrink-0 rounded-full mt-1",
+                    locationUnavailable ? "bg-amber-500 animate-pulse" : "bg-emerald-500",
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-semibold leading-tight text-ink">
+                  <p className="text-xs font-semibold leading-tight text-slate-900">
                     {freshness === "live"
                       ? onSite
                         ? "Partner is at your location"
@@ -583,7 +618,7 @@ export default function TrackingPage() {
                         ? "Last known location"
                         : "Location not shared yet"}
                   </p>
-                  <p className="truncate text-[10.5px] font-medium leading-tight text-slate-600">
+                  <p className="mt-0.5 text-[11px] font-normal leading-normal text-slate-600">
                     {locationUnavailable && !connectionIssue
                       ? unavailableDetail
                       : connection}
@@ -664,43 +699,47 @@ export default function TrackingPage() {
         {showFallbackNotice && (
           <section
             role="status"
-            className="tk-fallback-banner flex flex-wrap items-center gap-3 rounded-xl border border-brand/15 bg-brand-soft/45 px-3.5 py-1.5"
+            className="tk-fallback-banner flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-brand/15 bg-brand-soft/45 px-3.5 py-2"
           >
-            <span
-              aria-hidden="true"
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-white"
-            >
-              <Info className="h-3.5 w-3.5" />
-            </span>
-            <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <p className="text-xs font-semibold text-ink">
-                Live location unavailable
-              </p>
-              <p className="text-xs text-muted">
-                {freshness === "none"
-                  ? status === "assigned"
-                    ? "Your partner hasn't set off yet. You'll see them on the map as soon as they do."
-                    : `Latest status: ${statusLabel(status)}.`
-                  : `Showing the last known location.${ago ? ` Updated ${ago}.` : ""}${distanceText ? ` Distance: ${distanceText}.` : ""}${eta !== null ? ` Est. travel: ~${eta} min.` : ""} Latest status: ${statusLabel(status)}.`}
-              </p>
+            <div className="flex items-start sm:items-center gap-2.5 flex-1 min-w-0">
+              <span
+                aria-hidden="true"
+                className="flex h-5 w-5 sm:h-6 sm:w-6 shrink-0 mt-0.5 sm:mt-0 items-center justify-center rounded-full bg-brand text-white"
+              >
+                <Info className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+              </span>
+              <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-x-2 gap-y-0.5">
+                <p className="text-xs font-semibold text-slate-900 shrink-0">
+                  Live location unavailable
+                </p>
+                <p className="text-[11px] sm:text-xs text-slate-600 leading-normal sm:truncate font-normal">
+                  {freshness === "none"
+                    ? status === "assigned"
+                      ? "Your partner hasn't set off yet. You'll see them on the map as soon as they do."
+                      : `Latest status: ${statusLabel(status)}.`
+                    : `Showing the last known location.${ago ? ` Updated ${ago}.` : ""}${distanceText ? ` Distance: ${distanceText}.` : ""}${eta !== null ? ` Est. travel: ~${eta} min.` : ""} Latest status: ${statusLabel(status)}.`}
+                </p>
+              </div>
             </div>
             {freshness === "last_known" && (
-              <button
-                type="button"
-                onClick={handleViewLastKnownLocation}
-                className={clsx(
-                  "inline-flex min-h-[28px] shrink-0 items-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold transition",
-                  focusedOnPartner
-                    ? "border-brand bg-brand text-white hover:opacity-95"
-                    : "border-brand/40 bg-white text-brand hover:bg-brand-soft",
-                  FOCUS_RING,
-                )}
-              >
-                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                {focusedOnPartner
-                  ? "Viewing Last Known Location"
-                  : "View Last Known Location"}
-              </button>
+              <div className="flex sm:shrink-0 w-full sm:w-auto justify-end sm:justify-start pt-1 sm:pt-0">
+                <button
+                  type="button"
+                  onClick={handleViewLastKnownLocation}
+                  className={clsx(
+                    "inline-flex min-h-[30px] w-full sm:w-auto items-center justify-center gap-1.5 rounded-lg border px-3 py-1 text-xs font-semibold transition",
+                    focusedOnPartner
+                      ? "border-brand bg-brand text-white hover:opacity-95"
+                      : "border-brand/40 bg-white text-brand hover:bg-brand-soft",
+                    FOCUS_RING,
+                  )}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  {focusedOnPartner
+                    ? "Viewing Last Known Location"
+                    : "View Last Known Location"}
+                </button>
+              </div>
             )}
           </section>
         )}

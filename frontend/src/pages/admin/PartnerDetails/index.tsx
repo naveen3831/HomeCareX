@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingPanel from "./TrainingApprovalCard";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -384,15 +384,21 @@ const AdminPartnerDetailsPage: React.FC =
               <span className={`pd-badge ${tone(partner.kycStatus)}`}>
                 KYC · {partner.kycStatus}
               </span>
-              <span className={`pd-badge ${tone(partner.accountStatus)}`}>
-                Account · {partner.accountStatus}
-              </span>
-              {partner.training && (
-                <span className={`pd-badge ${tone(partner.training.status)}`}>
-                  Training · {partner.training.status}
-                </span>
-              )}
-            </div>
+            )}
+          </div>
+        </div>
+
+        <TrainingApprovalCard
+          partnerId={partner.id}
+          canApprove={hasKycApprovalPermission}
+        />
+
+        <div className="partner-details-summary">
+          <div>
+            <strong>Email</strong>
+            <span title={partner.email}>
+              {partner.email || "—"}
+            </span>
           </div>
         </header>
 

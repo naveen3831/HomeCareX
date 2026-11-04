@@ -1,0 +1,49 @@
+.pp-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 16px;
+  margin: 12px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+}
+.pp-card-paid { background: #ecfdf5; border-color: #a7f3d0; }
+.pp-card-warn { background: #fffbeb; border-color: #fde68a; }
+.pp-card-collect { flex-direction: column; align-items: stretch; gap: 12px; }
+.pp-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pp-title { font-size: 1rem; color: #0f172a; }
+.pp-sub { font-size: 0.875rem; color: #475569; line-height: 1.4; }
+.pp-icon-ok { color: #059669; flex: none; }
+.pp-icon-warn { color: #d97706; flex: none; }
+.pp-icon-muted { color: #64748b; flex: none; }
+.pp-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.pp-eyebrow { font-size: 0.75rem; letter-spacing: 0.08em; font-weight: 700; color: #4338ca; }
+.pp-amount { font-size: 1.5rem; color: #0f172a; }
+.pp-qr-wrap { display: flex; justify-content: center; }
+.pp-qr, .pp-qr-skel { width: 220px; height: 220px; max-width: 100%; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+.pp-qr-skel { background: linear-gradient(90deg, #f1f5f9, #e2e8f0, #f1f5f9); background-size: 200% 100%; animation: pp-shimmer 1.2s linear infinite; }
+.pp-hint { margin: 0; text-align: center; font-size: 0.8125rem; color: #64748b; }
+.pp-payee { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #f8fafc; }
+.pp-payee > div { display: flex; flex-direction: column; min-width: 0; }
+.pp-label { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: #64748b; }
+.pp-upi-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; color: #334155; overflow-wrap: anywhere; }
+.pp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 14px; border-radius: 12px; border: 1px solid #cbd5e1;
+  background: #fff; color: #0f172a; font-size: 0.875rem; font-weight: 600;
+  text-decoration: none; cursor: pointer; min-height: 44px;
+}
+.pp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.pp-btn:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+.pp-btn-primary { background: #4338ca; border-color: #4338ca; color: #fff; }
+.pp-btn-ghost { background: transparent; min-height: 40px; flex: none; }
+.pp-wait { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.875rem; color: #475569; }
+.pp-alert { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 10px; background: #fef2f2; color: #b91c1c; font-size: 0.8125rem; }
+.pp-error { margin: 0; font-size: 0.8125rem; font-weight: 600; color: #dc2626; }
+.pp-spin { animation: pp-rotate 0.9s linear infinite; }
+@keyframes pp-rotate { to { transform: rotate(360deg); } }
+@keyframes pp-shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .pp-spin, .pp-qr-skel { animation: none; }
+}

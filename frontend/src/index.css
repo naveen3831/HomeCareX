@@ -885,9 +885,8 @@ body {
   }
 
   .dashboard-mobile .dashboard-offer {
-    width: 286px;
     min-height: 154px;
-    border-radius: 20px;
+    border-radius: 24px;
   }
 
   .dashboard-mobile .dashboard-service:active,

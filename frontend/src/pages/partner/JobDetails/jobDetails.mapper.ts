@@ -1,4 +1,4 @@
-import type { ApiJob, JobDetails } from './jobDetails.types';
+import type { ApiJob, ApiPayment, JobDetails, JobPayment, JobPaymentUpi, PaymentPhase } from './jobDetails.types';
 import type { JobStatus } from './jobStatus';
 
 const ACTOR_LABEL: Record<string, string> = {
@@ -104,12 +104,85 @@ export function getDefaultChecklistForService(serviceName?: string): { id: strin
   ];
 }
 
+const PHASE_BY_STATUS: Record<string, PaymentPhase> = {
+  paid: 'paid',
+  success: 'paid',
+  succeeded: 'paid',
+  captured: 'paid',
+  failed: 'failed',
+  rejected: 'failed',
+  refunded: 'refunded',
+  partially_refunded: 'refunded',
+};
+
+/** Builds the standard UPI deep link (works for QR scanners and "Open UPI app"). */
+export function buildUpiUri(upi: { payeeId: string; payeeName: string; amount: number; note: string }): string {
+  const params = new URLSearchParams({
+    pa: upi.payeeId,
+    pn: upi.payeeName,
+    am: upi.amount.toFixed(2),
+    cu: 'INR',
+  });
+  if (upi.note) params.set('tn', upi.note);
+  return `upi://pay?${params.toString().replace(/\+/g, '%20')}`;
+}
+
+/** Pure. Accepts whatever payment block the backend sent and returns one predictable shape. */
+export function normalizePayment(
+  payment: ApiPayment | null | undefined,
+  fallbackAmount: number,
+  bookingCode: string,
+): JobPayment {
+  const status = payment?.status ?? 'PENDING';
+  // The backend sends `upiUri` (a upi://pay link) and `amountDue`; older shapes sent a `upi` object and `amount`.
+  const uriParams = payment?.upiUri ? new URLSearchParams(payment.upiUri.split('?')[1] ?? '') : null;
+  const phase = PHASE_BY_STATUS[String(status).toLowerCase()] ?? 'pending';
+  const amount =
+    typeof payment?.amount === 'number' && payment.amount >= 0
+      ? payment.amount
+      : typeof payment?.amountDue === 'number' && payment.amountDue >= 0
+        ? payment.amountDue
+        : typeof payment?.upi?.amount === 'number' && payment.upi.amount >= 0
+        ? payment.upi.amount
+        : fallbackAmount;
+
+  const raw =
+    payment?.upi ??
+    (payment?.upiUri && uriParams
+      ? {
+          payeeId: uriParams.get('pa') ?? '',
+          payeeName: uriParams.get('pn') ?? undefined,
+          note: uriParams.get('tn') ?? undefined,
+          uri: payment.upiUri,
+        }
+      : undefined);
+  const payeeId = raw?.payeeId?.trim();
+  let upi: JobPaymentUpi | null = null;
+  if (payeeId || raw?.uri) {
+    const details = {
+      payeeId: payeeId ?? '',
+      payeeName: raw?.payeeName?.trim() || 'HomeCareX',
+      amount,
+      note: raw?.note?.trim() || `HomeCareX ${bookingCode}`,
+    };
+    upi = { ...details, uri: raw?.uri || buildUpiUri(details) };
+  }
+
+  return {
+    status,
+    phase,
+    amount,
+    method: payment?.method ?? undefined,
+    paidAt: payment?.paidAt ?? null,
+    upi,
+  };
+}
+
 /** Pure: no network, no React. Turns the API response into what the page renders. */
 export function mapJob(api: ApiJob): JobDetails {
   const serviceName = api.service?.name || 'Service';
-  const checklist = (api.checklist && api.checklist.length > 0)
-    ? api.checklist
-    : getDefaultChecklistForService(serviceName);
+  // Only the backend's own checklist is shown (invented items cannot be saved).
+  const checklist = api.checklist ?? [];
 
   return {
     id: api.id,
@@ -124,6 +197,7 @@ export function mapJob(api: ApiJob): JobDetails {
       address: [api.location.line1, api.location.area].filter(Boolean).join(', '),
       city: api.location.city,
       pincode: api.location.pincode,
+      coordinates: api.location.coordinates ?? null,
     },
     schedule: { scheduledAt: api.schedule.scheduledAt, slot: api.schedule.slot, startedAt: api.schedule.startedAt ?? null },
     price: { total: api.price.total, partnerEarning: api.price.partnerEarning },
@@ -131,7 +205,7 @@ export function mapJob(api: ApiJob): JobDetails {
     instructions: api.instructions,
     checklist,
     extraCharges: api.extraCharges ?? [],
-    payment: { status: api.payment?.status ?? 'PENDING', amount: api.price.total },
+    payment: normalizePayment(api.payment, api.price.total, bookingCode(api.id)),
     actions: api.actions ?? [],
     otpRequired: api.otpRequired,
     startVerification: api.startVerification ?? null,
@@ -143,7 +217,38 @@ export function mapJob(api: ApiJob): JobDetails {
   };
 }
 
-/** Converts a live job / list item (e.g. from GET /partner/jobs) into JobDetails format */
+function isApiJob(item: Record<string, unknown>): item is Record<string, unknown> & ApiJob {
+  const customer = item.customer && typeof item.customer === 'object'
+    ? item.customer as Record<string, unknown>
+    : {};
+  const service = item.service && typeof item.service === 'object'
+    ? item.service as Record<string, unknown>
+    : {};
+  const location = item.location && typeof item.location === 'object'
+    ? item.location as Record<string, unknown>
+    : {};
+  const schedule = item.schedule && typeof item.schedule === 'object'
+    ? item.schedule as Record<string, unknown>
+    : {};
+  const price = item.price && typeof item.price === 'object'
+    ? item.price as Record<string, unknown>
+    : {};
+
+  return typeof item.id === 'string' &&
+    typeof item.status === 'string' &&
+    typeof customer.name === 'string' &&
+    typeof service.name === 'string' &&
+    typeof location.line1 === 'string' &&
+    typeof location.city === 'string' &&
+    typeof schedule.scheduledAt === 'string' &&
+    typeof price.total === 'number' &&
+    typeof price.partnerEarning === 'number' &&
+    Array.isArray(item.addOns) &&
+    Array.isArray(item.checklist) &&
+    Array.isArray(item.actions) &&
+    Array.isArray(item.statusHistory);
+}
+
 export interface JobListItemLike {
   id?: string | number;
   service?: string | { name?: string };
@@ -164,9 +269,10 @@ export interface JobListItemLike {
   [key: string]: unknown;
 }
 
+/** Converts a live job / list item (e.g. from GET /partner/jobs) into JobDetails format */
 export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails {
-  if (item.location && typeof item.location === 'object' && item.customer && typeof item.customer === 'object') {
-    return mapJob(item as unknown as ApiJob);
+  if (isApiJob(item)) {
+    return mapJob(item);
   }
 
   const serviceName =
@@ -177,6 +283,9 @@ export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails {
         : null) || 'Service';
   const cleanId = String(item.id || '');
   const addr = item.address || item.location || 'Location';
+  const addressText = typeof addr === 'string'
+    ? addr
+    : [addr.line1, addr.area].filter((part): part is string => typeof part === 'string' && part.length > 0).join(', ') || 'Customer address';
   const customerObj = typeof item.customer === 'object' && item.customer !== null ? item.customer : null;
   const customerName = item.customerName || customerObj?.name || (typeof item.customer === 'string' ? item.customer : 'Customer');
   const customerPhone = item.customerPhone || customerObj?.phone || '+91 ••••• ••' + cleanId.slice(-3);
@@ -185,50 +294,52 @@ export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails {
   return {
     id: cleanId,
     bookingCode: bookingCode(cleanId),
-    status,
+    status: status as JobDetails['status'],
     customer: {
       name: customerName,
       phoneMasked: customerPhone,
     },
     service: {
       name: serviceName,
-      description: item.serviceDescription || `${serviceName} professional service`,
+      description: String(item.serviceDescription || `${serviceName} professional service`),
       quantity: 1,
-      durationMinutes: item.durationMinutes || 90,
+      durationMinutes: Number(item.durationMinutes) || 90,
     },
     location: {
-      address: typeof addr === 'string' ? addr : [addr.line1, addr.area].filter(Boolean).join(', ') || 'Customer address',
+      address: addressText,
       city: 'Hyderabad',
       pincode: null,
     },
     schedule: {
-      scheduledAt: item.scheduledAt || new Date().toISOString(),
-      slot: item.slot || '10:00 – 12:00',
+      scheduledAt: String(item.scheduledAt || new Date().toISOString()),
+      slot: String(item.slot || '10:00 – 12:00'),
       startedAt: null,
     },
     price: {
-      basePrice: item.partnerEarning || item.amount || 1299,
-      total: item.amount || item.total || 1348,
-      partnerEarning: item.partnerEarning || item.amount || 1299,
+      basePrice: Number(item.partnerEarning || item.amount) || 1299,
+      total: Number(item.amount || item.total) || 1348,
+      partnerEarning: Number(item.partnerEarning || item.amount) || 1299,
     },
     addOns: [],
-    instructions: item.instructions || '',
+    instructions: String(item.instructions || ''),
     checklist: getDefaultChecklistForService(serviceName),
     extraCharges: [],
     payment: {
       status: 'PENDING',
-      amount: item.amount || item.total || 1348,
+      phase: 'pending',
+      upi: null,
+      amount: Number(item.amount || item.total) || 1348,
     },
     actions: status === 'assigned' || status === 'confirmed'
       ? [{ status: 'en_route', label: 'On the way' }]
-      : item.status === 'en_route'
+      : status === 'en_route'
         ? [{ status: 'arrived', label: 'Arrived at location' }]
         : [],
     otpRequired: status === 'arrived',
     history: [
       {
-        status,
-        at: item.scheduledAt || new Date().toISOString(),
+        status: status as JobDetails['status'],
+        at: String(item.scheduledAt || new Date().toISOString()),
         actor: 'System',
       },
     ],

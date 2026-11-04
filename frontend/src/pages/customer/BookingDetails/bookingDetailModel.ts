@@ -205,11 +205,14 @@ export function buildTimeline(
   booking: Pick<BookingDetailView, "status" | "statusHistory"> & {
     createdAt?: string;
     holdExpiresAt?: string;
+    history?: BookingDetailView["statusHistory"];
   },
   now: number = Date.now(),
 ): TimelineItem[] {
   const history = Array.isArray(booking?.statusHistory)
     ? booking.statusHistory
+    : Array.isArray(booking?.history)
+    ? booking.history
     : Array.isArray((booking as { history?: unknown[] })?.history)
     ? ((booking as { history?: BookingDetailView['statusHistory'] }).history ?? [])
     : [];
@@ -323,7 +326,7 @@ export function formatBookedOn(iso?: string): string {
       minute: "2-digit",
       hour12: true,
     })
-    .toUpperCase();
+    .toUpperCase().replace(/\s+(AM|PM)/, "\u00A0$1");
   return `${date}, ${time}`;
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Bell, ChevronRight, Globe, LogOut, MapPin, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useT } from '@/i18n/LanguageContext';
 import { SETTINGS_HOME } from './paths';
 import './settings.css';
 
@@ -28,14 +29,12 @@ const ITEMS = [
 /** /partner/settings: a list of sections on phones, a redirect to Notifications on desktop. */
 export default function SettingsHome() {
   const isMobile = useIsMobile();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const t = useT();
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
-  const account = (user ?? {}) as { name?: string; email?: string };
 
   if (!isMobile) return <Navigate to={SETTINGS_HOME} replace />;
-
-  const initial = (account.name || account.email || 'P').trim().charAt(0).toUpperCase();
 
   const signOut = async () => {
     setSigningOut(true);
@@ -48,15 +47,7 @@ export default function SettingsHome() {
 
   return (
     <div className="ps-root">
-      <div className="ps-hub-me">
-        <span className="ps-hub-avatar" aria-hidden="true">{initial}</span>
-        <span className="ps-row-text">
-          <span className="ps-hub-name">{account.name || 'Partner'}</span>
-          <span className="ps-muted">{account.email || ''}</span>
-        </span>
-      </div>
-
-      <nav className="ps-hub-list" aria-label="Settings sections">
+      <nav className="ps-hub-list" aria-label={t('Settings sections')}>
         {ITEMS.map((it) => {
           const Icon = it.icon;
           return (
@@ -65,8 +56,8 @@ export default function SettingsHome() {
                 <Icon size={18} />
               </span>
               <span className="ps-row-text">
-                <span className="ps-hub-label">{it.label}</span>
-                <span className="ps-muted">{it.hint}</span>
+                <span className="ps-hub-label">{t(it.label)}</span>
+                <span className="ps-muted">{t(it.hint)}</span>
               </span>
               <ChevronRight size={18} className="ps-chevron" aria-hidden="true" />
             </Link>
@@ -77,7 +68,7 @@ export default function SettingsHome() {
       <div className="ps-group">
         <button type="button" className="ps-btn ps-btn-danger" onClick={() => void signOut()} disabled={signingOut}>
           <LogOut size={18} aria-hidden="true" />
-          {signingOut ? 'Signing out...' : 'Log out'}
+          {signingOut ? t('Signing out...') : t('Log out')}
         </button>
       </div>
     </div>

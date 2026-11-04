@@ -18,6 +18,7 @@ const toService = (s: ServiceRow, cat: CategoryLite): PublicServiceDto => ({
   name: s.name,
   description: s.description ?? '',
   icon: s.icon ?? '',
+  ...(s.iconUrl ? { iconUrl: s.iconUrl } : {}),
   category: cat,
   basePrice: s.basePrice,
   durationMinutes: s.durationMinutes,
@@ -34,19 +35,28 @@ export const catalogService = {
     const top = Math.max(0, ...[...stats.values()].map((x) => x.bookings));
     // Exactly one category is "popular": the first with the highest bookings (none while nothing is booked yet).
     const popularId = top > 0 ? cats.find((c) => stats.get(String(c._id))?.bookings === top)?._id : undefined;
-    return cats.map((c) => ({
-      id: String(c._id),
-      name: c.name,
-      slug: c.slug,
-      description: c.description ?? '',
-      icon: c.icon ?? '',
-      imageUrl: primaryImageUrl(c.images),
-      iconUrl: c.iconUrl ?? '',
-      sortOrder: c.sortOrder ?? 0,
-      serviceCount: stats.get(String(c._id))?.count ?? 0,
-      fromPrice: stats.get(String(c._id))?.fromPrice ?? 0,
-      popular: popularId !== undefined && String(popularId) === String(c._id),
-    }));
+    const seenCategoryIds = new Set<string>();
+    const result: PublicCategoryDto[] = [];
+    for (const c of cats) {
+      if (/test/i.test(c.slug) || /test/i.test(c.name)) continue;
+      const id = String(c._id);
+      if (seenCategoryIds.has(id)) continue;
+      seenCategoryIds.add(id);
+      result.push({
+        id,
+        name: c.name,
+        slug: c.slug,
+        description: c.description ?? '',
+        icon: c.icon ?? '',
+        iconUrl: c.iconUrl ?? '',
+        imageUrl: primaryImageUrl(c.images),
+        sortOrder: c.sortOrder ?? 0,
+        serviceCount: stats.get(id)?.count ?? 0,
+        fromPrice: stats.get(id)?.fromPrice ?? 0,
+        popular: popularId !== undefined && String(popularId) === id,
+      });
+    }
+    return result;
   },
 
   /** Validated, filtered, sorted, paginated. A page past the end returns an empty list, not an error. */
@@ -57,19 +67,37 @@ export const catalogService = {
     const cats = await repo.activeCategories();
     let scope = cats;
     if (parsed.category) {
-      scope = cats.filter((c) => String(c._id) === parsed.category || c.slug === parsed.category);
+      const catKey = parsed.category.toLowerCase();
+      scope = cats.filter((c) => {
+        const idStr = String(c._id);
+        const slug = c.slug.toLowerCase();
+        if (idStr === catKey || slug === catKey) return true;
+        if ((catKey === 'plumbing' || catKey === 'electrical') && slug === 'electrical-plumbing') return true;
+        if (catKey === 'appliance-repair' && slug === 'appliance-repair-service') return true;
+        if (catKey === 'cleaning' && slug === 'home-cleaning') return true;
+        return false;
+      });
     }
     const emptyMeta: PageMeta = { page, limit, total: 0, totalPages: 0 };
     if (scope.length === 0) return { items: [], meta: emptyMeta };
 
-    const built = buildServiceQuery(parsed, scope.map((c) => new Types.ObjectId(String(c._id))));
+    const categoryScope = scope.map((c) => new Types.ObjectId(String(c._id)));
+    const built = buildServiceQuery(parsed, categoryScope);
     const [rows, total] = await Promise.all([repo.findServices(built, (page - 1) * limit, limit), repo.countServices(built)]);
 
     const byId = new Map(cats.map((c) => [String(c._id), toCategoryLite(c)]));
-    const items = rows.flatMap((r) => {
+    const seenServiceIds = new Set<string>();
+    const items: PublicServiceDto[] = [];
+    for (const r of rows) {
+      if (/test/i.test(r.slug) || /test/i.test(r.name)) continue;
+      const id = String(r._id);
+      if (seenServiceIds.has(id)) continue;
+      seenServiceIds.add(id);
       const cat = byId.get(String(r.categoryId));
-      return cat ? [toService(r, cat)] : [];
-    });
+      if (cat) {
+        items.push(toService(r, cat));
+      }
+    }
     return { items, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   },
 
