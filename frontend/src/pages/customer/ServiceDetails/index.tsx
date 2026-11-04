@@ -55,7 +55,7 @@ function Details({ service: s }: { service: ServiceDetail }) {
   }, [s.description, s.inclusions.length, s.exclusions.length, s.addOns.length, s.faqs.length]);
 
   return (
-    <div className="mx-auto max-w-[1280px]">
+    <div className="w-full min-w-0">
 
       <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,1fr)_460px] xl:gap-8">
         <div className="min-w-0 xl:col-start-1 xl:row-start-1">

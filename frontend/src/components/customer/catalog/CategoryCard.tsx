@@ -24,7 +24,6 @@ interface Props {
  */
 export function CategoryCard({ category: c, index, featured = false }: Props) {
   const v = categoryVisual(c.slug);
-  // The admin's cover photo first; the built-in photo (by slug) only while the admin has not set one or it fails to load.
   const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
   const photo = [c.imageUrl?.trim(), v.image].find((src): src is string => !!src && !failedPhotos.includes(src)) ?? null;
   const hints = [c.icon, c.name, c.slug];
@@ -47,7 +46,7 @@ export function CategoryCard({ category: c, index, featured = false }: Props) {
             alt=""
             loading={index < 4 ? "eager" : "lazy"}
             decoding="async"
-            onError={() => setFailedPhotos((list) => [...list, photo])}
+            onError={() => setFailedPhotos((list) => list.includes(photo) ? list : [...list, photo])}
             style={{ objectPosition: photo === v.image ? v.focus : undefined }}
             className="absolute inset-0 h-full w-full object-cover"
           />

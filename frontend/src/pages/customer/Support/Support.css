@@ -4,9 +4,9 @@
  */
 .hcx-support,
 .hcx-support.hcx-support--proof {
-  max-width: 1120px;
+  max-width: 100%;
   min-width: 0;
-  margin: 0 auto;
+  margin: 0;
   color: #243142;
   font-family:
     system-ui,

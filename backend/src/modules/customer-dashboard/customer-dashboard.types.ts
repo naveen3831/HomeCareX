@@ -74,7 +74,8 @@ export interface CategoryRow {
   slug: string;
   icon?: string | null;
   iconUrl?: string | null;
-  images?: { url: string; isPrimary?: boolean }[] | null;
+  imageUrl?: string | null;
+  images?: Array<{ url: string; alt?: string; isPrimary?: boolean }>;
   serviceCount: number;
 }
 
@@ -89,4 +90,3 @@ export interface ServiceRow {
   ratingAvg?: number | null;
   ratingCount?: number | null;
 }
-

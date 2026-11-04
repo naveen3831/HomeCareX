@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { CouponModel } from '../../models/Coupon';
 import { CategoryModel } from '../../models/Category';
 import { ServiceModel } from '../../models/Service';
+import { BookingModel } from '../../models/Booking';
 import { HttpError } from '../auth/auth.types';
 import { auditService } from '../audit/audit.service';
 import {
@@ -362,8 +363,9 @@ export class CouponsService {
     }
 
     const now = new Date();
+    const effectiveDate = input.date ? new Date(input.date) : now;
 
-    if (now < coupon.startAt) {
+    if (now < coupon.startAt || effectiveDate < coupon.startAt) {
       throw new HttpError(
         422,
         'This coupon has not started yet',
@@ -371,7 +373,7 @@ export class CouponsService {
       );
     }
 
-    if (now > coupon.endAt) {
+    if (now > coupon.endAt || effectiveDate > coupon.endAt) {
       throw new HttpError(
         422,
         'This coupon has expired',
@@ -407,6 +409,17 @@ export class CouponsService {
           'You have reached the usage limit for this coupon',
           'COUPON_PER_USER_LIMIT',
         );
+      }
+
+      if (code.startsWith('WELCOME') || code.includes('FIRST')) {
+        const hasPreviousBooking = await BookingModel.exists({ customerId: userId });
+        if (hasPreviousBooking) {
+          throw new HttpError(
+            422,
+            'Welcome coupon is only valid on your first booking',
+            'COUPON_NOT_APPLICABLE',
+          );
+        }
       }
     }
 
@@ -648,6 +661,14 @@ export class CouponsService {
           if (userUsage >= coupon.perUserLimit) {
             eligible = false;
             reasonCode = 'COUPON_USAGE_LIMIT';
+          }
+        }
+
+        if (eligible && userId && (coupon.code.startsWith('WELCOME') || coupon.code.includes('FIRST'))) {
+          const hasPreviousBooking = await BookingModel.exists({ customerId: userId });
+          if (hasPreviousBooking) {
+            eligible = false;
+            reasonCode = 'COUPON_NOT_APPLICABLE';
           }
         }
 

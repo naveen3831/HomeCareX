@@ -305,7 +305,7 @@ export default function Payments() {
           Restored to exact previous table layout and styling matching screenshot.
           ========================================================================= */}
       <div className="hidden md:block">
-        <div className="min-w-0 rounded-xl border border-line bg-panel p-4 sm:p-6">
+        <div className="w-full min-w-0 rounded-xl border border-line bg-panel p-4 sm:p-6">
           <h1 className="text-xl font-bold text-ink">Payments</h1>
           <p className="mt-1 text-sm text-muted">
             Every payment for your bookings, with receipts.

@@ -140,7 +140,7 @@ export default function Notifications() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5">
+    <div className="w-full min-w-0 space-y-5">
       {/* One row at every width: title on the left, Mark all as read + bin on the right (never wraps below the title). */}
       <header className="flex flex-nowrap items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">

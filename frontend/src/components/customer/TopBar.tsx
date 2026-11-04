@@ -48,7 +48,8 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const isExcludedMobileTopBar =
     normalizedPath.startsWith(customerPath("/bookings").toLowerCase()) ||
     normalizedPath === customerPath("/security").toLowerCase() ||
-    normalizedPath === customerPath("/profile/security").toLowerCase();
+    normalizedPath === customerPath("/profile/security").toLowerCase() ||
+    normalizedPath === customerPath("/account/security").toLowerCase();
 
   // Back navigation: Active Bookings retains its entry point (Dashboard/Profile) and avoids looping
   const goBack = () => {

@@ -91,7 +91,10 @@ const startServer = async (): Promise<void> => {
     }
 
     await timed('mongo connect', async () => {
-      await mongoose.connect(process.env.DATABASE_URL as string);
+      await mongoose.connect(process.env.DATABASE_URL as string, {
+        readPreference: 'primaryPreferred',
+        serverSelectionTimeoutMS: 10000,
+      });
     });
 
     console.log('Connected to MongoDB');

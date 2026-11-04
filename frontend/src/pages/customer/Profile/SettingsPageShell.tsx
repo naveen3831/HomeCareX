@@ -31,7 +31,7 @@ interface Props {
  */
 export default function SettingsPageShell({ title, subtitle, icon: Icon, tone, children, bare, hideIcon }: Props) {
   return (
-    <div className="mx-auto w-full max-w-5xl">
+    <div className="w-full min-w-0">
       {/* md+: icon + subtitle; the page name and back arrow live in the top bar. */}
       <header className={clsx("hidden items-center gap-4 md:flex", hideIcon ? "mb-5" : "mb-8")}>
         {!hideIcon && (

@@ -103,7 +103,7 @@ export default function Addresses() {
   const saving = create.isPending || update.isPending;
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="w-full min-w-0 space-y-3 sm:space-y-4">
       {header}
 
       {actionError && mode === null && (

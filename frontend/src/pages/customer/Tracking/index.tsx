@@ -201,7 +201,7 @@ export default function TrackingPage() {
   const stateShell = (children: ReactNode) => (
     <div
       ref={pageShellRef}
-      className="tk-page-shell mx-auto w-full max-w-6xl px-3 py-4 sm:px-5"
+      className="tk-page-shell w-full min-w-0"
     >
       {children}
     </div>
@@ -413,7 +413,7 @@ export default function TrackingPage() {
     <div
       ref={pageShellRef}
       className={clsx(
-        "tk-page-shell mx-auto w-full max-w-6xl px-3.5 py-1 min-[360px]:px-4 md:px-6",
+        "tk-page-shell w-full min-w-0",
         trackable && "tk-page-shell--fit",
       )}
     >

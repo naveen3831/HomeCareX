@@ -15,6 +15,13 @@ interface Props {
 
 /** One-tap category switcher with a photo thumbnail. Scrolls sideways on small screens. */
 export function CategoryChips({ categories, total, selected, onSelect }: Props) {
+  const seen = new Set<string>();
+  const uniqueCategories = categories.filter((c) => {
+    if (!c.id || seen.has(c.id)) return false;
+    seen.add(c.id);
+    return true;
+  });
+
   const base = "group flex shrink-0 snap-start items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-4 text-left transition-all duration-200";
   const state = (on: boolean) => (on ? "border-brand bg-brand-soft shadow-[inset_0_0_0_1px_#4338CA]" : "border-line bg-panel hover:border-brand/30 hover:shadow-sm");
   return (
@@ -26,7 +33,7 @@ export function CategoryChips({ categories, total, selected, onSelect }: Props) 
           <span className="block text-[10.5px] leading-tight text-muted">{plural(total, "service")}</span>
         </span>
       </button>
-      {categories.map((c, i) => {
+      {uniqueCategories.map((c, i) => {
         const v = categoryVisual(c.slug);
         const on = c.slug === selected;
         const photo = c.imageUrl?.trim() || v.image; // admin's cover first, built-in photo until one is set
