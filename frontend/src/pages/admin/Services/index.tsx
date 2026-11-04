@@ -9,6 +9,8 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { FullScreenPanel } from '@/components/admin/FullScreenPanel';
 import { AuditDiffDrawer, type AuditEntry } from '@/components/admin/AuditDiffDrawer';
 import { StatusBadge } from '@/components/admin/StatusBadge';
+import { PageSearch } from '@/components/admin/PageSearch';
+import { BulkActionBar } from '@/components/admin/BulkActionBar';
 import { CategoryFilterMenu } from '@/components/admin/CategoryFilterMenu';
 import { PermissionGate } from '@/components/admin/PermissionGate';
 import { ServiceForm, type CategoryOption } from '@/components/admin/ServiceForm';

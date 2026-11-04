@@ -169,3 +169,13 @@
   .payout-table td { white-space: nowrap; }
   .payout-period-cell { white-space: nowrap; }
 }
+@media (min-width: 901px) {
+  .payout-table,
+  .payout-individual-table { min-width: 0; width: 100%; }
+  .payout-table thead th,
+  .payout-table tbody td { padding-left: 10px; padding-right: 10px; }
+  .payout-period-cell { min-width: 0; white-space: normal; }
+}
+@media (max-width: 900px) {
+  .payout-individual-table { min-width: 1160px; }
+}

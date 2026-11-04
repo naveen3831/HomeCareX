@@ -248,16 +248,18 @@ export async function updatePartnerTraining(
   payload: KycUpdatePayload,
 ): Promise<PartnerMutationResult> {
   try {
-    const res = await http.post<ApiResponse<PartnerDetails>>(`/admin/partners/${id}/training`, {
-      decision: payload.decision,
-      reason: payload.reason,
-    });
+    // Backend routes: /training/approve lets the partner in, /training/reset sends them back to step 1.
+    const action = payload.decision === "approve" ? "approve" : "reset";
+    const res = await http.post<ApiResponse<unknown>>(`/admin/partners/${id}/training/${action}`);
+    const partner = await getPartnerById(id);
     return {
       success: true,
       message:
         res.data?.message ??
-        (payload.decision === "approve" ? "Partner training approved." : "Partner training rejected."),
-      partner: res.data.data,
+        (payload.decision === "approve"
+          ? "Partner training approved."
+          : "Training reset. The partner must complete it again."),
+      partner: partner as PartnerDetails,
     };
   } catch (error) {
     throw new Error(httpMessage(error, "Unable to update training."));

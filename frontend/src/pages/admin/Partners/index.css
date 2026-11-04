@@ -988,3 +988,5 @@
   justify-content: center;
   max-width: 100%;
 }
+/* Whole row opens the partner details page. */
+.partners-table-wrapper tbody tr { cursor: pointer; }

@@ -16,7 +16,6 @@ import TrainingApprovalCard from "./TrainingApprovalCard";
 import type {
   PartnerDetails as PartnerDetailsType,
   PartnerDocument,
-  PartnerTraining,
 } from "@/types/adminPartner";
 
 import {
@@ -24,10 +23,10 @@ import {
   getPartnerById,
   updatePartnerKyc,
   updatePartnerStatus,
-  updatePartnerTraining,
 } from "../../../services/partnerApi";
 
 import "./index.css";
+import "./redesign.css";
 
 type Tab =
   | "profile"
@@ -130,12 +129,6 @@ const AdminPartnerDetailsPage: React.FC =
       useState(false);
 
     const [rejectReason, setRejectReason] =
-      useState("");
-
-    const [trainingRejectOpen, setTrainingRejectOpen] =
-      useState(false);
-
-    const [trainingRejectReason, setTrainingRejectReason] =
       useState("");
 
     useEffect(() => {
@@ -291,95 +284,6 @@ const AdminPartnerDetailsPage: React.FC =
       }
     };
 
-    const approveTraining = async () => {
-      if (!partner) {
-        return;
-      }
-
-      if (!hasKycApprovalPermission) {
-        setActionError(
-          "You do not have permission to approve training."
-        );
-        return;
-      }
-
-      try {
-        setActionLoading(true);
-        setActionError("");
-        setNotice("");
-
-        const result =
-          await updatePartnerTraining(
-            partner.id,
-            { decision: "approve" }
-          );
-
-        setNotice(result.message);
-
-        await refreshPartner();
-      } catch (requestError) {
-        setActionError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to approve training."
-        );
-      } finally {
-        setActionLoading(false);
-      }
-    };
-
-    const rejectTraining = async () => {
-      if (!partner) {
-        return;
-      }
-
-      if (!hasKycApprovalPermission) {
-        setActionError(
-          "You do not have permission to reject training."
-        );
-        return;
-      }
-
-      const reason =
-        trainingRejectReason.trim();
-
-      if (!reason) {
-        setActionError(
-          "Rejection reason is required."
-        );
-        return;
-      }
-
-      try {
-        setActionLoading(true);
-        setActionError("");
-        setNotice("");
-
-        const result =
-          await updatePartnerTraining(
-            partner.id,
-            {
-              decision: "reject",
-              reason,
-            }
-          );
-
-        setNotice(result.message);
-        setTrainingRejectOpen(false);
-        setTrainingRejectReason("");
-
-        await refreshPartner();
-      } catch (requestError) {
-        setActionError(
-          requestError instanceof Error
-            ? requestError.message
-            : "Unable to reject training."
-        );
-      } finally {
-        setActionLoading(false);
-      }
-    };
-
     const suspendPartner = async () => {
       if (!partner) {
         return;
@@ -461,42 +365,24 @@ const AdminPartnerDetailsPage: React.FC =
 
     return (
       <div className="partner-details-page">
-        <div className="partner-details-header">
-          <div>
-            <Link
-              to="/admin/partners"
-              className="partner-details-back"
-            >
-              ← Back to Partners
-            </Link>
+        <Link to="/admin/partners" className="partner-details-back">
+          ← Back to Partners
+        </Link>
 
-            <h1>
-              {partner.name}
-            </h1>
-
-            <p>
-              Partner ID: {partner.id}
-            </p>
+        <header className="pd-hero">
+          <div className="pd-avatar" aria-hidden="true">
+            {initialsOf(partner.name)}
           </div>
 
-          <div className="partner-details-actions">
-            <span
-              className={`partner-status ${partner.kycStatus.toLowerCase()}`}
-            >
-              KYC: {partner.kycStatus}
-            </span>
+          <div className="pd-hero__main">
+            <h1>{partner.name}</h1>
+            <p className="pd-hero__sub">
+              {[partner.category, partner.city].filter(Boolean).join(" · ") || "No category or city yet"}
+            </p>
 
-            <span
-              className={`partner-status ${partner.accountStatus.toLowerCase()}`}
-            >
-              Account: {partner.accountStatus}
-            </span>
-
-            {partner.training && (
-              <span
-                className={`partner-status training-${trainingClass(partner.training.status)}`}
-              >
-                Training: {partner.training.status}
+            <div className="pd-badges">
+              <span className={`pd-badge ${tone(partner.kycStatus)}`}>
+                KYC · {partner.kycStatus}
               </span>
             )}
           </div>
@@ -514,42 +400,30 @@ const AdminPartnerDetailsPage: React.FC =
               {partner.email || "—"}
             </span>
           </div>
+        </header>
 
-          <div>
-            <strong>Phone</strong>
-            <span>
-              {partner.phone}
-            </span>
+        <section className="pd-stats" aria-label="Partner summary">
+          <div className="pd-stat">
+            <span>Email</span>
+            <strong title={partner.email}>{partner.email || "—"}</strong>
           </div>
-
-          <div>
-            <strong>Category</strong>
-            <span>
-              {partner.category || "—"}
-            </span>
+          <div className="pd-stat">
+            <span>Phone</span>
+            <strong>{partner.phone || "—"}</strong>
           </div>
-
-          <div>
-            <strong>City</strong>
-            <span>
-              {partner.city || "—"}
-            </span>
+          <div className="pd-stat">
+            <span>City</span>
+            <strong>{partner.city || "—"}</strong>
           </div>
-
-          <div>
-            <strong>Rating</strong>
-            <span>
-              ★ {partner.rating.toFixed(1)}
-            </span>
+          <div className="pd-stat">
+            <span>Rating</span>
+            <strong>★ {partner.rating.toFixed(1)}</strong>
           </div>
-
-          <div>
-            <strong>Joined</strong>
-            <span>
-              {partner.joined}
-            </span>
+          <div className="pd-stat">
+            <span>Joined</span>
+            <strong>{partner.joined || "—"}</strong>
           </div>
-        </div>
+        </section>
 
         {actionError && (
           <div
@@ -564,15 +438,6 @@ const AdminPartnerDetailsPage: React.FC =
           <div
             className="partner-action-notice"
             role="status"
-            style={{
-              margin: "12px 0",
-              padding: "10px 14px",
-              borderRadius: 8,
-              background: "#ecfdf5",
-              color: "#065f46",
-              border: "1px solid #a7f3d0",
-              fontSize: 14,
-            }}
           >
             {notice}
           </div>
@@ -638,29 +503,12 @@ const AdminPartnerDetailsPage: React.FC =
           )}
 
           {activeTab === "training" && (
-            <TrainingTab
-              training={partner.training}
-              kycStatus={partner.kycStatus}
-              actionLoading={
-                actionLoading
-              }
-              rejectOpen={
-                trainingRejectOpen
-              }
-              rejectReason={
-                trainingRejectReason
-              }
-              setRejectOpen={
-                setTrainingRejectOpen
-              }
-              setRejectReason={
-                setTrainingRejectReason
-              }
-              onApprove={approveTraining}
-              onReject={rejectTraining}
-              hasPermission={
-                hasKycApprovalPermission
-              }
+            <TrainingPanel
+              partnerId={partner.id}
+              canApprove={hasKycApprovalPermission}
+              onChanged={() => {
+                void refreshPartner();
+              }}
             />
           )}
 
@@ -800,14 +648,13 @@ const KycTab: React.FC<KycTabProps> = ({
           <h2>KYC Review</h2>
 
           <p>
-            Submitted:{" "}
-            {partner.kyc.submittedAt}
+            {partner.kyc.submittedAt
+              ? `Submitted ${formatDateTime(partner.kyc.submittedAt)}`
+              : "Not submitted yet"}
           </p>
         </div>
 
-        <span
-          className={`partner-status ${partner.kycStatus.toLowerCase()}`}
-        >
+        <span className={`pd-badge ${tone(partner.kycStatus)}`}>
           {partner.kycStatus}
         </span>
       </div>
@@ -933,9 +780,7 @@ const KycTab: React.FC<KycTabProps> = ({
                   {document.name}
                 </strong>
 
-                <span
-                  className={`document-status ${document.status.toLowerCase()}`}
-                >
+                <span className={`pd-badge ${tone(document.status)}`}>
                   {document.status}
                 </span>
               </div>
@@ -952,230 +797,28 @@ const KycTab: React.FC<KycTabProps> = ({
   </div>
 );
 
-const trainingClass = (
-  status: PartnerTraining["status"]
-) => status.toLowerCase().replace(/\s+/g, "-");
+const formatDateTime = (value: string): string => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+};
 
-interface TrainingTabProps {
-  training?: PartnerTraining;
-  kycStatus: PartnerDetailsType["kycStatus"];
-  actionLoading: boolean;
-  rejectOpen: boolean;
-  rejectReason: string;
-  setRejectOpen: (value: boolean) => void;
-  setRejectReason: (value: string) => void;
-  onApprove: () => Promise<void>;
-  onReject: () => Promise<void>;
-  hasPermission: boolean;
-}
+const initialsOf = (name: string): string =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
 
-/**
- * Training the partner submits after KYC approval. The admin previews each item, then approves
- * or rejects with a reason. The partner can open their dashboard only after approval.
- */
-const TrainingTab: React.FC<TrainingTabProps> = ({
-  training,
-  kycStatus,
-  actionLoading,
-  rejectOpen,
-  rejectReason,
-  setRejectOpen,
-  setRejectReason,
-  onApprove,
-  onReject,
-  hasPermission,
-}) => {
-  const status = training?.status ?? "Not Submitted";
-  const items = training?.items ?? [];
-  const kycApproved = kycStatus === "Approved";
-  const canDecide =
-    kycApproved &&
-    status === "Pending" &&
-    items.length > 0;
-
-  return (
-    <div className="partner-kyc-layout">
-      <section className="detail-card">
-        <div className="detail-card-header">
-          <div>
-            <h2>Training Review</h2>
-
-            <p>
-              {training?.submittedAt
-                ? `Submitted: ${training.submittedAt}`
-                : "Not submitted yet"}
-            </p>
-          </div>
-
-          <span
-            className={`partner-status training-${trainingClass(status)}`}
-          >
-            {status}
-          </span>
-        </div>
-
-        {!kycApproved && (
-          <p className="permission-warning">
-            Approve the partner&apos;s KYC first. Training
-            is reviewed only after KYC is approved.
-          </p>
-        )}
-
-        {kycApproved && status === "Not Submitted" && (
-          <p className="training-note">
-            The partner has not uploaded any training
-            details yet.
-          </p>
-        )}
-
-        {status === "Pending" && (
-          <p className="training-note">
-            Waiting for admin approval. The partner cannot
-            open their dashboard until you approve.
-          </p>
-        )}
-
-        {status === "Approved" && (
-          <p className="training-note">
-            Approved
-            {training?.reviewedAt
-              ? ` on ${training.reviewedAt}`
-              : ""}
-            . The partner can log in to their dashboard.
-          </p>
-        )}
-
-        {status === "Rejected" && (
-          <div className="training-rejected">
-            <strong>Rejected</strong>
-            {training?.rejectionReason && (
-              <p>{training.rejectionReason}</p>
-            )}
-          </div>
-        )}
-
-        <div className="kyc-actions">
-          <button
-            type="button"
-            className="partner-primary-btn"
-            disabled={
-              actionLoading ||
-              !hasPermission ||
-              !canDecide
-            }
-            onClick={() => {
-              void onApprove();
-            }}
-          >
-            {actionLoading
-              ? "Processing..."
-              : "Approve Training"}
-          </button>
-
-          <button
-            type="button"
-            className="partner-danger-btn"
-            disabled={
-              actionLoading ||
-              !hasPermission ||
-              !canDecide
-            }
-            onClick={() => setRejectOpen(true)}
-          >
-            Reject Training
-          </button>
-        </div>
-
-        {!hasPermission && (
-          <p className="permission-warning">
-            You do not have the <code>kyc:approve</code>{" "}
-            permission.
-          </p>
-        )}
-
-        {rejectOpen && (
-          <div className="reject-panel">
-            <label htmlFor="training-reject-reason">
-              Rejection reason
-            </label>
-
-            <textarea
-              id="training-reject-reason"
-              value={rejectReason}
-              onChange={(event) =>
-                setRejectReason(event.target.value)
-              }
-              placeholder="Tell the partner what to fix before re-submitting"
-              rows={4}
-              autoFocus
-            />
-
-            <div className="reject-panel-actions">
-              <button
-                type="button"
-                className="partner-secondary-btn"
-                disabled={actionLoading}
-                onClick={() => {
-                  setRejectOpen(false);
-                  setRejectReason("");
-                }}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="partner-danger-btn"
-                disabled={
-                  actionLoading ||
-                  !rejectReason.trim()
-                }
-                onClick={() => {
-                  void onReject();
-                }}
-              >
-                Confirm Reject
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="detail-card">
-        <h2>Training Documents</h2>
-
-        {items.length === 0 ? (
-          <p className="training-note">
-            Nothing to preview yet.
-          </p>
-        ) : (
-          <div className="kyc-documents">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="kyc-document-card"
-              >
-                <div className="kyc-document-header">
-                  <strong>{item.name}</strong>
-
-                  <span
-                    className={`document-status ${item.status.toLowerCase()}`}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-
-                <SecureDocument
-                  document={item}
-                  height={360}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </div>
-  );
+/** Colour family for a status badge. */
+const tone = (status: string): string => {
+  const value = status.toLowerCase();
+  if (["approved", "active", "verified"].includes(value)) return "is-good";
+  if (["pending", "submitted", "inactive"].includes(value)) return "is-warn";
+  if (["rejected", "suspended", "blocked"].includes(value)) return "is-bad";
+  return "is-muted";
 };
 
 /**
