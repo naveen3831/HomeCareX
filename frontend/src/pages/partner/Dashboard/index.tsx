@@ -25,6 +25,7 @@ import {
   whenRangeLabel,
 } from "@/components/partner/jobs/jobUi";
 import RejectReasonDialog from "@/components/partner/RejectReasonDialog";
+import HelpSafetyCard from "@/components/partner/HelpSafetyCard";
 import { usePartnerStatus } from "@/layouts/PartnerLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useJobs } from "@/hooks/useJobs";
@@ -72,7 +73,7 @@ const ago = (iso: string) => {
 const percent = (v: number | null | undefined) =>
   v == null || !Number.isFinite(v) ? null : Math.max(0, Math.min(100, Math.round(v)));
 
-const card = "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm";
+const card = "rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm";
 
 /* ================= small pieces ================= */
 
@@ -88,18 +89,18 @@ function Section({
   return (
     <section className={card}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-bold text-slate-900">{title}</h2>
+        <h2 className="text-sm font-bold text-slate-900">{title}</h2>
         {action && (
           <Link
             to={action.to}
-            className="inline-flex items-center gap-0.5 text-sm font-semibold text-indigo-700 hover:text-indigo-900"
+            className="inline-flex items-center gap-0.5 text-xs font-semibold text-indigo-700 hover:text-indigo-900"
           >
             {action.label}
             <ChevronRight size={15} />
           </Link>
         )}
       </div>
-      <div className="mt-4">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
@@ -107,12 +108,12 @@ function Section({
 function Meter({ label, value, bar }: { label: string; value: number | null; bar: string }) {
   return (
     <div>
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between text-xs">
         <span className="text-slate-600">{label}</span>
         <span className="font-bold text-slate-900">{value === null ? "No data" : `${value}%`}</span>
       </div>
       <div
-        className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
+        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100"
         role="progressbar"
         aria-label={label}
         aria-valuemin={0}
@@ -130,38 +131,38 @@ function JobCard({ job, live }: { job: PartnerJob; live: boolean }) {
   return (
     <article className={card}>
       <div className="flex items-center justify-between gap-3">
-        <span className={`text-sm font-bold ${live ? "text-emerald-600" : "text-indigo-700"}`}>
+        <span className={`text-xs font-bold ${live ? "text-emerald-600" : "text-indigo-700"}`}>
           {live ? "Job in progress" : "Your next job"}
         </span>
-        <span className="text-sm text-slate-500">{dateTime(job.scheduledAt)}</span>
+        <span className="text-xs text-slate-500">{dateTime(job.scheduledAt)}</span>
       </div>
 
-      <div className="mt-4 flex items-start gap-4">
-        <ServiceThumb service={job.service} size="lg" />
+      <div className="mt-2.5 flex items-start gap-3">
+        <ServiceThumb service={job.service} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-base font-bold text-slate-900">{job.service}</h3>
+            <h3 className="text-sm font-bold leading-5 text-slate-900">{job.service}</h3>
             {job.amount > 0 && (
-              <span className="shrink-0 text-base font-extrabold text-indigo-700">{formatInr(job.amount)}</span>
+              <span className="shrink-0 text-sm font-extrabold text-indigo-700">{formatInr(job.amount)}</span>
             )}
           </div>
-          <p className="mt-2 flex items-center gap-2 text-sm text-slate-500">
-            <User size={15} className="shrink-0" />
-            {job.customer}
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+            <User size={13} className="shrink-0" />
+            <span className="truncate">{job.customer}</span>
           </p>
-          <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-500">
-            <MapPin size={15} className="mt-0.5 shrink-0" />
-            {job.location}
+          <p className="mt-0.5 flex items-start gap-1.5 text-xs text-slate-500">
+            <MapPin size={13} className="mt-0.5 shrink-0" />
+            <span className="line-clamp-2">{job.location}</span>
           </p>
         </div>
       </div>
 
       <Link
         to={live ? `/partner/jobs/${job.id}/active` : `/partner/jobs/${job.id}`}
-        className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-800"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-800"
       >
         {live ? "Continue job" : "View job details"}
-        <ArrowRight size={16} />
+        <ArrowRight size={15} />
       </Link>
     </article>
   );
@@ -182,49 +183,49 @@ function RequestCard({
   const expired = seconds <= 0;
 
   return (
-    <article className="rounded-2xl border-2 border-orange-300 bg-white p-5 shadow-sm">
+    <article className="rounded-xl border-2 border-orange-300 bg-white p-3.5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-bold text-white">
+        <span className="rounded-full bg-orange-500 px-2.5 py-0.5 text-xs font-bold text-white">
           New request
         </span>
-        <span className="flex items-center gap-1.5 text-sm font-bold text-orange-700" role="timer">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-orange-700" role="timer">
           <Clock3 size={15} />
           {expired ? "Expired" : formatClock(seconds)}
         </span>
       </div>
 
-      <div className="mt-4 flex items-start gap-4">
-        <ServiceThumb service={job.service} size="lg" />
+      <div className="mt-2.5 flex items-start gap-3">
+        <ServiceThumb service={job.service} size="md" />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-base font-bold text-slate-900">{job.service}</h3>
+            <h3 className="text-sm font-bold leading-5 text-slate-900">{job.service}</h3>
             {job.amount > 0 && (
-              <span className="shrink-0 text-base font-extrabold text-indigo-700">{formatInr(job.amount)}</span>
+              <span className="shrink-0 text-sm font-extrabold text-indigo-700">{formatInr(job.amount)}</span>
             )}
           </div>
-          <div className="mt-2 space-y-1.5 text-sm text-slate-500">
-            <p className="flex items-center gap-2">
-              <User size={15} className="shrink-0" />
+          <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+            <p className="flex items-center gap-1.5">
+              <User size={13} className="shrink-0" />
               {job.customer}
             </p>
-            <p className="flex items-start gap-2">
-              <MapPin size={15} className="mt-0.5 shrink-0" />
+            <p className="flex items-start gap-1.5">
+              <MapPin size={13} className="mt-0.5 shrink-0" />
               {job.location}
             </p>
-            <p className="flex items-center gap-2">
-              <Clock3 size={15} className="shrink-0" />
+            <p className="flex items-center gap-1.5">
+              <Clock3 size={13} className="shrink-0" />
               {whenRangeLabel(job.scheduledAt)}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-3 grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => onReject(job.id)}
           disabled={busy}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Reject
         </button>
@@ -232,7 +233,7 @@ function RequestCard({
           type="button"
           onClick={() => onAccept(job.id)}
           disabled={busy || expired}
-          className="col-span-2 rounded-xl bg-orange-500 px-4 py-3 text-sm font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="col-span-2 rounded-lg bg-orange-500 px-3 py-2.5 text-sm font-bold text-white hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Please wait..." : "Accept job"}
         </button>
@@ -368,9 +369,9 @@ export default function PartnerDashboard() {
     <>
     {/* Desktop (1024px+) gets its own layout; the mobile layout below is unchanged. */}
     <DashboardDesktop />
-    <main className="mx-auto w-full max-w-3xl min-w-0 space-y-4 pb-10 text-slate-900 lg:hidden">
+    <main className="mx-auto w-full max-w-3xl min-w-0 space-y-3 pb-6 text-slate-900 lg:hidden">
       {/* ---------- header: greeting and name only (the online switch is in the top bar) ---------- */}
-      <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">
+      <h1 className="text-lg font-extrabold tracking-tight sm:text-2xl">
         {greeting()}, {firstName}
       </h1>
 
@@ -453,7 +454,7 @@ export default function PartnerDashboard() {
       {/* ---------- 3. TODAY'S SCHEDULE ---------- */}
       <Section title="Today's schedule" action={{ label: "All jobs", to: "/partner/jobs" }}>
         {todaysJobs.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+          <p className="rounded-lg bg-slate-50 px-4 py-4 text-center text-xs text-slate-500">
             Nothing booked for today.
             {upcoming[0] ? ` Your next job is ${whenLabel(upcoming[0].scheduledAt)}.` : ""}
           </p>
@@ -465,9 +466,9 @@ export default function PartnerDashboard() {
                 <li key={job.id}>
                   <Link
                     to={live ? `/partner/jobs/${job.id}/active` : `/partner/jobs/${job.id}`}
-                    className="flex items-center gap-4 py-3.5 first:pt-0 last:pb-0"
+                    className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
                   >
-                    <span className="flex h-12 w-16 shrink-0 flex-col items-center justify-center rounded-xl bg-indigo-50 text-xs font-bold text-indigo-700">
+                    <span className="flex h-10 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-indigo-50 text-[11px] font-bold text-indigo-700">
                       {timeOnly(job.scheduledAt)}
                     </span>
                     <span className="min-w-0 flex-1">
@@ -487,36 +488,39 @@ export default function PartnerDashboard() {
           </ol>
         )}
         {expectedToday > 0 && (
-          <p className="mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+          <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
             {formatInr(expectedToday)} more lined up for today
           </p>
         )}
       </Section>
 
+      {/* ---------- 3b. SOS + HELP ---------- */}
+      <HelpSafetyCard bookingId={active[0]?.id ?? null} />
+
       {/* ---------- 4. EARNINGS ---------- */}
       <Section title="Earnings" action={{ label: "Details", to: "/partner/earnings" }}>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { label: "Today", value: money(earn.today), hot: true },
             { label: "This week", value: money(earn.week), hot: false },
             { label: "This month", value: money(earn.month), hot: false },
           ].map((t) => (
-            <div key={t.label} className={`min-w-0 rounded-xl p-3 ${t.hot ? "bg-indigo-700 text-white" : "bg-slate-50"}`}>
+            <div key={t.label} className={`min-w-0 rounded-lg p-2.5 ${t.hot ? "bg-indigo-700 text-white" : "bg-slate-50"}`}>
               <p className={`text-xs ${t.hot ? "text-indigo-100" : "text-slate-500"}`}>{t.label}</p>
-              <p className="mt-1.5 break-words text-base font-extrabold sm:text-lg">{t.value}</p>
+              <p className="mt-1 break-words text-sm font-extrabold sm:text-lg">{t.value}</p>
             </div>
           ))}
         </div>
 
         {earn.pending !== undefined && (
-          <p className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 text-sm">
+          <p className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs">
             <span className="text-slate-500">Payout pending</span>
             <span className="font-bold text-slate-900">{formatInr(earn.pending)}</span>
           </p>
         )}
 
         {days.length > 0 && (
-          <div className="mt-5 flex h-32 items-end gap-2" role="img" aria-label="Net earnings for the last 7 days">
+          <div className="mt-3 flex h-20 items-end gap-1.5" role="img" aria-label="Net earnings for the last 7 days">
             {days.map((d, i) => (
               <div key={d.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5">
                 <div className="flex w-full flex-1 items-end justify-center">
@@ -535,10 +539,10 @@ export default function PartnerDashboard() {
 
       {/* ---------- 5. PERFORMANCE ---------- */}
       <Section title="Performance" action={{ label: "Report", to: "/partner/performance" }}>
-        <div className="flex items-center gap-3 rounded-xl bg-orange-50 px-4 py-3">
-          <Star size={24} className="shrink-0 fill-orange-400 text-orange-400" />
+        <div className="flex items-center gap-2.5 rounded-lg bg-orange-50 px-3 py-2">
+          <Star size={20} className="shrink-0 fill-orange-400 text-orange-400" />
           <div>
-            <p className="text-lg font-extrabold text-slate-900">
+            <p className="text-base font-extrabold text-slate-900">
               {rating === null ? "No reviews yet" : `${rating.toFixed(1)} / 5`}
             </p>
             {rating !== null && ratingCount > 0 && (
@@ -549,7 +553,7 @@ export default function PartnerDashboard() {
           </div>
         </div>
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-3 space-y-2.5">
           <Meter label="Acceptance" value={acceptance} bar="bg-indigo-600" />
           <Meter label="Completion" value={completion} bar="bg-emerald-500" />
           <Meter label="On time" value={onTime} bar="bg-orange-500" />
@@ -567,13 +571,13 @@ export default function PartnerDashboard() {
             onRetry={() => void notifications.refetch()}
           />
         ) : notifications.data.length === 0 ? (
-          <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+          <p className="rounded-lg bg-slate-50 px-4 py-4 text-center text-xs text-slate-500">
             You're all caught up.
           </p>
         ) : (
           <ul className="divide-y divide-slate-100">
             {notifications.data.slice(0, 5).map((n) => (
-              <li key={n.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+              <li key={n.id} className="flex items-start gap-2.5 py-2 first:pt-0 last:pb-0">
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-slate-300" : "bg-orange-500"}`} />
                 <div className="min-w-0">
                   <p className={`text-sm leading-5 ${n.read ? "text-slate-600" : "font-semibold text-slate-900"}`}>

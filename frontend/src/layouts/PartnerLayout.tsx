@@ -46,8 +46,11 @@ import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { isAppLanguage, useLanguage, useT } from "@/i18n/LanguageContext";
+import { settingsApi } from "@/pages/partner/Settings/settings.api";
 import { HomeCarexMark } from "@/components/band/Homecarexmark";
 import OnlineToggle from "@/components/partner/OnlineToggle";
+import ServiceAreaTicker from "@/components/partner/ServiceAreaTicker";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
 
 import "@/styles/admin.css";
@@ -369,9 +372,10 @@ function BottomNav({
   visible: boolean;
   path: string;
 }) {
+  const t = useT();
   return (
     <nav
-      aria-label="Primary"
+      aria-label={t("Primary")}
       className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white transition-transform duration-300 lg:hidden ${
         visible ? "translate-y-0" : "translate-y-full"
       }`}
@@ -393,7 +397,7 @@ function BottomNav({
             <li key={key} className="flex-1">
               <NavLink
                 to={to}
-                aria-label={label}
+                aria-label={t(label)}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
                   active ? "text-[#4338ca]" : "text-slate-500"
@@ -404,7 +408,7 @@ function BottomNav({
                   strokeWidth={active ? 2.4 : 1.8}
                   aria-hidden="true"
                 />
-                <span>{label}</span>
+                <span>{t(label)}</span>
               </NavLink>
             </li>
           );
@@ -484,6 +488,7 @@ function PartnerSidebar({
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const t = useT();
 
   const displayName = user?.name || "Partner";
 
@@ -551,7 +556,7 @@ function PartnerSidebar({
     .join(" ");
 
   return (
-    <aside className={sidebarClassName} aria-label="Partner navigation">
+    <aside className={sidebarClassName} aria-label={t("Partner navigation")}>
       <div className="sidebar-brand">
         <div
           className="sidebar-brand__top"
@@ -579,12 +584,12 @@ function PartnerSidebar({
           <button
             type="button"
             onClick={onToggle}
-            aria-label={
-              collapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
-            title={
-              collapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
+            aria-label={t(
+              collapsed ? "Expand sidebar" : "Collapse sidebar",
+            )}
+            title={t(
+              collapsed ? "Expand sidebar" : "Collapse sidebar",
+            )}
             className="hidden shrink-0 rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:inline-flex"
           >
             {collapsed ? (
@@ -596,7 +601,7 @@ function PartnerSidebar({
         </div>
 
         {!collapsed && (
-          <p className="sidebar-brand__guide">Partner Dashboard</p>
+          <p className="sidebar-brand__guide">{t("Partner Dashboard")}</p>
         )}
       </div>
 
@@ -622,7 +627,7 @@ function PartnerSidebar({
                     )
                   }
                 >
-                  <span>{group.groupName}</span>
+                  <span>{t(group.groupName)}</span>
                   <ChevronDown
                     size={14}
                     className={`nav-group__chevron${
@@ -652,7 +657,7 @@ function PartnerSidebar({
                             <NavLink
                               to={to}
                               end={end || hasChildren}
-                              title={collapsed ? label : undefined}
+                              title={collapsed ? t(label) : undefined}
                               style={{ flex: 1, minWidth: 0 }}
                               onClick={() => {
                                 if (hasChildren) {
@@ -673,21 +678,21 @@ function PartnerSidebar({
 
                               {!collapsed && (
                                 <span className="nav-link__label">
-                                  {label}
+                                  {t(label)}
                                 </span>
                               )}
 
                               {collapsed && (
-                                <span className="sr-only">{label}</span>
+                                <span className="sr-only">{t(label)}</span>
                               )}
                             </NavLink>
 
                             {hasChildren && (
                               <button
                                 type="button"
-                                aria-label={`${
-                                  expanded ? "Collapse" : "Expand"
-                                } ${label}`}
+                                aria-label={`${t(
+                                  expanded ? "Collapse" : "Expand",
+                                )} ${t(label)}`}
                                 aria-expanded={expanded}
                                 onClick={() => toggleItem(key)}
                                 style={{
@@ -749,7 +754,7 @@ function PartnerSidebar({
                                         aria-hidden="true"
                                       />
                                       <span className="nav-link__label">
-                                        {childLabel}
+                                        {t(childLabel)}
                                       </span>
                                     </NavLink>
                                   </li>
@@ -784,11 +789,11 @@ function PartnerSidebar({
         <button
           type="button"
           className="sidebar-signout-btn"
-          title="Sign out"
+          title={t("Sign out")}
           onClick={handleSignOut}
         >
           <LogOut size={18} aria-hidden="true" />
-          {!collapsed && <span>Sign out</span>}
+          {!collapsed && <span>{t("Sign out")}</span>}
         </button>
       </div>
     </aside>
@@ -800,6 +805,23 @@ function PartnerSidebar({
 // -----------------------------------------------------------------------------
 
 export default function PartnerLayout() {
+  const t = useT();
+  const { setLanguage } = useLanguage();
+
+  // Use the language saved on the partner's account, so it also applies on a new phone or browser.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    settingsApi.get(ctrl.signal).then(
+      (settings) => {
+        if (isAppLanguage(settings.language)) setLanguage(settings.language);
+      },
+      () => {
+        // Keep the language already stored on this device.
+      },
+    );
+    return () => ctrl.abort();
+  }, [setLanguage]);
+
   const [online, setOnlineState] = useState<boolean>(
     () => readStoredOnlineStatus() ?? false,
   );
@@ -998,13 +1020,13 @@ export default function PartnerLayout() {
               isTicketThread ? "hidden lg:flex" : "flex"
             }`}
           >
-            <div className="flex min-w-0 items-center gap-0.5 sm:gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-0.5 pr-2 sm:gap-3">
               {showBack && (
                 <button
                   type="button"
                   onClick={goBack}
-                  aria-label="Go back"
-                  title="Back"
+                  aria-label={t("Go back")}
+                  title={t("Back")}
                   className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
                 >
                   <ArrowLeft size={20} aria-hidden="true" />
@@ -1012,17 +1034,27 @@ export default function PartnerLayout() {
               )}
 
               {isHome ? (
-                <NavLink
-                  to="/partner"
-                  end
-                  aria-label="HomeCareX home"
-                  className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] lg:hidden"
-                >
-                  <HomeCarexMark size={30} />
-                  <span className="truncate bg-gradient-to-r from-[#4338ca] via-[#7c3aed] to-[#ff8a3d] bg-clip-text text-xl font-extrabold tracking-tight text-transparent">
-                    HomeCareX
-                  </span>
-                </NavLink>
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden lg:hidden">
+                  <NavLink
+                    to="/partner"
+                    end
+                    aria-label="HomeCareX home"
+                    className="shrink-0 rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca]"
+                  >
+                    <HomeCarexMark size={26} />
+                  </NavLink>
+                  <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                    <NavLink
+                      to="/partner"
+                      end
+                      tabIndex={-1}
+                      className="truncate bg-gradient-to-r from-[#4338ca] via-[#7c3aed] to-[#ff8a3d] bg-clip-text text-lg font-extrabold leading-5 tracking-tight text-transparent"
+                    >
+                      HomeCareX
+                    </NavLink>
+                    <ServiceAreaTicker />
+                  </div>
+                </div>
               ) : null}
 
               {/* Home shows "Partner Dashboard" on desktop; mobile keeps the brand above. */}
@@ -1033,16 +1065,16 @@ export default function PartnerLayout() {
                     : "truncate text-base font-semibold text-[#4338ca] sm:text-lg"
                 }
               >
-                {isHome ? "Partner Dashboard" : title}
+                {isHome ? t("Partner Dashboard") : t(title)}
               </h1>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+            <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
               {/* Online/Offline is controlled from the Home page only. */}
               {isHome && <OnlineToggle online={online} onChange={setOnline} />}
               <button
                 type="button"
-                aria-label="Notifications"
+                aria-label={t("Notifications")}
                 className={`relative min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-orange-500 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
                   minimalHeader ? "hidden lg:inline-flex" : "inline-flex"
                 }`}

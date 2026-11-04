@@ -8,8 +8,9 @@ export interface SosButtonProps {
   coordinates?: { lat: number; lng: number } | null;
   onSuccess?: () => void;
   className?: string;
-  /** `pill` is the small button on the active-job header; `large` is the full-width button on the Safety page. */
-  variant?: 'pill' | 'large';
+  /** `pill` is the small button on the active-job header; `large` is the full-width button on the Safety page;
+   *  `compact` is the short, half-width button on the Home page card. */
+  variant?: 'pill' | 'large' | 'compact';
 }
 
 export const SosButton: React.FC<SosButtonProps> = ({
@@ -59,7 +60,9 @@ export const SosButton: React.FC<SosButtonProps> = ({
         className={`sos-btn inline-flex items-center justify-center bg-[#dc2626] font-bold text-white shadow-sm transition hover:bg-[#b91c1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-50 ${
           variant === 'large'
             ? 'min-h-[56px] w-full rounded-xl px-6 py-3 text-base'
-            : 'rounded-full px-4 py-1.5 text-sm'
+            : variant === 'compact'
+              ? 'min-h-[44px] w-full rounded-xl px-3 py-2 text-sm'
+              : 'rounded-full px-4 py-1.5 text-sm'
         }`}
       >
         <span>
@@ -67,13 +70,17 @@ export const SosButton: React.FC<SosButtonProps> = ({
             ? alertSent
               ? 'SOS sent. Tap to send again'
               : 'Send SOS alert'
-            : alertSent
+            : variant === 'compact'
+              ? alertSent
+                ? 'SOS sent'
+                : 'SOS'
+              : alertSent
               ? 'SOS Sent'
               : 'SOS'}
         </span>
       </button>
 
-      {alertSent && variant === 'large' && (
+      {alertSent && variant !== 'pill' && (
         <p className="mt-2 text-sm font-medium text-green-700" role="status">
           The HomeCareX safety team has been alerted. If you are in danger, call 112 now.
         </p>

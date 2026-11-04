@@ -1,0 +1,297 @@
+/* Availability page — single fixed HomeCareX palette (indigo + orange). */
+
+/* ---------- HomeCareX palette (single, fixed) ---------- */
+.avx {
+  --x-font: inherit; --x-head: inherit;              /* use the app's own font */
+  --x-surface: #ffffff; --x-line: #e4e6f5;
+  --x-ink: #1e1b4b; --x-muted: #64648a; --x-faint: #9a9cbc;
+  --x-accent: #4338ca; --x-accent-soft: #f3f4fc;      /* indigo + neutral tint */
+  --x-bar: #4338ca; --x-cell: #c7ccf2;
+  --x-warn: #ff8a3d; --x-warn-soft: #fff4ec; --x-warn-text: #b5470a;   /* brand orange */
+  --x-ok: #16a34a;
+  --x-hue: #4338ca; --x-hue-soft: #e0e7ff; --x-hue-tint: #eef2ff;
+  --x-green: #16a34a; --x-green-soft: #e3f6ea;
+  --x-radius: 18px; --x-head-weight: 700;
+}
+body:has(.avx) { background: #f7f8fd; }
+
+/* ---------- Base ---------- */
+.avx { width: 100%; max-width: 1100px; margin: 0 auto; min-width: 0; padding: 4px 0 24px; color: var(--x-ink);
+  font-family: var(--x-font); display: flex; flex-direction: column; gap: 14px; }
+.avx *, .avx *::before, .avx *::after { box-sizing: border-box; }
+.avx h2, .avx h3, .avx p, .avx ul { margin: 0; padding: 0; }
+.avx ul { list-style: none; }
+.avx h2, .avx h3 { font-family: var(--x-head); font-weight: var(--x-head-weight); letter-spacing: -.01em; }
+.avx-rise { animation: avx-rise .45s cubic-bezier(.2,.8,.2,1) var(--d, 0ms) backwards; }
+
+/* ---------- Hero ---------- */
+.avx-hero { border-radius: var(--x-radius); padding: 20px 18px; background: var(--x-surface); border: 1px solid var(--x-line);
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; align-items: center; }
+.avx-orb { position: relative; width: 52px; height: 52px; display: grid; place-items: center; }
+.avx-orb-core { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--x-accent-soft); color: var(--x-faint); }
+.avx-orb-core svg { width: 22px; height: 22px; }
+.avx-orb-ring { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid var(--x-line); }
+.avx-hero-online .avx-orb-core { color: var(--x-accent); }
+.avx-hero-online .avx-orb-ring { border-color: var(--x-ok); opacity: .55; animation: avx-pulse 2.6s ease-out infinite; }
+.avx-eyebrow { display: block; font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--x-faint); }
+.avx-hero-title { font-size: 1.3rem; line-height: 1.25; margin-top: 2px !important; }
+.avx-hero-sub { font-size: .84rem; line-height: 1.45; color: var(--x-muted); margin-top: 3px !important; }
+.avx-hero-body { min-width: 0; }
+.avx-today { grid-column: 1 / -1; margin-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 14px; border-radius: calc(var(--x-radius) - 6px); background: var(--x-accent-soft); color: var(--x-ink); }
+.avx-today-label { font-size: .68rem; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--x-muted); }
+.avx-today-value { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; font-weight: 600; text-align: right; }
+.avx-today-value svg { color: var(--x-muted); }
+.avx-today.is-blackout { background: var(--x-warn-soft); } .avx-today.is-blackout .avx-today-value { color: var(--x-warn); }
+.avx-today.is-off { background: transparent; border: 1px dashed var(--x-line); }
+
+/* ---------- Numbers ---------- */
+.avx-numbers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.avx-num { background: var(--x-surface); border: 1px solid var(--x-line); border-radius: calc(var(--x-radius) - 2px); padding: 14px 14px 12px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.avx-num strong { font-family: var(--x-head); font-size: 1.7rem; font-weight: var(--x-head-weight); line-height: 1; font-variant-numeric: tabular-nums; color: var(--x-ink); }
+.avx-num span { display: inline-flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 500; color: var(--x-muted); }
+.avx-num span::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--x-cell); }
+.avx-num-work span::before { background: var(--x-bar); }
+.avx-num-blackout span::before { background: var(--x-warn); }
+
+/* ---------- Layout / panels ---------- */
+.avx-cols { display: flex; flex-direction: column; gap: 14px; }
+.avx-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.avx-panel { background: var(--x-surface); border: 1px solid var(--x-line); border-radius: var(--x-radius); padding: 18px 16px; min-width: 0; }
+.avx-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.avx-panel-head h3 { font-size: 1rem; }
+.avx-panel-head p { font-size: .76rem; color: var(--x-muted); margin-top: 2px !important; }
+.avx-pill-link { flex-shrink: 0; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--x-line); color: var(--x-ink);
+  font-size: .78rem; font-weight: 500; text-decoration: none; transition: background .15s; }
+.avx-pill-link:hover { background: var(--x-accent-soft); }
+
+/* ---------- Weekly timeline ---------- */
+.avx-scale { position: relative; height: 16px; margin: 0 52px 2px 48px; }
+.avx-scale span { position: absolute; transform: translateX(-50%); font-size: .62rem; font-weight: 500; color: var(--x-faint); }
+.avx-week { display: flex; flex-direction: column; gap: 4px; }
+.avx-row { display: grid; grid-template-columns: 36px minmax(0,1fr) 40px; align-items: center; gap: 8px; padding: 5px 4px; border-radius: 12px; }
+.avx-row.is-today { background: var(--x-accent-soft); }
+.avx-row-day { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--x-muted); padding-left: 4px; }
+.avx-row.is-today .avx-row-day { color: var(--x-ink); }
+.avx-track { position: relative; height: 22px; border-radius: 8px; background: var(--x-accent-soft); }
+.avx-row.is-today .avx-track { background: var(--x-surface); }
+.avx-bar { position: absolute; top: 4px; bottom: 4px; border-radius: 6px; background: var(--x-bar); opacity: .9; }
+.avx-off-tag { position: absolute; inset: 0; display: grid; place-items: center; font-size: .66rem; font-weight: 500; color: var(--x-faint); letter-spacing: .04em; }
+.avx-row.is-off .avx-track { background: transparent; border: 1px dashed var(--x-line); }
+.avx-row-time { font-size: .66rem; font-weight: 500; color: var(--x-muted); text-align: right; white-space: nowrap; }
+
+/* ---------- 30-day ---------- */
+.avx-split { display: flex; height: 6px; border-radius: 999px; overflow: hidden; gap: 2px; background: var(--x-accent-soft); }
+.avx-split span { display: block; height: 100%; transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.avx-split-work { background: var(--x-bar); } .avx-split-off { background: var(--x-line); } .avx-split-blackout { background: var(--x-warn); }
+.avx-cells { display: grid; grid-template-columns: repeat(10, minmax(0,1fr)); gap: 6px; margin-top: 14px; }
+.avx-cell { aspect-ratio: 1; border-radius: 6px; background: var(--x-line); }
+.avx-cell-work { background: var(--x-cell); } .avx-cell-off { background: var(--x-accent-soft); } .avx-cell-blackout { background: var(--x-warn); opacity: .8; }
+.avx-cell.is-today { outline: 1.5px solid var(--x-ink); outline-offset: 2px; }
+.avx-legend { display: flex; gap: 16px; margin-top: 14px; font-size: .72rem; font-weight: 500; color: var(--x-muted); }
+.avx-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.avx-legend i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.avx-foot { margin-top: 10px !important; font-size: .74rem; color: var(--x-muted); }
+
+/* ---------- Actions ---------- */
+.avx-actions { display: flex; flex-direction: column; background: var(--x-surface); border: 1px solid var(--x-line); border-radius: var(--x-radius); overflow: hidden; }
+.avx-action { display: flex; align-items: center; gap: 12px; padding: 13px 16px; color: inherit; text-decoration: none; transition: background .15s; }
+.avx-action + .avx-action { border-top: 1px solid var(--x-line); }
+.avx-action:hover { background: var(--x-accent-soft); }
+.avx-action:focus-visible, .avx-pill-link:focus-visible, .avx-retry:focus-visible { outline: 2px solid var(--x-accent); outline-offset: -2px; }
+.avx-action > svg { color: var(--x-faint); flex-shrink: 0; transition: transform .15s; }
+.avx-action:hover > svg { transform: translateX(3px); color: var(--x-ink); }
+.avx-action-icon { flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--x-accent-soft); color: var(--x-accent); }
+.avx-action-icon-warm { color: var(--x-warn); background: var(--x-warn-soft); }
+.avx-action-icon-cool { color: var(--x-muted); }
+.avx-action-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.avx-action-text strong { font-size: .92rem; font-weight: 600; }
+.avx-action-text small { font-size: .76rem; color: var(--x-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.avx-tip { display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-radius: calc(var(--x-radius) - 4px); border: 1px dashed var(--x-line); color: var(--x-muted); font-size: .76rem; line-height: 1.5; }
+.avx-tip svg { margin-top: 2px; flex-shrink: 0; color: var(--x-faint); }
+
+/* ---------- States ---------- */
+.avx-skel { border-radius: var(--x-radius); background: linear-gradient(90deg, var(--x-accent-soft) 25%, var(--x-surface) 50%, var(--x-accent-soft) 75%); background-size: 200% 100%; animation: avx-shimmer 1.2s infinite; }
+.avx-error { text-align: center; padding: 26px 18px; border-radius: var(--x-radius); background: var(--x-surface); border: 1px solid var(--x-line); color: var(--x-warn); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.avx-error-inline { padding: 10px 14px; border-radius: 12px; background: var(--x-warn-soft); color: var(--x-warn); font-size: .85rem; }
+.avx-retry { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border: 1px solid var(--x-ink); border-radius: 999px; background: transparent; color: var(--x-ink); font: 600 .85rem var(--x-font); cursor: pointer; }
+
+@keyframes avx-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes avx-pulse { 0% { transform: scale(.92); opacity: .6; } 100% { transform: scale(1.3); opacity: 0; } }
+@keyframes avx-shimmer { to { background-position: -200% 0; } }
+
+/* ---------- Tablet / desktop ---------- */
+@media (min-width: 760px) {
+  .avx { gap: 18px; padding-top: 8px; }
+  .avx-hero { grid-template-columns: auto 1fr auto; padding: 26px 30px; gap: 20px; }
+  .avx-orb { width: 68px; height: 68px; } .avx-orb-core { width: 56px; height: 56px; }
+  .avx-hero-title { font-size: 1.7rem; } .avx-hero-sub { font-size: .92rem; }
+  .avx-today { grid-column: auto; margin: 0; flex-direction: column; align-items: flex-start; min-width: 200px; padding: 14px 18px; }
+  .avx-today-value { text-align: left; font-size: .95rem; }
+  .avx-num { padding: 18px 20px; } .avx-num strong { font-size: 2.1rem; } .avx-num span { font-size: .8rem; }
+  .avx-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .avx-panel { padding: 22px 24px; }
+  .avx-track { height: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avx-rise, .avx-orb-ring, .avx-skel { animation: none !important; }
+  .avx-split span, .avx-action > svg { transition: none; }
+}
+
+/* =====================================================================
+   Colour pass — a little colour back (soft tints + one clear hue per
+   version). Everything below only uses tokens, so each theme stays
+   consistent.
+   ===================================================================== */
+
+/* Hero */
+.avx-hero { background: linear-gradient(135deg, var(--x-hue-tint) 0%, var(--x-surface) 70%); }
+.avx-eyebrow { color: var(--x-hue); }
+.avx-orb-core { background: var(--x-hue-soft); color: var(--x-hue); }
+.avx-orb-ring { border-color: var(--x-hue-soft); }
+.avx-hero-online { background: linear-gradient(135deg, var(--x-green-soft) 0%, var(--x-surface) 72%); border-color: var(--x-green-soft); }
+.avx-hero-online .avx-eyebrow { color: var(--x-green); }
+.avx-hero-online .avx-orb-core { background: var(--x-green-soft); color: var(--x-green); }
+.avx-hero-online .avx-orb-ring { border-color: var(--x-green); opacity: .5; }
+.avx-hero-title { color: var(--x-ink); }
+.avx-today { background: var(--x-hue-soft); }
+.avx-today-value, .avx-today-value svg { color: var(--x-hue); }
+.avx-hero-online .avx-today { background: var(--x-green-soft); }
+.avx-hero-online .avx-today-value, .avx-hero-online .avx-today-value svg { color: var(--x-green); }
+.avx-today.is-off { background: transparent; }
+.avx-today.is-off .avx-today-value, .avx-today.is-off .avx-today-value svg { color: var(--x-muted); }
+
+/* Number cards */
+.avx-num { border-color: transparent; }
+.avx-num-work { background: var(--x-hue-soft); } .avx-num-work strong { color: var(--x-hue); }
+.avx-num-off { background: var(--x-accent-soft); } .avx-num-off strong { color: var(--x-ink); }
+.avx-num-blackout { background: var(--x-warn-soft); } .avx-num-blackout strong { color: var(--x-warn); }
+.avx-num span::before { width: 8px; height: 8px; }
+.avx-num-work span::before { background: var(--x-hue); }
+.avx-num-off span::before { background: var(--x-faint); }
+
+/* Weekly timeline */
+.avx-bar { background: linear-gradient(90deg, var(--x-hue), color-mix(in srgb, var(--x-hue) 70%, #fff)); opacity: 1; }
+.avx-track { background: var(--x-hue-tint); }
+.avx-row.is-today { background: var(--x-hue-soft); }
+.avx-row.is-today .avx-row-day, .avx-row.is-today .avx-row-time { color: var(--x-hue); }
+.avx-pill-link { color: var(--x-hue); border-color: var(--x-hue-soft); background: var(--x-hue-tint); }
+.avx-pill-link:hover { background: var(--x-hue-soft); }
+
+/* 30-day */
+.avx-split-work { background: var(--x-hue); }
+.avx-cell-work { background: var(--x-hue); opacity: .85; }
+.avx-cell-off { background: var(--x-line); }
+.avx-cell-blackout { background: var(--x-warn); opacity: 1; }
+.avx-cell.is-today { outline-color: var(--x-hue); }
+
+/* Actions */
+.avx-action-icon { background: var(--x-hue-soft); color: var(--x-hue); }
+.avx-action-icon-warm { background: var(--x-warn-soft); color: var(--x-warn); }
+.avx-action-icon-cool { background: var(--x-green-soft); color: var(--x-green); }
+.avx-action:hover { background: var(--x-hue-tint); }
+.avx-action:hover > svg { color: var(--x-hue); }
+
+/* Tip */
+.avx-tip { background: var(--x-hue-tint); border: 1px solid var(--x-hue-soft); color: var(--x-muted); }
+.avx-tip svg { color: var(--x-hue); }
+.avx-retry { border-color: var(--x-hue); color: var(--x-hue); }
+
+/* ---------- HomeCareX brand tweaks: indigo = primary, orange = blackout ---------- */
+.avx-hero-online { background: linear-gradient(135deg, var(--x-hue-tint) 0%, var(--x-surface) 72%); border-color: var(--x-hue-soft); }
+.avx-hero-online .avx-eyebrow { color: var(--x-hue); }
+.avx-hero-online .avx-orb-core { background: var(--x-hue-soft); color: var(--x-hue); }
+.avx-hero-online .avx-orb-ring { border-color: var(--x-ok); opacity: .55; }
+.avx-hero-online .avx-today { background: var(--x-hue-soft); }
+.avx-hero-online .avx-today-value, .avx-hero-online .avx-today-value svg { color: var(--x-hue); }
+.avx-today.is-blackout .avx-today-value, .avx-today.is-blackout .avx-today-value svg { color: var(--x-warn-text); }
+.avx-num-blackout strong { color: var(--x-warn-text); }
+.avx-action-icon-warm { color: var(--x-warn-text); }
+.avx-action-icon-cool { background: var(--x-hue-soft); color: var(--x-hue); }
+.avx-error, .avx-error-inline { color: #b91c1c; }
+.avx-error-inline { background: #fee2e2; }
+.avx-retry { border-color: var(--x-hue); color: var(--x-hue); }
+.avx-bar { background: var(--x-hue); }
+.avx-cell-blackout { background: var(--x-warn); }
+
+/* ---------- Phone fit ---------- */
+.avx { overflow-x: clip; }
+.avx-num span em { font-style: normal; }
+.avx-num span { white-space: nowrap; }
+@media (max-width: 560px) {
+  .avx { gap: 12px; padding-bottom: 16px; }
+  .avx-hero { padding: 14px; gap: 2px 12px; }
+  .avx-orb { width: 44px; height: 44px; } .avx-orb-core { width: 38px; height: 38px; }
+  .avx-orb-core svg { width: 18px; height: 18px; }
+  .avx-hero-title { font-size: 1.1rem; }
+  .avx-hero-sub { font-size: .78rem; margin-top: 2px !important; }
+  .avx-today { margin-top: 10px; padding: 8px 12px; }
+  .avx-today-value { font-size: .8rem; white-space: nowrap; }
+  .avx-numbers { gap: 8px; }
+  .avx-num { padding: 10px 10px 9px; gap: 4px; }
+  .avx-num strong { font-size: 1.4rem; }
+  .avx-num span { font-size: .68rem; gap: 5px; }
+  .avx-num span em { display: none; }
+  .avx-cols, .avx-side { gap: 12px; }
+  .avx-panel { padding: 14px 12px; }
+  .avx-panel-head { margin-bottom: 10px; }
+  .avx-row { grid-template-columns: 32px minmax(0,1fr) 36px; gap: 6px; padding: 3px 2px; }
+  .avx-scale { margin: 0 44px 0 40px; }
+  .avx-track { height: 18px; } .avx-bar { top: 3px; bottom: 3px; }
+  .avx-row-day { font-size: .66rem; padding-left: 2px; } .avx-row-time { font-size: .62rem; }
+  .avx-cells { gap: 4px; margin-top: 10px; }
+  .avx-legend { margin-top: 10px; }
+  .avx-action { padding: 11px 12px; gap: 10px; }
+  .avx-action-icon { width: 34px; height: 34px; }
+  .avx-tip { padding: 10px 12px; }
+}
+
+/* =====================================================================
+   Phone — flat, edge-to-edge sections (no card boxes), fits the screen
+   ===================================================================== */
+@media (max-width: 560px) {
+  .avx { gap: 0; padding: 0 0 calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .avx-cols, .avx-side { gap: 0; }
+
+  /* remove the card look */
+  .avx-hero, .avx-hero-online, .avx-panel, .avx-actions, .avx-num, .avx-num-work, .avx-num-off, .avx-num-blackout {
+    background: none; border: 0; border-radius: 0; box-shadow: none; }
+  .avx-hero, .avx-numbers, .avx-panel, .avx-actions { border-bottom: 1px solid var(--x-line); }
+  .avx-actions { border-bottom: 0; }
+
+  /* status */
+  .avx-hero { padding: 10px 0 12px; gap: 0 12px; }
+  .avx-eyebrow { display: none; }
+  .avx-hero-title { font-size: 1.05rem; margin-top: 0 !important; }
+  .avx-hero-sub { font-size: .76rem; }
+  .avx-today { margin-top: 10px; padding: 7px 12px; border-radius: 10px; background: var(--x-hue-tint); }
+  .avx-hero-online .avx-today { background: var(--x-hue-tint); }
+
+  /* numbers: one row, thin dividers */
+  .avx-numbers { gap: 0; padding: 10px 0; }
+  .avx-num { padding: 0 6px; align-items: center; text-align: center; }
+  .avx-num + .avx-num { border-left: 1px solid var(--x-line); }
+  .avx-num strong { font-size: 1.5rem; }
+
+  /* weekly hours */
+  .avx-panel { padding: 12px 0; }
+  .avx-panel-head { margin-bottom: 6px; }
+  .avx-panel-head h3 { font-size: .95rem; }
+  .avx-pill-link { padding: 4px 12px; }
+  .avx-row { padding: 2px 0; }
+  .avx-row.is-today { border-radius: 8px; padding-left: 4px; padding-right: 4px; }
+  .avx-track { height: 16px; }
+
+  /* 30 days */
+  .avx-split { display: none; }
+  .avx-cells { margin-top: 4px; gap: 3px; }
+  .avx-cell { border-radius: 4px; }
+  .avx-legend { margin-top: 8px; }
+
+  /* links: plain list rows */
+  .avx-action { padding: 10px 0; }
+  .avx-action:hover { background: none; }
+  .avx-tip { display: none; }
+}

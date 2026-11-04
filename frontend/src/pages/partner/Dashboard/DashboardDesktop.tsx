@@ -28,6 +28,8 @@ import {
   whenRangeLabel,
 } from "@/components/partner/jobs/jobUi";
 import RejectReasonDialog from "@/components/partner/RejectReasonDialog";
+import HelpSafetyCard from "@/components/partner/HelpSafetyCard";
+import ServiceAreaBar from "@/components/partner/Serviceareabar";
 import { usePartnerStatus } from "@/layouts/PartnerLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { useJobs } from "@/hooks/useJobs";
@@ -366,6 +368,8 @@ export default function DashboardDesktop() {
         </span>
       </header>
 
+      <ServiceAreaBar className="mt-4 max-w-md" />
+
       {/* ---------- notices ---------- */}
       <div className="mt-4 space-y-3 empty:hidden">
         {!online && (
@@ -484,6 +488,8 @@ export default function DashboardDesktop() {
               </ol>
             )}
           </Panel>
+
+          <HelpSafetyCard bookingId={active[0]?.id ?? null} />
         </div>
 
         {/* RIGHT: numbers + activity */}

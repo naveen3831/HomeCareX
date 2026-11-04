@@ -1,0 +1,13 @@
+.sat { display: flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; font-size: 10px; font-weight: 600; line-height: 1.2; width: 100%; color: #475569; }
+.sat__pin { flex-shrink: 0; color: #f97316; }
+.sat__view { position: relative; min-width: 0; flex: 1; overflow: hidden; white-space: nowrap; }
+.sat__text { display: inline-block; white-space: nowrap; }
+.sat--slide .sat__text { animation: sat-slide var(--sat-dur, 10s) ease-in-out infinite alternate; }
+@keyframes sat-slide {
+  0%, 15% { transform: translateX(0); }
+  85%, 100% { transform: translateX(calc(-1 * var(--sat-dist, 0px))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sat--slide .sat__text { animation: none; }
+  .sat__view { text-overflow: ellipsis; }
+}
