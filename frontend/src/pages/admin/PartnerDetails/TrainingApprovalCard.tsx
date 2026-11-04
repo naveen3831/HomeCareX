@@ -46,8 +46,11 @@ export default function TrainingApprovalCard({ partnerId, canApprove }: { partne
     setNotice('');
     try {
       const res = await http.post<ApiResponse<TrainingStatus>>(`${base(partnerId)}/${action}`);
-      setStatus(res.data.data);
-      setNotice(res.data.message ?? 'Done.');
+      const next = res.data.data;
+      setStatus(next);
+      const ok = action === 'approve' ? next.stage === 'approved' : next.completedSteps === 0;
+      if (ok) setNotice(res.data.message ?? 'Done.');
+      else setError('The server did not save the change. Please try again.');
     } catch (err) {
       setError(messageOf(err, 'Could not save. Try again.'));
     } finally {

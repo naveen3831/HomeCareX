@@ -37,6 +37,7 @@ export async function completeOnboardingStep(step: number): Promise<OnboardingSt
 
 /** Readable message from an axios-style error. */
 export function onboardingErrorMessage(err: unknown, fallback: string): string {
-  const message = (err as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+  const e = err as { message?: unknown; response?: { data?: { message?: unknown } } };
+  const message = e?.response?.data?.message ?? e?.message; // lib/http rejects with { message, status }
   return typeof message === 'string' && message ? message : fallback;
 }

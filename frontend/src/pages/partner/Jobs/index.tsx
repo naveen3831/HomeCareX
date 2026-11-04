@@ -59,8 +59,9 @@ const STATUS_LABELS: Record<PartnerJob["status"], string> = {
   cancelled: "Cancelled",
 };
 
-/* Default landing tab is Upcoming (design step 4).  */
-function getInitialTab(pathname: string, search: string): JobTab {
+/* The tab named in the URL, or null when the URL names none.
+   With no tab in the URL the page opens Active if there is an active job, otherwise Upcoming. */
+function getExplicitTab(pathname: string, search: string): JobTab | null {
   if (pathname.endsWith("/requests")) {
     return "requests";
   }
@@ -78,7 +79,7 @@ function getInitialTab(pathname: string, search: string): JobTab {
     return tab;
   }
 
-  return "upcoming";
+  return null;
 }
 
 /* =========================================================
@@ -208,15 +209,18 @@ export const PartnerJobsPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  /* The URL is the single source of truth for the active tab. */
-  const activeTab = useMemo(
-    () => getInitialTab(location.pathname, location.search),
+  /* A tab named in the URL always wins. Otherwise: Active if there is one, else Upcoming. */
+  const explicitTab = useMemo(
+    () => getExplicitTab(location.pathname, location.search),
     [location.pathname, location.search],
   );
+  const [autoTab, setAutoTab] = useState<JobTab | null>(null);
+  const resolving = explicitTab === null && autoTab === null;
+  /* While deciding we load the Active list (the same request the Active tab uses). */
+  const activeTab: JobTab = explicitTab ?? autoTab ?? "active";
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
   const [page, setPage] = useState(1);
   const [acceptedId, setAcceptedId] = useState<string | null>(null);
@@ -236,6 +240,17 @@ export const PartnerJobsPage = () => {
   }, [search]);
 
   const jobsQuery = useJobs(activeTab, debouncedSearch, page);
+
+  /* Pick the landing tab once the Active list has loaded. */
+  useEffect(() => {
+    if (explicitTab !== null) {
+      setAutoTab(null);
+      return;
+    }
+    if (autoTab !== null || jobsQuery.isLoading) return;
+    const hasActive = !jobsQuery.isError && (jobsQuery.data?.total ?? 0) > 0;
+    setAutoTab(hasActive ? "active" : "upcoming");
+  }, [explicitTab, autoTab, jobsQuery.isLoading, jobsQuery.isError, jobsQuery.data]);
 
   const invalidateJobs = () =>
     queryClient.invalidateQueries({ queryKey: ["partner", "jobs"] });
@@ -288,14 +303,6 @@ export const PartnerJobsPage = () => {
     void jobsQuery.refetch();
   };
 
-  const toggleSearch = () => {
-    if (showSearch) {
-      setSearch("");
-    }
-
-    setShowSearch((v) => !v);
-  };
-
   /* Only the card being acted on is locked, not the whole list. */
   const isAccepting = (id: string) =>
     acceptMutation.isPending && acceptMutation.variables === id;
@@ -306,62 +313,8 @@ export const PartnerJobsPage = () => {
   return (
     <main className="pj-page">
       <div className="pj-container">
-        {/* Header */}
-        <header className="pj-header">
-          <h1>My Jobs</h1>
-
-          <div className="pj-header-actions">
-            <button
-              type="button"
-              className="pj-icon-btn"
-              onClick={toggleSearch}
-              aria-label={showSearch ? "Close search" : "Search jobs"}
-              aria-expanded={showSearch}
-            >
-              {showSearch ? (
-                <X size={18} aria-hidden="true" />
-              ) : (
-                <Search size={18} aria-hidden="true" />
-              )}
-            </button>
-
-            <div className="pj-filter-wrap">
-              <button
-                type="button"
-                className="pj-icon-btn"
-                onClick={() => setShowFilter((v) => !v)}
-                aria-label="Filter jobs"
-                aria-haspopup="menu"
-                aria-expanded={showFilter}
-              >
-                <Filter size={18} aria-hidden="true" />
-              </button>
-
-              {showFilter && (
-                <div className="pj-menu" role="menu">
-                  {FILTER_OPTIONS.map((o) => (
-                    <button
-                      key={o.key}
-                      type="button"
-                      role="menuitem"
-                      className={
-                        activeTab === o.key
-                          ? "pj-menu-item pj-menu-item-active"
-                          : "pj-menu-item"
-                      }
-                      onClick={() => handleTabChange(o.key)}
-                    >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* Search */}
-        {showSearch && (
+        {/* Search bar + filter icon (no page title) */}
+        <div className="pj-bar">
           <div className="pj-search">
             <Search size={16} aria-hidden="true" />
 
@@ -374,12 +327,55 @@ export const PartnerJobsPage = () => {
               type="search"
               value={search}
               onChange={handleSearchChange}
-              placeholder="Search by booking ID, service or customer..."
+              placeholder="Search by service, customer or ID"
               autoComplete="off"
-              autoFocus
             />
+
+            {search && (
+              <button
+                type="button"
+                className="pj-search-clear"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            )}
           </div>
-        )}
+
+          <div className="pj-filter-wrap">
+            <button
+              type="button"
+              className="pj-icon-btn pj-filter-btn"
+              onClick={() => setShowFilter((v) => !v)}
+              aria-label="Filter jobs"
+              aria-haspopup="menu"
+              aria-expanded={showFilter}
+            >
+              <Filter size={18} aria-hidden="true" />
+            </button>
+
+            {showFilter && (
+              <div className="pj-menu" role="menu">
+                {FILTER_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    role="menuitem"
+                    className={
+                      activeTab === o.key
+                        ? "pj-menu-item pj-menu-item-active"
+                        : "pj-menu-item"
+                    }
+                    onClick={() => handleTabChange(o.key)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Tabs */}
         <nav className="pj-tabs" aria-label="Job status">
@@ -388,10 +384,10 @@ export const PartnerJobsPage = () => {
               key={tab.key}
               type="button"
               className={
-                activeTab === tab.key ? "pj-tab pj-tab-active" : "pj-tab"
+                !resolving && activeTab === tab.key ? "pj-tab pj-tab-active" : "pj-tab"
               }
               onClick={() => handleTabChange(tab.key)}
-              aria-current={activeTab === tab.key ? "page" : undefined}
+              aria-current={!resolving && activeTab === tab.key ? "page" : undefined}
             >
               {tab.label}
             </button>
@@ -442,7 +438,7 @@ export const PartnerJobsPage = () => {
         )}
 
         {/* Loading */}
-        {jobsQuery.isLoading && (
+        {(jobsQuery.isLoading || resolving) && (
           <div className="pj-state" role="status" aria-live="polite">
             <div className="pj-spinner" />
             <p>Loading jobs...</p>
@@ -467,7 +463,7 @@ export const PartnerJobsPage = () => {
         )}
 
         {/* Empty */}
-        {!jobsQuery.isLoading && !jobsQuery.isError && jobs.length === 0 && (
+        {!resolving && !jobsQuery.isLoading && !jobsQuery.isError && jobs.length === 0 && (
           <div className="pj-state" role="status">
             <div className="pj-empty-icon">
               <Clock3 size={26} aria-hidden="true" />
@@ -496,7 +492,7 @@ export const PartnerJobsPage = () => {
         )}
 
         {/* Results */}
-        {!jobsQuery.isLoading && !jobsQuery.isError && jobs.length > 0 && (
+        {!resolving && !jobsQuery.isLoading && !jobsQuery.isError && jobs.length > 0 && (
           <>
             <section className="pj-list" aria-label="Jobs list">
               {jobs.map((job) => (

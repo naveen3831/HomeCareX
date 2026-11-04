@@ -283,3 +283,5 @@ package-lock.json
 
 # Large ZIP archives
 frontend.zip
+
+*.zip

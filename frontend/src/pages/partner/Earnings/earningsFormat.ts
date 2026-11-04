@@ -70,3 +70,15 @@ export function rangeError(from: string | undefined, to: string | undefined): st
   if (from && to && daysBetween(from, to) >= MAX_RANGE_DAYS) return `Pick a range of at most ${MAX_RANGE_DAYS} days.`;
   return null;
 }
+
+/** "3 Nov" in India time. */
+export const dayFromInstant = (iso: string): string =>
+  new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: IST });
+
+/** ISO instant -> "2026-11" in India time (used to group the list by month). */
+export const monthKey = (iso: string): string =>
+  new Date(iso).toLocaleDateString("en-CA", { timeZone: IST }).slice(0, 7);
+
+/** "2026-11" -> "November 2026". */
+export const monthLabel = (key: string): string =>
+  new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
