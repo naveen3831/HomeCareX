@@ -14,6 +14,7 @@ import CategoryIcon from "@/components/customer/CategoryIcon";
 import { classifyApiError } from "@/lib/apiError";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useLoad } from "../useLoad";
+import MySkillsCard from "./MySkillsCard";
 import {
   getPartnerServices,
   getServiceCategories,
@@ -273,6 +274,8 @@ export default function PartnerMyServicesPage() {
           </div>
         )}
       </header>
+
+      <MySkillsCard />
 
       {status === "loading" && (
         <div aria-busy="true" aria-live="polite" data-testid="services-loading" className="space-y-3">

@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingApprovalCard from "./TrainingApprovalCard";
+import TrainingPanel from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -384,21 +384,15 @@ const AdminPartnerDetailsPage: React.FC =
               <span className={`pd-badge ${tone(partner.kycStatus)}`}>
                 KYC · {partner.kycStatus}
               </span>
-            )}
-          </div>
-        </div>
-
-        <TrainingApprovalCard
-          partnerId={partner.id}
-          canApprove={hasKycApprovalPermission}
-        />
-
-        <div className="partner-details-summary">
-          <div>
-            <strong>Email</strong>
-            <span title={partner.email}>
-              {partner.email || "—"}
-            </span>
+              <span className={`pd-badge ${tone(partner.accountStatus)}`}>
+                Account · {partner.accountStatus}
+              </span>
+              {partner.training && (
+                <span className={`pd-badge ${tone(partner.training.status)}`}>
+                  Training · {partner.training.status}
+                </span>
+              )}
+            </div>
           </div>
         </header>
 
@@ -669,8 +663,7 @@ const KycTab: React.FC<KycTabProps> = ({
           className="partner-primary-btn"
           disabled={
             actionLoading ||
-            !hasPermission ||
-            partner.kycStatus === "Approved"
+            !hasPermission
           }
           onClick={() => {
             void onApprove();
@@ -678,7 +671,9 @@ const KycTab: React.FC<KycTabProps> = ({
         >
           {actionLoading
             ? "Processing..."
-            : "Approve KYC"}
+            : partner.kycStatus === "Approved"
+              ? "Resend set-password email"
+              : "Approve KYC"}
         </button>
 
         <button
@@ -838,6 +833,7 @@ const SecureDocument: React.FC<{
   const [state, setState] = useState<"loading" | "ready" | "error">(
     document.secure ? "loading" : "ready",
   );
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     if (!document.secure) {
@@ -857,8 +853,10 @@ const SecureDocument: React.FC<{
         setMime(blob.type);
         setState("ready");
       })
-      .catch(() => {
-        if (!cancelled) setState("error");
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setReason(err instanceof Error ? err.message : "");
+        setState("error");
       });
 
     return () => {
@@ -879,7 +877,7 @@ const SecureDocument: React.FC<{
     return (
       <div className="hcx-docviewer-empty" style={{ height }} role="alert">
         <strong>Document could not be loaded.</strong>
-        <p>The file may be missing on the server. Ask the partner to upload it again.</p>
+        <p>{reason || "The file may be missing on the server. Ask the partner to upload it again."}</p>
       </div>
     );
   }

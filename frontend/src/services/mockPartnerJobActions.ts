@@ -114,6 +114,7 @@ export const getMockJob = (jobId: string): StoredJob | undefined => {
 ========================================================= */
 
 const isExpired = (job: JobRequest) => {
+  if (!job.expiresAt) return false;
   const expiresAt = new Date(job.expiresAt).getTime();
 
   return expiresAt <= Date.now();

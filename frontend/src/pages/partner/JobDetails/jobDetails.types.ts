@@ -43,6 +43,8 @@ export interface ApiPayment {
 export interface ApiJob {
   id: string;
   status: JobStatus;
+  /** true once the partner accepted the job (the server keeps status "assigned" until they set off). */
+  accepted?: boolean;
   customer: { name: string; phone: string | null };
   service: { name: string; description?: string | null; quantity: number; durationMinutes: number | null };
   location: {

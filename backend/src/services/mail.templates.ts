@@ -497,3 +497,93 @@ ${button(d.reviewUrl, 'Review KYC Documents')}
 
   return { subject: `KYC review needed: ${d.partnerName}`, html, text };
 }
+
+export interface AdminPartnerTrainingEmailData {
+  partnerName: string;
+  partnerEmail: string;
+  partnerPhone?: string;
+  reviewUrl: string;
+  logoSrc?: string;
+  supportEmail?: string;
+}
+
+/** Sent to admins when a partner finishes the training and needs approval. */
+export function adminPartnerTrainingEmail(d: AdminPartnerTrainingEmailData) {
+  const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 22px ${FONT};color:${BRAND.indigoDark};text-align:center">Partner finished the training</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">The partner cannot use the app until you approve.</p>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${BRAND.border};border-radius:12px;border-collapse:separate;background:#f8fafc;margin-bottom:20px">
+  ${row('Name', esc(d.partnerName))}
+  ${row('Email', esc(d.partnerEmail))}
+  ${row('Phone', esc(d.partnerPhone || '-'), true)}
+</table>
+
+${button(d.reviewUrl, 'Review & Approve Training')}
+<p style="margin:20px 0 0;text-align:center;font-size:12px;color:${BRAND.muted}">Open the partner, check the Training section, then approve. We will email the partner as soon as you do.</p>`;
+
+  const html = layout({
+    preheader: `${d.partnerName} completed the training and needs your approval.`,
+    logoSrc: d.logoSrc,
+    bodyHtml,
+    footerNote: `Admin notification from ${BRAND.name}.`,
+    supportEmail: d.supportEmail,
+  });
+
+  const text = [
+    'Partner finished the training',
+    '',
+    `Name: ${d.partnerName}`,
+    `Email: ${d.partnerEmail}`,
+    `Phone: ${d.partnerPhone || '-'}`,
+    '',
+    `Review and approve: ${d.reviewUrl}`,
+  ].join('\n');
+
+  return { subject: `Training approval needed: ${d.partnerName}`, html, text };
+}
+
+export interface PartnerTrainingApprovedEmailData {
+  name: string;
+  email: string;
+  loginUrl: string;
+  logoSrc?: string;
+  supportEmail?: string;
+}
+
+/** Sent to the partner when an admin approves the finished training: they can log in and go online. */
+export function partnerTrainingApprovedEmail(d: PartnerTrainingApprovedEmailData) {
+  const firstName = d.name.trim().split(/\s+/)[0] || d.name;
+
+  const bodyHtml = `
+<h1 style="margin:8px 0 6px;font:700 24px ${FONT};color:${BRAND.indigoDark};text-align:center">You're all set, ${esc(firstName)}!</h1>
+<p style="margin:0 0 22px;text-align:center;color:${BRAND.muted}">Your training has been approved.</p>
+
+<p style="margin:0 0 16px">Hi ${esc(d.name)},</p>
+<p style="margin:0 0 16px">Our team has approved your training. You can now log in to your ${BRAND.name} partner account with the password you set, switch to <strong>Online</strong> and start receiving job requests.</p>
+
+${button(d.loginUrl, 'Log In & Go Online')}
+<p style="margin:20px 0 22px;text-align:center;font-size:12px;color:${BRAND.muted}">Button not working? Copy and paste this link into your browser:<br /><a href="${esc(d.loginUrl)}" style="color:${BRAND.indigo};word-break:break-all">${esc(d.loginUrl)}</a></p>
+
+<p style="margin:26px 0 0">Welcome aboard,<br /><strong>The ${BRAND.name} Team</strong></p>`;
+
+  const html = layout({
+    preheader: `Your ${BRAND.name} training is approved. Log in and go online.`,
+    logoSrc: d.logoSrc,
+    bodyHtml,
+    footerNote: `You are receiving this email because you are a ${BRAND.name} partner (${d.email}).`,
+    supportEmail: d.supportEmail,
+  });
+
+  const text = [
+    `Hi ${d.name},`,
+    '',
+    `Your ${BRAND.name} training has been approved.`,
+    'Log in with the password you set, then switch to Online to start receiving jobs:',
+    d.loginUrl,
+    '',
+    `The ${BRAND.name} Team`,
+  ].join('\n');
+
+  return { subject: `You're approved: log in and go online`, html, text };
+}

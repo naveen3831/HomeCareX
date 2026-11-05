@@ -20,7 +20,7 @@ const toDto = (s: ServiceDoc, cat: CategoryLite | null): ServiceDto => ({
   category: cat,
   basePrice: s.basePrice,
   durationMinutes: s.durationMinutes,
-  addOns: s.addOns.map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
+  addOns: (s.addOns ?? []).map((a) => ({ id: String(a._id), name: a.name, price: a.price })),
   active: s.active,
   sortOrder: s.sortOrder ?? 0,
   media: (s.media ?? []).map((m) => ({ url: m.url, alt: m.alt ?? '' })),

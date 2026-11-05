@@ -1,6 +1,6 @@
 import { UserModel } from '../../models/User';
 import { mailService } from '../../services/mail.service';
-import { alertKycSubmitted } from '../notifications/admin-alerts';
+import { alertKycSubmitted, alertTrainingCompleted } from '../notifications/admin-alerts';
 
 export interface KycSubmittedInfo {
   /** The partner's login user id: the same id /admin/partners/:id and the admin UI use. */
@@ -41,4 +41,23 @@ export function notifyAdminsKycSubmitted(info: KycSubmittedInfo): void {
       reviewUrl: `${frontendUrl}/admin/partners/${info.userId}`,
     });
   })().catch((err) => console.error('[partners] admin KYC email failed', err));
+}
+
+/**
+ * A partner finished every training step: bell alert + email to the admin team.
+ * Fire-and-forget. A failed alert or email must never fail the step the partner just completed.
+ */
+export function notifyAdminsTrainingCompleted(info: KycSubmittedInfo): void {
+  alertTrainingCompleted({ partnerId: info.userId, partnerName: info.name });
+
+  void (async () => {
+    const to = await adminRecipients();
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    await mailService.sendAdminPartnerTrainingEmail(to, {
+      partnerName: info.name,
+      partnerEmail: info.email,
+      partnerPhone: info.phone,
+      reviewUrl: `${frontendUrl}/admin/partners/${info.userId}`,
+    });
+  })().catch((err) => console.error('[partners] admin training email failed', err));
 }

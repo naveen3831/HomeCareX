@@ -1,4 +1,3 @@
-
 import type { NextFunction, Request, Response } from 'express';
 
 import { parseBody } from '../auth/auth.validation';
@@ -123,7 +122,7 @@ export class PartnersController {
    * GET ONE PARTNER (details page)
    */
   getOne = wrap(async (req, res) => {
-    const data = await partnersService.detail(req.params.id);
+    const data = await partnersService.getById(req.params.id);
 
     res.json({ success: true, data });
   });
@@ -152,6 +151,8 @@ export class PartnersController {
     const message =
       body.decision === 'reject'
         ? 'Partner KYC rejected.'
+        : 'passwordAlreadySet' in data && data.passwordAlreadySet
+          ? 'This partner is already approved and has set a password. No email was sent.'
         : data.emailSent
           ? 'Partner KYC approved. An email with a set-password link was sent to the partner.'
           : 'Partner KYC approved, but the email could not be sent. Ask the partner to use "Forgot password" on the login page.';

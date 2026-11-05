@@ -102,7 +102,7 @@ const ServiceRow: React.FC<ServiceRowProps> = ({
       <div className="cat-actions">
         <button
           type="button" role="switch" aria-checked={s.active} className={clsx('cat-toggle', s.active && 'is-on')}
-          onClick={onToggle} disabled={busy || !editable} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
+          onClick={onToggle} disabled={busy || !editable} aria-label={`${s.active ? 'Deactivate' : 'Activate'} ${s.name}`}
         >
           <span className="cat-toggle__track"><i /></span>
           <span className="cat-toggle__text">{s.active ? 'Active' : 'Inactive'}</span>
@@ -111,12 +111,8 @@ const ServiceRow: React.FC<ServiceRowProps> = ({
           <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0 || busy} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={15} /></button>
           <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1 || busy} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={15} /></button>
         </span>
-        {canManage && (
-          <>
-            <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
-            <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
-          </>
-        )}
+        <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
+        <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
       </div>
     </li>
   );

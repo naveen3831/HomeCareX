@@ -1118,3 +1118,8 @@
     transition-duration: 0.01ms !important;
   }
 }
+@media (min-width: 1101px) {
+  .rvw-table { min-width: 0; }
+  .rvw-table th, .rvw-table td { padding-left: 12px; padding-right: 12px; }
+  .rvw-customer { min-width: 0; }
+}

@@ -21,9 +21,15 @@ export const NOTIFICATION_TYPES = [
   'sos.alert',
   /** Admin-only alerts (live in the admin bell). Raised by the helpers in admin-alerts.ts. */
   'kyc.submitted',
+  /** A partner finished every training step and waits for an admin to approve it. */
+  'training.completed',
   'refund.requested',
   'payout.failed',
   'sla.breach',
+  /** A partner asked to add a new skill; an admin must approve it. */
+  'skill.requested',
+  /** An admin approved or rejected a partner's skill request. */
+  'skill.reviewed',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -49,7 +55,7 @@ export const GROUP_PREFIXES: Record<
 > = {
   booking: ['booking.'],
   payment: ['payment.', 'payout.', 'refund.'],
-  partner: ['partner.', 'kyc.'],
+  partner: ['partner.', 'kyc.', 'training.', 'skill.'],
   offers: ['offer.'],
   support: ['ticket.', 'support.'],
 };
