@@ -18,7 +18,10 @@ export interface JobRequestDto {
   address?: string;
   price: number;
   scheduledAt: string;
-  expiresAt: string;
+  /** null for a job the admin assigned directly: it has no response deadline. */
+  expiresAt: string | null;
+  /** true when the admin assigned this job to the partner (no open offer). */
+  assignedByAdmin?: boolean;
 }
 
 export interface JobChecklistItemDto {
@@ -44,11 +47,14 @@ export interface JobListItemDto {
   partnerEarning: number;
   /** First service photo, or null when the service has none. */
   imageUrl: string | null;
+  /** true once the partner accepted this job (an offer they took, or a job the admin assigned that they confirmed). */
+  accepted: boolean;
 }
 
 export interface JobDetailDto {
   id: string;
   status: BookingStatus;
+  accepted: boolean;
   customer: { name: string; phone: string | null };
   service: {
     name: string;

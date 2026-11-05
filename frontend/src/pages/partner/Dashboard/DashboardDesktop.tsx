@@ -179,7 +179,8 @@ function RequestRow({
   onReject: (job: PartnerJob) => void;
 }) {
   const seconds = useCountdown(job.expiresAt);
-  const expired = seconds <= 0;
+  const hasDeadline = Boolean(job.expiresAt);
+  const expired = hasDeadline && seconds <= 0;
   return (
     <article className="flex items-center gap-5 rounded-2xl border-2 border-orange-300 bg-orange-50/40 p-4">
       <div className="flex h-24 w-24 shrink-0">
@@ -200,7 +201,7 @@ function RequestRow({
         {job.amount > 0 && <span className="text-xl font-extrabold text-indigo-700">{formatInr(job.amount)}</span>}
         <span className="flex items-center gap-1.5 text-sm font-bold text-orange-700" role="timer">
           <Clock3 size={15} />
-          {expired ? "Expired" : formatClock(seconds)}
+          {!hasDeadline ? "Assigned to you" : expired ? "Expired" : formatClock(seconds)}
         </span>
         <div className="flex gap-2">
           <button

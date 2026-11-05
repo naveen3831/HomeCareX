@@ -66,6 +66,20 @@ export interface PartnerProfileInput {
   phone: string;
 }
 
+/** What the partner gave when joining (address, services, bank), as saved now. */
+export interface PartnerJoinDetails {
+  name: string;
+  phone: string;
+  email: string;
+  joined: {
+    address: { line1: string; city: string; state: string; pincode: string };
+    categories: string[];
+    skills: string[];
+    serviceRadiusKm: number | null;
+    bank: { accountHolder: string; accountLast4: string; ifsc: string; upiId: string } | null;
+  };
+}
+
 export type {
   ActiveJob,
   EarningsSummary,
@@ -181,6 +195,38 @@ export async function getPartnerById(
       partner.kycStatus = raw.kycStatus as PartnerDetails["kycStatus"];
     }
 
+    // Use the live sections from the backend. The template above is only a skeleton: without this the
+    // page keeps the demo KYC documents (placehold.co "Aadhaar Document" / "PAN Document") and the
+    // files the partner really uploaded are never shown. Stored files come back as secure: true with
+    // an admin-only url, which the details page fetches with the admin token.
+    const live = raw as Record<string, unknown>;
+    const target = partner as unknown as Record<string, unknown>;
+    const isObject = (v: unknown): v is Record<string, unknown> =>
+      !!v && typeof v === "object" && !Array.isArray(v);
+
+    if (isObject(live.kyc)) {
+      const k = live.kyc;
+      partner.kyc = {
+        ...partner.kyc,
+        submittedAt: typeof k.submittedAt === "string" ? k.submittedAt : "",
+        reviewedAt: typeof k.reviewedAt === "string" ? k.reviewedAt : undefined,
+        documents: Array.isArray(k.documents) ? (k.documents as PartnerDetails["kyc"]["documents"]) : [],
+        checklist: Array.isArray(k.checklist) ? (k.checklist as PartnerDetails["kyc"]["checklist"]) : [],
+      };
+    }
+    for (const key of ["accountStatus", "address", "joined"] as const) {
+      if (typeof live[key] === "string") target[key] = live[key];
+    }
+    for (const key of ["acceptance", "completion"] as const) {
+      if (typeof live[key] === "number") target[key] = live[key];
+    }
+    for (const key of ["profile", "performance", "training"] as const) {
+      if (isObject(live[key])) target[key] = live[key];
+    }
+    for (const key of ["categories", "bookings", "earnings", "payouts", "reviews", "support", "activity"] as const) {
+      if (Array.isArray(live[key])) target[key] = live[key];
+    }
+
     // Cache using the actual backend user ID.
     savePartner(partner);
 
@@ -264,8 +310,25 @@ export async function updatePartnerStatus(
  * header: an <img>/<iframe> pointing at the API path would be rejected with 401.
  */
 export async function fetchKycDocumentBlob(path: string): Promise<Blob> {
-  const res = await http.get<Blob>(path, { responseType: "blob" });
-  return res.data;
+  try {
+    const res = await http.get<Blob>(path, { responseType: "blob" });
+    return res.data;
+  } catch (err) {
+    // With responseType "blob" an error body arrives as a Blob too: read the server message from it.
+    const e = err as { status?: number; message?: string; response?: { status?: number; data?: unknown } };
+    let message = e.message ?? "";
+    const body = e.response?.data;
+    if (body instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await body.text()) as { message?: string };
+        if (parsed.message) message = parsed.message;
+      } catch {
+        /* not JSON */
+      }
+    }
+    const status = e.response?.status ?? e.status;
+    throw new Error(`${status ? `HTTP ${status}: ` : ""}${message || "Network error"}`);
+  }
 }
 
 /* =========================================================
@@ -341,7 +404,8 @@ const mapRequest = (req: JobRequest): PartnerJob => ({
   scheduledAt: req.scheduledAt,
   amount: req.price > 0 ? req.price : pickAmount(asRecord(req)),
   status: "requested",
-  expiresAt: req.expiresAt,
+  expiresAt: req.expiresAt ?? undefined,
+  assignedByAdmin: req.assignedByAdmin ?? !req.expiresAt,
   image: pickImage(asRecord(req)),
 });
 
@@ -361,6 +425,7 @@ const mapLiveJob = (rawItem: unknown): PartnerJob => {
     scheduledAt: typeof item.scheduledAt === "string" ? item.scheduledAt : new Date().toISOString(),
     amount: pickAmount(item),
     status: toJobStatus(typeof item.status === "string" ? item.status : ""),
+    accepted: typeof item.accepted === "boolean" ? item.accepted : undefined,
     image: pickImage(service, item),
   };
 };
@@ -374,7 +439,8 @@ async function fetchLive(scope?: "completed" | "cancelled"): Promise<PartnerJob[
   const res = await http.get<ApiResponse<unknown[]>>("/partner/jobs", {
     params: scope ? { scope } : undefined,
   });
-  return (res.data.data ?? []).map(mapLiveJob);
+  // A job the admin assigned that the partner has not accepted yet is a request (see fetchRequests), not a live job.
+  return (res.data.data ?? []).map(mapLiveJob).filter((job) => job.accepted !== false);
 }
 
 /**
@@ -472,6 +538,11 @@ export const partnerApi = {
   },
 
   /* Profile */
+
+  async getProfileDetails(): Promise<PartnerJoinDetails> {
+    const res = await http.get<ApiResponse<PartnerJoinDetails>>("/partner/profile");
+    return res.data.data;
+  },
 
   async updateProfile(input: PartnerProfileInput): Promise<PartnerProfileInput> {
     const res = await http.patch<ApiResponse<PartnerProfileInput>>("/partner/profile", input);

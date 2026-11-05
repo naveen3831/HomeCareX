@@ -187,7 +187,8 @@ export function mapJob(api: ApiJob): JobDetails {
   return {
     id: api.id,
     bookingCode: bookingCode(api.id),
-    status: api.status,
+    // "assigned" on the server means waiting for the partner; once accepted the page calls it "confirmed".
+    status: api.status === 'assigned' && api.accepted ? 'confirmed' : api.status,
     customer: { name: api.customer.name, phoneMasked: api.customer.phone ?? '—' },
     service: {
       ...api.service,
@@ -289,7 +290,8 @@ export function mapJobListItemToJobDetails(item: JobListItemLike): JobDetails {
   const customerObj = typeof item.customer === 'object' && item.customer !== null ? item.customer : null;
   const customerName = item.customerName || customerObj?.name || (typeof item.customer === 'string' ? item.customer : 'Customer');
   const customerPhone = item.customerPhone || customerObj?.phone || '+91 ••••• ••' + cleanId.slice(-3);
-  const status = (item.status as JobStatus) || 'assigned';
+  const rawStatus = (item.status as JobStatus) || 'assigned';
+  const status: JobStatus = rawStatus === 'assigned' && item.accepted === true ? 'confirmed' : rawStatus;
 
   return {
     id: cleanId,

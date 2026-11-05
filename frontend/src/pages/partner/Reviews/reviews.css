@@ -25,11 +25,8 @@
 .rv-muted { margin: 0; color: var(--rv-muted); font-size: 0.9rem; }
 
 /* stars */
-.rv-stars { position: relative; display: inline-flex; font-size: 0.9rem; line-height: 1; }
-.rv-stars-bg, .rv-stars-fg { display: inline-flex; flex-shrink: 0; }
-.rv-stars svg { flex-shrink: 0; }
-.rv-stars-bg { color: var(--rv-star-off); }
-.rv-stars-fg { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--rv-star); }
+.rv-stars { display: inline-flex; gap: 1px; font-size: 0.9rem; line-height: 1; }
+.rv-stars svg { display: block; flex-shrink: 0; width: 1em; height: 1em; }
 
 /* summary: big score, one segmented bar */
 .rv-summary { display: grid; gap: 14px; max-width: 560px; }
@@ -92,37 +89,60 @@
 .rv-btn:focus-visible { outline: 3px solid var(--rv-primary); outline-offset: 2px; }
 .rv-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-/* ================= MOBILE (phones): flat rows, no boxes ================= */
+/* ================= MOBILE (phones): compact cards that fit the screen ================= */
 @media (max-width: 759px) {
-  .rv-root { padding: 12px 16px 32px; }
-  .rv-layout, .rv-side, .rv-main { gap: 12px; }
+  /* The partner layout already pads <main> (1rem on phones). Cancel that so the cards use the full width. */
+  .rv-root { width: calc(100% + 2rem); margin: -1rem -1rem 0; padding: 8px 8px 16px; }
+  .rv-layout, .rv-side, .rv-main { gap: 10px; }
 
-  /* summary: score + stars on one line, nothing else */
-  .rv-summary { max-width: none; gap: 0; }
+  /* summary: one white card, score + stars + count, then the star split */
+  .rv-summary { max-width: none; gap: 8px; padding: 10px 12px; border: 1px solid #e8ebf4; border-radius: 14px; background: #fff; box-shadow: 0 2px 8px rgba(30, 42, 82, 0.04); }
   .rv-score { flex-wrap: nowrap; align-items: center; gap: 12px; }
-  .rv-average { font-size: 2.8rem; }
-  .rv-score-meta { padding: 0; gap: 2px; }
+  .rv-average { font-size: 2.2rem; }
+  .rv-score-meta { padding: 0; gap: 3px; }
   .rv-score-meta .rv-stars { font-size: 1rem; }
-  .rv-split-wrap { display: none; }
+  .rv-score-meta .rv-muted { font-size: 0.78rem; }
+  .rv-split-wrap { display: grid; gap: 6px; }
+  .rv-split { height: 6px; }
+  .rv-dist { gap: 2px 12px; font-size: 0.72rem; }
+  .rv-dist-item { gap: 5px; }
+  .rv-swatch { width: 8px; height: 8px; }
 
-  .rv-list-head { padding-bottom: 6px; }
+  .rv-list-head { padding-bottom: 0; border-bottom: 0; }
+  .rv-eyebrow { font-size: 0.92rem; }
 
-  /* review: name + stars, comment, then service / date, then tags */
-  .rv-review { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 16px 0; }
+  /* reviews: separate cards with a tidy two-column header */
+  .rv-list { gap: 8px; }
+  .rv-review {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 6px 10px;
+    padding: 10px 12px 11px;
+    border: 1px solid #e8ebf4;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(30, 42, 82, 0.04);
+  }
   .rv-review-side, .rv-review-body { display: contents; }
 
-  .rv-review-foot { order: 1; flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
-  .rv-customer { order: 1; font-size: 1rem; }
-  .rv-verified { order: 2; font-size: 0.78rem; }
-  .rv-review-foot .rv-stars { order: 3; flex-basis: 100%; font-size: 0.95rem; margin-top: 2px; }
+  /* name + verified on the first line, stars under them */
+  .rv-review-foot { order: 1; grid-column: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+  .rv-customer { order: 1; font-size: 0.92rem; }
+  .rv-verified { order: 2; padding: 1px 7px; border-radius: 99px; background: #eeedfc; font-size: 0.68rem; }
+  .rv-review-foot .rv-stars { order: 3; flex-basis: 100%; font-size: 0.85rem; }
 
-  .rv-comment { order: 2; flex-basis: 100%; font-size: 0.98rem; line-height: 1.6; font-weight: 400; }
-  .rv-service { order: 3; font-size: 0.82rem; font-weight: 600; color: var(--rv-primary); }
-  .rv-date { order: 4; font-size: 0.8rem; }
-  .rv-tags { order: 5; flex-basis: 100%; gap: 2px 14px; }
-  .rv-tag { font-size: 0.8rem; }
+  .rv-date { order: 2; grid-column: 2; justify-self: end; font-size: 0.72rem; white-space: nowrap; }
+  .rv-comment { order: 3; grid-column: 1 / -1; font-size: 0.88rem; line-height: 1.45; font-weight: 400; }
+  .rv-service { order: 4; grid-column: 1 / -1; justify-self: start; padding: 2px 9px; border-radius: 99px; background: #f1f0ff; color: var(--rv-primary); font-size: 0.72rem; font-weight: 600; }
+  .rv-tags { order: 5; grid-column: 1 / -1; gap: 2px 12px; }
+  .rv-tag { font-size: 0.74rem; }
 
-  .rv-pager { display: grid; grid-template-columns: 1fr 1fr; }
+  .rv-pager { display: grid; grid-template-columns: 1fr 1fr; margin-top: 12px; }
   .rv-pager .rv-muted { grid-column: 1 / -1; grid-row: 1; text-align: center; }
-  .rv-pager .rv-btn { width: 100%; }
+  .rv-pager .rv-btn { width: 100%; min-height: 40px; }
+}
+
+@media (min-width: 640px) and (max-width: 759px) {
+  .rv-root { width: calc(100% + 3rem); margin: -1rem -1.5rem 0; }
 }

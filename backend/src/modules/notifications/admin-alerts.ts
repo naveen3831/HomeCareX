@@ -23,6 +23,13 @@ export const alertSos = (i: { bookingId: string; partnerId?: string; partnerName
 export const alertKycSubmitted = (i: { partnerId: string; partnerName?: string }): void =>
   send('kyc.submitted', { message: `${i.partnerName ?? 'A partner'} submitted KYC for review`, partnerId: i.partnerId });
 
+/** A partner finished all training steps and is waiting for an admin to approve it. */
+export const alertTrainingCompleted = (i: { partnerId: string; partnerName?: string }): void =>
+  send('training.completed', {
+    message: `${i.partnerName ?? 'A partner'} completed the training and is waiting for your approval`,
+    partnerId: i.partnerId,
+  });
+
 /** A refund was requested (e.g. a customer cancelled a paid booking). */
 export const alertRefundRequested = (i: { refundId: string; bookingId?: string; amount?: number }): void =>
   send('refund.requested', {

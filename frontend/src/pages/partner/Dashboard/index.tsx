@@ -180,7 +180,8 @@ function RequestCard({
   busy: boolean;
 }) {
   const seconds = useCountdown(job.expiresAt);
-  const expired = seconds <= 0;
+  const hasDeadline = Boolean(job.expiresAt);
+  const expired = hasDeadline && seconds <= 0;
 
   return (
     <article className="rounded-xl border-2 border-orange-300 bg-white p-3.5 shadow-sm">
@@ -190,7 +191,7 @@ function RequestCard({
         </span>
         <span className="flex items-center gap-1.5 text-xs font-bold text-orange-700" role="timer">
           <Clock3 size={15} />
-          {expired ? "Expired" : formatClock(seconds)}
+          {!hasDeadline ? "Assigned to you" : expired ? "Expired" : formatClock(seconds)}
         </span>
       </div>
 
