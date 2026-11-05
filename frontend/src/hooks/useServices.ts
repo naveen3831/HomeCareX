@@ -13,7 +13,8 @@ export function useServices(params: ServiceListParams) {
     queryKey: catalogKeys.services(params),
     queryFn: ({ signal }) => fetchServices(params, signal),
     placeholderData: keepPreviousData,
-    staleTime: 30_000,
+    staleTime: 5_000,
+    refetchOnMount: 'always',
     retry: retryTransient,
     retryDelay: retryBackoff,
   });

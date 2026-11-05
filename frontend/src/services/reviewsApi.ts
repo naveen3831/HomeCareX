@@ -360,16 +360,17 @@ export const fetchPublicReviews = async (
     }> & { meta?: PublicReviewsResponse["meta"] }
   >("/public/reviews", { params: query });
 
-  const data = response.data.data;
-  const meta = response.data.meta;
+  const data = (response.data as { data?: { reviews?: PublicCustomerReview[]; stats?: PublicReviewsStats } })?.data ?? (response.data as unknown as { reviews?: PublicCustomerReview[]; stats?: PublicReviewsStats });
+  const meta = (response.data as { meta?: PublicReviewsResponse["meta"] })?.meta;
+  const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
 
   return {
-    reviews: data.reviews,
-    stats: data.stats,
+    reviews,
+    stats: data?.stats,
     meta: meta ?? {
       page: params.page ?? 1,
       limit: params.limit ?? 20,
-      total: data.reviews.length,
+      total: reviews.length,
       totalPages: 1,
     },
   };

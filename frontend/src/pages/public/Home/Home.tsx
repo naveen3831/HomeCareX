@@ -753,39 +753,35 @@ const Home: React.FC = () => {
             text="Four steps from request to a job well done."
           />
 
-          <div ref={processRef} className={`relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 ${processSeen ? "is-in" : ""}`}>
+          <div ref={processRef} className={`relative grid gap-6 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 pt-2 ${processSeen ? "is-in" : ""}`}>
             {/* Connecting progress track line on desktop */}
-            <div className="absolute left-[12.5%] right-[12.5%] top-16 hidden h-1 bg-gradient-to-r from-blue-200 via-indigo-200 to-orange-200 lg:block rounded-full opacity-60" aria-hidden="true">
+            <div className="absolute left-[12.5%] right-[12.5%] top-9 hidden h-1 bg-gradient-to-r from-blue-200 via-indigo-200 to-orange-200 lg:block rounded-full opacity-60" aria-hidden="true">
               <div className="hcx-line h-full w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-[#ff8a3d] rounded-full" />
             </div>
 
             {steps.map((s, i) => {
               const stepPalette = [
                 {
-                  badge: "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.3)] ring-4 ring-blue-50",
-                  hoverBorder: "hover:border-blue-400/60",
+                  badge: "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.3)] ring-8 ring-white",
                   number: "01",
                 },
                 {
-                  badge: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3)] ring-4 ring-indigo-50",
-                  hoverBorder: "hover:border-indigo-400/60",
+                  badge: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3)] ring-8 ring-white",
                   number: "02",
                 },
                 {
-                  badge: "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(147,51,234,0.3)] ring-4 ring-purple-50",
-                  hoverBorder: "hover:border-purple-400/60",
+                  badge: "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(147,51,234,0.3)] ring-8 ring-white",
                   number: "03",
                 },
                 {
-                  badge: "bg-gradient-to-br from-[#ff8a3d] to-[#f97316] text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] ring-4 ring-orange-50",
-                  hoverBorder: "hover:border-orange-400/60",
+                  badge: "bg-gradient-to-br from-[#ff8a3d] to-[#f97316] text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] ring-8 ring-white",
                   number: "04",
                 },
               ][i];
 
               return (
                 <Reveal key={s.title} delay={i * 120} className="relative">
-                  <div className={`group relative flex h-full flex-col items-center text-center rounded-2xl bg-white p-6 sm:p-7 border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg ${stepPalette.hoverBorder}`}>
+                  <div className="group relative flex flex-col items-center text-center px-2 sm:px-4 py-2 transition-transform duration-300 hover:-translate-y-1">
                     {/* Vibrant Step Badge */}
                     <div
                       className={`display relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-extrabold transition-transform duration-300 group-hover:scale-110 ${stepPalette.badge}`}
@@ -794,14 +790,18 @@ const Home: React.FC = () => {
                     </div>
 
                     {/* Step Title */}
-                    <h3 className="mt-5 text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
+                    <h3 className="mt-4 text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
                       {s.title}
                     </h3>
 
-                    {/* Step Description */}
-                    <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500">
-                      {s.text}
-                    </p>
+                    {/* Step Description: revealed on hover */}
+                    <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out overflow-hidden">
+                      <div className="overflow-hidden">
+                        <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500 max-w-[220px] mx-auto pt-0.5">
+                          {s.text}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </Reveal>
               );
