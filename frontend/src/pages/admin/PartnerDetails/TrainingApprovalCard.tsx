@@ -23,7 +23,7 @@ const messageOf = (err: unknown, fallback: string): string => {
  * Admin review of the partner training (demo). A partner who finished all steps stays locked out
  * until an admin presses "Approve training". "Send back to step 1" removes access and restarts it.
  */
-export default function TrainingApprovalCard({ partnerId, canApprove }: { partnerId: string; canApprove: boolean }) {
+export default function TrainingApprovalCard({ partnerId, canApprove, onChanged }: { partnerId: string; canApprove: boolean; onChanged?: () => void }) {
   const [status, setStatus] = useState<TrainingStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -49,7 +49,7 @@ export default function TrainingApprovalCard({ partnerId, canApprove }: { partne
       const next = res.data.data;
       setStatus(next);
       const ok = action === 'approve' ? next.stage === 'approved' : next.completedSteps === 0;
-      if (ok) setNotice(res.data.message ?? 'Done.');
+      if (ok) { setNotice(res.data.message ?? 'Done.'); onChanged?.(); }
       else setError('The server did not save the change. Please try again.');
     } catch (err) {
       setError(messageOf(err, 'Could not save. Try again.'));

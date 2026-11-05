@@ -1,13 +1,11 @@
 import React, { useId, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import clsx from "clsx";
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   ChevronRight,
   Globe,
-  KeyRound,
   Laptop,
   Lock,
   LogOut,
@@ -26,7 +24,6 @@ import {
   useLogoutAll,
   useSessions,
 } from "@/features/auth";
-import { customerPath } from "@/routes/customerPath";
 import type { UserSession } from "@/types/auth";
 
 export const PASSWORD_POLICY = [
@@ -90,7 +87,7 @@ function getDeviceIcon(deviceStr?: string, browserStr?: string) {
   return Monitor;
 }
 
-function Shield3D({ className = "h-24 w-24 sm:h-28 sm:w-28" }: { className?: string }) {
+export function Shield3D({ className = "h-20 w-20 sm:h-24 sm:w-24" }: { className?: string }) {
   const [imgError, setImgError] = useState(false);
 
   if (imgError) {
@@ -153,7 +150,7 @@ function Shield3D({ className = "h-24 w-24 sm:h-28 sm:w-28" }: { className?: str
         src="/icons/3d/shield-secure.png"
         alt=""
         onError={() => setImgError(true)}
-        className="h-full w-full object-contain pointer-events-none select-none drop-shadow-[0_8px_18px_rgba(37,99,235,0.16)] transition-transform duration-300 motion-safe:hover:scale-105"
+        className="h-full w-full object-contain pointer-events-none select-none drop-shadow-[0_8px_18px_rgba(37,99,235,0.18)] transition-transform duration-300 motion-safe:hover:scale-105"
         loading="eager"
         decoding="async"
       />
@@ -163,12 +160,10 @@ function Shield3D({ className = "h-24 w-24 sm:h-28 sm:w-28" }: { className?: str
 
 export const AccountSecurityPage: React.FC = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const formSuccessAlertId = useId();
 
-  // In test environment, keep forms expanded so queries find input fields immediately
-  const isTest =
-    typeof process !== "undefined" && process.env.NODE_ENV === "test";
+  // In test environment keep forms expanded so RTL queries find inputs immediately
+  const isTest = typeof process !== "undefined" && process.env.NODE_ENV === "test";
   const [showPasswordForm, setShowPasswordForm] = useState(isTest);
   const [showActiveSessions, setShowActiveSessions] = useState(isTest);
 
@@ -185,9 +180,7 @@ export const AccountSecurityPage: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<
-    string | null
-  >(null);
+  const [passwordSuccessMessage, setPasswordSuccessMessage] = useState<string | null>(null);
 
   // --- Section B: Active Sessions State ---
   const {
@@ -201,9 +194,7 @@ export const AccountSecurityPage: React.FC = () => {
     revokeError,
   } = useSessions();
 
-  const [sessionToRevoke, setSessionToRevoke] = useState<UserSession | null>(
-    null,
-  );
+  const [sessionToRevoke, setSessionToRevoke] = useState<UserSession | null>(null);
 
   // --- Section C: Logout All State ---
   const {
@@ -213,22 +204,7 @@ export const AccountSecurityPage: React.FC = () => {
   } = useLogoutAll();
   const [showLogoutAllConfirm, setShowLogoutAllConfirm] = useState(false);
 
-  // --- Navigation Back Handler ---
-  const handleGoBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      const fallback =
-        user?.role === "partner"
-          ? "/partner/security"
-          : user?.role === "admin"
-            ? "/admin/security"
-            : customerPath("/profile");
-      navigate(fallback);
-    }
-  };
-
-  // --- Password Form Handlers ---
+  // --- Password Form Validation ---
   const validatePasswordForm = () => {
     const errors: Record<string, string> = {};
 
@@ -248,8 +224,7 @@ export const AccountSecurityPage: React.FC = () => {
       } else if (!/[^A-Za-z0-9]/.test(newPassword)) {
         errors.newPassword = "Password needs a special character";
       } else if (currentPassword && newPassword === currentPassword) {
-        errors.newPassword =
-          "New password must be different from your current password";
+        errors.newPassword = "New password must be different from your current password";
       }
     }
 
@@ -279,7 +254,7 @@ export const AccountSecurityPage: React.FC = () => {
         confirmPassword,
       });
 
-      // Clear sensitive fields on success
+      // Clear fields on success
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -296,11 +271,9 @@ export const AccountSecurityPage: React.FC = () => {
       if (e.code === "INVALID_CURRENT_PASSWORD") {
         nextErrors.currentPassword = "Current password is incorrect";
       } else if (e.code === "SAME_PASSWORD") {
-        nextErrors.newPassword =
-          "New password must be different from your current password";
+        nextErrors.newPassword = "New password must be different from your current password";
       } else if (e.code === "PASSWORD_TOO_WEAK") {
-        nextErrors.newPassword =
-          e.message || "Password does not meet security requirements";
+        nextErrors.newPassword = e.message || "Password does not meet security requirements";
       }
 
       if (Array.isArray(e.details)) {
@@ -339,60 +312,51 @@ export const AccountSecurityPage: React.FC = () => {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
   return (
-    <div className="mx-auto w-full bg-white md:bg-transparent md:max-w-xl md:px-4 md:py-6 md:space-y-4 pb-24 md:pb-16 min-h-[calc(100vh-64px)]">
-      {/* Top Header Bar: Back Arrow + Account Security Title */}
-      <header className={clsx("items-center gap-3 px-4 pt-3 pb-2 md:hidden", user?.role === "partner" ? "hidden" : "flex")}>
-        <button
-          type="button"
-          onClick={handleGoBack}
-          aria-label="Back"
-          className="-ml-1 flex h-8 w-8 items-center justify-center rounded-lg text-slate-800 transition hover:bg-slate-100 active:scale-95"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <span className="text-xl font-bold tracking-tight text-slate-900">
-          Account Security
-        </span>
-      </header>
+    <div className="w-full min-w-0 space-y-4 md:space-y-5 pb-28 md:pb-12">
+      {/* Accessible Page Heading (screen readers and test queries) */}
+      <h1 className="sr-only">Account Security</h1>
 
       {/* Offline Alert */}
       {!isOnline && (
-        <div role="status" className="border-y md:border md:rounded-2xl border-amber-200 bg-amber-50 px-4 py-2.5 md:p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-3">
+        <div
+          role="status"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5 shadow-xs"
+        >
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
           <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
         </div>
       )}
 
-      {/* CARD 1: STATUS BANNER ("Your Account is Secure") */}
-      <div className="bg-[#EEF0FF] px-4 py-3.5 md:rounded-[22px] md:p-5 md:shadow-sm">
-        <div className="flex items-start gap-3.5">
-          <div
-            className="flex h-10 w-10 md:h-11 md:w-11 shrink-0 items-center justify-center rounded-xl bg-[#4F46E5] text-white shadow-sm"
-            aria-hidden="true"
-          >
-            <ShieldCheck className="h-6 w-6" />
-          </div>
+      {/* CARD 0: HERO STATUS ("Your Account is Secure") */}
+      <div className="relative overflow-hidden rounded-[24px] border border-[#DCE8FC] bg-gradient-to-r from-[#EBF3FF] via-[#F0F6FF] to-[#E8F1FD] p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-slate-900">Your Account is Secure</h2>
-            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900">
+              Your Account is <span className="text-[#2563EB]">Secure</span>
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-md">
               Manage your password, review active login sessions, and protect your account.
             </p>
-          </div>
-        </div>
 
-        {user?.email && (
-          <div className="mt-3 flex items-center gap-2 pt-2.5 md:pt-3 border-t border-[#DDE2FF] text-xs text-slate-600 min-w-0">
-            <User className="h-4 w-4 text-slate-500 shrink-0" aria-hidden="true" />
-            <span className="min-w-0 break-words">
-              Signed in as <strong className="font-semibold text-slate-900">{user.email}</strong> {user.role ? `(${user.role})` : ""}
-            </span>
+            {user?.email && (
+              <div className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 shadow-xs border border-blue-100/90 text-xs text-slate-700">
+                <User className="h-3.5 w-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                <span className="truncate">
+                  Signed in as <strong className="font-semibold text-slate-900">{user.email}</strong>
+                  {user.role && user.role !== "customer" && ` (${user.role})`}
+                </span>
+              </div>
+            )}
           </div>
-        </div>
 
-      {/* CARD 2: CHANGE PASSWORD */}
+          <Shield3D className="h-20 w-20 sm:h-24 sm:w-24 shrink-0 drop-shadow-[0_8px_18px_rgba(37,99,235,0.18)]" />
+        </div>
+      </div>
+
+      {/* CARD 1: CHANGE PASSWORD */}
       <section
         aria-labelledby="change-password-heading"
-        className="bg-white px-4 py-3.5 border-b border-slate-100 md:rounded-[22px] md:p-5 md:shadow-[0_4px_24px_rgba(0,0,0,0.04)] md:border"
+        className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-sm"
       >
         <div
           role="button"
@@ -405,14 +369,14 @@ export const AccountSecurityPage: React.FC = () => {
             }
           }}
           aria-expanded={showPasswordForm}
-          className="flex items-center justify-between gap-3 cursor-pointer select-none"
+          className="flex items-center justify-between gap-3.5 cursor-pointer select-none"
         >
           <div className="flex items-center gap-3.5 min-w-0">
             <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EBF5FF] text-[#2563EB]"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EFF6FF] text-[#3B82F6]"
               aria-hidden="true"
             >
-              <Lock className="h-6 w-6" />
+              <Lock className="h-6 w-6" strokeWidth={1.9} />
             </div>
             <div className="min-w-0">
               <h2
@@ -427,40 +391,24 @@ export const AccountSecurityPage: React.FC = () => {
             </div>
           </div>
 
-        {/* Change Password Action Button when collapsed */}
-        {!showPasswordForm && (
-          <button
-            type="button"
-            onClick={() => setShowPasswordForm(true)}
-            className="mt-3 md:mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-4 py-2.5 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5]"
-          >
-            <KeyRound className="h-4 w-4" aria-hidden="true" />
-            <span>Change Password</span>
-          </button>
-        )}
-
-            <ChevronRight
-              className={clsx(
-                "h-5 w-5 text-slate-400 transition-transform duration-200 md:hidden",
-                showPasswordForm && "rotate-90",
-              )}
-            />
-          </div>
+          <ChevronRight
+            className={clsx(
+              "h-5 w-5 text-slate-400 shrink-0 transition-transform duration-200",
+              showPasswordForm && "rotate-90",
+            )}
+          />
         </div>
 
         {/* Change Password Form (expanded) */}
         {showPasswordForm && (
-          <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
             {passwordSuccessMessage && (
               <div
                 id={formSuccessAlertId}
                 role="status"
                 className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs sm:text-sm text-emerald-800 flex items-center gap-2.5 animate-fadeIn"
               >
-                <CheckCircle2
-                  className="h-4 w-4 shrink-0 text-emerald-600"
-                  aria-hidden="true"
-                />
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
                 <span>{passwordSuccessMessage}</span>
               </div>
             )}
@@ -470,22 +418,15 @@ export const AccountSecurityPage: React.FC = () => {
                 role="alert"
                 className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
               >
-                <AlertTriangle
-                  className="h-4 w-4 shrink-0 text-red-600"
-                  aria-hidden="true"
-                />
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
                 <span>
-                  {changePasswordError.message ||
+                  {changePasswordError?.message ||
                     "Failed to update password. Please verify current password and try again."}
                 </span>
               </div>
             )}
 
-            <form
-              onSubmit={handlePasswordSubmit}
-              className="space-y-4 max-w-2xl"
-              noValidate
-            >
+            <form onSubmit={handlePasswordSubmit} className="space-y-4" noValidate>
               {/* Current Password */}
               <PasswordField
                 id="current-password"
@@ -557,9 +498,7 @@ export const AccountSecurityPage: React.FC = () => {
                         <span
                           className={clsx(
                             "flex h-4 w-4 items-center justify-center rounded-full text-[10px]",
-                            isMet
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-200 text-slate-500",
+                            isMet ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500",
                           )}
                           aria-hidden="true"
                         >
@@ -600,14 +539,11 @@ export const AccountSecurityPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isChangingPassword || !isOnline}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-5 py-3 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] px-5 py-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4F46E5] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isChangingPassword ? (
                     <>
-                      <RefreshCw
-                        className="h-4 w-4 animate-spin"
-                        aria-hidden="true"
-                      />
+                      <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                       <span>Updating password…</span>
                     </>
                   ) : (
@@ -620,10 +556,10 @@ export const AccountSecurityPage: React.FC = () => {
         )}
       </section>
 
-      {/* CARD 3: ACTIVE SESSIONS */}
+      {/* CARD 2: ACTIVE SESSIONS */}
       <section
         aria-labelledby="active-sessions-heading"
-        className="bg-white px-4 py-3.5 border-b border-slate-100 md:rounded-[22px] md:p-5 md:shadow-[0_4px_24px_rgba(0,0,0,0.04)] md:border"
+        className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-sm"
       >
         <div
           role="button"
@@ -636,14 +572,14 @@ export const AccountSecurityPage: React.FC = () => {
             }
           }}
           aria-expanded={showActiveSessions}
-          className="flex items-center justify-between gap-3 sm:gap-4 cursor-pointer select-none"
+          className="flex items-center justify-between gap-3.5 cursor-pointer select-none"
         >
           <div className="flex items-center gap-3.5 min-w-0">
             <div
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#F0EEFF] text-[#6366F1]"
               aria-hidden="true"
             >
-              <Monitor className="h-6 w-6" />
+              <Monitor className="h-6 w-6" strokeWidth={1.9} />
             </div>
             <div className="min-w-0">
               <h2
@@ -658,7 +594,7 @@ export const AccountSecurityPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {showActiveSessions && (
               <button
                 type="button"
@@ -667,11 +603,11 @@ export const AccountSecurityPage: React.FC = () => {
                   void refetchSessions();
                 }}
                 disabled={isLoadingSessions}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4F46E5] disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs transition active:scale-95 disabled:opacity-50"
                 aria-label="Refresh active sessions list"
               >
                 <RefreshCw
-                  className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${isLoadingSessions ? "animate-spin" : ""}`}
+                  className={`h-3 w-3 ${isLoadingSessions ? "animate-spin" : ""}`}
                   aria-hidden="true"
                 />
                 <span>Refresh</span>
@@ -680,7 +616,7 @@ export const AccountSecurityPage: React.FC = () => {
 
             <ChevronRight
               className={clsx(
-                "h-5 w-5 text-slate-400 transition-transform duration-200 shrink-0",
+                "h-5 w-5 text-slate-400 transition-transform duration-200",
                 showActiveSessions && "rotate-90",
               )}
             />
@@ -689,49 +625,34 @@ export const AccountSecurityPage: React.FC = () => {
 
         {/* Active Sessions List (expanded) */}
         {showActiveSessions && (
-          <div className="mt-3 pt-3 md:mt-4 md:pt-4 border-t border-slate-100 animate-fadeIn">
+          <div className="mt-4 pt-4 border-t border-slate-100 animate-fadeIn">
             {revokeError && (
               <div
                 role="alert"
                 className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
               >
-                <AlertTriangle
-                  className="h-4 w-4 shrink-0 text-red-600"
-                  aria-hidden="true"
-                />
-                <span>
-                  {revokeError.message ||
-                    "Failed to revoke session. Please try again."}
-                </span>
+                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+                <span>{revokeError.message || "Failed to revoke session. Please try again."}</span>
               </div>
             )}
 
             <div>
               {isLoadingSessions ? (
-                <div
-                  className="py-8 text-center text-slate-500 space-y-3"
-                  aria-busy="true"
-                >
-                  <RefreshCw
-                    className="mx-auto h-6 w-6 animate-spin text-[#4F46E5]"
-                    aria-hidden="true"
-                  />
-                  <p className="text-xs sm:text-sm">Loading active sessions…</p>
+                <div className="py-8 text-center text-slate-500 space-y-2.5" aria-busy="true">
+                  <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#4F46E5]" aria-hidden="true" />
+                  <p className="text-xs sm:text-sm font-medium">Loading active sessions…</p>
                 </div>
               ) : sessionsError ? (
                 <div
                   role="alert"
-                  className="rounded-xl border border-dashed border-slate-300 p-6 text-center space-y-3"
+                  className="rounded-xl border border-dashed border-slate-300 p-6 text-center space-y-3 bg-slate-50/50"
                 >
-                  <AlertTriangle
-                    className="mx-auto h-8 w-8 text-amber-500"
-                    aria-hidden="true"
-                  />
+                  <AlertTriangle className="mx-auto h-7 w-7 text-amber-500" aria-hidden="true" />
                   <div>
                     <p className="text-sm font-semibold text-slate-800">
                       Unable to load active sessions
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
                       {sessionsError.message ||
                         "Could not retrieve sessions from the server. Please check your connection."}
                     </p>
@@ -739,27 +660,20 @@ export const AccountSecurityPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void refetchSessions()}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4F46E5] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#4338CA]"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#4F46E5] hover:bg-[#4338CA] px-3.5 py-1.5 text-xs font-semibold text-white shadow-xs transition"
                   >
-                    <RefreshCw size={14} aria-hidden="true" />
+                    <RefreshCw size={13} aria-hidden="true" />
                     <span>Retry</span>
                   </button>
                 </div>
               ) : sessions.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-slate-500">
-                  <Globe
-                    className="mx-auto h-8 w-8 text-slate-400 mb-2"
-                    aria-hidden="true"
-                  />
-                  <p className="text-sm font-medium text-slate-700">
-                    No active sessions found
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Only this active browser session is connected.
-                  </p>
+                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-slate-500 bg-slate-50/40">
+                  <Globe className="mx-auto h-8 w-8 text-slate-400 mb-2" aria-hidden="true" />
+                  <p className="text-sm font-semibold text-slate-700">No active sessions found</p>
+                  <p className="text-xs text-slate-400 mt-1">Only this active browser session is connected.</p>
                 </div>
               ) : (
-                <ul className="md:space-y-2.5 -mx-4 px-4 md:mx-0 md:px-0" aria-label="Active sessions list">
+                <ul className="space-y-2.5" aria-label="Active sessions list">
                   {sessions.map((session) => {
                     const Icon = getDeviceIcon(session.device, session.browser);
                     const isCurrent = Boolean(session.isCurrent);
@@ -769,26 +683,26 @@ export const AccountSecurityPage: React.FC = () => {
                       [session.device, session.browser, session.os]
                         .filter(Boolean)
                         .join(" · ") || "Unknown device";
-                    const ipText = session.ipAddress
-                      ? `IP: ${session.ipAddress}`
-                      : "IP unavailable";
+                    const ipText = session.ipAddress ? `IP: ${session.ipAddress}` : "IP unavailable";
                     const activeTime = formatDate(session.lastActiveAt);
 
                     return (
                       <li
                         key={session.id}
                         className={clsx(
-                          "flex flex-row items-center justify-between gap-3 py-3 md:p-3.5 md:rounded-xl md:border border-b border-slate-100 transition-colors",
-                          isCurrent ? "bg-[#EEF0FF]/40 md:border-indigo-100" : "bg-white md:hover:bg-slate-50",
+                          "flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-3.5 rounded-xl border transition-colors",
+                          isCurrent
+                            ? "bg-[#EEF2FF]/50 border-indigo-200/80 shadow-2xs"
+                            : "bg-slate-50/70 border-slate-200/70 hover:bg-slate-50",
                         )}
                       >
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
                           <div
                             className={clsx(
                               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
                               isCurrent
                                 ? "bg-indigo-100 text-[#4F46E5]"
-                                : "bg-slate-100 text-slate-600",
+                                : "bg-white text-slate-600 border border-slate-200 shadow-2xs",
                             )}
                             aria-hidden="true"
                           >
@@ -801,7 +715,7 @@ export const AccountSecurityPage: React.FC = () => {
                                 {deviceName}
                               </span>
                               {isCurrent && (
-                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                                <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                                   This device
                                 </span>
                               )}
@@ -821,18 +735,15 @@ export const AccountSecurityPage: React.FC = () => {
                             disabled={isRevoking || !isOnline}
                             aria-label={`Revoke session for ${deviceName}`}
                             className={clsx(
-                              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4F46E5] disabled:opacity-50",
+                              "w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4F46E5] disabled:opacity-50",
                               isCurrent
-                                ? "border border-amber-300 text-amber-700 hover:bg-amber-50"
-                                : "border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300",
+                                ? "border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                : "border border-red-200 bg-white text-red-600 hover:bg-red-50 hover:border-red-300",
                             )}
                           >
                             {isThisRevoking ? (
                               <>
-                                <RefreshCw
-                                  className="h-3 w-3 animate-spin"
-                                  aria-hidden="true"
-                                />
+                                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
                                 <span>Revoking…</span>
                               </>
                             ) : isCurrent ? (
@@ -858,37 +769,38 @@ export const AccountSecurityPage: React.FC = () => {
         )}
       </section>
 
-      {/* CARD 4: LOG OUT OF ALL DEVICES */}
+      {/* CARD 3: LOG OUT OF ALL DEVICES */}
       <section
         aria-labelledby="logout-all-heading"
-        className="bg-[#FFF5F5] px-4 py-4 md:rounded-[22px] md:p-5 md:border md:border-red-100 md:shadow-[0_4px_24px_rgba(239,68,68,0.04)]"
+        className="rounded-2xl border border-rose-100/90 bg-[#FFF5F5] p-4.5 sm:p-5 shadow-xs space-y-4"
       >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-start gap-3.5 min-w-0">
-            <div
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FEE2E2] text-[#EF4444]"
-              aria-hidden="true"
-            >
-              <LogOut className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h2
-                id="logout-all-heading"
-                className="text-base sm:text-lg font-bold text-slate-900 tracking-tight"
-              >
-                Log Out of All Devices
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed max-w-xl">
-                Terminate all active sessions across every device, including phone, computer, and browser immediately.
-              </p>
-            </div>
+        <div className="flex items-start gap-3.5 sm:gap-4">
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FEE2E2] text-[#EF4444]"
+            aria-hidden="true"
+          >
+            <LogOut className="h-6 w-6" strokeWidth={1.9} />
           </div>
+          <div className="min-w-0">
+            <h2
+              id="logout-all-heading"
+              className="text-base sm:text-lg font-bold text-slate-900 tracking-tight"
+            >
+              Log Out of All Devices
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+              Terminate all active sessions across every device, including phone,
+              computer, and browser immediately.
+            </p>
+          </div>
+        </div>
 
         <button
           type="button"
           onClick={() => setShowLogoutAllConfirm(true)}
           disabled={isLoggingOutAll || !isOnline}
-          className="mt-3 md:mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#EF4444] px-4 py-2.5 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#DC2626] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EF4444] disabled:opacity-50"
+          aria-label="Log Out All Devices"
+          className="w-full inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#EF4444] hover:bg-[#DC2626] px-4 py-3 text-sm font-bold text-white shadow-sm transition active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EF4444] disabled:opacity-50"
         >
           {isLoggingOutAll ? (
             <>
@@ -898,7 +810,7 @@ export const AccountSecurityPage: React.FC = () => {
           ) : (
             <>
               <LogOut className="h-4 w-4" aria-hidden="true" />
-              <span>Log Out All Devices</span>
+              <span>Log Out of All Devices</span>
             </>
           )}
         </button>
@@ -906,20 +818,13 @@ export const AccountSecurityPage: React.FC = () => {
         {logoutAllError && (
           <div
             role="alert"
-            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
+            className="rounded-xl border border-red-200 bg-red-50 p-3.5 text-xs sm:text-sm text-red-800 flex items-center gap-2.5"
           >
-            <AlertTriangle
-              className="h-4 w-4 shrink-0 text-red-600"
-              aria-hidden="true"
-            />
-            <span>
-              {logoutAllError.message ||
-                "Failed to log out of all devices. Please try again."}
-            </span>
+            <AlertTriangle className="h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
+            <span>{logoutAllError.message || "Failed to log out of all devices. Please try again."}</span>
           </div>
         )}
       </section>
-      </div>
 
       {/* CONFIRMATION MODAL: REVOKE INDIVIDUAL SESSION */}
       {sessionToRevoke && (
@@ -937,23 +842,16 @@ export const AccountSecurityPage: React.FC = () => {
               >
                 <AlertTriangle size={20} />
               </div>
-              <h3
-                id="revoke-modal-title"
-                className="text-base font-bold text-gray-900"
-              >
-                {sessionToRevoke.isCurrent
-                  ? "Sign out of this device?"
-                  : "Revoke session?"}
+              <h3 id="revoke-modal-title" className="text-base font-bold text-gray-900">
+                {sessionToRevoke.isCurrent ? "Sign out of this device?" : "Revoke session?"}
               </h3>
             </div>
 
-            <p className="text-xs sm:text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
               {sessionToRevoke.isCurrent
                 ? "This will end your current session. You will be redirected to the login page."
                 : `Are you sure you want to revoke access for ${
-                    [sessionToRevoke.device, sessionToRevoke.browser]
-                      .filter(Boolean)
-                      .join(" ") || "this device"
+                    [sessionToRevoke.device, sessionToRevoke.browser].filter(Boolean).join(" ") || "this device"
                   }? It will be immediately logged out.`}
             </p>
 
@@ -961,8 +859,7 @@ export const AccountSecurityPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSessionToRevoke(null)}
-                disabled={isRevoking}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-400"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-400"
               >
                 Cancel
               </button>
@@ -970,13 +867,9 @@ export const AccountSecurityPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmRevoke}
                 disabled={isRevoking}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
               >
-                {isRevoking
-                  ? "Revoking…"
-                  : sessionToRevoke.isCurrent
-                    ? "Sign Out"
-                    : "Revoke Session"}
+                {isRevoking ? "Revoking…" : sessionToRevoke.isCurrent ? "Sign Out" : "Revoke Session"}
               </button>
             </div>
           </div>
@@ -999,18 +892,15 @@ export const AccountSecurityPage: React.FC = () => {
               >
                 <ShieldAlert size={20} />
               </div>
-              <h3
-                id="logout-all-modal-title"
-                className="text-base font-bold text-gray-900"
-              >
+              <h3 id="logout-all-modal-title" className="text-base font-bold text-gray-900">
                 Log out of all devices?
               </h3>
             </div>
 
-            <p className="text-xs sm:text-sm text-gray-600">
-              This will revoke all active refresh tokens and terminate sessions
-              across every computer, phone, and browser. You will be signed out
-              of this device immediately and returned to the login screen.
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+              This will revoke all active refresh tokens and terminate sessions across every computer,
+              phone, and browser. You will be signed out of this device immediately and returned to the
+              login screen.
             </p>
 
             <div className="flex justify-end gap-2.5 pt-2">
@@ -1018,7 +908,7 @@ export const AccountSecurityPage: React.FC = () => {
                 type="button"
                 onClick={() => setShowLogoutAllConfirm(false)}
                 disabled={isLoggingOutAll}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-400"
+                className="inline-flex min-h-[40px] items-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-gray-400"
               >
                 Cancel
               </button>
@@ -1026,9 +916,10 @@ export const AccountSecurityPage: React.FC = () => {
                 type="button"
                 onClick={handleConfirmLogoutAll}
                 disabled={isLoggingOutAll}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
+                aria-label="Log Out All Devices"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-600 disabled:opacity-60"
               >
-                {isLoggingOutAll ? "Logging out…" : "Log Out All Devices"}
+                {isLoggingOutAll ? "Logging out…" : "Log Out of All Devices"}
               </button>
             </div>
           </div>

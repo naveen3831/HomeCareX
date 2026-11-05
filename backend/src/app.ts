@@ -9,10 +9,17 @@ export const app = express();
 
 const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(',');
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  }),
+);
 
 // credentials: true so the httpOnly refresh cookie travels with /auth requests.
 app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+// Support form-urlencoded requests for payment gateway callbacks and browser redirects.
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Catalog forms send resized images as data: URLs, so these two admin routes get a larger JSON limit.
 // Must come before the global parser: express.json() skips a request that is already parsed.

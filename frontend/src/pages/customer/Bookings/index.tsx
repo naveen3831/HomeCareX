@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import clsx from "clsx";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
 import { Pagination } from "@/components/customer/catalog/Pagination";
@@ -10,14 +10,13 @@ import { canPayOnline, usePayBooking } from "@/features/payments";
 import { useBookings } from "@/hooks/useBookings";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { customerPath } from "@/routes/customerPath";
-import type { BookingSort } from "@/types/bookingList";
 import { BTN_OUTLINE, BTN_PRIMARY } from "./BookingCards";
 import { BookingCard } from "./components/BookingCard";
 import { BookingFilters, FilterToggle } from "./components/BookingFilters";
 import { BookingListSkeleton } from "./components/BookingListSkeleton";
 import { BookingSearch } from "./components/BookingSearch";
 import { BookingTabs, tabId } from "./components/BookingTabs";
-import { DEFAULT_SORT, EMPTY_COPY, PAGE_SIZE, SORT_OPTIONS } from "./bookingTabs";
+import { DEFAULT_SORT, EMPTY_COPY, PAGE_SIZE } from "./bookingTabs";
 import {
   cancelNote,
   getBookingCode,
@@ -234,22 +233,6 @@ export default function MyBookingsPage() {
           <p className="text-sm text-slate-600 font-normal" aria-live="polite">
             Showing {from}–{to} of {total} {total === 1 ? "booking" : "bookings"}
           </p>
-          <div className="relative inline-flex items-center gap-1 text-sm font-medium text-slate-700 md:hidden">
-            <span>Sort by</span>
-            <ChevronDown className="h-4 w-4 text-slate-500" aria-hidden="true" />
-            <select
-              value={state.sort}
-              onChange={(e) => setFilters({ sort: e.target.value as BookingSort })}
-              className="absolute inset-0 cursor-pointer opacity-0 w-full h-full"
-              aria-label="Sort bookings"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
         {state.tab === "overdue" && (
           <p className="mb-3 rounded-xl border border-line bg-panel px-4 py-3 text-sm text-muted">

@@ -5,7 +5,7 @@ import clsx from "clsx";
 import { customerPath } from "@/routes/customerPath";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { CategoryGrid, CategorySearch, CategorySkeleton, MostBooked, plural } from "@/components/customer/catalog";
+import { CategoryGrid, CategorySearch, CategorySkeleton, MostBooked } from "@/components/customer/catalog";
 import { useCategories } from "@/hooks/useCategories";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
@@ -28,7 +28,6 @@ export default function Categories() {
       return true;
     });
   }, [data, q]);
-  const totalServices = useMemo(() => (data ?? []).reduce((sum, c) => sum + c.serviceCount, 0), [data]);
 
   let body;
   if (isPending) {
@@ -71,11 +70,6 @@ export default function Categories() {
             <span className="md:hidden">What do you need done today?</span>
             <span className="hidden md:inline">Pick what you need done. Trusted, verified professionals at your door.</span>
           </p>
-          {data && data.length > 0 && (
-            <p className="mt-2 text-xs font-medium text-brand" aria-live="polite">
-              {plural(data.length, "category", "categories")} · {plural(totalServices, "service")}
-            </p>
-          )}
         </header>
         <CategorySearch value={query} onChange={setQuery} className="md:w-[380px] md:shrink-0" />
       </div>

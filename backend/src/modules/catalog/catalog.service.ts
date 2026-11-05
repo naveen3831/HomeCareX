@@ -73,8 +73,11 @@ export const catalogService = {
         const slug = c.slug.toLowerCase();
         if (idStr === catKey || slug === catKey) return true;
         if ((catKey === 'plumbing' || catKey === 'electrical') && slug === 'electrical-plumbing') return true;
-        if (catKey === 'appliance-repair' && slug === 'appliance-repair-service') return true;
-        if (catKey === 'cleaning' && slug === 'home-cleaning') return true;
+        if ((catKey === 'appliance-repair' || catKey === 'appliance-repair-service') && (slug === 'appliance-repair' || slug === 'appliance-repair-service')) return true;
+        if ((catKey === 'carpentry' || catKey === 'carpentry-furniture-assembly') && (slug === 'carpentry' || slug === 'carpentry-furniture-assembly')) return true;
+        if ((catKey === 'painting' || catKey === 'painting-waterproofing') && (slug === 'painting' || slug === 'painting-waterproofing')) return true;
+        if ((catKey === 'cleaning' || catKey === 'home-cleaning') && (slug === 'cleaning' || slug === 'home-cleaning')) return true;
+        if ((catKey === 'full-home-sanitization' || catKey === 'home-sanitization') && (slug === 'full-home-sanitization' || slug === 'home-sanitization')) return true;
         return false;
       });
     }

@@ -14,7 +14,6 @@ import {
   Shield,
   ShieldCheck,
   SlidersHorizontal,
-  Star,
   TrendingUp,
   Wrench,
   type LucideIcon,

@@ -233,7 +233,42 @@ describe("Delete Account: Conditional States & Business Logic", () => {
     expect(
       await screen.findByRole("heading", { name: "Delete your account?", level: 2 }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /yes, delete/i })).toBeEnabled();
+        expect(screen.getByRole("button", { name: /yes, delete/i })).toBeEnabled();
+  });
+
+  it("Scenario 4b: Only counts upcoming and live services (excludes overdue and completed)", async () => {
+    // 9 upcoming, 2 live, 15 overdue
+    const upcomingBookings = Array.from({ length: 9 }, (_, i) => ({
+      id: `up-${i}`,
+      status: "confirmed",
+      date: "2099-01-01",
+      slot: "10:00-12:00",
+      serviceName: `Upcoming Service ${i + 1}`,
+    }));
+    const liveBookings = [
+      { id: "live-1", status: "in_progress", serviceName: "Live Service 1" },
+      { id: "live-2", status: "en_route", serviceName: "Live Service 2" },
+    ];
+    const overdueBookings = Array.from({ length: 15 }, (_, i) => ({
+      id: `overdue-${i}`,
+      status: "confirmed",
+      date: "2020-01-01",
+      slot: "10:00-12:00",
+      serviceName: `Overdue Service ${i + 1}`,
+    }));
+
+    mockListBookings.mockResolvedValue({
+      items: [...upcomingBookings, ...liveBookings, ...overdueBookings],
+      meta: { page: 1, limit: 50, total: 26, totalPages: 1 },
+    });
+
+    renderIt();
+    await userEvent.click(screen.getByRole("button", { name: /delete account/i }));
+
+    // Must show exactly 11 active bookings (9 upcoming + 2 live), NOT 26
+    expect(await screen.findByText(/11 active bookings/i)).toBeInTheDocument();
+    expect(screen.queryByText(/26 active bookings/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /yes, delete/i })).toBeDisabled();
   });
 
   it("Scenario 5: Booking API fails — prevent deletion until eligibility can be reliably established", async () => {

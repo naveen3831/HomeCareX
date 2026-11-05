@@ -61,7 +61,7 @@ const PHOTO = {
   carpentry: "/images/home-maintenance.jpg",
   pest: "/images/pest-control-clean.png",
   termite: "/images/termite-treatment-clean.png",
-  spa: "/images/Home-spa-women.png",
+  spa: "/images/Home-spa-women-banner.jpg",
 };
 
 const PHOTOGRAPHED = [
@@ -96,6 +96,7 @@ const SERVICE_IMAGES: Record<string, string> = {
   "general-pest-control": PHOTO.pest,
   "termite-treatment": PHOTO.termite,
   "at-home-spa-for-women": PHOTO.spa,
+  "at-home-spa-women": PHOTO.spa,
 };
 
 /** Crop anchor (CSS object-position) per service image, for photos whose subject is off-centre or has text baked in. */
@@ -103,11 +104,11 @@ const SERVICE_FOCUS: Record<string, string> = {
   [PHOTO.appliance]: "50% 22%",
   [PHOTO.plumbing]: "50% 40%",
   [PHOTO.electrical]: "35% 50%",
-  [PHOTO.spa]: "50% 26%",
+  [PHOTO.spa]: "50% 36%",
   [PHOTO.pest]: "50% 50%",
   [PHOTO.termite]: "14% 50%",
   [PHOTO.carpentry]: "50% 65%",
-  "/images/furniture-assembly.jpg": "50% 50%",
+  "/images/furniture-assembly.jpg": "50% 45%",
   "/images/door-lock-repair.jpg": "50% 40%",
   "/images/wardrobe-repair.jpg": "50% 50%",
   "/images/custom-shelf-installation.jpg": "50% 35%",

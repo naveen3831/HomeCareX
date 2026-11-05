@@ -187,6 +187,7 @@ export default function Bookings() {
     useState<BookingFilters>(INITIAL_FILTERS);
 
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
+  const pager = usePagination(bookings, { resetKey: JSON.stringify(filters) });
   const [loading, setLoading] = useState<boolean>(true);
   const [fetched, setFetched] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -866,7 +867,7 @@ export default function Bookings() {
           ) : (
           <>
           <BookingTable
-            bookings={bookings}
+            bookings={pager.pageItems}
             onBookingSelect={handleBookingSelect}
           />
           {bookings.length > 0 && (

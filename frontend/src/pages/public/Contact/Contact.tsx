@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Headphones,
   LucideIcon,
   Mail,
   MapPin,
@@ -22,6 +24,9 @@ import { breadcrumbLd } from '@/lib/jsonld';
 import './Contact.css';
 
 const CAROUSEL_INTERVAL_MS = 4000;
+
+const PHONE_HREF = 'tel:+919390212572';
+const PHONE_DISPLAY = '+91 93902 12572';
 
 interface ContactItem {
   id: string;
@@ -54,7 +59,7 @@ const contactItems: ContactItem[] = [
     title: 'Talk to our team',
     detail: '+91 93902 12572',
     href: 'tel:+919390212572',
-    note: 'Monday–Saturday, 9:00 AM–6:00 PM',
+    note: 'Mondayâ€“Saturday, 9:00 AMâ€“6:00 PM',
     cta: 'Call Now',
     icon: Phone,
     theme: {
@@ -75,7 +80,7 @@ const contactItems: ContactItem[] = [
     title: 'Write us a note',
     detail: 'support@homecarex.com',
     href: 'mailto:support@homecarex.com',
-    note: 'We’ll get back to you as soon as we can.',
+    note: 'Weâ€™ll get back to you as soon as we can.',
     cta: 'Send Email',
     icon: Mail,
     theme: {
@@ -114,10 +119,10 @@ const contactItems: ContactItem[] = [
     label: 'Support hours',
     tabLabel: 'Hours',
     badge: 'Active Support',
-    title: 'We’re here to help',
-    detail: 'Monday–Saturday',
+    title: 'Weâ€™re here to help',
+    detail: 'Mondayâ€“Saturday',
     href: '#contact-form',
-    note: '9:00 AM–6:00 PM',
+    note: '9:00 AMâ€“6:00 PM',
     cta: 'Send Message',
     icon: Clock3,
     theme: {
@@ -138,7 +143,7 @@ const nextSteps = [
   { title: 'We get back to you', text: 'We reply on working days, Monday to Saturday.' },
 ] as const;
 
-/** Support runs Mon–Sat, 9:00–18:00 India time. Computed from IST so it is right for any visitor. */
+/** Support runs Monâ€“Sat, 9:00â€“18:00 India time. Computed from IST so it is right for any visitor. */
 const isSupportOpen = (now: Date): boolean => {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -231,7 +236,7 @@ const Contact: React.FC = () => {
               <span className="cx-status__dot" aria-hidden="true" />
               <span>
                 <b>{supportOpen ? 'Support is open now' : 'Support is currently closed'}</b>
-                <small>Monday–Saturday, 9:00 AM–6:00 PM</small>
+                <small>Mondayâ€“Saturday, 9:00 AMâ€“6:00 PM</small>
               </span>
             </p>
           </div>
@@ -408,7 +413,7 @@ const Contact: React.FC = () => {
                 <span className="contact-way__note">{note}</span>
               </a>
             ))}
-          </aside>
+          </div>
         </div>
       </section>
 
@@ -442,7 +447,7 @@ const Contact: React.FC = () => {
               <a href={PHONE_HREF} className="cx-link">
                 {PHONE_DISPLAY} <ArrowRight aria-hidden="true" size={15} />
               </a>
-              <p className="cx-card__hours"><Clock3 aria-hidden="true" size={14} /> Mon–Sat, 9:00 AM–6:00 PM</p>
+              <p className="cx-card__hours"><Clock3 aria-hidden="true" size={14} /> Monâ€“Sat, 9:00 AMâ€“6:00 PM</p>
             </div>
 
             <div className="cx-card cx-help">
@@ -496,8 +501,8 @@ const Contact: React.FC = () => {
         <div className="contact-shell partner-band__layout">
           <div className="partner-band__copy">
             <p className="contact-eyebrow contact-eyebrow--light"><span />For home-service professionals</p>
-            <h2 id="partner-band-title">Bring your craft.<br /><span>Build what’s next.</span></h2>
-            <p>Join the HomeCareX network and let customers discover the services you provide. Tell us about your experience and location — our team will follow up personally.</p>
+            <h2 id="partner-band-title">Bring your craft.<br /><span>Build whatâ€™s next.</span></h2>
+            <p>Join the HomeCareX network and let customers discover the services you provide. Tell us about your experience and location â€” our team will follow up personally.</p>
             <Link to="/register/partner" className="partner-band__cta">Become a Partner <ArrowRight aria-hidden="true" size={17} /></Link>
             <div className="partner-band__note"><ShieldCheck aria-hidden="true" size={16} /><span><b>A conversation, not a commitment.</b><small>This enquiry does not create an account or sign you up for anything.</small></span></div>
           </div>
