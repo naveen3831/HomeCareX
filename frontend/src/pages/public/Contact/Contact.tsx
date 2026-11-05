@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
   ChevronLeft,
+  CheckCircle2,
   ChevronRight,
   Clock3,
+  Headphones,
   LucideIcon,
   Mail,
   MapPin,
@@ -22,6 +24,8 @@ import { breadcrumbLd } from '@/lib/jsonld';
 import './Contact.css';
 
 const CAROUSEL_INTERVAL_MS = 4000;
+const PHONE_HREF = 'tel:+919390212572';
+const PHONE_DISPLAY = '+91 93902 12572';
 
 interface ContactItem {
   id: string;
@@ -408,7 +412,7 @@ const Contact: React.FC = () => {
                 <span className="contact-way__note">{note}</span>
               </a>
             ))}
-          </aside>
+          </div>
         </div>
       </section>
 

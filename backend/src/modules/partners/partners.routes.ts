@@ -1,8 +1,8 @@
-
 import { Router } from 'express';
 
 import { authenticate } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/role.middleware';
+import { requirePermission } from '../../middleware/permission.middleware';
 
 import { PartnersController } from './partners.controller';
 import { partnerTrainingAdminRoutes } from './partner-training.admin.routes';
@@ -31,6 +31,10 @@ partnersRoutes.get('/', controller.getPartners);
 
 // Create a partner
 partnersRoutes.post('/', controller.create);
+
+// KYC: approve / reject (emails the partner), and stream one stored document for the admin preview
+partnersRoutes.post('/:id/kyc', requirePermission('kyc:approve'), controller.reviewKyc);
+partnersRoutes.get('/:id/kyc/documents/:docId', requirePermission('kyc:approve'), controller.getKycDocument);
 
 // Get one partner by ID — required for the View button
 partnersRoutes.get('/:id', controller.getById);

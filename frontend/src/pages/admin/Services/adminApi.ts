@@ -11,8 +11,6 @@ export interface PartnerMember {
   status: 'active' | 'blocked' | 'invited';
   /** Partner profile KYC state; drives the status badge in the list. */
   kycStatus?: 'not_started' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'suspended';
-  /** Partner training (demo) stage. */
-  training?: 'not_eligible' | 'training' | 'awaiting_approval' | 'approved';
   createdAt: string;
 }
 

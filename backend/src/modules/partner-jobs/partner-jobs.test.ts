@@ -94,6 +94,7 @@ describe('partner jobs', () => {
       }
       return [];
     }) as unknown as typeof repo.findJobRequests;
+    repo.findAdminAssignedAwaitingAcceptance = (async () => []) as unknown as typeof repo.findAdminAssignedAwaitingAcceptance;
     repo.acceptOffer = (async (bid: string, pid: Types.ObjectId) => {
       if (bid === bookingId.toString() && pid.toString() === partnerId.toString()) {
         return 'ACCEPTED';

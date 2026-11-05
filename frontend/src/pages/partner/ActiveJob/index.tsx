@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle, Home } from 'lucide-react';
 import {
   fetchJob,
   completeJob,
   startJob,
   verifyJobOtp,
-  resetMockPartnerJob,
   getErrorMessage,
   getHttpStatus,
 } from '@/pages/partner/JobDetails/jobDetails.api';
@@ -159,13 +158,6 @@ export const ActiveJobPage: React.FC = () => {
     } finally {
       setStarting(false);
     }
-  };
-
-  const handleResetDemo = () => {
-    const fresh = resetMockPartnerJob(effectiveId);
-    setJob(fresh);
-    setCompleteError(null);
-    setShowCompleteConfirm(false);
   };
 
   if (loadState === 'loading') {
@@ -349,29 +341,29 @@ export const ActiveJobPage: React.FC = () => {
 
           {isDone && <PaymentPanel job={job} onJobChange={setJob} online={online} />}
 
-          <div className="aj-ref-card text-center py-8">
-            <h2 className="text-lg font-bold text-slate-900">
-              {isDone ? 'Job completed' : 'Job Not In Progress'}
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Current status: <span className="font-semibold">{STATUS_LABEL[job.status]}</span>.
-            </p>
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <Link
-                to={`/partner/jobs/${job.id}`}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3]"
-              >
-                <ArrowLeft className="h-4 w-4" /> View Job Details
-              </Link>
-              <button
-                type="button"
-                onClick={handleResetDemo}
-                className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Reset demo
-              </button>
+          {isDone && job.payment.phase !== 'paid' && job.payment.phase !== 'refunded' ? null : isDone ? (
+            <Link
+              to="/partner"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#4338ca] px-5 py-3 text-sm font-semibold text-white hover:bg-[#3730a3]"
+            >
+              <Home className="h-4 w-4" /> Back to Home
+            </Link>
+          ) : (
+            <div className="aj-ref-card text-center py-8">
+              <h2 className="text-lg font-bold text-slate-900">Job Not In Progress</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Current status: <span className="font-semibold">{STATUS_LABEL[job.status]}</span>.
+              </p>
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <Link
+                  to="/partner"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#3730a3]"
+                >
+                  <Home className="h-4 w-4" /> Back to Home
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -497,13 +489,6 @@ export const ActiveJobPage: React.FC = () => {
             <Link to={`/partner/jobs/${job.id}`} className="aj-ref-demo-link">
               ← View Job Details
             </Link>
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              className="aj-ref-demo-link-btn"
-            >
-              Reset demo
-            </button>
           </div>
         </div>
       </div>

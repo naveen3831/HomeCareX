@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ListChecks, Pencil, Plus, Trash2 } from 'lucide-react';
 import { PageSearch } from '@/components/admin/PageSearch';
 import { PageHeader } from '@/components/admin/PageHeader';
@@ -46,24 +45,6 @@ const PartnerStatus: React.FC<{ partner: PartnerMember }> = ({ partner }) => {
   return <StatusBadge status={label} tone={tone} />;
 };
 
-/** Training (demo) stage. An admin approves it on the Partners & KYC details page. */
-const TrainingStatus: React.FC<{ partner: PartnerMember }> = ({ partner }) => {
-  switch (partner.training) {
-    case 'training':
-      return <StatusBadge status="In training" tone="info" />;
-    case 'awaiting_approval':
-      return (
-        <Link to={`/admin/partners/${partner.id}`} title="Open to approve the training">
-          <StatusBadge status="Awaiting approval" tone="warning" />
-        </Link>
-      );
-    case 'approved':
-      return <StatusBadge status="Approved" tone="success" />;
-    default:
-      return <span>—</span>;
-  }
-};
-
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
 
@@ -105,23 +86,6 @@ const loadAll = useCallback(async () => {
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
-
-  // Keep the list (KYC and Training status) current: refresh quietly when the admin comes back to
-  // this tab and every 30 seconds. Errors are ignored here; the first load already reports them.
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState !== 'visible') return;
-      adminApi.listPartners().then(setPartners).catch(() => undefined);
-    };
-    const timer = window.setInterval(refresh, 30000);
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('focus', refresh);
-    };
-  }, []);
 
   const openAdd = () => {
     setEditing(null);
@@ -206,7 +170,6 @@ const loadAll = useCallback(async () => {
                   <div><dt>Email</dt><dd>{s.email}</dd></div>
                   <div><dt>Phone</dt><dd>{s.phone ?? '—'}</dd></div>
                   <div><dt>Gender</dt><dd style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</dd></div>
-                  <div><dt>Training</dt><dd><TrainingStatus partner={s} /></dd></div>
                 </dl>
                 <div className="mp-card__actions">
                   <button type="button" className="hcx-btn" onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`}>
@@ -233,16 +196,15 @@ const loadAll = useCallback(async () => {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Gender</th>
-                  <th>Training</th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7}>Loading…</td></tr>
+                  <tr><td colSpan={6}>Loading…</td></tr>
                 ) : visiblePartners.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={6}>
                       {partners.length === 0
                         ? 'No partners yet. Click “Add Partner” to register one.'
                         : 'No partners match your search.'}
@@ -256,7 +218,6 @@ const loadAll = useCallback(async () => {
                       <td>{s.email}</td>
                       <td>{s.phone ?? '—'}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</td>
-                      <td><TrainingStatus partner={s} /></td>
                       <td>
                         <div className="flex items-center gap-2">
                           <PartnerStatus partner={s} />

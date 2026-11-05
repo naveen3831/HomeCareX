@@ -13,6 +13,7 @@ import PartnerServiceAreaPage from "../pages/partner/ServiceArea";
 import PartnerBlackoutDatesPage from "../pages/partner/BlackoutDates";
 import PartnerSchedulePage from "../pages/partner/Schedule";
 import PartnerEarningsPage from "../pages/partner/Earnings";
+import PartnerEarningDetailPage from "../pages/partner/Earnings/EarningDetail";
 import PartnerIncentivesPage from "../pages/partner/Incentives";
 import PartnerPayoutsPage from "../pages/partner/Payouts";
 import PartnerWalletPage from "../pages/partner/Wallet";
@@ -149,6 +150,7 @@ export default function PartnerRoutes() {
             Earnings
         ===================================================== */}
         <Route path="earnings" element={<PartnerEarningsPage />} />
+        <Route path="earnings/:earningId" element={<PartnerEarningDetailPage />} />
 
         <Route path="incentives" element={<PartnerIncentivesPage />} />
 
