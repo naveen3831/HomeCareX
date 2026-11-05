@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   useEffect,
   useState,
 } from "react";
@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingPanel from "./TrainingApprovalCard";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -366,7 +366,7 @@ const AdminPartnerDetailsPage: React.FC =
     return (
       <div className="partner-details-page">
         <Link to="/admin/partners" className="partner-details-back">
-          ← Back to Partners
+          â† Back to Partners
         </Link>
 
         <header className="pd-hero">
@@ -377,19 +377,21 @@ const AdminPartnerDetailsPage: React.FC =
           <div className="pd-hero__main">
             <h1>{partner.name}</h1>
             <p className="pd-hero__sub">
-              {[partner.category, partner.city].filter(Boolean).join(" · ") || "No category or city yet"}
+              {[partner.category, partner.city].filter(Boolean).join(" Â· ") || "No category or city yet"}
             </p>
 
             <div className="pd-badges">
               <span className={`pd-badge ${tone(partner.kycStatus)}`}>
-                KYC · {partner.kycStatus}
+                KYC 
+·
+ {partner.kycStatus}
               </span>
               <span className={`pd-badge ${tone(partner.accountStatus)}`}>
-                Account · {partner.accountStatus}
+                Account: {partner.accountStatus}
               </span>
               {partner.training && (
                 <span className={`pd-badge ${tone(partner.training.status)}`}>
-                  Training · {partner.training.status}
+                  Training: {partner.training.status}
                 </span>
               )}
             </div>
@@ -399,23 +401,23 @@ const AdminPartnerDetailsPage: React.FC =
         <section className="pd-stats" aria-label="Partner summary">
           <div className="pd-stat">
             <span>Email</span>
-            <strong title={partner.email}>{partner.email || "—"}</strong>
+            <strong title={partner.email}>{partner.email || "â€”"}</strong>
           </div>
           <div className="pd-stat">
             <span>Phone</span>
-            <strong>{partner.phone || "—"}</strong>
+            <strong>{partner.phone || "â€”"}</strong>
           </div>
           <div className="pd-stat">
             <span>City</span>
-            <strong>{partner.city || "—"}</strong>
+            <strong>{partner.city || "â€”"}</strong>
           </div>
           <div className="pd-stat">
             <span>Rating</span>
-            <strong>★ {partner.rating.toFixed(1)}</strong>
+            <strong>â˜… {partner.rating.toFixed(1)}</strong>
           </div>
           <div className="pd-stat">
             <span>Joined</span>
-            <strong>{partner.joined || "—"}</strong>
+            <strong>{partner.joined || "â€”"}</strong>
           </div>
         </section>
 
@@ -497,7 +499,7 @@ const AdminPartnerDetailsPage: React.FC =
           )}
 
           {activeTab === "training" && (
-            <TrainingPanel
+            <TrainingApprovalCard
               partnerId={partner.id}
               canApprove={hasKycApprovalPermission}
               onChanged={() => {
@@ -586,7 +588,7 @@ const ProfileTab: React.FC<
 
       <div>
         <strong>Address</strong>
-        <span>{partner.address || "—"}</span>
+        <span>{partner.address || "â€”"}</span>
       </div>
 
       <div>
@@ -995,7 +997,7 @@ const BookingsTab: React.FC<
                   {booking.status}
                 </td>
                 <td>
-                  ₹
+                  â‚¹
                   {booking.amount.toLocaleString(
                     "en-IN"
                   )}
@@ -1034,7 +1036,7 @@ const EarningsTab: React.FC<
                   {earning.bookings}
                 </td>
                 <td>
-                  ₹
+                  â‚¹
                   {earning.earnings.toLocaleString(
                     "en-IN"
                   )}
@@ -1072,7 +1074,7 @@ const PayoutsTab: React.FC<
                 <td>{payout.id}</td>
                 <td>{payout.date}</td>
                 <td>
-                  ₹
+                  â‚¹
                   {payout.amount.toLocaleString(
                     "en-IN"
                   )}
@@ -1106,7 +1108,7 @@ const ReviewsTab: React.FC<
               </strong>
 
               <span>
-                ★ {review.rating}/5
+                â˜… {review.rating}/5
               </span>
             </div>
 

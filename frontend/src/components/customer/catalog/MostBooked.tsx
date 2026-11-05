@@ -19,6 +19,16 @@ export function MostBooked() {
   const rail = useRef<HTMLUListElement>(null);
   const scroll = (dir: 1 | -1) => rail.current?.scrollBy({ left: dir * 480, behavior: "smooth" });
 
+  const items = useMemo(() => {
+    const raw = data?.items ?? [];
+    const seen = new Set<string>();
+    return raw.filter((s) => {
+      if (!s.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
+  }, [data?.items]);
+
   if (isPending) {
     return (
       <section aria-hidden="true" className="space-y-3">
@@ -31,15 +41,6 @@ export function MostBooked() {
       </section>
     );
   }
-  const items = useMemo(() => {
-    const raw = data?.items ?? [];
-    const seen = new Set<string>();
-    return raw.filter((s) => {
-      if (!s.id || seen.has(s.id)) return false;
-      seen.add(s.id);
-      return true;
-    });
-  }, [data?.items]);
   if (items.length === 0) return null;
 
   return (

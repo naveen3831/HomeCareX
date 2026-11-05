@@ -76,32 +76,36 @@ export const catalogService = {
         if (idStr === catKey || slug === catKey || name === catKey) return true;
 
         const isAppliance = (s: string) =>
-          s === 'appliance-repair' || s === 'appliance-repair-service' || s === 'appliance' || s === 'appliances' || s.includes('appliance');
+          s.includes('appliance');
         if (isAppliance(catKey) && (isAppliance(slug) || isAppliance(name))) return true;
 
         const isCleaning = (s: string) =>
-          s === 'cleaning' || s === 'home-cleaning' || s === 'deep-cleaning' || s.includes('clean');
+          s.includes('clean');
         if (isCleaning(catKey) && (isCleaning(slug) || isCleaning(name))) return true;
 
         const isPlumbingOrElectrical = (s: string) =>
-          s === 'plumbing' || s === 'electrical' || s === 'electrical-plumbing' || s === 'plumbing-electrical' || s.includes('plumb') || s.includes('electr');
+          s.includes('plumb') || s.includes('electr');
         if (isPlumbingOrElectrical(catKey) && (isPlumbingOrElectrical(slug) || isPlumbingOrElectrical(name))) return true;
 
         const isPainting = (s: string) =>
-          s === 'painting' || s === 'waterproofing' || s === 'painting-waterproofing' || s.includes('paint');
+          s.includes('paint') || s.includes('waterproof');
         if (isPainting(catKey) && (isPainting(slug) || isPainting(name))) return true;
 
         const isPest = (s: string) =>
-          s === 'pest' || s === 'pest-control' || s.includes('pest');
+          s.includes('pest');
         if (isPest(catKey) && (isPest(slug) || isPest(name))) return true;
 
         const isSalon = (s: string) =>
-          s === 'salon' || s === 'spa' || s === 'salon-spa' || s.includes('salon') || s.includes('spa');
+          s.includes('salon') || s.includes('spa');
         if (isSalon(catKey) && (isSalon(slug) || isSalon(name))) return true;
 
         const isCarpentry = (s: string) =>
-          s === 'carpentry' || s === 'furniture-assembly' || s === 'carpentry-furniture-assembly' || s.includes('carpent');
+          s.includes('carpent') || s.includes('furniture');
         if (isCarpentry(catKey) && (isCarpentry(slug) || isCarpentry(name))) return true;
+
+        const isSanitization = (s: string) =>
+          s === 'full-home-sanitization' || s === 'home-sanitization' || s.includes('sanitiz');
+        if (isSanitization(catKey) && (isSanitization(slug) || isSanitization(name))) return true;
 
         return false;
       });

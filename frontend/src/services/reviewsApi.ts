@@ -366,7 +366,13 @@ export const fetchPublicReviews = async (
 
   return {
     reviews,
-    stats: data?.stats,
+    stats: data?.stats ?? {
+      averageRating: 0,
+      totalReviews: 0,
+      satisfactionRate: 0,
+      homesServed: "0",
+      categoryCounts: {},
+    },
     meta: meta ?? {
       page: params.page ?? 1,
       limit: params.limit ?? 20,

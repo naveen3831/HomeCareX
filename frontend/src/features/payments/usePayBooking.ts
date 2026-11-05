@@ -99,6 +99,16 @@ export function usePayBooking() {
             resolve();
           };
 
+          const isMobile =
+            typeof window !== "undefined" &&
+            (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+              navigator.userAgent,
+            ) ||
+              window.innerWidth < 768 ||
+              window.self !== window.top);
+
+          const callbackUrl = `${window.location.origin}/api/v1/payments/callback`;
+
           const rzp = new Razorpay({
             key: order.keyId,
             amount: order.amount,
@@ -108,6 +118,8 @@ export function usePayBooking() {
             order_id: order.orderId,
             prefill: order.prefill,
             theme: { color: "#4f46e5" },
+            callback_url: callbackUrl,
+            redirect: isMobile,
             handler: (response: RazorpaySuccess) => {
               finished = true; // Razorpay may fire dismiss while closing after a success: ignore it
               setState({ bookingId, phase: "processing" });

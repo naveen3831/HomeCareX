@@ -75,7 +75,7 @@ const nextSteps = [
   { title: 'We get back to you', text: 'We reply on working days, Monday to Saturday.' },
 ] as const;
 
-/** Support runs Mon–Sat, 9:00–18:00 India time. Computed from IST so it is right for any visitor. */
+/** Support runs Monâ€“Sat, 9:00â€“18:00 India time. Computed from IST so it is right for any visitor. */
 const isSupportOpen = (now: Date): boolean => {
   try {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -155,7 +155,7 @@ const Contact: React.FC = () => {
               <span className="cx-status__dot" aria-hidden="true" />
               <span>
                 <b>{supportOpen ? 'Support is open now' : 'Support is currently closed'}</b>
-                <small>Monday–Saturday, 9:00 AM–6:00 PM</small>
+                <small>Mondayâ€“Saturday, 9:00 AMâ€“6:00 PM</small>
               </span>
             </p>
           </div>
@@ -207,7 +207,7 @@ const Contact: React.FC = () => {
               <a href={PHONE_HREF} className="cx-link">
                 {PHONE_DISPLAY} <ArrowRight aria-hidden="true" size={15} />
               </a>
-              <p className="cx-card__hours"><Clock3 aria-hidden="true" size={14} /> Mon–Sat, 9:00 AM–6:00 PM</p>
+              <p className="cx-card__hours"><Clock3 aria-hidden="true" size={14} /> Monâ€“Sat, 9:00 AMâ€“6:00 PM</p>
             </div>
 
             <div className="cx-card cx-help">
@@ -254,7 +254,7 @@ const Contact: React.FC = () => {
       </section>
 
       {/* ============ PARTNER ============ */}
-      <section id="partner-interest-section" className="cx-partner" aria-labelledby="partner-band-title">
+      <section id="partner-interest" className="cx-partner" aria-labelledby="partner-band-title">
         <div className="cx-shell cx-partner__grid">
           <div className="cx-partner__copy">
             <p className="cx-eyebrow"><span aria-hidden="true" />For home-service professionals</p>
