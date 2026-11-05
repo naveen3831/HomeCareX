@@ -13,7 +13,6 @@ import {
   Award,
   Check,
   Layers,
-  HelpCircle,
   MessageSquare,
   Lock,
   Sliders,
@@ -27,8 +26,6 @@ import {
   Wrench,
   Zap,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { aboutData } from "../../../content/about";
 import { ROUTES } from "../../../constants/routes";

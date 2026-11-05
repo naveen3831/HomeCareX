@@ -30,7 +30,7 @@ const PAGES: Array<[RegExp, CustomerPageMeta]> = [
   [/^\/profile$/, { title: "Profile", parent: HOME }],
   [/^\/profile\/edit$/, { title: "Edit profile", parent: PROFILE }],
   [/^\/profile\/password$/, { title: "Change password", parent: PROFILE }],
-  [/^\/(profile\/)?security$/, { title: "Account security", parent: PROFILE }],
+  [/^\/(profile\/|account\/)?security$/, { title: "Account Security", parent: PROFILE }],
   [/^\/profile\/notifications$/, { title: "Notification settings", parent: PROFILE }],
   [/^\/profile\/terms$/, { title: "Terms & Conditions", parent: PROFILE }],
   [/^\/profile\/privacy$/, { title: "Privacy Policy", parent: PROFILE }],

@@ -41,6 +41,9 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
 
     proxy: {
       '/api': {
@@ -52,6 +55,9 @@ export default defineConfig({
 
   preview: {
     port: 3000,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+    },
 
     proxy: {
       '/api': {

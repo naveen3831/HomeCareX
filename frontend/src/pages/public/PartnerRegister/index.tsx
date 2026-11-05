@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
-  Users,
   Mail,
   Phone,
   ArrowRight,
@@ -18,7 +17,6 @@ import {
   CreditCard,
   Briefcase,
   MapPin,
-  Calendar,
   Eye,
   EyeOff,
   Sparkles,

@@ -1,5 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { ArrowLeft, ArrowRight, Briefcase, Check, CheckCircle2, ChevronRight, Home, Loader2, MapPin, Pencil, Plus, Trash2, TriangleAlert, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import { ArrowLeft, ArrowRight, Briefcase, Check, CheckCircle2, ChevronRight, Home, Loader2, MapPin, Pencil, Plus, Trash2, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import BookingSummary from "./components/BookingSummary";
 import MapAddressPicker, { type PickedLocation } from "@/components/customer/maps/MapAddressPicker";
@@ -46,6 +47,141 @@ function toSnapshot(a: AddressView): AddressSnapshot {
 
 const inputClass = `min-h-[42px] w-full rounded-xl border border-line bg-canvas px-3.5 py-1.5 text-base text-ink transition-colors placeholder:text-[13px] placeholder:text-muted/60 focus:border-brand sm:placeholder:text-sm sm:min-h-[48px] sm:px-4 sm:py-2.5 sm:text-sm ${FOCUS_RING}`;
 
+
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  busy: boolean;
+  error: string | null;
+  address: AddressView;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function DeleteConfirmDialog({
+  open,
+  busy,
+  error,
+  address,
+  onCancel,
+  onConfirm,
+}: DeleteConfirmDialogProps) {
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    cancelBtnRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, busy, onCancel]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end justify-center md:items-center p-0 md:p-4">
+      {/* Backdrop */}
+      <div
+        aria-hidden="true"
+        onClick={() => !busy && onCancel()}
+        className="fixed inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity"
+      />
+
+      {/* Dialog card */}
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-address-title"
+        aria-describedby="delete-address-desc"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-t-[28px] md:rounded-3xl bg-white p-5 md:p-6 text-center shadow-2xl transition-all"
+      >
+        {/* Mobile drag handle */}
+        <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200 md:hidden" />
+
+        {/* Icon */}
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-rose-600 shadow-sm">
+          <Trash2 className="h-6 w-6 stroke-[2]" aria-hidden="true" />
+        </div>
+
+        <h3 id="delete-address-title" className="mt-3 text-lg md:text-xl font-bold text-slate-900">
+          Delete address?
+        </h3>
+        <p id="delete-address-desc" className="mt-1 text-xs md:text-sm text-slate-500">
+          Are you sure you want to delete this address? This action cannot be undone.
+        </p>
+
+        {/* Address preview snippet */}
+        <div className="mt-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/80 p-3 text-left">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800 text-xs md:text-sm">
+            <MapPin className="h-3.5 w-3.5 text-brand" />
+            <span>{address.label}</span>
+          </div>
+          <p className="mt-1 text-xs text-slate-600 line-clamp-2">
+            {address.line1 || address.house}
+            {address.line2 ? `, ${address.line2}` : ""}
+          </p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            {address.city}, {address.state} – {address.pincode}
+          </p>
+        </div>
+
+        {error && (
+          <div role="alert" className="mt-3 rounded-xl bg-danger-soft px-3 py-2 text-left text-xs text-danger">
+            {error}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            ref={cancelBtnRef}
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className={clsx(
+              "inline-flex min-h-[44px] items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-xs md:text-sm font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 active:scale-95 disabled:opacity-50",
+              FOCUS_RING,
+            )}
+          >
+            Keep address
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onConfirm}
+            className={clsx(
+              "inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-full bg-rose-600 px-4 text-xs md:text-sm font-bold text-white shadow-sm hover:bg-rose-700 active:scale-95 disabled:opacity-50",
+              FOCUS_RING,
+            )}
+          >
+            {busy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Deleting…</span>
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                <span>Yes, delete</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 export default function StepAddress() {
   const selectedAddressId = useBookingDraftStore((s) => s.addressId);
   const setAddress = useBookingDraftStore((s) => s.setAddress);
@@ -62,7 +198,26 @@ export default function StepAddress() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | undefined>(undefined);
   const [editingLocation, setEditingLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [streetEdited, setStreetEdited] = useState(false);
+    const [streetEdited, setStreetEdited] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState<AddressView | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const successTimerRef = useRef<number | null>(null);
+
+  const showSuccess = (msg: string) => {
+    setSuccessMessage(msg);
+    if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+    successTimerRef.current = window.setTimeout(() => {
+      setSuccessMessage(null);
+      successTimerRef.current = null;
+    }, 4500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) window.clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   // Live serviceability hint once a full 6-digit pincode is typed
   const pincodeReady = /^\d{6}$/.test(form.pincode);
@@ -126,22 +281,38 @@ export default function StepAddress() {
       pincode: addr.pincode,
     });
     setFormError(null);
-    setLocation(addr.location);
-    setEditingLocation(addr.location ?? null);
+    setNotServiceable(false);
+    setLocation(addr.location ? { lat: addr.location.lat, lng: addr.location.lng } : undefined);
+    setEditingLocation(addr.location ? { lat: addr.location.lat, lng: addr.location.lng } : null);
     setStreetEdited(true);
     setMode("new");
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card selection when clicking delete
-    if (!confirm("Are you sure you want to delete this address?")) return;
+    const handleDelete = (addrOrId: AddressView | string, e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent card selection when clicking delete
+    const addr = typeof addrOrId === "string" ? addresses.find((a) => a.id === addrOrId) : addrOrId;
+    if (addr) {
+      setDeleteError(null);
+      setAddressToDelete(addr);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!addressToDelete) return;
+    const id = addressToDelete.id;
     setIsDeletingId(id);
+    setDeleteError(null);
 
     try {
       await addressApi.delete(id);
+      if (selectedAddressId === id) {
+        setAddress("", null as any);
+      }
+      setAddressToDelete(null);
+      showSuccess("Address deleted successfully!");
       refetch();
     } catch (err) {
-      alert((err as NormalizedApiError).message ?? "Failed to delete address. Please try again.");
+      setDeleteError((err as NormalizedApiError).message ?? "Failed to delete address. Please try again.");
     } finally {
       setIsDeletingId(null);
     }
@@ -162,28 +333,37 @@ export default function StepAddress() {
     try {
       const check = await addressApi.checkServiceability(form.pincode.trim());
       if (!check.serviceable) {
-        setNotServiceable(true);
+        setFormError("Sorry, we don't currently service this pincode. Please enter a different address or serviceable pincode.");
         return;
       }
+
+      const validLocation =
+        location && typeof location.lat === "number" && typeof location.lng === "number" && !isNaN(location.lat) && !isNaN(location.lng)
+          ? { lat: location.lat, lng: location.lng }
+          : undefined;
 
       const payload = {
         label: ADDRESS_LABELS.find((l) => l === form.label) ?? "Home",
         house: form.house.trim(),
         ...(form.street.trim() ? { street: form.street.trim() } : {}),
-        // An empty string clears the field when editing (the API sets what it is given).
-        ...(form.area.trim() || editingId ? { area: form.area.trim() } : {}),
-        ...(form.landmark.trim() || editingId ? { landmark: form.landmark.trim() } : {}),
+        ...(form.area.trim() ? { area: form.area.trim() } : {}),
+        ...(form.landmark.trim() ? { landmark: form.landmark.trim() } : {}),
         city: form.city.trim(),
         state: form.state.trim(),
         pincode: form.pincode.trim(),
-        ...(location ? { location } : {}),
+        ...(validLocation ? { location: validLocation } : {}),
       };
 
       if (editingId) {
-        await addressApi.update(editingId, payload);
+        const updated = await addressApi.update(editingId, payload);
+        if (selectedAddressId === editingId) {
+          setAddress(updated.id, toSnapshot(updated));
+        }
+        showSuccess("Address updated successfully!");
       } else {
         const created = await createAddress(payload);
         setAddress(created.id, toSnapshot(created));
+        showSuccess("Address added successfully!");
       }
 
       setNotServiceable(false);
@@ -203,6 +383,7 @@ const startNew = () => {
   setEditingId(null);
   setForm(EMPTY_FORM);
   setFormError(null);
+  setNotServiceable(false);
   setLocation(undefined);
   setEditingLocation(null);
   setStreetEdited(false);
@@ -211,6 +392,8 @@ const startNew = () => {
 
 const backToList = () => {
   setEditingId(null);
+  setFormError(null);
+  setNotServiceable(false);
   setMode("list");
 };
 
@@ -230,10 +413,7 @@ const desktopActions =
     <>
       <button
         type="button"
-        onClick={() => {
-          setEditingId(null);
-          setMode("list");
-        }}
+        onClick={backToList}
         className={clsx("inline-flex min-h-[48px] items-center justify-center rounded-full border border-line bg-white px-5 text-sm font-semibold text-ink transition-colors hover:bg-canvas", FOCUS_RING)}
       >
         Cancel
@@ -267,10 +447,7 @@ const mobileActions =
     <div className="flex w-full items-center gap-3">
       <button
         type="button"
-        onClick={() => {
-          setEditingId(null);
-          setMode("list");
-        }}
+        onClick={backToList}
         className={clsx(
           "inline-flex min-h-[50px] items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-bold text-slate-800 shadow-xs transition-colors hover:bg-slate-50",
           FOCUS_RING,
@@ -336,8 +513,46 @@ return (
         </div>
       </div>
 
+      {/* Success notification */}
+      {successMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-900 shadow-2xs animate-in fade-in duration-200"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" aria-hidden="true" />
+            <span className="text-xs sm:text-sm font-semibold">{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            className="rounded-full p-1 text-emerald-700 hover:bg-emerald-100 transition-colors"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {addressToDelete && (
+        <DeleteConfirmDialog
+          open={Boolean(addressToDelete)}
+          busy={isDeletingId === addressToDelete.id}
+          error={deleteError}
+          address={addressToDelete}
+          onCancel={() => {
+            if (isDeletingId) return;
+            setAddressToDelete(null);
+            setDeleteError(null);
+          }}
+          onConfirm={confirmDelete}
+        />
+      )}
+
       <section aria-label="Service address" className="rounded-3xl border-0 bg-transparent p-0 shadow-none lg:border lg:border-line lg:bg-panel lg:p-6 lg:shadow-[0_24px_60px_-48px_rgba(67,56,202,.55)]">
-        {notServiceable && (
+        {mode === "list" && notServiceable && (
           <div role="alert" className="mb-4 rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm text-ink">
             Sorry, we don't currently service that area. Please choose a different address.
           </div>
@@ -366,7 +581,7 @@ return (
                 action={
                   <button
                     type="button"
-                    onClick={() => setMode("new")}
+                    onClick={startNew}
                     className={clsx("min-h-[44px] rounded-full bg-brand px-5 text-sm font-semibold text-white", FOCUS_RING)}
                   >
                     + Add new address
@@ -465,7 +680,7 @@ return (
                               <button
                                 type="button"
                                 disabled={isDeleting}
-                                onClick={(e) => handleDelete(addr.id, e)}
+                                onClick={(e) => handleDelete(addr, e)}
                                 className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors disabled:opacity-50"
                                 aria-label={`Delete ${addr.label} address`}
                                 title="Delete address"
