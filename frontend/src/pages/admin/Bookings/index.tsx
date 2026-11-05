@@ -187,7 +187,6 @@ export default function Bookings() {
     useState<BookingFilters>(INITIAL_FILTERS);
 
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
-  const pager = usePagination(bookings, { resetKey: JSON.stringify(filters) });
   const [loading, setLoading] = useState<boolean>(true);
   const [fetched, setFetched] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -233,6 +232,11 @@ export default function Bookings() {
 
     return count;
   }, [filters]);
+
+  // Client-side paging for the loaded list; back to page 1 whenever a filter changes.
+  const pager = usePagination(bookings, {
+    resetKey: JSON.stringify(filters),
+  });
 
   const loadBookings = async (
     activeFilters: BookingFilters = filters,

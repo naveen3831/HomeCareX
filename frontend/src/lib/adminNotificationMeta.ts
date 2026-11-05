@@ -4,8 +4,10 @@ import {
   CalendarPlus,
   CircleDollarSign,
   FileCheck2,
+  GraduationCap,
   LifeBuoy,
   Timer,
+  Wrench,
   Wallet,
   XCircle,
   type LucideIcon,
@@ -25,7 +27,9 @@ const SOS_META: NotificationMeta = { title: 'SOS alert', Icon: AlertTriangle, to
 export const NOTIFICATION_META: Record<string, NotificationMeta> = {
   'sos.alert': SOS_META,
   'partner:sos': SOS_META,
+  'skill.requested': { title: 'Skill request', Icon: Wrench, tone: 'bg-indigo-100 text-indigo-600' },
   'kyc.submitted': { title: 'KYC submitted', Icon: FileCheck2, tone: 'bg-violet-100 text-violet-600' },
+  'training.completed': { title: 'Training completed', Icon: GraduationCap, tone: 'bg-emerald-100 text-emerald-600' },
   'refund.requested': { title: 'Refund requested', Icon: CircleDollarSign, tone: 'bg-amber-100 text-amber-600' },
   'payout.failed': { title: 'Payout failed', Icon: Wallet, tone: 'bg-red-100 text-red-600' },
   'sla.breach': { title: 'SLA breach', Icon: Timer, tone: 'bg-orange-100 text-orange-600' },
@@ -65,12 +69,15 @@ export function notificationTarget(n: Pick<AdminNotification, 'type' | 'payload'
     case 'partner:sos':
       return booking ? `/admin/bookings?booking=${enc(booking)}` : partner ? `/admin/partners/${enc(partner)}` : '/admin/notifications';
     case 'kyc.submitted':
+    case 'training.completed':
       return partner ? `/admin/partners/${enc(partner)}` : '/admin/partners';
     case 'refund.requested':
     case 'refund.updated':
       return refund ? `/admin/refunds/${enc(refund)}` : '/admin/refunds';
     case 'payout.failed':
       return payout ? `/admin/payouts/${enc(payout)}` : '/admin/payouts';
+    case 'skill.requested':
+      return '/admin/skill-requests';
     case 'sla.breach':
     case 'ticket.reply':
       return ticket ? `/admin/support/${enc(ticket)}` : '/admin/support';

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Globe,
+  KeyRound,
   Laptop,
   Lock,
   LogOut,
@@ -312,7 +313,7 @@ export const AccountSecurityPage: React.FC = () => {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
   return (
-    <div className="w-full min-w-0 space-y-4 md:space-y-5 pb-28 md:pb-12">
+    <div className="mx-auto w-full min-w-0 space-y-4 md:space-y-5 pb-28 md:pb-12">
       {/* Accessible Page Heading (screen readers and test queries) */}
       <h1 className="sr-only">Account Security</h1>
 
@@ -320,7 +321,7 @@ export const AccountSecurityPage: React.FC = () => {
       {!isOnline && (
         <div
           role="status"
-          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 sm:py-3 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5 shadow-xs"
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 md:p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5 shadow-xs"
         >
           <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
           <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
@@ -339,7 +340,7 @@ export const AccountSecurityPage: React.FC = () => {
             </p>
 
             {user?.email && (
-              <div className="mt-3.5 inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 shadow-xs border border-blue-100/90 text-xs text-slate-700">
+              <div className="mt-3.5 inline-flex max-w-full items-center gap-2 rounded-full bg-white/95 px-3.5 py-1.5 shadow-xs border border-blue-100/90 text-xs text-slate-700">
                 <User className="h-3.5 w-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                 <span className="truncate">
                   Signed in as <strong className="font-semibold text-slate-900">{user.email}</strong>
@@ -393,11 +394,24 @@ export const AccountSecurityPage: React.FC = () => {
 
           <ChevronRight
             className={clsx(
-              "h-5 w-5 text-slate-400 shrink-0 transition-transform duration-200",
+              "h-5 w-5 text-slate-400 shrink-0 transition-transform duration-200 md:hidden",
               showPasswordForm && "rotate-90",
             )}
+            aria-hidden="true"
           />
         </div>
+
+        {/* Change Password Action Button when collapsed */}
+        {!showPasswordForm && (
+          <button
+            type="button"
+            onClick={() => setShowPasswordForm(true)}
+            className="mt-3 md:mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#5046E5] px-4 py-2.5 md:py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#4338CA] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5046E5]"
+          >
+            <KeyRound className="h-4 w-4" aria-hidden="true" />
+            <span>Change Password</span>
+          </button>
+        )}
 
         {/* Change Password Form (expanded) */}
         {showPasswordForm && (
@@ -436,7 +450,10 @@ export const AccountSecurityPage: React.FC = () => {
                 onChange={(e) => {
                   setCurrentPassword(e.target.value);
                   if (fieldErrors.currentPassword) {
-                    setFieldErrors((prev) => ({ ...prev, currentPassword: "" }));
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      currentPassword: "",
+                    }));
                   }
                 }}
                 rightAction={
@@ -492,7 +509,9 @@ export const AccountSecurityPage: React.FC = () => {
                         key={rule.id}
                         className={clsx(
                           "flex items-center gap-2",
-                          isMet ? "text-emerald-700 font-medium" : "text-slate-500",
+                          isMet
+                            ? "text-emerald-700 font-medium"
+                            : "text-slate-500",
                         )}
                       >
                         <span
@@ -525,7 +544,10 @@ export const AccountSecurityPage: React.FC = () => {
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);
                   if (fieldErrors.confirmPassword) {
-                    setFieldErrors((prev) => ({ ...prev, confirmPassword: "" }));
+                    setFieldErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: "",
+                    }));
                   }
                 }}
                 error={fieldErrors.confirmPassword}
@@ -619,6 +641,7 @@ export const AccountSecurityPage: React.FC = () => {
                 "h-5 w-5 text-slate-400 transition-transform duration-200",
                 showActiveSessions && "rotate-90",
               )}
+              aria-hidden="true"
             />
           </div>
         </div>
@@ -673,7 +696,10 @@ export const AccountSecurityPage: React.FC = () => {
                   <p className="text-xs text-slate-400 mt-1">Only this active browser session is connected.</p>
                 </div>
               ) : (
-                <ul className="space-y-2.5" aria-label="Active sessions list">
+                <ul
+                  className="space-y-2.5 -mx-4 px-4 md:mx-0 md:px-0"
+                  aria-label="Active sessions list"
+                >
                   {sessions.map((session) => {
                     const Icon = getDeviceIcon(session.device, session.browser);
                     const isCurrent = Boolean(session.isCurrent);
@@ -748,12 +774,18 @@ export const AccountSecurityPage: React.FC = () => {
                               </>
                             ) : isCurrent ? (
                               <>
-                                <LogOut className="h-3 w-3" aria-hidden="true" />
+                                <LogOut
+                                  className="h-3 w-3"
+                                  aria-hidden="true"
+                                />
                                 <span>Sign out</span>
                               </>
                             ) : (
                               <>
-                                <Trash2 className="h-3 w-3" aria-hidden="true" />
+                                <Trash2
+                                  className="h-3 w-3"
+                                  aria-hidden="true"
+                                />
                                 <span>Revoke</span>
                               </>
                             )}
@@ -774,7 +806,7 @@ export const AccountSecurityPage: React.FC = () => {
         aria-labelledby="logout-all-heading"
         className="rounded-2xl border border-rose-100/90 bg-[#FFF5F5] p-4.5 sm:p-5 shadow-xs space-y-4"
       >
-        <div className="flex items-start gap-3.5 sm:gap-4">
+        <div className="flex items-start gap-3.5 min-w-0 sm:gap-4">
           <div
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FEE2E2] text-[#EF4444]"
             aria-hidden="true"
@@ -788,7 +820,7 @@ export const AccountSecurityPage: React.FC = () => {
             >
               Log Out of All Devices
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed max-w-xl">
               Terminate all active sessions across every device, including phone,
               computer, and browser immediately.
             </p>

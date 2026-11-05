@@ -300,11 +300,6 @@ const EXTRA_TITLES: Record<string, string> = {
   "/partner/wallet": "Partner Wallet",
 };
 
-const HIDE_BOTTOM_NAV = [
-  "/partner/wallet",
-  "/partner/transactions",
-];
-
 const BOTTOM_NAV = [
   {
     key: "home",
@@ -365,20 +360,12 @@ export const BOTTOM_KEYS = BOTTOM_NAV.map((item) => item.key);
 // Mobile bottom navigation
 // -----------------------------------------------------------------------------
 
-function BottomNav({
-  visible,
-  path,
-}: {
-  visible: boolean;
-  path: string;
-}) {
+function BottomNav({ path }: { path: string }) {
   const t = useT();
   return (
     <nav
       aria-label={t("Primary")}
-      className={`fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white transition-transform duration-300 lg:hidden ${
-        visible ? "translate-y-0" : "translate-y-full"
-      }`}
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white lg:hidden"
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
@@ -895,40 +882,12 @@ export default function PartnerLayout() {
   }, []);
 
   const [collapsedPref, setCollapsedPref] = useState(false);
-  const [navVisible, setNavVisible] = useState(true);
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const collapsed = collapsedPref && isDesktop;
 
   const { pathname } = useLocation();
   const navigate = useNavigate();
-
-  // Hide the mobile bottom navigation while scrolling down.
-  useEffect(() => {
-    setNavVisible(true);
-
-    let lastScrollY = window.scrollY;
-
-    const onScroll = () => {
-      const currentY = window.scrollY;
-      const delta = currentY - lastScrollY;
-
-      if (Math.abs(delta) < 8) {
-        return;
-      }
-
-      setNavVisible(currentY <= 24 ? true : delta < 0);
-      lastScrollY = currentY;
-    };
-
-    window.addEventListener("scroll", onScroll, {
-      passive: true,
-    });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [pathname]);
 
   const cleanPath = pathname.replace(/\/+$/, "") || "/";
 
@@ -959,8 +918,9 @@ export default function PartnerLayout() {
   const isTicketThread =
     /^\/partner\/support\/[^/]+$/.test(cleanPath);
 
-  const hideBottomNav =
-    HIDE_BOTTOM_NAV.includes(cleanPath) || fullBleed;
+  // The bottom tabs stay on screen on every partner page. Only an open support chat hides them,
+  // because the message box sits at the bottom there.
+  const hideBottomNav = isTicketThread;
 
   const isHome = cleanPath === "/partner";
   const showBack = !isHome;
@@ -1104,7 +1064,7 @@ export default function PartnerLayout() {
         </div>
 
         {!hideBottomNav && (
-          <BottomNav visible={navVisible} path={cleanPath} />
+          <BottomNav path={cleanPath} />
         )}
       </div>
     </PartnerStatusContext.Provider>

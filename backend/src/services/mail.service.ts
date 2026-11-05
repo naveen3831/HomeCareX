@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import nodemailer, { type Transporter } from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
-import { accountCreatedEmail, accountCreatedUrls, adminPartnerKycEmail, partnerApprovedEmail, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, type AccountCreatedEmailData } from './mail.templates';
+import { accountCreatedEmail, accountCreatedUrls, adminPartnerKycEmail, adminPartnerTrainingEmail, partnerApprovedEmail, partnerTrainingApprovedEmail, partnerCredentialsEmail, passwordResetEmail, passwordResetOtpEmail, type AccountCreatedEmailData } from './mail.templates';
 
 let transporter: Transporter | null = null;
 
@@ -149,6 +149,37 @@ export const mailService = {
     await getTransporter().sendMail({
       from: process.env.MAIL_FROM || process.env.SMTP_USER,
       to,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+  },
+
+  /** Tells the admin team a partner finished the training and waits for approval. */
+  async sendAdminPartnerTrainingEmail(to: string[], data: { partnerName: string; partnerEmail: string; partnerPhone?: string; reviewUrl: string }) {
+    if (to.length === 0) return;
+    const { src, attachments } = logo();
+    const { subject, html, text } = adminPartnerTrainingEmail({ ...data, logoSrc: src, supportEmail: process.env.SUPPORT_EMAIL });
+
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      text,
+      html,
+      attachments,
+    });
+  },
+
+  /** Training approved: tells the partner they can log in and go online. */
+  async sendPartnerTrainingApprovedEmail(data: { name: string; email: string; loginUrl: string }) {
+    const { src, attachments } = logo();
+    const { subject, html, text } = partnerTrainingApprovedEmail({ ...data, logoSrc: src, supportEmail: process.env.SUPPORT_EMAIL });
+
+    await getTransporter().sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to: data.email,
       subject,
       text,
       html,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock, FileText, Home, CreditCard, RefreshCw, ShieldCheck, Upload, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import DocumentViewer from "@/components/DocumentViewer";
 import {
   ACCEPTED_TYPES,
@@ -38,6 +39,7 @@ const fmtDate = (iso: string | null) =>
 const iconFor = (type: string) => (type === "address_proof" ? Home : type === "id_proof" ? CreditCard : FileText);
 
 export default function PartnerDocumentsPage() {
+  const queryClient = useQueryClient();
   const [data, setData] = useState<PartnerDocuments | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +78,9 @@ export default function PartnerDocumentsPage() {
     setError(null);
     try {
       setViewer({ doc, url: await fetchDocumentBlobUrl(doc.id) });
-    } catch {
-      setError("Could not open this document. Please try again.");
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "";
+      setError(reason ? `Could not open this document: ${reason}` : "Could not open this document. Please try again.");
     } finally {
       setOpening(null);
     }
@@ -109,6 +112,8 @@ export default function PartnerDocumentsPage() {
       await uploadMyDocument(type, file);
       setUploadedNote("Uploaded. Our team will review it soon.");
       await load();
+      // The Profile page shows the same documents: make it fetch the new list.
+      void queryClient.invalidateQueries({ queryKey: ["partner", "documents"] });
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setUploadError(msg ?? "Could not upload the file. Please try again.");

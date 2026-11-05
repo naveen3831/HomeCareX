@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, LocateFixed, Plus } from "lucide-react";
 import EmptyState from "@/components/common/EmptyState";
 import ErrorState from "@/components/common/ErrorState";
@@ -241,6 +242,7 @@ const toNum = (text: string): number | null => {
 export default function PartnerServiceAreaPage() {
   const { status, data, error, reload, setData } = useLoad<PartnerServiceArea>(getServiceArea);
   const online = useOnlineStatus();
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<AreaForm>(emptyForm());
   const [baseline, setBaseline] = useState<AreaForm>(emptyForm());
   const [touched, setTouched] = useState(false);
@@ -344,6 +346,8 @@ export default function PartnerServiceAreaPage() {
           : { ...input, configured: true, updatedAt: null };
       setData(next);
       setSaved(next);
+      // The top-bar service area line reads this same cache, so it updates at once instead of after a reload.
+      queryClient.setQueryData(['partner', 'service-area'], next);
     } catch (err) {
       const c = classifyApiError(err, "Could not save your service area.");
       setSaveError(c.details?.[0]?.message ?? c.message);

@@ -114,21 +114,26 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
   const [cashing, setCashing] = useState(false);
   const [cashError, setCashError] = useState<string | null>(null);
 
-  /** Partner confirms the customer handed over the cash. The server marks the booking PAID. */
-  const markCashCollected = async () => {
-    const ok = window.confirm(`Confirm you collected ${money.format(payment.amount)} in cash from the customer?`);
+  /** Partner confirms the money arrived (cash in hand, or a UPI credit seen in their UPI app). The server marks the booking PAID. */
+  const markCollected = async (method: 'cash' | 'upi') => {
+    const ok = window.confirm(
+      method === 'cash'
+        ? `Confirm you collected ${money.format(payment.amount)} in cash from the customer?`
+        : `Confirm ${money.format(payment.amount)} reached the HomeCareX UPI account? Check your UPI app or the bank SMS first.`,
+    );
     if (!ok) return;
     setCashing(true);
     setCashError(null);
     try {
-      const fresh = await collectPayment(job.id, 'cash');
+      const fresh = await collectPayment(job.id, method);
       onChangeRef.current?.(fresh);
     } catch (err) {
-      setCashError(getErrorMessage(err, 'Could not record the cash payment. Try again.'));
+      setCashError(getErrorMessage(err, 'Could not record the payment. Try again.'));
     } finally {
       setCashing(false);
     }
   };
+  const markCashCollected = () => markCollected('cash');
 
   const cashButton = (
     <>
@@ -261,13 +266,16 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
 
       <div className="pp-wait" role="status" aria-live="polite">
         {online ? (
-          <>
-            <Loader2 size={16} className="pp-spin" aria-hidden="true" /> Waiting for payment… this updates by itself.
-          </>
+          <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
         ) : (
-          <>You are offline. Reconnect to see when the payment arrives.</>
+          <>You are offline. Reconnect to record the payment.</>
         )}
       </div>
+
+      <button type="button" className="pp-btn pp-btn-primary" onClick={() => void markCollected('upi')} disabled={cashing || !online}>
+        {cashing ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+        UPI payment received
+      </button>
 
       <button type="button" className="pp-btn" onClick={() => void refresh(true)} disabled={checking || !online}>
         {checking ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}

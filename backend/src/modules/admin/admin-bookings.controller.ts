@@ -660,7 +660,8 @@ export class AdminBookingsController {
     }
 
     if (partner) query.partnerId = partner;
-
+if (category && Types.ObjectId.isValid(category)) query.categoryId = new Types.ObjectId(category);
+if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.ObjectId(partner);
     if (date) {
       const start = new Date(`${date}T00:00:00.000Z`);
       const end = new Date(`${date}T23:59:59.999Z`);

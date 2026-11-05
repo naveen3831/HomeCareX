@@ -12,6 +12,7 @@ const AdminDashboardPage = lazy(
 
 // Operations
 const AdminLeadsPage = lazy(() => import("@/pages/admin/Leads"));
+const AdminSkillRequestsPage = lazy(() => import("@/pages/admin/SkillRequests"));
 const AdminBookingsPage = lazy(() => import("@/pages/admin/Bookings"));
 const AdminCustomersPage = lazy(() => import("@/pages/admin/Customers"));
 const AdminCustomerDetailsPage = lazy(
@@ -139,6 +140,11 @@ const adminRoutes: AdminRoute[] = [
   {
     path: "manage-partners",
     element: <AdminManagePartnersPage />,
+    permission: "partners:view",
+  },
+  {
+    path: "skill-requests",
+    element: <AdminSkillRequestsPage />,
     permission: "partners:view",
   },
   {

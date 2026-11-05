@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { SlidersHorizontal, RotateCcw } from "lucide-react";
 
 import { PageSearch } from "@/components/admin/PageSearch";
@@ -41,6 +41,7 @@ type PartnerRow = Omit<
 };
 
 const AdminPartnersPage: React.FC = () => {
+  const navigate = useNavigate();
   const { pageSearch, setPageSearch } = useUIStore();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -580,6 +581,7 @@ const AdminPartnersPage: React.FC = () => {
             data={filteredPartners}
             rowKey={(row) => row.id}
             label="Partners"
+            onRowClick={(row) => navigate(`/admin/partners/${row.id}`)}
             defaultPageSize={10}
             pageSizeOptions={[5, 10, 20, 50]}
             emptyTitle="No partners found"

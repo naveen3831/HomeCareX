@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(['/api/v1/admin/services', '/api/v1/admin/categories'], express.json({ limit: '6mb' }));
 // Partner registration carries two KYC files (max 5MB each) as base64 data: URLs.
 app.use('/api/v1/auth/register', express.json({ limit: '20mb' }));
-// A partner adding one missing KYC file later sends a single base64 data: URL (max 5MB file).
+// A partner re-uploading one KYC file (max 5MB) from Profile > Documents sends it as a base64 data: URL too.
 app.use('/api/v1/partner/documents', express.json({ limit: '8mb' }));
 
 // Keep the exact bytes of the body: the payment webhook signature is an HMAC over the RAW request.

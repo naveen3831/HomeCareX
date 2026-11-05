@@ -2,6 +2,7 @@ import * as repo from './availability.repository';
 import { UpdateAvailabilityInput } from './availability.validation';
 import Availability from './availability.model';
 import * as blackoutRepo from './blackout.repository';
+import { partnerOnboardingService } from '../partner-onboarding/partner-onboarding.service';
 
 export class AvailabilityError extends Error {
   constructor(public status: number, message: string) {
@@ -16,8 +17,8 @@ export interface Slot {
   end: string;   // HH:mm, 24-hour
 }
 
-// MOCK: Replace with actual onboarding verification when available.
-const isOnboardingComplete = async (_partnerId: string): Promise<boolean> => true;
+// A partner may go online only after the training is finished and approved by an admin.
+const isOnboardingComplete = (partnerId: string): Promise<boolean> => partnerOnboardingService.isCleared(partnerId);
 
 const JS_DAY_TO_NAME = [
   'sunday',

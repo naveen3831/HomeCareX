@@ -7,6 +7,8 @@ import { validate } from "../../middleware/validation.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { UserModel } from "../../models/User";
+import PartnerModel from "../../models/Partner";
+import CategoryModel from "../../models/Category";
 
 /** Mounted at /partner/profile */
 export const partnerProfileRoutes = Router();
@@ -27,8 +29,41 @@ partnerProfileRoutes.get(
   requirePermission("partner:settings:read"),
   asyncHandler(async (_req, res) => {
     const { sub } = res.locals.auth as { sub: string };
-    const user = await UserModel.findById(sub).select("name phone email").lean();
-    sendSuccess(res, { name: user?.name ?? "", phone: user?.phone ?? "", email: user?.email ?? "" });
+    const [user, partner] = await Promise.all([
+      UserModel.findById(sub).select("name phone email").lean(),
+      PartnerModel.findOne({ userId: sub }).select("address categories skills serviceRadiusKm bankDetails").lean(),
+    ]);
+    const categories = partner?.categories?.length
+      ? await CategoryModel.find({ _id: { $in: partner.categories } }).select("name").lean()
+      : [];
+    const a = partner?.address;
+    const bank = partner?.bankDetails;
+    sendSuccess(res, {
+      name: user?.name ?? "",
+      phone: user?.phone ?? "",
+      email: user?.email ?? "",
+      // What the partner gave when joining (and later changes). Read fresh each time so edits show at once.
+      joined: {
+        address: {
+          line1: a?.line1 ?? "",
+          city: a?.city ?? "",
+          state: a?.state ?? "",
+          pincode: a?.pincode ?? "",
+        },
+        categories: categories.map((c) => c.name),
+        skills: partner?.skills ?? [],
+        serviceRadiusKm: partner?.serviceRadiusKm ?? null,
+        // Never the full account number: only what is stored (last 4 digits).
+        bank: bank && (bank.accountHolder || bank.accountLast4 || bank.ifsc || bank.upiId)
+          ? {
+              accountHolder: bank.accountHolder ?? "",
+              accountLast4: bank.accountLast4 ?? "",
+              ifsc: bank.ifsc ?? "",
+              upiId: bank.upiId ?? "",
+            }
+          : null,
+      },
+    });
   }),
 );
 

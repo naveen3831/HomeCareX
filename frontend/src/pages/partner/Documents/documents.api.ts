@@ -11,6 +11,8 @@ export interface PartnerDoc {
   status: DocStatus;
   reviewNote: string | null;
   uploadedAt: string | null;
+  /** false when the file is not stored on the server (old record): ask the partner to upload it again. */
+  fileAvailable?: boolean;
 }
 
 export interface PartnerDocuments {
@@ -28,8 +30,22 @@ export async function getMyDocuments(): Promise<PartnerDocuments> {
 
 /** Fetches the file with the auth token and returns a temporary object URL (revoke it when done). */
 export async function fetchDocumentBlobUrl(docId: string): Promise<string> {
-  const res = await http.get<Blob>(`/partner/documents/${docId}/file`, { responseType: "blob" });
-  return URL.createObjectURL(res.data);
+  try {
+    const res = await http.get<Blob>(`/partner/documents/${docId}/file`, { responseType: "blob" });
+    return URL.createObjectURL(res.data);
+  } catch (err) {
+    // With responseType "blob" the server's JSON error arrives as a Blob, so read the real reason out of it.
+    const e = err as { response?: { status?: number; data?: unknown } };
+    let reason: string | undefined;
+    if (e.response?.data instanceof Blob) {
+      try {
+        reason = (JSON.parse(await e.response.data.text()) as { message?: string }).message;
+      } catch {
+        /* not JSON */
+      }
+    }
+    throw new Error(reason ?? (e.response?.status ? `Server error ${e.response.status}` : "Network error"));
+  }
 }
 
 export type UploadableType = "id_proof" | "address_proof";
