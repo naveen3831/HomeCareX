@@ -1124,3 +1124,14 @@ html::-webkit-scrollbar, body::-webkit-scrollbar,
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Prevent outer browser window scrollbar on desktop auth screens */
+@media (min-width: 1024px) {
+  html:has(.auth-layout-root),
+  body:has(.auth-layout-root) {
+    overflow-y: hidden !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+  }
+}
