@@ -49,6 +49,16 @@ const PartnerSchema = new Schema(
       suspensionReason: { type: String },
     },
     trainingCompleted: { type: Boolean, default: false },
+    /** Short intro and years of experience, shown on the admin partner Profile tab. Must be in the schema or Mongoose drops the writes. */
+    bio: { type: String, trim: true, maxlength: 500, default: '' },
+    experience: { type: Number, min: 0, max: 60, default: 0 },
+    /** Progress of the post-approval demo (see partner-onboarding module). Must be in the schema or Mongoose drops the writes. */
+    onboarding: {
+      completedSteps: { type: Number, default: 0, min: 0 },
+      completedAt: { type: Date },
+      approvedAt: { type: Date },
+      approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    },
     /** Home address the partner gave at registration. Shown on the admin Partners & KYC pages. */
     address: {
       line1: { type: String, trim: true, maxlength: 200 },

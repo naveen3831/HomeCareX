@@ -151,6 +151,7 @@ export const PartnerRegisterPage: React.FC = () => {
     category: '',
     skills: [] as string[],
     experienceYears: '3',
+    bio: '',
     serviceRadiusKm: 15,
     workingDays: DEFAULT_WORKING_DAYS,
     workingHoursStart: '09:00',
@@ -631,6 +632,7 @@ export const PartnerRegisterPage: React.FC = () => {
         category: form.category,
         skills: form.skills,
         experienceYears: Number(form.experienceYears) || 0,
+        bio: form.bio.trim() || undefined,
         serviceRadiusKm: Number(form.serviceRadiusKm) || 15,
         workingDays: form.workingDays,
         workingHoursStart: form.workingHoursStart,
@@ -1528,6 +1530,24 @@ export const PartnerRegisterPage: React.FC = () => {
                     {fieldErrors.experienceYears}
                   </p>
                 )}
+              </div>
+
+              {/* Bio (shown to admins on the partner profile) */}
+              <div className="group col-span-2">
+                <label htmlFor="partner-bio" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                  Short Bio <span className="text-slate-400">(optional)</span>
+                </label>
+                <textarea
+                  id="partner-bio"
+                  name="bio"
+                  rows={3}
+                  maxLength={500}
+                  value={form.bio}
+                  onChange={(e) => handleChange('bio', e.target.value)}
+                  placeholder="Tell customers about your experience and the work you do"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca]"
+                />
+                <p className="mt-0.5 text-right text-[11px] text-slate-400">{form.bio.length}/500</p>
               </div>
 
               {/* Service Radius */}

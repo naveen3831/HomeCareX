@@ -12,6 +12,8 @@ const bannerSchema = z.object({
   category: z.string().optional(),
   alt: z.string().optional(),
   link: z.string().default("/services"),
+  /** HOME, HOME_TOP, HOME_MIDDLE or HOME_BOTTOM (set in Admin > Marketing). */
+  placement: z.string().optional(),
 });
 
 const bannerResponseSchema = z.object({

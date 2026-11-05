@@ -4,6 +4,7 @@ import {
   CalendarPlus,
   CircleDollarSign,
   FileCheck2,
+  GraduationCap,
   LifeBuoy,
   Timer,
   Wallet,
@@ -26,11 +27,13 @@ export const NOTIFICATION_META: Record<string, NotificationMeta> = {
   'sos.alert': SOS_META,
   'partner:sos': SOS_META,
   'kyc.submitted': { title: 'KYC submitted', Icon: FileCheck2, tone: 'bg-violet-100 text-violet-600' },
+  'training.completed': { title: 'Training completed', Icon: GraduationCap, tone: 'bg-emerald-100 text-emerald-600' },
   'refund.requested': { title: 'Refund requested', Icon: CircleDollarSign, tone: 'bg-amber-100 text-amber-600' },
   'payout.failed': { title: 'Payout failed', Icon: Wallet, tone: 'bg-red-100 text-red-600' },
   'sla.breach': { title: 'SLA breach', Icon: Timer, tone: 'bg-orange-100 text-orange-600' },
   'booking.created': { title: 'New booking', Icon: CalendarPlus, tone: 'bg-indigo-100 text-indigo-600' },
   'booking.cancelled': { title: 'Booking cancelled', Icon: XCircle, tone: 'bg-amber-100 text-amber-600' },
+  'ticket.created': { title: 'New support ticket', Icon: LifeBuoy, tone: 'bg-sky-100 text-sky-600' },
   'ticket.reply': { title: 'New ticket reply', Icon: LifeBuoy, tone: 'bg-sky-100 text-sky-600' },
   'refund.updated': { title: 'Refund updated', Icon: CircleDollarSign, tone: 'bg-emerald-100 text-emerald-600' },
   'payment.failed': { title: 'Payment failed', Icon: CircleDollarSign, tone: 'bg-red-100 text-red-600' },
@@ -65,6 +68,7 @@ export function notificationTarget(n: Pick<AdminNotification, 'type' | 'payload'
     case 'partner:sos':
       return booking ? `/admin/bookings?booking=${enc(booking)}` : partner ? `/admin/partners/${enc(partner)}` : '/admin/notifications';
     case 'kyc.submitted':
+    case 'training.completed':
       return partner ? `/admin/partners/${enc(partner)}` : '/admin/partners';
     case 'refund.requested':
     case 'refund.updated':
@@ -72,6 +76,7 @@ export function notificationTarget(n: Pick<AdminNotification, 'type' | 'payload'
     case 'payout.failed':
       return payout ? `/admin/payouts/${enc(payout)}` : '/admin/payouts';
     case 'sla.breach':
+    case 'ticket.created':
     case 'ticket.reply':
       return ticket ? `/admin/support/${enc(ticket)}` : '/admin/support';
     case 'payment.failed':

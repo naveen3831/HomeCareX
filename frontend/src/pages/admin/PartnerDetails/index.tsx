@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingApprovalCard from "./TrainingApprovalCard";
+import TrainingPanel from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -27,6 +27,42 @@ import {
 
 import "./index.css";
 import "./redesign.css";
+
+/* ---------- Inline icons (no extra dependency) ---------- */
+const PD_ICONS: Record<string, React.ReactNode> = {
+  back: (<><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></>),
+  mail: (<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" /></>),
+  phone: (<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />),
+  pin: (<><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z" /><circle cx="12" cy="10" r="3" /></>),
+  star: (<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />),
+  calendar: (<><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>),
+  user: (<><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>),
+  briefcase: (<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>),
+  file: (<><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" /><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" /></>),
+  check: (<><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></>),
+  alert: (<><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>),
+};
+
+const PdIcon: React.FC<{ name: string; size?: number; filled?: boolean }> = ({
+  name,
+  size = 20,
+  filled = false,
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill={filled ? "currentColor" : "none"}
+    stroke="currentColor"
+    strokeWidth="1.9"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {PD_ICONS[name]}
+  </svg>
+);
 
 type Tab =
   | "profile"
@@ -366,7 +402,8 @@ const AdminPartnerDetailsPage: React.FC =
     return (
       <div className="partner-details-page">
         <Link to="/admin/partners" className="partner-details-back">
-          ← Back to Partners
+          <PdIcon name="back" size={18} />
+          Back to Partners
         </Link>
 
         <header className="pd-hero">
@@ -382,46 +419,61 @@ const AdminPartnerDetailsPage: React.FC =
 
             <div className="pd-badges">
               <span className={`pd-badge ${tone(partner.kycStatus)}`}>
-                KYC · {partner.kycStatus}
+                <PdIcon name={tone(partner.kycStatus) === "is-good" ? "check" : "alert"} size={16} />
+                KYC {partner.kycStatus}
               </span>
-            )}
-          </div>
-        </div>
-
-        <TrainingApprovalCard
-          partnerId={partner.id}
-          canApprove={hasKycApprovalPermission}
-        />
-
-        <div className="partner-details-summary">
-          <div>
-            <strong>Email</strong>
-            <span title={partner.email}>
-              {partner.email || "—"}
-            </span>
+              <span className={`pd-badge ${tone(partner.accountStatus)}`}>
+                <PdIcon name={tone(partner.accountStatus) === "is-good" ? "check" : "alert"} size={16} />
+                Account {partner.accountStatus}
+              </span>
+              {partner.training && (
+                <span className={`pd-badge ${tone(partner.training.status)}`}>
+                  <PdIcon name={tone(partner.training.status) === "is-good" ? "check" : "alert"} size={16} />
+                  Training {partner.training.status}
+                </span>
+              )}
+            </div>
           </div>
         </header>
 
         <section className="pd-stats" aria-label="Partner summary">
           <div className="pd-stat">
-            <span>Email</span>
-            <strong title={partner.email}>{partner.email || "—"}</strong>
+            <span className="pd-stat__ico"><PdIcon name="mail" size={20} /></span>
+            <div className="pd-stat__body">
+              <span>Email</span>
+              <strong title={partner.email}>{partner.email || "—"}</strong>
+            </div>
           </div>
           <div className="pd-stat">
-            <span>Phone</span>
-            <strong>{partner.phone || "—"}</strong>
+            <span className="pd-stat__ico"><PdIcon name="phone" size={20} /></span>
+            <div className="pd-stat__body">
+              <span>Phone</span>
+              <strong>{partner.phone || "—"}</strong>
+            </div>
           </div>
           <div className="pd-stat">
-            <span>City</span>
-            <strong>{partner.city || "—"}</strong>
+            <span className="pd-stat__ico"><PdIcon name="pin" size={20} /></span>
+            <div className="pd-stat__body">
+              <span>City</span>
+              <strong>{partner.city || "—"}</strong>
+            </div>
           </div>
           <div className="pd-stat">
-            <span>Rating</span>
-            <strong>★ {partner.rating.toFixed(1)}</strong>
+            <span className="pd-stat__ico"><PdIcon name="star" size={20} filled /></span>
+            <div className="pd-stat__body">
+              <span>Rating</span>
+              <strong className="pd-stat__rating">
+                <PdIcon name="star" size={16} filled />
+                {partner.rating.toFixed(1)}
+              </strong>
+            </div>
           </div>
           <div className="pd-stat">
-            <span>Joined</span>
-            <strong>{partner.joined || "—"}</strong>
+            <span className="pd-stat__ico"><PdIcon name="calendar" size={20} /></span>
+            <div className="pd-stat__body">
+              <span>Joined</span>
+              <strong>{partner.joined || "—"}</strong>
+            </div>
           </div>
         </section>
 
@@ -570,47 +622,72 @@ interface ProfileTabProps {
 
 const ProfileTab: React.FC<
   ProfileTabProps
-> = ({ partner }) => (
-  <section className="detail-card">
-    <h2>Profile</h2>
+> = ({ partner }) => {
+  const bio = partner.profile.bio?.trim();
 
-    <div className="detail-grid">
-      <div>
-        <strong>Name</strong>
-        <span>{partner.name}</span>
+  return (
+    <section className="detail-card pf">
+      <h2 className="pf__title">
+        <PdIcon name="user" size={22} />
+        Profile
+      </h2>
+
+      <div className="pf__grid">
+        <div className="pf__tile pf__tile--4">
+          <span className="pf__ico"><PdIcon name="user" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__label">Name</span>
+            <span className="pf__value">{partner.name || "—"}</span>
+          </div>
+        </div>
+
+        <div className="pf__tile pf__tile--4">
+          <span className="pf__ico"><PdIcon name="mail" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__label">Email</span>
+            <span className="pf__value">{partner.email || "—"}</span>
+          </div>
+        </div>
+
+        <div className="pf__tile pf__tile--4">
+          <span className="pf__ico"><PdIcon name="phone" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__label">Phone</span>
+            <span className="pf__value">{partner.phone || "—"}</span>
+          </div>
+        </div>
+
+        <div className="pf__tile pf__tile--7">
+          <span className="pf__ico"><PdIcon name="pin" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__label">Address</span>
+            <span className="pf__value">{partner.address || "—"}</span>
+          </div>
+        </div>
+
+        <div className="pf__tile pf__tile--5">
+          <span className="pf__ico"><PdIcon name="briefcase" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__label">Experience</span>
+            <span className="pf__value">
+              {partner.profile.experience} {partner.profile.experience === 1 ? "year" : "years"}
+            </span>
+          </div>
+        </div>
+
+        <div className="pf__tile pf__tile--12 pf__bio">
+          <span className="pf__ico"><PdIcon name="file" size={20} /></span>
+          <div className="pf__body">
+            <span className="pf__value pf__value--title">Bio</span>
+            <p className={bio ? "pf__bio-text" : "pf__bio-text pf__bio-text--empty"}>
+              {bio || "No bio added yet."}
+            </p>
+          </div>
+        </div>
       </div>
-
-      <div>
-        <strong>Email</strong>
-        <span>{partner.email}</span>
-      </div>
-
-      <div>
-        <strong>Phone</strong>
-        <span>{partner.phone}</span>
-      </div>
-
-      <div>
-        <strong>Address</strong>
-        <span>{partner.address || "—"}</span>
-      </div>
-
-      <div>
-        <strong>Experience</strong>
-        <span>
-          {partner.profile.experience} years
-        </span>
-      </div>
-    </div>
-
-    <div className="detail-description">
-      <strong>Bio</strong>
-      <p>
-        {partner.profile.bio}
-      </p>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 interface KycTabProps {
   partner: PartnerDetailsType;
@@ -669,16 +746,13 @@ const KycTab: React.FC<KycTabProps> = ({
           className="partner-primary-btn"
           disabled={
             actionLoading ||
-            !hasPermission ||
-            partner.kycStatus === "Approved"
+            !hasPermission
           }
           onClick={() => {
             void onApprove();
           }}
         >
-          {actionLoading
-            ? "Processing..."
-            : "Approve KYC"}
+          {actionLoading ? "Processing..." : "Accept KYC"}
         </button>
 
         <button
@@ -838,6 +912,7 @@ const SecureDocument: React.FC<{
   const [state, setState] = useState<"loading" | "ready" | "error">(
     document.secure ? "loading" : "ready",
   );
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     if (!document.secure) {
@@ -857,8 +932,10 @@ const SecureDocument: React.FC<{
         setMime(blob.type);
         setState("ready");
       })
-      .catch(() => {
-        if (!cancelled) setState("error");
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setReason(err instanceof Error ? err.message : "");
+        setState("error");
       });
 
     return () => {
@@ -879,7 +956,7 @@ const SecureDocument: React.FC<{
     return (
       <div className="hcx-docviewer-empty" style={{ height }} role="alert">
         <strong>Document could not be loaded.</strong>
-        <p>The file may be missing on the server. Ask the partner to upload it again.</p>
+        <p>{reason || "The file may be missing on the server. Ask the partner to upload it again."}</p>
       </div>
     );
   }

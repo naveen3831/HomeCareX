@@ -413,3 +413,22 @@
     animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important;
   }
 }
+
+/* Inline status control (table) */
+.leads-status-select { appearance: none; -webkit-appearance: none; min-width: 112px; padding: 5px 28px 5px 12px; font: inherit; font-size: 12.5px; font-weight: 600; border: 1px solid transparent; border-radius: 999px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.leads-status-select:disabled { opacity: .6; cursor: progress; }
+.leads-status-select:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+
+/* Segmented status control (drawer) */
+.leads-seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 14px; padding: 4px; background: #f1f3f9; border-radius: 12px; }
+.leads-seg__btn { min-height: 38px; border: 0; border-radius: 9px; background: transparent; color: #4b5063; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.leads-seg__btn:hover:not(:disabled) { background: #e6e9f4; }
+.leads-seg__btn.is-active { background: #fff; color: #3730a3; box-shadow: 0 1px 3px rgba(15, 23, 42, .15); cursor: default; }
+.leads-seg__btn:disabled:not(.is-active) { opacity: .55; }
+
+/* Breathing room at the table edges so the status dropdown does not touch the card corner */
+.leads-table th:first-child,
+.leads-table td:first-child { padding-left: 24px; }
+.leads-table th:last-child,
+.leads-table td:last-child { padding-right: 24px; white-space: nowrap; }
+.leads-table th:last-child { min-width: 160px; }

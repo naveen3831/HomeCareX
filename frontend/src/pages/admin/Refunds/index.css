@@ -1651,3 +1651,257 @@
     font-size: 22px;
   }
 }
+
+/* ---- List view: same typography and row feel as the other admin pages (Payments, Customers) ---- */
+.refunds-page {
+  font-family: inherit;
+}
+
+.refunds-page .refunds-table thead th {
+  padding: 10px 14px;
+  color: var(--hcx-muted, #64748b);
+  background: var(--hcx-canvas, #f6f8fb);
+  border-bottom: 1px solid var(--hcx-line, #e2e8f0);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.refunds-page .refunds-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--hcx-ink, #0f172a);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.refunds-page .refunds-table tbody tr.is-clickable {
+  cursor: pointer;
+}
+
+.refunds-page .refunds-table tbody tr.is-clickable:hover {
+  background: #fafbfd;
+}
+
+.refunds-page .refunds-table tbody tr.is-clickable:focus-visible {
+  outline: 2px solid var(--hcx-accent, #4338ca);
+  outline-offset: -2px;
+}
+
+.refunds-page .refunds-id-link {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.refunds-page .refunds-id {
+  font-size: 12.5px;
+}
+
+.refunds-page .refunds-secondary-text {
+  font-size: 12px;
+  color: var(--hcx-muted, #64748b);
+}
+
+.refunds-page .refunds-review-button {
+  min-height: 32px;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.refunds-page .refunds-pagination {
+  font-size: 13px;
+  color: var(--hcx-muted, #64748b);
+}
+
+/* Mobile pager: same as the Customers page (Prev / Page x of y / Next). */
+@media (max-width: 767px) {
+  .refunds-page .refunds-pagination {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 0 0;
+    border-top: 0;
+  }
+
+  .refunds-page .refunds-pagination > span {
+    text-align: center;
+  }
+
+  .refunds-page .refunds-pagination__actions {
+    justify-content: space-between;
+  }
+
+  .refunds-page .refunds-pagination__current {
+    display: none;
+  }
+
+  .refunds-page .refunds-pagination__actions .refunds-button {
+    min-height: 40px;
+    min-width: 96px;
+    border-radius: 10px;
+  }
+}
+
+/* ---- Refunds list: fit the table inside the page (no cut-off Status / Date / Action columns) ---- */
+.refunds-page .refunds-table-wrap {
+  overflow-x: visible;
+}
+
+.refunds-page .refunds-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.refunds-page .refunds-table thead th,
+.refunds-page .refunds-table tbody td {
+  padding: 11px 8px;
+  font-size: 13px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.refunds-page .refunds-table thead th:first-child,
+.refunds-page .refunds-table tbody td:first-child {
+  padding-left: 16px;
+}
+
+.refunds-page .refunds-table thead th:last-child,
+.refunds-page .refunds-table tbody td:last-child {
+  padding-right: 16px;
+}
+
+/* Column widths (add up to 100%) */
+.refunds-page .refunds-table th:nth-child(1) { width: 21%; }
+.refunds-page .refunds-table th:nth-child(2) { width: 14%; }
+.refunds-page .refunds-table th:nth-child(3) { width: 15%; }
+.refunds-page .refunds-table th:nth-child(4) { width: 10%; }
+.refunds-page .refunds-table th:nth-child(5) { width: 12%; }
+.refunds-page .refunds-table th:nth-child(6) { width: 11%; }
+.refunds-page .refunds-table th:nth-child(7) { width: 10%; }
+.refunds-page .refunds-table th:nth-child(8) { width: 7%; }
+
+.refunds-page .refunds-table .refunds-id-cell {
+  min-width: 0;
+  max-width: none;
+}
+
+.refunds-page .refunds-table .refunds-id-secondary-link,
+.refunds-page .refunds-table .refunds-id,
+.refunds-page .refunds-table .refunds-secondary-text,
+.refunds-page .refunds-table .refunds-customer__info strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refunds-page .refunds-table .refunds-customer {
+  min-width: 0;
+  gap: 8px;
+}
+
+.refunds-page .refunds-table .refunds-customer__info {
+  min-width: 0;
+}
+
+.refunds-page .refunds-table .refunds-avatar {
+  width: 30px;
+  height: 30px;
+}
+
+.refunds-page .refunds-table .refunds-method {
+  white-space: normal;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.refunds-page .refunds-table .refunds-method svg {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.refunds-page .refunds-table .refund-status {
+  padding: 5px 8px;
+}
+
+.refunds-page .refunds-table .refunds-review-button {
+  padding: 6px 9px;
+}
+
+/* Narrow screens: keep a readable width and scroll sideways instead of squeezing */
+@media (max-width: 1100px) {
+  .refunds-page .refunds-table-wrap {
+    overflow-x: auto;
+  }
+
+  .refunds-page .refunds-table {
+    min-width: 1000px;
+  }
+}
+/* ---- Refunds list: never cut off a column ----
+   Natural column widths + horizontal scroll inside the card when the screen is narrow.
+   (The earlier fixed layout squeezed the columns and clipped Status / Date / Action.) */
+.refunds-page .refunds-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.refunds-page .refunds-table {
+  width: 100%;
+  min-width: 980px;
+  table-layout: auto;
+}
+
+.refunds-page .refunds-table thead th,
+.refunds-page .refunds-table tbody td {
+  padding: 12px 12px;
+  overflow: visible;
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
+.refunds-page .refunds-table thead th:first-child,
+.refunds-page .refunds-table tbody td:first-child {
+  padding-left: 16px;
+}
+
+.refunds-page .refunds-table thead th:last-child,
+.refunds-page .refunds-table tbody td:last-child {
+  padding-right: 16px;
+}
+
+/* Reset the percentage widths set above */
+.refunds-page .refunds-table th:nth-child(n) {
+  width: auto;
+}
+
+/* Long text still truncates with "…" inside its own cell instead of being cut by the next one */
+.refunds-page .refunds-table td:nth-child(1) { min-width: 200px; }
+.refunds-page .refunds-table td:nth-child(2) { min-width: 130px; white-space: normal; }
+.refunds-page .refunds-table td:nth-child(3) { min-width: 150px; }
+.refunds-page .refunds-table td:nth-child(5) { min-width: 150px; }
+.refunds-page .refunds-table td:nth-child(6) { min-width: 110px; }
+.refunds-page .refunds-table td:nth-child(8) { min-width: 90px; }
+
+.refunds-page .refunds-table .refunds-method {
+  white-space: nowrap;
+  align-items: center;
+}
+
+.refunds-page .refunds-table .refunds-method svg {
+  margin-top: 0;
+}
+
+.refunds-page .refunds-table .refunds-id,
+.refunds-page .refunds-table .refunds-secondary-text,
+.refunds-page .refunds-table .refunds-customer__info strong {
+  max-width: 190px;
+}
+
+@media (max-width: 1100px) {
+  .refunds-page .refunds-table {
+    min-width: 980px;
+  }
+}

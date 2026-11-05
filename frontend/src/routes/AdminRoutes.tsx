@@ -51,6 +51,7 @@ const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
 // Quality and reporting
 const AdminReviewsPage = lazy(() => import("@/pages/admin/Reviews"));
 const AdminReportsPage = lazy(() => import("@/pages/admin/Reports"));
+const AdminReportDetailsPage = lazy(() => import("@/pages/admin/Reports/ReportDetails"));
 
 // Roles and staff
 const AdminRolesPage = lazy(() => import("@/pages/admin/Roles"));
@@ -249,6 +250,11 @@ const adminRoutes: AdminRoute[] = [
   {
     path: "reports",
     element: <AdminReportsPage />,
+    permission: "reports:view",
+  },
+  {
+    path: "reports/:report/:id",
+    element: <AdminReportDetailsPage />,
     permission: "reports:view",
   },
 

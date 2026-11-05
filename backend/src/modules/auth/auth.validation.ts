@@ -57,6 +57,7 @@ export const registerSchema = z.object({
   category: z.string().optional(),
   skills: z.array(z.string()).optional(),
   experienceYears: z.number().optional(),
+  bio: z.string().trim().max(500).optional(),
   serviceRadiusKm: z.number().optional(),
   workingDays: z.array(z.string()).optional(),
   workingHoursStart: z.string().optional(),

@@ -16,11 +16,15 @@ export const NOTIFICATION_TYPES = [
   'payment.failed',
   'offer.new',
   'ticket.reply',
+  /** Admin-only: a customer or partner raised a new support ticket. */
+  'ticket.created',
   'system.announcement',
   /** A partner or customer pressed SOS. Admins see it highlighted in the bell and it can never be muted. */
   'sos.alert',
   /** Admin-only alerts (live in the admin bell). Raised by the helpers in admin-alerts.ts. */
   'kyc.submitted',
+  /** A partner finished every training step and waits for an admin to approve it. */
+  'training.completed',
   'refund.requested',
   'payout.failed',
   'sla.breach',
@@ -49,7 +53,7 @@ export const GROUP_PREFIXES: Record<
 > = {
   booking: ['booking.'],
   payment: ['payment.', 'payout.', 'refund.'],
-  partner: ['partner.', 'kyc.'],
+  partner: ['partner.', 'kyc.', 'training.'],
   offers: ['offer.'],
   support: ['ticket.', 'support.'],
 };
@@ -80,6 +84,7 @@ export const HIGH_PRIORITY_TYPES: readonly string[] = ['sos.alert'];
 export const ADMIN_ALERT_SETTING: Partial<Record<(typeof NOTIFICATION_TYPES)[number], 'notifications.adminBookingAlerts' | 'notifications.adminTicketAlerts'>> = {
   'booking.created': 'notifications.adminBookingAlerts',
   'ticket.reply': 'notifications.adminTicketAlerts',
+  'ticket.created': 'notifications.adminTicketAlerts',
 };
 
 /** Socket.IO event the clients listen for. */

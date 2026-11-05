@@ -2,6 +2,7 @@ import type { TicketStatus } from '../tickets/tickets.constants';
 import { TICKET_STATUSES } from '../tickets/tickets.constants';
 import * as repo from './partner-tickets.repository';
 import { emitTicketMessage } from '../../sockets/ticket.socket';
+import { alertTicketCreated, alertTicketReply } from '../notifications/admin-alerts';
 import type { CreateTicketInput, TicketDto, TicketMessageDto, TicketAttachmentDto } from '../tickets/tickets.types';
 import { TicketError, assertObjectId, parseCreateTicket, parseReply } from './partner-tickets.validation';
 
@@ -64,6 +65,7 @@ export async function createPartnerTicket(userId: string, input: unknown) {
     body: data.body,
     attachments: data.attachments,
   });
+  alertTicketCreated({ ticketId: String(ticket._id), subject: data.subject, role: 'partner' });
   return {
     ticket: toTicketDto(ticket.toObject() as unknown as TicketRow),
     message: toMessageDto(message.toObject() as unknown as MessageRow),
@@ -113,6 +115,7 @@ export async function replyToPartnerTicket(userId: string, ticketId: string, inp
     internal: false,
     createdAt: dto.createdAt,
   });
+  alertTicketReply({ ticketId, subject: ticket.subject });
   return { message: dto };
 }
 

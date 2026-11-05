@@ -21,6 +21,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { AuthContext } from "@/context/AuthContext";
+import HomeBanners from "@/components/public/HomeBanners";
 
 /* =========================================================
    CUSTOM CATEGORY ICONS MATCHING MOCKUP DESIGN
@@ -349,6 +350,9 @@ export const MobileHome: React.FC = () => {
           Book trusted professionals for your home needs.
         </p>
       </div>
+
+      {/* ================= ADMIN BANNERS (Admin > Marketing) ================= */}
+      <HomeBanners className="-mx-4 overflow-hidden" />
 
       {/* ================= HERO CAROUSEL CARD (EXACT MOCKUP STYLE) ================= */}
       <div className="space-y-2">
@@ -1007,6 +1011,9 @@ export const MobileHome: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Banners the admin placed at HOME_BOTTOM: last on the page, above "Need help with your home?" */}
+      <HomeBanners slot="bottom" className="-mx-4 overflow-hidden" />
 
       {/* ================= NEED HELP WITH YOUR HOME? ================= */}
       <div className="relative overflow-hidden rounded-2xl bg-[#eef0ff] border border-indigo-200/60 p-4 shadow-xs">

@@ -8,6 +8,7 @@ import { NotificationModel } from '../../models/Notification';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
 import ReviewModel from '../../models/Review';
+import ServiceAreaModel from '../../models/ServiceArea';
 import TicketModel from '../../models/Ticket';
 import { ServiceModel } from '../../models/Service';
 import { UserModel } from '../../models/User';
@@ -18,15 +19,22 @@ import { designationsService } from '../designations/designations.service';
 import { mailService } from '../../services/mail.service';
 import { auditService } from '../audit/audit.service';
 import { readKycDocument } from './kyc-storage';
+import { ONBOARDING_TOTAL_STEPS } from '../partner-onboarding/partner-onboarding.service';
 
 /** The set-password link in the approval email works this long. */
 const APPROVAL_LINK_HOURS = 72;
+
+/** Labels the admin UI expects (types/adminPartner.ts). */
+const kycLabel = (status?: string | null): 'Approved' | 'Pending' | 'Rejected' =>
+  status === 'approved' ? 'Approved' : status === 'rejected' || status === 'suspended' ? 'Rejected' : 'Pending';
+const docLabel = (status?: string | null): 'Verified' | 'Pending' | 'Rejected' =>
+  status === 'verified' ? 'Verified' : status === 'rejected' ? 'Rejected' : 'Pending';
+const sha256 = (value: string): string => crypto.createHash('sha256').update(value).digest('hex');
 
 import type {
   CreatePartnerInput,
   UpdatePartnerInput,
 } from './partners.validation';
-import { trainingStageOf } from '../partner-onboarding/partner-onboarding.service';
 
 interface AuditActor {
   id: string;
@@ -237,6 +245,18 @@ export async function ensurePartnerProfile(
 /**
  * Partner service.
  */
+/**
+ * City shown on the admin Partners & KYC pages. Prefer what the partner gave at registration, then
+ * their service area, then the city of their latest booking (older partners have nothing stored).
+ */
+function resolveCity(...candidates: Array<string | null | undefined>): string {
+  for (const c of candidates) {
+    const v = typeof c === 'string' ? c.trim() : '';
+    if (v) return v;
+  }
+  return '';
+}
+
 export class PartnersService {
   /**
    * CREATE PARTNER
@@ -318,24 +338,47 @@ export class PartnersService {
    * LIST PARTNERS
    */
   async list() {
-    const partners = await UserModel.find({
-      role: 'partner',
-    })
-      .sort({ createdAt: -1 })
-      .limit(500);
+  const partners = await UserModel.find({ role: 'partner' })
+    .sort({ createdAt: -1 })
+    .limit(500);
 
-    const kycByUser = new Map<string, string>();
-    const trainingByUser = new Map<string, string>();
+  const kycByUser = new Map<string, string>();
 
-    for (const partner of partners) {
-      const profile = await ensurePartnerProfile(partner._id);
-      kycByUser.set(String(partner._id), String(profile.kyc?.status ?? 'not_started'));
-      trainingByUser.set(String(partner._id), trainingStageOf(profile));
-    }
+  const profiles = await PartnerModel.find({
+    userId: { $in: partners.map((p) => p._id) },
+  }).select('userId kyc.status categories').lean();
 
-    return partners.map((p) => toDto(p, kycByUser.get(String(p._id)), trainingByUser.get(String(p._id))));
+  // Partners who registered themselves have no designation on their account; show their
+  // main category instead so the Designation column is never blank.
+  const categoryDocs = await CategoryModel.find({}).select('name').lean();
+  const categoryNameById = new Map(categoryDocs.map((c) => [String(c._id), c.name as string]));
+  const fallbackDesignation = new Map<string, string>();
+
+  for (const profile of profiles) {
+    const status = String(profile.kyc?.status ?? 'not_started');
+    kycByUser.set(String(profile.userId), status === 'not_submitted' ? 'not_started' : status);
+    const firstCategory = (profile.categories ?? [])
+      .map((id: unknown) => categoryNameById.get(String(id)))
+      .find(Boolean);
+    if (firstCategory) fallbackDesignation.set(String(profile.userId), firstCategory);
   }
 
+  for (const partner of partners) {
+    if (kycByUser.has(String(partner._id))) continue;
+    try {
+      const created = await ensurePartnerProfile(partner._id);
+      kycByUser.set(String(partner._id), String(created.kyc?.status ?? 'not_started'));
+    } catch (error) {
+      console.error('[partners] Could not create profile for', String(partner._id), error);
+      kycByUser.set(String(partner._id), 'not_started');
+    }
+  }
+
+  return partners.map((p) => {
+    const dto = toDto(p, kycByUser.get(String(p._id)));
+    return { ...dto, designation: dto.designation || fallbackDesignation.get(String(p._id)) || undefined };
+  });
+}
   /**
    * PARTNERS & KYC DIRECTORY
    */
@@ -451,8 +494,10 @@ export class PartnersService {
               .join(', ') ||
             user.designation ||
             '',
-          city:
-            cityByPartner.get(String(partner._id)) ?? '',
+          city: resolveCity(
+            (partner as any).address?.city,
+            cityByPartner.get(String(partner._id)),
+          ),
           rating:
             Math.round((partner.ratingAvg ?? 0) * 10) / 10,
           ratingCount: partner.ratingCount ?? 0,
@@ -467,6 +512,135 @@ export class PartnersService {
         },
       ];
     });
+  }
+
+  /**
+   * KYC DECISION (admin).
+   * approve: documents are marked verified, the partner is told to set a new password and gets an
+   *          email with a single-use link (login stays blocked until they do).
+   * reject:  needs a reason; the partner sees it when they try to sign in.
+   */
+  async reviewKyc(
+    id: string,
+    input: { decision: 'approve' | 'reject'; reason?: string },
+    actor: AuditActor,
+  ) {
+    const user = await findPartnerUser(id);
+    const profile = await PartnerModel.findOne({ userId: user._id });
+
+    if (!profile) {
+      throw new HttpError(404, 'Partner profile not found', 'PARTNER_PROFILE_NOT_FOUND');
+    }
+
+    const kyc = profile.kyc as any;
+    const before = { kycStatus: String(kyc?.status ?? 'not_started') };
+    let emailSent = false;
+
+    if (input.decision === 'approve') {
+      const alreadyApproved = kyc?.status === 'approved';
+      // Approved and the partner already set a password: nothing to do. Approved but still waiting for the
+      // set-password step (e.g. the first email failed): approving again sends a fresh link.
+      if (alreadyApproved && !(user as any).passwordSetupRequired) {
+        return { ...(await this.getById(id)), emailSent: false, passwordAlreadySet: true };
+      }
+      if (!alreadyApproved) {
+        if (!Array.isArray(kyc?.documents) || kyc.documents.length === 0) {
+          throw new HttpError(400, 'The partner has not uploaded any KYC documents yet.', 'KYC_DOCUMENTS_MISSING');
+        }
+
+        kyc.status = 'approved';
+        kyc.reviewedAt = new Date();
+        kyc.reviewedBy = actor.id;
+        kyc.rejectionReason = undefined;
+        kyc.suspensionReason = undefined;
+        for (const document of kyc.documents) {
+          document.status = 'verified';
+          document.reviewNote = undefined;
+        }
+        await profile.save();
+      }
+
+      // Single-use set-password link. The login is blocked until the partner uses it.
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      user.passwordSetupRequired = true;
+      (user as any).passwordResetTokenHash = sha256(rawToken);
+      (user as any).passwordResetExpiresAt = new Date(Date.now() + APPROVAL_LINK_HOURS * 60 * 60 * 1000);
+      await user.save();
+
+      // Same base-URL rule as mail.service: FRONTEND_URL, else the origin of APP_LOGIN_URL, else the dev server (3000).
+      const frontendUrl = (
+        process.env.FRONTEND_URL ||
+        (process.env.APP_LOGIN_URL ? new URL(process.env.APP_LOGIN_URL).origin : 'http://localhost:3000')
+      ).replace(/\/$/, '');
+      const setPasswordUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
+
+      try {
+        await mailService.sendPartnerApprovedEmail({
+          name: user.name,
+          email: user.email,
+          setPasswordUrl,
+          validHours: APPROVAL_LINK_HOURS,
+        });
+        emailSent = true;
+        console.log(`[partners] set-password email sent to ${user.email}`);
+      } catch (error) {
+        const e = error as { code?: string; responseCode?: number; message?: string };
+        console.error(`[partners] KYC approval email to ${user.email} FAILED: ${e.code ?? ''} ${e.responseCode ?? ''} ${e.message ?? error}`);
+        if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+          console.error('[partners] SMTP_HOST / SMTP_USER / SMTP_PASS are not all set in backend/.env, so no email can be sent.');
+        }
+        // Local testing only: the link is a one-time secret, so it is never printed in production.
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`[partners] DEV ONLY set-password link for ${user.email}: ${setPasswordUrl}`);
+        }
+      }
+    } else {
+      const reason = (input.reason ?? '').trim();
+      if (!reason) {
+        throw new HttpError(400, 'Give a reason so the partner knows what to fix.', 'REJECTION_REASON_REQUIRED');
+      }
+
+      kyc.status = 'rejected';
+      kyc.reviewedAt = new Date();
+      kyc.reviewedBy = actor.id;
+      kyc.rejectionReason = reason;
+      for (const document of kyc.documents ?? []) {
+        document.status = 'rejected';
+      }
+      await profile.save();
+    }
+
+    await recordPartnerAudit({
+      actor,
+      action: input.decision === 'approve' ? 'partner.kyc.approve' : 'partner.kyc.reject',
+      entityId: id,
+      before,
+      after: { kycStatus: String(kyc.status), ...(input.reason ? { reason: input.reason } : {}) },
+    });
+
+    return { ...(await this.getById(id)), emailSent };
+  }
+
+  /** One stored KYC file for the admin preview. Legacy documents that only have an external URL are not served here. */
+  async kycDocument(id: string, docId: string) {
+    const user = await findPartnerUser(id);
+
+    if (!Types.ObjectId.isValid(docId)) {
+      throw new HttpError(404, 'Document not found', 'NOT_FOUND');
+    }
+
+    const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.documents').lean();
+    const document = (profile?.kyc?.documents ?? []).find((d: any) => String(d._id) === docId) as any;
+
+    if (!document) {
+      throw new HttpError(404, 'Document not found', 'NOT_FOUND');
+    }
+    if (!document.storageKey) {
+      throw new HttpError(404, 'This document was not stored on the server.', 'NOT_FOUND');
+    }
+
+    const buffer = await readKycDocument(String(document.storageKey));
+    return { buffer, mimeType: String(document.mimeType || 'application/octet-stream') };
   }
 
   /**
@@ -550,12 +724,64 @@ export class PartnersService {
       offersAccepted: 0,
     };
 
+    const kycDocuments = Array.isArray(profile.kyc?.documents)
+      ? profile.kyc.documents.map((document: any, index: number) => {
+          const docId = String(document._id ?? document.id ?? index);
+          // New uploads are stored on the server and streamed through the admin-only endpoint.
+          const stored = Boolean(document.storageKey);
+          const hint = String(document.mimeType ?? document.url ?? '').toLowerCase();
+          return {
+            id: docId,
+            name: String(document.label ?? document.name ?? document.type ?? `Document ${index + 1}`),
+            status: docLabel(document.status),
+            url: stored ? `/admin/partners/${id}/kyc/documents/${docId}` : String(document.url ?? ''),
+            secure: stored,
+            type: hint.includes('pdf') ? 'pdf' : 'image',
+          };
+        })
+      : [];
+
+    // Checklist is derived from what the partner actually submitted: one check per uploaded
+    // document (done once the document is verified) plus the optional bank details.
+    const bank = (profile as any).bankDetails ?? {};
+    const kycChecklist = [
+      ...kycDocuments.map((document: { id: string; name: string; status: string }) => ({
+        id: document.id,
+        label: `${document.name} verified`,
+        completed: document.status === 'Verified',
+        required: true,
+      })),
+      {
+        id: 'bank',
+        label: 'Bank details provided',
+        completed: Boolean(bank.accountLast4 || bank.upiId),
+        required: false,
+      },
+    ];
+
+    // Demo (training) progress. Submitted = all steps finished and waiting for the admin.
+    const onboarding = ((profile as any).onboarding ?? {}) as {
+      completedSteps?: number;
+      completedAt?: Date;
+      approvedAt?: Date;
+    };
+    const completedSteps = Math.min(Number(onboarding.completedSteps ?? 0), ONBOARDING_TOTAL_STEPS);
+    const trainingFinished = completedSteps >= ONBOARDING_TOTAL_STEPS;
+    const training = {
+      status: onboarding.approvedAt && trainingFinished ? 'Approved' : trainingFinished ? 'Pending' : 'Not Submitted',
+      submittedAt: onboarding.completedAt ? new Date(onboarding.completedAt).toISOString() : undefined,
+      reviewedAt: onboarding.approvedAt ? new Date(onboarding.approvedAt).toISOString() : undefined,
+      completedSteps,
+      totalSteps: ONBOARDING_TOTAL_STEPS,
+      items: [],
+    };
+
     return {
       ...toDto(user),
 
       partnerId: String(profile._id),
 
-      kycStatus: profile.kyc?.status ?? 'not_started',
+      kycStatus: kycLabel(profile.kyc?.status),
 
       accountStatus:
         user.status === 'blocked'
@@ -569,17 +795,23 @@ export class PartnersService {
         user.designation ||
         '',
 
-      city: '',
+      city: resolveCity((profile as any).address?.city),
 
       rating: Number(profile.ratingAvg ?? 0),
 
       ratingCount: Number(profile.ratingCount ?? 0),
 
+      // Rates are derived from the counters the matching/booking services keep.
+      acceptance: stats.offersReceived ? Math.round((Number(stats.offersAccepted ?? 0) / Number(stats.offersReceived)) * 100) : 0,
+      completion: stats.jobsAssigned ? Math.round((Number(stats.jobsCompleted ?? 0) / Number(stats.jobsAssigned)) * 100) : 0,
+
       joined: user.createdAt
         ? new Date(user.createdAt).toISOString().slice(0, 10)
         : '',
 
-      address: '',
+      address: [(profile as any).address?.line1, (profile as any).address?.state, (profile as any).address?.pincode]
+        .filter(Boolean)
+        .join(', '),
 
       profile: {
         experience: Number((profile as any).experience ?? 0),
@@ -589,35 +821,20 @@ export class PartnersService {
       categories: categoryNames,
 
       kyc: {
-        status: profile.kyc?.status ?? 'not_started',
+        status: kycLabel(profile.kyc?.status),
+        reviewedAt: (profile.kyc as any)?.reviewedAt
+          ? new Date((profile.kyc as any).reviewedAt).toISOString()
+          : undefined,
         submittedAt: (profile.kyc as any)?.submittedAt
           ? new Date(
               (profile.kyc as any).submittedAt,
             ).toISOString()
           : '',
-        checklist: [],
-        documents: Array.isArray(profile.kyc?.documents)
-          ? profile.kyc.documents.map(
-              (document: any, index: number) => ({
-                id: String(document._id ?? document.id ?? index),
-                name: String(
-                  document.name ??
-                  document.type ??
-                  `Document ${index + 1}`,
-                ),
-                status: String(
-                  document.status ?? 'Pending',
-                ),
-                url: String(document.url ?? ''),
-                type: String(
-                  document.type ?? '',
-                ).toLowerCase().includes('pdf')
-                  ? 'pdf'
-                  : 'image',
-              }),
-            )
-          : [],
+        checklist: kycChecklist,
+        documents: kycDocuments,
       },
+
+      training,
 
       performance: {
         completedBookings: Number(stats.jobsCompleted ?? 0),
@@ -632,503 +849,6 @@ export class PartnersService {
       reviews: [],
       support: [],
       activity: [],
-    };
-  }
-
-  async detail(id: string) {
-    const user = await findPartnerUser(id);
-    const profile = await ensurePartnerProfile(user._id);
-    if (!profile) throw new HttpError(404, 'Partner not found', 'PARTNER_NOT_FOUND');
-
-    const [categories, bookings, payouts, reviews, tickets, completedCount, cancelledCount] = await Promise.all([
-      CategoryModel.find({ _id: { $in: profile.categories ?? [] } }).select('name').lean(),
-      BookingModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(200).lean(),
-      PayoutModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      ReviewModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      TicketModel.find({ createdBy: user._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      BookingModel.countDocuments({ partnerId: profile._id, status: 'completed' }),
-      BookingModel.countDocuments({ partnerId: profile._id, status: { $regex: /^cancelled/ } }),
-    ]);
-
-    const day = (d?: Date | string | null) =>
-      d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '';
-    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
-    const stats = profile.stats ?? { offersReceived: 0, offersAccepted: 0, jobsAssigned: 0, jobsCompleted: 0 };
-    const kyc = profile.kyc ?? ({} as NonNullable<typeof profile.kyc>);
-    const kycRaw = String(kyc.status ?? 'not_started');
-    const docs = kyc.documents ?? [];
-    const city = bookings.find((b) => b.address?.city)?.address?.city ?? '';
-    const categoryNames = categories.map((c) => String(c.name));
-
-    // Earnings per month from completed bookings.
-    const byMonth = new Map<string, { bookings: number; earnings: number }>();
-    for (const b of bookings) {
-      if (b.status !== 'completed') continue;
-      const key = new Date(b.scheduledAt ?? b.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-      const row = byMonth.get(key) ?? { bookings: 0, earnings: 0 };
-      row.bookings += 1;
-      row.earnings += Number(b.partnerEarning ?? 0);
-      byMonth.set(key, row);
-    }
-
-    return {
-      id: String(user._id),
-      name: user.name,
-      email: user.email,
-      phone: user.phone ?? '',
-      kycStatus: kycRaw === 'approved' ? 'Approved' : kycRaw === 'rejected' ? 'Rejected' : 'Pending',
-      accountStatus: user.status === 'blocked' ? 'Suspended' : user.status === 'invited' ? 'Inactive' : 'Active',
-      category: categoryNames[0] ?? user.designation ?? '',
-      categories: categoryNames.length ? categoryNames : user.designation ? [user.designation] : [],
-      city,
-      address: city,
-      rating: Math.round((profile.ratingAvg ?? 0) * 10) / 10,
-      acceptance: pct(stats.offersAccepted, stats.offersReceived),
-      completion: pct(stats.jobsCompleted, stats.jobsAssigned),
-      joined: day(user.createdAt),
-      profile: { experience: 0, bio: (profile.skills ?? []).join(', ') },
-      kyc: {
-        submittedAt: day(kyc.submittedAt),
-        reviewedAt: kyc.reviewedAt ? day(kyc.reviewedAt) : undefined,
-        documents: docs.map((d) => {
-          const stored = Boolean(d.storageKey);
-          const isPdf = d.mimeType ? d.mimeType === 'application/pdf' : /\.pdf(\?|$)/i.test(String(d.url ?? ''));
-          return {
-            id: String(d._id),
-            name: d.label || String(d.type).replace(/_/g, ' '),
-            type: isPdf ? 'pdf' : 'image',
-            // Stored files are streamed by the admin-only endpoint; the UI fetches it with its auth token.
-            url: stored ? `/admin/partners/${user._id}/kyc/documents/${d._id}` : String(d.url ?? ''),
-            secure: stored,
-            status: d.status === 'verified' ? 'Verified' : d.status === 'rejected' ? 'Rejected' : 'Pending',
-          };
-        }),
-        checklist: [
-          { id: 'docs', label: 'KYC documents uploaded', completed: docs.length > 0, required: true },
-          { id: 'verified', label: 'Documents verified', completed: docs.length > 0 && docs.every((d) => d.status === 'verified'), required: true },
-          { id: 'training', label: 'Training completed', completed: Boolean(profile.trainingCompleted), required: false },
-        ],
-      },
-      performance: {
-        completedBookings: completedCount,
-        cancelledBookings: cancelledCount,
-        averageResponseTime: '—',
-        customerSatisfaction: Math.round(((profile.ratingAvg ?? 0) / 5) * 100),
-      },
-      bookings: bookings.slice(0, 20).map((b) => ({
-        id: String(b._id),
-        customer: b.customerName ?? 'Customer',
-        service: b.serviceName,
-        date: day(b.scheduledAt ?? b.createdAt),
-        status: String(b.status),
-        amount: Number(b.priceBreakdown?.total ?? 0),
-      })),
-      earnings: [...byMonth.entries()].map(([month, v]) => ({ month, bookings: v.bookings, earnings: v.earnings })),
-      payouts: payouts.map((x) => ({
-        id: String(x._id),
-        date: day(x.paidAt ?? x.createdAt),
-        amount: Number(x.amount ?? 0),
-        status: String(x.status),
-      })),
-      reviews: reviews.map((r) => ({
-        id: String(r._id),
-        customer: r.customerName,
-        rating: r.rating,
-        comment: r.message ?? '',
-        date: day(r.createdAt),
-      })),
-      support: tickets.map((t) => ({
-        ticketId: `TCK-${String(t._id).slice(-6).toUpperCase()}`,
-        subject: t.subject,
-        status: String(t.status),
-        createdAt: day(t.createdAt),
-      })),
-      activity: [],
-    };
-  }
-
-  /**
-   * KYC DECISION (admin): approve or reject the partner's submitted KYC.
-   * Approve: documents become verified, the partner gets an email with a set-password link and
-   * stays unable to log in until they use it. Reject: login stays blocked and the reason is shown at login.
-   */
-  async reviewKyc(
-    id: string,
-    input: { decision: 'approve' | 'reject'; reason?: string },
-    actor: AuditActor,
-  ) {
-    const user = await findPartnerUser(id);
-    const profile = await ensurePartnerProfile(user._id);
-    if (!profile) throw new HttpError(404, 'Partner not found', 'PARTNER_NOT_FOUND');
-
-    const reason = input.reason?.trim();
-    if (input.decision === 'reject' && !reason) {
-      throw new HttpError(400, 'Rejection reason is required.', 'VALIDATION_ERROR');
-    }
-
-    const docs = profile.kyc?.documents ?? [];
-    const before = { kycStatus: profile.kyc?.status };
-
-    if (input.decision === 'approve') {
-      if (docs.length === 0) {
-        throw new HttpError(400, 'This partner has not uploaded any KYC documents yet.', 'KYC_DOCUMENTS_MISSING');
-      }
-      if (profile.kyc?.status === 'approved') {
-        return { ...(await this.detail(id)), emailSent: false };
-      }
-
-      await PartnerModel.updateOne(
-        { _id: profile._id },
-        {
-          $set: {
-            'kyc.status': 'approved',
-            'kyc.reviewedAt': new Date(),
-            'kyc.reviewedBy': new Types.ObjectId(actor.id),
-          },
-          $unset: { 'kyc.rejectionReason': '' },
-        },
-      );
-      await PartnerModel.updateOne(
-        { _id: profile._id },
-        { $set: { 'kyc.documents.$[d].status': 'verified' } },
-        { arrayFilters: [{ 'd.status': { $ne: 'verified' } }] },
-      );
-
-      // Single-use set-password token (only its SHA-256 hash is stored). Login is blocked until it is used.
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      user.passwordResetTokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      user.passwordResetExpiresAt = new Date(Date.now() + APPROVAL_LINK_HOURS * 3_600_000);
-      user.passwordSetupRequired = true;
-      user.tokenVersion = (user.tokenVersion ?? 0) + 1; // drop any session opened before approval
-      await user.save();
-
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-      const setPasswordUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
-      let emailSent = true;
-      try {
-        await mailService.sendPartnerApprovedEmail({
-          name: user.name,
-          email: user.email,
-          setPasswordUrl,
-          validHours: APPROVAL_LINK_HOURS,
-        });
-      } catch (err) {
-        emailSent = false;
-        console.error('[partners] approval email failed', err);
-      }
-      if (!emailSent && process.env.NODE_ENV !== 'production') {
-        console.info(`[DEV ONLY] Partner set-password link for ${user.email}: ${setPasswordUrl}`);
-      }
-
-      await recordPartnerAudit({
-        actor,
-        action: 'partner.kyc.approved',
-        entityId: String(user._id),
-        before,
-        after: { kycStatus: 'approved', emailSent },
-      });
-
-      return { ...(await this.detail(id)), emailSent };
-    }
-
-    // reject
-    await PartnerModel.updateOne(
-      { _id: profile._id },
-      {
-        $set: {
-          'kyc.status': 'rejected',
-          'kyc.reviewedAt': new Date(),
-          'kyc.reviewedBy': new Types.ObjectId(actor.id),
-          'kyc.rejectionReason': reason,
-        },
-      },
-    );
-    await PartnerModel.updateOne(
-      { _id: profile._id },
-      { $set: { 'kyc.documents.$[d].status': 'rejected' } },
-      { arrayFilters: [{ 'd.status': 'pending' }] },
-    );
-    user.passwordSetupRequired = false;
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    await user.save();
-
-    await recordPartnerAudit({
-      actor,
-      action: 'partner.kyc.rejected',
-      entityId: String(user._id),
-      before,
-      after: { kycStatus: 'rejected', reason },
-    });
-
-    return { ...(await this.detail(id)), emailSent: false };
-  }
-
-  /**
-   * One stored KYC document for the admin viewer. Looked up through the partner's own profile,
-   * so a document id from another partner never resolves.
-   */
-  async kycDocument(userId: string, docId: string) {
-    const user = await findPartnerUser(userId);
-    const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.documents').lean();
-    const doc = (profile?.kyc?.documents ?? []).find((d) => String(d._id) === docId);
-    if (!doc?.storageKey) throw new HttpError(404, 'Document not found', 'NOT_FOUND');
-
-    return {
-      buffer: await readKycDocument(doc.storageKey),
-      mimeType: doc.mimeType || 'application/octet-stream',
-      name: doc.label || String(doc.type),
-    };
-  }
-
-  /**
-   * UPDATE PARTNER
-   */
-
-  /**
-   * UPDATE PARTNER
-   */
-  async detail(id: string) {
-    const user = await findPartnerUser(id);
-    const profile = await ensurePartnerProfile(user._id);
-    if (!profile) throw new HttpError(404, 'Partner not found', 'PARTNER_NOT_FOUND');
-
-    const [categories, bookings, payouts, reviews, tickets, completedCount, cancelledCount] = await Promise.all([
-      CategoryModel.find({ _id: { $in: profile.categories ?? [] } }).select('name').lean(),
-      BookingModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(200).lean(),
-      PayoutModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      ReviewModel.find({ partnerId: profile._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      TicketModel.find({ createdBy: user._id }).sort({ createdAt: -1 }).limit(20).lean(),
-      BookingModel.countDocuments({ partnerId: profile._id, status: 'completed' }),
-      BookingModel.countDocuments({ partnerId: profile._id, status: { $regex: /^cancelled/ } }),
-    ]);
-
-    const day = (d?: Date | string | null) =>
-      d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '';
-    const pct = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 100) : 0);
-    const stats = profile.stats ?? { offersReceived: 0, offersAccepted: 0, jobsAssigned: 0, jobsCompleted: 0 };
-    const kyc = profile.kyc ?? ({} as NonNullable<typeof profile.kyc>);
-    const kycRaw = String(kyc.status ?? 'not_started');
-    const docs = kyc.documents ?? [];
-    const city = bookings.find((b) => b.address?.city)?.address?.city ?? '';
-    const categoryNames = categories.map((c) => String(c.name));
-
-    // Earnings per month from completed bookings.
-    const byMonth = new Map<string, { bookings: number; earnings: number }>();
-    for (const b of bookings) {
-      if (b.status !== 'completed') continue;
-      const key = new Date(b.scheduledAt ?? b.createdAt).toLocaleDateString('en-IN', { month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-      const row = byMonth.get(key) ?? { bookings: 0, earnings: 0 };
-      row.bookings += 1;
-      row.earnings += Number(b.partnerEarning ?? 0);
-      byMonth.set(key, row);
-    }
-
-    return {
-      id: String(user._id),
-      name: user.name,
-      email: user.email,
-      phone: user.phone ?? '',
-      kycStatus: kycRaw === 'approved' ? 'Approved' : kycRaw === 'rejected' ? 'Rejected' : 'Pending',
-      accountStatus: user.status === 'blocked' ? 'Suspended' : user.status === 'invited' ? 'Inactive' : 'Active',
-      category: categoryNames[0] ?? user.designation ?? '',
-      categories: categoryNames.length ? categoryNames : user.designation ? [user.designation] : [],
-      city,
-      address: city,
-      rating: Math.round((profile.ratingAvg ?? 0) * 10) / 10,
-      acceptance: pct(stats.offersAccepted, stats.offersReceived),
-      completion: pct(stats.jobsCompleted, stats.jobsAssigned),
-      joined: day(user.createdAt),
-      profile: { experience: 0, bio: (profile.skills ?? []).join(', ') },
-      kyc: {
-        submittedAt: day(kyc.submittedAt),
-        reviewedAt: kyc.reviewedAt ? day(kyc.reviewedAt) : undefined,
-        documents: docs.map((d) => {
-          const stored = Boolean(d.storageKey);
-          const isPdf = d.mimeType ? d.mimeType === 'application/pdf' : /\.pdf(\?|$)/i.test(String(d.url ?? ''));
-          return {
-            id: String(d._id),
-            name: d.label || String(d.type).replace(/_/g, ' '),
-            type: isPdf ? 'pdf' : 'image',
-            // Stored files are streamed by the admin-only endpoint; the UI fetches it with its auth token.
-            url: stored ? `/admin/partners/${user._id}/kyc/documents/${d._id}` : String(d.url ?? ''),
-            secure: stored,
-            status: d.status === 'verified' ? 'Verified' : d.status === 'rejected' ? 'Rejected' : 'Pending',
-          };
-        }),
-        checklist: [
-          { id: 'docs', label: 'KYC documents uploaded', completed: docs.length > 0, required: true },
-          { id: 'verified', label: 'Documents verified', completed: docs.length > 0 && docs.every((d) => d.status === 'verified'), required: true },
-          { id: 'training', label: 'Training completed', completed: Boolean(profile.trainingCompleted), required: false },
-        ],
-      },
-      performance: {
-        completedBookings: completedCount,
-        cancelledBookings: cancelledCount,
-        averageResponseTime: '—',
-        customerSatisfaction: Math.round(((profile.ratingAvg ?? 0) / 5) * 100),
-      },
-      bookings: bookings.slice(0, 20).map((b) => ({
-        id: String(b._id),
-        customer: b.customerName ?? 'Customer',
-        service: b.serviceName,
-        date: day(b.scheduledAt ?? b.createdAt),
-        status: String(b.status),
-        amount: Number(b.priceBreakdown?.total ?? 0),
-      })),
-      earnings: [...byMonth.entries()].map(([month, v]) => ({ month, bookings: v.bookings, earnings: v.earnings })),
-      payouts: payouts.map((x) => ({
-        id: String(x._id),
-        date: day(x.paidAt ?? x.createdAt),
-        amount: Number(x.amount ?? 0),
-        status: String(x.status),
-      })),
-      reviews: reviews.map((r) => ({
-        id: String(r._id),
-        customer: r.customerName,
-        rating: r.rating,
-        comment: r.message ?? '',
-        date: day(r.createdAt),
-      })),
-      support: tickets.map((t) => ({
-        ticketId: `TCK-${String(t._id).slice(-6).toUpperCase()}`,
-        subject: t.subject,
-        status: String(t.status),
-        createdAt: day(t.createdAt),
-      })),
-      activity: [],
-    };
-  }
-
-  /**
-   * KYC DECISION (admin): approve or reject the partner's submitted KYC.
-   * Approve: documents become verified, the partner gets an email with a set-password link and
-   * stays unable to log in until they use it. Reject: login stays blocked and the reason is shown at login.
-   */
-  async reviewKyc(
-    id: string,
-    input: { decision: 'approve' | 'reject'; reason?: string },
-    actor: AuditActor,
-  ) {
-    const user = await findPartnerUser(id);
-    const profile = await ensurePartnerProfile(user._id);
-    if (!profile) throw new HttpError(404, 'Partner not found', 'PARTNER_NOT_FOUND');
-
-    const reason = input.reason?.trim();
-    if (input.decision === 'reject' && !reason) {
-      throw new HttpError(400, 'Rejection reason is required.', 'VALIDATION_ERROR');
-    }
-
-    const docs = profile.kyc?.documents ?? [];
-    const before = { kycStatus: profile.kyc?.status };
-
-    if (input.decision === 'approve') {
-      if (docs.length === 0) {
-        throw new HttpError(400, 'This partner has not uploaded any KYC documents yet.', 'KYC_DOCUMENTS_MISSING');
-      }
-      if (profile.kyc?.status === 'approved') {
-        return { ...(await this.detail(id)), emailSent: false };
-      }
-
-      await PartnerModel.updateOne(
-        { _id: profile._id },
-        {
-          $set: {
-            'kyc.status': 'approved',
-            'kyc.reviewedAt': new Date(),
-            'kyc.reviewedBy': new Types.ObjectId(actor.id),
-          },
-          $unset: { 'kyc.rejectionReason': '' },
-        },
-      );
-      await PartnerModel.updateOne(
-        { _id: profile._id },
-        { $set: { 'kyc.documents.$[d].status': 'verified' } },
-        { arrayFilters: [{ 'd.status': { $ne: 'verified' } }] },
-      );
-
-      // Single-use set-password token (only its SHA-256 hash is stored). Login is blocked until it is used.
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      user.passwordResetTokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
-      user.passwordResetExpiresAt = new Date(Date.now() + APPROVAL_LINK_HOURS * 3_600_000);
-      user.passwordSetupRequired = true;
-      user.tokenVersion = (user.tokenVersion ?? 0) + 1; // drop any session opened before approval
-      await user.save();
-
-      const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
-      const setPasswordUrl = `${frontendUrl}/reset-password?token=${rawToken}`;
-      let emailSent = true;
-      try {
-        await mailService.sendPartnerApprovedEmail({
-          name: user.name,
-          email: user.email,
-          setPasswordUrl,
-          validHours: APPROVAL_LINK_HOURS,
-        });
-      } catch (err) {
-        emailSent = false;
-        console.error('[partners] approval email failed', err);
-      }
-      if (!emailSent && process.env.NODE_ENV !== 'production') {
-        console.info(`[DEV ONLY] Partner set-password link for ${user.email}: ${setPasswordUrl}`);
-      }
-
-      await recordPartnerAudit({
-        actor,
-        action: 'partner.kyc.approved',
-        entityId: String(user._id),
-        before,
-        after: { kycStatus: 'approved', emailSent },
-      });
-
-      return { ...(await this.detail(id)), emailSent };
-    }
-
-    // reject
-    await PartnerModel.updateOne(
-      { _id: profile._id },
-      {
-        $set: {
-          'kyc.status': 'rejected',
-          'kyc.reviewedAt': new Date(),
-          'kyc.reviewedBy': new Types.ObjectId(actor.id),
-          'kyc.rejectionReason': reason,
-        },
-      },
-    );
-    await PartnerModel.updateOne(
-      { _id: profile._id },
-      { $set: { 'kyc.documents.$[d].status': 'rejected' } },
-      { arrayFilters: [{ 'd.status': 'pending' }] },
-    );
-    user.passwordSetupRequired = false;
-    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
-    await user.save();
-
-    await recordPartnerAudit({
-      actor,
-      action: 'partner.kyc.rejected',
-      entityId: String(user._id),
-      before,
-      after: { kycStatus: 'rejected', reason },
-    });
-
-    return { ...(await this.detail(id)), emailSent: false };
-  }
-
-  /**
-   * One stored KYC document for the admin viewer. Looked up through the partner's own profile,
-   * so a document id from another partner never resolves.
-   */
-  async kycDocument(userId: string, docId: string) {
-    const user = await findPartnerUser(userId);
-    const profile = await PartnerModel.findOne({ userId: user._id }).select('kyc.documents').lean();
-    const doc = (profile?.kyc?.documents ?? []).find((d) => String(d._id) === docId);
-    if (!doc?.storageKey) throw new HttpError(404, 'Document not found', 'NOT_FOUND');
-
-    return {
-      buffer: await readKycDocument(doc.storageKey),
-      mimeType: doc.mimeType || 'application/octet-stream',
-      name: doc.label || String(doc.type),
     };
   }
 
@@ -1293,11 +1013,7 @@ export class PartnersService {
 /**
  * Safe User DTO.
  */
-function toDto(
-  user: InstanceType<typeof UserModel>,
-  kycStatus?: string,
-  training?: string,
-) {
+function toDto(user: InstanceType<typeof UserModel>, kycStatus?: string) {
   return {
     id: String(user._id),
     name: user.name,
@@ -1306,9 +1022,7 @@ function toDto(
     gender: user.gender,
     designation: user.designation,
     status: user.status,
-    kycStatus: kycStatus ?? 'not_started',
-    ...(kycStatus !== undefined ? { kycStatus } : {}),
-    ...(training !== undefined ? { training } : {}),
+    kycStatus,
     createdAt: user.createdAt,
   };
 }

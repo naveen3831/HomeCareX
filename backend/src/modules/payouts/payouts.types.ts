@@ -33,6 +33,7 @@ export interface Pagination {
  */
 export interface BatchRecord {
   _id: unknown;
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'custom';
   periodStart: Date;
   periodEnd: Date;
   gross: number;
@@ -55,6 +56,9 @@ export interface PayoutRecord {
     | unknown;
   batchId: unknown;
   amount: number;
+  gross?: number;
+  commission?: number;
+  servicesCount?: number;
   status: PayoutStatus;
   notes?: string;
   method?: string | null;
@@ -67,8 +71,13 @@ export interface PayoutRecord {
  * Input for generating a payout batch.
  */
 export interface GenerateBatchInput {
-  periodStart: string | Date;
-  periodEnd: string | Date;
+  /** Needed for `custom` (or when no frequency is sent). Ignored for daily / weekly / monthly. */
+  periodStart?: string | Date;
+  periodEnd?: string | Date;
+  /** daily | weekly | monthly: the period is worked out on the server from `date` (default: today, IST). */
+  frequency?: string;
+  /** "YYYY-MM-DD" day inside the wanted period. */
+  date?: string;
   adminId: string;
   ip: string;
 }
@@ -104,6 +113,15 @@ export interface MarkPaidInput {
   adminId: string;
   ip: string;
   transactionId?: string;
+}
+
+/**
+ * Input for confirming (paying) every unpaid payout in a batch.
+ */
+export interface ConfirmBatchInput {
+  batchId: string;
+  adminId: string;
+  ip: string;
 }
 
 /**
@@ -158,6 +176,7 @@ export interface PayoutsRepository {
     periodStart: Date;
     periodEnd: Date;
     adminId: string;
+    frequency?: 'daily' | 'weekly' | 'monthly' | 'custom';
   }): Promise<BatchRecord>;
 
   listBatches(input: {
@@ -172,5 +191,12 @@ export interface PayoutsRepository {
   findBatchById(batchId: string): Promise<BatchRecord | null>;
 
   listPayouts(batchId: string): Promise<PayoutRecord[]>;
-  markPaid(input: { payoutId: string; transactionId?: string }): Promise<PayoutRecord>;
+  markPaid(input: { payoutId: string; transactionId?: string; adminId?: string }): Promise<PayoutRecord>;
+  getPayoutDetails(payoutId: string): Promise<unknown>;
+  confirmBatch(input: { batchId: string; adminId: string }): Promise<{
+    batch: BatchRecord;
+    confirmedCount: number;
+    confirmedAmount: number;
+    failed: { payoutId: string; message: string }[];
+  }>;
 }

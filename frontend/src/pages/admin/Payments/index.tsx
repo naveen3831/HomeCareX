@@ -296,7 +296,7 @@ export const AdminPaymentsPageView: React.FC = () => {
                             <div className="pay-person">
                               <span className="pay-avatar" aria-hidden>{initials(p.customer?.name)}</span>
                               <div>
-                                <span className="pay-person__name">{p.customer?.name || <span className="pay-muted">Unknown</span>}</span>
+                                <span className="pay-person__name" title={p.customer?.name || undefined}>{p.customer?.name || <span className="pay-muted">Unknown</span>}</span>
                                 {p.customer?.email && <span className="pay-sub">{p.customer.email}</span>}
                               </div>
                             </div>

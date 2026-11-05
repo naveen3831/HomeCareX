@@ -64,6 +64,7 @@ function savePartner(partner: PartnerDetails): void {
 export interface PartnerProfileInput {
   name: string;
   phone: string;
+  bio?: string;
 }
 
 export type {
@@ -99,34 +100,6 @@ const httpMessage = (error: unknown, fallback: string): string =>
   (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
   (error as { message?: string })?.message ||
   fallback;
-
-const STORAGE_PREFIX = "homecarex:partner:";
-const getStorageKey = (id: string): string => `${STORAGE_PREFIX}${id}`;
-
-const savePartner = (partner: PartnerDetails): void => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(partner.id), JSON.stringify(partner));
-};
-
-const getStoredPartner = (id: string): PartnerDetails | null => {
-  if (typeof window === "undefined") return null;
-  const stored = window.localStorage.getItem(getStorageKey(id));
-  if (!stored) return null;
-  try {
-    return JSON.parse(stored) as PartnerDetails;
-  } catch {
-    window.localStorage.removeItem(getStorageKey(id));
-    return null;
-  }
-};
-
-const getMockPartner = (id: string): PartnerDetails | null => {
-  const partner = PARTNER_DETAILS.find((item) => item.id === id);
-  return partner ? structuredClone(partner) : null;
-};
-
-const getCurrentPartner = (id: string): PartnerDetails | null =>
-  getStoredPartner(id) ?? getMockPartner(id);
 
 /* =========================================================
    Admin partner APIs (real backend, no mock data)
@@ -207,6 +180,38 @@ export async function getPartnerById(
 
     if (typeof raw.kycStatus === "string") {
       partner.kycStatus = raw.kycStatus as PartnerDetails["kycStatus"];
+    }
+
+    // Use the live sections from the backend. The template above is only a skeleton: without this the
+    // page keeps the demo KYC documents (placehold.co "Aadhaar Document" / "PAN Document") and the
+    // files the partner really uploaded are never shown. Stored files come back as secure: true with
+    // an admin-only url, which the details page fetches with the admin token.
+    const live = raw as Record<string, unknown>;
+    const target = partner as unknown as Record<string, unknown>;
+    const isObject = (v: unknown): v is Record<string, unknown> =>
+      !!v && typeof v === "object" && !Array.isArray(v);
+
+    if (isObject(live.kyc)) {
+      const k = live.kyc;
+      partner.kyc = {
+        ...partner.kyc,
+        submittedAt: typeof k.submittedAt === "string" ? k.submittedAt : "",
+        reviewedAt: typeof k.reviewedAt === "string" ? k.reviewedAt : undefined,
+        documents: Array.isArray(k.documents) ? (k.documents as PartnerDetails["kyc"]["documents"]) : [],
+        checklist: Array.isArray(k.checklist) ? (k.checklist as PartnerDetails["kyc"]["checklist"]) : [],
+      };
+    }
+    for (const key of ["accountStatus", "address", "joined"] as const) {
+      if (typeof live[key] === "string") target[key] = live[key];
+    }
+    for (const key of ["acceptance", "completion"] as const) {
+      if (typeof live[key] === "number") target[key] = live[key];
+    }
+    for (const key of ["profile", "performance", "training"] as const) {
+      if (isObject(live[key])) target[key] = live[key];
+    }
+    for (const key of ["categories", "bookings", "earnings", "payouts", "reviews", "support", "activity"] as const) {
+      if (Array.isArray(live[key])) target[key] = live[key];
     }
 
     // Cache using the actual backend user ID.
@@ -292,8 +297,25 @@ export async function updatePartnerStatus(
  * header: an <img>/<iframe> pointing at the API path would be rejected with 401.
  */
 export async function fetchKycDocumentBlob(path: string): Promise<Blob> {
-  const res = await http.get<Blob>(path, { responseType: "blob" });
-  return res.data;
+  try {
+    const res = await http.get<Blob>(path, { responseType: "blob" });
+    return res.data;
+  } catch (err) {
+    // With responseType "blob" an error body arrives as a Blob too: read the server message from it.
+    const e = err as { status?: number; message?: string; response?: { status?: number; data?: unknown } };
+    let message = e.message ?? "";
+    const body = e.response?.data;
+    if (body instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await body.text()) as { message?: string };
+        if (parsed.message) message = parsed.message;
+      } catch {
+        /* not JSON */
+      }
+    }
+    const status = e.response?.status ?? e.status;
+    throw new Error(`${status ? `HTTP ${status}: ` : ""}${message || "Network error"}`);
+  }
 }
 
 /* =========================================================
@@ -500,6 +522,11 @@ export const partnerApi = {
   },
 
   /* Profile */
+
+  async getProfile(): Promise<PartnerProfileInput & { email: string }> {
+    const res = await http.get<ApiResponse<PartnerProfileInput & { email: string }>>("/partner/profile");
+    return res.data.data;
+  },
 
   async updateProfile(input: PartnerProfileInput): Promise<PartnerProfileInput> {
     const res = await http.patch<ApiResponse<PartnerProfileInput>>("/partner/profile", input);

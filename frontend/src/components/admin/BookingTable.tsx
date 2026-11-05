@@ -228,14 +228,17 @@ export const BookingTable: React.FC<BookingTableProps> = ({
 
         .booking-table {
           width: 100%;
-          min-width: 1100px;
+          min-width: 0;
+          table-layout: auto;
           border-collapse: collapse;
         }
 
         .booking-table th,
         .booking-table td {
-          padding: 12px 16px;
+          padding: 12px 12px;
           text-align: left;
+          vertical-align: top;
+          overflow-wrap: anywhere;
           border-bottom: 1px solid #e5e7eb;
         }
 
@@ -292,6 +295,11 @@ export const BookingTable: React.FC<BookingTableProps> = ({
           outline-offset: 3px;
           border-radius: 3px;
         }
+
+        /* Customer cell: same width for every row; long names/emails are cut with an ellipsis */
+        .booking-table td.booking-table__customer { width: 220px; min-width: 220px; max-width: 220px; overflow-wrap: normal; }
+        .booking-table__customer > div { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .booking-table__customer .booking-table__booking-button { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 
         .booking-table__primary {
           font-weight: 500;
@@ -449,7 +457,6 @@ export const BookingTable: React.FC<BookingTableProps> = ({
               <th scope="col">Scheduled</th>
               <th scope="col">Amount</th>
               <th scope="col">Status</th>
-              <th scope="col">Payment</th>
               <th scope="col">Created</th>
             </tr>
           </thead>
@@ -466,7 +473,7 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                 onClick={() => onBookingSelect?.(booking)}
               >
                 {/* CUSTOMER (first column; opens the booking) */}
-                <td>
+                <td className="booking-table__customer">
                   <div className="booking-table__primary">
                     {onBookingSelect ? (
                       <button
@@ -476,6 +483,7 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                           event.stopPropagation();
                           onBookingSelect(booking);
                         }}
+                        title={booking.customer?.name || undefined}
                         aria-label={`Open booking for ${
                           booking.customer?.name || "customer"
                         }`}
@@ -569,8 +577,9 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                   )}
                 </td>
 
-                {/* STATUS */}
+                {/* STATUS + PAYMENT (stacked so the table fits without sideways scrolling) */}
                 <td>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 6 }}>
                   <span
                     className={getStatusClass(
                       booking.status,
@@ -580,10 +589,6 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                       booking.status,
                     )}
                   </span>
-                </td>
-
-                {/* PAYMENT */}
-                <td>
                   <span
                     className={getPaymentClass(
                       booking.payment?.status ||
@@ -593,6 +598,7 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                     {booking.payment?.status ||
                       "Pending"}
                   </span>
+                  </div>
                 </td>
 
                 {/* CREATED */}
@@ -629,23 +635,13 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                   <span className="booking-card__name">
                     {booking.customer?.name || "-"}
                   </span>
-                  {booking.customer?.phone && (
-                    <span className="booking-card__sub">{booking.customer.phone}</span>
-                  )}
+                  <span className="booking-card__sub">
+                    {booking.service?.name || "-"}
+                  </span>
                 </div>
                 <span className={getStatusClass(booking.status)}>
                   {getStatusLabel(booking.status)}
                 </span>
-              </div>
-
-              <div className="booking-card__service">
-                {booking.service?.name || "-"}
-                <small>
-                  {booking.service?.category || "-"}
-                  {booking.service?.durationMinutes
-                    ? ` · ${booking.service.durationMinutes} min`
-                    : ""}
-                </small>
               </div>
 
               <dl className="booking-card__meta">
@@ -660,29 +656,7 @@ export const BookingTable: React.FC<BookingTableProps> = ({
                   <dt>Amount</dt>
                   <dd>{formatAmount(Number(booking.pricing?.totalAmount ?? 0))}</dd>
                 </div>
-                <div>
-                  <dt>City</dt>
-                  <dd>
-                    {booking.city || booking.address?.city || "-"}
-                    {booking.address?.area ? `, ${booking.address.area}` : ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Partner</dt>
-                  <dd className={booking.partner ? undefined : "is-unassigned"}>
-                    {booking.partner ? booking.partner.name || "-" : "Unassigned"}
-                  </dd>
-                </div>
               </dl>
-
-              <div className="booking-card__foot">
-                <span className={getPaymentClass(booking.payment?.status || "Pending")}>
-                  {booking.payment?.status || "Pending"}
-                </span>
-                <span className="booking-card__created">
-                  {formatDateTime(booking.createdAt)}
-                </span>
-              </div>
             </div>
           </li>
         ))}

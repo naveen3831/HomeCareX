@@ -23,6 +23,13 @@ export const alertSos = (i: { bookingId: string; partnerId?: string; partnerName
 export const alertKycSubmitted = (i: { partnerId: string; partnerName?: string }): void =>
   send('kyc.submitted', { message: `${i.partnerName ?? 'A partner'} submitted KYC for review`, partnerId: i.partnerId });
 
+/** A partner finished all training steps and is waiting for an admin to approve it. */
+export const alertTrainingCompleted = (i: { partnerId: string; partnerName?: string }): void =>
+  send('training.completed', {
+    message: `${i.partnerName ?? 'A partner'} completed the training and is waiting for your approval`,
+    partnerId: i.partnerId,
+  });
+
 /** A refund was requested (e.g. a customer cancelled a paid booking). */
 export const alertRefundRequested = (i: { refundId: string; bookingId?: string; amount?: number }): void =>
   send('refund.requested', {
@@ -40,6 +47,25 @@ export const alertPayoutFailed = (i: { payoutId: string; amount?: number; partne
     partnerId: i.partnerId,
     batchId: i.batchId,
     amount: i.amount,
+  });
+
+const ticketRefOf = (id: string): string => `TCK-${id.slice(-6).toUpperCase()}`;
+
+/** A customer or partner raised a new support ticket. */
+export const alertTicketCreated = (i: { ticketId: string; subject?: string; role?: string }): void =>
+  send('ticket.created', {
+    message: `New ticket ${ticketRefOf(i.ticketId)}${i.subject ? `: ${i.subject}` : ''}${i.role ? ` (from a ${i.role})` : ''}`,
+    ticketId: i.ticketId,
+    ticketRef: ticketRefOf(i.ticketId),
+    subject: i.subject,
+  });
+
+/** A customer or partner replied on an existing ticket. */
+export const alertTicketReply = (i: { ticketId: string; subject?: string }): void =>
+  send('ticket.reply', {
+    message: `New reply on ${ticketRefOf(i.ticketId)}${i.subject ? `: ${i.subject}` : ''}`,
+    ticketId: i.ticketId,
+    ticketRef: ticketRefOf(i.ticketId),
   });
 
 /** A support ticket went past its SLA target. */
