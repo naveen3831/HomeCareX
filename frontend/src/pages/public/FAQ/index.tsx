@@ -77,7 +77,7 @@ const FAQPage: React.FC = () => {
       <PublicPageBackground variant="hero">
         <section
           aria-labelledby="faq-page-heading"
-          className="mx-auto max-w-4xl px-4 pt-6 pb-4 text-center sm:px-6 sm:pt-8 sm:pb-5 lg:pt-9 lg:pb-6"
+          className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 pt-6 pb-4 text-center sm:pt-8 sm:pb-5 lg:pt-9 lg:pb-6"
         >
           <p
             className="hcx-in inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-medium text-[#4338ca] shadow-xs ring-1 ring-[#4338ca]/10 sm:text-sm"
@@ -154,7 +154,7 @@ const FAQPage: React.FC = () => {
 
       {/* ================= FAQ CONTENT & GROUPS ================= */}
       <main className="bg-[#eef0ff]/30 pt-3 pb-10 sm:pt-4 sm:pb-14">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           {/* Quick controls (Expand/Collapse all) when items are present */}
           {filteredGroups.length > 0 && (
             <div className="mb-2.5 flex items-center justify-between px-1 sm:mb-3">
@@ -262,7 +262,7 @@ const FAQPage: React.FC = () => {
       <PublicPageBackground variant="cta">
         <section
           aria-labelledby="faq-contact-heading"
-          className="px-4 py-10 text-center sm:px-6 sm:py-14"
+          className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 py-10 text-center sm:py-14"
         >
           <div className="mx-auto max-w-2xl">
             <h2

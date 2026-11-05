@@ -10,6 +10,8 @@ import {
   Flower2,
   Bug,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Home as HomeIcon,
   Percent,
@@ -264,7 +266,29 @@ export const MobileHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [copiedCoupon, setCopiedCoupon] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [faqSlide, setFaqSlide] = useState<number>(0);
+  const faqTouchStartX = useRef<number | null>(null);
+  const faqTouchEndX = useRef<number | null>(null);
+
+  const handleFaqTouchStart = (e: React.TouchEvent) => {
+    faqTouchStartX.current = e.targetTouches[0].clientX;
+  };
+  const handleFaqTouchMove = (e: React.TouchEvent) => {
+    faqTouchEndX.current = e.targetTouches[0].clientX;
+  };
+  const handleFaqTouchEnd = () => {
+    if (faqTouchStartX.current === null || faqTouchEndX.current === null) return;
+    const distance = faqTouchStartX.current - faqTouchEndX.current;
+    if (distance > 40) {
+      // Swiped left -> next
+      setFaqSlide((prev) => (prev + 1) % mobileFaqs.length);
+    } else if (distance < -40) {
+      // Swiped right -> prev
+      setFaqSlide((prev) => (prev - 1 + mobileFaqs.length) % mobileFaqs.length);
+    }
+    faqTouchStartX.current = null;
+    faqTouchEndX.current = null;
+  };
   const [hoveredStepperStep, setHoveredStepperStep] = useState<number | null>(null);
   const [mobileReviews, setMobileReviews] = useState<
     Array<{
@@ -896,82 +920,92 @@ export const MobileHome: React.FC = () => {
         </div>
       )}
 
-      {/* ================= FREQUENTLY ASKED QUESTIONS ================= */}
-      <div className="space-y-2.5 pt-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-orange-400/20">
-              <span>💬</span>
-              <span>GOT QUESTIONS?</span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Frequently Asked <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">Questions</span>
-            </h2>
+      {/* ================= FREQUENTLY ASKED QUESTIONS (CLEAN NO-CARD CAROUSEL) ================= */}
+      <div className="py-2 select-none">
+        {/* Centered Heading Matching Desktop Text Color */}
+        <div className="text-center">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-0.5 text-[11px] font-bold text-orange-700 ring-1 ring-orange-400/20 shadow-2xs">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-[#ff8a3d] animate-pulse" />
+            <span>GOT QUESTIONS?</span>
           </div>
+          <h2 className="text-[17px] sm:text-2xl font-extrabold tracking-tight text-[#1e1b4b] leading-tight whitespace-nowrap">
+            Frequently Asked{" "}
+            <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">
+              Questions
+            </span>
+          </h2>
+        </div>
+
+        {/* Q&A Carousel with Left/Right Arrows (No Card Border, No Background Color) */}
+        <div
+          className="relative mt-5 min-h-[140px] flex flex-col justify-center px-1"
+          onTouchStart={handleFaqTouchStart}
+          onTouchMove={handleFaqTouchMove}
+          onTouchEnd={handleFaqTouchEnd}
+        >
+          {/* Left Chevron Button */}
+          <button
+            type="button"
+            onClick={() => setFaqSlide((prev) => (prev - 1 + mobileFaqs.length) % mobileFaqs.length)}
+            aria-label="Previous question"
+            className="absolute left-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-800 active:scale-90 transition cursor-pointer"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+
+          {/* Right Chevron Button */}
+          <button
+            type="button"
+            onClick={() => setFaqSlide((prev) => (prev + 1) % mobileFaqs.length)}
+            aria-label="Next question"
+            className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-800 active:scale-90 transition cursor-pointer"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+
+          {/* Slide Question & Answer */}
+          <div className="px-8 sm:px-10 text-center transition-all duration-300">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+              {mobileFaqs[faqSlide].question}
+            </h3>
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600 max-w-sm mx-auto">
+              {mobileFaqs[faqSlide].answer}
+            </p>
+          </div>
+
+          {/* Dot Indicators */}
+          <div className="mt-5 flex items-center justify-center gap-2">
+            {mobileFaqs.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setFaqSlide(idx)}
+                aria-label={`Go to question ${idx + 1}`}
+                className={`rounded-full transition-all duration-300 cursor-pointer ${
+                  faqSlide === idx
+                    ? "h-2 w-2.5 bg-[#4338ca] scale-110"
+                    : "h-1.5 w-1.5 bg-slate-300 hover:bg-slate-400"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom Navigation Links */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-4 text-xs font-bold">
           <Link
             to="/faq"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            className="text-[#4338ca] hover:text-indigo-800 transition inline-flex items-center gap-1"
           >
             <span>More FAQs</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
-        </div>
-
-        {/* FAQ Accordion List */}
-        <div className="space-y-2">
-          {mobileFaqs.map((faq, index) => {
-            const isOpen = openFaq === index;
-            return (
-              <div
-                key={faq.question}
-                className={`overflow-hidden rounded-2xl border transition-all ${
-                  isOpen
-                    ? "border-orange-300 bg-orange-50/20 shadow-xs"
-                    : "border-slate-200/80 bg-white"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(isOpen ? null : index)}
-                  className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors"
-                  aria-expanded={isOpen}
-                >
-                  <span className="text-xs font-bold text-slate-900 leading-snug">
-                    {faq.question}
-                  </span>
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform duration-200 ${
-                      isOpen
-                        ? "rotate-180 bg-orange-500 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </span>
-                </button>
-
-                {isOpen && (
-                  <div className="px-3 pb-3 pt-0 text-[11px] leading-relaxed text-slate-600 border-t border-orange-100/60 mt-1">
-                    <p className="pt-2">{faq.answer}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Still Have Questions Box */}
-        <div className="mt-3 flex items-center justify-between rounded-2xl bg-indigo-50/70 border border-indigo-100 p-3 shadow-2xs">
-          <div>
-            <div className="text-xs font-bold text-slate-900">Have more questions?</div>
-            <div className="text-[10px] text-slate-500 mt-0.5">We reply in ~5 mins</div>
-          </div>
+          <span className="text-slate-300">•</span>
           <button
             type="button"
             onClick={() => navigate("/contact")}
-            className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-indigo-700"
-            aria-label="Contact Support"
             data-testid="mobile-faq-support-btn"
+            className="text-[#ff8a3d] hover:text-[#ea580c] transition inline-flex items-center gap-1 cursor-pointer"
           >
             <span>Contact Support</span>
             <ArrowRight className="h-3 w-3" />

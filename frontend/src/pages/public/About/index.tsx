@@ -1,133 +1,81 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Sparkles,
-  ShieldCheck,
+  ArrowRight,
+  CheckCircle2,
+  Users,
   Search,
   Calendar,
   RefreshCw,
-  CheckCircle2,
-  ArrowRight,
-  Clock,
-  Users,
   Award,
   Check,
   Layers,
-  HelpCircle,
   MessageSquare,
   Lock,
-  Sliders,
   TrendingUp,
   Compass,
   Target,
-  Scale,
   Laptop,
   Settings,
   Headphones,
+  ShieldCheck,
+  Scale,
   Wrench,
-  Zap,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { aboutData } from "../../../content/about";
 import { ROUTES } from "../../../constants/routes";
-import { publicStyles } from "../../../components/public/PublicPageBackground";
+import { useCategories } from "../../../hooks/useCategories";
+import { serviceImageFor } from "../../../lib/serviceImage";
 
 /* =========================================================
-   SCROLL REVEAL HELPER
+   EXACT FONT FAMILIES AS HOME PAGE
+   Headings: 'Poppins', 'Manrope', system-ui, sans-serif (-0.02em)
+   Body: 'Manrope', system-ui, sans-serif
 ========================================================= */
-
-function useInView<T extends HTMLElement>(threshold = 0.1) {
-  const ref = useRef<T | null>(null);
-  const [seen, setSeen] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setSeen(true);
-          io.disconnect();
-        }
-      },
-      { threshold, rootMargin: "0px 0px -30px 0px" }
-    );
-
-    io.observe(el);
-    return () => io.disconnect();
-  }, [threshold]);
-
-  return [ref, seen] as const;
+const aboutTypographyStyles = `
+.hcx-about {
+  font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
 }
 
-const Reveal: React.FC<{
-  children: React.ReactNode;
-  delay?: number;
-  className?: string;
-}> = ({ children, delay = 0, className = "" }) => {
-  const [ref, seen] = useInView<HTMLDivElement>();
-  return (
-    <div
-      ref={ref}
-      className={`hcx-reveal ${seen ? "is-in" : ""} ${className}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
+.hcx-about h1, .hcx-about h2, .hcx-about h3, .hcx-about h4, .hcx-about .display {
+  font-family: 'Poppins', 'Manrope', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  transition: color 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-const SectionHead: React.FC<{
-  id?: string;
-  eyebrow?: string;
-  title: string;
-  text?: string;
-  centered?: boolean;
-  eyebrowClassName?: string;
-  titleClassName?: string;
-  textClassName?: string;
-}> = ({
-  id,
-  eyebrow,
-  title,
-  text,
-  centered = true,
-  eyebrowClassName = "",
-  titleClassName = "",
-  textClassName = "",
-}) => (
-  <Reveal className={`mb-5 sm:mb-6 max-w-3xl ${centered ? "mx-auto text-center" : ""}`}>
-    {eyebrow && (
-      <div className="mb-2">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100/80 px-3 py-0.5 text-[11px] sm:text-xs font-bold uppercase tracking-wider text-indigo-700 shadow-2xs ${eyebrowClassName}`}
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" aria-hidden="true" />
-          {eyebrow}
-        </span>
-      </div>
-    )}
-    <h2
-      id={id}
-      className={`text-2xl font-black text-slate-900 tracking-tight sm:text-3xl lg:text-4xl ${titleClassName}`}
-    >
-      {title}
-    </h2>
-    {text && (
-      <p className={`mt-2 text-sm leading-relaxed text-slate-600 sm:text-base sm:leading-7 ${textClassName}`}>
-        {text}
-      </p>
-    )}
-  </Reveal>
-);
+/* Subtle Interactive Heading Hover Effects */
+.hcx-about h2.hover-heading:hover,
+.hcx-about h3.hover-heading:hover,
+.hcx-about h4.hover-heading:hover,
+.hcx-about .hover-heading:hover {
+  color: #4338ca;
+}
+
+.hcx-about .group:hover .group-hover-heading {
+  color: #4338ca;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+`;
 
 /* =========================================================
    ABOUT PAGE COMPONENT
 ========================================================= */
-
 const AboutPage: React.FC = () => {
   const {
     hero,
@@ -143,54 +91,64 @@ const AboutPage: React.FC = () => {
     cta,
   } = aboutData;
 
-  /* ---------------------------------------------------------
-     MOBILE INTERACTIVE STATE (Carousels, Switches, Dropdowns)
-  --------------------------------------------------------- */
-  // Mobile Featured Services Carousel
-  const [activeServiceSlide, setActiveServiceSlide] = useState(0);
-  const serviceTouchStartX = useRef<number | null>(null);
+  // Active Zoho Section Tab
+  const [activeTab, setActiveTab] = useState<string>("what-we-do");
 
-  // Mobile Mission & Vision Segmented Switch
-  const [activeMissionVisionTab, setActiveMissionVisionTab] = useState<"mission" | "vision">("mission");
-  const missionVisionTouchStartX = useRef<number | null>(null);
-
-  // Mobile Trust & Safety Carousel
-  const [activeTrustSlide, setActiveTrustSlide] = useState(0);
-  const trustTouchStartX = useRef<number | null>(null);
-
-  // Mobile Core Values Carousel
-  const [activeValueSlide, setActiveValueSlide] = useState(0);
-  const valueTouchStartX = useRef<number | null>(null);
-
-  // Mobile Accordion/Dropdown states
+  // Mobile challenge accordion in Story section
   const [expandedChallenge, setExpandedChallenge] = useState<number | null>(0);
-  const [expandedQualityStep, setExpandedQualityStep] = useState<number | null>(0);
-  const [expandedTeamDiscipline, setExpandedTeamDiscipline] = useState<string | null>(team.disciplines[0]?.id || null);
-  const [expandedConnectStep, setExpandedConnectStep] = useState<number | null>(0);
 
-  // Auto-advance Featured Services Carousel on mobile
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveServiceSlide((prev) => (prev + 1) % whatWeDo.services.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [whatWeDo.services.length]);
+  // Categories from Backend with Fallback
+  const categoriesQuery = useCategories();
+  const backendCategories =
+    categoriesQuery.data && categoriesQuery.data.length > 0
+      ? categoriesQuery.data
+      : null;
 
-  // Auto-advance Values Carousel on mobile
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveValueSlide((prev) => (prev + 1) % values.items.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [values.items.length]);
+  const defaultCategoryImages = [
+    "/images/about/about-cleaning-team.jpg",
+    "/images/about/about-plumber.jpg",
+    "/images/about/about-electrician.jpg",
+    "/images/about/about-service-crew.jpg",
+  ];
 
-  // Auto-advance Trust Carousel on mobile
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActiveTrustSlide((prev) => (prev + 1) % trust.practices.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [trust.practices.length]);
+  const categoryItems = backendCategories
+    ? backendCategories.map((cat, idx) => ({
+        id: cat.id || cat.slug,
+        name: cat.name,
+        category: cat.serviceCount ? `${cat.serviceCount} Services` : "Verified Care",
+        description:
+          cat.description ||
+          "Certified home care specialists with transparent upfront pricing.",
+        image:
+          cat.imageUrl ||
+          serviceImageFor(cat.slug || cat.name) ||
+          defaultCategoryImages[idx % defaultCategoryImages.length],
+        href: `/services?category=${encodeURIComponent(cat.slug || cat.name)}`,
+      }))
+    : whatWeDo.services.map((svc) => ({
+        id: svc.id,
+        name: svc.name,
+        category: svc.category,
+        description: svc.description,
+        image: svc.image,
+        href: `/services?category=${encodeURIComponent(svc.name.toLowerCase().replace(/\s+/g, "-"))}`,
+      }));
+
+  const totalServiceSlides = Math.max(1, Math.ceil(categoryItems.length / 2));
+
+  // 1st Image: Featured Marketplace Offerings Carousel Animation
+  const [servicesSlide, setServicesSlide] = useState<number>(0);
+  const [isServicesPaused, setIsServicesPaused] = useState<boolean>(false);
+
+  // 4th Image: Cross-Functional Disciplines Carousel Animation (0: [0,1], 1: [2,3])
+  const [teamCarouselSlide, setTeamCarouselSlide] = useState<number>(0);
+  const [isTeamPaused, setIsTeamPaused] = useState<boolean>(false);
+
+  // 5th Image: Quality Lifecycle Pathway Stepper Hover State
+  const [hoveredQualityStep, setHoveredQualityStep] = useState<number | null>(null);
+
+  // 2nd Image: 4-Step Customer Journey Stepper Hover State
+  const [hoveredJourneyStep, setHoveredJourneyStep] = useState<number | null>(null);
 
   useEffect(() => {
     document.title = "About HomeCareX | Home Services Made Simpler";
@@ -207,73 +165,131 @@ const AboutPage: React.FC = () => {
     );
   }, []);
 
+  // Auto-play Carousel Animation for 1st Image (Featured Marketplace Offerings)
+  useEffect(() => {
+    if (activeTab !== "what-we-do" || isServicesPaused || totalServiceSlides <= 1) return;
+    const interval = setInterval(() => {
+      setServicesSlide((prev) => (prev + 1) % totalServiceSlides);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [activeTab, isServicesPaused, totalServiceSlides]);
+
+  // Auto-play Carousel Animation for 4th Image (Cross-Functional Disciplines)
+  useEffect(() => {
+    if (activeTab !== "team" || isTeamPaused) return;
+    const interval = setInterval(() => {
+      setTeamCarouselSlide((prev) => (prev === 0 ? 1 : 0));
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [activeTab, isTeamPaused]);
+
+  // 7 Navigation Tabs matching Zoho About Us vertical layout
+  const ZOHO_TABS = [
+    {
+      id: "what-we-do",
+      shortLabel: "What We Do",
+      title: "Home Services, Made Simpler",
+    },
+    {
+      id: "mission-vision",
+      shortLabel: "Mission & Vision",
+      title: "Our Mission & Vision",
+    },
+    {
+      id: "safeguards",
+      shortLabel: "Trust & Safety",
+      title: "Trust & Safety Safeguards",
+    },
+    {
+      id: "quality",
+      shortLabel: "Quality Approach",
+      title: "Our Approach to Quality",
+    },
+    {
+      id: "team",
+      shortLabel: "Our Team",
+      title: "The People Behind HomeCareX",
+    },
+    {
+      id: "values",
+      shortLabel: "Core Values",
+      title: "Our Core Values & Principles",
+    },
+    {
+      id: "marketplace",
+      shortLabel: "Customer Journey",
+      title: "How HomeCareX Connects",
+    },
+  ];
+
+  // Quality step concise phase descriptions
+  const qualityStepDescriptions = [
+    "Upfront transparent rate cards and task inclusions.",
+    "Standardized checklists and verified tooling.",
+    "Automated slot booking with live progress updates.",
+    "Skill vetting, fair earnings, and technician gear.",
+    "Customer ratings, workflow audits, and resolution.",
+  ];
+
   return (
-    <div className="hcx overflow-x-hidden bg-white text-slate-800 antialiased">
-      <style>{publicStyles}</style>
+    <div className="hcx-about min-h-screen bg-white">
+      {/* Dynamic Font Styling matching Home Page */}
+      <style>{aboutTypographyStyles}</style>
+
+      {/* Screen-reader heading bookmark */}
+      <div className="sr-only">
+        <h2>HomeCareX Marketplace Architecture</h2>
+      </div>
 
       {/* =========================================================
-          1. HERO SECTION
+          1. HERO SECTION (EXACT MARGIN: max-w-7xl px-5 sm:px-8 lg:px-10)
           ========================================================= */}
       <section
         aria-labelledby="about-hero-title"
-        className="relative isolate overflow-hidden bg-gradient-to-b from-[#f0f4fa] via-[#f7f9fd] to-white pt-8 pb-10 sm:pt-12 sm:pb-14 lg:pt-14 lg:pb-16 border-b border-slate-100"
+        className="relative overflow-hidden bg-gradient-to-b from-[#eff4ff] via-white to-slate-50 pt-10 sm:pt-14 pb-8 sm:pb-10 border-b border-slate-100"
       >
-        {/* Ambient Glowing Orbs */}
-        <div
-          className="pointer-events-none absolute -right-32 -top-24 -z-10 h-96 w-96 rounded-full bg-[#ff8a3d]/15 blur-3xl"
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute -bottom-24 -left-32 -z-10 h-96 w-96 rounded-full bg-indigo-500/12 blur-3xl"
-          aria-hidden="true"
-        />
-
-        <div className="relative mx-auto flex max-w-5xl flex-col items-center px-4 sm:px-6 text-center">
-          {/* Eyebrow Badge */}
-          <div className="mb-2.5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-indigo-700 shadow-2xs border border-indigo-100">
-              <Sparkles className="h-3.5 w-3.5 text-[#ff8a3d]" />
+        <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 text-center flex flex-col items-center">
+          {/* Eyebrow badge */}
+          <div className="mb-3.5 inline-flex items-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/95 px-4 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700 shadow-2xs border border-indigo-100">
+              <Sparkles className="h-4 w-4 text-[#ff8a3d]" />
               <span>{hero.eyebrow || "Trusted Marketplace"}</span>
             </span>
           </div>
 
-          {/* Title: Accessible for tests with exact text "About HomeCareX" */}
           <h1
             id="about-hero-title"
-            className="text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-[3.75rem] leading-[1.12]"
+            className="text-3xl font-black tracking-tight text-slate-900 sm:text-5xl md:text-6xl leading-[1.15]"
           >
             About <span className="text-[#4338ca]">Home<span className="text-[#ff8a3d]">Care</span>X</span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="mt-2.5 max-w-3xl text-lg sm:text-2xl md:text-3xl font-extrabold leading-snug text-slate-800">
+          <p className="mt-3 max-w-2xl text-base sm:text-xl md:text-2xl font-extrabold leading-snug text-slate-800">
             {hero.subtitle}
           </p>
 
-          {/* Supporting Description */}
-          <p className="mx-auto mt-2.5 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base sm:leading-7">
+          <p className="mx-auto mt-2 max-w-2xl text-sm sm:text-base leading-relaxed text-slate-600 font-normal">
             {hero.description}
           </p>
 
-          {/* Action CTAs */}
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3 w-full max-w-md mx-auto sm:max-w-none">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3.5 w-full max-w-md mx-auto sm:max-w-none">
             <Link
               to={hero.primaryCta.href}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-2.5 text-sm font-bold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#ff8a3d] px-7 py-3 text-sm sm:text-base font-bold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 cursor-pointer"
             >
               <span>{hero.primaryCta.label}</span>
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               to={hero.secondaryCta.href}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center rounded-xl border-2 border-[#4338ca] bg-white px-6 py-2.5 text-sm font-bold text-[#4338ca] shadow-xs transition duration-300 hover:bg-indigo-50 hover:-translate-y-0.5 active:scale-95"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center rounded-xl border-2 border-[#4338ca] bg-white px-7 py-3 text-sm sm:text-base font-bold text-[#4338ca] shadow-xs transition duration-300 hover:bg-indigo-50 hover:-translate-y-0.5 active:scale-95"
             >
               <span>{hero.secondaryCta.label}</span>
             </Link>
           </div>
 
-          {/* Hero Highlights: Seamless, unboxed highlight strip */}
-          <div className="mt-6 sm:mt-7 flex flex-wrap items-center justify-center gap-x-6 sm:gap-x-8 gap-y-2.5 text-xs sm:text-sm font-bold text-slate-700">
+          {/* Highlights */}
+          <div className="mt-7 sm:mt-8 flex flex-wrap items-center justify-center gap-x-8 sm:gap-x-10 gap-y-3 text-sm sm:text-base font-bold text-slate-700">
             {hero.highlights.map((h, i) => {
               const iconMap = [
                 <Search key="search" className="h-4 w-4 text-blue-600" />,
@@ -283,10 +299,10 @@ const AboutPage: React.FC = () => {
               return (
                 <div
                   key={h.title}
-                  className="inline-flex items-center gap-2 transition hover:text-indigo-600"
+                  className="inline-flex items-center gap-2.5 transition hover:text-indigo-600"
                 >
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 border border-indigo-100/80">
-                    {iconMap[i] || <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />}
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-50 border border-indigo-100">
+                    {iconMap[i] || <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
                   </span>
                   <span>{h.title}</span>
                 </div>
@@ -298,1313 +314,1075 @@ const AboutPage: React.FC = () => {
 
       {/* =========================================================
           2. OUR STORY & THE PROBLEM WE SOLVE
-          (Mobile interactive dropdown for challenges)
+          (EXACT MARGIN: max-w-7xl px-5 sm:px-8 lg:px-10)
           ========================================================= */}
       <section
         aria-labelledby="about-story-title"
-        className="bg-white py-8 sm:py-10 lg:py-12"
+        className="bg-white py-8 sm:py-12 border-b border-slate-100"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <div className="grid items-center gap-8 lg:grid-cols-12 lg:gap-12">
-            {/* Story Narrative */}
-            <div className="lg:col-span-7 space-y-3.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-indigo-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" />
+            <div className="lg:col-span-7 space-y-4">
+              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
                 {story.eyebrow}
               </span>
 
               <h2
                 id="about-story-title"
-                className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight"
+                className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default"
               >
                 {story.heading}
               </h2>
 
-              {/* Callout Quote */}
-              <div className="rounded-2xl border-l-4 border-[#ff8a3d] bg-gradient-to-r from-orange-50/70 via-white to-amber-50/30 p-3.5 sm:p-4 shadow-2xs">
-                <p className="text-sm sm:text-base font-bold text-slate-800 leading-relaxed">
-                  &ldquo;{story.introQuote}&rdquo;
-                </p>
+              <p className="text-sm sm:text-base leading-relaxed text-slate-600 font-normal">
+                {story.paragraphs?.[0]}
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-4 pt-1">
+                <div className="group rounded-2xl border border-red-100 bg-red-50/40 p-4 transition duration-300 hover:border-red-200 hover:shadow-xs">
+                  <div className="flex items-center gap-2 text-red-700 font-extrabold text-xs sm:text-sm uppercase tracking-wider">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    <span className="group-hover:text-red-800 transition-colors">The Challenge</span>
+                  </div>
+                  <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                    {story.paragraphs?.[1]}
+                  </p>
+                </div>
+
+                <div className="group rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4 transition duration-300 hover:border-emerald-200 hover:shadow-xs">
+                  <div className="flex items-center gap-2 text-emerald-700 font-extrabold text-xs sm:text-sm uppercase tracking-wider">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="group-hover:text-emerald-800 transition-colors">The HomeCareX Standard</span>
+                  </div>
+                  <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                    {story.paragraphs?.[2]}
+                  </p>
+                </div>
               </div>
 
-              {/* Narrative Paragraphs */}
-              <div className="space-y-3 text-sm sm:text-base leading-relaxed text-slate-600">
-                {story.paragraphs.map((p, idx) => (
-                  <p key={idx}>{p}</p>
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-1 flex flex-wrap items-center gap-3">
-                <Link
-                  to={ROUTES.SERVICES}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-5 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition hover:bg-indigo-700 active:scale-95"
-                >
-                  <span>View Services</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-                <Link
-                  to={ROUTES.CONTACT}
-                  className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-xs sm:text-sm font-bold text-slate-700 shadow-2xs transition hover:bg-slate-50 active:scale-95"
-                >
-                  <span>Contact Our Team</span>
-                </Link>
-              </div>
+              <p className="text-sm sm:text-base text-slate-700 leading-relaxed font-medium pt-1 italic border-l-3 border-[#ff8a3d] pl-4">
+                "{story.introQuote}"
+              </p>
             </div>
 
-            {/* Challenges Addressed: Desktop flow + Mobile interactive dropdown */}
             <div className="lg:col-span-5">
-              <div className="space-y-4 py-2">
-                <div className="flex items-center gap-2 pb-2.5 border-b border-slate-200/80">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-[#ff8a3d]">
-                    <Target className="h-4 w-4" />
-                  </span>
-                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-slate-900">
-                    {story.challengesTitle}
-                  </h3>
-                </div>
-
-                {/* Desktop View: Unboxed clear flow */}
-                <div className="hidden md:block space-y-3.5">
-                  {story.challenges.map((c, i) => {
-                    const iconColor = [
-                      "text-rose-500 bg-rose-50 border-rose-200",
-                      "text-amber-500 bg-amber-50 border-amber-200",
-                      "text-indigo-500 bg-indigo-50 border-indigo-200",
-                    ][i];
-                    return (
-                      <div key={c.title} className="flex items-start gap-3">
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border font-bold text-sm ${iconColor}`}>
-                          {i === 0 ? <Search className="h-4 w-4" /> : i === 1 ? <Clock className="h-4 w-4" /> : <Sliders className="h-4 w-4" />}
-                        </span>
-                        <div className="pt-0.5">
-                          <span className="text-xs sm:text-sm font-bold text-slate-800 leading-snug block">
-                            {c.title}
-                          </span>
-                          <span className="text-[11px] sm:text-xs text-slate-500 block mt-0.5">
-                            {i === 0
-                              ? "Solved by standardized, upfront pricing with zero surprises."
-                              : i === 1
-                              ? "Guaranteed 2-hour arrival windows and instant slot confirmation."
-                              : "Real-time step-by-step digital tracking from order to completion."}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Mobile View: Interactive Accordion / Hover-Tap Dropdown */}
-                <div className="block md:hidden space-y-2">
-                  {story.challenges.map((c, i) => {
-                    const isExpanded = expandedChallenge === i;
-                    const iconColor = [
-                      "text-rose-600 bg-rose-50 border-rose-200",
-                      "text-amber-600 bg-amber-50 border-amber-200",
-                      "text-indigo-600 bg-indigo-50 border-indigo-200",
-                    ][i];
-                    return (
-                      <div
-                        key={c.title}
-                        className={`rounded-2xl border transition-all duration-200 ${
-                          isExpanded
-                            ? "border-indigo-300 bg-indigo-50/30 shadow-xs"
-                            : "border-slate-200/80 bg-white"
-                        }`}
-                        onMouseEnter={() => setExpandedChallenge(i)}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setExpandedChallenge(isExpanded ? null : i)}
-                          className="w-full flex items-center justify-between gap-3 p-3 text-left focus:outline-none"
-                          aria-expanded={isExpanded}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs font-bold ${iconColor}`}>
-                              {i === 0 ? <Search className="h-3.5 w-3.5" /> : i === 1 ? <Clock className="h-3.5 w-3.5" /> : <Sliders className="h-3.5 w-3.5" />}
-                            </span>
-                            <span className="text-xs font-bold text-slate-900 truncate">
-                              {c.title}
-                            </span>
-                          </div>
-                          <ChevronDown
-                            className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${
-                              isExpanded ? "rotate-180 text-indigo-600" : ""
-                            }`}
-                            aria-hidden="true"
-                          />
-                        </button>
-
-                        <div
-                          className={`grid transition-all duration-300 ease-out overflow-hidden px-3 ${
-                            isExpanded ? "grid-rows-[1fr] pb-3 opacity-100" : "grid-rows-[0fr] opacity-0"
-                          }`}
-                        >
-                          <div className="overflow-hidden text-[11px] text-slate-600 leading-relaxed border-t border-slate-100 pt-2">
-                            {i === 0
-                              ? "Solved by standardized, upfront pricing with zero surprises or hidden charges."
-                              : i === 1
-                              ? "Guaranteed 2-hour arrival windows and automated partner dispatch."
-                              : "Real-time step-by-step digital tracking from booking to completion."}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="rounded-xl bg-emerald-50/80 border border-emerald-100 px-3.5 py-2.5 flex items-center gap-2 text-xs font-semibold text-emerald-800">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span>Built for real homes &amp; honest partnerships.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          3. WHAT WE DO (FEATURED SERVICES SHOWCASE)
-          (Desktop 4-column grid + Mobile swipeable Carousel Animation)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-what-we-do-title"
-        className="bg-slate-50/70 py-8 sm:py-10 lg:py-12 border-y border-slate-200/70"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-what-we-do-title"
-            eyebrow={whatWeDo.eyebrow}
-            title={whatWeDo.heading}
-            text={whatWeDo.description}
-          />
-
-          {/* Desktop 4-column Grid */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {whatWeDo.services.map((service, idx) => (
-              <Reveal key={service.id} delay={idx * 60}>
-                <Link
-                  to={service.href}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  aria-label={`${service.name}: ${service.description}`}
-                >
-                  <div className="relative h-40 sm:h-44 w-full overflow-hidden bg-slate-100">
-                    <img
-                      src={service.image}
-                      alt={service.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60" />
-
-                    {service.category && (
-                      <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 shadow-2xs backdrop-blur-xs">
-                        {service.category}
-                      </span>
-                    )}
-
-                    <span className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-lg bg-white/95 text-sm shadow-xs backdrop-blur-xs">
-                      {idx === 0 ? <Sparkles className="h-3.5 w-3.5 text-blue-600" /> :
-                       idx === 1 ? <Wrench className="h-3.5 w-3.5 text-orange-600" /> :
-                       idx === 2 ? <Zap className="h-3.5 w-3.5 text-amber-600" /> :
-                       <Settings className="h-3.5 w-3.5 text-indigo-600" />}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-1 flex-col p-4">
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900 transition-colors group-hover:text-indigo-600">
-                      {service.name}
-                    </h3>
-                    <p className="mt-1 flex-1 text-xs sm:text-sm leading-relaxed text-slate-500">
-                      {service.description}
-                    </p>
-
-                    <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-[#ff8a3d] group-hover:text-[#f97316]">
-                      <span>{service.ctaText || "Explore"}</span>
-                      <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-1" />
-                    </div>
-                  </div>
-                </Link>
-              </Reveal>
-            ))}
-          </div>
-
-          {/* Mobile Swipeable Carousel Animation */}
-          <div
-            className="block md:hidden relative overflow-hidden"
-            onTouchStart={(e) => {
-              serviceTouchStartX.current = e.touches[0].clientX;
-            }}
-            onTouchEnd={(e) => {
-              if (serviceTouchStartX.current === null) return;
-              const deltaX = e.changedTouches[0].clientX - serviceTouchStartX.current;
-              serviceTouchStartX.current = null;
-              if (Math.abs(deltaX) > 35) {
-                if (deltaX < 0) {
-                  setActiveServiceSlide((prev) => (prev + 1) % whatWeDo.services.length);
-                } else {
-                  setActiveServiceSlide((prev) => (prev - 1 + whatWeDo.services.length) % whatWeDo.services.length);
-                }
-              }
-            }}
-          >
-            <div
-              className="flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${activeServiceSlide * 100}%)` }}
-            >
-              {whatWeDo.services.map((service, idx) => (
-                <div key={service.id} className="w-full shrink-0 px-1">
-                  <Link
-                    to={service.href}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs"
-                    aria-label={`${service.name}: ${service.description}`}
-                  >
-                    <div className="relative h-44 w-full overflow-hidden bg-slate-100">
-                      <img
-                        src={service.image}
-                        alt={service.name}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60" />
-                      {service.category && (
-                        <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-indigo-700 shadow-2xs">
-                          {service.category}
-                        </span>
-                      )}
-                      <span className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-lg bg-white/95 text-sm shadow-xs">
-                        {idx === 0 ? <Sparkles className="h-3.5 w-3.5 text-blue-600" /> :
-                         idx === 1 ? <Wrench className="h-3.5 w-3.5 text-orange-600" /> :
-                         idx === 2 ? <Zap className="h-3.5 w-3.5 text-amber-600" /> :
-                         <Settings className="h-3.5 w-3.5 text-indigo-600" />}
-                      </span>
-                    </div>
-
-                    <div className="p-4 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-base font-bold text-slate-900">
-                            {service.name}
-                          </h3>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">
-                            {idx + 1} of {whatWeDo.services.length}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                          {service.description}
-                        </p>
-                      </div>
-
-                      <div className="mt-3.5 flex items-center justify-between pt-2 border-t border-slate-100">
-                        <span className="text-xs font-bold text-[#ff8a3d]">
-                          {service.ctaText || "Explore"} &rarr;
-                        </span>
-                        <span className="text-[11px] font-semibold text-indigo-600">
-                          Swipe &rarr;
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              ))}
-            </div>
-
-            {/* Carousel Dot Indicators */}
-            <div className="mt-3 flex items-center justify-center gap-1.5">
-              {whatWeDo.services.map((s, idx) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setActiveServiceSlide(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    activeServiceSlide === idx
-                      ? "w-5 bg-indigo-600"
-                      : "w-1.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                  aria-label={`Go to service slide ${idx + 1}`}
+              <div className="relative rounded-2xl overflow-hidden shadow-md border border-slate-100 aspect-[16/10] mb-4 group bg-slate-100">
+                <img
+                  src="/images/about/about-plumber.jpg"
+                  alt="HomeCareX certified craftsman at work"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  loading="lazy"
                 />
-              ))}
-            </div>
-          </div>
-
-          {/* Centered Action Button */}
-          <div className="mt-7 text-center">
-            <Link
-              to={ROUTES.SERVICES}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#4338ca] px-6 py-2.5 text-sm font-bold text-white shadow-md transition duration-300 hover:bg-indigo-700 hover:-translate-y-0.5 active:scale-95"
-            >
-              <span>View All Services</span>
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          4 & 5. OUR MISSION & OUR VISION
-          (Desktop 2-column cards + Mobile Segmented Tab/Swipe Carousel)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-mission-title"
-        className="bg-gradient-to-b from-white via-indigo-50/15 to-white py-8 sm:py-10 lg:py-14"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-mission-title"
-            eyebrow="OUR PURPOSE & FUTURE"
-            title="Our Mission & Vision"
-            text="How our commitment to simplicity and innovation shapes every service booking."
-          />
-
-          {/* Mobile Segmented Switch Pill */}
-          <div className="flex md:hidden items-center justify-center p-1 bg-slate-100 rounded-2xl max-w-xs mx-auto mb-4 border border-slate-200/80">
-            <button
-              type="button"
-              onClick={() => setActiveMissionVisionTab("mission")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all duration-200 ${
-                activeMissionVisionTab === "mission"
-                  ? "bg-white text-indigo-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Our Mission
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveMissionVisionTab("vision")}
-              className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all duration-200 ${
-                activeMissionVisionTab === "vision"
-                  ? "bg-white text-orange-700 shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Our Vision
-            </button>
-          </div>
-
-          {/* Desktop 2-column Grid */}
-          <div className="hidden md:grid grid-cols-2 gap-5 max-w-6xl mx-auto">
-            {/* Card 1: Our Mission */}
-            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-indigo-50/35 to-white p-6 sm:p-8 text-slate-800 shadow-lg border border-indigo-200/80 flex flex-col justify-between">
-              <div
-                className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-indigo-500/10 blur-2xl"
-                aria-hidden="true"
-              />
-
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-[#4338ca]">
-                    <Compass className="h-4 w-4" />
-                  </span>
-                  <span className="text-xs font-bold tracking-widest uppercase text-[#4338ca]">
-                    OUR MISSION
-                  </span>
-                </div>
-
-                <blockquote className="text-lg sm:text-xl md:text-2xl font-black leading-snug tracking-tight text-slate-900 mt-2">
-                  &ldquo;{mission.statement}&rdquo;
-                </blockquote>
-
-                <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  {mission.supportingText}
-                </p>
-              </div>
-
-              <div className="mt-6 pt-5 border-t border-slate-200/70">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#4338ca] mb-2.5">
-                  Core Mission Pillars:
-                </p>
-                <div className="space-y-2">
-                  {mission.pillars.map((pillar) => (
-                    <div key={pillar.title} className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-slate-800">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#4338ca]">
-                        <Check className="h-3 w-3" />
-                      </span>
-                      <span>{pillar.title}</span>
-                    </div>
-                  ))}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent pointer-events-none" />
+                <div className="absolute bottom-3 left-4 right-4 text-white text-xs sm:text-sm font-semibold flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#ff8a3d]" />
+                  <span>Hands-On Craftsmanship &amp; Certified Standards</span>
                 </div>
               </div>
-            </div>
 
-            {/* Card 2: Our Vision */}
-            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-orange-50/30 to-white p-6 sm:p-8 text-slate-800 shadow-lg border border-orange-200/80 flex flex-col justify-between">
-              <div
-                className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[#ff8a3d]/10 blur-2xl"
-                aria-hidden="true"
-              />
-
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-[#ea580c]">
-                    <Target className="h-4 w-4" />
-                  </span>
-                  <span className="text-xs font-bold tracking-widest uppercase text-[#ea580c]">
-                    OUR VISION
-                  </span>
-                </div>
-
-                <blockquote className="text-lg sm:text-xl md:text-2xl font-black leading-snug tracking-tight text-slate-900 mt-2">
-                  &ldquo;{vision.statement}&rdquo;
-                </blockquote>
-
-                <p className="mt-3 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  {vision.aspirationalNote}
-                </p>
-              </div>
-
-              <div className="mt-6 pt-5 border-t border-slate-200/70">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-[#ea580c] mb-2.5">
-                  Long-Term Commitments:
-                </p>
-                <div className="space-y-2">
-                  {vision.commitments.map((c) => (
-                    <div key={c.title} className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold text-slate-800">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#ea580c]">
-                        <Check className="h-3 w-3" />
-                      </span>
-                      <span>{c.title}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile Swipeable Card / Segmented Display */}
-          <div
-            className="block md:hidden overflow-hidden"
-            onTouchStart={(e) => {
-              missionVisionTouchStartX.current = e.touches[0].clientX;
-            }}
-            onTouchEnd={(e) => {
-              if (missionVisionTouchStartX.current === null) return;
-              const deltaX = e.changedTouches[0].clientX - missionVisionTouchStartX.current;
-              missionVisionTouchStartX.current = null;
-              if (Math.abs(deltaX) > 35) {
-                setActiveMissionVisionTab((prev) => (prev === "mission" ? "vision" : "mission"));
-              }
-            }}
-          >
-            {activeMissionVisionTab === "mission" ? (
-              <div className="rounded-3xl bg-gradient-to-br from-white via-indigo-50/35 to-white p-5 text-slate-800 shadow-md border border-indigo-200/80 animate-fadeIn">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[#4338ca]">
-                      <Compass className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-xs font-bold tracking-widest uppercase text-[#4338ca]">
-                      OUR MISSION
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-indigo-500 uppercase bg-indigo-50 px-2 py-0.5 rounded-full">
-                    Core Purpose
-                  </span>
-                </div>
-
-                <blockquote className="text-base font-black leading-snug tracking-tight text-slate-900">
-                  &ldquo;{mission.statement}&rdquo;
-                </blockquote>
-
-                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  {mission.supportingText}
-                </p>
-
-                <div className="mt-4 pt-3.5 border-t border-slate-200/70">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#4338ca] mb-2">
-                    Core Mission Pillars:
-                  </p>
-                  <div className="space-y-1.5">
-                    {mission.pillars.map((pillar) => (
-                      <div key={pillar.title} className="flex items-center gap-2 text-xs font-semibold text-slate-800">
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#4338ca]">
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                        <span>{pillar.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-3xl bg-gradient-to-br from-white via-orange-50/30 to-white p-5 text-slate-800 shadow-md border border-orange-200/80 animate-fadeIn">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-[#ea580c]">
-                      <Target className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="text-xs font-bold tracking-widest uppercase text-[#ea580c]">
-                      OUR VISION
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-orange-600 uppercase bg-orange-50 px-2 py-0.5 rounded-full">
-                    Future Horizon
-                  </span>
-                </div>
-
-                <blockquote className="text-base font-black leading-snug tracking-tight text-slate-900">
-                  &ldquo;{vision.statement}&rdquo;
-                </blockquote>
-
-                <p className="mt-2 text-xs text-slate-600 leading-relaxed">
-                  {vision.aspirationalNote}
-                </p>
-
-                <div className="mt-4 pt-3.5 border-t border-slate-200/70">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#ea580c] mb-2">
-                    Long-Term Commitments:
-                  </p>
-                  <div className="space-y-1.5">
-                    {vision.commitments.map((c) => (
-                      <div key={c.title} className="flex items-center gap-2 text-xs font-semibold text-slate-800">
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#ea580c]">
-                          <Check className="h-2.5 w-2.5" />
-                        </span>
-                        <span>{c.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          6. TRUST & SAFETY
-          (Desktop 3-column grid + Mobile swipeable Carousel Animation)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-trust-title"
-        className="bg-white py-8 sm:py-10 lg:py-12 border-b border-slate-100"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-trust-title"
-            eyebrow={trust.eyebrow}
-            title={trust.heading}
-            text={trust.subtitle}
-          />
-
-          {/* Ongoing Improvement Note */}
-          <div className="mx-auto mb-6 max-w-3xl rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3 text-center shadow-2xs">
-            <p className="text-xs sm:text-sm font-semibold text-indigo-900">
-              🛡️ &ldquo;{trust.subtleNote}&rdquo;
-            </p>
-          </div>
-
-          {/* Desktop 3-column Grid */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-3.5 max-w-6xl mx-auto">
-            {trust.practices.map((practice, i) => {
-              const icons = [
-                <ShieldCheck key="sc" className="h-5 w-5 text-blue-600" />,
-                <MessageSquare key="ms" className="h-5 w-5 text-emerald-600" />,
-                <Layers key="ly" className="h-5 w-5 text-indigo-600" />,
-                <Lock key="lk" className="h-5 w-5 text-amber-600" />,
-                <Calendar key="cd" className="h-5 w-5 text-purple-600" />,
-                <Award key="aw" className="h-5 w-5 text-orange-600" />,
-              ];
-              return (
-                <div
-                  key={practice.title}
-                  className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-xs transition hover:border-indigo-300 hover:shadow-md"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                    {icons[i] || <CheckCircle2 className="h-5 w-5 text-indigo-600" />}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                        {practice.title}
-                      </h3>
-                      <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 shrink-0">
-                        {practice.tag}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-xs text-slate-500 leading-relaxed font-normal">
-                      Verified safeguards embedded in our booking and fulfillment engine.
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Mobile Swipeable Carousel Animation */}
-          <div
-            className="block md:hidden relative overflow-hidden"
-            onTouchStart={(e) => {
-              trustTouchStartX.current = e.touches[0].clientX;
-            }}
-            onTouchEnd={(e) => {
-              if (trustTouchStartX.current === null) return;
-              const deltaX = e.changedTouches[0].clientX - trustTouchStartX.current;
-              trustTouchStartX.current = null;
-              if (Math.abs(deltaX) > 35) {
-                if (deltaX < 0) {
-                  setActiveTrustSlide((prev) => (prev + 1) % trust.practices.length);
-                } else {
-                  setActiveTrustSlide((prev) => (prev - 1 + trust.practices.length) % trust.practices.length);
-                }
-              }
-            }}
-          >
-            <div
-              className="flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${activeTrustSlide * 100}%)` }}
-            >
-              {trust.practices.map((practice, i) => {
-                const icons = [
-                  <ShieldCheck key="sc" className="h-5 w-5 text-blue-600" />,
-                  <MessageSquare key="ms" className="h-5 w-5 text-emerald-600" />,
-                  <Layers key="ly" className="h-5 w-5 text-indigo-600" />,
-                  <Lock key="lk" className="h-5 w-5 text-amber-600" />,
-                  <Calendar key="cd" className="h-5 w-5 text-purple-600" />,
-                  <Award key="aw" className="h-5 w-5 text-orange-600" />,
-                ];
-                return (
-                  <div key={practice.title} className="w-full shrink-0 px-1">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-                      <div className="flex items-center justify-between mb-2.5">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                          {icons[i] || <CheckCircle2 className="h-5 w-5 text-indigo-600" />}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
-                            {practice.tag}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400">
-                            {i + 1}/{trust.practices.length}
-                          </span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-sm font-bold text-slate-900 leading-snug">
-                        {practice.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500 leading-relaxed font-normal">
-                        Verified safeguards embedded in our booking and fulfillment engine for peace of mind.
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Carousel Dot Indicators */}
-            <div className="mt-3 flex items-center justify-center gap-1.5">
-              {trust.practices.map((p, idx) => (
-                <button
-                  key={p.title}
-                  type="button"
-                  onClick={() => setActiveTrustSlide(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    activeTrustSlide === idx
-                      ? "w-4 bg-indigo-600"
-                      : "w-1.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                  aria-label={`Go to trust practice ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* FAQ Card */}
-          {trust.faqCta && (
-            <div className="mt-6 max-w-4xl mx-auto rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/60 via-white to-orange-50/40 p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5">
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                  {trust.faqCta.heading}
-                </h3>
-                <p className="mt-0.5 text-xs sm:text-sm text-slate-500">
-                  {trust.faqCta.description}
-                </p>
-              </div>
-              <Link
-                to={trust.faqCta.href}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white border border-indigo-200 px-4 py-2 text-xs sm:text-sm font-bold text-indigo-700 shadow-2xs transition hover:bg-indigo-50 active:scale-95"
-              >
-                <span>{trust.faqCta.buttonLabel}</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* =========================================================
-          7. OUR APPROACH TO QUALITY
-          (Desktop connected track + Mobile interactive Stepper with Hover/Tap Dropdown)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-quality-title"
-        className="bg-slate-50/70 py-8 sm:py-10 lg:py-12 border-b border-slate-200/70"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-quality-title"
-            eyebrow={quality.eyebrow}
-            title={quality.heading}
-            text={quality.description}
-          />
-
-          <div className="mx-auto mb-6 max-w-3xl rounded-2xl border-l-4 border-indigo-600 bg-white p-3.5 sm:p-4 shadow-xs">
-            <p className="text-sm sm:text-base font-bold text-slate-800">
-              &ldquo;{quality.supportingMessage}&rdquo;
-            </p>
-          </div>
-
-          {/* Desktop 5-step Horizontal Process Track */}
-          <div className="hidden lg:block relative max-w-5xl mx-auto pt-2">
-            <div className="absolute top-7 left-12 right-12 h-0.5 bg-gradient-to-r from-indigo-200 via-orange-200 to-indigo-200 -z-0" />
-
-            <div className="grid grid-cols-5 gap-4 relative z-10">
-              {quality.steps.map((q) => (
-                <div
-                  key={q.title}
-                  className="flex flex-col items-center text-center gap-2 group"
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border-2 border-indigo-600 font-black text-xs text-indigo-700 shadow-xs transition duration-200 group-hover:bg-indigo-600 group-hover:text-white group-hover:scale-105">
-                    {q.step}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#ea580c] block">
-                      Operational Step {q.step}
-                    </span>
-                    <h3 className="text-xs sm:text-sm font-bold text-slate-800 leading-snug mt-0.5">
-                      {q.title}
-                    </h3>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Mobile View: Clean Vertical Stepper with Dropdown on Hover/Tap */}
-          <div className="block lg:hidden relative max-w-md mx-auto">
-            {/* Stepper Connector Line */}
-            <div
-              className="absolute left-[17px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-indigo-500 via-orange-400 to-indigo-600 rounded-full"
-              aria-hidden="true"
-            />
-
-            <div className="space-y-3">
-              {quality.steps.map((q, idx) => {
-                const isExpanded = expandedQualityStep === idx;
-                return (
-                  <div
-                    key={q.title}
-                    className="relative flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs transition-colors hover:border-indigo-300 cursor-pointer"
-                    onMouseEnter={() => setExpandedQualityStep(idx)}
-                    onClick={() => setExpandedQualityStep(isExpanded ? null : idx)}
-                  >
-                    <span
-                      className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-black text-xs text-white shadow-xs transition-transform duration-200 ${
-                        isExpanded ? "bg-indigo-600 scale-105 ring-4 ring-indigo-100" : "bg-indigo-600/90"
-                      }`}
+              {/* Challenge points accordion */}
+              <div className="space-y-2">
+                {story.challenges.map((c, i) => {
+                  const isOpen = expandedChallenge === i;
+                  return (
+                    <div
+                      key={c.title}
+                      className="rounded-xl border border-slate-200/80 bg-white overflow-hidden transition-all duration-200 hover:border-indigo-200"
                     >
-                      {q.step}
-                    </span>
-
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#ea580c]">
-                          Operational Step {q.step}
-                        </span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
-                            isExpanded ? "rotate-180 text-indigo-600" : ""
-                          }`}
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <h3 className="text-xs font-bold text-slate-900 mt-0.5 leading-snug">
-                        {q.title}
-                      </h3>
-
-                      {/* Dropdown Description */}
-                      <div
-                        className={`grid transition-all duration-300 ease-out overflow-hidden ${
-                          isExpanded ? "grid-rows-[1fr] opacity-100 mt-1.5" : "grid-rows-[0fr] opacity-0"
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedChallenge(isOpen ? null : i)}
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 text-left text-xs sm:text-sm font-bold text-slate-800 hover:text-indigo-600 transition cursor-pointer"
                       >
-                        <div className="overflow-hidden">
-                          <p className="text-[11px] text-slate-500 leading-relaxed pt-1 border-t border-slate-100">
-                            Strict operating benchmarks applied across vetting, service fulfillment, and customer validation.
+                        <div className="flex items-center gap-2">
+                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                          <span className="hover:text-indigo-600 transition-colors">{c.title}</span>
+                        </div>
+                        <ChevronDown
+                          className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${
+                            isOpen ? "rotate-180 text-indigo-600" : ""
+                          }`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="px-3.5 pb-2.5 pt-1 text-xs text-slate-600 border-t border-slate-100 bg-slate-50/50">
+                          <p className="font-medium text-indigo-900">
+                            HomeCareX Solution:{" "}
+                            <span className="text-slate-600 font-normal">
+                              {c.description}
+                            </span>
                           </p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* =========================================================
-          8. THE PEOPLE BEHIND HOMECAREX (TEAM DISCIPLINES)
-          (Desktop 4-column grid + Mobile interactive Accordion Dropdown)
+          3. MAIN ZOHO-STYLE LEFT VERTICAL TABS LAYOUT
+          (PREVIOUS EDITORIAL STYLE: NO CARD CONTAINER BOX)
+          (EXACT MARGIN: max-w-7xl px-5 sm:px-8 lg:px-10)
           ========================================================= */}
       <section
-        aria-labelledby="about-team-title"
-        className="bg-white py-8 sm:py-10 lg:py-12"
+        aria-label="HomeCareX Core Marketplace Pillars"
+        className="bg-white py-10 sm:py-14 border-b border-slate-100"
       >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-team-title"
-            eyebrow={team.eyebrow}
-            title={team.heading}
-            text={team.subtitle}
-          />
-
-          <div className="mx-auto mb-6 max-w-3xl text-center">
-            <p className="rounded-2xl border border-indigo-100 bg-indigo-50/50 px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700">
-              &ldquo;{team.intro}&rdquo;
-            </p>
-          </div>
-
-          {/* Desktop 4-column Grid */}
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
-            {team.disciplines.map((item, i) => {
-              const icons = [
-                <Laptop key="lp" className="h-5 w-5 text-blue-600" />,
-                <Settings key="st" className="h-5 w-5 text-orange-600" />,
-                <Headphones key="hp" className="h-5 w-5 text-emerald-600" />,
-                <ShieldCheck key="sc" className="h-5 w-5 text-purple-600" />,
-              ];
-              return (
-                <article
-                  key={item.id}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition duration-300 hover:-translate-y-1 hover:border-indigo-300 hover:shadow-md"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                        {icons[i] || <Users className="h-5 w-5 text-indigo-600" />}
-                      </span>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                        Discipline
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      {item.title}
-                    </h3>
-                    <p className="mt-0.5 text-xs font-semibold text-indigo-600">
-                      {item.scope}
-                    </p>
-
-                    <div className="mt-3.5 border-t border-slate-100 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                        Focus Areas:
-                      </p>
-                      <ul className="space-y-1.5 text-xs text-slate-600">
-                        {item.focusAreas.map((area) => (
-                          <li key={area} className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" />
-                            <span>{area}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-
-          {/* Mobile View: Interactive Accordion Dropdowns */}
-          <div className="block md:hidden space-y-2.5 max-w-md mx-auto">
-            {team.disciplines.map((item, i) => {
-              const isExpanded = expandedTeamDiscipline === item.id;
-              const icons = [
-                <Laptop key="lp" className="h-4 w-4 text-blue-600" />,
-                <Settings key="st" className="h-4 w-4 text-orange-600" />,
-                <Headphones key="hp" className="h-4 w-4 text-emerald-600" />,
-                <ShieldCheck key="sc" className="h-4 w-4 text-purple-600" />,
-              ];
-              return (
-                <div
-                  key={item.id}
-                  className={`rounded-2xl border transition-all duration-200 ${
-                    isExpanded ? "border-indigo-300 bg-indigo-50/25 shadow-xs" : "border-slate-200/80 bg-white"
-                  }`}
-                  onMouseEnter={() => setExpandedTeamDiscipline(item.id)}
-                >
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          {/* Mobile Horizontal Scrollable Tab Bar (< lg screens) */}
+          <div className="lg:hidden w-full overflow-x-auto no-scrollbar -mx-5 px-5 sm:-mx-8 sm:px-8 mb-6 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 min-w-max">
+              {ZOHO_TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                return (
                   <button
+                    key={tab.id}
                     type="button"
-                    onClick={() => setExpandedTeamDiscipline(isExpanded ? null : item.id)}
-                    className="w-full flex items-center justify-between p-3.5 text-left focus:outline-none"
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                        {icons[i] || <Users className="h-4 w-4 text-indigo-600" />}
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
-                          {item.title}
-                        </h3>
-                        <p className="text-[10px] font-semibold text-indigo-600">
-                          {item.scope}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronDown
-                      className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${
-                        isExpanded ? "rotate-180 text-indigo-600" : ""
-                      }`}
-                      aria-hidden="true"
-                    />
-                  </button>
-
-                  <div
-                    className={`grid transition-all duration-300 ease-out overflow-hidden px-3.5 ${
-                      isExpanded ? "grid-rows-[1fr] pb-3 opacity-100" : "grid-rows-[0fr] opacity-0"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? "bg-[#4338ca] text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
                     }`}
                   >
-                    <div className="overflow-hidden border-t border-slate-100 pt-2.5">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
-                        Focus Areas:
-                      </p>
-                      <ul className="space-y-1.5 text-xs text-slate-600">
-                        {item.focusAreas.map((area) => (
-                          <li key={area} className="flex items-center gap-2">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" />
-                            <span>{area}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          9. OUR CORE VALUES
-          (Desktop 5-column grid + Mobile swipeable Carousel Animation)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-values-title"
-        className="bg-slate-50/70 py-8 sm:py-10 lg:py-12 border-t border-slate-200/70"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-values-title"
-            eyebrow={values.eyebrow}
-            title={values.heading}
-            text={values.subtitle}
-          />
-
-          {/* Desktop 5-column Grid */}
-          <div className="hidden md:grid grid-cols-3 xl:grid-cols-5 gap-3.5 max-w-7xl mx-auto">
-            {values.items.map((val, idx) => {
-              const valIcons = [
-                <Target key="tg" className="h-5 w-5 text-blue-600" />,
-                <Search key="sr" className="h-5 w-5 text-indigo-600" />,
-                <Users key="us" className="h-5 w-5 text-amber-600" />,
-                <Scale key="sc" className="h-5 w-5 text-emerald-600" />,
-                <TrendingUp key="tu" className="h-5 w-5 text-orange-600" />,
-              ];
-              return (
-                <div
-                  key={val.title}
-                  className="flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs transition hover:border-indigo-300 hover:shadow-md"
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2.5">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                        {valIcons[idx] || <Award className="h-5 w-5 text-indigo-600" />}
-                      </span>
-                      <span className="rounded-full bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 text-[10px] font-bold">
-                        Value {val.number}
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      {val.title}
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500 leading-relaxed font-normal">
-                      {val.tagline}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Mobile Swipeable Carousel Animation */}
-          <div
-            className="block md:hidden relative overflow-hidden"
-            onTouchStart={(e) => {
-              valueTouchStartX.current = e.touches[0].clientX;
-            }}
-            onTouchEnd={(e) => {
-              if (valueTouchStartX.current === null) return;
-              const deltaX = e.changedTouches[0].clientX - valueTouchStartX.current;
-              valueTouchStartX.current = null;
-              if (Math.abs(deltaX) > 35) {
-                if (deltaX < 0) {
-                  setActiveValueSlide((prev) => (prev + 1) % values.items.length);
-                } else {
-                  setActiveValueSlide((prev) => (prev - 1 + values.items.length) % values.items.length);
-                }
-              }
-            }}
-          >
-            <div
-              className="flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${activeValueSlide * 100}%)` }}
-            >
-              {values.items.map((val, idx) => {
-                const valIcons = [
-                  <Target key="tg" className="h-5 w-5 text-blue-600" />,
-                  <Search key="sr" className="h-5 w-5 text-indigo-600" />,
-                  <Users key="us" className="h-5 w-5 text-amber-600" />,
-                  <Scale key="sc" className="h-5 w-5 text-emerald-600" />,
-                  <TrendingUp key="tu" className="h-5 w-5 text-orange-600" />,
-                ];
-                return (
-                  <div key={val.title} className="w-full shrink-0 px-1">
-                    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
-                      <div className="flex items-center justify-between mb-2.5">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs">
-                          {valIcons[idx] || <Award className="h-5 w-5 text-indigo-600" />}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="rounded-full bg-orange-50 text-orange-700 border border-orange-100 px-2 py-0.5 text-[10px] font-bold">
-                            Value {val.number}
-                          </span>
-                          <span className="text-[10px] font-bold text-slate-400">
-                            {idx + 1}/{values.items.length}
-                          </span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-sm font-bold text-slate-900">
-                        {val.title}
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500 leading-relaxed font-normal">
-                        {val.tagline}
-                      </p>
-                    </div>
-                  </div>
+                    {tab.title}
+                  </button>
                 );
               })}
             </div>
-
-            {/* Carousel Dot Indicators */}
-            <div className="mt-3 flex items-center justify-center gap-1.5">
-              {values.items.map((v, idx) => (
-                <button
-                  key={v.title}
-                  type="button"
-                  onClick={() => setActiveValueSlide(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    activeValueSlide === idx
-                      ? "w-4 bg-orange-500"
-                      : "w-1.5 bg-slate-300 hover:bg-slate-400"
-                  }`}
-                  aria-label={`Go to value ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          10. HOW HOMECAREX CONNECTS PEOPLE (3-STEP TIMELINE)
-          (Desktop 3-column cards + Mobile Stepper Accordion Dropdown)
-          ========================================================= */}
-      <section
-        aria-labelledby="about-connects-title"
-        className="bg-white py-8 sm:py-10 lg:py-12 border-t border-slate-200/70"
-      >
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHead
-            id="about-connects-title"
-            eyebrow={howItWorks.eyebrow}
-            title={howItWorks.heading}
-            text={howItWorks.subtitle}
-          />
-
-          {/* Desktop 3-column Cards */}
-          <div className="hidden md:grid grid-cols-3 gap-5 max-w-6xl mx-auto">
-            {howItWorks.steps.map((st) => (
-              <div
-                key={st.title}
-                className="flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-gradient-to-b from-white via-slate-50/30 to-white p-5 sm:p-6 shadow-xs transition duration-300 hover:border-indigo-300 hover:shadow-md"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 font-black text-sm shadow-2xs border border-indigo-100">
-                      {st.number}
-                    </span>
-                    <span className="rounded-full bg-[#ff8a3d] px-2.5 py-0.5 text-xs font-bold text-white shadow-2xs">
-                      Step {st.number}
-                    </span>
-                  </div>
-
-                  <h3 className="text-base sm:text-lg font-black text-slate-900">
-                    {st.title}
-                  </h3>
-                  <p className="mt-1 text-xs sm:text-sm font-semibold text-indigo-600">
-                    {st.summary}
-                  </p>
-
-                  <div className="mt-4 border-t border-slate-100 pt-3.5">
-                    <ul className="space-y-1.5 text-xs text-slate-600">
-                      {st.details.map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
 
-          {/* Mobile View: Vertical Stepper Accordion Dropdown */}
-          <div className="block md:hidden relative max-w-md mx-auto">
-            <div
-              className="absolute left-[17px] top-4 bottom-4 w-0.5 bg-gradient-to-b from-blue-500 via-indigo-500 to-[#ff8a3d] rounded-full"
-              aria-hidden="true"
-            />
-
-            <div className="space-y-3">
-              {howItWorks.steps.map((st, idx) => {
-                const isExpanded = expandedConnectStep === idx;
-                return (
-                  <div
-                    key={st.title}
-                    className="relative flex items-start gap-3.5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-2xs transition-colors hover:border-indigo-300 cursor-pointer"
-                    onMouseEnter={() => setExpandedConnectStep(idx)}
-                    onClick={() => setExpandedConnectStep(isExpanded ? null : idx)}
-                  >
-                    <span
-                      className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-black text-xs text-white shadow-xs transition-transform duration-200 ${
-                        isExpanded ? "bg-[#ff8a3d] scale-105 ring-4 ring-orange-100" : "bg-indigo-600"
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            {/* Left Vertical Zoho Tab Navigation (Desktop Only: lg:block, completely undisturbed) */}
+            <aside
+              aria-label="About page section menu"
+              className="hidden lg:block lg:col-span-3 lg:sticky lg:top-24"
+            >
+              <nav className="flex flex-col border-l-2 border-slate-100">
+                {ZOHO_TABS.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`group text-left py-3.5 pl-5 pr-2 text-sm sm:text-base font-bold transition-all duration-200 border-l-2 -ml-[2px] cursor-pointer ${
+                        isActive
+                          ? "border-l-[#ff8a3d] text-[#4338ca] font-extrabold"
+                          : "border-l-transparent text-slate-600 hover:text-slate-900 hover:border-l-slate-300"
                       }`}
                     >
-                      {st.number}
-                    </span>
+                      <span className={`transition-colors ${isActive ? "text-[#4338ca]" : "group-hover:text-slate-900"}`}>
+                        {tab.title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </aside>
 
-                    <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#ea580c]">
-                          Step {st.number}
-                        </span>
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
-                            isExpanded ? "rotate-180 text-orange-600" : ""
-                          }`}
-                          aria-hidden="true"
+            {/* Right Tab Content Container */}
+            <main
+              id="zoho-about-section-content"
+              tabIndex={-1}
+              className="lg:col-span-9 bg-white min-h-[500px]"
+            >
+              {/* ================= TAB 1: WHAT WE DO (BACKEND CATEGORIES CAROUSEL) ================= */}
+              {activeTab === "what-we-do" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {whatWeDo.eyebrow}
+                      </span>
+                      <h2
+                        id="zoho-about-section-heading"
+                        className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default"
+                      >
+                        {whatWeDo.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {whatWeDo.description}
+                      </p>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                        Standardized pricing, transparent task scopes, and verified technicians replace uncertainty with reliable doorstep care.
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-cleaning-team.jpg"
+                          alt="HomeCareX verified cleaning team in a modern home"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
                         />
                       </div>
-                      <h3 className="text-xs font-bold text-slate-900 mt-0.5 leading-snug">
-                        {st.title}
-                      </h3>
-                      <p className="text-[10px] font-semibold text-indigo-600 mt-0.5">
-                        {st.summary}
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Verified home care specialists delivering trusted doorstep care.
                       </p>
+                    </div>
+                  </div>
 
-                      {/* Dropdown Checklist */}
-                      <div
-                        className={`grid transition-all duration-300 ease-out overflow-hidden ${
-                          isExpanded ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"
-                        }`}
-                      >
-                        <div className="overflow-hidden border-t border-slate-100 pt-2">
-                          <ul className="space-y-1.5 text-xs text-slate-600">
-                            {st.details.map((item) => (
-                              <li key={item} className="flex items-start gap-1.5">
-                                <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                  {/* Categories from Backend Carousel Animation with 2 cols per view */}
+                  <div
+                    className="pt-6 border-t border-slate-100"
+                    onMouseEnter={() => setIsServicesPaused(true)}
+                    onMouseLeave={() => setIsServicesPaused(false)}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                        <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                          Featured Marketplace Offerings
+                        </h3>
+                      </div>
+
+                      {/* Carousel Animation Controls */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 mr-2">
+                          {servicesSlide + 1} / {totalServiceSlides}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Previous categories"
+                          onClick={() => setServicesSlide((prev) => (prev - 1 + totalServiceSlides) % totalServiceSlides)}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition shadow-2xs cursor-pointer"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next categories"
+                          onClick={() => setServicesSlide((prev) => (prev + 1) % totalServiceSlides)}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition shadow-2xs cursor-pointer"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Animated 2-Column Carousel View from Backend Categories */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {categoryItems
+                        .slice(servicesSlide * 2, servicesSlide * 2 + 2)
+                        .map((svc) => (
+                          <div
+                            key={svc.id}
+                            className="group flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-5 shadow-2xs hover:border-indigo-300 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                                <img
+                                  src={svc.image}
+                                  alt={svc.name}
+                                  className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  loading="lazy"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                    {svc.name}
+                                  </h4>
+                                  <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-bold text-indigo-700">
+                                    {svc.category}
+                                  </span>
+                                </div>
+                                <p className="text-xs sm:text-sm text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                                  {svc.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <Link
+                                to={svc.href}
+                                className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#ff8a3d] hover:text-[#ea580c] transition cursor-pointer"
+                              >
+                                <span>Explore Services</span>
+                                <ArrowRight className="h-3.5 w-3.5" />
+                              </Link>
+                              <span className="text-[11px] font-semibold text-slate-400">
+                                Verified Specialists
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Carousel Indicators */}
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                      {Array.from({ length: totalServiceSlides }).map((_, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          aria-label={`Slide ${idx + 1}`}
+                          onClick={() => setServicesSlide(idx)}
+                          className={`h-2 rounded-full transition-all cursor-pointer ${
+                            servicesSlide === idx ? "w-7 bg-[#4338ca]" : "w-2 bg-slate-200 hover:bg-slate-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 2: OUR MISSION & VISION ================= */}
+              {activeTab === "mission-vision" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {mission.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        Our Mission &amp; Vision
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {mission.statement}
+                      </p>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                        {vision.statement}
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-electrician.jpg"
+                          alt="HomeCareX certified electrician performing diagnostics"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Standardized quality benchmarks for every home visit.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2-Column Pillars: Mission & Vision */}
+                  <div className="grid sm:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
+                    <div className="group rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-5 hover:border-indigo-400 transition-colors">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[#4338ca]">
+                          <Compass className="h-4 w-4" />
+                        </span>
+                        <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#4338ca]">
+                          OUR MISSION PILLARS
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        {mission.pillars.map((pillar) => (
+                          <div key={pillar.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#4338ca]">
+                              <Check className="h-3 w-3" />
+                            </span>
+                            <span>{pillar.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="group rounded-2xl border border-orange-200/80 bg-orange-50/30 p-5 hover:border-orange-400 transition-colors">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-[#ea580c]">
+                          <Target className="h-4 w-4" />
+                        </span>
+                        <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#ea580c]">
+                          LONG-TERM COMMITMENTS
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        {vision.commitments.map((c) => (
+                          <div key={c.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#ea580c]">
+                              <Check className="h-3 w-3" />
+                            </span>
+                            <span>{c.title}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+
+              {/* ================= TAB 3: PLATFORM SAFEGUARDS (NO CARD STYLE) ================= */}
+              {activeTab === "safeguards" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {trust.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        {trust.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {trust.subtitle}
+                      </p>
+                      <div className="rounded-2xl bg-indigo-50/60 border-l-4 border-indigo-600 p-4 text-sm sm:text-base text-indigo-950 leading-relaxed font-medium">
+                        "{trust.subtleNote}"
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-service-crew.jpg"
+                          alt="HomeCareX deep-cleaning specialists in action"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Certified safeguards at every stage of booking.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Active Safeguards: Pure Editorial Style (NO CARD BORDERS/BOXES) */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center gap-2 mb-6">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                      <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                        Active Platform Safeguards:
+                      </h3>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-x-10 gap-y-6">
+                      {trust.practices.map((practice, i) => {
+                        const icons = [
+                          <ShieldCheck key="sc" className="h-5 w-5 text-blue-600" />,
+                          <MessageSquare key="ms" className="h-5 w-5 text-emerald-600" />,
+                          <Layers key="ly" className="h-5 w-5 text-indigo-600" />,
+                          <Lock key="lk" className="h-5 w-5 text-amber-600" />,
+                          <Calendar key="cd" className="h-5 w-5 text-purple-600" />,
+                          <Award key="aw" className="h-5 w-5 text-orange-600" />,
+                        ];
+                        return (
+                          <div key={practice.title} className="group flex items-start gap-4 pb-4 border-b border-slate-100 last:border-b-0 md:last:border-b md:[&:nth-last-child(2)]:border-b">
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50/80 text-indigo-600 shadow-2xs mt-0.5 group-hover:bg-indigo-100 transition-colors">
+                              {icons[i] || <CheckCircle2 className="h-5 w-5" />}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2.5">
+                                <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                  {practice.title}
+                                </h4>
+                                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-600">
+                                  {practice.tag}
+                                </span>
+                              </div>
+                              <p className="text-xs sm:text-sm text-slate-600 mt-1 leading-relaxed">
+                                {practice.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* FAQ CTA Banner */}
+                  {trust.faqCta && (
+                    <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                      <div>
+                        <h4 className="hover-heading text-sm sm:text-base font-bold text-slate-900">
+                          {trust.faqCta.heading}
+                        </h4>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                          {trust.faqCta.description}
+                        </p>
+                      </div>
+                      <Link
+                        to={ROUTES.FAQ}
+                        className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white border border-slate-300 px-5 py-2.5 text-xs sm:text-sm font-bold text-slate-700 hover:text-indigo-600 hover:border-indigo-300 transition shadow-2xs"
+                      >
+                        <span>{trust.faqCta.buttonLabel}</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ================= TAB 4: OUR APPROACH TO QUALITY (STEPPER ONLY, NO CARDS, HOVER SUB-CONTEXT) ================= */}
+              {activeTab === "quality" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {quality.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        {quality.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {quality.supportingMessage}
+                      </p>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                        {quality.description}
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-plumber.jpg"
+                          alt="HomeCareX certified craftsman delivering verified repair quality"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        High standards maintained through systematic workflow auditing.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Connected Stepper with Headings Down Each Step (NO CARD BOXES, STRICT 5-STEP BOUNDARY) */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center gap-2 mb-8">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                      <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                        The Quality Lifecycle Stepper:
+                      </h3>
+                    </div>
+
+                    {/* Stepper with connecting line strictly between node 1 (10%) and node 5 (90%) */}
+                    <div className="relative py-2">
+                      {/* Base Track */}
+                      <div className="hidden md:block absolute top-6 left-[10%] right-[10%] h-1 bg-slate-200 -z-0 rounded-full" />
+                      {/* Active Progress Track: strictly capped at node 5 */}
+                      <div
+                        className="hidden md:block absolute top-6 left-[10%] h-1 bg-gradient-to-r from-indigo-600 via-[#ff8a3d] to-emerald-500 -z-0 rounded-full transition-all duration-500"
+                        style={{
+                          width:
+                            hoveredQualityStep !== null
+                              ? `${(hoveredQualityStep / 4) * 80}%`
+                              : "80%",
+                          maxWidth: "80%",
+                        }}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 md:gap-3">
+                        {quality.steps.map((st, idx) => {
+                          const isHovered = hoveredQualityStep === idx;
+                          return (
+                            <div
+                              key={st.step}
+                              className="group flex flex-col items-center text-center cursor-pointer relative"
+                              onMouseEnter={() => setHoveredQualityStep(idx)}
+                              onMouseLeave={() => setHoveredQualityStep(null)}
+                              onClick={() => setHoveredQualityStep(hoveredQualityStep === idx ? null : idx)}
+                            >
+                              {/* Step Node */}
+                              <div className="relative z-10 mb-2">
+                                <span
+                                  className={`flex h-11 w-11 items-center justify-center rounded-full text-xs font-black transition-all duration-300 ${
+                                    isHovered
+                                      ? "bg-[#ff8a3d] text-white ring-4 ring-orange-200 scale-110 shadow-md"
+                                      : "bg-white border-2 border-indigo-600 text-indigo-700 shadow-xs group-hover:border-[#ff8a3d] group-hover:text-[#ff8a3d]"
+                                  }`}
+                                >
+                                  {st.step}
+                                </span>
+                              </div>
+
+                              {/* Phase Badge */}
+                              <span className="text-[11px] font-black uppercase tracking-wider text-[#ea580c] mb-1">
+                                Phase {idx + 1}
+                              </span>
+
+                              {/* Heading down the step (NO CARD STYLE) */}
+                              <h4 className="hover-heading text-sm sm:text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors px-1">
+                                {st.title}
+                              </h4>
+
+                              {/* Sub-context shown on hover & mobile visible */}
+                              <div
+                                className={`mt-2 transition-all duration-300 px-3 py-2 rounded-xl text-xs sm:text-sm text-slate-600 bg-slate-50 border border-slate-200/80 shadow-xs max-w-[280px] md:max-w-[210px] ${
+                                  isHovered
+                                    ? "opacity-100 translate-y-0"
+                                    : "block md:opacity-0 md:-translate-y-1 md:pointer-events-none md:invisible md:group-hover:opacity-100 md:group-hover:translate-y-0 md:group-hover:visible"
+                                }`}
+                              >
+                                <p className="leading-relaxed">
+                                  {qualityStepDescriptions[idx]}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 5: THE PEOPLE BEHIND HOMECAREX (CAROUSEL WITH ICONS BESIDE HEADINGS) ================= */}
+              {activeTab === "team" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {team.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        {team.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {team.subtitle}
+                      </p>
+                      <div className="rounded-2xl bg-slate-50 border border-slate-200/80 p-4 text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+                        "{team.intro}"
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-service-crew.jpg"
+                          alt="HomeCareX cross-functional operations and engineering team"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Multidisciplinary teams building the next-gen marketplace.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 4th Image: Cross-Functional Disciplines Carousel Animation */}
+                  <div
+                    className="pt-6 border-t border-slate-100"
+                    onMouseEnter={() => setIsTeamPaused(true)}
+                    onMouseLeave={() => setIsTeamPaused(false)}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                        <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                          Cross-Functional Disciplines:
+                        </h3>
+                      </div>
+
+                      {/* Carousel Controls */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-400 mr-2">
+                          {teamCarouselSlide + 1} / 2
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Previous disciplines"
+                          onClick={() => setTeamCarouselSlide((prev) => (prev === 0 ? 1 : 0))}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition shadow-2xs cursor-pointer"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Next disciplines"
+                          onClick={() => setTeamCarouselSlide((prev) => (prev === 1 ? 0 : 1))}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition shadow-2xs cursor-pointer"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Animated 2-Column Carousel with Icons Beside Headings */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {team.disciplines
+                        .slice(teamCarouselSlide * 2, teamCarouselSlide * 2 + 2)
+                        .map((disc, idx) => {
+                          const iconList = [
+                            <Laptop key="lap" className="h-5 w-5 text-indigo-600" />,
+                            <Settings key="set" className="h-5 w-5 text-orange-600" />,
+                            <Headphones key="hed" className="h-5 w-5 text-emerald-600" />,
+                            <ShieldCheck key="shd" className="h-5 w-5 text-blue-600" />,
+                          ];
+                          const iconIndex = teamCarouselSlide * 2 + idx;
+                          return (
+                            <div
+                              key={disc.id}
+                              className="group rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs hover:border-indigo-400 hover:shadow-md hover:-translate-y-1 transition-all duration-300"
+                            >
+                              {/* Icon Beside Heading */}
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs group-hover:bg-indigo-50 group-hover:scale-105 transition-all">
+                                    {iconList[iconIndex] || <CheckCircle2 className="h-5 w-5 text-indigo-600" />}
+                                  </span>
+                                  <div>
+                                    <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                      {disc.title}
+                                    </h4>
+                                    <p className="text-xs sm:text-sm font-bold text-indigo-600">
+                                      {disc.scope}
+                                    </p>
+                                  </div>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-500">
+                                  Discipline
+                                </span>
+                              </div>
+
+                              <div className="border-t border-slate-100 pt-3">
+                                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                                  FOCUS AREAS:
+                                </p>
+                                <ul className="space-y-1.5 text-xs sm:text-sm text-slate-600">
+                                  {disc.focusAreas.map((fa) => (
+                                    <li key={fa} className="flex items-center gap-2">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" />
+                                      <span>{fa}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    {/* Carousel Slide Indicators */}
+                    <div className="flex items-center justify-center gap-2 mt-5">
+                      <button
+                        type="button"
+                        aria-label="Slide 1"
+                        onClick={() => setTeamCarouselSlide(0)}
+                        className={`h-2 rounded-full transition-all cursor-pointer ${
+                          teamCarouselSlide === 0 ? "w-7 bg-[#4338ca]" : "w-2 bg-slate-200 hover:bg-slate-300"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        aria-label="Slide 2"
+                        onClick={() => setTeamCarouselSlide(1)}
+                        className={`h-2 rounded-full transition-all cursor-pointer ${
+                          teamCarouselSlide === 1 ? "w-7 bg-[#4338ca]" : "w-2 bg-slate-200 hover:bg-slate-300"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 6: OUR CORE VALUES (3RD IMAGE: REFINED EXECUTIVE PROFESSIONAL STYLE) ================= */}
+              {activeTab === "values" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {values.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        {values.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {values.subtitle}
+                      </p>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                        Our values serve as our daily operating code, guiding product design, partner onboarding, and customer interactions.
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-electrician.jpg"
+                          alt="HomeCareX professional embodying craft integrity"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Integrity and transparent service in every home.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 3rd Image: Latest Modern Editorial Strip Matrix (NO CARD BOXES, NO GUIDING STANDARD COLUMN) */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                        <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                          Core Operating Principles:
+                        </h3>
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-400">
+                        5 Guiding Pillars
+                      </span>
+                    </div>
+
+                    {/* Editorial Interactive Rows (Zero Card Boxes, No Guiding Standard Column) */}
+                    <div className="divide-y divide-slate-100 border-y border-slate-100">
+                      {values.items.map((val) => {
+                        const valIcons: Record<string, React.ReactNode> = {
+                          "Customer First": <Target className="h-5 w-5 text-indigo-600" />,
+                          "Transparency": <Search className="h-5 w-5 text-indigo-600" />,
+                          "Respect": <Users className="h-5 w-5 text-amber-600" />,
+                          "Responsibility": <Scale className="h-5 w-5 text-emerald-600" />,
+                          "Continuous Improvement": <TrendingUp className="h-5 w-5 text-orange-600" />,
+                        };
+                        return (
+                          <div
+                            key={val.title}
+                            className="group relative py-4 sm:py-5 px-3 sm:px-5 transition-all duration-300 hover:bg-gradient-to-r hover:from-indigo-50/70 hover:via-white hover:to-orange-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-8 cursor-pointer rounded-xl"
+                          >
+                            {/* Left: Numeral + Icon + Title (No Truncation) */}
+                            <div className="flex items-center gap-3.5 sm:gap-5 min-w-0 sm:min-w-[280px]">
+                              <span className="text-lg sm:text-xl font-black text-slate-300 group-hover:text-[#ff8a3d] transition-colors tabular-nums shrink-0">
+                                {val.number}
+                              </span>
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs group-hover:bg-white group-hover:scale-110 transition-all">
+                                {valIcons[val.title] || <Award className="h-5 w-5 text-indigo-600" />}
+                              </span>
+                              <div className="min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                  Pillar {val.number}
+                                </span>
+                                <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors whitespace-nowrap">
+                                  {val.title}
+                                </h4>
+                              </div>
+                            </div>
+
+                            {/* Right: Tagline statement (Fills full width, guiding standard column removed) */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs sm:text-sm md:text-base text-slate-600 leading-relaxed font-normal group-hover:text-slate-900 transition-colors">
+                                {val.tagline}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================= TAB 7: THE 4-STEP CUSTOMER JOURNEY (STEPPER & HOVER STYLE) ================= */}
+              {activeTab === "marketplace" && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="grid md:grid-cols-12 gap-8 items-start">
+                    <div className="md:col-span-7 space-y-4">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                        {howItWorks.eyebrow}
+                      </span>
+                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                        {howItWorks.heading}
+                      </h2>
+                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                        {howItWorks.subtitle}
+                      </p>
+                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                        A structured digital workflow connecting homeowners with verified professionals for seamless service completion.
+                      </p>
+                    </div>
+
+                    <div className="md:col-span-5 shrink-0">
+                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                        <img
+                          src="/images/about/about-cleaning-team.jpg"
+                          alt="HomeCareX customer scheduling a verified service"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          loading="lazy"
+                        />
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                        Seamless booking and doorstep delivery in 4 steps.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 2nd Image: The 4-Step Customer Journey (CONNECTED STEPPER, NO CARD STYLE) */}
+                  <div className="pt-6 border-t border-slate-100">
+                    <div className="flex items-center gap-2 mb-8">
+                      <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                      <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                        The 4-Step Customer Journey:
+                      </h3>
+                    </div>
+
+                    {/* Connected Stepper with Steps Directly Underneath (Zero Card Boxes) */}
+                    <div className="relative py-2">
+                      {/* Base Track strictly between node 01 center (12.5%) and node 04 center (87.5%) */}
+                      <div className="hidden md:block absolute top-6 left-[12.5%] right-[12.5%] h-1 bg-slate-200 -z-0 rounded-full" />
+                      {/* Active Progress Track capped strictly at node 04 */}
+                      <div
+                        className="hidden md:block absolute top-6 left-[12.5%] h-1 bg-gradient-to-r from-indigo-600 via-[#ff8a3d] to-emerald-500 -z-0 rounded-full transition-all duration-500"
+                        style={{
+                          width:
+                            hoveredJourneyStep !== null
+                              ? `${(hoveredJourneyStep / 3) * 75}%`
+                              : "75%",
+                          maxWidth: "75%", // STRICT BOUND: Never crosses or overshoots past step 4!
+                        }}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-4">
+                        {howItWorks.steps.map((st, idx) => {
+                          const isHovered = hoveredJourneyStep === idx;
+                          return (
+                            <div
+                              key={st.number}
+                              className="group flex flex-col items-center text-center cursor-pointer relative px-2"
+                              onMouseEnter={() => setHoveredJourneyStep(idx)}
+                              onMouseLeave={() => setHoveredJourneyStep(null)}
+                              onClick={() => setHoveredJourneyStep(hoveredJourneyStep === idx ? null : idx)}
+                            >
+                              {/* Step Node */}
+                              <div className="relative z-10 mb-3">
+                                <span
+                                  className={`flex h-12 w-12 items-center justify-center rounded-full text-xs font-black transition-all duration-300 ${
+                                    isHovered
+                                      ? "bg-[#ff8a3d] text-white ring-4 ring-orange-200 scale-110 shadow-md"
+                                      : "bg-white border-2 border-indigo-600 text-indigo-700 shadow-xs group-hover:border-[#ff8a3d] group-hover:text-[#ff8a3d]"
+                                  }`}
+                                >
+                                  {st.number}
+                                </span>
+                              </div>
+
+                              {/* Step Label */}
+                              <span className="text-[11px] font-black uppercase tracking-wider text-[#ea580c] mb-1">
+                                Step {st.number}
+                              </span>
+
+                              {/* Step Title with Icon */}
+                              <div className="flex items-center justify-center gap-1.5 mb-1.5">
+                                <h4 className="hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                  {st.title}
+                                </h4>
+                                <span className="text-base">{st.icon}</span>
+                              </div>
+
+                              {/* Summary */}
+                              <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
+                                {st.summary}
+                              </p>
+
+                              {/* Subpoints revealed on hover (NO CARD STYLE) & mobile touch visible */}
+                              <div
+                                className={`transition-all duration-300 overflow-hidden text-left ${
+                                  isHovered
+                                    ? "max-h-60 opacity-100 mt-3 pt-3 border-t border-slate-100"
+                                    : "block md:max-h-0 md:opacity-0 md:group-hover:max-h-60 md:group-hover:opacity-100 md:group-hover:mt-3 md:group-hover:pt-3 md:group-hover:border-t md:group-hover:border-slate-100 mt-3 pt-3 border-t border-slate-100"
+                                }`}
+                              >
+                                <ul className="space-y-1.5 text-xs text-slate-600">
+                                  {st.details.map((d) => (
+                                    <li key={d} className="flex items-center gap-2">
+                                      <CheckCircle2
+                                        className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                                          isHovered ? "text-[#ff8a3d]" : "text-emerald-500"
+                                        }`}
+                                      />
+                                      <span>{d}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Subtle hint when idle (Desktop only) */}
+                              <div className="hidden md:flex mt-2 pt-1 text-[11px] font-semibold text-slate-400 group-hover:hidden items-center gap-1">
+                                <span>View details</span>
+                                <span>&rarr;</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex justify-end">
+                    <Link
+                      to={ROUTES.SERVICES}
+                      className="inline-flex items-center gap-2 text-sm sm:text-base font-bold text-[#ff8a3d] hover:text-[#ea580c] transition-colors cursor-pointer"
+                    >
+                      <span>Explore Our Services Catalog</span>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </main>
           </div>
         </div>
       </section>
 
       {/* =========================================================
-          11. FINAL RADIANT CALL TO ACTION
+          4. FINAL CALL TO ACTION
+          (EXACT MARGIN: max-w-7xl px-5 sm:px-8 lg:px-10)
           ========================================================= */}
       <section
         aria-labelledby="about-cta-title"
-        className="px-4 sm:px-6 lg:px-8 py-8 sm:py-10 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200/70"
+        className="py-10 sm:py-14 bg-gradient-to-b from-white to-slate-50 border-t border-slate-200/70"
       >
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-50/90 via-white to-orange-50/70 p-6 sm:p-10 lg:p-12 text-center text-slate-800 shadow-xl border border-indigo-100/90">
-          <div
-            className="pointer-events-none absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#ff8a3d]/15 blur-3xl"
-            aria-hidden="true"
-          />
-          <div
-            className="pointer-events-none absolute -right-20 -bottom-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl"
-            aria-hidden="true"
-          />
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
+          <div className="relative mx-auto overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-50/90 via-white to-orange-50/70 p-6 sm:p-10 lg:p-12 text-center text-slate-800 shadow-md border border-indigo-100/90">
+            <div
+              className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-[#ff8a3d]/15 blur-3xl"
+              aria-hidden="true"
+            />
+            <div
+              className="pointer-events-none absolute -bottom-20 -right-20 h-64 w-64 rounded-full bg-[#4338ca]/15 blur-3xl"
+              aria-hidden="true"
+            />
 
-          <div className="relative z-10 max-w-3xl mx-auto">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700 border border-indigo-200/80 shadow-2xs mb-2.5">
-              <Sparkles className="h-3.5 w-3.5 text-[#ff8a3d]" />
-              <span>EXPERIENCE THE DIFFERENCE</span>
-            </span>
+            <div className="relative z-10 max-w-3xl mx-auto">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700 border border-indigo-200/80 shadow-2xs mb-3">
+                <Sparkles className="h-3.5 w-3.5 text-[#ff8a3d]" />
+                <span>EXPERIENCE THE DIFFERENCE</span>
+              </span>
 
-            <h2
-              id="about-cta-title"
-              className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight"
-            >
-              {cta.heading}
-            </h2>
-
-            <p className="mx-auto mt-2.5 max-w-xl text-sm sm:text-base leading-relaxed text-slate-600">
-              {cta.description}
-            </p>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 max-w-md mx-auto sm:max-w-none">
-              <Link
-                to={cta.primaryCta.href}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 rounded-xl bg-[#ff8a3d] px-7 py-3 text-sm font-bold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+              <h2
+                id="about-cta-title"
+                className="hover-heading text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight cursor-default"
               >
-                <span>{cta.primaryCta.label}</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                to={cta.secondaryCta.href}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center rounded-xl border-2 border-[#4338ca] bg-white px-7 py-3 text-sm font-bold text-[#4338ca] shadow-xs transition duration-300 hover:bg-indigo-50 hover:-translate-y-0.5 active:scale-95"
-              >
-                <span>{cta.secondaryCta.label}</span>
-              </Link>
-            </div>
+                {cta.heading}
+              </h2>
 
-            <div className="mt-7 pt-5 border-t border-slate-200/80 flex flex-wrap items-center justify-center gap-4 sm:gap-7 text-xs font-semibold text-slate-600">
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-emerald-600" /> Standardized Pricing
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-emerald-600" /> Verified Professionals
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Check className="h-4 w-4 text-emerald-600" /> Secure Online Experience
-              </span>
+              <p className="mt-3 text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                {cta.description}
+              </p>
+
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3.5">
+                <Link
+                  to={cta.primaryCta?.href || ROUTES.SERVICES}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-7 py-3 text-sm sm:text-base font-bold text-white shadow-md shadow-orange-500/20 transition hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+                >
+                  <span>{cta.primaryCta?.label || "Explore Services"}</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to={cta.secondaryCta?.href || ROUTES.PARTNER_REGISTER}
+                  className="inline-flex items-center justify-center rounded-xl border-2 border-[#4338ca] bg-white px-7 py-3 text-sm sm:text-base font-bold text-[#4338ca] shadow-xs transition hover:bg-indigo-50 hover:-translate-y-0.5 active:scale-95 cursor-pointer"
+                >
+                  <span>{cta.secondaryCta?.label || "Become a Partner"}</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

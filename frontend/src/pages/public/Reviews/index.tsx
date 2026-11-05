@@ -233,7 +233,7 @@ export default function ReviewsPage() {
           aria-hidden
         />
 
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           {/* ===================== HERO SECTION ===================== */}
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-orange-50/90 border border-orange-200/70 px-3.5 py-1 text-xs font-bold text-orange-800 shadow-2xs">
