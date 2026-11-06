@@ -25,45 +25,19 @@
 
 /* Skeletons */
 .ex-skel { border-radius: 18px; }
-.ex-skel--hero { height: 190px; }
+.ex-skel--hero { height: 120px; }
 .ex-skel--periods { height: 84px; }
 .ex-skel--stats { height: 70px; }
 .ex-skel--chart { height: 220px; }
 .ex-skel--list { height: 260px; }
 
 /* ---------- Hero ---------- */
-.ex-hero {
-  position: relative;
-  overflow: hidden;
-  padding: 18px 18px 14px;
-  border-radius: 22px;
-  color: #fff;
-  background: linear-gradient(135deg, #3730a3 0%, #4338ca 55%, #6d5ef0 100%);
-  box-shadow: 0 10px 26px rgba(67, 56, 202, 0.28);
-}
-.ex-hero::after {
-  content: "";
-  position: absolute;
-  right: -46px; top: -46px;
-  width: 170px; height: 170px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 138, 61, 0.55), rgba(255, 138, 61, 0) 70%);
-  pointer-events: none;
-}
-.ex-hero-eyebrow { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; opacity: 0.85; }
-.ex-hero-value { display: block; margin-top: 4px; font-size: 36px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; }
-.ex-hero-note { margin: 2px 0 0; font-size: 12px; opacity: 0.75; }
-.ex-hero-bar { margin-top: 14px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.22); overflow: hidden; }
-.ex-hero-bar span { display: block; height: 100%; border-radius: inherit; background: var(--ex-accent); transition: width 0.6s ease; }
-.ex-hero-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-.ex-hero-split > div { padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.14); }
-.ex-hero-split p { margin: 0 0 2px; display: flex; align-items: center; gap: 5px; font-size: 11.5px; opacity: 0.85; }
-.ex-hero-split span { font-size: 17px; font-weight: 700; }
-.ex-hero-link {
-  position: relative; z-index: 1;
-  margin-top: 10px; display: inline-flex; align-items: center; gap: 3px;
-  font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; opacity: 0.92;
-}
+.ex-hero { padding: 16px; border-radius: 18px; background: #fff; border: 1px solid var(--ex-line); }
+.ex-hero-eyebrow { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ex-muted); }
+.ex-hero-eyebrow svg { color: var(--ex-primary); }
+.ex-hero-value { display: block; margin-top: 4px; font-size: 30px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; color: var(--ex-primary); }
+.ex-hero-note { margin: 2px 0 0; font-size: 12px; color: var(--ex-muted); }
+.ex-hero-link { margin-top: 10px; display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--ex-primary); text-decoration: none; }
 .ex-hero-link:hover { text-decoration: underline; }
 
 /* ---------- Period tiles ---------- */
@@ -159,8 +133,8 @@
 
 /* ---------- Wider screens ---------- */
 @media (min-width: 720px) {
-  .ex-hero { padding: 24px; }
-  .ex-hero-value { font-size: 44px; }
+  .ex-hero { padding: 20px; }
+  .ex-hero-value { font-size: 38px; }
   .ex-periods { gap: 12px; }
   .ex-period { padding: 16px; }
   .ex-period > span:last-child { font-size: 20px; }
@@ -170,5 +144,4 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ex-spin { animation: none; }
-  .ex-hero-bar span { transition: none; }
 }

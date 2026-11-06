@@ -8,6 +8,7 @@ import {
   formatMethod,
   formatMoney,
 } from './payoutsFormat';
+import EarningsTabs from '../../../components/partner/EarningsTabs';
 import './Payouts.css';
 
 type Filter = 'all' | PayoutStatus;
@@ -347,6 +348,7 @@ export default function Payouts() {
   return (
     <main className="payouts-page" aria-busy={loading}>
       <div className="payouts-container">
+        <EarningsTabs />
         <header className="payouts-header">
           <h1>Partner Payouts</h1>
         </header>
@@ -711,4 +713,4 @@ export default function Payouts() {
       </div>
     </main>
   );
-}
+}
