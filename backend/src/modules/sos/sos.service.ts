@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { ERROR_CODES } from "../../constants/errorCodes";
 import { Errors } from "../../utils/errors";
 import { auditService } from "../audit/audit.service";
@@ -32,7 +33,15 @@ const defaultDeps: SosDeps = {
   repo: sosRepository,
   notifyAdmins: (alert) => {
     const io = getIOIfReady();
-    if (io) io.to(rooms.role("admin")).emit(SOS_EVENT, alert);
+    if (!io) return;
+    const emit = (a: SosAlertDto) => io.to(rooms.role("admin")).emit(SOS_EVENT, a);
+    // Add the partner's name and phone so the admin alert is useful at once. If the lookup is not possible
+    // or fails, the plain alert is still sent: the SOS must never be held back by it.
+    if (mongoose.connection.readyState !== 1) return emit(alert);
+    void sosRepository
+      .findPartnerSummary(alert.partnerId)
+      .then((p) => emit(p ? { ...alert, partnerName: p.name, partnerPhone: p.phone } : alert))
+      .catch(() => emit(alert));
   },
   audit: (i) =>
     auditService.recordAudit({

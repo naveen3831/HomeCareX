@@ -186,13 +186,22 @@ export async function recordFailedTopup(req: Request, res: Response): Promise<Re
   try {
     const userId = resolveUserId(req);
     const { orderId, amount, reason } = req.body;
+    const resolvedOrderId = orderId || req.body?.razorpay_order_id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
+    if (!resolvedOrderId) {
+      return res.status(400).json({
+        success: false,
+        code: 'BAD_REQUEST',
+        message: 'Order ID is required',
+      });
+    }
+
     // Prevent duplicate entries for the same order
-    const existingEntry = await WalletLedgerModel.findOne({ referenceId: orderId });
+    const existingEntry = await WalletLedgerModel.findOne({ referenceId: resolvedOrderId });
     if (existingEntry) {
       return res.status(200).json({
         success: true,
@@ -201,12 +210,31 @@ export async function recordFailedTopup(req: Request, res: Response): Promise<Re
       });
     }
 
+    let amountInRupees: number;
+    try {
+      const rzpOrder = await getRazorpay().orders.fetch(resolvedOrderId);
+      if (rzpOrder && typeof rzpOrder.amount === 'number') {
+        amountInRupees = Math.round(rzpOrder.amount / 100);
+      } else {
+        return res.status(404).json({
+          success: false,
+          code: 'ORDER_NOT_FOUND',
+          message: 'Top-up order not found',
+        });
+      }
+    } catch {
+      // If Razorpay fetch fails (e.g. unknown order), return 404
+      return res.status(404).json({
+        success: false,
+        code: 'ORDER_NOT_FOUND',
+        message: 'Top-up order not found',
+      });
+    }
+
     let wallet = await WalletModel.findOne({ userId });
     if (!wallet) {
       wallet = await WalletModel.create({ userId, balance: 0 });
     }
-
-    const amountInRupees = Math.round(Number(amount) / 100);
 
     // Record ledger entry with type 'failed' (balance remains unchanged)
     const ledger = await WalletLedgerModel.create({
@@ -216,7 +244,7 @@ export async function recordFailedTopup(req: Request, res: Response): Promise<Re
       amount: amountInRupees,
       balanceAfter: wallet.balance,
       description: reason || 'Top-up payment failed (3 attempts)',
-      referenceId: orderId,
+      referenceId: resolvedOrderId,
     });
 
     return res.status(200).json({

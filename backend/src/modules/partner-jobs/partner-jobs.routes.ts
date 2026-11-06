@@ -10,19 +10,25 @@ import {
   acceptJobOffer,
   collectJobPayment,
   completePartnerJob,
+  createJobExtraCharge,
   getPartnerJob,
+  listJobExtraCharges,
   listJobRequests,
   listPartnerJobs,
   raiseJobSos,
   rateJobCustomer,
   rejectJobOffer,
   updateBookingStatus,
+  updateJobChecklistItem,
   verifyJobStart,
 } from "./partner-jobs.controller";
 
 import {
+  checklistBodySchema,
+  checklistParamsSchema,
   collectPaymentBodySchema,
   completeBodySchema,
+  extraChargeBodySchema,
   jobParamsSchema,
   rateCustomerBodySchema,
   rejectBodySchema,
@@ -132,8 +138,9 @@ partnerJobsRoutes.post(
 );
 
 // POST /api/v1/partner/jobs/:id/collect-payment   body: { method: "cash" | "upi" }
+// The app calls /payment/collect, so both paths are served.
 partnerJobsRoutes.post(
-  "/:id/collect-payment",
+  ["/:id/collect-payment", "/:id/payment/collect"],
   authenticate,
   requireRole("partner"),
   requirePermission("partner:jobs:update"),
@@ -149,6 +156,36 @@ partnerJobsRoutes.post(
   requirePermission("partner:jobs:update"),
   validationMiddleware({ params: jobParamsSchema, body: rateCustomerBodySchema }),
   rateJobCustomer,
+);
+
+// PATCH /api/v1/partner/jobs/:id/checklist/:itemId   body: { done: boolean }
+partnerJobsRoutes.patch(
+  "/:id/checklist/:itemId",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: checklistParamsSchema, body: checklistBodySchema }),
+  updateJobChecklistItem,
+);
+
+// GET /api/v1/partner/jobs/:id/extra-charges
+partnerJobsRoutes.get(
+  "/:id/extra-charges",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:read"),
+  validationMiddleware({ params: jobParamsSchema }),
+  listJobExtraCharges,
+);
+
+// POST /api/v1/partner/jobs/:id/extra-charges   body: { title, amount, quantity?, reason? }
+partnerJobsRoutes.post(
+  "/:id/extra-charges",
+  authenticate,
+  requireRole("partner"),
+  requirePermission("partner:jobs:update"),
+  validationMiddleware({ params: jobParamsSchema, body: extraChargeBodySchema }),
+  createJobExtraCharge,
 );
 
 /** Mounted at /partner/job-requests */

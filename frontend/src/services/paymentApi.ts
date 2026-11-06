@@ -55,6 +55,59 @@ export const paymentApi = {
     }
   },
 
+  /** Razorpay test mode payment simulation for environments where gateway redirect/popups are blocked. */
+  async simulateTestPayment(
+    bookingId: string,
+    outcome: 'success' | 'failure',
+    bank?: string,
+  ): Promise<{ success: boolean; bookingId: string; reason?: string }> {
+    try {
+      const { data } = await http.post<ApiResponse<{ success: boolean; bookingId: string; reason?: string }>>(
+        '/payments/test-simulate',
+        { bookingId, outcome, bank },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /** Poll and auto-advance test payment in sandboxed mobile iframe environments. */
+  async autoAdvanceTestOrder(
+    orderId: string,
+    bookingId: string,
+    callbackUrl?: string,
+  ): Promise<{ completed: boolean; paymentId?: string; signature?: string; status?: string }> {
+    try {
+      const { data } = await http.post<ApiResponse<{ completed: boolean; paymentId?: string; signature?: string; status?: string }>>(
+        '/payments/test-auto-advance',
+        { orderId, bookingId, callbackUrl },
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
+  /** Submit user-selected outcome ('S' = Success, 'F' = Failure) on the demo bank test page. */
+  async submitMockBankOutcome(payload: {
+    orderId: string;
+    bookingId: string;
+    paymentId: string;
+    callbackUrl: string;
+    outcome: 'S' | 'F';
+  }): Promise<{ success: boolean; status: string; paymentId: string; signature?: string }> {
+    try {
+      const { data } = await http.post<ApiResponse<{ success: boolean; status: string; paymentId: string; signature?: string }>>(
+        '/payments/test-mockbank-submit',
+        payload,
+      );
+      return data.data;
+    } catch (err) {
+      throw normalizeApiError(err);
+    }
+  },
+
   /** Best-effort bookkeeping. Never throws, never changes the booking. */
   async recordAttempt(bookingId: string, kind: "CANCELLED" | "FAILED", orderId?: string, reason?: string): Promise<void> {
     try {

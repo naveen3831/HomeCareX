@@ -554,15 +554,15 @@ export async function addJobItem(bookingId: string, input: AddJobItemInput): Pro
   await api.post(`/partner/jobs/${bookingId}/extra-charges`, { ...input, quantity: 1 });
 }
 
-/** Partner confirms the customer paid in cash. */
-export async function collectPayment(jobId: string, method: 'cash'): Promise<JobDetails> {
+/** Partner confirms the customer paid, in cash or by UPI. */
+export async function collectPayment(jobId: string, method: 'cash' | 'upi'): Promise<JobDetails> {
   if (useDemo(jobId)) {
     const job = requireRoute(jobId);
     job.payment = { ...job.payment, status: 'PAID', phase: 'paid', method, paidAt: new Date().toISOString() };
     saveRoute(job);
     return view(job);
   }
-  await api.post(`/partner/jobs/${jobId}/payment/collect`, { method });
+  await api.post(`/partner/jobs/${jobId}/collect-payment`, { method });
   return fetchJob(jobId);
 }
 

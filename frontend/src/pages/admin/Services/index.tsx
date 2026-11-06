@@ -1,4 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { QueryClientContext } from '@tanstack/react-query';
+import {
+  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
@@ -129,9 +138,19 @@ export const AdminServicesPage: React.FC = () => {
   // Search text comes from the search bar below the navbar (same as Manage Partners).
   const search = useUIStore((state) => state.pageSearch);
   const setPageSearch = useUIStore((state) => state.setPageSearch);
+  const queryClient = React.useContext(QueryClientContext);
+  const invalidateCatalog = useCallback(() => {
+    try {
+      void queryClient?.invalidateQueries({ queryKey: ['catalog'] });
+    } catch {
+      // safe in non-provider test environments
+    }
+  }, [queryClient]);
   const [order, setOrder] = useState<string[]>(() => adminServiceApi.getOrder());
   const [params, setParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
@@ -211,6 +230,7 @@ export const AdminServicesPage: React.FC = () => {
     const name = items.find((x) => x.id === movedId)?.name ?? 'Service';
     setOrder(ids);
     adminServiceApi.reorder(ids, { id: movedId, name, from, to });
+    invalidateCatalog();
     flash(`“${name}” moved to position ${to + 1}`);
   }
   const move = (id: string, dir: -1 | 1) => {
@@ -263,7 +283,8 @@ export const AdminServicesPage: React.FC = () => {
       setFormOpen(false);
       await load();
       if (ignored.length) flash(`“${service.name}” saved, but ${ignored.join(', ')} could not be kept: browser storage is full. Use smaller or fewer images.`, 'error');
-      else flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
+      else invalidateCatalog();
+      flash(`${editing ? `“${service.name}” updated` : `“${service.name}” created and added to the catalog`}${localOnly?.length ? ` (${localOnly.join(', ')} are kept in this browser until the backend stores them)` : ''}`);
     } catch (e) {
       const err = e as ServiceApiError;
       setFormError(err.message);
@@ -277,6 +298,7 @@ export const AdminServicesPage: React.FC = () => {
     setBusyIds((b) => new Set(b).add(s.id));
     try {
       await adminServiceApi.setActive([s.id], next);
+      invalidateCatalog();
       flash(`“${s.name}” ${next ? 'activated' : 'deactivated'}`);
     } catch (e) {
       setItems((prev) => prev.map((x) => (x.id === s.id ? { ...x, active: s.active } : x)));
@@ -299,7 +321,8 @@ export const AdminServicesPage: React.FC = () => {
       if (result.failed.length) {
         flash(`${result.changed.length} ${verb}, ${result.failed.length} failed: ${result.failed.map((f) => `${f.name} (${f.message})`).join('; ')}`, 'error');
       } else {
-        flash(result.changed.length ? `${result.changed.length} service${result.changed.length === 1 ? '' : 's'} ${verb}` : `Already ${next ? 'active' : 'inactive'}`);
+        invalidateCatalog();
+      flash(result.changed.length ? `${result.changed.length} service${result.changed.length === 1 ? '' : 's'} ${verb}` : `Already ${next ? 'active' : 'inactive'}`);
       }
       setSelectedIds(new Set(result.failed.map((f) => f.id)));
     } catch (e) {
@@ -315,6 +338,7 @@ export const AdminServicesPage: React.FC = () => {
       const { service } = await adminServiceApi.update(svc.id, { ...toInput(svc), images }, options);
       setItems((prev) => prev.map((x) => (x.id === service.id ? service : x)));
       setPreviewing(service);
+      invalidateCatalog();
       flash(`Photos for “${service.name}” saved`);
     } catch (e) {
       flash((e as ServiceApiError).message, 'error');
@@ -326,6 +350,7 @@ export const AdminServicesPage: React.FC = () => {
     setDeleting(true);
     try {
       await adminServiceApi.remove(toDelete.id);
+      invalidateCatalog();
       flash(`“${toDelete.name}” deleted`);
       setToDelete(null);
       await load();

@@ -65,7 +65,9 @@ const CATEGORY_RE = /^[A-Za-z0-9][A-Za-z0-9 _&-]*$/;
 const CATEGORY_ALIASES: Record<string, string> = {
   plumbing: 'electrical-plumbing',
   electrical: 'electrical-plumbing',
-  'appliance-repair': 'appliance-repair-service',
+  'appliance-repair-service': 'appliance-repair',
+  'carpentry-furniture-assembly': 'carpentry',
+  'painting-waterproofing': 'painting',
   cleaning: 'home-cleaning',
 };
 

@@ -154,3 +154,10 @@ test('cash-on-service bookings can pay online until the job is finished or cance
     assert.equal(isCodOnlinePayableStatus(s), false, s);
   }
 });
+
+test('handleCallback: missing orderId returns failure', async () => {
+  const { paymentsService } = await import('./payments.service');
+  const res = await paymentsService.handleCallback({});
+  assert.equal(res.success, false);
+  assert.equal(res.reason, 'missing_order_id');
+});

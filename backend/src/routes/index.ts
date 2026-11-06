@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -86,6 +87,7 @@ import {
 } from "../modules/partner-wallet/partner-wallet.routes";
 import { sosRoutes } from "../modules/sos/sos.routes";
 import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
+import { adminSkillRequestsRoutes, partnerSkillsRoutes } from "../modules/partner-skills/partner-skills.routes";
 import { partnerDocumentsRoutes } from "../modules/partner-documents/partner-documents.routes";
 
 export const rootRouter = Router();
@@ -112,6 +114,14 @@ rootRouter.use(
   requireAdmin,
   requireResourceAccess("catalog"),
   servicesRoutes,
+);
+
+rootRouter.use(
+  "/admin/skill-requests",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("partners"),
+  adminSkillRequestsRoutes,
 );
 
 rootRouter.use(
@@ -159,7 +169,7 @@ rootRouter.use(
 );
 
 rootRouter.use("/admin/pricing", adminPricingRoutes);
-
+rootRouter.use("/admin/incentives", incentivesRoutes);
 
 // B08: Reports & CSV exports.
 rootRouter.use(
@@ -218,6 +228,7 @@ rootRouter.use("/partner/transactions", authMiddleware, requireTrainingApproved,
 rootRouter.use("/partner/wallet", authMiddleware, requireTrainingApproved, partnerWalletSummaryRoutes);
 rootRouter.use("/partner/payouts", authMiddleware, requireTrainingApproved, partnerPayoutsRoutes);
 rootRouter.use("/partner/incentives", authMiddleware, requireTrainingApproved, incentivesRoutes);
+rootRouter.use("/partner/skills", authMiddleware, requireTrainingApproved, partnerSkillsRoutes);
 rootRouter.use("/partner/services", authMiddleware, requireTrainingApproved, partnerServicesRoutes);
 rootRouter.use("/partner/service-area", authMiddleware, requireTrainingApproved, partnerServiceAreaRoutes);
 rootRouter.use("/partner/performance", authMiddleware, requireTrainingApproved, partnerPerformanceRoutes);

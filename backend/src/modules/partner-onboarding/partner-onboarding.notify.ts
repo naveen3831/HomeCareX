@@ -23,7 +23,7 @@ export function notifyAdminsTrainingCompleted(userId: string): void {
     const partnerName = user?.name ?? 'A partner';
     alertTrainingCompleted({ partnerId: userId, partnerName });
     const to = await adminRecipients();
-    await mailService.sendAdminTrainingCompletedEmail(to, {
+    await mailService.sendAdminPartnerTrainingEmail(to, {
       partnerName,
       partnerEmail: user?.email ?? '-',
       reviewUrl: `${frontendUrl()}/admin/partners/${userId}`,

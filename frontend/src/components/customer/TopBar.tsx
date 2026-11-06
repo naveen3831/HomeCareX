@@ -44,16 +44,20 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   const isSupportContact =
     normalizedPath === customerPath("/support").toLowerCase() &&
     searchParams.get("view") === "new";
+  const isBookingSuccess =
+    normalizedPath.startsWith(customerPath("/booking/success").toLowerCase()) ||
+    normalizedPath.startsWith(customerPath("/booking/booked").toLowerCase());
   const displayTitle = isSupportContact ? "Contact Us" : (meta?.title ?? "");
   const isExcludedMobileTopBar =
-    normalizedPath.startsWith(customerPath("/bookings").toLowerCase()) ||
-    normalizedPath === customerPath("/security").toLowerCase() ||
-    normalizedPath === customerPath("/profile/security").toLowerCase() ||
-    normalizedPath === customerPath("/account/security").toLowerCase();
+    normalizedPath.startsWith(customerPath("/bookings").toLowerCase());
 
   // Back navigation: Active Bookings retains its entry point (Dashboard/Profile) and avoids looping
   const goBack = () => {
     if (!meta) return;
+    if (isBookingSuccess) {
+      navigate(customerPath("/bookings"));
+      return;
+    }
     if (normalizedPath === customerPath("/notifications").toLowerCase()) {
       navigate(customerPath());
       return;
@@ -253,20 +257,32 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
                 )}
               </div>
             ) : (
-              <div className="flex min-w-0 items-center gap-2">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  aria-label={`Back from ${displayTitle}`}
+              <>
+                {isBookingSuccess && (
+                  <div className="flex md:hidden min-w-0 flex-1 items-center">
+                    <LocationPicker />
+                  </div>
+                )}
+                <div
                   className={clsx(
-                    "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
-                    FOCUS_RING,
+                    isBookingSuccess ? "hidden md:flex" : "flex",
+                    "min-w-0 items-center gap-2",
                   )}
                 >
-                  <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{displayTitle}</span>
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={goBack}
+                    aria-label={`Back from ${displayTitle}`}
+                    className={clsx(
+                      "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                      FOCUS_RING,
+                    )}
+                  >
+                    <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{displayTitle}</span>
+                  </button>
+                </div>
+              </>
             )}
           </>
         ) : (
@@ -302,7 +318,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
 
       <div
         className={clsx(
-          meta && "hidden",
+          meta && !isBookingSuccess && "hidden",
           meta &&
             normalizedPath !== customerPath("/tracking").toLowerCase() &&
             "md:block",

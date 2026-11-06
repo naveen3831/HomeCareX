@@ -3,8 +3,10 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
 import type {
+  ChecklistBody,
   CollectPaymentBody,
   CompleteBody,
+  ExtraChargeBody,
   RateCustomerBody,
   RejectBody,
   SosBody,
@@ -110,5 +112,34 @@ export const updateBookingStatus = asyncHandler(
       await partnerJobsService.updateStatus(sub, req.params.id, status, reason),
       { message: "Job status updated" },
     );
+  },
+);
+
+export const updateJobChecklistItem = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { done } = req.body as ChecklistBody;
+    sendSuccess(res, await partnerJobsService.updateChecklistItem(sub, req.params.id, req.params.itemId, done));
+  },
+);
+
+export const listJobExtraCharges = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    sendSuccess(res, await partnerJobsService.listExtraCharges(sub, req.params.id));
+  },
+);
+
+export const createJobExtraCharge = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const body = req.body as ExtraChargeBody;
+    const result = await partnerJobsService.createExtraCharge(sub, req.params.id, {
+      description: (body.title ?? body.description) as string,
+      quantity: body.quantity ?? 1,
+      amount: body.amount,
+      reason: body.reason,
+    });
+    sendSuccess(res, result, { message: "Sent to the customer for approval" });
   },
 );
