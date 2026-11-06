@@ -961,124 +961,6 @@ export class ReviewsService {
       });
     }
 
-    // Curated rich reviews ensuring a diverse range of 5, 4.5, 4, 3.5 star reviews across categories
-    const DEFAULT_PUBLIC_REVIEWS: PublicCustomerReviewDto[] = [
-      {
-        id: 'REV001',
-        name: 'Priya Sharma',
-        city: 'Bengaluru',
-        service: 'Full Home Deep Cleaning',
-        category: 'Cleaning',
-        tag: '❤️ Lifesaver',
-        headline: 'My home felt brand new before Diwali!',
-        review:
-          'Preparing for visiting relatives with 60-hour work weeks felt impossible. HomeCareX arrived on time with professional equipment, left every tile and window spotless, and seeing my mother\'s happy smile was priceless.',
-        rating: 5,
-        avatar:
-          'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80',
-        date: '2 days ago',
-        verifiedBookingsCount: 4,
-        helpfulCount: 38,
-        verified: true,
-        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-      },
-      {
-        id: 'REV002',
-        name: 'Rahul Kumar',
-        city: 'Hyderabad',
-        service: 'Emergency Plumbing',
-        category: 'Plumbing',
-        tag: '⚡ Saved Weekend',
-        headline: 'Pipe burst fixed in 40 minutes flat',
-        review:
-          'Water was gushing under our kitchen sink on Saturday morning. The plumber Rajesh arrived in 40 mins with the exact valve, fixed it cleanly with zero surge pricing, and saved our weekend gathering.',
-        rating: 4.5,
-        avatar:
-          'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80',
-        date: '1 week ago',
-        verifiedBookingsCount: 2,
-        helpfulCount: 27,
-        verified: true,
-        createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
-      },
-      {
-        id: 'REV003',
-        name: 'Ananya Reddy',
-        city: 'Chennai',
-        service: 'Elderly Care & Electrical',
-        category: 'Electrical',
-        tag: '✨ Pure Peace of Mind',
-        headline: 'Felt so safe having them assist my elderly parents',
-        review:
-          'Living abroad, I worry about my aging parents dealing with home repairs alone. The technicians were polite, spoke in Tamil to comfort them, and fixed the main wiring with complete safety gear.',
-        rating: 5,
-        avatar:
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        date: '2 weeks ago',
-        verifiedBookingsCount: 6,
-        helpfulCount: 42,
-        verified: true,
-        createdAt: new Date(Date.now() - 14 * 86400000).toISOString(),
-      },
-      {
-        id: 'REV004',
-        name: 'Vikramaditya Verma',
-        city: 'Mumbai',
-        service: 'AC Deep Servicing',
-        category: 'Appliances',
-        tag: '❄️ Instant Relief',
-        headline: 'Rescued us in peak 39°C heatwave',
-        review:
-          'Our split AC gave up during the hottest week of May. The specialist diagnosed the refrigerant leak quickly, refilled it with genuine parts, and had our bedroom ice cold in an hour. Honest and transparent.',
-        rating: 4,
-        avatar:
-          'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-        date: '3 weeks ago',
-        verifiedBookingsCount: 3,
-        helpfulCount: 19,
-        verified: true,
-        createdAt: new Date(Date.now() - 21 * 86400000).toISOString(),
-      },
-      {
-        id: 'REV005',
-        name: 'Arjun Mehta',
-        city: 'Delhi NCR',
-        service: 'Carpentry & Repairs',
-        category: 'Carpentry',
-        tag: '🔨 Skilled & Honest',
-        headline: 'Great craftsmanship, arrived slightly late due to traffic',
-        review:
-          'The carpenter did exceptional work rebuilding our wooden wardrobe hinges and leveling the doors. Deducted half a star because he arrived 20 minutes late in morning traffic, but he communicated proactively and finished cleanly.',
-        rating: 3.5,
-        avatar:
-          'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
-        date: '1 month ago',
-        verifiedBookingsCount: 1,
-        helpfulCount: 15,
-        verified: true,
-        createdAt: new Date(Date.now() - 30 * 86400000).toISOString(),
-      },
-      {
-        id: 'REV006',
-        name: 'Sneha Mukherjee',
-        city: 'Pune',
-        service: 'Kitchen Deep Degreasing',
-        category: 'Cleaning',
-        tag: '🌟 Pure Delight',
-        headline: 'Stubborn chimney stains completely gone',
-        review:
-          'Years of daily tadka and oil grime on our kitchen chimney vanished after their steam degreasing. The kitchen smells fresh, feels hygienic, and looks brand new again without any harsh chemical odors.',
-        rating: 4.5,
-        avatar:
-          'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80',
-        date: '1 month ago',
-        verifiedBookingsCount: 5,
-        helpfulCount: 31,
-        verified: true,
-        createdAt: new Date(Date.now() - 35 * 86400000).toISOString(),
-      },
-    ];
-
     // Map DB rows to PublicCustomerReviewDto
     const cities = [
       'Bengaluru',
@@ -1124,11 +1006,7 @@ export class ReviewsService {
       };
     });
 
-    // Combine DB reviews with curated testimonials so the reviews catalog is vibrant and complete
-    const allReviews =
-      dbReviews.length > 0
-        ? [...dbReviews, ...DEFAULT_PUBLIC_REVIEWS]
-        : DEFAULT_PUBLIC_REVIEWS;
+    const allReviews = dbReviews;
 
     // Filter by Category
     let filtered = allReviews;
@@ -1175,20 +1053,20 @@ export class ReviewsService {
     const avgRating =
       allReviews.length > 0
         ? Math.round((sumRatings / allReviews.length) * 10) / 10
-        : 4.9;
+        : 0;
     const highRatingsCount = allReviews.filter(
       (r) => r.rating >= 4,
     ).length;
     const satisfactionRate =
       allReviews.length > 0
         ? Math.round((highRatingsCount / allReviews.length) * 1000) / 10
-        : 98.4;
+        : 0;
 
     const stats: PublicReviewsStats = {
       averageRating: avgRating,
       totalReviews: allReviews.length,
       satisfactionRate,
-      homesServed: '45,000+',
+      homesServed: allReviews.length > 0 ? `${allReviews.length * 10}+` : '0',
       categoryCounts,
     };
 

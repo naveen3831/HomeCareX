@@ -49,6 +49,25 @@ export const alertPayoutFailed = (i: { payoutId: string; amount?: number; partne
     amount: i.amount,
   });
 
+const ticketRefOf = (id: string): string => `TCK-${id.slice(-6).toUpperCase()}`;
+
+/** A customer or partner raised a new support ticket. */
+export const alertTicketCreated = (i: { ticketId: string; subject?: string; role?: string }): void =>
+  send('ticket.created', {
+    message: `New ticket ${ticketRefOf(i.ticketId)}${i.subject ? `: ${i.subject}` : ''}${i.role ? ` (from a ${i.role})` : ''}`,
+    ticketId: i.ticketId,
+    ticketRef: ticketRefOf(i.ticketId),
+    subject: i.subject,
+  });
+
+/** A customer or partner replied on an existing ticket. */
+export const alertTicketReply = (i: { ticketId: string; subject?: string }): void =>
+  send('ticket.reply', {
+    message: `New reply on ${ticketRefOf(i.ticketId)}${i.subject ? `: ${i.subject}` : ''}`,
+    ticketId: i.ticketId,
+    ticketRef: ticketRefOf(i.ticketId),
+  });
+
 /** A support ticket went past its SLA target. */
 export const alertSlaBreach = (i: { ticketId: string; ticketRef: string; priority: string }): void =>
   send('sla.breach', { message: `${i.ticketRef} breached its ${i.priority} SLA`, ticketId: i.ticketId, ticketRef: i.ticketRef, priority: i.priority });

@@ -30,6 +30,26 @@ const AuthLayout: React.FC = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Prevent outer browser window scrollbar on desktop auth screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        document.documentElement.style.overflowY = 'hidden';
+        document.body.style.overflowY = 'hidden';
+      } else {
+        document.documentElement.style.overflowY = '';
+        document.body.style.overflowY = '';
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      document.documentElement.style.overflowY = '';
+      document.body.style.overflowY = '';
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isPartner || isPaused) return;
     const interval = setInterval(() => {
@@ -50,15 +70,20 @@ const AuthLayout: React.FC = () => {
 
   return (
     <div
-      className={`w-full ${
+      className={`auth-layout-root w-full ${
         isPartner
-          ? 'min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden py-4 sm:py-6 lg:py-8 px-6 sm:px-10 lg:px-14 xl:px-20'
-          : 'min-h-screen lg:h-screen lg:overflow-hidden py-2 sm:py-3 lg:py-4 px-3 sm:px-6 lg:px-8'
-      } relative flex flex-col items-center justify-center`}
+          ? 'min-h-[100dvh] lg:h-screen lg:max-h-screen lg:min-h-0 lg:overflow-hidden p-0 sm:py-4 lg:py-6 sm:px-6 lg:px-12 xl:px-16'
+          : 'min-h-[100dvh] lg:h-screen lg:max-h-screen lg:min-h-0 lg:overflow-hidden p-0 sm:py-3 lg:py-3 sm:px-6 lg:px-8'
+      } relative flex flex-col items-center justify-center bg-white lg:bg-transparent`}
     >
-      {/* Fixed Fullscreen Background: Viewport-anchored to show complete background without distortion */}
+      {/* Mobile Background: Seamless clean background without framing card */}
       <div
-        className={`fixed inset-0 -z-10 pointer-events-none ${
+        className="fixed inset-0 -z-10 pointer-events-none lg:hidden bg-white"
+      />
+
+      {/* Desktop Fullscreen Illustration Background: only visible on lg (1024px+) screens */}
+      <div
+        className={`fixed inset-0 -z-10 pointer-events-none hidden lg:block ${
           isPartner ? 'bg-[#F7FAFF]' : 'bg-[#FAF7F2]'
         } bg-no-repeat transition-all duration-300 ${
           isPartner
@@ -69,7 +94,7 @@ const AuthLayout: React.FC = () => {
       />
       {/* Main container: wide container with left context aside to left and right card on right */}
       <div
-        className="w-full max-w-7xl 2xl:max-w-[1440px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-10 xl:gap-14 my-auto px-2 sm:px-4 lg:px-6"
+        className="w-full max-w-7xl 2xl:max-w-[1440px] mx-auto relative z-10 flex flex-col lg:flex-row items-center justify-between gap-0 lg:gap-10 xl:gap-14 my-auto px-0 sm:px-4 lg:px-6"
       >
         {/* LEFT COLUMN: Clean visual branding panel matching the mockup */}
         <div
@@ -228,8 +253,8 @@ const AuthLayout: React.FC = () => {
           )}
         </div>
 
-        {/* RIGHT COLUMN: Fully visible card area with right-side gap */}
-        <div className="flex justify-center lg:justify-end items-center w-full lg:w-auto shrink-0 pr-2 sm:pr-4 xl:pr-6">
+        {/* RIGHT COLUMN: Full width on mobile without card framing, card area on desktop */}
+        <div className="flex justify-center lg:justify-end items-center w-full lg:w-auto shrink-0 p-0 sm:pr-4 xl:pr-6">
           <Outlet />
         </div>
       </div>

@@ -64,6 +64,7 @@ function savePartner(partner: PartnerDetails): void {
 export interface PartnerProfileInput {
   name: string;
   phone: string;
+  bio?: string;
 }
 
 /** What the partner gave when joining (address, services, bank), as saved now. */

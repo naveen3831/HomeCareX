@@ -65,8 +65,13 @@ export interface BookingSlot {
 
 export interface BookingPricing {
   baseAmount: number;
-  tax: number;
-  discount: number;
+  /** The API sends taxAmount / discountAmount; tax / discount are kept for older mock data. */
+  addOnAmount?: number;
+  convenienceFee?: number;
+  taxAmount?: number;
+  discountAmount?: number;
+  tax?: number;
+  discount?: number;
   totalAmount: number;
 }
 

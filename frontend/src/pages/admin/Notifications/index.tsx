@@ -13,7 +13,24 @@ function ago(iso: string): string {
   return `${Math.round(m / 1440)} d ago`;
 }
 
-type Filter = 'all' | 'unread' | 'sos';
+type Filter = 'all' | 'unread' | 'sos' | 'support' | 'bookings' | 'partners' | 'payments';
+
+/** Type prefixes behind each category filter. */
+const CATEGORY_PREFIXES: Record<'support' | 'bookings' | 'partners' | 'payments', readonly string[]> = {
+  support: ['ticket.', 'sla.'],
+  bookings: ['booking.'],
+  partners: ['partner.', 'kyc.', 'training.'],
+  payments: ['payment.', 'payout.', 'refund.'],
+};
+
+const matches = (n: AdminNotification, filter: Filter): boolean => {
+  switch (filter) {
+    case 'all': return true;
+    case 'unread': return !n.readAt;
+    case 'sos': return isSos(n);
+    default: return CATEGORY_PREFIXES[filter].some((p) => n.type.startsWith(p));
+  }
+};
 
 /** Full notifications list: live, filterable, mark one / all read. SOS rows are red and listed first. */
 export const AdminNotificationsPage: React.FC = () => {
@@ -22,7 +39,7 @@ export const AdminNotificationsPage: React.FC = () => {
   const [filter, setFilter] = useState<Filter>('all');
 
   const shown = useMemo(() => {
-    const list = items.filter((n) => (filter === 'unread' ? !n.readAt : filter === 'sos' ? isSos(n) : true));
+    const list = items.filter((n) => matches(n, filter));
     const rank = (n: AdminNotification) => Number(isSos(n) && !n.readAt);
     return [...list].sort((a, b) => rank(b) - rank(a));
   }, [items, filter]);
@@ -37,6 +54,10 @@ export const AdminNotificationsPage: React.FC = () => {
     { id: 'all', label: 'All', count: items.length },
     { id: 'unread', label: 'Unread', count: unread },
     { id: 'sos', label: 'SOS', count: sosCount },
+    { id: 'support', label: 'Support', count: items.filter((n) => matches(n, 'support')).length },
+    { id: 'bookings', label: 'Bookings', count: items.filter((n) => matches(n, 'bookings')).length },
+    { id: 'partners', label: 'Partners', count: items.filter((n) => matches(n, 'partners')).length },
+    { id: 'payments', label: 'Payments', count: items.filter((n) => matches(n, 'payments')).length },
   ];
   const stats = [
     { label: 'Total', value: items.length, Icon: Bell, tone: 'bg-indigo-50 text-indigo-600' },
@@ -81,7 +102,7 @@ export const AdminNotificationsPage: React.FC = () => {
 </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div role="tablist" aria-label="Filter notifications" className="flex gap-1 border-b border-slate-100 bg-slate-50/70 p-2">
+        <div role="tablist" aria-label="Filter notifications" className="flex gap-1 overflow-x-auto border-b border-slate-100 bg-slate-50/70 p-2 [scrollbar-width:none]">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -89,7 +110,7 @@ export const AdminNotificationsPage: React.FC = () => {
               role="tab"
               aria-selected={filter === t.id}
               onClick={() => setFilter(t.id)}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              className={`inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition sm:px-5 ${
                 filter === t.id ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200' : 'text-slate-500 hover:text-slate-800'
               }`}
             >

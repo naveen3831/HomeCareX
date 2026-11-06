@@ -495,7 +495,10 @@ export const AdminReviewsPage: React.FC = () => {
                             </div>
 
                             <div className="rvw-customer-info">
-                              <span className="rvw-customer-name">
+                              <span
+                                className="rvw-customer-name"
+                                title={review.customerName || undefined}
+                              >
                                 {review.customerName || "Unknown customer"}
                               </span>
 

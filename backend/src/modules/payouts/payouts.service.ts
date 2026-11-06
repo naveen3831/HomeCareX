@@ -13,18 +13,22 @@ import {
   PAYOUT_BATCH_STATUSES,
 } from './payouts.constants';
 import { payoutsRepository } from './payouts.repository';
-import { payoutsDemoRepository } from './payouts.demo.repository';
 import { alertPayoutFailed } from '../notifications/admin-alerts';
 import type {
+  ConfirmBatchInput,
   GenerateBatchInput,
   ListBatchesInput,
   MarkPaidInput,
   PayoutsRepository,
 } from './payouts.types';
 import { isObjectId, parseDate } from './payouts.validation';
+import { isPayoutFrequency, parseAnchorDate, resolvePayoutPeriod } from './payouts.calc';
 
-type RepositoryPort = Omit<PayoutsRepository, 'markPaid'> &
-  Partial<Pick<PayoutsRepository, 'markPaid'>>;
+type RepositoryPort = Omit<
+  PayoutsRepository,
+  'markPaid' | 'getPayoutDetails' | 'confirmBatch'
+> &
+  Partial<Pick<PayoutsRepository, 'markPaid' | 'getPayoutDetails' | 'confirmBatch'>>;
 
 type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
 
@@ -292,7 +296,6 @@ export class PayoutsService {
     private readonly repository: RepositoryPort = payoutsRepository,
     private readonly audit: Pick<AuditService, 'recordAudit'> =
       auditService,
-    private readonly demoMode = false,
   ) {}
 
   private requireAdmin(adminId: string): void {
@@ -375,15 +378,34 @@ export class PayoutsService {
   async generateBatch(input: GenerateBatchInput) {
     this.requireAdmin(input.adminId);
 
-    const periodStart =
-      input.periodStart instanceof Date
-        ? input.periodStart
-        : parseDate(input.periodStart);
+    const frequency = input.frequency === undefined || input.frequency === '' ? 'custom' : input.frequency;
 
-    const periodEnd =
-      input.periodEnd instanceof Date
-        ? input.periodEnd
-        : parseDate(input.periodEnd);
+    if (!isPayoutFrequency(frequency)) {
+      throw new AppError(
+        400,
+        'INVALID_PAYOUT_FREQUENCY',
+        'Frequency must be daily, weekly, monthly or custom',
+      );
+    }
+
+    let periodStart: Date | null;
+    let periodEnd: Date | null;
+
+    if (frequency === 'custom') {
+      periodStart =
+        input.periodStart instanceof Date ? input.periodStart : parseDate(input.periodStart);
+      periodEnd =
+        input.periodEnd instanceof Date ? input.periodEnd : parseDate(input.periodEnd);
+    } else {
+      // Daily / weekly / monthly: the server decides the boundaries (IST), so "today" is always payable.
+      const anchor = parseAnchorDate(input.date);
+
+      if (!anchor) {
+        throw new AppError(400, 'INVALID_PAYOUT_PERIOD', 'Enter a valid date (YYYY-MM-DD)');
+      }
+
+      ({ start: periodStart, end: periodEnd } = resolvePayoutPeriod(frequency, anchor));
+    }
 
     if (
       !periodStart ||
@@ -411,6 +433,7 @@ export class PayoutsService {
         periodStart,
         periodEnd,
         adminId: input.adminId,
+        frequency,
       });
 
       await this.record({
@@ -419,6 +442,7 @@ export class PayoutsService {
         entity: 'PayoutBatch',
         entityId: idToString(batch._id),
         after: {
+          frequency,
           periodStart,
           periodEnd,
           gross: batch.gross,
@@ -535,6 +559,7 @@ export class PayoutsService {
       const payout = await this.repository.markPaid({
         payoutId: input.payoutId,
         transactionId: input.transactionId,
+        adminId: input.adminId,
       });
 
       await this.record({
@@ -553,6 +578,62 @@ export class PayoutsService {
       });
 
       return payout;
+    } catch (error) {
+      mapRepositoryError(error);
+    }
+  }
+
+  /** One payout with its services grouped day by day. */
+  async getPayoutDetails(payoutId: string) {
+    if (!isObjectId(payoutId)) {
+      throw new AppError(400, 'INVALID_PAYOUT_ID', 'A valid payout ID is required');
+    }
+
+    if (!this.repository.getPayoutDetails) {
+      throw new AppError(501, 'NOT_SUPPORTED', 'Payout details are not supported by this repository');
+    }
+
+    try {
+      return await this.repository.getPayoutDetails(payoutId);
+    } catch (error) {
+      mapRepositoryError(error);
+    }
+  }
+
+  /**
+   * Weekly "Confirm payment": pays every unpaid payout in the batch, credits each partner's wallet
+   * and records commission / payout in the admin wallet.
+   */
+  async confirmBatch(input: ConfirmBatchInput) {
+    this.requireAdmin(input.adminId);
+    this.requireBatchId(input.batchId);
+
+    if (!this.repository.confirmBatch) {
+      throw new AppError(501, 'NOT_SUPPORTED', 'Batch confirmation is not supported by this repository');
+    }
+
+    try {
+      const result = await this.repository.confirmBatch({
+        batchId: input.batchId,
+        adminId: input.adminId,
+      });
+
+      await this.record({
+        actor: input.adminId,
+        action: 'PAYOUT_BATCH_CONFIRMED',
+        entity: 'PayoutBatch',
+        entityId: input.batchId,
+        after: {
+          status: result.batch?.status,
+          confirmedCount: result.confirmedCount,
+          confirmedAmount: result.confirmedAmount,
+          failedCount: result.failed.length,
+        },
+        ip: input.ip,
+        result: result.failed.length ? 'Failed' : 'Success',
+      });
+
+      return result;
     } catch (error) {
       mapRepositoryError(error);
     }
@@ -585,44 +666,6 @@ export class PayoutsService {
     }
 
     const nextStatus = status;
-
-    if (this.demoMode) {
-      try {
-        const updated = await payoutsDemoRepository.updateStatus(
-          payoutId,
-          nextStatus,
-        );
-
-        if (nextStatus === 'failed') {
-          const payout = updated as unknown as PayoutDocument;
-          const partner = getPartner(payout.partnerId);
-
-          alertPayoutFailed({
-            payoutId,
-            amount: payout.amount,
-            partnerId: partner?._id
-              ? String(partner._id)
-              : undefined,
-            partnerName: partner?.name,
-            batchId: idToString(payout.batchId),
-          });
-        }
-
-        await this.record({
-          actor: adminId,
-          action: 'PAYOUT_STATUS_UPDATED',
-          entity: 'Payout',
-          entityId: payoutId,
-          after: { status: nextStatus },
-          ip,
-          result: 'Success',
-        });
-
-        return updated;
-      } catch (error) {
-        mapRepositoryError(error);
-      }
-    }
 
     const beforeResult = await PayoutModel.findById(payoutId).lean();
     const before = beforeResult as unknown as PayoutDocument | null;
@@ -767,62 +810,6 @@ export class PayoutsService {
       await this.getBatch(batchId);
     }
 
-    if (this.demoMode) {
-      const batchesResult = batchId
-        ? null
-        : await this.repository.listBatches({
-            page: 1,
-            limit: MAX_LIMIT,
-          });
-
-      const batchIds = batchId
-        ? [batchId]
-        : batchesResult?.items.map((batch) => String(batch._id)) ?? [];
-
-      const payouts: PayoutDocument[] = [];
-
-      for (const id of batchIds) {
-        const result = await this.repository.listPayouts(id);
-        payouts.push(...(result as unknown as PayoutDocument[]));
-      }
-
-      /*
-       * Demo batches may be stored by the demo repository rather than
-       * PayoutBatchModel. Load their dates from the repository results.
-       */
-      const batchDates = new Map<string, BatchInfo>();
-
-      if (batchId) {
-        const batch = await this.repository.findBatchById(batchId);
-
-        if (batch) {
-          batchDates.set(String(batch._id), {
-            periodStart: batch.periodStart,
-            periodEnd: batch.periodEnd,
-          });
-        }
-      } else {
-        for (const batch of batchesResult?.items ?? []) {
-          batchDates.set(String(batch._id), {
-            periodStart: batch.periodStart,
-            periodEnd: batch.periodEnd,
-          });
-        }
-      }
-
-      return {
-        csv: buildCsv([
-          CSV_HEADERS,
-          ...payouts.map((payout) =>
-            payoutToCsvRow(payout, batchDates),
-          ),
-        ]),
-        filename: batchId
-          ? `payouts-${batchId}.csv`
-          : 'payouts.csv',
-      };
-    }
-
     const filter: Record<string, unknown> = {};
 
     if (batchId) {
@@ -853,16 +840,6 @@ export class PayoutsService {
   }
 }
 
-const payoutsDemoMode =
-  process.env.NODE_ENV === 'development' &&
-  process.env.PAYOUTS_DEMO_MODE === 'true';
-
-export const payoutsService = payoutsDemoMode
-  ? new PayoutsService(
-      payoutsDemoRepository as unknown as RepositoryPort,
-      auditService,
-      true,
-    )
-  : new PayoutsService();
+export const payoutsService = new PayoutsService();
 
 export default payoutsService;

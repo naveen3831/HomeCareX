@@ -23,6 +23,7 @@ import {
 } from "../modules/coupons/coupons.routes";
 import { designationsRoutes } from "../modules/designations/designations.routes";
 import { incentivesRoutes } from "../modules/incentives/incentives.routes";
+
 import {
   marketingRoutes,
   publicMarketingRoutes,

@@ -35,6 +35,7 @@ export const NOTIFICATION_META: Record<string, NotificationMeta> = {
   'sla.breach': { title: 'SLA breach', Icon: Timer, tone: 'bg-orange-100 text-orange-600' },
   'booking.created': { title: 'New booking', Icon: CalendarPlus, tone: 'bg-indigo-100 text-indigo-600' },
   'booking.cancelled': { title: 'Booking cancelled', Icon: XCircle, tone: 'bg-amber-100 text-amber-600' },
+  'ticket.created': { title: 'New support ticket', Icon: LifeBuoy, tone: 'bg-sky-100 text-sky-600' },
   'ticket.reply': { title: 'New ticket reply', Icon: LifeBuoy, tone: 'bg-sky-100 text-sky-600' },
   'refund.updated': { title: 'Refund updated', Icon: CircleDollarSign, tone: 'bg-emerald-100 text-emerald-600' },
   'payment.failed': { title: 'Payment failed', Icon: CircleDollarSign, tone: 'bg-red-100 text-red-600' },
@@ -79,6 +80,7 @@ export function notificationTarget(n: Pick<AdminNotification, 'type' | 'payload'
     case 'skill.requested':
       return '/admin/skill-requests';
     case 'sla.breach':
+    case 'ticket.created':
     case 'ticket.reply':
       return ticket ? `/admin/support/${enc(ticket)}` : '/admin/support';
     case 'payment.failed':

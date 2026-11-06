@@ -29,7 +29,7 @@ export const SETTING_DEFAULTS = {
   'support.hours': { value: '9 AM - 8 PM, all days', description: 'Support hours shown to customers' },
   /** Admin bell alerts. SOS alerts are never switched off. */
   'notifications.adminBookingAlerts': { value: true, description: 'Notify admins when a booking is created' },
-  'notifications.adminTicketAlerts': { value: true, description: 'Notify admins when a support ticket gets a reply' },
+  'notifications.adminTicketAlerts': { value: true, description: 'Notify admins when a support ticket is raised or gets a reply' },
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
@@ -97,7 +97,7 @@ export const SETTING_META: Record<SettingKey, SettingMeta> = {
   'serviceability.pincodes': { section: 'booking', label: 'Serviceable pincodes', type: 'list', format: 'pincode' },
   'slots.capacityPerSlot': { section: 'slots', label: 'Bookings per slot', type: 'integer', min: 1, max: 50 },
   'notifications.adminBookingAlerts': { section: 'notifications', label: 'New booking alerts', type: 'boolean' },
-  'notifications.adminTicketAlerts': { section: 'notifications', label: 'Ticket reply alerts', type: 'boolean' },
+  'notifications.adminTicketAlerts': { section: 'notifications', label: 'Ticket alerts (new + reply)', type: 'boolean' },
 };
 
 export const SETTINGS_AUDIT = { action: 'settings.updated', entity: 'Setting' } as const;

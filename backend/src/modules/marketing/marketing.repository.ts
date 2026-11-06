@@ -47,8 +47,14 @@ export class MarketingRepository {
     };
 
     if (placement) {
-      // The app asks for "home"; the database stores "HOME". Match case-insensitively.
-      filter.placement = placement.trim().toUpperCase();
+      // The app asks for "home"; the database stores "HOME", "HOME_TOP", "HOME_MIDDLE", "HOME_BOTTOM".
+      // The Home page has no separate slots yet, so "home" returns every HOME* banner
+      // (before this, only banners saved with placement exactly "HOME" ever showed up).
+      const wanted = placement.trim().toUpperCase();
+      filter.placement =
+        wanted === 'HOME'
+          ? { $in: ['HOME', 'HOME_TOP', 'HOME_MIDDLE', 'HOME_BOTTOM'] }
+          : wanted;
     }
 
     return BannerModel.find(filter)
@@ -58,7 +64,7 @@ export class MarketingRepository {
       })
       .lean();
   }
-} // <-- ee brace miss ayindi (class close)
+}
 
 export const marketingRepository =
   new MarketingRepository();

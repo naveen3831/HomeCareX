@@ -489,7 +489,9 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  min-width: 175px;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
 }
 
 .rvw-avatar {
@@ -515,8 +517,11 @@
 }
 
 .rvw-customer-name {
+  display: block;
   max-width: 190px;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #1e293b;
   font-size: 13px;
   font-weight: 650;
@@ -525,7 +530,9 @@
 .rvw-sub {
   display: block;
   max-width: 190px;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #8491a5;
   font-size: 11px;
   line-height: 1.45;

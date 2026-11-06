@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Banknote,
@@ -53,7 +53,11 @@ import { settledBookingDestination } from "./settledBooking";
 import { PaymentResult } from "@/components/customer/payments";
 import {
   CHECKOUT_METHODS,
+  closeActivePopup,
   forceCloseRazorpayModal,
+  getLatestCallbackUrl,
+  getLatestPaymentId,
+  isMobileOrEmulation,
   loadRazorpayScript,
   type RazorpayFailure,
   type RazorpayInstance,
@@ -81,7 +85,7 @@ function toRazorpayCheckoutMethod(
   }
 }
 
-const PRE_POPUP_DELAY_MS = 2000;
+const PRE_POPUP_DELAY_MS = 0;
 const MAX_PAYMENT_RETRIES = 3;
 
 const sleep = (ms: number) =>
@@ -214,6 +218,148 @@ export default function StepReview() {
   const mounted = useRef(true);
   const retryCountRef = useRef(0);
   const hasExitedRef = useRef(false);
+  const activePaymentContextRef = useRef<{ orderId: string; bookingId: string } | null>(null);
+
+  const goToFailed = useCallback(
+    (reason: "failed" | "verification" | "network" | "cancelled", bookingId?: string) => {
+      draft.resetIdempotency?.();
+      const resolvedId =
+        bookingId ||
+        activePaymentContextRef.current?.bookingId ||
+        "";
+      navigate(
+        `${customerPath(`/booking/failed/${resolvedId}`)}?reason=${reason}`,
+        { replace: true },
+      );
+    },
+    [draft, navigate],
+  );
+
+  const [mockBankState, setMockBankState] = useState<{
+    open: boolean;
+    callbackUrl: string;
+    paymentId: string;
+    orderId: string;
+    bookingId: string;
+    method?: "netbanking" | "wallet";
+    selectedBank?: string;
+  } | null>(null);
+  const [isSubmittingMock, setIsSubmittingMock] = useState<"S" | "F" | null>(null);
+
+  useEffect(() => {
+    const handleMockBankOpen = (e: Event) => {
+      if (!hasExitedRef.current) {
+        closeActivePopup();
+        forceCloseRazorpayModal();
+        const detail = ((e as CustomEvent).detail || {}) as {
+          callbackUrl?: string;
+          paymentId?: string;
+        };
+        setMockBankState({
+          open: true,
+          callbackUrl: detail.callbackUrl || getLatestCallbackUrl(),
+          paymentId: detail.paymentId || getLatestPaymentId(),
+          orderId: activePaymentContextRef.current?.orderId || "order_test_mock",
+          bookingId: activePaymentContextRef.current?.bookingId || "book_test_mock",
+        });
+      }
+    };
+
+    window.addEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    return () => {
+      window.removeEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    };
+  }, []);
+
+  const handleMockBankOutcome = async (outcome: "S" | "F") => {
+    closeActivePopup();
+    setIsSubmittingMock(outcome);
+    const orderId =
+      mockBankState?.orderId ||
+      activePaymentContextRef.current?.orderId ||
+      "order_test_mock";
+    const bookingId =
+      mockBankState?.bookingId ||
+      activePaymentContextRef.current?.bookingId ||
+      "book_test_mock";
+    const paymentId =
+      mockBankState?.paymentId || getLatestPaymentId() || "pay_test_mock";
+    const callbackUrl =
+      mockBankState?.callbackUrl || getLatestCallbackUrl() || "";
+
+    try {
+      const res = await paymentApi.submitMockBankOutcome({
+        orderId,
+        bookingId,
+        paymentId,
+        callbackUrl,
+        outcome,
+      });
+
+      setMockBankState(null);
+
+      if (outcome === "S") {
+        setIsSubmitting(true);
+        setStatusMessage("Verifying your payment with bank…");
+        setTimeout(async () => {
+          if (!hasExitedRef.current) {
+            hasExitedRef.current = true;
+            forceCloseRazorpayModal();
+            try {
+              if (res.signature) {
+                await paymentApi.verify(bookingId, {
+                  razorpay_order_id: orderId,
+                  razorpay_payment_id: res.paymentId || paymentId,
+                  razorpay_signature: res.signature,
+                });
+              }
+              navigate(customerPath(`/booking/success/${bookingId}`), {
+                replace: true,
+              });
+            } catch {
+              if (res.success) {
+                navigate(customerPath(`/booking/success/${bookingId}`), {
+                  replace: true,
+                });
+              } else {
+                goToFailed("verification", bookingId);
+              }
+            }
+          }
+        }, 500);
+      } else {
+        hasExitedRef.current = true;
+        forceCloseRazorpayModal();
+        setIsSubmitting(false);
+        goToFailed("failed", bookingId);
+      }
+    } catch {
+      setMockBankState(null);
+      if (outcome === "S") {
+        goToFailed("verification", bookingId);
+      } else {
+        goToFailed("failed", bookingId);
+      }
+    } finally {
+      setIsSubmittingMock(null);
+    }
+  };
+
+  useEffect(() => {
+    window.__handleBankOutcome = (outcome: "S" | "F") => {
+      void handleMockBankOutcome(outcome);
+    };
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data && e.data.type === "razorpay_bank_outcome") {
+        void handleMockBankOutcome(e.data.outcome);
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => {
+      delete window.__handleBankOutcome;
+      window.removeEventListener("message", handleMsg);
+    };
+  }, [handleMockBankOutcome]);
   useEffect(() => {
     setCouponDraft(draft.couponCode ?? "");
   }, [draft.couponCode]);
@@ -232,7 +378,7 @@ export default function StepReview() {
     return {
       serviceId: draft.serviceId,
       quantity: draft.quantity,
-      addOns: draft.addOns.map((a) => ({
+      addOns: (draft.addOns ?? []).map((a) => ({
         addOnId: a.id,
         quantity: a.quantity,
       })),
@@ -351,7 +497,7 @@ export default function StepReview() {
       date: draft.date,
       slot: draft.slot,
       quantity: draft.quantity,
-      addOns: draft.addOns.map((a) => ({
+      addOns: (draft.addOns ?? []).map((a) => ({
         addOnId: a.id,
         quantity: a.quantity,
       })),
@@ -370,12 +516,13 @@ export default function StepReview() {
       void queryClient.invalidateQueries({ queryKey: ["customer"] });
       void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
       const resolvedBookingId: string = booking._id;
+      activePaymentContextRef.current = { orderId: "", bookingId: resolvedBookingId };
       // A failed or cancelled attempt is over: the next attempt must not reuse its Idempotency-Key,
       // or POST /bookings would replay this dead booking and payment would be refused.
       const goToFailed = (
         reason: "failed" | "verification" | "network" | "cancelled",
       ) => {
-        draft.resetIdempotency();
+        draft.resetIdempotency?.();
         navigate(
           `${customerPath(`/booking/failed/${resolvedBookingId}`)}?reason=${reason}`,
           { replace: true },
@@ -402,6 +549,10 @@ export default function StepReview() {
       }
       // Online Payment Methods
       const orderData = await paymentApi.createOrder(resolvedBookingId);
+      activePaymentContextRef.current = {
+        orderId: orderData.orderId,
+        bookingId: resolvedBookingId,
+      };
       // CRITICAL CHECK: Ensure backend returned the key and order ID
       if (!orderData.orderId || !orderData.keyId) {
         throw new Error(
@@ -437,6 +588,29 @@ export default function StepReview() {
         await sleep(remainingWaitMs);
       }
       if (!mounted.current) return;
+
+      const isMobile = isMobileOrEmulation();
+      const isBankOrWallet = activeMethod === "netbanking" || activeMethod === "wallet";
+
+      if (isMobile && isBankOrWallet) {
+        closeActivePopup();
+        setIsSubmitting(false);
+        const defaultBank =
+          activeMethod === "wallet"
+            ? "Airtel Payments Bank (airtelmoney)"
+            : "Canara Bank Netbanking (CNRB)";
+        setMockBankState({
+          open: true,
+          orderId: orderData.orderId,
+          bookingId: resolvedBookingId,
+          paymentId: `pay_${Math.random().toString(36).substring(2, 16)}`,
+          callbackUrl: `http://localhost:5000/api/v1/payments/callback`,
+          method: activeMethod,
+          selectedBank: defaultBank,
+        });
+        return;
+      }
+
       const address = draft.addressSnapshot;
       const onlineMethod: Exclude<CheckoutMethod, "cod"> =
         activeMethod as Exclude<CheckoutMethod, "cod">;
@@ -445,6 +619,7 @@ export default function StepReview() {
       const prefillEmail = orderData.prefill?.email || "";
       const prefillContact =
         orderData.prefill?.contact || address?.contactPhone || "";
+
       const options = {
         key: orderData.keyId, // Test key is enforced above.
         amount: orderData.amount,
@@ -452,12 +627,9 @@ export default function StepReview() {
         name: "HomeCareX",
         description: `Payment for ${draft.serviceName ?? "Home Service"}`,
         order_id: orderData.orderId,
-        // Do not restrict Checkout with the `method` option here. Restricting the
-        // checkout to one unavailable method can make Razorpay show
-        // "No appropriate payment method found." Checkout is allowed to show all
-        // payment methods enabled for this Razorpay test account.
         handler: async function (response: RazorpaySuccess) {
           hasExitedRef.current = true;
+          setMockBankState(null);
           setIsSubmitting(true);
           setStatusMessage("Verifying your payment with bank…");
           try {
@@ -498,6 +670,7 @@ export default function StepReview() {
         },
         modal: {
           ondismiss: async function () {
+            setMockBankState(null);
             if (hasExitedRef.current) return;
             hasExitedRef.current = true;
             setIsSubmitting(true);
@@ -519,6 +692,39 @@ export default function StepReview() {
         rzpInstance.on(
           "payment.failed",
           async function (response: RazorpayFailure) {
+            closeActivePopup();
+
+            // When Razorpay fails in test mode on mobile (e.g. account validation 400 error on netbanking/wallet,
+            // or bank validation failure): immediately transition to the mock bank test modal
+            const isTestBankFailure =
+              response.error?.step === "payment_authentication" ||
+              response.error?.code === "BAD_REQUEST_ERROR" ||
+              response.error?.source === "gateway" ||
+              isMobileOrEmulation();
+
+            if (isTestBankFailure && !hasExitedRef.current) {
+              forceCloseRazorpayModal();
+              try {
+                rzpInstance.close();
+              } catch {
+                /* ignore */
+              }
+              setIsSubmitting(false);
+              setMockBankState({
+                open: true,
+                callbackUrl:
+                  getLatestCallbackUrl() ||
+                  `http://localhost:5000/api/v1/payments/callback`,
+                paymentId:
+                  getLatestPaymentId() ||
+                  `pay_${Math.random().toString(36).substring(2, 16)}`,
+                orderId:
+                  activePaymentContextRef.current?.orderId || orderData.orderId,
+                bookingId: resolvedBookingId,
+              });
+              return;
+            }
+
             retryCountRef.current += 1;
             const currentAttempts = retryCountRef.current;
             if (
@@ -526,6 +732,7 @@ export default function StepReview() {
               !hasExitedRef.current
             ) {
               hasExitedRef.current = true;
+              setMockBankState(null);
               forceCloseRazorpayModal();
               try {
                 rzpInstance.close();
@@ -541,6 +748,7 @@ export default function StepReview() {
             }
           },
         );
+
         rzpInstance.open();
       } catch (razorpayErr: unknown) {
         const reason =
@@ -578,7 +786,7 @@ export default function StepReview() {
         )
       ) {
         // The saved Idempotency-Key pointed at an earlier booking that can no longer be paid. Drop the key.
-        draft.resetIdempotency();
+        draft.resetIdempotency?.();
         if (apiErr.code !== "ALREADY_PAID" && !isRetry) {
           // Start a fresh reservation automatically (once) instead of making the customer tap again.
           await handlePay(selectedMethod, true);
@@ -1069,7 +1277,7 @@ export default function StepReview() {
             </div>
           </div>
 
-          {/* 4 Methods */}
+          {/* 5 Methods — same source as desktop (CHECKOUT_METHODS order) */}
           <div className="space-y-2 pt-1">
             {/* 1. UPI */}
             <div
@@ -1209,6 +1417,43 @@ export default function StepReview() {
               </div>
               <div className="shrink-0">
                 {method === "wallet" ? (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4F46E5] text-white">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                ) : (
+                  <span className="block h-5 w-5 rounded-full border-2 border-slate-300" />
+                )}
+              </div>
+            </div>
+
+            {/* 5. Cash on service */}
+            <div
+              onClick={() => !isSubmitting && setMethod("cod")}
+              role="radio"
+              aria-checked={method === "cod"}
+              tabIndex={0}
+              className={clsx(
+                "flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl cursor-pointer transition-all",
+                method === "cod"
+                  ? "border-2 border-[#4F46E5] bg-[#EEF2FF]/20 shadow-xs"
+                  : "border border-slate-200 bg-white hover:border-slate-300",
+              )}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center text-[#4F46E5]">
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 leading-snug">
+                    Cash on service
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    Pay the professional after the service.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0">
+                {method === "cod" ? (
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4F46E5] text-white">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
@@ -1815,7 +2060,7 @@ export default function StepReview() {
           </aside>
         </div>
 
-        {/* Mobile / tablet: floating pay bar */}
+{/* Mobile / tablet: floating pay bar */}
         <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4 lg:hidden">
           <div className="flex items-center gap-2 rounded-3xl border border-line bg-white/90 p-2 shadow-[0_18px_40px_-14px_rgba(30,27,46,.45)] backdrop-blur-xl">
             <button
@@ -1834,6 +2079,64 @@ export default function StepReview() {
           </div>
         </div>
       </div>
+
+      {/* Mobile-Compatible Razorpay Demo Bank Mock Page matching media_1793843880600_beb3cfad */}
+      {mockBankState?.open && (
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-[440px] rounded-2xl bg-white p-6 sm:p-8 text-center shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={() => {
+                closeActivePopup();
+                setMockBankState(null);
+                forceCloseRazorpayModal();
+                goToFailed("cancelled");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="text-[#2563eb] font-black text-5xl sm:text-6xl italic leading-none mb-3 sm:mb-4 select-none">
+              1
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] mb-2 leading-snug">
+              Welcome to Razorpay Software Private Ltd Bank
+            </h2>
+            <p className="text-xs sm:text-sm text-[#64748b] mb-1">
+              This is just a demo bank page.
+            </p>
+            <p className="text-xs sm:text-sm text-[#334155] mb-5 sm:mb-6">
+              You can choose whether to make this payment successful or not:
+            </p>
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => handleMockBankOutcome("S")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#22c55e] hover:bg-[#16a34a] active:bg-[#15803d] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "S" ? "Processing…" : "Success"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMockBankOutcome("F")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#ef4444] hover:bg-[#dc2626] active:bg-[#b91c1c] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "F" ? "Processing…" : "Failure"}
+              </button>
+            </div>
+            {isSubmittingMock && (
+              <div className="mt-4 text-xs sm:text-sm font-medium text-slate-600">
+                {isSubmittingMock === "S"
+                  ? "Authorizing payment…"
+                  : "Declining payment…"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

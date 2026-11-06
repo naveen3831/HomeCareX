@@ -40,16 +40,25 @@ export const sendBodySchema = z
       .trim()
       .max(MAX_TEXT, `Message must be at most ${MAX_TEXT} characters`)
       .optional(),
+    body: z
+      .string()
+      .trim()
+      .max(MAX_TEXT, `Message must be at most ${MAX_TEXT} characters`)
+      .optional(),
     attachments: z
       .array(attachmentSchema)
       .max(MAX_ATTACHMENTS, `At most ${MAX_ATTACHMENTS} attachments`)
       .optional(),
   })
   .strict()
-  .refine((b) => !!b.text || (b.attachments?.length ?? 0) > 0, {
+  .refine((b) => !!b.text || !!b.body || (b.attachments?.length ?? 0) > 0, {
     message: "text or attachments is required",
     path: ["text"],
-  });
+  })
+  .transform((b) => ({
+    text: b.text || b.body,
+    attachments: b.attachments,
+  }));
 
 export type ListQuery = z.infer<typeof listQuerySchema>;
 export type SendBody = z.infer<typeof sendBodySchema>;

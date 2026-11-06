@@ -18,6 +18,12 @@ const PayoutBatchSchema = new Schema(
       type: Date,
       required: true,
     },
+    /** How the period was chosen. Several batches may share one period; an earning can only be in one batch. */
+    frequency: {
+      type: String,
+      enum: ['daily', 'weekly', 'monthly', 'custom'],
+      default: 'custom',
+    },
     gross: {
       type: Number,
       required: true,
@@ -58,10 +64,9 @@ const PayoutBatchSchema = new Schema(
   { timestamps: true },
 );
 
-PayoutBatchSchema.index(
-  { periodStart: 1, periodEnd: 1 },
-  { unique: true },
-);
+// Not unique: earnings are claimed one by one (payoutBatchId), so a second batch for the same
+// period (e.g. jobs finished later today) can never pay anything twice.
+PayoutBatchSchema.index({ periodStart: 1, periodEnd: 1 });
 
 export const PayoutBatchModel =
   models.PayoutBatch ||

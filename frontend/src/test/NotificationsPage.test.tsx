@@ -234,17 +234,17 @@ describe("Customer notifications page", () => {
     await screen.findByText("Service completed");
     const completed = screen.getByText("Service completed").closest("li")!;
     expect(within(completed).getByRole("link", { name: "Rate service" })).toHaveAttribute("href", `/customer/reviews?booking=${BOOKING}`);
-    expect(within(completed).getByRole("link", { name: "Open booking" })).toHaveAttribute("href", `/customer/bookings/${BOOKING}`);
+    expect(within(completed).queryByRole("link", { name: "Open booking" })).toBeNull();
     const reply = screen.getByText("Support replied").closest("li")!;
     expect(within(reply).getByRole("link", { name: "Open ticket" })).toHaveAttribute("href", `/customer/support/tickets?ticket=${TICKET}`);
   });
 
-  it("opening a booking from a notification marks it read", async () => {
+  it("opening an action from a notification marks it read", async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("Service completed");
     const completed = screen.getByText("Service completed").closest("li")!;
-    await user.click(within(completed).getByRole("link", { name: "Open booking" }));
+    await user.click(within(completed).getByRole("link", { name: "Rate service" }));
     await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith("n1"));
   });
 
