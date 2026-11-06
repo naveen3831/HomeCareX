@@ -268,7 +268,7 @@ describe('JobStatusActions OTP Start Flow', () => {
     expect(startJobBtn).toBeDisabled();
   });
 
-  it('enables Start Job only after successful OTP verification and prevents duplicate start clicks', async () => {
+  it('Start Job stays disabled until a valid code is typed, then starts via verify-start and blocks duplicate clicks', async () => {
     const arrivedJob: JobDetails = {
       ...mockBooking,
       status: 'arrived',
@@ -276,12 +276,11 @@ describe('JobStatusActions OTP Start Flow', () => {
       actions: [],
     };
 
-    const verifySpy = vi.spyOn(apiModule, 'verifyJobOtp').mockResolvedValueOnce({ verified: true });
     let resolveStart: (val: any) => void;
     const startPromise = new Promise((resolve) => {
       resolveStart = resolve;
     });
-    const startSpy = vi.spyOn(apiModule, 'startJob').mockImplementation(() => startPromise as any);
+    const startSpy = vi.spyOn(apiModule, 'verifyStart').mockImplementation(() => startPromise as any);
 
     const onChanged = vi.fn();
     const user = userEvent.setup();
@@ -295,23 +294,19 @@ describe('JobStatusActions OTP Start Flow', () => {
     // Open OTP input
     await user.click(screen.getByRole('button', { name: /Verify OTP & Start Job/i }));
 
-    const otpInput = screen.getByPlaceholderText(/4-digit code/i);
-    await user.type(otpInput, '1234');
-
-    const verifyBtn = screen.getByRole('button', { name: /^Verify$/i });
-    await user.click(verifyBtn);
-
-    expect(verifySpy).toHaveBeenCalledWith(arrivedJob.id, '1234');
-    await waitFor(() => {
-      expect(screen.getByText(/OTP verified! Click Start Job to begin./i)).toBeInTheDocument();
-    });
-
-    // Now Start Job is enabled!
     const startJobBtn = screen.getByRole('button', { name: /Start Job/i });
+    expect(startJobBtn).toBeDisabled();
+
+    const otpInput = screen.getByPlaceholderText(/4-digit code/i);
+    await user.type(otpInput, '12');
+    expect(startJobBtn).toBeDisabled(); // too short
+
+    await user.type(otpInput, '34');
     expect(startJobBtn).toBeEnabled();
 
-    // Click Start Job
+    // Click Start Job: exactly one call to verify-start, with just the code
     await user.click(startJobBtn);
+    expect(startSpy).toHaveBeenCalledTimes(1);
     expect(startSpy).toHaveBeenCalledWith(arrivedJob.id, '1234');
 
     // While in flight, button is disabled (duplicate prevention)
@@ -321,6 +316,35 @@ describe('JobStatusActions OTP Start Flow', () => {
     await waitFor(() => {
       expect(onChanged).toHaveBeenCalled();
     });
+  });
+
+  it('shows the server message when the code is wrong and does not call onChanged', async () => {
+    const arrivedJob: JobDetails = { ...mockBooking, status: 'arrived', otpRequired: true, actions: [] };
+    vi.spyOn(apiModule, 'verifyStart').mockRejectedValue({
+      response: { status: 422, data: { code: 'INVALID_OTP', message: 'Incorrect code. 4 attempts left' } },
+    });
+    const onChanged = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MemoryRouter>
+        <JobStatusActions job={arrivedJob} onChanged={onChanged} onStale={vi.fn()} />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /Verify OTP & Start Job/i }));
+    await user.type(screen.getByPlaceholderText(/4-digit code/i), '0000');
+    await user.click(screen.getByRole('button', { name: /Start Job/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/incorrect code/i);
+    expect(onChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe('Starting a job only uses the verify-start route', () => {
+  it('the removed endpoints are gone from the API module', () => {
+    expect((apiModule as Record<string, unknown>).startJob).toBeUndefined();
+    expect((apiModule as Record<string, unknown>).verifyJobOtp).toBeUndefined();
   });
 });
 
