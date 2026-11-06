@@ -1,0 +1,50 @@
+.awd-page { display: flex; flex-direction: column; gap: 16px; }
+.awd-muted { margin: 0; font-size: 0.85rem; color: #64648a; overflow-wrap: anywhere; }
+.awd-error { margin: 0; padding: 10px 14px; border-left: 4px solid #b91c1c; border-radius: 8px; background: #fee2e2; color: #b91c1c; }
+
+.awd-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.awd-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 8px 14px; border: 1px solid #e4e6f5; border-radius: 999px; background: #fff; color: #1e1b4b; font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.awd-tab.is-active { background: #4338ca; border-color: #4338ca; color: #fff; }
+.awd-count { min-width: 20px; padding: 0 6px; border-radius: 999px; background: #ff8a3d; color: #1e1b4b; font-size: 0.75rem; font-weight: 800; text-align: center; }
+
+.awd-list { margin: 0; padding: 0; list-style: none; border: 1px solid #e4e6f5; border-radius: 14px; background: #fff; }
+.awd-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 16px; }
+.awd-row + .awd-row { border-top: 1px solid #e4e6f5; }
+.awd-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.awd-row-name { font-weight: 700; }
+.awd-row-side { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.awd-row-amount { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.awd-chip { padding: 2px 10px; border-radius: 999px; background: #f3f4fb; color: #64648a; font-size: 0.72rem; font-weight: 700; text-transform: capitalize; }
+.awd-chip-pending, .awd-chip-approved { background: #fef3c7; color: #92400e; }
+.awd-chip-paid { background: #dcfce7; color: #15803d; }
+.awd-chip-rejected { background: #fee2e2; color: #b91c1c; }
+
+.awd-btn { min-height: 38px; padding: 8px 14px; border: 1px solid #d9dcf0; border-radius: 10px; background: #fff; color: #1e1b4b; font: inherit; font-weight: 700; cursor: pointer; }
+.awd-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.awd-btn-primary { background: #4338ca; border-color: #4338ca; color: #fff; }
+.awd-btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+.awd-pager { display: flex; align-items: center; justify-content: center; gap: 12px; }
+
+.awd-overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(30, 27, 75, 0.5); }
+.awd-dialog { width: 100%; max-width: 480px; max-height: 90dvh; overflow-y: auto; padding: 22px; border-radius: 20px; background: #fff; color: #1e1b4b; outline: none; }
+.awd-dialog-head { display: flex; align-items: center; justify-content: space-between; }
+.awd-dialog-head h2 { margin: 0; font-size: 1.2rem; }
+.awd-x { width: 40px; height: 40px; border: none; border-radius: 50%; background: transparent; font-size: 1.6rem; color: #64648a; cursor: pointer; }
+.awd-amount { margin: 8px 0 2px; font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.awd-sub { margin: 18px 0 6px; font-size: 0.9rem; }
+.awd-dl { margin: 0; }
+.awd-dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #e4e6f5; font-size: 0.9rem; }
+.awd-dl dt { color: #64648a; }
+.awd-dl dd { margin: 0; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.awd-copy { margin-left: 8px; padding: 2px 0; border: none; background: none; color: #4338ca; font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.awd-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.awd-form { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; }
+.awd-form label { font-size: 0.82rem; font-weight: 700; }
+.awd-form input { min-height: 44px; padding: 8px 12px; border: 1.5px solid #e4e6f5; border-radius: 10px; font: inherit; font-size: 1rem; }
+.awd-form input:focus { outline: none; border-color: #4338ca; }
+
+@media (max-width: 599px) {
+  .awd-row { flex-direction: column; align-items: stretch; }
+  .awd-row-side { justify-content: space-between; }
+}

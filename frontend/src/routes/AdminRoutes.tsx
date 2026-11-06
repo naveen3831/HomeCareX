@@ -48,6 +48,7 @@ const AdminPaymentDetailsPage = lazy(
 );
 const AdminRefundsPage = lazy(() => import("@/pages/admin/Refunds"));
 const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
+const AdminWithdrawalsPage = lazy(() => import("@/pages/admin/Withdrawals"));
 
 // Quality and reporting
 const AdminReviewsPage = lazy(() => import("@/pages/admin/Reviews"));
@@ -244,6 +245,11 @@ const adminRoutes: AdminRoute[] = [
   {
     path: "payouts/:id",
     element: <AdminPayoutsPage />,
+    permission: "payouts:view",
+  },
+  {
+    path: "withdrawals",
+    element: <AdminWithdrawalsPage />,
     permission: "payouts:view",
   },
 

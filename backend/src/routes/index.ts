@@ -72,6 +72,11 @@ import {
 import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerOnboardingRoutes } from "../modules/partner-onboarding/partner-onboarding.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
+import {
+  adminWithdrawalsRoutes,
+  partnerBankAccountsRoutes,
+  partnerWithdrawalsRoutes,
+} from "../modules/partner-withdrawals/partner-withdrawals.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
@@ -142,6 +147,7 @@ rootRouter.use(
 );
 
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/withdrawals", adminWithdrawalsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
 
@@ -228,6 +234,8 @@ rootRouter.use("/partner/earnings", authMiddleware, requireTrainingApproved, ear
 rootRouter.use("/partner/transactions", authMiddleware, requireTrainingApproved, partnerWalletRoutes);
 rootRouter.use("/partner/wallet", authMiddleware, requireTrainingApproved, partnerWalletSummaryRoutes);
 rootRouter.use("/partner/payouts", authMiddleware, requireTrainingApproved, partnerPayoutsRoutes);
+rootRouter.use("/partner/bank-accounts", authMiddleware, requireTrainingApproved, partnerBankAccountsRoutes);
+rootRouter.use("/partner/withdrawals", authMiddleware, requireTrainingApproved, partnerWithdrawalsRoutes);
 rootRouter.use("/partner/incentives", authMiddleware, requireTrainingApproved, incentivesRoutes);
 rootRouter.use("/partner/skills", authMiddleware, requireTrainingApproved, partnerSkillsRoutes);
 rootRouter.use("/partner/services", authMiddleware, requireTrainingApproved, partnerServicesRoutes);
