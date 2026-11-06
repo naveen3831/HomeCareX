@@ -17,6 +17,7 @@ const bodySchema = z
   .object({
     name: z.string().trim().min(2).max(80),
     phone: z.string().trim().regex(/^\d{10}$/, "Enter a 10-digit phone number"),
+    bio: z.string().trim().max(500, "Bio can be up to 500 characters").optional(),
   })
   .strict();
 
@@ -75,9 +76,10 @@ partnerProfileRoutes.patch(
   validate(bodySchema, "body"),
   asyncHandler(async (req, res) => {
     const { sub } = res.locals.auth as { sub: string };
-    const { name, phone } = req.body as z.infer<typeof bodySchema>;
+    const { name, phone, bio } = req.body as z.infer<typeof bodySchema>;
     try {
       await UserModel.updateOne({ _id: sub }, { $set: { name, phone } });
+      if (bio !== undefined) await PartnerModel.updateOne({ userId: sub }, { $set: { bio } });
     } catch (err) {
       if ((err as { code?: number }).code === 11000) {
         res.status(409).json({ success: false, message: "That phone number is already in use.", code: "CONFLICT" });
@@ -85,7 +87,7 @@ partnerProfileRoutes.patch(
       }
       throw err;
     }
-    sendSuccess(res, { name, phone }, { message: "Profile updated" });
+    sendSuccess(res, { name, phone, ...(bio !== undefined ? { bio } : {}) }, { message: "Profile updated" });
   }),
 );
 

@@ -354,6 +354,8 @@ export const authService = {
               categories: categoryIds,
               services: serviceIds,
               skills: input.skills || [],
+              ...(typeof input.experienceYears === 'number' ? { experience: input.experienceYears } : {}),
+              ...(input.bio?.trim() ? { bio: input.bio.trim() } : {}),
               serviceRadiusKm: input.serviceRadiusKm || 15,
               ...(bankDetails ? { bankDetails } : {}),
               // $set (not $setOnInsert) so the files are saved even if a profile row already exists.

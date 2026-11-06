@@ -1,5 +1,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   SlidersHorizontal,
   ChevronDown,
@@ -285,6 +286,7 @@ function ReportRowsPager({
 }
 
 const AdminReportsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [filters, setFilters] =
     useState<ReportFilters>({ ...initialFilters });
 
@@ -572,12 +574,12 @@ const AdminReportsPage: React.FC = () => {
 
   const columns: Record<ReportSection, string[]> = {
     bookings: [
-      'bookingId',
+      'customerName',
       'createdAt',
       'status',
       'paymentStatus',
       'city',
-      'categoryId',
+      'categoryName',
       'partnerId',
       'total',
     ],
@@ -599,6 +601,8 @@ const AdminReportsPage: React.FC = () => {
 
   const labels: Record<string, string> = {
     bookingId: 'Booking ID',
+    customerName: 'Customer',
+    categoryName: 'Category',
     createdAt: 'Created At',
     status: 'Status',
     paymentStatus: 'Payment Status',
@@ -616,6 +620,20 @@ const AdminReportsPage: React.FC = () => {
     netEarnings: 'Net Earnings',
     averageRating: 'Average Rating',
     ratingCount: 'Rating Count',
+  };
+
+  const openDetails = (
+    reportType: 'bookings' | 'partners',
+    row: ReportRow,
+  ) => {
+    const id = String(
+      (reportType === 'bookings' ? row.bookingId : row.partnerId) ?? '',
+    );
+    if (!id) return;
+    navigate(
+      `/admin/reports/${reportType}/${encodeURIComponent(id)}`,
+      { state: { row } },
+    );
   };
 
   const renderTable = (
@@ -674,6 +692,15 @@ const AdminReportsPage: React.FC = () => {
                   key={String(
                     row.bookingId ?? row.partnerId ?? index,
                   )}
+                  className="report-row--clickable"
+                  tabIndex={0}
+                  onClick={() => openDetails(reportType, row)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      openDetails(reportType, row);
+                    }
+                  }}
                 >
                   {reportColumns.map((column) => {
                     const value = row[column];
@@ -697,6 +724,10 @@ const AdminReportsPage: React.FC = () => {
                       ].includes(column)
                     ) {
                       display = formatCurrency(Number(value) || 0);
+                    } else if (column === 'status' && value) {
+                      // cancelled_by_customer -> Cancelled by customer
+                      const text = String(value).replace(/_/g, ' ');
+                      display = text.charAt(0).toUpperCase() + text.slice(1);
                     } else if (column === 'completionRate') {
                       display =
                         `${(Number(value) || 0).toFixed(1)}%`;
@@ -722,6 +753,11 @@ const AdminReportsPage: React.FC = () => {
                         className={`px-4 py-3 ${
                           isIdentifier ? 'report-id-cell' : ''
                         }`}
+                        style={
+                          isIdentifier
+                            ? undefined
+                            : { whiteSpace: 'nowrap' }
+                        }
                       >
                         {display}
                       </td>
@@ -768,7 +804,7 @@ const AdminReportsPage: React.FC = () => {
               aria-label={`Search ${reportConfig[activeReport].title}`}
               placeholder={
                 activeReport === 'bookings'
-                  ? 'Search by booking ID, city, status...'
+                  ? 'Search by customer, category, city, status...'
                   : 'Search by partner name or ID...'
               }
               value={searchTerm}
@@ -1147,6 +1183,18 @@ const AdminReportsPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+                        <button
+                          type="button"
+                          className="report-detail__link mb-3"
+                          onClick={() =>
+                            navigate('/admin/reports/revenue/summary', {
+                              state: { row: revenueSummary },
+                            })
+                          }
+                        >
+                          View details
+                        </button>
+                        <br />
                         Revenue summary covers{' '}
                         {formatNumber(current.total)} bookings.
                         Use <strong>Export CSV</strong> to download

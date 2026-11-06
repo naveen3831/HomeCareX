@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import HeroSearch from "../../../components/public/HeroSearch";
+import HomeBanners from "../../../components/public/HomeBanners";
 import MobileHome from "./MobileHome";
 import CategoryCard, { BroomIcon, FaucetIcon } from "../../../components/public/CategoryCard";
 import Seo from "../../../components/common/Seo";
@@ -556,6 +557,9 @@ const Home: React.FC = () => {
         </div>
       </section>
 
+      {/* ================= ADMIN BANNERS (Admin > Marketing, placement HOME*) ================= */}
+      <HomeBanners />
+
       {/* ================= MARQUEE TICKER (AFTER HERO) ================= */}
       <Marquee />
 
@@ -969,6 +973,9 @@ const Home: React.FC = () => {
         <Testimonials />
         <StatsStrip />
       </Suspense>
+
+      {/* Banners the admin placed at HOME_BOTTOM: last on the page, above "Need help with your home?" */}
+      <HomeBanners slot="bottom" />
 
       {/* ================= FINAL CALL TO ACTION ================= */}
       <section className="hcx-cv bg-white px-6 pt-3 pb-7 sm:pt-4 sm:pb-9">

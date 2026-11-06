@@ -4,6 +4,7 @@ import { getAuthUser } from '../../middleware/auth.middleware';
 import { sendSuccess } from '../../utils/response';
 
 import { payoutsService } from './payouts.service';
+import { adminWalletLedger } from './payouts.ledger';
 
 const getIp = (req: Request): string =>
   req.ip || req.socket.remoteAddress || 'unknown';
@@ -114,6 +115,63 @@ export const payoutsController = {
     });
 
     sendSuccess(res, payout);
+  },
+
+  /**
+   * GET /admin/payout-items/:id/details
+   *
+   * One payout with services grouped by day.
+   */
+  async details(req: Request, res: Response) {
+    sendSuccess(res, await payoutsService.getPayoutDetails(String(req.params.id)));
+  },
+
+  /**
+   * POST /admin/payouts/:id/confirm
+   *
+   * Confirm payment for the whole batch (all unpaid payouts).
+   */
+  async confirmBatch(req: Request, res: Response) {
+    const admin = getAuthUser(req);
+
+    sendSuccess(
+      res,
+      await payoutsService.confirmBatch({
+        batchId: String(req.params.id),
+        adminId: admin.id,
+        ip: getIp(req),
+      }),
+    );
+  },
+
+  /**
+   * GET /admin/payout-wallet
+   *
+   * Admin (platform) wallet totals plus recent lines.
+   */
+  async adminWallet(_req: Request, res: Response) {
+    sendSuccess(res, {
+      ...(await adminWalletLedger.summary()),
+      recent: await adminWalletLedger.recent(20),
+    });
+  },
+
+  /**
+   * GET /admin/payout-wallet/transactions?type=commission|partner_payout&page&limit
+   *
+   * Admin wallet history: commission earned and partner payouts, newest first.
+   */
+  async adminWalletTransactions(req: Request, res: Response) {
+    const type = str(req.query.type);
+    const result = await adminWalletLedger.list({
+      type: type === 'commission' || type === 'partner_payout' ? type : undefined,
+      page: num(req.query.page),
+      limit: num(req.query.limit),
+    });
+
+    sendSuccess(res, result.items, {
+      meta: { pagination: result.pagination, total: result.total },
+    });
   },
 
   /**

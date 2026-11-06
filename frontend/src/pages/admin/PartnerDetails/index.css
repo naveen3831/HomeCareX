@@ -1270,3 +1270,8 @@
     transition: none;
   }
 }
+
+.detail-grid span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

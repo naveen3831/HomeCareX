@@ -192,3 +192,41 @@
   color: #64748b;
   white-space: nowrap;
 }
+
+/* Mobile pager: same look as the Customers page (Prev / Page x of y / Next, no rows-per-page). */
+@media (max-width: 767px) {
+  .datatable-footer {
+    display: block;
+    padding: 12px 0 0;
+    border-top: 0;
+    background: transparent;
+  }
+
+  .datatable-page-size {
+    display: none;
+  }
+
+  .datatable-pagination {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .datatable-pagination span {
+    margin: 0;
+    flex: 1;
+    text-align: center;
+    font-size: 13px;
+    color: var(--hcx-muted, #64748b);
+  }
+
+  .datatable-pagination button {
+    min-height: 40px;
+    min-width: 88px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+}

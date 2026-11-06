@@ -214,13 +214,12 @@ const loadAll = useCallback(async () => {
                   pager.pageItems.map((s) => (
                     <tr key={s.id}>
                       <td>{s.name}</td>
-                      <td>{s.designation ?? '—'}</td>
+                      <td>{s.designation?.trim() || '—'}</td>
                       <td>{s.email}</td>
                       <td>{s.phone ?? '—'}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</td>
                       <td>
                         <div className="flex items-center gap-2">
-                          <PartnerStatus partner={s} />
                           <button type="button" className="hcx-btn hcx-btn--ghost" style={{ minHeight: 30, padding: '4px 8px' }} onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`} title="Edit">
                             <Pencil size={15} />
                           </button>

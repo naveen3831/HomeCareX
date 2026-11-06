@@ -133,9 +133,10 @@
 .pay-row { cursor: pointer; transition: background .12s; }
 .pay-row:hover { background: #f8fafd; }
 
-.pay-person { display: flex; align-items: center; gap: 10px; }
-.pay-person__name { display: block; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
-.pay-person .pay-sub { overflow-wrap: anywhere; }
+.pay-person { display: flex; align-items: center; gap: 10px; width: 230px; min-width: 230px; max-width: 230px; }
+.pay-person > div { min-width: 0; flex: 1; }
+.pay-person__name { display: block; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pay-person .pay-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pay-avatar { display: grid; place-items: center; flex: none; width: 34px; height: 34px; font-size: 12px; font-weight: 700; color: var(--accent); background: #eceafe; border-radius: 50%; }
 
 .pay-status { border: 1px solid var(--line); display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px 3px 9px; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; border-radius: 999px; }

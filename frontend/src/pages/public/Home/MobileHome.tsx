@@ -380,6 +380,9 @@ export const MobileHome: React.FC = () => {
         </p>
       </div>
 
+      {/* ================= ADMIN BANNERS (Admin > Marketing) ================= */}
+      <HomeBanners className="-mx-4 overflow-hidden" />
+
       {/* ================= HERO CAROUSEL CARD (EXACT MOCKUP STYLE) ================= */}
       <div className="space-y-2">
         <div className="relative overflow-hidden rounded-3xl shadow-xs border border-slate-100">

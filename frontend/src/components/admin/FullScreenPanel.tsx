@@ -1,3 +1,4 @@
+import { useSidebarOffset } from '@/hooks/useSidebarOffset';
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -41,7 +42,7 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
   const collapsed = useUIStore((state) => state.isSidebarCollapsed);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
 
-  const left = isDesktop ? (collapsed ? 68 : 260) : 0;
+  const left = useSidebarOffset();
 
   // On mobile, use document scrolling while the full-screen panel is open.
   useEffect(() => {
@@ -81,7 +82,7 @@ export const FullScreenPanel: React.FC<FullScreenPanelProps> = ({
             className="hcx-fs__navbtn"
             onClick={toggleSidebar}
             aria-label={
-              collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+              collapsed ? 'Open sidebar' : 'Close sidebar'
             }
           >
             {collapsed ? (

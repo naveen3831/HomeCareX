@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { useUIStore } from "@/store/useUIStore";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useSidebarOffset } from "@/hooks/useSidebarOffset";
 import "./BookingActionPanel.css";
 
 interface BookingActionPanelProps {
@@ -31,15 +30,7 @@ export const BookingActionPanel: React.FC<
   footer,
   children,
 }) => {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const sidebarCollapsed = useUIStore(
-    (state) => state.isSidebarCollapsed,
-  );
-  const sidebarWidth = isDesktop
-    ? sidebarCollapsed
-      ? 68
-      : 260
-    : 0;
+  const sidebarWidth = useSidebarOffset();
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;

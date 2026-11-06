@@ -280,6 +280,8 @@ function DetailField({
 
 export const AdminRefundsPage: React.FC = () => {
   const navigate = useNavigate();
+  const openRefund = (id: string) =>
+    navigate(`/admin/refunds/${encodeURIComponent(id)}`);
   const { id: routeId } = useParams<{ id: string }>();
 
   // Safely decode the selected refund ID from the URL.
@@ -1178,7 +1180,6 @@ export const AdminRefundsPage: React.FC = () => {
               <table className="refunds-table">
                 <thead>
                   <tr>
-                    <th>Booking / Refund ID</th>
                     <th>Customer</th>
                     <th>Service</th>
                     <th>Payment reference</th>
@@ -1197,36 +1198,19 @@ export const AdminRefundsPage: React.FC = () => {
                     const refundStatus = getStatus(refund);
 
                     return (
-                      <tr key={refund._id}>
-                        <td className="refunds-id-cell">
-                          <button
-                            type="button"
-                            className="refunds-id-link"
-                            title={`View refund ${refund._id}`}
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
-                          >
-                            <span>{booking.number}</span>
-                            <ArrowUpRight size={12} />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="refunds-secondary-text refunds-id-secondary-link"
-                            title={`Open refund ${refund._id}`}
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
-                          >
-                            Refund: {refund._id}
-                          </button>
-                        </td>
-
+                      <tr
+                        key={refund._id}
+                        className="is-clickable"
+                        tabIndex={0}
+                        onClick={() => openRefund(refund._id)}
+                        onKeyDown={(event) => {
+                          if (event.target !== event.currentTarget) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            openRefund(refund._id);
+                          }
+                        }}
+                      >
                         <td>
                           <div className="refunds-customer">
                             <span className="refunds-avatar">
@@ -1311,14 +1295,13 @@ export const AdminRefundsPage: React.FC = () => {
                           <button
                             type="button"
                             className="refunds-review-button"
-                            onClick={() =>
-                              navigate(
-                                `/admin/refunds/${encodeURIComponent(refund._id)}`,
-                              )
-                            }
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openRefund(refund._id);
+                            }}
                           >
                             <Eye size={14} />
-                            View refund
+                            View
                           </button>
                         </td>
                       </tr>

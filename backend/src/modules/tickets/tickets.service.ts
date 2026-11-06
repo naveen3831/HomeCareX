@@ -14,6 +14,7 @@ import type { TicketDto, TicketMessageDto } from './tickets.types';
 import type { TicketStatus } from './tickets.constants';
 import type { EvidenceFile } from './tickets.upload';
 import { emitToUser, getIO, rooms } from '../../sockets';
+import { alertTicketCreated, alertTicketReply } from '../notifications/admin-alerts';
 
 export type TicketActor = { id: string; role: 'customer' | 'admin' };
 const iso = (date: Date) => new Date(date).toISOString();
@@ -108,6 +109,8 @@ export function createTicketsService(
       }
       const ticket = await repo.create(customerId, input, files);
       notify(ticket);
+      // Bell alert for every admin (fire-and-forget: never fails the ticket creation).
+      alertTicketCreated({ ticketId: String(ticket._id), subject: ticket.subject, role: 'customer' });
       return ticketDto(ticket);
     },
     async get(id: string, actor: TicketActor, before?: string) {
@@ -142,6 +145,7 @@ export function createTicketsService(
           'CONFLICT',
         );
       notify(ticket);
+      if (actor.role === 'customer') alertTicketReply({ ticketId: String(ticket._id), subject: ticket.subject });
       return messageDto(message);
     },
     async setStatus(id: string, status: TicketStatus, actor: TicketActor) {

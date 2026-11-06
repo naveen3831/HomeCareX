@@ -13,6 +13,7 @@ import {
   Monitor,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
   Smartphone,
   Trash2,
   User,
