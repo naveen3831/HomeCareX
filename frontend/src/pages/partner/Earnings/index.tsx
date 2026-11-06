@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight, CalendarDays, CalendarRange, Clock, IndianRupee, Wallet } from "lucide-react";
+import { ArrowUpRight, CalendarDays, CalendarRange, IndianRupee, Wallet } from "lucide-react";
 import ErrorState from "@/components/common/ErrorState";
+import EarningsTabs from "@/components/partner/EarningsTabs";
 import OfflineState from "@/components/common/OfflineState";
 import Skeleton from "@/components/common/Skeleton";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -44,31 +45,14 @@ function Money({ value, className }: { value: number; className?: string }) {
 }
 
 function Hero({ data }: { data: EarningsSummary }) {
-  const paidOut = Math.max(0, data.total - data.pending);
-  const paidPct = data.total > 0 ? Math.round((paidOut / data.total) * 100) : 0;
   return (
     <section className="ex-hero" aria-label="Earnings overview">
       <p className="ex-hero-eyebrow"><Wallet size={15} aria-hidden /> Total earned</p>
       <Money value={data.total} className="ex-hero-value" />
       <p className="ex-hero-note">All time, after commission</p>
 
-      <div className="ex-hero-bar" role="progressbar" aria-label="Share of earnings already paid out" aria-valuemin={0} aria-valuemax={100} aria-valuenow={paidPct}>
-        <span style={{ width: `${paidPct}%` }} />
-      </div>
-
-      <div className="ex-hero-split">
-        <div>
-          <p><Clock size={13} aria-hidden /> Pending payout</p>
-          <Money value={data.pending} />
-        </div>
-        <div>
-          <p><IndianRupee size={13} aria-hidden /> Paid out</p>
-          <Money value={paidOut} />
-        </div>
-      </div>
-
-      <Link to="/partner/earnings/payouts" className="ex-hero-link">
-        Payout history <ArrowUpRight size={15} aria-hidden />
+      <Link to="/partner/wallet" className="ex-hero-link">
+        View wallet balance <ArrowUpRight size={15} aria-hidden />
       </Link>
     </section>
   );
@@ -123,6 +107,7 @@ export default function PartnerEarningsPage() {
 
   return (
     <div className="ex-page">
+      <EarningsTabs />
       <h1 className="ex-sr-only">Earnings</h1>
       {top}
       {/* History always shows (with an empty state), so the chart, filters and download are never hidden. */}

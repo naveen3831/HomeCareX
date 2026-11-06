@@ -1,5 +1,6 @@
 
 import {
+  Banknote,
   BarChart3,
   Bell,
   CalendarCheck,
@@ -122,6 +123,12 @@ export const adminNavGroups: AdminNavGroup[] = [
         label: "Payouts",
         path: "/admin/payouts",
         icon: Wallet,
+        permission: "payouts:view",
+      },
+      {
+        label: "Withdrawals",
+        path: "/admin/withdrawals",
+        icon: Banknote,
         permission: "payouts:view",
       },
     ],
