@@ -72,11 +72,41 @@ const BOOKING_STATUS_OPTIONS: Array<{
   },
 ];
 
-function getStatusLabel(status: BookingStatus): string {
+const EXTRA_STATUS_LABELS: Record<string, string> = {
+  pending_payment: "Pending Payment",
+  confirmed: "Confirmed",
+};
+
+/**
+ * Statuses an admin may move a booking to, mirroring the backend state machine
+ * (bookings.stateMachine.ts). Anything not listed would be rejected by the API
+ * with "Cannot move a booking from X to Y", so it is not offered here.
+ */
+const ADMIN_ALLOWED_NEXT: Record<string, string[]> = {
+  pending_payment: ["cancelled_by_customer", "cancelled_by_admin"],
+  confirmed: ["assigned", "cancelled_by_customer", "cancelled_by_admin"],
+  created: ["cancelled_by_customer", "cancelled_by_admin"],
+  searching_for_partner: ["assigned", "cancelled_by_customer", "cancelled_by_admin"],
+  assigned: ["en_route", "cancelled_by_customer", "cancelled_by_partner", "cancelled_by_admin"],
+  en_route: ["arrived", "cancelled_by_customer", "cancelled_by_partner", "cancelled_by_admin"],
+  arrived: ["in_progress", "no_show", "cancelled_by_customer", "cancelled_by_partner", "cancelled_by_admin"],
+  in_progress: ["completed", "disputed", "cancelled_by_customer", "cancelled_by_admin"],
+  completed: ["rated", "disputed", "cancelled_by_customer", "cancelled_by_admin"],
+  rated: ["disputed", "cancelled_by_customer", "cancelled_by_admin"],
+  cancelled_by_partner: ["searching_for_partner", "cancelled_by_admin"],
+  no_show: ["searching_for_partner", "cancelled_by_customer", "cancelled_by_admin", "disputed"],
+  cancelled_by_customer: [],
+  cancelled_by_admin: [],
+  disputed: [],
+};
+
+function getStatusLabel(status: BookingStatus | string): string {
   return (
     BOOKING_STATUS_OPTIONS.find(
       (option) => option.value === status,
-    )?.label ?? status
+    )?.label ??
+    EXTRA_STATUS_LABELS[status] ??
+    status
   );
 }
 
@@ -139,6 +169,14 @@ export const StatusOverrideDialog: React.FC<
     trimmedReason.length === 0
       ? "Reason cannot be empty."
       : "";
+
+  const allowedNext = ADMIN_ALLOWED_NEXT[booking.status] ?? [];
+
+  const statusChoices = BOOKING_STATUS_OPTIONS.filter((option) =>
+    allowedNext.includes(option.value),
+  );
+
+  const noTransitions = statusChoices.length === 0;
 
   const sameStatus =
     status === booking.status;
@@ -279,15 +317,23 @@ export const StatusOverrideDialog: React.FC<
             className="bk-select"
             value={status}
             onChange={handleStatusChange}
-            disabled={submitting}
+            disabled={submitting || noTransitions}
           >
-            {BOOKING_STATUS_OPTIONS.map((option) => (
+            <option value={booking.status}>
+              {getStatusLabel(booking.status)} (current)
+            </option>
+            {statusChoices.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
-                {option.value === booking.status ? " (current)" : ""}
               </option>
             ))}
           </select>
+
+          {noTransitions ? (
+            <p className="bk-help">
+              This booking is in a final state, so its status cannot be changed.
+            </p>
+          ) : null}
         </div>
 
         <div className="bk-field">

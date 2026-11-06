@@ -4,6 +4,7 @@ import BookingModel from '../../models/Booking';
 import UserModel from '../../models/User';
 import { RefundModel } from '../../models/Refund';
 import PartnerModel from '../../models/Partner';
+import CategoryModel from '../../models/Category';
 import { EarningModel } from '../earnings/Earning';
 import { REPORTS_CONSTANTS } from './reports.constants';
 import type {
@@ -19,6 +20,8 @@ type BookingAggregateRow = {
   createdAt: Date;
   serviceName: string;
   address?: { city?: string };
+  customerId?: Types.ObjectId;
+  customerName?: string;
   categoryId?: Types.ObjectId;
   partnerId?: Types.ObjectId | null;
   status: string;
@@ -104,6 +107,8 @@ export class ReportsRepository {
           createdAt: 1,
           serviceName: 1,
           address: 1,
+          customerId: 1,
+          customerName: 1,
           categoryId: 1,
           partnerId: 1,
           status: 1,
@@ -114,11 +119,59 @@ export class ReportsRepository {
       },
     ]).exec();
 
+    // Resolve readable names so the report shows people and categories, not raw ids.
+    const customerIds = [
+      ...new Set(
+        rows
+          .filter((row) => !row.customerName && row.customerId)
+          .map((row) => String(row.customerId)),
+      ),
+    ];
+    const categoryIds = [
+      ...new Set(
+        rows
+          .filter((row) => row.categoryId)
+          .map((row) => String(row.categoryId)),
+      ),
+    ];
+
+    const [users, categories] = await Promise.all([
+      customerIds.length > 0
+        ? UserModel.find({ _id: { $in: customerIds } })
+            .select('name')
+            .lean()
+            .exec()
+        : [],
+      categoryIds.length > 0
+        ? CategoryModel.find({ _id: { $in: categoryIds } })
+            .select('name')
+            .lean()
+            .exec()
+        : [],
+    ]);
+
+    const userNames = new Map(
+      users.map((user) => [String(user._id), String(user.name ?? '')]),
+    );
+    const categoryNames = new Map(
+      categories.map((category) => [
+        String(category._id),
+        String(category.name ?? ''),
+      ]),
+    );
+
     return rows.map((row) => ({
       bookingId: String(row._id),
       createdAt: row.createdAt.toISOString(),
       serviceName: row.serviceName,
       city: row.address?.city ?? '',
+      customerName:
+        row.customerName ||
+        (row.customerId ? userNames.get(String(row.customerId)) : '') ||
+        '',
+      categoryName: row.categoryId
+        ? categoryNames.get(String(row.categoryId)) ?? ''
+        : '',
       categoryId: row.categoryId ? String(row.categoryId) : '',
       partnerId: row.partnerId ? String(row.partnerId) : '',
       status: row.status,

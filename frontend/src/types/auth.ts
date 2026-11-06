@@ -61,6 +61,7 @@ export interface RegisterInput {
   category?: string;
   skills?: string[];
   experienceYears?: number;
+  bio?: string;
   serviceRadiusKm?: number;
   workingDays?: string[];
   workingHoursStart?: string;

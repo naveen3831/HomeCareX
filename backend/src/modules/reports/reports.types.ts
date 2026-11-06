@@ -27,6 +27,8 @@ export interface BookingReportRow {
   createdAt: string;
   serviceName: string;
   city: string;
+  customerName: string;
+  categoryName: string;
   categoryId: string;
   partnerId: string;
   status: string;

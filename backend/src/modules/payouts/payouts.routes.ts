@@ -95,6 +95,48 @@ payoutsRoutes.get(
 );
 
 /**
+ * Admin (platform) wallet totals. Registered before /payouts/:id.
+ */
+payoutsRoutes.get(
+  '/payout-wallet',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.adminWallet(req, res)),
+);
+
+/**
+ * Admin wallet history (commission + partner payout lines), paginated.
+ */
+payoutsRoutes.get(
+  '/payout-wallet/transactions',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.adminWalletTransactions(req, res)),
+);
+
+/**
+ * Payout detail with the partner's services grouped by day.
+ */
+payoutsRoutes.get(
+  '/payout-items/:id/details',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.details(req, res)),
+);
+
+/**
+ * Confirm payment for a whole batch (weekly "pay everyone").
+ */
+payoutsRoutes.post(
+  '/payouts/:id/confirm',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.confirmBatch(req, res)),
+);
+
+payoutsRoutes.post(
+  '/payout-batches/:id/confirm',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.confirmBatch(req, res)),
+);
+
+/**
  * Mark an individual payout as paid.
  *
  * The mark-paid route must be registered before PATCH /payouts/:id.

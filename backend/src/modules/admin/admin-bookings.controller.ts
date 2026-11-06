@@ -23,6 +23,7 @@ import {
 import { applyTransition } from '../bookings/bookings.stateMachine';
 import { getRazorpay } from '../../integrations/razorpay';
 import { auditService } from '../audit/audit.service';
+import { ONBOARDING_TOTAL_STEPS } from '../partner-onboarding/partner-onboarding.service';
 
 type AdminPaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
 type TimelineActorType = 'Admin' | 'Customer' | 'Partner' | 'System';
@@ -109,8 +110,20 @@ interface PartnerSource {
   ratingAvg?: number;
   ratingCount?: number;
   trainingCompleted?: boolean;
+  onboarding?: { completedSteps?: number; approvedAt?: Date };
   serviceRadiusKm?: number;
   kyc?: { status?: string };
+}
+
+
+// Training counts as done when the legacy flag is set OR the admin approved the finished demo
+// (the approve flow only writes onboarding.approvedAt, never trainingCompleted).
+function isTrainingDone(partner: PartnerSource): boolean {
+  return (
+    partner.trainingCompleted === true ||
+    ((partner.onboarding?.completedSteps ?? 0) >= ONBOARDING_TOTAL_STEPS &&
+      !!partner.onboarding?.approvedAt)
+  );
 }
 
 interface UserSource {
@@ -936,7 +949,7 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
         kycStatus.toLowerCase() === 'approved';
 
       const trainingCompleted =
-        partner.trainingCompleted === true;
+        isTrainingDone(partner);
 
       const accountStatus =
         partnerUser.status ?? 'unknown';
@@ -1302,7 +1315,7 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
       );
     }
 
-    if (!partner.trainingCompleted) {
+    if (!isTrainingDone(partner)) {
       throw new HttpError(
         400,
         'Partner training is not completed',

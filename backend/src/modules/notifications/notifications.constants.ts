@@ -16,6 +16,8 @@ export const NOTIFICATION_TYPES = [
   'payment.failed',
   'offer.new',
   'ticket.reply',
+  /** Admin-only: a customer or partner raised a new support ticket. */
+  'ticket.created',
   'system.announcement',
   /** A partner or customer pressed SOS. Admins see it highlighted in the bell and it can never be muted. */
   'sos.alert',
@@ -86,6 +88,7 @@ export const HIGH_PRIORITY_TYPES: readonly string[] = ['sos.alert'];
 export const ADMIN_ALERT_SETTING: Partial<Record<(typeof NOTIFICATION_TYPES)[number], 'notifications.adminBookingAlerts' | 'notifications.adminTicketAlerts'>> = {
   'booking.created': 'notifications.adminBookingAlerts',
   'ticket.reply': 'notifications.adminTicketAlerts',
+  'ticket.created': 'notifications.adminTicketAlerts',
 };
 
 /** Socket.IO event the clients listen for. */

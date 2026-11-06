@@ -313,7 +313,19 @@ const AdminLeadsPage: React.FC = () => {
                       <td className="leads-table__inquiry"><span>{lead.message ?? lead.skills?.join(', ') ?? 'Partner interest'}</span></td>
                       <td><LeadSourceLabel source={lead.source} /></td>
                       <td className="leads-date">{dateShort(lead.createdAt)}</td>
-                      <td><LeadStatusBadge status={lead.status} /></td>
+                      <td onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+                        <select
+                          className={`leads-status-select leads-status--${lead.status}`}
+                          value={lead.status}
+                          aria-label={`Change status for ${lead.name}`}
+                          disabled={statusMutation.isPending && statusMutation.variables?.id === lead._id}
+                          onChange={(event) => statusMutation.mutate({ id: lead._id, status: event.target.value as LeadStatus })}
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -430,13 +442,19 @@ const LeadDetails: React.FC<{ lead: AdminLead; busy: boolean; onStatusChange: (s
         <h3 id="lead-status-heading" className="leads-detail__label">Lead status</h3>
         <LeadStatusBadge status={lead.status} />
       </div>
-      <div className="leads-detail__actions">
-        <button type="button" onClick={() => onStatusChange('contacted')} disabled={busy || lead.status === 'contacted'} className="leads-focus">
-          {busy ? <LoaderCircle aria-hidden="true" size={13} className="leads-spin" /> : <Phone aria-hidden="true" size={13} />} Mark contacted
-        </button>
-        <button type="button" onClick={() => onStatusChange(lead.status === 'closed' ? 'new' : 'closed')} disabled={busy} className="leads-focus">
-          {lead.status === 'closed' ? 'Reopen lead' : 'Close lead'}
-        </button>
+      <div className="leads-seg" role="group" aria-label="Change lead status">
+        {(['new', 'contacted', 'closed'] as LeadStatus[]).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => onStatusChange(value)}
+            disabled={busy || lead.status === value}
+            aria-pressed={lead.status === value}
+            className={`leads-focus leads-seg__btn${lead.status === value ? ' is-active' : ''}`}
+          >
+            {value === 'new' ? 'New' : value === 'contacted' ? 'Contacted' : 'Closed'}
+          </button>
+        ))}
       </div>
     </section>
   </div>

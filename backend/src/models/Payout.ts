@@ -48,6 +48,17 @@ const PayoutSchema = new Schema(
       required: true,
       min: 0,
     },
+    /** Earnings (one per completed service) that make up this payout. Used for the day-wise service breakdown. */
+    earningIds: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Earning',
+    }],
+    /** Number of services (earnings) included in this payout. */
+    servicesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     status: {
       type: String,
       enum: PAYOUT_STATUSES,

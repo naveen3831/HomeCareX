@@ -13,6 +13,7 @@ export interface SliderBanner {
   link: string;
   category: string;
   alt: string;
+  placement?: string;
 }
 
 // Mocks are opt-in only, so a missing env var can never ship mock data to production.
@@ -33,7 +34,7 @@ const mockBannersSchema = z.array(mockBannerSchema);
 
 function toSliderBanner(
   banner: Pick<ApiBanner, "id" | "title" | "description" | "image" | "link"> &
-    Partial<Pick<ApiBanner, "category" | "alt">>,
+    Partial<Pick<ApiBanner, "category" | "alt" | "placement">>,
 ): SliderBanner {
   return {
     id: banner.id,
@@ -43,6 +44,7 @@ function toSliderBanner(
     link: banner.link,
     category: banner.category ?? DEFAULT_CATEGORY,
     alt: banner.alt ?? banner.title,
+    placement: banner.placement,
   };
 }
 

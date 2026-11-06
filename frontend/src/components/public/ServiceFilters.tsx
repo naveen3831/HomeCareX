@@ -107,15 +107,43 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
   const categoryList =
     categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
 
-  const getCategoryLabel = (value: string) =>
-    categoryList.find((item) => item.value === value)?.label ?? value;
+  const isCategoryMatch = (selectedCat: string, optionVal: string, optionLabel: string) => {
+    if (!selectedCat) return false;
+    const s = selectedCat.toLowerCase();
+    const v = optionVal.toLowerCase();
+    const l = optionLabel.toLowerCase();
+    if (s === v || s === l) return true;
 
-  const normalizedCategory =
-    categoryList.find(
-      (item) =>
-        item.value === category ||
-        item.label.toLowerCase() === category.toLowerCase(),
-    )?.value ?? "";
+    const normalize = (k: string) => {
+      if (k.includes("appliance")) return "appliance";
+      if (k.includes("clean")) return "clean";
+      if (k.includes("plumb") || k.includes("electr")) return "plumb-electr";
+      if (k.includes("paint")) return "paint";
+      if (k.includes("pest")) return "pest";
+      if (k.includes("salon") || k.includes("spa")) return "salon-spa";
+      if (k.includes("carpent")) return "carpent";
+      return k.replace(/[-_]/g, " ").trim();
+    };
+
+    return normalize(s) === normalize(v) || normalize(s) === normalize(l);
+  };
+
+  const getCategoryLabel = (value: string) => {
+    if (!value) return "";
+    const matched = categoryList.find((item) =>
+      isCategoryMatch(value, item.value, item.label)
+    );
+    if (matched) return matched.label;
+    return value
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const activeCategoryItem = categoryList.find((item) =>
+    isCategoryMatch(category, item.value, item.label)
+  );
+
+  const normalizedCategory = activeCategoryItem?.value ?? category;
 
   const hasFilters =
     q.trim() !== "" ||
@@ -213,7 +241,7 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
 
           {/* Individual Category Chips */}
           {categoryList.slice(0, 6).map((item) => {
-            const isSelected = normalizedCategory === item.value;
+            const isSelected = isCategoryMatch(category, item.value, item.label);
             const Icon = getCategoryIcon(item.value);
             return (
               <button
@@ -337,7 +365,7 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
                   onClick={() => onCategoryChange("")}
                   className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-semibold text-orange-700 transition hover:bg-orange-100"
                 >
-                  <span>{getCategoryLabel(normalizedCategory)}</span>
+                  <span>{getCategoryLabel(category)}</span>
                   <X size={11} aria-hidden="true" />
                 </button>
               )}

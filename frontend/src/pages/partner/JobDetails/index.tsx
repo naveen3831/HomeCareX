@@ -17,8 +17,7 @@ import {
   fetchJob,
   getErrorMessage,
   getHttpStatus,
-  startJob,
-  verifyJobOtp,
+  verifyStart,
 } from './jobDetails.api';
 import ServiceHeroImage from './ServiceHeroImage';
 import PaymentPanel from '@/components/partner/PaymentPanel';
@@ -111,7 +110,6 @@ export default function JobDetailsPage() {
   const [otpModalOpen, setOtpModalOpen] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpVerifiedLocal, setOtpVerifiedLocal] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -127,7 +125,6 @@ export default function JobDetailsPage() {
       // At first show 'accept' as default; if there is no data in accept, show 'all' as default
       const pendingAssignedCount = catalog.filter((s) => s.status === 'assigned').length;
       setFilterTab(pendingAssignedCount > 0 ? 'accept' : 'all');
-      setOtpVerifiedLocal(Boolean(loadedJob.otpVerified));
       setState('ready');
     } catch (err) {
       const code = getHttpStatus(err);
@@ -171,7 +168,6 @@ export default function JobDetailsPage() {
       setJob(accepted);
       setOtpCode('');
       setOtpError(null);
-      setOtpVerifiedLocal(Boolean(accepted.otpVerified));
       setJustAcceptedBanner(true);
       setViewMode('details');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -203,40 +199,24 @@ export default function JobDetailsPage() {
     navigate(`/partner/jobs/${job.id}/navigation`);
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // One call does both: POST /partner/jobs/:id/verify-start checks the customer's code and starts the job.
+  const handleStartJob = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!job || actionBusy) return;
     if (!online) {
       setOtpError('You are offline. Reconnect and try again.');
       return;
     }
-    if (!otpCode.trim()) {
-      setOtpError(`Please enter the 6-digit customer OTP .`);
+    const code = otpCode.trim();
+    if (!/^\d{4,6}$/.test(code)) {
+      setOtpError('Please enter the 4-digit code from the customer.');
       return;
     }
 
     setActionBusy(true);
     setOtpError(null);
     try {
-      const res = await verifyJobOtp(job.id, otpCode.trim());
-      if (!res.verified) {
-        setOtpError(res.message || 'Incorrect OTP. Please check the code with the customer.');
-      } else {
-        setOtpVerifiedLocal(true);
-      }
-    } catch (err) {
-      setOtpError(getErrorMessage(err, 'OTP verification failed.'));
-    } finally {
-      setActionBusy(false);
-    }
-  };
-
-  const handleConfirmStartJob = async () => {
-    if (!job || actionBusy || !otpVerifiedLocal) return;
-    setActionBusy(true);
-    setOtpError(null);
-    try {
-      const updated = await startJob(job.id, otpCode.trim());
+      const updated = await verifyStart(job.id, code);
       setJob(updated);
       setOtpModalOpen(false);
       navigate(`/partner/jobs/${updated.id}/active`);
@@ -807,7 +787,7 @@ export default function JobDetailsPage() {
           <div className="jd-ref-modal">
             <div className="jd-ref-modal-header">
               <h3 id="jd-otp-modal-title" className="jd-ref-modal-title">
-                Verify Customer Start OTP
+                Start Job: Customer OTP
               </h3>
             </div>
 
@@ -816,43 +796,31 @@ export default function JobDetailsPage() {
               to unlock the full address and begin <strong>{job.service.name}</strong>.
             </p>
 
-            <form onSubmit={(e) => void handleVerifyOtp(e)} className="jd-ref-otp-form">
+            <form onSubmit={(e) => void handleStartJob(e)} className="jd-ref-otp-form">
               <label htmlFor="jd-start-otp-input" className="jd-ref-otp-label">
-                Enter 6-Digit Start OTP
+                Enter 4-Digit Start OTP
               </label>
               <div className="jd-ref-otp-input-row">
                 <input
                   id="jd-start-otp-input"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   maxLength={6}
                   value={otpCode}
                   onChange={(e) => {
                     setOtpCode(e.target.value);
-                    setOtpVerifiedLocal(false);
                     if (otpError) setOtpError(null);
                   }}
                   placeholder="Enter start OTP"
                   className="jd-ref-otp-input"
                 />
-                <button
-                  type="submit"
-                  disabled={actionBusy}
-                  className="jd-ref-otp-verify-btn"
-                >
-                  Verify
-                </button>
               </div>
             </form>
 
             {otpError && (
               <p className="jd-ref-otp-error" role="alert">
                 {otpError}
-              </p>
-            )}
-
-            {otpVerifiedLocal && (
-              <p className="jd-ref-otp-success" role="status">
-                ✓ OTP verified! You can now start the job.
               </p>
             )}
 
@@ -866,8 +834,8 @@ export default function JobDetailsPage() {
               </button>
               <button
                 type="button"
-                disabled={!otpVerifiedLocal || actionBusy}
-                onClick={() => void handleConfirmStartJob()}
+                disabled={!/^\d{4,6}$/.test(otpCode.trim()) || actionBusy}
+                onClick={() => void handleStartJob()}
                 className="jd-ref-modal-confirm"
               >
                 {actionBusy ? 'Starting…' : 'Start job'}

@@ -1,3 +1,5 @@
+import { businessTzOffsetMinutes, dayBounds, isRealDate, monthStart, parseLocalDate, weekStart } from '../../utils/dates';
+
 export type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
 
 export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -40,4 +42,37 @@ export function computeBatchStatus(statuses: PayoutStatus[]): 'pending' | 'proce
   if (statuses.some((s) => s === 'paid' || s === 'processing')) return 'processing';
   if (statuses.some((s) => s === 'failed')) return 'failed';
   return 'pending';
+}
+
+export const PAYOUT_FREQUENCIES = ['daily', 'weekly', 'monthly', 'custom'] as const;
+export type PayoutFrequency = (typeof PAYOUT_FREQUENCIES)[number];
+
+export const isPayoutFrequency = (value: unknown): value is PayoutFrequency =>
+  typeof value === 'string' && (PAYOUT_FREQUENCIES as readonly string[]).includes(value);
+
+/** Anchor day for a payout period: "YYYY-MM-DD" in business time, or now when omitted. Returns null if invalid. */
+export function parseAnchorDate(ymd: unknown, now: Date = new Date()): Date | null {
+  if (ymd === undefined || ymd === null || ymd === '') return now;
+  if (typeof ymd !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(ymd) || !isRealDate(ymd)) return null;
+  return parseLocalDate(ymd);
+}
+
+/**
+ * [start, end) of the daily / weekly (Mon-Sun) / monthly period that contains `anchor`, in business time (IST).
+ * The period containing "today" is allowed, so work finished today can be paid today.
+ */
+export function resolvePayoutPeriod(
+  frequency: Exclude<PayoutFrequency, 'custom'>,
+  anchor: Date = new Date(),
+  offsetMinutes = businessTzOffsetMinutes(),
+): { start: Date; end: Date } {
+  if (frequency === 'daily') return dayBounds(anchor, offsetMinutes);
+  if (frequency === 'weekly') {
+    const start = weekStart(anchor, offsetMinutes);
+    return { start, end: new Date(start.getTime() + 7 * 86_400_000) };
+  }
+  const start = monthStart(anchor, offsetMinutes);
+  const local = new Date(anchor.getTime() + offsetMinutes * 60_000);
+  const end = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth() + 1, 1) - offsetMinutes * 60_000);
+  return { start, end };
 }

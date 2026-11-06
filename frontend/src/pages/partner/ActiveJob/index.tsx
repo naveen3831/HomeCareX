@@ -4,8 +4,7 @@ import { ArrowLeft, CheckCircle2, AlertCircle, Home } from 'lucide-react';
 import {
   fetchJob,
   completeJob,
-  startJob,
-  verifyJobOtp,
+  verifyStart,
   getErrorMessage,
   getHttpStatus,
 } from '@/pages/partner/JobDetails/jobDetails.api';
@@ -61,10 +60,8 @@ export const ActiveJobPage: React.FC = () => {
   // Add Item dialog state
   const [addItemOpen, setAddItemOpen] = useState<boolean>(false);
 
-  // OTP start flow (if navigated here while status is 'arrived')
+  // Start flow (if navigated here while status is 'arrived'): one call, POST /partner/jobs/:id/verify-start
   const [otpInput, setOtpInput] = useState<string>('');
-  const [otpVerified, setOtpVerified] = useState<boolean>(false);
-  const [otpVerifying, setOtpVerifying] = useState<boolean>(false);
   const [starting, setStarting] = useState<boolean>(false);
   const [startError, setStartError] = useState<string | null>(null);
 
@@ -126,32 +123,18 @@ export const ActiveJobPage: React.FC = () => {
     }
   };
 
-  // OTP Verification
-  const handleVerifyOtp = async () => {
-    if (!job || otpVerifying || !otpInput.trim()) return;
-    setOtpVerifying(true);
-    setStartError(null);
-    try {
-      const res = await verifyJobOtp(job.id, otpInput.trim());
-      if (res.verified) {
-        setOtpVerified(true);
-      } else {
-        setStartError(res.message || 'OTP verification failed. Check code with customer.');
-      }
-    } catch (err) {
-      setStartError(getErrorMessage(err, 'OTP verification request failed.'));
-    } finally {
-      setOtpVerifying(false);
-    }
-  };
-
-  // Start Job (only possible after OTP verified)
+  // Start Job: the server checks the customer's code and starts the job in the same call.
   const handleStartJob = async () => {
-    if (!job || starting || !otpVerified) return;
+    const code = otpInput.trim();
+    if (!job || starting) return;
+    if (!/^\d{4,6}$/.test(code)) {
+      setStartError('Enter the 4-digit code from the customer.');
+      return;
+    }
     setStarting(true);
     setStartError(null);
     try {
-      const updated = await startJob(job.id, otpInput.trim());
+      const updated = await verifyStart(job.id, code);
       setJob(updated);
     } catch (err) {
       setStartError(getErrorMessage(err, 'Could not start job. Please try again.'));
@@ -251,37 +234,22 @@ export const ActiveJobPage: React.FC = () => {
                 <label htmlFor="otp-input-box" className="block text-xs font-semibold text-slate-700 mb-1">
                   Enter Customer OTP
                 </label>
-                <div className="flex gap-2">
-                  <input
-                    id="otp-input-box"
-                    type="text"
-                    maxLength={6}
-                    value={otpInput}
-                    onChange={(e) => {
-                      setOtpInput(e.target.value);
-                      setOtpVerified(false);
-                    }}
-                    placeholder="Enter code"
-                    className="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-base tracking-widest font-mono text-center font-bold focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void handleVerifyOtp()}
-                    disabled={otpVerifying || !otpInput.trim() || !online}
-                    aria-busy={otpVerifying}
-                    className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-50"
-                  >
-                    {otpVerifying ? 'Verifying…' : 'Verify OTP'}
-                  </button>
-                </div>
+                <input
+                  id="otp-input-box"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={otpInput}
+                  onChange={(e) => {
+                    setOtpInput(e.target.value);
+                    setStartError(null);
+                  }}
+                  placeholder="Enter code"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-base tracking-widest font-mono text-center font-bold focus:border-[#4338ca] focus:ring-1 focus:ring-[#4338ca]"
+                />
+                <p className="mt-1 text-xs text-slate-500">The code is checked when you tap Start Job.</p>
               </div>
-
-              {otpVerified && (
-                <div className="flex items-center gap-2 rounded-lg bg-[#eeecfb] p-3 text-xs font-semibold text-[#4338ca]">
-                  <CheckCircle2 className="h-4 w-4" />
-                  <span>OTP verified successfully! You may now begin the job.</span>
-                </div>
-              )}
 
               {startError && (
                 <p className="text-xs font-semibold text-red-600" role="alert">
@@ -299,7 +267,7 @@ export const ActiveJobPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => void handleStartJob()}
-                  disabled={!otpVerified || starting || !online}
+                  disabled={!/^\d{4,6}$/.test(otpInput.trim()) || starting || !online}
                   aria-busy={starting}
                   className="flex-1 rounded-xl bg-[#4338ca] py-2.5 text-sm font-bold text-white hover:bg-[#3730a3] disabled:opacity-40 disabled:cursor-not-allowed"
                 >

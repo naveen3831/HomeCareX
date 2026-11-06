@@ -354,6 +354,8 @@ export const authService = {
               categories: categoryIds,
               services: serviceIds,
               skills: input.skills || [],
+              ...(typeof input.experienceYears === 'number' ? { experience: input.experienceYears } : {}),
+              ...(input.bio?.trim() ? { bio: input.bio.trim() } : {}),
               serviceRadiusKm: input.serviceRadiusKm || 15,
               ...(bankDetails ? { bankDetails } : {}),
               // $set (not $setOnInsert) so the files are saved even if a profile row already exists.
@@ -672,13 +674,29 @@ export const authService = {
       (currentSid && sessionId === currentSid) || sessionId === 'current',
     );
 
+    const userSessions = Array.isArray((user as any).sessions)
+      ? (user as any).sessions
+      : [];
+
+    const sessionExists =
+      isCurrent ||
+      userSessions.some(
+        (s: any) =>
+          s.sessionId === sessionId ||
+          s._id?.toString() === sessionId,
+      );
+
+    if (!sessionExists) {
+      throw new HttpError(404, 'Session not found', 'SESSION_NOT_FOUND');
+    }
+
     markSessionRevoked(sessionId);
 
-    if (Array.isArray((user as any).sessions)) {
-      (user as any).sessions = (user as any).sessions.filter(
-        (s: any) => s.sessionId !== sessionId,
-      );
-    }
+    (user as any).sessions = userSessions.filter(
+      (s: any) =>
+        s.sessionId !== sessionId &&
+        s._id?.toString() !== sessionId,
+    );
 
     if (isCurrent) {
       user.tokenVersion = (user.tokenVersion ?? 0) + 1;

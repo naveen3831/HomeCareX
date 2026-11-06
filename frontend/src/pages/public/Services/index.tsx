@@ -310,7 +310,7 @@ export const ServicesPage: React.FC = () => {
   const categoryName = category ? slugToTitle(category) : "";
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-[#ffffff] to-[#f4f7ff] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-[#ffffff] to-[#f4f7ff] px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
       {/* Ambient background decorative glow */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-72 w-full max-w-5xl bg-gradient-to-r from-indigo-200/25 via-blue-100/20 to-orange-100/25 blur-3xl"
@@ -343,7 +343,7 @@ export const ServicesPage: React.FC = () => {
         ])}
       />
 
-      <div className="relative mx-auto max-w-6xl">
+      <div className="relative mx-auto max-w-7xl">
         {/* ====================================================
             PAGE HEADER (Compact, Vibrant & Aesthetic)
         ==================================================== */}
@@ -355,7 +355,7 @@ export const ServicesPage: React.FC = () => {
 
           <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
             Find the{" "}
-            <span className="bg-gradient-to-r from-[#4338ca] via-indigo-600 to-[#f97316] bg-clip-text text-transparent">
+            <span className="text-indigo-600">
               Right Service
             </span>{" "}
             for Your Home
@@ -455,14 +455,15 @@ export const ServicesPage: React.FC = () => {
         ) : apiServices.length > 0 ? (
           <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {apiServices.map((service, idx) => {
-              const image = serviceImageFor(service.name);
+              const fallback = serviceImageFor(service.name);
+              const image = service.image || fallback;
 
               return (
                 <ServiceCard
                   key={service.id}
                   id={service.slug}
                   image={image}
-                  fallbackImage={image}
+                  fallbackImage={fallback}
                   category={service.category.name}
                   name={service.name}
                   rating={service.rating}

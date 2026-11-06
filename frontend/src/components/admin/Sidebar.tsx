@@ -37,7 +37,9 @@ export const Sidebar: React.FC = () => {
     (state) => state.closeMobileMenu,
   );
 
-  const isCollapsed = storedCollapsed && isDesktop;
+  // Desktop: "collapsed" now means fully closed (hidden), so labels always render when visible.
+  const isCollapsed = false;
+  const isClosed = storedCollapsed && isDesktop;
 
   const user = useAuthStore((state) => state.user);
   const { logout } = useAuth();
@@ -112,7 +114,7 @@ export const Sidebar: React.FC = () => {
 
   const className = [
     "admin-sidebar",
-    isCollapsed ? "is-collapsed" : "",
+    isClosed ? "is-closed" : "",
     isMobileMenuOpen ? "is-mobile-open" : "",
   ]
     .filter(Boolean)
@@ -131,6 +133,7 @@ export const Sidebar: React.FC = () => {
       <aside
         className={className}
         aria-label="Admin navigation"
+        aria-hidden={isClosed || undefined}
       >
         <div className="sidebar-brand">
           <div className="sidebar-brand__top">

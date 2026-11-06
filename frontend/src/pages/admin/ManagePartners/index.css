@@ -25,3 +25,9 @@
 .mp-card__actions .hcx-btn { min-height: 42px; justify-content: center; border-radius: 10px; }
 .mp-card__actions .hcx-btn--danger-ghost { color: var(--hcx-danger); }
 .mp-state { padding: 40px 16px; text-align: center; font-size: 14px; color: var(--hcx-muted); background: var(--hcx-surface); border: 1px solid var(--hcx-line); border-radius: 14px; }
+
+/* Status + actions get their own fixed-width columns so every row lines up. */
+.mp-page .hcx-table { table-layout: auto; }
+.mp-col-status { width: 150px; min-width: 150px; white-space: nowrap; }
+.mp-col-actions { width: 96px; min-width: 96px; white-space: nowrap; }
+.mp-col-status .hcx-badge { display: inline-flex; align-items: center; justify-content: flex-start; min-width: 118px; white-space: nowrap; }

@@ -280,6 +280,17 @@
   }
 }
 
+@media (min-width: 1024px) {
+  /* Closed = fully hidden; the page takes the whole width. */
+  .admin-sidebar { transition: margin-left 0.2s ease, visibility 0s linear 0s; }
+  .admin-sidebar.is-closed {
+    margin-left: -260px;
+    visibility: hidden;
+    pointer-events: none;
+    transition: margin-left 0.2s ease, visibility 0s linear 0.2s;
+  }
+}
+
 @media (max-width: 1023px) {
   .admin-sidebar.is-collapsed {
     width: 260px;

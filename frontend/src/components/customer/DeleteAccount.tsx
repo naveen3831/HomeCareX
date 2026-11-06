@@ -17,7 +17,9 @@ import clsx from "clsx";
 import { useAuth } from "@/hooks/useAuth";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useDeleteAccount, useCustomerDashboard } from "@/features/customer";
+import type { DashboardBookingDto } from "@/features/customer";
 import { bookingApi } from "@/services/bookingApi";
+import { phaseOf, type BookingListItem } from "@/pages/customer/Bookings/bookingModel";
 import { LOGIN_PATH } from "@/routes/authPaths";
 import { customerPath } from "@/routes/customerPath";
 import { FOCUS_RING } from "./focusRing";
@@ -42,8 +44,55 @@ export const ACTIVE_BOOKING_STATUSES = new Set([
   "in_progress",
   "in-progress",
   "started",
-  "disputed",
 ]);
+
+/**
+ * Returns true if a booking belongs strictly to the Upcoming or Live tab.
+ * Overdue, completed, and cancelled bookings are never counted as active.
+ */
+export function isUpcomingOrLiveBooking(
+  b: BookingListItem,
+  now: number = Date.now(),
+): boolean {
+  const phase = phaseOf(b, now);
+  if (phase !== null) {
+    return phase === "upcoming" || phase === "live";
+  }
+
+  // Fallback for minimal objects without date/slot (e.g. test mocks with only status)
+  const s = (b.status || "").toLowerCase().replace(/-/g, "_");
+  if (
+    s === "disputed" ||
+    s.startsWith("cancel") ||
+    s === "completed" ||
+    s === "rated" ||
+    s === "no_show"
+  ) {
+    return false;
+  }
+  return ACTIVE_BOOKING_STATUSES.has(s);
+}
+
+const DASHBOARD_LIVE_STATUSES = new Set(["en_route", "arrived", "in_progress"]);
+const dashboardBookingDate = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function isUpcomingOrLiveDashboardBooking(
+  booking: DashboardBookingDto,
+  now: number,
+): boolean {
+  const status = booking.status.toLowerCase().replace(/-/g, "_");
+  if (DASHBOARD_LIVE_STATUSES.has(status)) return true;
+  if (!ACTIVE_BOOKING_STATUSES.has(status)) return false;
+
+  const scheduledAt = new Date(booking.scheduledAt);
+  if (Number.isNaN(scheduledAt.getTime())) return true;
+  return dashboardBookingDate.format(scheduledAt) >= dashboardBookingDate.format(new Date(now));
+}
 
 const EFFECTS: {
   icon: typeof User;
@@ -508,37 +557,38 @@ export default function DeleteAccount({
     queryFn: async ({ signal }) => {
       try {
         if (typeof bookingApi?.listBookings === "function") {
-          const res = await bookingApi.listBookings({ page: 1, limit: 50 }, signal);
+          const res = await bookingApi.listBookings(
+            { status: "upcoming,live", page: 1, limit: 50 },
+            signal,
+          );
           const items = res?.items ?? [];
-          const active = items.filter((b) => {
-            const s = (b.status || "").toLowerCase().replace(/-/g, "_");
-            return ACTIVE_BOOKING_STATUSES.has(s);
-          });
-          return { count: active.length, items: active };
+          const now = Date.now();
+          const active = items.filter((b) => isUpcomingOrLiveBooking(b, now));
+          const totalCount =
+            typeof res?.meta?.total === "number" && items.length > 0 && active.length === items.length
+              ? Math.max(active.length, res.meta.total)
+              : active.length;
+          return { count: totalCount, items: active };
         }
       } catch (err) {
         // If booking list query fails but dashboard data is already present, gracefully fall back
         if (dashboard?.data) {
+          const now = Date.now();
           const dashActive = [
             ...(dashboard.data.activeBookings || []),
             ...(dashboard.data.upcomingBookings || []),
-          ].filter((b) => {
-            const s = (b.status || "").toLowerCase().replace(/-/g, "_");
-            return ACTIVE_BOOKING_STATUSES.has(s);
-          });
+          ].filter((b) => isUpcomingOrLiveDashboardBooking(b, now));
           return { count: dashActive.length, items: dashActive };
         }
         throw err;
       }
 
       if (dashboard?.data) {
+        const now = Date.now();
         const dashActive = [
           ...(dashboard.data.activeBookings || []),
           ...(dashboard.data.upcomingBookings || []),
-        ].filter((b) => {
-          const s = (b.status || "").toLowerCase().replace(/-/g, "_");
-          return ACTIVE_BOOKING_STATUSES.has(s);
-        });
+        ].filter((b) => isUpcomingOrLiveDashboardBooking(b, now));
         return { count: dashActive.length, items: dashActive };
       }
 

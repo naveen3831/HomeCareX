@@ -5,7 +5,10 @@ import PayoutModel from '../../models/Payout';
 import PayoutBatchModel from '../../models/PayoutBatch';
 import UserModel from '../../models/User';
 import { AppError } from '../../utils/AppError';
+import BookingModel from '../../models/Booking';
 import EarningModel from '../earnings/Earning';
+import { toLocalDateString, businessTzOffsetMinutes } from '../../utils/dates';
+import { adminWalletLedger } from './payouts.ledger';
 import { partnerWalletLedger } from '../partner-wallet/partner-wallet.ledger';
 import {
   computeBatchStatus,
@@ -38,15 +41,80 @@ const alreadyExists = () =>
     'A payout batch already exists for this period',
   );
 
+/**
+ * Confirming a payout is what puts the money in the wallets:
+ *  - partner wallet: the payout's earnings move pending -> settled, so the total becomes available balance
+ *  - admin wallet:   commission (+) and the partner payout (-) are recorded
+ * Both steps are idempotent, so a retry after an interrupted confirm is safe.
+ */
+async function applyWalletsForConfirmedPayout(
+  payout: {
+    _id: unknown;
+    partnerId?: unknown;
+    batchId?: unknown;
+    amount: number;
+    commission?: number;
+    earningIds?: unknown[];
+  },
+  adminId?: string,
+): Promise<void> {
+  let earningIds = (payout.earningIds ?? []).map(String);
+
+  // Payouts created before earningIds existed: fall back to the batch + partner.
+  if (!earningIds.length && payout.partnerId && payout.batchId) {
+    const rows = await EarningModel.find({
+      payoutBatchId: payout.batchId,
+      partnerId: payout.partnerId,
+    })
+      .select('_id')
+      .lean();
+    earningIds = rows.map((row) => String(row._id));
+  }
+
+  await partnerWalletLedger.settleEarnings(earningIds);
+
+  if (payout.batchId) {
+    await adminWalletLedger.recordPayoutConfirmed({
+      payoutId: String(payout._id),
+      batchId: String(payout.batchId),
+      partnerId: payout.partnerId ? String(payout.partnerId) : undefined,
+      commission: payout.commission ?? 0,
+      net: payout.amount,
+      confirmedBy: adminId,
+    });
+  }
+}
+
+/**
+ * Older databases have a UNIQUE (periodStart, periodEnd) index, which blocks a second batch for the same
+ * period (for example jobs finished later the same day). Drop it once; mongoose recreates the plain index.
+ */
+let legacyIndexChecked = false;
+async function dropLegacyUniquePeriodIndex(): Promise<void> {
+  if (legacyIndexChecked) return;
+  legacyIndexChecked = true;
+  try {
+    const indexes = await PayoutBatchModel.collection.indexes();
+    const legacy = indexes.find(
+      (index) => index.unique && index.key && 'periodStart' in index.key && 'periodEnd' in index.key,
+    );
+    if (legacy?.name) {
+      await PayoutBatchModel.collection.dropIndex(legacy.name);
+      await PayoutBatchModel.syncIndexes();
+    }
+  } catch (error) {
+    legacyIndexChecked = false;
+    console.error('[payouts] Could not drop legacy unique period index', error);
+  }
+}
+
 export const payoutsRepository: PayoutsRepository = {
   /**
    * Generates a batch from pending earnings in [periodStart, periodEnd).
    * Each partner receives one payout for the batch.
    */
-  async generateBatch({ periodStart, periodEnd, adminId }) {
-    if (await PayoutBatchModel.exists({ periodStart, periodEnd })) {
-      throw alreadyExists();
-    }
+  async generateBatch({ periodStart, periodEnd, adminId, frequency = 'custom' }) {
+    await dropLegacyUniquePeriodIndex();
 
     const batchId = new Types.ObjectId();
     const now = new Date();
@@ -128,12 +196,24 @@ export const payoutsRepository: PayoutsRepository = {
         return undefined;
       };
 
+      const earningIdsByPartner = new Map<string, Types.ObjectId[]>();
+      for (const earning of claimed) {
+        const key = String(earning.partnerId);
+        const list = earningIdsByPartner.get(key) ?? [];
+        list.push(earning._id as Types.ObjectId);
+        earningIdsByPartner.set(key, list);
+      }
+
       const payoutDocs = groups
         .filter((group) => group.net > 0)
         .map((group) => ({
           _id: new Types.ObjectId(),
           partnerId: new Types.ObjectId(group.partnerId),
+          gross: round2(group.gross),
+          commission: round2(group.commission),
           amount: round2(group.net),
+          earningIds: earningIdsByPartner.get(group.partnerId) ?? [],
+          servicesCount: group.count,
           status: 'pending' as const,
           method: methodOf(group.partnerId),
           batchId,
@@ -147,6 +227,7 @@ export const payoutsRepository: PayoutsRepository = {
         _id: batchId,
         periodStart,
         periodEnd,
+        frequency,
         gross: round2(
           groups.reduce((sum, group) => sum + group.gross, 0),
         ),
@@ -162,8 +243,8 @@ export const payoutsRepository: PayoutsRepository = {
         createdBy: new Types.ObjectId(adminId),
       });
 
-      // Update wallet accounting after earnings have been settled.
-      await partnerWalletLedger.settleEarnings(earningIds);
+      // NOTE: partner wallet is NOT credited here any more. Earnings stay `pending` in the
+      // wallet until the admin confirms the payout (see applyWalletsForConfirmedPayout).
 
       return batch.toObject() as unknown as BatchRecord;
     } catch (error) {
@@ -286,6 +367,9 @@ export const payoutsRepository: PayoutsRepository = {
         },
         batchId: payout.batchId,
         amount: payout.amount,
+        gross: payout.gross,
+        commission: payout.commission,
+        servicesCount: payout.servicesCount || payout.earningIds?.length || 0,
         status: payout.status as PayoutStatus,
         method: payout.method ?? null,
         transactionId: payout.transactionId ?? null,
@@ -301,7 +385,7 @@ export const payoutsRepository: PayoutsRepository = {
    * Marks a payout as paid, records the wallet debit,
    * and recalculates its batch status.
    */
-  async markPaid({ payoutId, transactionId }) {
+  async markPaid({ payoutId, transactionId, adminId }) {
     if (!Types.ObjectId.isValid(payoutId)) {
       throw new AppError(
         400,
@@ -321,14 +405,8 @@ export const payoutsRepository: PayoutsRepository = {
     }
 
     if (existing.status === 'paid') {
-      // Reconcile the wallet ledger if a previous operation was interrupted.
-      if (existing.partnerId) {
-        await partnerWalletLedger.debitPayout({
-          partnerId: String(existing.partnerId),
-          payoutId,
-          amount: existing.amount,
-        });
-      }
+      // Reconcile the wallets if a previous confirm was interrupted.
+      await applyWalletsForConfirmedPayout(existing as never, adminId);
 
       throw new AppError(
         409,
@@ -360,13 +438,7 @@ export const payoutsRepository: PayoutsRepository = {
       );
     }
 
-    if (updated.partnerId) {
-      await partnerWalletLedger.debitPayout({
-        partnerId: String(updated.partnerId),
-        payoutId,
-        amount: updated.amount,
-      });
-    }
+    await applyWalletsForConfirmedPayout(updated as never, adminId);
 
     if (updated.batchId) {
       const siblings = await PayoutModel.find({
@@ -401,6 +473,158 @@ export const payoutsRepository: PayoutsRepository = {
       createdAt: (
         updated as unknown as { createdAt: Date }
       ).createdAt,
+    };
+  },
+
+  /**
+   * Full detail for one payout: partner, totals and the services grouped by day.
+   * Falls back to batch + partner for payouts created before earningIds was stored.
+   */
+  async getPayoutDetails(payoutId: string) {
+    if (!Types.ObjectId.isValid(payoutId)) {
+      throw new AppError(400, 'INVALID_PAYOUT_ID', 'Invalid payout ID');
+    }
+
+    const payout = await PayoutModel.findById(payoutId).lean();
+    if (!payout) {
+      throw new AppError(404, 'PAYOUT_NOT_FOUND', 'Payout not found');
+    }
+
+    const earningFilter =
+      payout.earningIds && payout.earningIds.length
+        ? { _id: { $in: payout.earningIds } }
+        : { payoutBatchId: payout.batchId, partnerId: payout.partnerId };
+
+    const earnings = await EarningModel.find(earningFilter).sort({ earnedAt: 1, _id: 1 }).lean();
+
+    const bookings = earnings.length
+      ? await BookingModel.find({ _id: { $in: earnings.map((e) => e.bookingId) } })
+          .select('serviceName')
+          .lean()
+      : [];
+    const serviceNames = new Map(bookings.map((b) => [String(b._id), (b as { serviceName?: string }).serviceName ?? 'Service']));
+
+    const offset = businessTzOffsetMinutes();
+    const dayMap = new Map<
+      string,
+      {
+        date: string;
+        servicesCount: number;
+        gross: number;
+        commission: number;
+        net: number;
+        services: {
+          earningId: string;
+          bookingId: string;
+          serviceName: string;
+          gross: number;
+          commission: number;
+          net: number;
+          earnedAt: Date;
+        }[];
+      }
+    >();
+
+    for (const earning of earnings) {
+      const date = toLocalDateString(earning.earnedAt, offset);
+      const day = dayMap.get(date) ?? { date, servicesCount: 0, gross: 0, commission: 0, net: 0, services: [] };
+      day.servicesCount += 1;
+      day.gross = round2(day.gross + earning.gross);
+      day.commission = round2(day.commission + earning.commission);
+      day.net = round2(day.net + earning.net);
+      day.services.push({
+        earningId: String(earning._id),
+        bookingId: String(earning.bookingId),
+        serviceName: serviceNames.get(String(earning.bookingId)) ?? 'Service',
+        gross: earning.gross,
+        commission: earning.commission,
+        net: earning.net,
+        earnedAt: earning.earnedAt,
+      });
+      dayMap.set(date, day);
+    }
+
+    const days = [...dayMap.values()].sort((a, b) => a.date.localeCompare(b.date));
+
+    const partner = await PartnerModel.findById(payout.partnerId).select('userId').lean();
+    const user = partner ? await UserModel.findById(partner.userId).select('name email').lean() : null;
+
+    return {
+      payout: {
+        id: String(payout._id),
+        batchId: String(payout.batchId),
+        status: payout.status as PayoutStatus,
+        method: payout.method ?? null,
+        transactionId: payout.transactionId ?? null,
+        paidAt: payout.paidAt ?? null,
+        createdAt: (payout as unknown as { createdAt: Date }).createdAt,
+      },
+      partner: {
+        id: payout.partnerId ? String(payout.partnerId) : '',
+        name: user?.name ?? 'Unknown partner',
+        email: user?.email ?? '',
+      },
+      days,
+      totals: {
+        servicesCount: earnings.length,
+        gross: payout.gross,
+        commission: payout.commission,
+        net: payout.amount,
+      },
+    };
+  },
+
+  /**
+   * Confirms every unpaid payout of a batch (the weekly "pay everyone" action).
+   * One failure does not stop the rest; failures are returned so the admin can retry.
+   */
+  async confirmBatch({ batchId, adminId }: { batchId: string; adminId: string }) {
+    if (!Types.ObjectId.isValid(batchId)) {
+      throw new AppError(400, 'INVALID_BATCH_ID', 'Invalid payout batch ID');
+    }
+
+    const batch = await PayoutBatchModel.findById(batchId).lean();
+    if (!batch) {
+      throw new AppError(404, 'PAYOUT_BATCH_NOT_FOUND', 'Payout batch not found');
+    }
+
+    const unpaid = await PayoutModel.find({
+      batchId: new Types.ObjectId(batchId),
+      status: { $in: ['pending', 'processing'] },
+    })
+      .select('_id')
+      .lean();
+
+    if (!unpaid.length) {
+      throw new AppError(409, 'NOTHING_TO_CONFIRM', 'All payouts in this batch are already paid');
+    }
+
+    const confirmed: string[] = [];
+    const failed: { payoutId: string; message: string }[] = [];
+
+    for (const row of unpaid) {
+      try {
+        await payoutsRepository.markPaid({ payoutId: String(row._id), adminId });
+        confirmed.push(String(row._id));
+      } catch (error) {
+        failed.push({
+          payoutId: String(row._id),
+          message: error instanceof Error ? error.message : 'Failed to confirm payout',
+        });
+      }
+    }
+
+    const updatedBatch = await PayoutBatchModel.findById(batchId).lean();
+    const paid = await PayoutModel.aggregate<{ total: number }>([
+      { $match: { _id: { $in: confirmed.map((id) => new Types.ObjectId(id)) } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+
+    return {
+      batch: updatedBatch as unknown as BatchRecord,
+      confirmedCount: confirmed.length,
+      confirmedAmount: round2(paid[0]?.total ?? 0),
+      failed,
     };
   },
 };

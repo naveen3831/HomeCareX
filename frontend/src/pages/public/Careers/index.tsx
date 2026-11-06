@@ -157,7 +157,7 @@ const CareersPage: React.FC = () => {
           aria-hidden="true"
         />
 
-        <div className="relative mx-auto flex max-w-5xl flex-col items-center px-6 text-center">
+        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-5 sm:px-8 lg:px-10 text-center">
           <p className="hcx-in inline-flex items-center gap-1.5 rounded-full bg-white/90 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-[#4338ca] shadow-xs ring-1 ring-[#4338ca]/15 backdrop-blur-md">
             <span className="h-1.5 w-1.5 rounded-full bg-[#ff8a3d]" aria-hidden="true" />
             Careers
@@ -207,7 +207,7 @@ const CareersPage: React.FC = () => {
         aria-labelledby="careers-why-title"
         className="border-t border-[#4338ca]/10 bg-white py-10 sm:py-12 lg:py-14"
       >
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <SectionHead
             id="careers-why-title"
             eyebrow="Why HomeCareX"
@@ -239,7 +239,7 @@ const CareersPage: React.FC = () => {
         aria-labelledby="careers-teams-title"
         className="bg-[#eef0ff] py-10 sm:py-12 lg:py-14"
       >
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <SectionHead
             id="careers-teams-title"
             eyebrow="Our teams"
@@ -344,7 +344,7 @@ const CareersPage: React.FC = () => {
         aria-labelledby="careers-process-title"
         className="bg-[#eef0ff] py-10 sm:py-12 lg:py-14"
       >
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           <SectionHead
             id="careers-process-title"
             eyebrow="How we hire"

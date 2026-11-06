@@ -1,5 +1,5 @@
-import { useId, useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useId, useState, type FormEvent } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { partnerApi } from "@/services/partnerApi";
 
@@ -24,6 +24,12 @@ export default function EditProfileForm() {
   const [phone, setPhone] = useState((user?.phone ?? "").replace(/\D/g, "").slice(-10));
   const [errors, setErrors] = useState<Errors>({});
   const [saved, setSaved] = useState(false);
+  const [bio, setBio] = useState("");
+
+  const profileQuery = useQuery({ queryKey: ["partner-profile"], queryFn: partnerApi.getProfile });
+  useEffect(() => {
+    if (profileQuery.data?.bio !== undefined) setBio(profileQuery.data.bio);
+  }, [profileQuery.data?.bio]);
 
   const save = useMutation({
     mutationFn: partnerApi.updateProfile,
@@ -36,7 +42,7 @@ export default function EditProfileForm() {
     const found = validate(name, phone);
     setErrors(found);
     if (Object.keys(found).length > 0) return;
-    save.mutate({ name: name.trim(), phone });
+    save.mutate({ name: name.trim(), phone, bio: bio.trim() });
   };
 
   const input =
@@ -75,6 +81,19 @@ export default function EditProfileForm() {
             className={`${input} ${errors.phone ? "border-red-400" : "border-slate-300"}`}
           />
           {errors.phone && <p id={`${uid}-phone-err`} className="mt-1 text-xs text-red-600">{errors.phone}</p>}
+        </div>
+
+        <div>
+          <label htmlFor={`${uid}-bio`} className="text-xs font-medium text-slate-600">Bio</label>
+          <textarea
+            id={`${uid}-bio`}
+            value={bio}
+            onChange={(e) => { setBio(e.target.value.slice(0, 500)); setSaved(false); }}
+            rows={4}
+            placeholder="Tell customers about your skills and experience"
+            className={`${input} border-slate-300`}
+          />
+          <p className="mt-1 text-right text-xs text-slate-500">{bio.length}/500</p>
         </div>
 
         <div>
