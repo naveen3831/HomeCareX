@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2 } from 'lucide-react';
 import {
   getErrorMessage,
   getHttpStatus,
   updateBookingStatus,
-  verifyJobOtp,
-  startJob,
+  verifyStart,
 } from './jobDetails.api';
 import type { JobDetails } from './jobDetails.types';
 import { isCancelled, isFinished } from './jobStatus';
@@ -18,16 +16,17 @@ interface Props {
   onStale: () => void;
 }
 
+/** The customer's start code is 4 to 6 digits. The server does the real check. */
+const OTP_FORMAT = /^\d{4,6}$/;
+
 export default function JobStatusActions({ job, onChanged, onStale }: Props) {
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // OTP gated start flow
+  // Start flow: the code is checked and the job started by ONE call (POST /partner/jobs/:id/verify-start).
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [otp, setOtp] = useState('');
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [startingJob, setStartingJob] = useState(false);
 
   const handleClick = async (next: (typeof job.actions)[number]['status']) => {
@@ -52,30 +51,13 @@ export default function JobStatusActions({ job, onChanged, onStale }: Props) {
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (verifyingOtp || !otp.trim()) return;
-    if (!navigator.onLine) {
-      setError('You are offline. Reconnect and try again.');
+  const handleStartJob = async () => {
+    const code = otp.trim();
+    if (startingJob) return;
+    if (!OTP_FORMAT.test(code)) {
+      setError('Enter the 4-digit code from the customer.');
       return;
     }
-    setVerifyingOtp(true);
-    setError(null);
-    try {
-      const res = await verifyJobOtp(job.id, otp.trim());
-      if (res.verified) {
-        setOtpVerified(true);
-      } else {
-        setError(res.message || 'OTP verification failed. Please check the code with the customer.');
-      }
-    } catch (err) {
-      setError(getErrorMessage(err, 'OTP verification request failed.'));
-    } finally {
-      setVerifyingOtp(false);
-    }
-  };
-
-  const handleStartJob = async () => {
-    if (!otpVerified || startingJob) return;
     if (!navigator.onLine) {
       setError('You are offline. Reconnect and try again.');
       return;
@@ -83,7 +65,7 @@ export default function JobStatusActions({ job, onChanged, onStale }: Props) {
     setStartingJob(true);
     setError(null);
     try {
-      const updated = await startJob(job.id, otp.trim());
+      const updated = await verifyStart(job.id, code);
       onChanged(updated);
       navigate(`/partner/jobs/${job.id}/active`);
     } catch (err) {
@@ -123,42 +105,29 @@ export default function JobStatusActions({ job, onChanged, onStale }: Props) {
           <label htmlFor="jd-otp-field" className="block text-xs font-bold text-slate-700 mb-1">
             Customer Start OTP
           </label>
-          <div className="flex gap-2">
-            <input
-              id="jd-otp-field"
-              type="text"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => {
-                setOtp(e.target.value);
-                setOtpVerified(false);
-              }}
-              placeholder="4-digit code"
-              className="flex-1 rounded-lg border border-line px-3 py-2 text-sm font-mono tracking-widest text-center font-bold"
-            />
-            <button
-              type="button"
-              onClick={() => void handleVerifyOtp()}
-              disabled={verifyingOtp || !otp.trim()}
-              aria-busy={verifyingOtp}
-              className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-            >
-              {verifyingOtp ? 'Verifying…' : 'Verify'}
-            </button>
-          </div>
-
-          {otpVerified && (
-            <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-              <CheckCircle2 className="h-4 w-4" />
-              <span>OTP verified! Click Start Job to begin.</span>
-            </div>
-          )}
+          <input
+            id="jd-otp-field"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={otp}
+            onChange={(e) => {
+              setOtp(e.target.value);
+              setError(null);
+            }}
+            placeholder="4-digit code"
+            className="w-full rounded-lg border border-line px-3 py-2 text-sm font-mono tracking-widest text-center font-bold"
+          />
+          <p className="mt-1 text-[11px] text-slate-500">
+            The code is checked when you tap Start Job.
+          </p>
 
           <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={() => void handleStartJob()}
-              disabled={!otpVerified || startingJob}
+              disabled={!OTP_FORMAT.test(otp.trim()) || startingJob}
               aria-busy={startingJob}
               className="flex-1 rounded-lg bg-brand py-2 text-xs font-bold text-white hover:bg-brand-deep disabled:opacity-40 disabled:cursor-not-allowed"
             >

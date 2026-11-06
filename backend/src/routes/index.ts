@@ -88,6 +88,7 @@ import { sosRoutes } from "../modules/sos/sos.routes";
 import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
 import { adminSkillRequestsRoutes, partnerSkillsRoutes } from "../modules/partner-skills/partner-skills.routes";
 import { partnerDocumentsRoutes } from "../modules/partner-documents/partner-documents.routes";
+import { partnerProfileRoutes } from "../modules/partner-profile/partner-profile.routes";
 
 export const rootRouter = Router();
 
@@ -234,6 +235,9 @@ rootRouter.use("/partner/performance", authMiddleware, requireTrainingApproved, 
 rootRouter.use("/partner/reviews", authMiddleware, requireTrainingApproved, partnerReviewsRoutes);
 rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/settings", partnerSettingsRoutes);
+// Profile (name + phone + what the partner gave at joining). Like settings, it is not behind the training gate.
+// The router applies authenticate + requireRole("partner") + permissions itself.
+rootRouter.use("/partner/profile", partnerProfileRoutes);
 rootRouter.use("/partner/safety", sosRoutes);
 rootRouter.use("/partner/jobs", authMiddleware, requireTrainingApproved, partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", authMiddleware, requireTrainingApproved, partnerJobRequestsRoutes);
