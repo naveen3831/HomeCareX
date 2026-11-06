@@ -310,7 +310,7 @@ export const ServicesPage: React.FC = () => {
   const categoryName = category ? slugToTitle(category) : "";
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-[#ffffff] to-[#f4f7ff] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-[#ffffff] to-[#f4f7ff] px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
       {/* Ambient background decorative glow */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-72 w-full max-w-5xl bg-gradient-to-r from-indigo-200/25 via-blue-100/20 to-orange-100/25 blur-3xl"
@@ -343,7 +343,7 @@ export const ServicesPage: React.FC = () => {
         ])}
       />
 
-      <div className="relative mx-auto max-w-6xl">
+      <div className="relative mx-auto max-w-7xl">
         {/* ====================================================
             PAGE HEADER (Compact, Vibrant & Aesthetic)
         ==================================================== */}

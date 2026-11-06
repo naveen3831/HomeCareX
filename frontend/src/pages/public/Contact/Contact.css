@@ -28,7 +28,9 @@
   letter-spacing: -0.025em;
 }
 
-.cx-shell { width: min(100% - 40px, 1200px); margin-inline: auto; }
+.cx-shell { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: 20px; }
+@media (min-width: 640px) { .cx-shell { padding-inline: 32px; } }
+@media (min-width: 1024px) { .cx-shell { padding-inline: 40px; } }
 
 #contact-form, #partner-interest, #office, .cx-hero, .cx-partner { scroll-margin-top: 100px; }
 

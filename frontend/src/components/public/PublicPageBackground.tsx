@@ -113,11 +113,11 @@ export const PublicPageBackground: React.FC<PublicPageBackgroundProps> = ({
     return (
       <div className={`relative isolate overflow-hidden bg-gradient-to-b from-[#eef0ff] to-white ${className}`}>
         <div
-          className="hcx-drift pointer-events-none absolute -right-40 -top-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-[#ff8a3d]/20 blur-3xl"
+          className="hcx-drift pointer-events-none absolute -right-40 -top-40 -z-10 h-64 w-64 md:h-[32rem] md:w-[32rem] rounded-full bg-[#ff8a3d]/10 md:bg-[#ff8a3d]/20 blur-3xl"
           aria-hidden="true"
         />
         <div
-          className="hcx-drift pointer-events-none absolute -bottom-48 -left-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-[#4338ca]/20 blur-3xl"
+          className="hcx-drift pointer-events-none absolute -bottom-48 -left-40 -z-10 h-64 w-64 md:h-[32rem] md:w-[32rem] rounded-full bg-[#4338ca]/10 md:bg-[#4338ca]/20 blur-3xl"
           style={{ animationDelay: "-7s" }}
           aria-hidden="true"
         />
