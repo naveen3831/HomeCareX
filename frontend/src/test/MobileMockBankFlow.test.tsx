@@ -251,7 +251,7 @@ describe("Mobile Razorpay Mock Bank Flow", () => {
     window.removeEventListener("razorpay_mockbank_open", handler);
   });
 
-  it("opens mock bank modal directly when netbanking is chosen on mobile", async () => {
+  it("opens payment options and shows mock bank modal when test bank redirect occurs on mobile", async () => {
     (paymentApi.createOrder as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       orderId: "order_test_nb_123",
       amount: 89900,
@@ -277,7 +277,17 @@ describe("Mobile Razorpay Mock Bank Flow", () => {
     const payBtns = screen.getAllByRole("button", { name: /Confirm & Pay/i });
     fireEvent.click(payBtns[0]);
 
-    await waitFor(
+    window.dispatchEvent(
+      new CustomEvent("razorpay_mockbank_open", {
+        detail: {
+          callbackUrl: "https://api.razorpay.com/callback",
+          paymentId: "pay_test_nb_123",
+          orderId: "order_test_nb_123",
+        },
+      }),
+    );
+
+ await waitFor(
       () => {
         expect(
           screen.getByText("Welcome to Razorpay Software Private Ltd Bank"),
@@ -287,5 +297,122 @@ describe("Mobile Razorpay Mock Bank Flow", () => {
       },
       { timeout: 4000 },
     );
+  });
+
+  it("resets payment state and opens fresh Razorpay instance on retry without opening mock bank prematurely", async () => {
+    let razorpayOptionsPassed: unknown = null;
+    window.Razorpay = vi.fn().mockImplementation(function (options: unknown) {
+      razorpayOptionsPassed = options;
+      return {
+        open: vi.fn(),
+        close: vi.fn(),
+        on: vi.fn(),
+      };
+    }) as unknown as typeof window.Razorpay;
+
+    (paymentApi.createOrder as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      orderId: "order_fresh_retry_456",
+      amount: 89900,
+      currency: "INR",
+      keyId: "rzp_test_oLoLVfdIOlgKUN",
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/customer/book/sofa-carpet-shampooing?step=4"]}>
+          <Routes>
+            <Route path="/customer/book/:slug" element={<StepReview />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Click Confirm & Pay
+    const payBtns = screen.getAllByRole("button", { name: /Confirm & Pay/i });
+    fireEvent.click(payBtns[0]);
+
+    await waitFor(() => {
+      expect(paymentApi.createOrder).toHaveBeenCalledWith("book_test_123");
+      expect(window.Razorpay).toHaveBeenCalled();
+      expect(razorpayOptionsPassed).toEqual(
+        expect.objectContaining({
+          order_id: "order_fresh_retry_456",
+        }),
+      );
+      // Demo bank page must NOT appear prematurely
+      expect(
+        screen.queryByText("Welcome to Razorpay Software Private Ltd Bank"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles Maximum Payment Attempts Reached modal by clearing draft and navigating to Customer Home without deleting old booking attempts", async () => {
+    const clearDraftMock = vi.fn();
+    (useBookingDraftStore as unknown as ReturnType<typeof vi.fn>).mockImplementation((selector) => {
+      const state = {
+        serviceId: "srv_test_1",
+        serviceSlug: "sofa-carpet-shampooing",
+        serviceName: "Sofa & Carpet Shampooing",
+        basePrice: 899,
+        quantity: 1,
+        addOns: [],
+        addressId: "addr_1",
+        addressSnapshot: {
+          line1: "123 Main St",
+          city: "Hyderabad",
+          state: "Telangana",
+          pincode: "500081",
+          contactName: "Test Customer",
+          contactPhone: "9876543210",
+        },
+        date: "2026-11-06",
+        slot: "10:00 - 12:00 PM",
+        couponCode: null,
+        notes: "",
+        bookingId: "book_test_123",
+        getIdempotencyKey: vi.fn().mockReturnValue("idem_key_123"),
+        resetIdempotency: vi.fn(),
+        setStep: vi.fn(),
+        clearDraft: clearDraftMock,
+      };
+      return typeof selector === "function" ? selector(state) : state;
+    });
+
+    // Set stored attempts for this booking to 4 (max reached)
+    const bookingKey = "booking_payment_attempts_book_test_123";
+    sessionStorage.setItem(bookingKey, "4");
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/customer/book/sofa-carpet-shampooing?step=4"]}>
+          <Routes>
+            <Route path="/customer/book/:slug" element={<StepReview />} />
+            <Route path="/customer/services" element={<div>Customer Services Page</div>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    // Clicking Confirm & Pay triggers max retries modal
+    const payBtns = screen.getAllByRole("button", { name: /Confirm & Pay/i });
+    fireEvent.click(payBtns[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Maximum Payment Attempts Reached/i })).toBeInTheDocument();
+      expect(screen.getByText(/3 of 3 retries used/i)).toBeInTheDocument();
+    });
+
+    // Click "Start a New Booking"
+    const startNewBtn = screen.getByRole("button", { name: /Start a New Booking/i });
+    fireEvent.click(startNewBtn);
+
+    await waitFor(() => {
+      // Must call clearDraft
+      expect(clearDraftMock).toHaveBeenCalled();
+      // Must navigate to Customer Services Page
+      expect(screen.getByText("Customer Services Page")).toBeInTheDocument();
+      // Must NOT wipe the old booking's attempt count in sessionStorage
+      expect(sessionStorage.getItem(bookingKey)).toBe("4");
+    });
   });
 });

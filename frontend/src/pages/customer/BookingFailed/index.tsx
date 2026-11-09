@@ -15,12 +15,20 @@ import { useBookingDraftStore } from "@/features/booking";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import { customerPath } from "@/routes/customerPath";
 
-type Reason = "failed" | "verification" | "network" | "slot" | "cancelled";
+type Reason = "failed" | "verification" | "network" | "slot" | "cancelled" | "max_retries";
 
 const COPY: Record<
   Reason,
   { title: string; lines: string[]; canRetry: boolean }
 > = {
+  max_retries: {
+    title: "Retry Limit Exceeded",
+    lines: [
+      "You have reached the maximum of 3 payment retries.",
+      "No more payment attempts are allowed for this transaction.",
+    ],
+    canRetry: false,
+  },
   failed: {
     title: "Payment Failed",
     lines: [
@@ -63,13 +71,16 @@ export default function BookingFailed() {
   const navigate = useNavigate();
   const serviceSlug = useBookingDraftStore((s) => s.serviceSlug);
   const setStep = useBookingDraftStore((s) => s.setStep);
+  const setBookingId = useBookingDraftStore((s) => s.setBookingId);
+  const clearDraft = useBookingDraftStore((s) => s.clearDraft);
 
   const raw = params.get("reason");
   const reason: Reason =
     raw === "verification" ||
     raw === "network" ||
     raw === "slot" ||
-    raw === "cancelled"
+    raw === "cancelled" ||
+    raw === "max_retries"
       ? raw
       : "failed";
   const copy = COPY[reason];
@@ -78,6 +89,9 @@ export default function BookingFailed() {
     if (!serviceSlug)
       return navigate(customerPath("/services"), { replace: true });
     setStep(step);
+    if (bookingId && step === 4) {
+      setBookingId?.(bookingId);
+    }
     navigate(`${customerPath(`/book/${serviceSlug}`)}?step=${step}`, {
       replace: true,
     });
@@ -148,7 +162,9 @@ export default function BookingFailed() {
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-0.5 sm:pt-1">
-              You can try completing your payment again or view your existing requests in My Bookings.
+              {reason === "max_retries"
+                ? "You have reached the maximum of 3 failed payment attempts. For security reasons, this booking cannot be retried. Please create a new booking or view your existing requests."
+                : "You can try completing your payment again or view your existing requests in My Bookings."}
             </p>
           </div>
 
@@ -163,6 +179,16 @@ export default function BookingFailed() {
                 <RotateCw className="h-4 w-4 stroke-[2.2]" aria-hidden="true" />
                 <span>Retry Payment</span>
               </button>
+            )}
+
+            {reason === "max_retries" && (
+              <Link
+                to={customerPath("/services")}
+                onClick={() => clearDraft()}
+                className={`w-full sm:flex-1 h-12 min-h-[48px] shrink-0 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#4338ca] hover:bg-[#3730a3] active:bg-[#312e81] text-white text-sm sm:text-[15px] font-semibold shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98] cursor-pointer ${FOCUS_RING}`}
+              >
+                <span>Start a New Booking</span>
+              </Link>
             )}
 
             {reason === "slot" && (

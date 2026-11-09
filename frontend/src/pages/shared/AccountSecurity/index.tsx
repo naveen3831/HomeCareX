@@ -313,20 +313,21 @@ export const AccountSecurityPage: React.FC = () => {
   const isOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
   return (
-    <div className="mx-auto w-full min-w-0 space-y-4 md:space-y-5 pb-28 md:pb-12">
+    <>
       {/* Accessible Page Heading (screen readers and test queries) */}
       <h1 className="sr-only">Account Security</h1>
 
-      {/* Offline Alert */}
-      {!isOnline && (
-        <div
-          role="status"
-          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 md:p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5 shadow-xs"
-        >
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
-          <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
-        </div>
-      )}
+      <div className="mx-auto w-full min-w-0 -mt-3.5 sm:-mt-4 md:mt-0 space-y-4 md:space-y-5 pb-28 md:pb-12">
+        {/* Offline Alert */}
+        {!isOnline && (
+          <div
+            role="status"
+            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2.5 md:p-4 text-xs sm:text-sm text-amber-800 flex items-center gap-2.5 shadow-xs"
+          >
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden="true" />
+            <span>You are currently offline. Changes cannot be saved until connection is restored.</span>
+          </div>
+        )}
 
       {/* CARD 0: HERO STATUS ("Your Account is Secure") */}
       <div className="relative overflow-hidden rounded-[24px] border border-[#DCE8FC] bg-gradient-to-r from-[#EBF3FF] via-[#F0F6FF] to-[#E8F1FD] p-5 sm:p-6 shadow-xs">
@@ -958,6 +959,7 @@ export const AccountSecurityPage: React.FC = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 

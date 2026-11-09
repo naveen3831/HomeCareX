@@ -432,4 +432,28 @@ describe("Tracking page", () => {
       screen.getByRole("button", { name: "Try again" }),
     ).toBeInTheDocument();
   });
+
+  it("renders mobile header matching Profile page styling with back arrow, service name and Live Tracking badge", async () => {
+    getBookingDetail.mockResolvedValue(detail({ serviceName: "Plumbing – Tap & Leak Repair" }));
+    renderPage();
+    const backBtn = await screen.findByRole("button", {
+      name: /back from plumbing – tap & leak repair/i,
+    });
+    expect(backBtn).toBeInTheDocument();
+    expect(backBtn).toHaveClass(
+      "inline-flex",
+      "min-h-[44px]",
+      "items-center",
+      "gap-1",
+      "text-[15px]",
+      "font-semibold",
+      "text-ink",
+    );
+    expect(backBtn).toHaveTextContent("Plumbing – Tap & Leak Repair");
+
+    // Live Tracking badge exists on the right side
+    const badges = screen.getAllByText("Live Tracking");
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+    expect(badges[0].parentElement).toHaveClass("bg-[#eeebf9]", "text-[#4338ca]");
+  });
 });

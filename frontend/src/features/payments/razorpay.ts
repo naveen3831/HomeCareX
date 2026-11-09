@@ -88,14 +88,25 @@ declare global {
 const SCRIPT_ID = "razorpay-checkout-js";
 const SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
-export function loadRazorpayScript(): Promise<boolean> {
-  if (typeof window !== "undefined" && window.Razorpay) {
+export function isRazorpayHealthy(): boolean {
+  if (typeof window === "undefined" || !window.Razorpay) return false;
+  const container = document.querySelector(".razorpay-container");
+  if (container) {
+    const iframe = container.querySelector("iframe");
+    if (iframe && !iframe.contentWindow) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function loadRazorpayScript(forceReload = false): Promise<boolean> {
+  if (!forceReload && isRazorpayHealthy()) {
     return Promise.resolve(true);
   }
 
   return new Promise((resolve) => {
     const existing = document.getElementById(SCRIPT_ID);
-
     if (existing) {
       existing.remove();
     }
@@ -103,11 +114,16 @@ export function loadRazorpayScript(): Promise<boolean> {
     const script = document.createElement("script");
     script.id = SCRIPT_ID;
     script.src = SCRIPT_SRC;
+    script.async = true;
 
     script.onload = () => resolve(Boolean(window.Razorpay));
 
     script.onerror = () => {
-      script.remove();
+      try {
+        script.remove();
+      } catch {
+        // ignore
+      }
       resolve(false);
     };
 
@@ -130,11 +146,23 @@ export function razorpayMethodOptions(
 }
 
 export function forceCloseRazorpayModal(): void {
+  if (typeof document === "undefined") return;
+
+  // Hide rather than remove so Razorpay's in-memory checkout iframe retains its contentWindow
   document
-    .querySelectorAll(
-      ".razorpay-container, iframe[src*='razorpay'], .razorpay-backdrop"
-    )
-    .forEach((el) => el.remove());
+    .querySelectorAll<HTMLElement>(".razorpay-container")
+    .forEach((el) => {
+      el.style.display = "none";
+      el.style.removeProperty("z-index");
+      el.style.removeProperty("pointer-events");
+    });
+
+  document
+    .querySelectorAll<HTMLElement>(".razorpay-backdrop")
+    .forEach((el) => {
+      el.style.display = "none";
+      el.style.removeProperty("display");
+    });
 
   document.body.style.overflow = "";
 }
@@ -153,7 +181,7 @@ export const isMobileOrEmulation = (): boolean => {
     typeof document !== "undefined" &&
     Boolean(
       document.querySelector(
-        ".simulator, [class*='simulator'], [id*='simulator'], [data-simulator], [class*='device-frame'], [class*='phone-frame']",
+        ".simulator, [class*='simulator'], [id*='simulator'], [data-simulator], [class*='device-frame'], [class*='phone-frame'], [class*='mobile'], [id*='mobile'], [data-device], [data-mobile], [class*='iphone'], [id*='iphone']",
       ),
     );
   return isMobileUA || isNarrowScreen || isTouch || isEmbedded || hasSimulator;
@@ -187,18 +215,94 @@ export function closeActivePopup(): void {
   activePopup = null;
 }
 
+export function resetRazorpayState(): void {
+  latestCallbackUrl = "";
+  latestPaymentId = "";
+  closeActivePopup();
+  forceCloseRazorpayModal();
+  if (typeof window !== "undefined") {
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (
+          key &&
+          (key.startsWith("rzp") || key.includes("razorpay")) &&
+          !key.startsWith("booking_payment_attempts")
+        ) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+    } catch {
+      // ignore
+    }
+  }
+}
+
 function createFakePopup(): Window {
+  let locHref = "about:blank";
+
+  const dispatchMockBankFromUrl = (val: string) => {
+    if (!val || val.startsWith("about:") || !isPaymentFlow()) return;
+    try {
+      const parsed = new URL(val, window.location.origin);
+      const pId =
+        parsed.searchParams.get("payment_id") ||
+        val.match(/pay_[a-zA-Z0-9]+/)?.[0];
+      const cb = parsed.searchParams.get("callback_url");
+      if (pId) latestPaymentId = pId;
+      if (cb) latestCallbackUrl = cb;
+    } catch {
+      // ignore
+    }
+    setTimeout(() => {
+      forceCloseRazorpayModal();
+      closeActivePopup();
+      window.dispatchEvent(
+        new CustomEvent("razorpay_mockbank_open", {
+          detail: {
+            callbackUrl: latestCallbackUrl,
+            paymentId: latestPaymentId,
+          },
+        }),
+      );
+    }, 250);
+  };
+
+  const locObj = {
+    get href() {
+      return locHref;
+    },
+    set href(val: string) {
+      locHref = val;
+      dispatchMockBankFromUrl(val);
+    },
+    replace: (val: string) => {
+      locHref = val;
+      dispatchMockBankFromUrl(val);
+    },
+    assign: (val: string) => {
+      locHref = val;
+      dispatchMockBankFromUrl(val);
+    },
+    reload: () => {},
+    toString: () => locHref,
+  };
+
   const fake = {
     closed: false,
     name: "rzp_mock_popup",
     opener: window,
     parent: window,
     top: window,
-    location: {
-      href: "about:blank",
-      replace: () => {},
-      assign: () => {},
-      reload: () => {},
+    get location() {
+      return locObj;
+    },
+    set location(val: unknown) {
+      const str =
+        typeof val === "string" ? val : (val as { href?: string })?.href || "";
+      locObj.href = str;
     },
     document: {
       write: () => {},
@@ -222,15 +326,35 @@ function createFakePopup(): Window {
   return fake;
 }
 
-const isBookingReviewPage = (): boolean => {
+export const isPaymentFlow = (): boolean => {
   if (typeof window === "undefined") return false;
   return (
     window.location.pathname.includes("/book") ||
-    Boolean(document.querySelector("[data-testid='step-review']"))
+    window.location.pathname.includes("/wallet") ||
+    Boolean(document.querySelector("[data-testid='step-review']")) ||
+    Boolean(document.querySelector("#add-money-title")) ||
+    Boolean(document.querySelector(".razorpay-container, iframe[src*='razorpay']"))
   );
 };
 
+export const isBookingReviewPage = isPaymentFlow;
+
 if (typeof window !== "undefined") {
+  // Intercept window.alert to prevent blocking "This browser is not supported" alerts in mobile view
+  const originalAlert = window.alert;
+  window.alert = function (message?: unknown) {
+    const msgStr = typeof message === "string" ? message : String(message ?? "");
+    if (
+      msgStr.includes("This browser is not supported") ||
+      msgStr.includes("another browser")
+    ) {
+      console.warn("[Razorpay Interceptor] Suppressed unsupported browser alert:", msgStr);
+      window.dispatchEvent(new CustomEvent("razorpay_unsupported_browser"));
+      return;
+    }
+    return originalAlert.call(window, message);
+  };
+
   // Capture callback_url from Razorpay client ajax requests
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
@@ -255,14 +379,19 @@ if (typeof window !== "undefined") {
             if (pId && typeof pId === "string") {
               latestPaymentId = pId;
             }
-            if (cb && pId && isBookingReviewPage() && isMobileOrEmulation()) {
-              forceCloseRazorpayModal();
-              closeActivePopup();
-              window.dispatchEvent(
-                new CustomEvent("razorpay_mockbank_open", {
-                  detail: { callbackUrl: cb, paymentId: pId },
-                }),
-              );
+            const isBankMethod =
+              data?.request?.content?.method === "netbanking" ||
+              Boolean(data?.request?.content?.bank);
+            if (cb && pId && isBankMethod && isPaymentFlow() && isMobileOrEmulation()) {
+              setTimeout(() => {
+                forceCloseRazorpayModal();
+                closeActivePopup();
+                window.dispatchEvent(
+                  new CustomEvent("razorpay_mockbank_open", {
+                    detail: { callbackUrl: cb, paymentId: pId },
+                  }),
+                );
+              }, 400);
             }
           })
           .catch(() => {});
@@ -273,7 +402,7 @@ if (typeof window !== "undefined") {
     return response;
   };
 
-  // Intercept window.open on mobile only for the StepReview booking mock bank flow
+  // Intercept window.open for test mode mock bank / wallet flow
   const originalOpen = window.open;
   window.open = function (url?: string | URL, target?: string, features?: string) {
     const isMobile = isMobileOrEmulation();
@@ -282,19 +411,14 @@ if (typeof window !== "undefined") {
       document.querySelector(".razorpay-container, iframe[src*='razorpay'], .razorpay-backdrop"),
     );
 
-    const isBookingReview = isBookingReviewPage() || target === "wallet_frame";
-
-    const isPaymentBankUrl =
-      !urlStr ||
-      urlStr === "about:blank" ||
-      urlStr.startsWith("about:blank") ||
-      urlStr.startsWith("javascript:") ||
-      urlStr.includes("razorpay") ||
+    const isBankRedirect =
       urlStr.includes("mocksharp") ||
-      urlStr.includes("gateway");
+      urlStr.includes("gateway") ||
+      target === "wallet_frame" ||
+      (urlStr.includes("razorpay") && (urlStr.includes("bank") || urlStr.includes("auth")));
 
-    // Only intercept and dispatch mockbank for the booking review page
-    if (isBookingReview && (isPaymentBankUrl || (isMobile && isRazorpayActive))) {
+    // Intercept mockbank only when Razorpay triggers an external test bank redirect/popup on mobile
+    if ((isRazorpayActive || isPaymentFlow() || target === "wallet_frame") && isBankRedirect && isMobile) {
       window.dispatchEvent(
         new CustomEvent("razorpay_mockbank_open", {
           detail: {
@@ -305,38 +429,55 @@ if (typeof window !== "undefined") {
       );
       closeActivePopup();
       forceCloseRazorpayModal();
-      return isMobile ? createFakePopup() : null;
+      return createFakePopup();
     }
 
-    // Standard flow (e.g. Wallet top-up): allow window.open normally
+    if (isRazorpayActive && isMobile && (urlStr === "about:blank" || !urlStr)) {
+      const fake = createFakePopup();
+      activePopup = fake;
+      return fake;
+    }
+
+    // Standard flow: allow window.open normally
     const opened = originalOpen.call(window, url, target, features);
     if (opened) {
       activePopup = opened;
+    } else if (
+      (isRazorpayActive || isPaymentFlow() || target === "wallet_frame") &&
+      isBankRedirect
+    ) {
+      // If popup was blocked by browser on desktop, fallback to in-app mock bank modal
+      window.dispatchEvent(
+        new CustomEvent("razorpay_mockbank_open", {
+          detail: {
+            callbackUrl: latestCallbackUrl,
+            paymentId: latestPaymentId,
+          },
+        }),
+      );
+      closeActivePopup();
+      forceCloseRazorpayModal();
+      return createFakePopup();
     }
     return opened;
   };
 
-  // Intercept form submission only for booking flow
+  // Intercept form submission only for bank gateway redirect
   const originalSubmit = HTMLFormElement.prototype.submit;
   HTMLFormElement.prototype.submit = function () {
     const isMobile = isMobileOrEmulation();
     const action = this.getAttribute("action") || this.action || "";
-    const target = this.getAttribute("target") || this.target || "";
     const isRazorpayActive = Boolean(
       document.querySelector(".razorpay-container, iframe[src*='razorpay']"),
     );
 
-    const isBookingReview = isBookingReviewPage();
-
-    const isPaymentForm =
+    const isBankGatewayForm =
       action.includes("mocksharp") ||
       action.includes("gateway") ||
-      action.includes("razorpay") ||
-      action.includes("payments") ||
-      (isMobile && isRazorpayActive) ||
-      (isMobile && target === "_blank" && (!action || action === "about:blank"));
+      action.includes("bank") ||
+      (action.includes("razorpay") && (action.includes("auth") || action.includes("mock") || action.includes("submit") || action.includes("create")));
 
-    if (isBookingReview && isPaymentForm) {
+    if (isRazorpayActive && isBankGatewayForm && isMobile) {
       const callbackInput = this.querySelector(
         'input[name="callback_url"]',
       ) as HTMLInputElement | null;
@@ -357,9 +498,7 @@ if (typeof window !== "undefined") {
         }),
       );
       closeActivePopup();
-      if (isMobile) {
-        forceCloseRazorpayModal();
-      }
+      forceCloseRazorpayModal();
       return;
     }
     return originalSubmit.call(this);
@@ -370,22 +509,17 @@ if (typeof window !== "undefined") {
     HTMLFormElement.prototype.requestSubmit = function (submitter) {
       const isMobile = isMobileOrEmulation();
       const action = this.getAttribute("action") || this.action || "";
-      const target = this.getAttribute("target") || this.target || "";
       const isRazorpayActive = Boolean(
         document.querySelector(".razorpay-container, iframe[src*='razorpay']"),
       );
 
-      const isBookingReview = isBookingReviewPage();
-
-      const isPaymentForm =
+      const isBankGatewayForm =
         action.includes("mocksharp") ||
         action.includes("gateway") ||
-        action.includes("razorpay") ||
-        action.includes("payments") ||
-        (isMobile && isRazorpayActive) ||
-        (isMobile && target === "_blank" && (!action || action === "about:blank"));
+        action.includes("bank") ||
+        (action.includes("razorpay") && (action.includes("auth") || action.includes("mock") || action.includes("submit") || action.includes("create")));
 
-      if (isBookingReview && isPaymentForm) {
+      if (isRazorpayActive && isBankGatewayForm && isMobile) {
         const callbackInput = this.querySelector(
           'input[name="callback_url"]',
         ) as HTMLInputElement | null;
@@ -406,19 +540,17 @@ if (typeof window !== "undefined") {
           }),
         );
         closeActivePopup();
-        if (isMobile) {
-          forceCloseRazorpayModal();
-        }
+        forceCloseRazorpayModal();
         return;
       }
       return originalRequestSubmit.call(this, submitter);
     };
   }
 
-  // Intercept anchor clicks with target="_blank" only for booking flow
+  // Intercept anchor clicks with target="_blank" only for payment flow
   const originalAnchorClick = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {
-    if (isBookingReviewPage() && isMobileOrEmulation()) {
+    if (isPaymentFlow()) {
       const target = this.getAttribute("target") || this.target || "";
       const href = this.getAttribute("href") || this.href || "";
       const isRazorpayActive = Boolean(
@@ -454,24 +586,55 @@ if (typeof window !== "undefined") {
         typeof event.data === "string" ? JSON.parse(event.data) : event.data;
       if (!data) return;
 
-      const isRedirectOrSubmit =
-        data.event === "redirect" ||
-        data.topic === "redirect" ||
-        data.event === "redirect_to_page" ||
-        data.event === "payment:submit" ||
-        data.event === "payment.submit";
+      const dataStr = typeof data === "object" ? JSON.stringify(data) : String(data);
 
-      if (isRedirectOrSubmit && isBookingReviewPage() && isMobileOrEmulation()) {
-        forceCloseRazorpayModal();
-        closeActivePopup();
-        window.dispatchEvent(
-          new CustomEvent("razorpay_mockbank_open", {
-            detail: {
-              callbackUrl: latestCallbackUrl,
-              paymentId: latestPaymentId,
-            },
-          }),
-        );
+      const pId = data?.payment_id || data?.paymentId || data?.data?.payment_id;
+      const cb = data?.callback_url || data?.callbackUrl || data?.data?.callback_url;
+      if (pId && typeof pId === "string") {
+        latestPaymentId = pId;
+      }
+      if (cb && typeof cb === "string") {
+        latestCallbackUrl = cb;
+      }
+
+      const isBankRedirectMessage =
+        data?.event === "redirect" ||
+        data?.topic === "redirect" ||
+        data?.event === "payment.submit" ||
+        dataStr.includes("mocksharp") ||
+        dataStr.includes("open_bank_page") ||
+        dataStr.includes("payment_authentication") ||
+        (dataStr.includes("netbanking") && (dataStr.includes("mock") || dataStr.includes("gateway") || dataStr.includes("redirect") || dataStr.includes("submit"))) ||
+        (dataStr.includes("wallet") && (dataStr.includes("mock") || dataStr.includes("gateway") || dataStr.includes("redirect") || dataStr.includes("submit")));
+
+      if (isBankRedirectMessage && isPaymentFlow() && isMobileOrEmulation()) {
+        const url = data?.data?.url || data?.url || "";
+        if (url && typeof url === "string") {
+          try {
+            const parsed = new URL(url, window.location.origin);
+            const pIdFromUrl =
+              parsed.searchParams.get("payment_id") ||
+              url.match(/pay_[a-zA-Z0-9]+/)?.[0];
+            const cbFromUrl = parsed.searchParams.get("callback_url");
+            if (pIdFromUrl) latestPaymentId = pIdFromUrl;
+            if (cbFromUrl) latestCallbackUrl = cbFromUrl;
+          } catch {
+            // ignore
+          }
+        }
+
+        setTimeout(() => {
+          forceCloseRazorpayModal();
+          closeActivePopup();
+          window.dispatchEvent(
+            new CustomEvent("razorpay_mockbank_open", {
+              detail: {
+                callbackUrl: latestCallbackUrl,
+                paymentId: latestPaymentId,
+              },
+            }),
+          );
+        }, 300);
       }
     } catch {
       // ignore

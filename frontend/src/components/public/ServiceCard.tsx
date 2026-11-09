@@ -56,7 +56,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-[0_12px_28px_-6px_rgba(67,56,202,0.14)]">
       {/* Image container */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-indigo-50 to-slate-100">
+      <div className="relative aspect-[16/10] w-full overflow-hidden">
         <picture>
           {canUseWebp && <source srcSet={webpImage} type="image/webp" />}
 
@@ -80,7 +80,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
               // Original file also failed: stop here to avoid an error loop.
               img.onerror = null;
             }}
-            className="h-full w-full object-cover transition-transform duration-500 will-change-transform group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform duration-500 will-change-transform"
           />
         </picture>
 
@@ -107,7 +107,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
           {/* Service Name */}
-          <h3 className="text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-indigo-600 line-clamp-1">
+          <h3 className="line-clamp-2 min-h-[2.75rem] text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-indigo-600">
             {name}
           </h3>
 

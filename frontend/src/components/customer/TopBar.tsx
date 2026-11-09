@@ -49,12 +49,62 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
     normalizedPath.startsWith(customerPath("/booking/booked").toLowerCase());
   const displayTitle = isSupportContact ? "Contact Us" : (meta?.title ?? "");
   const isExcludedMobileTopBar =
-    normalizedPath.startsWith(customerPath("/bookings").toLowerCase());
+    normalizedPath.startsWith(customerPath("/bookings").toLowerCase()) &&
+    normalizedPath.includes("/track");
 
   // Back navigation: Active Bookings retains its entry point (Dashboard/Profile) and avoids looping
   const goBack = () => {
     if (!meta) return;
     if (isBookingSuccess) {
+      navigate(customerPath("/bookings"));
+      return;
+    }
+    if (normalizedPath === customerPath("/bookings").toLowerCase()) {
+      const fromCandidate =
+        (location.state as { from?: string; origin?: string })?.from ||
+        (location.state as { origin?: string; from?: string })?.origin;
+      if (fromCandidate && !fromCandidate.includes("/bookings")) {
+        navigate(fromCandidate);
+        return;
+      }
+      if (key !== "default") {
+        navigate(-1);
+        return;
+      }
+      navigate(customerPath());
+      return;
+    }
+    if (
+      normalizedPath.startsWith(customerPath("/bookings/").toLowerCase()) &&
+      !normalizedPath.includes("/track")
+    ) {
+      const fromCandidate =
+        (location.state as { from?: string; origin?: string })?.from ||
+        (location.state as { origin?: string; from?: string })?.origin;
+      if (fromCandidate) {
+        if (
+          fromCandidate === customerPath("/tracking") ||
+          fromCandidate.includes("/payments")
+        ) {
+          if (key !== "default" || window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate(fromCandidate, {
+              replace: true,
+              state: { origin: (location.state as { origin?: string })?.origin },
+            });
+          }
+          return;
+        }
+        if (!fromCandidate.includes(normalizedPath)) {
+          navigate(fromCandidate);
+          return;
+        }
+      }
+      if (key !== "default" || window.history.length > 1) {
+        navigate(-1);
+        return;
+      }
       navigate(customerPath("/bookings"));
       return;
     }
@@ -220,29 +270,19 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         {meta ? (
           <>
             {normalizedPath === customerPath("/tracking").toLowerCase() ? (
-              <div className="flex w-full min-w-0 items-center justify-between pr-1">
-                <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 md:gap-2">
-                  <button
-                    type="button"
-                    onClick={goBack}
-                    aria-label={`Back from ${displayTitle}`}
-                    className={clsx(
-                      "inline-flex shrink-0 items-center transition-colors active:opacity-70",
-                      // Mobile: circular 40x40 icon button
-                      "h-10 w-10 justify-center rounded-full text-slate-700 hover:bg-slate-100 hover:text-brand",
-                      // Desktop: visually identical to My Bookings header button
-                      "md:h-auto md:w-auto md:min-h-[44px] md:min-w-0 md:justify-start md:gap-1 md:rounded-lg md:pl-1 md:pr-1.5 md:text-[15px] md:font-semibold md:text-ink md:hover:bg-transparent md:hover:text-brand",
-                      FOCUS_RING,
-                    )}
-                  >
-                    <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <span className="hidden md:inline truncate">{displayTitle}</span>
-                  </button>
-
-                  <h1 className="text-base font-bold tracking-tight text-slate-900 sm:text-lg md:hidden">
-                    {meta.title}
-                  </h1>
-                </div>
+              <div className="flex w-full min-w-0 items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  aria-label={`Back from ${displayTitle}`}
+                  className={clsx(
+                    "inline-flex min-h-[44px] min-w-0 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
+                    FOCUS_RING,
+                  )}
+                >
+                  <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{displayTitle}</span>
+                </button>
 
                 {activeBookingsCount !== null && activeBookingsCount > 0 ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#a7f3d0]/60 bg-[#ecfdf5] px-2.5 py-1 text-xs font-semibold text-[#059669]">

@@ -92,7 +92,7 @@ export const paymentApi = {
   /** Submit user-selected outcome ('S' = Success, 'F' = Failure) on the demo bank test page. */
   async submitMockBankOutcome(payload: {
     orderId: string;
-    bookingId: string;
+    bookingId?: string;
     paymentId: string;
     callbackUrl: string;
     outcome: 'S' | 'F';

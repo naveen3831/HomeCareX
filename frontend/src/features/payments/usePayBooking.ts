@@ -99,14 +99,6 @@ export function usePayBooking() {
             resolve();
           };
 
-          const isMobile =
-            typeof window !== "undefined" &&
-            (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-              navigator.userAgent,
-            ) ||
-              window.innerWidth < 768 ||
-              window.self !== window.top);
-
           const callbackUrl = `${window.location.origin}/api/v1/payments/callback`;
 
           const rzp = new Razorpay({
@@ -119,7 +111,7 @@ export function usePayBooking() {
             prefill: order.prefill,
             theme: { color: "#4f46e5" },
             callback_url: callbackUrl,
-            redirect: isMobile,
+            redirect: false,
             handler: (response: RazorpaySuccess) => {
               finished = true; // Razorpay may fire dismiss while closing after a success: ignore it
               setState({ bookingId, phase: "processing" });
@@ -158,7 +150,19 @@ export function usePayBooking() {
           rzp.open();
         });
       } catch (err) {
-        setState({ bookingId, phase: "failed", message: messageOf(err, "Something went wrong. Please try again.") });
+        const error = err as Partial<NormalizedApiError>;
+        const isMaxRetries =
+          error?.code === "PAYMENT_ATTEMPTS_EXCEEDED" ||
+          error?.status === 429 ||
+          error?.message?.includes("maximum limit of 3");
+        setState({
+          bookingId,
+          phase: "failed",
+          message: isMaxRetries
+            ? "Maximum payment attempts (3) reached for this booking. This transaction has been marked as failed."
+            : messageOf(err, "Something went wrong. Please try again."),
+        });
+        void refresh();
       } finally {
         inFlight.current = false;
       }
