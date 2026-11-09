@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, CheckCircle2, ClipboardList, Heart, Loader2, PlayCircle } from 'lucide-react';
+import { Camera, CheckCircle2, ClipboardList, Heart, Loader2, PlayCircle, Video, X } from 'lucide-react';
 import JobTimer from '@/components/partner/JobTimer';
 import PaymentPanel from '@/components/partner/PaymentPanel';
 import {
@@ -15,6 +15,18 @@ import type { ApiJob, JobDetails } from '../../JobDetails/jobDetails.types';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const PHOTO_TYPES = ['image/jpeg', 'image/png'];
+const MAX_PHOTOS = 6;
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+
+/** A picked file plus a temporary browser URL so the partner can see it before sending. */
+interface Picked {
+  file: File;
+  url: string;
+}
+
+const sameFile = (a: File, b: File) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+const mb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 
 interface Props {
   job: ApiJob;
@@ -59,47 +71,90 @@ export default function JobStepPanel({ job, online, onChanged }: Props) {
 function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; onChanged: () => void }) {
   const sv = job.startVerification ?? null;
   const [otp, setOtp] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photos, setPhotos] = useState<Picked[]>([]);
+  const [video, setVideo] = useState<Picked | null>(null);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [lockedLocal, setLockedLocal] = useState(false);
   const [expiredLocal, setExpiredLocal] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
+  // Free the preview URLs when the step goes away.
+  const live = useRef<{ photos: Picked[]; video: Picked | null }>({ photos: [], video: null });
+  live.current = { photos, video };
+  useEffect(
+    () => () => {
+      live.current.photos.forEach((p) => URL.revokeObjectURL(p.url));
+      if (live.current.video) URL.revokeObjectURL(live.current.video.url);
+    },
+    [],
+  );
 
   const locked = Boolean(sv?.locked) || lockedLocal;
   const expired = Boolean(sv?.expired) || expiredLocal;
   const remaining = attemptsLeft ?? sv?.attemptsRemaining ?? null;
   const blocked = locked || expired;
   const otpOk = /^\d{4,6}$/.test(otp);
-  const canSubmit = online && !busy && !blocked && otpOk && photo !== null && !photoError;
+  const canSubmit = online && !busy && !blocked && otpOk && photos.length > 0 && !photoError;
 
-  const pickPhoto = (file: File | undefined) => {
+  const addPhotos = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
     setError(null);
-    if (!file) {
-      setPhoto(null);
-      setPhotoError(null);
-      return;
+    setPhotoError(null);
+    const next = [...photos];
+    let problem: string | null = null;
+    for (const file of Array.from(files)) {
+      if (next.some((p) => sameFile(p.file, file))) continue;
+      if (!PHOTO_TYPES.includes(file.type)) {
+        problem = 'Use JPG or PNG photos.';
+      } else if (file.size > MAX_PHOTO_BYTES) {
+        problem = `${file.name} is over 5 MB. Take it again at a lower quality.`;
+      } else if (next.length >= MAX_PHOTOS) {
+        problem = `You can add up to ${MAX_PHOTOS} photos.`;
+      } else {
+        next.push({ file, url: URL.createObjectURL(file) });
+      }
     }
-    if (!PHOTO_TYPES.includes(file.type)) {
-      setPhoto(null);
-      setPhotoError('Use a JPG or PNG photo.');
-    } else if (file.size > MAX_PHOTO_BYTES) {
-      setPhoto(null);
-      setPhotoError('The photo is over 5 MB. Take it again at a lower quality.');
+    setPhotos(next);
+    setPhotoError(problem);
+  };
+
+  const removePhoto = (index: number) => {
+    const gone = photos[index];
+    if (gone) URL.revokeObjectURL(gone.url);
+    setPhotos(photos.filter((_, i) => i !== index));
+    setPhotoError(null);
+  };
+
+  const pickVideo = (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (!VIDEO_TYPES.includes(file.type)) {
+      setVideoError('Use an MP4, WebM or MOV video.');
+    } else if (file.size > MAX_VIDEO_BYTES) {
+      setVideoError(`The video is ${mb(file.size)}. The limit is 50 MB, so record a shorter one.`);
     } else {
-      setPhoto(file);
-      setPhotoError(null);
+      if (video) URL.revokeObjectURL(video.url);
+      setVideo({ file, url: URL.createObjectURL(file) });
+      setVideoError(null);
     }
   };
 
+  const removeVideo = () => {
+    if (video) URL.revokeObjectURL(video.url);
+    setVideo(null);
+    setVideoError(null);
+  };
+
   const submit = async () => {
-    if (!canSubmit || !photo) return;
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      await verifyStart(job.id, otp, photo);
+      await verifyStart(job.id, otp, photos.map((p) => p.file), video?.file ?? null);
       onChanged();
     } catch (err) {
       const code = getErrorCode(err);
@@ -140,7 +195,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
         </p>
       ) : (
         <>
-          <p className="nv-card-text">Ask {job.customer.name} for the start code, then take a photo of the place before you begin.</p>
+          <p className="nv-card-text">Ask {job.customer.name} for the start code, then add photos (and a video if you like) of the place before you begin.</p>
 
           <label className="nv-label" htmlFor="nv-otp">
             Customer start code
@@ -165,28 +220,97 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
           )}
 
           <input
-            ref={fileRef}
+            ref={photoRef}
             type="file"
             accept="image/jpeg,image/png"
-            capture="environment"
+            multiple
             className="nav-sr"
             id="nv-photo"
-            onChange={(e) => pickPhoto(e.target.files?.[0])}
+            onChange={(e) => {
+              addPhotos(e.target.files);
+              e.target.value = '';
+            }}
           />
-          <button type="button" className="nv-step" onClick={() => fileRef.current?.click()}>
-            <Camera size={20} aria-hidden="true" />
-            {photo ? 'Retake start photo' : 'Take start photo'}
-          </button>
-          {photo && (
-            <p className="nv-ok" role="status">
-              <CheckCircle2 size={16} aria-hidden="true" /> {photo.name}
-            </p>
-          )}
-          {photoError && (
-            <p className="nav-alert" role="alert">
-              {photoError}
-            </p>
-          )}
+          <input
+            ref={videoRef}
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            className="nav-sr"
+            id="nv-video"
+            onChange={(e) => {
+              pickVideo(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+
+          <div className="nv-media">
+            <div className="nv-media-head">
+              <strong className="nv-label">Photos of the place</strong>
+              <span className="nv-media-count">
+                {photos.length}/{MAX_PHOTOS}
+              </span>
+            </div>
+            <ul className="nv-thumbs">
+              {photos.map((p, i) => (
+                <li key={p.url} className="nv-thumb">
+                  <img src={p.url} alt={`Start photo ${i + 1}`} />
+                  <button
+                    type="button"
+                    className="nv-thumb-remove"
+                    aria-label={`Remove photo ${i + 1}`}
+                    onClick={() => removePhoto(i)}
+                    disabled={busy}
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+              {photos.length < MAX_PHOTOS && (
+                <li>
+                  <button type="button" className="nv-thumb nv-thumb-add" onClick={() => photoRef.current?.click()} disabled={busy}>
+                    <Camera size={20} aria-hidden="true" />
+                    <span>{photos.length === 0 ? 'Add photos' : 'Add more'}</span>
+                  </button>
+                </li>
+              )}
+            </ul>
+            {photos.length === 0 && <p className="nav-hint">Add at least one photo to start. You can pick several at once.</p>}
+            {photoError && (
+              <p className="nav-alert" role="alert">
+                {photoError}
+              </p>
+            )}
+          </div>
+
+          <div className="nv-media">
+            <div className="nv-media-head">
+              <strong className="nv-label">Video (optional)</strong>
+              <span className="nv-media-count">MP4, WebM or MOV, up to 50 MB</span>
+            </div>
+            {video ? (
+              <div className="nv-video">
+                <video src={video.url} controls playsInline preload="metadata" aria-label="Start video preview" />
+                <div className="nv-video-bar">
+                  <span className="nv-ok">
+                    <CheckCircle2 size={16} aria-hidden="true" /> {video.file.name} ({mb(video.file.size)})
+                  </span>
+                  <button type="button" className="nv-video-remove" onClick={removeVideo} disabled={busy}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="nv-thumb-add nv-video-add" onClick={() => videoRef.current?.click()} disabled={busy}>
+                <Video size={20} aria-hidden="true" />
+                <span>Add a video</span>
+              </button>
+            )}
+            {videoError && (
+              <p className="nav-alert" role="alert">
+                {videoError}
+              </p>
+            )}
+          </div>
 
           {error && (
             <p className="nav-alert" role="alert">
@@ -196,7 +320,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
 
           <button type="button" className="nv-go" onClick={() => void submit()} disabled={!canSubmit} aria-busy={busy}>
             {busy ? <Loader2 size={20} className="nv-spin" aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
-            {busy ? 'Starting…' : 'Verify and start job'}
+            {busy ? (video ? 'Uploading and starting…' : 'Starting…') : 'Verify and start job'}
           </button>
           {!online && <p className="nav-hint">You are offline. Reconnect to start the job.</p>}
         </>

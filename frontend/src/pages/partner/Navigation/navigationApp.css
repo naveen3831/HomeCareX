@@ -1,0 +1,353 @@
+/* =========================================================
+   Partner - Navigation, "driver app" layout
+   Mobile: map on top, action sheet slides over its bottom edge.
+   Desktop: big map + fixed-width action panel on the right.
+   Loaded after navigation.css, so these rules win.
+   ========================================================= */
+
+.nav-page.nv-app {
+  max-width: 1180px;
+  min-height: 0;
+  gap: 12px;
+}
+
+.nv-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0;
+}
+.nv-layout-single {
+  max-width: 560px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ---------- map ---------- */
+.nav-page.nv-app .nv-map {
+  flex: none;
+  height: 44vh;
+  height: 44dvh;
+  min-height: 260px;
+  border-radius: 20px;
+  border: 1px solid var(--nav-line);
+  z-index: 0;
+}
+
+/* ---------- action panel ---------- */
+.nv-panel {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: -22px; /* overlaps the map like a bottom sheet */
+  padding: 12px 18px 20px;
+  border: 1px solid var(--nav-line);
+  border-radius: 24px 24px 18px 18px;
+  background: #fff;
+  box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.1);
+}
+.nv-layout-single .nv-panel {
+  margin-top: 0;
+  border-radius: 20px;
+  box-shadow: none;
+}
+.nv-grabber {
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d1d5db;
+}
+.nv-layout-single .nv-grabber {
+  display: none;
+}
+
+.nv-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nv-status-title {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.nv-status-sub {
+  margin-top: 4px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--nav-muted);
+}
+.nv-code {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+/* customer + address */
+.nv-trip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #eef1f6;
+}
+.nv-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--nav-brand);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+.nv-trip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.nv-trip-name {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.nv-trip-service {
+  font-size: 0.8125rem;
+  color: var(--nav-muted);
+}
+.nv-trip-addr {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.nv-trip-addr svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--nav-brand);
+}
+
+/* call / chat / help: compact row */
+.nav-page.nv-app .nv-tile,
+.nav-page.nv-app .nv-call .mc-btn {
+  min-height: 62px;
+  border-radius: 14px;
+}
+
+/* primary status action (On the way / I have arrived ...) */
+.nav-page.nv-app .nv-step {
+  min-height: 54px;
+  background: var(--nav-brand);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.28);
+}
+.nav-page.nv-app .nv-step:hover:not(:disabled) {
+  background: var(--nav-brand-dark);
+}
+.nav-page.nv-app a.nv-step {
+  color: #fff;
+}
+
+/* Google Maps = secondary outline button */
+.nav-page.nv-app .nv-go {
+  min-height: 48px;
+  background: #fff;
+  color: var(--nav-brand-dark);
+  border: 1.5px solid #c7d2fe;
+  font-size: 0.9375rem;
+}
+.nav-page.nv-app .nv-go:hover:not(:disabled) {
+  background: var(--nav-tint);
+}
+/* inside the Start / Complete step cards the .nv-go stays a solid button */
+.nav-page.nv-app .nv-card .nv-go {
+  background: var(--nav-brand);
+  color: #fff;
+  border: 0;
+  min-height: 52px;
+  font-size: 1rem;
+}
+.nav-page.nv-app .nv-card .nv-go:hover:not(:disabled) {
+  background: var(--nav-brand-dark);
+}
+.nav-page.nv-app .nv-card {
+  background: #f8fafc;
+  border-color: #eef1f6;
+}
+.nav-page.nv-app .nv-card-thanks {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+/* ---------- desktop: map left, panel right ---------- */
+@media (min-width: 1024px) {
+  .nv-layout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 20px;
+  }
+  .nv-layout-single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nav-page.nv-app .nv-map {
+    position: sticky;
+    top: 88px;
+    height: calc(100dvh - 11rem);
+    min-height: 480px;
+    border-radius: 22px;
+  }
+  .nv-panel {
+    margin-top: 0;
+    padding: 22px;
+    border-radius: 22px;
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+  }
+  .nv-grabber {
+    display: none;
+  }
+}
+
+/* ---------- start step: photo + video previews ---------- */
+.nv-media {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nv-media-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nv-media-count {
+  font-size: 0.75rem;
+  color: var(--nav-muted);
+}
+.nv-thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nv-thumb {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #e5e7eb;
+}
+.nv-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.nv-thumb-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.75);
+  color: #fff;
+  cursor: pointer;
+}
+.nv-thumb-remove:hover:not(:disabled) {
+  background: #b91c1c;
+}
+.nv-thumb-remove:focus-visible,
+.nv-thumb-add:focus-visible,
+.nv-video-remove:focus-visible {
+  outline: 3px solid var(--nav-brand);
+  outline-offset: 2px;
+}
+.nv-thumb-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1.5px dashed #a5b4fc;
+  background: #fff;
+  color: var(--nav-brand-dark);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nv-thumb-add:hover:not(:disabled) {
+  background: var(--nav-tint);
+}
+.nv-thumb-add:disabled,
+.nv-thumb-remove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.nv-video-add {
+  flex-direction: row;
+  gap: 8px;
+  min-height: 52px;
+  border-radius: 12px;
+}
+.nv-video {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0f172a;
+}
+.nv-video video {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  background: #000;
+}
+.nv-video-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 10px;
+  background: #fff;
+}
+.nv-video-remove {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (min-width: 1024px) {
+  .nv-thumbs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

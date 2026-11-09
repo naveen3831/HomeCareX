@@ -13,6 +13,7 @@ import {
   type JobBookingDoc,
 } from "./partner-jobs.repository";
 import { isPartnerTarget } from "./partner-jobs.validation";
+import { saveStartProof, type StartMedia } from "./partner-jobs.proof";
 import type {
   JobActionDto,
   JobAddOnDto,
@@ -683,6 +684,7 @@ export const partnerJobsService = {
     bookingId: string,
     otp: string,
     now: Date = new Date(),
+    media: StartMedia[] = [],
   ): Promise<JobDetailDto> {
     const { partner, booking } = await loadOwnedBooking(
       userId,
@@ -749,11 +751,15 @@ export const partnerJobsService = {
       now,
     );
 
+    // Only a correct code gets this far, so wrong-code attempts never leave files behind.
+    const proof = await saveStartProof(bookingId, media, now);
+
     const applied = await repo.verifyStartJob(
       bookingId,
       partner._id,
       entry,
       now,
+      proof,
     );
 
     if (!applied) {

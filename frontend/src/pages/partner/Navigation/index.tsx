@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import {
   LifeBuoy,
+  MapPin,
   MessageCircle,
   Navigation as NavigationIcon,
   X,
@@ -28,6 +29,7 @@ import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
 import JobStepPanel from "./components/JobStepPanel";
 import "./navigation.css";
+import "./navigationApp.css";
 
 function DemoJobNotice() {
   const go = useNavigate();
@@ -82,6 +84,35 @@ const CALL_STATUSES = new Set([
 ]);
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
+
+/** Headline + one helpful line for the panel, per job status (what the partner should do now). */
+function stepInfo(status: string): { title: string; sub: string } {
+  switch (status) {
+    case "en_route":
+      return {
+        title: "Heading to the customer",
+        sub: "The customer can follow you live on their phone.",
+      };
+    case "arrived":
+      return {
+        title: "You have arrived",
+        sub: "Ask the customer for the start code, then take a start photo.",
+      };
+    case "in_progress":
+      return {
+        title: "Job in progress",
+        sub: "Finish the work, then complete the job below.",
+      };
+    case "completed":
+    case "rated":
+      return { title: "Job completed", sub: "Collect the payment to wrap up." };
+    default:
+      return {
+        title: "Ready to head out",
+        sub: "Tap the button below when you leave so the customer can follow you live.",
+      };
+  }
+}
 
 function NavigationContent({ id }: { id: string }) {
   const online = useOnlineStatus();
@@ -266,8 +297,19 @@ function NavigationContent({ id }: { id: string }) {
     }
   };
 
+  const step = stepInfo(job.status);
+  const initials =
+    job.customer.name
+      .replace(/[^A-Za-z ]/g, "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "C";
+
   return (
-    <div className="nav-page nv-page">
+    <div className="nav-page nv-page nv-app">
       <h2 className="nav-sr">Navigation</h2>
 
       {!online && (
@@ -276,108 +318,132 @@ function NavigationContent({ id }: { id: string }) {
         </p>
       )}
 
-      {!finished && (
-        <section className="nv-map" aria-label="Map">
-          <LiveMap customer={customer} partner={partner} summary={mapSummary} />
+      <div className={`nv-layout${finished ? " nv-layout-single" : ""}`}>
+        {!finished && (
+          <section className="nv-map" aria-label="Map">
+            <LiveMap customer={customer} partner={partner} summary={mapSummary} />
+          </section>
+        )}
+
+        <section className="nv-panel" aria-label="Job actions">
+          <span className="nv-grabber" aria-hidden="true" />
+
+          <header className="nv-status">
+            <div className="nv-status-text">
+              <h3 className="nv-status-title">{step.title}</h3>
+              <p className="nv-status-sub">{step.sub}</p>
+            </div>
+            <span className="nv-code" title="Booking ID">
+              #{job.id.slice(-6).toUpperCase()}
+            </span>
+          </header>
+
+          <div className="nv-trip">
+            <span className="nv-avatar" aria-hidden="true">
+              {initials}
+            </span>
+            <div className="nv-trip-body">
+              <strong className="nv-trip-name">{job.customer.name}</strong>
+              <span className="nv-trip-service">{job.service.name}</span>
+              <span className="nv-trip-addr">
+                <MapPin size={14} aria-hidden="true" />
+                <span>{addressText}</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="nv-tiles">
+            <div className="nv-call">
+              <MaskedCallButton bookingId={id} disabled={!canCall} />
+            </div>
+            <button
+              type="button"
+              className="nv-tile nv-tile-chat"
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageCircle size={20} aria-hidden="true" />
+              <span>Chat</span>
+            </button>
+            <Link className="nv-tile nv-tile-help" to="/partner/help">
+              <LifeBuoy size={20} aria-hidden="true" />
+              <span>Help</span>
+            </Link>
+          </div>
+
+          {job.actions.map((a) => (
+            <button
+              key={a.status}
+              type="button"
+              className="nv-step"
+              onClick={() => void runAction(a.status)}
+              disabled={busyAction !== null}
+            >
+              {busyAction === a.status ? "Updating…" : a.label}
+            </button>
+          ))}
+
+          {!finished && (
+            <button type="button" className="nv-go" onClick={startNavigation}>
+              <NavigationIcon size={18} aria-hidden="true" />
+              Open in Google Maps
+            </button>
+          )}
+
+          <JobStepPanel
+            job={job}
+            online={online}
+            onChanged={() => setReloadKey((k) => k + 1)}
+          />
+
+          {!customer && (
+            <p className="nav-note" role="status">
+              This booking has no map pin. Navigation will search the address
+              instead.
+            </p>
+          )}
+          {geoProblem === "denied" && (
+            <p className="nav-alert" role="alert">
+              Location permission is blocked. Allow it in your browser
+              settings, then tap Open in Google Maps again.
+            </p>
+          )}
+          {geoProblem === "unsupported" && (
+            <p className="nav-alert" role="alert">
+              This browser does not support location sharing.
+            </p>
+          )}
+          {local.error && !sharing.geoProblem && (
+            <p className="nav-alert" role="alert">
+              {local.error}
+            </p>
+          )}
+          {sharing.ended && (
+            <p className="nav-alert" role="alert">
+              Sharing stopped because this job is no longer active.
+            </p>
+          )}
+          {sharing.sendProblem && (
+            <p className="nav-alert" role="alert">
+              {sharing.sendProblem}
+            </p>
+          )}
+          {actionError && (
+            <p className="nav-alert" role="alert">
+              {actionError}
+            </p>
+          )}
+          {sharing.sharing && (
+            <button
+              type="button"
+              className="nv-stop"
+              onClick={() => void sharing.stop()}
+              disabled={sharing.stopping}
+            >
+              {sharing.stopping ? "Stopping…" : "Stop sharing location"}
+            </button>
+          )}
         </section>
-      )}
-
-      {!finished && (
-        <button type="button" className="nv-go" onClick={startNavigation}>
-          <NavigationIcon size={20} aria-hidden="true" />
-          Navigation
-        </button>
-      )}
-
-      {job.actions.map((a) => (
-        <button
-          key={a.status}
-          type="button"
-          className="nv-step"
-          onClick={() => void runAction(a.status)}
-          disabled={busyAction !== null}
-        >
-          {busyAction === a.status ? "Updating…" : a.label}
-        </button>
-      ))}
-
-      <JobStepPanel
-        job={job}
-        online={online}
-        onChanged={() => setReloadKey((k) => k + 1)}
-      />
-
-      <div className="nv-tiles">
-        <div className="nv-call">
-          <MaskedCallButton bookingId={id} disabled={!canCall} />
-        </div>
-        <button
-          type="button"
-          className="nv-tile nv-tile-chat"
-          onClick={() => setChatOpen(true)}
-        >
-          <MessageCircle size={22} aria-hidden="true" />
-          <span>Chat</span>
-        </button>
-        <Link className="nv-tile nv-tile-help" to="/partner/help">
-          <LifeBuoy size={22} aria-hidden="true" />
-          <span>Help</span>
-        </Link>
       </div>
-
-      {!customer && (
-        <p className="nav-note" role="status">
-          This booking has no map pin. Navigation will search the address instead.
-        </p>
-      )}
-      {geoProblem === "denied" && (
-        <p className="nav-alert" role="alert">
-          Location permission is blocked. Allow it in your browser settings,
-          then tap Navigation again.
-        </p>
-      )}
-      {geoProblem === "unsupported" && (
-        <p className="nav-alert" role="alert">
-          This browser does not support location sharing.
-        </p>
-      )}
-      {local.error && !sharing.geoProblem && (
-        <p className="nav-alert" role="alert">
-          {local.error}
-        </p>
-      )}
-      {sharing.ended && (
-        <p className="nav-alert" role="alert">
-          Sharing stopped because this job is no longer active.
-        </p>
-      )}
-      {sharing.sendProblem && (
-        <p className="nav-alert" role="alert">
-          {sharing.sendProblem}
-        </p>
-      )}
-      {actionError && (
-        <p className="nav-alert" role="alert">
-          {actionError}
-        </p>
-      )}
-      {sharing.sharing && (
-        <button
-          type="button"
-          className="nv-stop"
-          onClick={() => void sharing.stop()}
-          disabled={sharing.stopping}
-        >
-          {sharing.stopping ? "Stopping…" : "Stop sharing location"}
-        </button>
-      )}
-      {!canShare && job.status === "assigned" && (
-        <p className="nav-hint">
-          Tap “
-          {job.actions.find((a) => a.status === "en_route")?.label ?? "On the way"}
-          ” when you leave so the customer can follow you live.
-        </p>
-      )}
 
       {chatOpen && (
         <div

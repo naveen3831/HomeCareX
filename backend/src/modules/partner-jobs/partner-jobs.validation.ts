@@ -43,7 +43,7 @@ export const sosBodySchema = z
 
 export type SosBody = z.infer<typeof sosBodySchema>;
 
-/** Body of POST /partner/jobs/:id/verify-start. Sent as JSON or multipart (an optional photo is accepted and ignored). */
+/** Body of POST /partner/jobs/:id/verify-start. Sent as JSON or multipart (photos[] and video are read by receiveStartMedia, not by this schema). */
 export const verifyStartBodySchema = z.object({
   otp: z.string({ required_error: "otp is required" }).trim().regex(/^\d{4,6}$/, "Enter the 4-digit code from the customer"),
 });

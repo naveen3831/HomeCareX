@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { StartProofRecord } from "./partner-jobs.proof";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
 import ServiceModel from "../../models/Service";
@@ -339,6 +340,7 @@ export const partnerJobsRepository = {
     partnerId: Types.ObjectId,
     entry: StatusHistoryEntry,
     now: Date = new Date(),
+    proof: StartProofRecord[] = [],
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
       {
@@ -353,6 +355,7 @@ export const partnerJobsRepository = {
         },
         $push: {
           statusHistory: entry,
+          ...(proof.length > 0 ? { startProof: { $each: proof } } : {}),
         },
       },
     );

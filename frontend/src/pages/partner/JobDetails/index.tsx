@@ -5,9 +5,11 @@ import { useAuthStore } from '@/store/useAuthStore';
 import {
   ArrowRight,
   CalendarDays,
+  ChevronRight,
   Clock3,
   MapPin,
   StickyNote,
+  Timer,
   Wallet,
 } from 'lucide-react';
 import {
@@ -25,6 +27,7 @@ import type { JobDetails } from './jobDetails.types';
 import { STATUS_LABEL } from './jobStatus';
 import './jobDetails.css';
 import './jobDetailsModern.css';
+import './jobDetailsWeb.css';
 
 type LoadState = 'loading' | 'ready' | 'error' | 'notfound';
 type ViewMode = 'list' | 'details';
@@ -188,14 +191,8 @@ export default function JobDetailsPage() {
       navigate(`/partner/jobs/${job.id}/active`);
       return;
     }
-    // The customer's start OTP is only accepted once the partner has arrived,
-    // so that is the one step where the OTP popup is still shown.
-    if (job.status === 'arrived') {
-      setOtpError(null);
-      setOtpModalOpen(true);
-      return;
-    }
-    // Before arriving: go to the page with map, call, chat and help.
+    // Every step before the job starts (on the way, arrived, start code + photos/video) lives on the
+    // Navigation page: map, call, chat, help and the start form.
     navigate(`/partner/jobs/${job.id}/navigation`);
   };
 
@@ -639,141 +636,161 @@ export default function JobDetailsPage() {
       .join('')
       .toUpperCase() || 'C';
 
+  const isFinishedJob = job.status === 'completed' || job.status === 'rated';
+  const canStart =
+    !isFinishedJob &&
+    !job.status.startsWith('cancelled') &&
+    job.status !== 'no_show' &&
+    job.status !== 'disputed';
+
   return (
-    <div className="jdx-page">
+    <div className="jdw-page">
       {!online && (
         <p className="jd-offline" role="status">
           You are offline. Status changes will not work until you reconnect.
         </p>
       )}
 
-      <div className="jdx-container">
+      <div className="jdw-container">
+        <nav className="jdw-crumbs" aria-label="Breadcrumb">
+          <button type="button" className="jdw-crumb-link" onClick={() => navigate('/partner/jobs')}>
+            My Jobs
+          </button>
+          <ChevronRight size={14} aria-hidden="true" />
+          <span className="jdw-crumb-current" aria-current="page">
+            {job.service.name}
+          </span>
+        </nav>
+
         {justAcceptedBanner && (
-          <div className="jdx-topbar">
-            <span className="jdx-toast" role="status">
-              ✓ Service accepted — Total booked details unlocked
-            </span>
-          </div>
+          <p className="jdw-toast" role="status">
+            Service accepted. Full booking details are now unlocked.
+          </p>
         )}
 
-        {/* 1. Service picture */}
-        <ServiceHeroImage serviceName={job.service.name} />
+        <div className="jdw-grid">
+          {/* ---------- left: everything about the job ---------- */}
+          <div className="jdw-main">
+            <ServiceHeroImage serviceName={job.service.name} />
 
-        {/* 2. Booking details + how the customer will pay */}
-        <header className="jdx-hero">
-          <div className="jdx-hero-top">
-            <span className={`jdx-status jdx-status-${job.status}`}>
-              <span className="jdx-status-dot" aria-hidden="true" />
-              {STATUS_LABEL[job.status] ?? 'Confirmed'}
-            </span>
+            <section className="jdw-card" aria-label="Service">
+              <h1 className="jdw-title">{job.service.name}</h1>
+              {job.service.description && <p className="jdw-lead">{job.service.description}</p>}
 
-            <div className="jdx-code-wrap">
-              <span className="jdx-code-label">Booking</span>
-              <span className="jdx-code">{job.bookingCode}</span>
-            </div>
+              <dl className="jdw-facts">
+                <div className="jdw-fact">
+                  <span className="jdw-fact-icon" aria-hidden="true">
+                    <CalendarDays size={18} />
+                  </span>
+                  <div>
+                    <dt>Date</dt>
+                    <dd>{job.schedule.dateLabel ?? formatDate(job.schedule.scheduledAt)}</dd>
+                  </div>
+                </div>
+                <div className="jdw-fact">
+                  <span className="jdw-fact-icon" aria-hidden="true">
+                    <Clock3 size={18} />
+                  </span>
+                  <div>
+                    <dt>Time</dt>
+                    <dd>{job.schedule.slot ?? (time || '—')}</dd>
+                  </div>
+                </div>
+                <div className="jdw-fact">
+                  <span className="jdw-fact-icon" aria-hidden="true">
+                    <Timer size={18} />
+                  </span>
+                  <div>
+                    <dt>Duration</dt>
+                    <dd>{formatDuration(job.service.durationMinutes)}</dd>
+                  </div>
+                </div>
+              </dl>
+            </section>
+
+            <section className="jdw-card jdw-card-flush" aria-label="Customer and address">
+              <div className="jdw-row">
+                <span className="jdw-avatar" aria-hidden="true">
+                  {initials}
+                </span>
+                <div className="jdw-row-body">
+                  <span className="jdw-label">Customer</span>
+                  <strong>{job.customer.name}</strong>
+                  {job.customer.subtitle && <small>{job.customer.subtitle}</small>}
+                </div>
+              </div>
+              <div className="jdw-row">
+                <span className="jdw-tile" aria-hidden="true">
+                  <MapPin size={18} />
+                </span>
+                <div className="jdw-row-body">
+                  <span className="jdw-label">Service address</span>
+                  <strong>{fullAddress}</strong>
+                  {job.location.hint && <small>{job.location.hint}</small>}
+                </div>
+              </div>
+            </section>
+
+            <section className="jdw-note" aria-label="Instructions">
+              <StickyNote size={20} aria-hidden="true" />
+              <div>
+                <strong>Instructions from the customer</strong>
+                <p>{job.instructions?.trim() || 'No special instructions.'}</p>
+              </div>
+            </section>
+
+            {isFinishedJob && <PaymentPanel job={job} onJobChange={setJob} online={online} />}
           </div>
 
-          <h2 className="jdx-title">{job.service.name}</h2>
-          {job.service.description && (
-            <p className="jdx-subtitle">{job.service.description}</p>
-          )}
+          {/* ---------- right: booking summary + action (sticky on desktop) ---------- */}
+          <aside className="jdw-aside" aria-label="Booking summary">
+            <div className="jdw-summary">
+              <div className="jdw-summary-head">
+                <span className={`jdw-status jdw-status-${job.status}`}>
+                  <span className="jdw-status-dot" aria-hidden="true" />
+                  {STATUS_LABEL[job.status] ?? 'Confirmed'}
+                </span>
+                <div className="jdw-code">
+                  <span>Booking</span>
+                  <strong>{job.bookingCode}</strong>
+                </div>
+              </div>
 
-          <div className="jdx-chips">
-            <span className="jdx-chip">
-              <CalendarDays size={14} aria-hidden="true" />
-              {job.schedule.dateLabel ?? formatDate(job.schedule.scheduledAt)}
-            </span>
-            <span className="jdx-chip">
-              <Clock3 size={14} aria-hidden="true" />
-              {job.schedule.slot ?? (time || '—')}
-            </span>
-            <span className="jdx-chip">{formatDuration(job.service.durationMinutes)}</span>
-          </div>
+              <div className="jdw-pay">
+                <span className="jdw-pay-icon" aria-hidden="true">
+                  <Wallet size={18} />
+                </span>
+                <div>
+                  <span className="jdw-label">{isPaid ? 'Payment' : 'Customer will pay'}</span>
+                  <strong>{paymentLabel}</strong>
+                </div>
+              </div>
 
-          <div className="jdx-paynote">
-            <span className="jdx-paynote-icon" aria-hidden="true">
-              <Wallet size={18} />
-            </span>
-            <div className="jdx-paynote-body">
-              <span className="jdx-paynote-label">{isPaid ? 'Payment' : 'Customer will pay'}</span>
-              <strong className="jdx-paynote-value">{paymentLabel}</strong>
-            </div>
-          </div>
-        </header>
+              <div className="jdw-total">
+                <span>Total</span>
+                <strong>{money.format(job.price.total)}</strong>
+              </div>
 
-        {/* 3. Customer name + address (no navigate / maps buttons) */}
-        <section className="jdx-sheet" aria-label="Customer and address">
-          <div className="jdx-row">
-            <span className="jdx-avatar" aria-hidden="true">
-              {initials}
-            </span>
-            <div className="jdx-row-body">
-              <span className="jdx-eyebrow">CUSTOMER</span>
-              <strong>{job.customer.name}</strong>
-              {job.customer.subtitle && <small>{job.customer.subtitle}</small>}
-            </div>
-          </div>
-
-          <div className="jdx-row">
-            <span className="jdx-tile" aria-hidden="true">
-              <MapPin size={18} />
-            </span>
-            <div className="jdx-row-body">
-              <span className="jdx-eyebrow">ADDRESS</span>
-              <strong>{fullAddress}</strong>
-              {job.location.hint && <small>{job.location.hint}</small>}
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Instructions (always shown) */}
-        <section className="jdx-note" aria-label="Instructions">
-          <StickyNote size={20} aria-hidden="true" />
-          <div>
-            <strong>Instructions</strong>
-            <p>{job.instructions?.trim() || 'No special instructions.'}</p>
-          </div>
-        </section>
-
-        {/* 4b. Payment: QR after completion, status once paid */}
-        {(job.status === 'completed' || job.status === 'rated') && (
-          <PaymentPanel job={job} onJobChange={setJob} online={online} />
-        )}
-
-        {/* 5. Total, then Start job */}
-        <section className="jdx-total-card" aria-label="Total">
-          <div className="jdx-total jdx-total-flat">
-            <span>Total</span>
-            <strong>{money.format(job.price.total)}</strong>
-          </div>
-
-          {/* Start only makes sense before the job is done. Finished jobs go back to the list; cancelled ones get no button. */}
-          {(job.status === 'completed' || job.status === 'rated') && (
-            <div className="jdx-action">
-              <button type="button" className="jdx-cta" onClick={() => navigate('/partner/jobs')}>
-                Back to my jobs
-                <ArrowRight size={18} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-          {job.status !== 'completed' &&
-            job.status !== 'rated' &&
-            !job.status.startsWith('cancelled') &&
-            job.status !== 'no_show' &&
-            job.status !== 'disputed' && (
-              <div className="jdx-action">
+              {isFinishedJob && (
+                <button type="button" className="jdw-cta" onClick={() => navigate('/partner/jobs')}>
+                  Back to my jobs
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+              )}
+              {canStart && (
                 <button
                   type="button"
-                  className="jdx-cta"
+                  className="jdw-cta"
                   disabled={!online || actionBusy}
                   onClick={handlePrimaryStartClick}
                 >
                   {job.status === 'in_progress' ? 'Continue active job' : 'Start job'}
                   <ArrowRight size={18} aria-hidden="true" />
                 </button>
-              </div>
-            )}
-        </section>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
 
       {/* Start Job Customer OTP Verification Modal */}

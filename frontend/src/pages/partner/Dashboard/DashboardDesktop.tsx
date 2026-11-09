@@ -91,15 +91,18 @@ function Panel({
   title,
   icon,
   action,
+  grow = false,
   children,
 }: {
   title: string;
   icon?: ReactNode;
   action?: { label: string; to: string };
+  /** Stretch to fill leftover column height so both columns end on the same line. */
+  grow?: boolean;
   children: ReactNode;
 }) {
   return (
-    <section className={`${panel} p-6`}>
+    <section className={`${panel} p-6 ${grow ? "flex flex-1 flex-col" : ""}`}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
           {icon}
@@ -115,7 +118,7 @@ function Panel({
           </Link>
         )}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className={`mt-5 ${grow ? "flex flex-1 flex-col" : ""}`}>{children}</div>
     </section>
   );
 }
@@ -226,36 +229,82 @@ function RequestRow({
   );
 }
 
-/** Photo-first tile for an active job or the next job. */
-function JobTile({ job, live }: { job: PartnerJob; live: boolean }) {
+/**
+ * Photo-first card for an active job or the next job.
+ * `wide` (a single job) lays it out as one full-width row so the panel has no empty half;
+ * two or more jobs fall back to compact side-by-side tiles.
+ */
+function JobTile({ job, live, wide }: { job: PartnerJob; live: boolean; wide: boolean }) {
+  const href = live ? `/partner/jobs/${job.id}/active` : `/partner/jobs/${job.id}`;
+  const chip = (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${live ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${live ? "animate-pulse bg-emerald-500" : "bg-indigo-500"}`} />
+      {live ? "In progress" : "Next job"}
+    </span>
+  );
+  const cta = (
+    <Link
+      to={href}
+      className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-6 py-3 text-sm font-bold text-white shadow-sm shadow-indigo-700/20 transition hover:bg-indigo-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-700"
+    >
+      {live ? "Continue job" : "View job details"}
+      <ArrowRight size={16} aria-hidden="true" />
+    </Link>
+  );
+
+  if (wide) {
+    return (
+      <article className="flex items-stretch gap-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-5">
+        <div className="h-36 w-36 shrink-0 overflow-hidden rounded-2xl [&_.pj-thumb]:!h-full [&_.pj-thumb]:!w-full [&_.pj-thumb]:!rounded-2xl">
+          <ServiceThumb service={job.service} size="lg" image={job.image} />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <div className="flex items-center gap-3">
+            {chip}
+            <span className="flex items-center gap-1.5 text-sm font-medium text-slate-500">
+              <CalendarDays size={15} aria-hidden="true" />
+              {dateTime(job.scheduledAt)}
+            </span>
+          </div>
+          <h3 className="mt-3 text-xl font-extrabold leading-tight tracking-tight text-slate-900">{job.service}</h3>
+          <div className="mt-3 space-y-2 text-sm text-slate-600">
+            <p className="flex items-center gap-2.5"><User size={16} className="shrink-0 text-slate-400" aria-hidden="true" />{job.customer}</p>
+            <p className="flex items-start gap-2.5"><MapPin size={16} className="mt-0.5 shrink-0 text-slate-400" aria-hidden="true" /><span className="line-clamp-2">{job.location}</span></p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 flex-col items-end justify-between gap-4 border-l border-slate-200 pl-6">
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">You earn</p>
+            <p className="mt-0.5 text-3xl font-extrabold tracking-tight text-indigo-700">{job.amount > 0 ? formatInr(job.amount) : "—"}</p>
+          </div>
+          {cta}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between px-4 pt-4">
-        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${live ? "bg-emerald-50 text-emerald-700" : "bg-indigo-50 text-indigo-700"}`}>
-          {live ? "In progress" : "Next job"}
-        </span>
-        <span className="text-xs text-slate-500">{dateTime(job.scheduledAt)}</span>
+      <div className="flex items-center justify-between px-5 pt-5">
+        {chip}
+        <span className="text-xs font-medium text-slate-500">{dateTime(job.scheduledAt)}</span>
       </div>
-      <div className="flex flex-1 items-start gap-4 p-4">
-        <div className="flex h-24 w-24 shrink-0">
+      <div className="flex flex-1 items-start gap-4 p-5">
+        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl [&_.pj-thumb]:!h-full [&_.pj-thumb]:!w-full [&_.pj-thumb]:!rounded-xl">
           <ServiceThumb service={job.service} size="lg" image={job.image} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-base font-bold text-slate-900">{job.service}</h3>
-            {job.amount > 0 && <span className="shrink-0 font-extrabold text-indigo-700">{formatInr(job.amount)}</span>}
+            <h3 className="text-base font-bold leading-snug text-slate-900">{job.service}</h3>
+            {job.amount > 0 && <span className="shrink-0 text-lg font-extrabold text-indigo-700">{formatInr(job.amount)}</span>}
           </div>
-          <p className="mt-2 flex items-center gap-2 text-sm text-slate-500"><User size={15} className="shrink-0" />{job.customer}</p>
-          <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-500"><MapPin size={15} className="mt-0.5 shrink-0" />{job.location}</p>
+          <p className="mt-2 flex items-center gap-2 text-sm text-slate-500"><User size={15} className="shrink-0" aria-hidden="true" />{job.customer}</p>
+          <p className="mt-1.5 flex items-start gap-2 text-sm text-slate-500"><MapPin size={15} className="mt-0.5 shrink-0" aria-hidden="true" /><span className="line-clamp-2">{job.location}</span></p>
         </div>
       </div>
-      <Link
-        to={live ? `/partner/jobs/${job.id}/active` : `/partner/jobs/${job.id}`}
-        className="mx-4 mb-4 flex items-center justify-center gap-2 rounded-xl bg-indigo-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-indigo-800"
-      >
-        {live ? "Continue job" : "View job details"}
-        <ArrowRight size={16} />
-      </Link>
+      <div className="px-5 pb-5 [&>a]:w-full">{cta}</div>
     </article>
   );
 }
@@ -415,9 +464,9 @@ export default function DashboardDesktop() {
       </div>
 
       {/* ---------- two columns ---------- */}
-      <div className="mt-6 grid grid-cols-12 items-start gap-6">
+      <div className="mt-6 grid grid-cols-12 items-stretch gap-6">
         {/* LEFT: work */}
-        <div className="col-span-8 min-w-0 space-y-6">
+        <div className="col-span-8 flex min-w-0 flex-col gap-6">
           {requestsQ.isPending ? (
             <Skeleton className="h-40 w-full rounded-2xl" />
           ) : requests.length > 0 ? (
@@ -446,31 +495,31 @@ export default function DashboardDesktop() {
                 {online ? "New job requests will appear at the top of this page." : "Go online to start receiving requests."}
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-5">
+              <div className={`grid gap-5 ${jobsToShow.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
                 {jobsToShow.map((job) => (
-                  <JobTile key={job.id} job={job} live={active.length > 0} />
+                  <JobTile key={job.id} job={job} live={active.length > 0} wide={jobsToShow.length === 1} />
                 ))}
               </div>
             )}
           </Panel>
 
-          <Panel title="Today's schedule" action={{ label: "All jobs", to: "/partner/jobs" }}>
+          <Panel grow title="Today's schedule" action={{ label: "All jobs", to: "/partner/jobs" }}>
             {todaysJobs.length === 0 ? (
-              <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+              <p className="flex flex-1 items-center justify-center rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
                 Nothing booked for today.
                 {upcoming[0] ? ` Your next job is ${whenLabel(upcoming[0].scheduledAt)}.` : ""}
               </p>
             ) : (
-              <ol className="space-y-3">
+              <ol className="mb-5 space-y-3">
                 {todaysJobs.map((job) => {
                   const live = activeIds.has(job.id);
                   return (
                     <li key={job.id}>
                       <Link
                         to={live ? `/partner/jobs/${job.id}/active` : `/partner/jobs/${job.id}`}
-                        className="flex items-center gap-4 rounded-xl border border-slate-100 p-3 transition hover:border-indigo-200 hover:bg-indigo-50/40"
+                        className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 transition hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-sm"
                       >
-                        <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-700">
+                        <span className="flex h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-sm font-bold text-indigo-700">
                           {timeOnly(job.scheduledAt)}
                         </span>
                         <span className="min-w-0 flex-1">
@@ -488,13 +537,22 @@ export default function DashboardDesktop() {
                 })}
               </ol>
             )}
+            {todaysJobs.length > 0 && (
+              <Link
+                to="/partner/schedule"
+                className="mt-auto flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 py-3 text-sm font-semibold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-50/50"
+              >
+                Open full schedule
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            )}
           </Panel>
 
           <HelpSafetyCard bookingId={active[0]?.id ?? null} />
         </div>
 
         {/* RIGHT: numbers + activity */}
-        <div className="col-span-4 min-w-0 space-y-6">
+        <div className="col-span-4 flex min-w-0 flex-col gap-6">
           <Panel title="Last 7 days" action={{ label: "Details", to: "/partner/earnings" }}>
             {days.length === 0 ? (
               <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No earnings yet this week.</p>
@@ -524,7 +582,7 @@ export default function DashboardDesktop() {
             </div>
           </Panel>
 
-          <Panel title="Recent activity">
+          <Panel grow title="Recent activity">
             {notifications.isPending ? (
               <Skeleton className="h-28" />
             ) : notifications.isError ? (
@@ -534,7 +592,7 @@ export default function DashboardDesktop() {
             ) : (
               <ul className="divide-y divide-slate-100">
                 {notifications.data.slice(0, 6).map((n) => (
-                  <li key={n.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                  <li key={n.id} className="flex items-start gap-3 py-3.5 first:pt-0 last:pb-0">
                     <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-slate-300" : "bg-orange-500"}`} />
                     <div className="min-w-0">
                       <p className={`text-sm leading-5 ${n.read ? "text-slate-600" : "font-semibold text-slate-900"}`}>{n.title}</p>

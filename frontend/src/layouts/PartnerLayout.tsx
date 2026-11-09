@@ -52,6 +52,7 @@ import { HomeCarexMark } from "@/components/band/Homecarexmark";
 import OnlineToggle from "@/components/partner/OnlineToggle";
 import ServiceAreaTicker from "@/components/partner/ServiceAreaTicker";
 import PartnerErrorBoundary from "@/components/partner/PartnerErrorBoundary";
+import PartnerNotificationBell from "@/components/partner/PartnerNotificationBell";
 
 import "@/styles/admin.css";
 
@@ -436,7 +437,6 @@ const NAV_GROUPS: {
     groupName: "Operations",
     keys: [
       "jobs",
-      "work",
       "availability",
       "services",
       "service-area",
@@ -1032,15 +1032,9 @@ export default function PartnerLayout() {
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
               {/* Online/Offline is controlled from the Home page only. */}
               {isHome && <OnlineToggle online={online} onChange={setOnline} />}
-              <button
-                type="button"
-                aria-label={t("Notifications")}
-                className={`relative min-h-10 min-w-10 items-center justify-center rounded-full p-2 text-orange-500 hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4338ca] ${
-                  minimalHeader ? "hidden lg:inline-flex" : "inline-flex"
-                }`}
-              >
-                <Bell size={20} aria-hidden="true" />
-              </button>
+              <PartnerNotificationBell
+                className={minimalHeader ? "hidden lg:inline-flex" : "inline-flex"}
+              />
             </div>
           </header>
 

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
+import type { StartMedia } from "./partner-jobs.proof";
 import type {
   ChecklistBody,
   CollectPaymentBody,
@@ -67,7 +68,8 @@ export const verifyJobStart = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
     const { otp } = req.body as VerifyStartBody;
-    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp), {
+    const media = (res.locals.startMedia ?? []) as StartMedia[];
+    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp, new Date(), media), {
       message: "Job started",
     });
   },

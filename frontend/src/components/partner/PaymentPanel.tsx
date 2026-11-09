@@ -237,53 +237,59 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         </p>
       )}
 
-      <div className="pp-qr-wrap">
-        {qrSrc ? (
-          <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
-        ) : qrFailed ? (
-          <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below or the button.</p>
-        ) : (
-          <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
-        )}
-      </div>
-
-      <p className="pp-hint">Ask the customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM).</p>
-
-      <div className="pp-payee">
-        <div>
-          <span className="pp-label">Paying to</span>
-          <strong>{upi.payeeName}</strong>
-          <span className="pp-upi-id">{upi.payeeId}</span>
+      <div className="pp-collect-grid">
+        <div className="pp-col pp-col-qr">
+        <div className="pp-qr-wrap">
+          {qrSrc ? (
+            <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
+          ) : qrFailed ? (
+            <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below or the button.</p>
+          ) : (
+            <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
+          )}
         </div>
-        <button type="button" className="pp-btn pp-btn-ghost" onClick={() => void copyUpiId()} aria-live="polite">
-          <Copy size={16} aria-hidden="true" /> {copied ? 'Copied' : 'Copy ID'}
+
+        <p className="pp-hint">Ask the customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM).</p>
+
+        </div>
+        <div className="pp-col pp-col-actions">
+        <div className="pp-payee">
+          <div>
+            <span className="pp-label">Paying to</span>
+            <strong>{upi.payeeName}</strong>
+            <span className="pp-upi-id">{upi.payeeId}</span>
+          </div>
+          <button type="button" className="pp-btn pp-btn-ghost" onClick={() => void copyUpiId()} aria-live="polite">
+            <Copy size={16} aria-hidden="true" /> {copied ? 'Copied' : 'Copy ID'}
+          </button>
+        </div>
+
+        <a className="pp-btn pp-btn-primary" href={upi.uri}>
+          <ExternalLink size={16} aria-hidden="true" /> Open UPI app on this phone
+        </a>
+
+        <div className="pp-wait" role="status" aria-live="polite">
+          {online ? (
+            <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
+          ) : (
+            <>You are offline. Reconnect to record the payment.</>
+          )}
+        </div>
+
+        <button type="button" className="pp-btn pp-btn-primary" onClick={() => void markCollected('upi')} disabled={cashing || !online}>
+          {cashing ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+          UPI payment received
         </button>
+
+        <button type="button" className="pp-btn" onClick={() => void refresh(true)} disabled={checking || !online}>
+          {checking ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
+          Check payment now
+        </button>
+        {checkError && <p className="pp-error" role="alert">{checkError}</p>}
+
+        {cashButton}
+        </div>
       </div>
-
-      <a className="pp-btn pp-btn-primary" href={upi.uri}>
-        <ExternalLink size={16} aria-hidden="true" /> Open UPI app on this phone
-      </a>
-
-      <div className="pp-wait" role="status" aria-live="polite">
-        {online ? (
-          <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
-        ) : (
-          <>You are offline. Reconnect to record the payment.</>
-        )}
-      </div>
-
-      <button type="button" className="pp-btn pp-btn-primary" onClick={() => void markCollected('upi')} disabled={cashing || !online}>
-        {cashing ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
-        UPI payment received
-      </button>
-
-      <button type="button" className="pp-btn" onClick={() => void refresh(true)} disabled={checking || !online}>
-        {checking ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
-        Check payment now
-      </button>
-      {checkError && <p className="pp-error" role="alert">{checkError}</p>}
-
-      {cashButton}
     </section>
   );
 }

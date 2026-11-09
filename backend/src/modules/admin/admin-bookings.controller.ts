@@ -23,6 +23,7 @@ import {
 import { applyTransition } from '../bookings/bookings.stateMachine';
 import { getRazorpay } from '../../integrations/razorpay';
 import { auditService } from '../audit/audit.service';
+import { notify, alertCustomerPartnerAssigned } from '../notifications';
 import { ONBOARDING_TOTAL_STEPS } from '../partner-onboarding/partner-onboarding.service';
 
 type AdminPaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
@@ -110,7 +111,7 @@ interface PartnerSource {
   ratingAvg?: number;
   ratingCount?: number;
   trainingCompleted?: boolean;
-  onboarding?: { completedSteps?: number; approvedAt?: Date };
+  onboarding?: { completedSteps?: number; approvedAt?: Date | null } | null;
   serviceRadiusKm?: number;
   kyc?: { status?: string };
 }
@@ -1315,7 +1316,7 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
       );
     }
 
-    if (!isTrainingDone(partner)) {
+    if (!isTrainingDone(partner as unknown as PartnerSource)) {
       throw new HttpError(
         400,
         'Partner training is not completed',
@@ -1472,6 +1473,18 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
     }
 
     await booking.save();
+
+    // Tell the partner (and the customer) about the assignment. Fire-and-forget: a failed
+    // notification must never fail the assignment itself.
+    void notify(String(partner.userId), 'booking.assigned', {
+      title: 'New job assigned to you',
+      message: 'A new job has been assigned to you. Open My Jobs to confirm it.',
+      bookingId,
+    }).catch((err) => console.error('[admin-bookings] partner assigned notification failed', err));
+
+    if (booking.customerId) {
+      alertCustomerPartnerAssigned({ customerId: booking.customerId, bookingId });
+    }
 
     await this.recordBookingAudit(
       'booking.partner_assigned',

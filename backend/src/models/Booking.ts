@@ -90,6 +90,8 @@ export interface IBooking extends Document {
   otpCodes?: { start?: string; end?: string };
   /** Wrong start-code tries by the partner; the job locks at START_OTP_MAX_ATTEMPTS. */
   startOtpAttempts?: number;
+  /** Before-work photos/video the partner sent when starting the job. Files live in JOB_PROOF_STORAGE_DIR. */
+  startProof?: Array<{ kind: 'photo' | 'video'; storageKey: string; mimeType: string; size: number; uploadedAt: Date }>;
   extraCharges?: Array<{
     _id: Types.ObjectId;
     title: string;
@@ -230,6 +232,17 @@ const BookingSchema = new Schema<IBooking>(
       end: { type: String, select: false },
     },
     startOtpAttempts: { type: Number, default: 0, min: 0 },
+    startProof: {
+      type: [{
+        _id: false,
+        kind: { type: String, enum: ['photo', 'video'], required: true },
+        storageKey: { type: String, required: true },
+        mimeType: { type: String, required: true },
+        size: { type: Number, required: true, min: 0 },
+        uploadedAt: { type: Date, required: true },
+      }],
+      default: undefined,
+    },
     extraCharges: {
       type: [{
         title: { type: String, required: true, trim: true },

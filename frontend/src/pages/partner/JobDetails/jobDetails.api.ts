@@ -438,18 +438,30 @@ export async function updateBookingStatus(id: string, status: JobStatus): Promis
  * Same rules in the demo: 400 bad code format, 422 wrong state / wrong code / bad file,
  * 410 expired, 413 photo too big, 423 locked after 5 wrong codes, 409 already started.
  */
-export async function verifyStart(id: string, otp: string, photo?: File | null): Promise<JobDetails> {
+export async function verifyStart(
+  id: string,
+  otp: string,
+  /** One photo or several. They are the "before" pictures of the place. */
+  photos?: File | File[] | null,
+  /** Optional short video of the place before the work begins. */
+  video?: File | null,
+): Promise<JobDetails> {
+  const photoList = photos ? (Array.isArray(photos) ? photos : [photos]) : [];
+
   if (!useDemo(id)) {
-    if (photo) {
+    if (photoList.length > 0 || video) {
       const form = new FormData();
       form.append('otp', otp);
-      form.append('photo', photo);
+      photoList.forEach((file) => form.append('photos', file));
+      if (video) form.append('video', video);
       const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // A video can take a while on a slow mobile network.
+        timeout: 120_000,
       });
       return mapJob(unwrap(res));
     }
-    // No photo: plain JSON. The server accepts both and the photo is optional.
+    // No files: plain JSON. The server accepts both.
     const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, { otp });
     return mapJob(unwrap(res));
   }
@@ -467,7 +479,7 @@ export async function verifyStart(id: string, otp: string, photo?: File | null):
   if (state?.locked) throw demoError(423, 'OTP_LOCKED', 'Starting is locked. Contact support to unlock it.');
   if (state?.expired) throw demoError(410, 'OTP_EXPIRED', 'The start code has expired. Ask support for a new one.');
 
-  if (photo) await assertStartPhoto(photo); // a bad photo never uses up an attempt
+  for (const file of photoList) await assertStartPhoto(file); // a bad photo never uses up an attempt
 
   if (otp !== DEMO_START_OTP) {
     job.startAttempts = (job.startAttempts ?? 0) + 1;
