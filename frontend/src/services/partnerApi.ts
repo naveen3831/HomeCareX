@@ -541,14 +541,13 @@ export const partnerApi = {
 
   /* Profile */
 
-  async getProfileDetails(): Promise<PartnerJoinDetails> {
+  async getProfile(): Promise<PartnerJoinDetails> {
     const res = await http.get<ApiResponse<PartnerJoinDetails>>("/partner/profile");
     return res.data.data;
   },
 
-  async getProfile(): Promise<PartnerJoinDetails> {
-    const res = await http.get<ApiResponse<PartnerJoinDetails>>("/partner/profile");
-    return res.data.data;
+  async getProfileDetails(): Promise<PartnerJoinDetails> {
+    return this.getProfile();
   },
 
   async updateProfile(input: PartnerProfileInput): Promise<PartnerProfileInput> {

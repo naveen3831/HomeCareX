@@ -21,8 +21,8 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { AuthContext } from "@/context/AuthContext";
+import HomeBanners from "@/components/public/HomeBanners";
 import { fetchPublicReviews } from "@/services/reviewsApi";
-import HomeBanners from "../../../components/public/HomeBanners";
 
 /* =========================================================
    CUSTOM CATEGORY ICONS MATCHING MOCKUP DESIGN

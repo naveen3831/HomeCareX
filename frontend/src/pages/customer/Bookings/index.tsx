@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, X } from "lucide-react";
 import clsx from "clsx";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
 import { Pagination } from "@/components/customer/catalog/Pagination";
@@ -41,7 +41,16 @@ export default function MyBookingsPage() {
     clearFilters,
   } = useBookingsUrlState();
   const online = useOnlineStatus();
-  const { state: payState, pay, reset, busy: payBusy } = usePayBooking();
+  const {
+    state: payState,
+    pay,
+    reset,
+    busy: payBusy,
+    mockBankState,
+    handleMockBankOutcome,
+    cancelMockBank,
+    isSubmittingMock,
+  } = usePayBooking();
 
   // Filter panel: closed by default, open if a shared link already carries filters.
   const [filtersOpen, setFiltersOpen] = useState(hasFilters);
@@ -339,6 +348,59 @@ export default function MyBookingsPage() {
       >
         {content}
       </div>
+
+      {/* Mobile-Compatible Razorpay Demo Bank Mock Dialog */}
+      {mockBankState?.open && (
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-[440px] rounded-2xl bg-white p-6 sm:p-8 text-center shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={cancelMockBank}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="text-[#2563eb] font-black text-5xl sm:text-6xl italic leading-none mb-3 sm:mb-4 select-none">
+              1
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] mb-2 leading-snug">
+              Welcome to Razorpay Software Private Ltd Bank
+            </h2>
+            <p className="text-xs sm:text-sm text-[#64748b] mb-1">
+              This is just a demo bank page.
+            </p>
+            <p className="text-xs sm:text-sm text-[#334155] mb-5 sm:mb-6">
+              You can choose whether to make this payment successful or not:
+            </p>
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => void handleMockBankOutcome("S")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#22c55e] hover:bg-[#16a34a] active:bg-[#15803d] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "S" ? "Processing…" : "Success"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleMockBankOutcome("F")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#ef4444] hover:bg-[#dc2626] active:bg-[#b91c1c] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "F" ? "Processing…" : "Failure"}
+              </button>
+            </div>
+            {isSubmittingMock && (
+              <div className="mt-4 text-xs sm:text-sm font-medium text-slate-600">
+                {isSubmittingMock === "S"
+                  ? "Authorizing payment…"
+                  : "Declining payment…"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

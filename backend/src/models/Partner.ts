@@ -32,6 +32,7 @@ const PartnerSchema = new Schema(
     serviceRadiusKm: { type: Number, default: 10, min: 1, max: 100 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
+    bio: { type: String, trim: true, maxlength: 500 },
     /** Counters maintained by matching/booking services; rates are derived from these. */
     stats: {
       offersReceived: { type: Number, default: 0, min: 0 },

@@ -16,7 +16,19 @@ app.use(
 );
 
 // credentials: true so the httpOnly refresh cookie travels with /auth requests.
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', 'accelerometer=*, gyroscope=*, magnetometer=*, focus-without-user-activation=*');
+  next();
+});
+
+// credentials: true so the httpOnly refresh cookie travels with /auth requests.
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+    exposedHeaders: ['x-rtb-fingerprint-id', 'request-id', 'x-request-id'],
+  }),
+);
 
 // Support form-urlencoded requests for payment gateway callbacks and browser redirects.
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));

@@ -45,7 +45,8 @@ export function ServiceCard({ service: s, index }: { service: CatalogService; in
           <img
             src={v.image}
             alt=""
-            loading={index < 3 ? "eager" : "lazy"}
+            loading={index < 6 ? "eager" : "lazy"}
+            fetchPriority={index < 3 ? "high" : "auto"}
             decoding="async"
             style={{ objectPosition: v.focus }}
             className="h-full w-full object-cover transition-transform duration-700"

@@ -112,9 +112,9 @@ interface PartnerSource {
   ratingAvg?: number;
   ratingCount?: number;
   trainingCompleted?: boolean;
-  onboarding?: { completedSteps?: number; approvedAt?: Date };
+  onboarding?: { completedSteps?: number; approvedAt?: Date | null } | null;
   serviceRadiusKm?: number;
-  kyc?: { status?: string };
+  kyc?: { status?: string } | null;
 }
 
 

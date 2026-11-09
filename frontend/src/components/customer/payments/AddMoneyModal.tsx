@@ -20,6 +20,7 @@ import {
   loadRazorpayScript,
   forceCloseRazorpayModal,
   closeActivePopup,
+  cancelPendingMockBankDispatch,
   getLatestCallbackUrl,
   getLatestPaymentId,
   isMobileOrEmulation,
@@ -115,9 +116,13 @@ export function AddMoneyModal({
   const [isSubmittingMock, setIsSubmittingMock] = useState<"S" | "F" | null>(
     null,
   );
+  const mockSubmittingRef = useRef(false);
+  const [isRazorpayOpen, setIsRazorpayOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      mockSubmittingRef.current = false;
+      setIsRazorpayOpen(false);
       setStep("input");
       setIsLoading(false);
       setErrorMsg(null);
@@ -126,11 +131,14 @@ export function AddMoneyModal({
       activeOrderRef.current = null;
       setMockBankState(null);
       setIsSubmittingMock(null);
+      mockSubmittingRef.current = false;
     }
   }, [isOpen]);
 
   useEffect(() => {
     const handleMockBankOpen = (e: Event) => {
+      // Event is scheduled only on mobile/emulation in razorpay.ts
+      setIsRazorpayOpen(false);
       closeActivePopup();
       forceCloseRazorpayModal();
       const detail = ((e as CustomEvent).detail || {}) as {
@@ -243,6 +251,7 @@ export function AddMoneyModal({
           color: "#201547",
         },
         handler: async (response: RazorpaySuccessPayload) => {
+          setIsRazorpayOpen(false);
           setIsLoading(true);
           try {
             const { data: verifyRes } = await api.post("/wallet/topup/verify", {
@@ -293,6 +302,8 @@ export function AddMoneyModal({
         },
         modal: {
           ondismiss: () => {
+            setIsRazorpayOpen(false);
+            cancelPendingMockBankDispatch();
             forceCloseRazorpayModal();
             closeActivePopup();
             setIsLoading(false);
@@ -313,6 +324,7 @@ export function AddMoneyModal({
 
       // 3. Listen to gateway failure events
       rzp.on("payment.failed", async (response: RazorpayFailurePayload) => {
+        setIsRazorpayOpen(false);
         forceCloseRazorpayModal();
         closeActivePopup();
 
@@ -390,8 +402,40 @@ export function AddMoneyModal({
         setStep("failed");
       });
 
+      setIsRazorpayOpen(true);
+      setIsLoading(false);
+
+      if (isMobileOrEmulation()) {
+        const container = document.querySelector<HTMLElement>(".razorpay-container");
+        if (container) {
+          container.style.display = "block";
+          container.style.zIndex = "2147483647";
+          container.style.pointerEvents = "auto";
+        }
+        const backdrop = document.querySelector<HTMLElement>(".razorpay-backdrop");
+        if (backdrop) {
+          backdrop.style.display = "block";
+        }
+      }
+
       rzp.open();
+
+      if (isMobileOrEmulation()) {
+        setTimeout(() => {
+          const c = document.querySelector<HTMLElement>(".razorpay-container");
+          if (c) {
+            c.style.display = "block";
+            c.style.zIndex = "2147483647";
+            c.style.pointerEvents = "auto";
+          }
+          const b = document.querySelector<HTMLElement>(".razorpay-backdrop");
+          if (b) {
+            b.style.display = "block";
+          }
+        }, 60);
+      }
     } catch (err: unknown) {
+      setIsRazorpayOpen(false);
       const error = err as {
         response?: { status?: number; data?: { code?: string; message?: string } };
         message?: string;
@@ -423,6 +467,8 @@ export function AddMoneyModal({
   };
 
   const handleMockBankOutcome = async (outcome: "S" | "F") => {
+    if (mockSubmittingRef.current) return;
+    mockSubmittingRef.current = true;
     closeActivePopup();
     setIsSubmittingMock(outcome);
     const orderId =
@@ -556,6 +602,7 @@ export function AddMoneyModal({
       setStep("failed");
     } finally {
       setIsSubmittingMock(null);
+      mockSubmittingRef.current = false;
     }
   };
 
@@ -564,15 +611,19 @@ export function AddMoneyModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-money-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity ${
+        isRazorpayOpen
+          ? "pointer-events-none opacity-0"
+          : "bg-black/60 opacity-100"
+      }`}
       onClick={(e) => {
-        if (e.target === e.currentTarget && !isLoading && step === "input") {
+        if (e.target === e.currentTarget && !isLoading && step === "input" && !isRazorpayOpen) {
           onClose();
         }
       }}
     >
       {/* 1. INPUT STEP: ENTER AMOUNT */}
-      {step === "input" && (
+      {step === "input" && !isRazorpayOpen && (
         <div className="w-full max-w-md rounded-2xl border border-line bg-white p-6 shadow-xl">
           <div className="flex items-center justify-between border-b border-line pb-3">
             <h3 id="add-money-title" className="text-lg font-semibold text-ink">
