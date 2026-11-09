@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   withdrawApi,
   errorMessage,
@@ -8,6 +8,8 @@ import {
   type Withdrawal,
   type WithdrawalStatus,
 } from './withdraw.api';
+import { BANKS, accountLengths, bankByCode, lengthText, lookupIfsc, type IfscLookup } from './banks';
+import { AuthContext } from '../../../context/AuthContext';
 import './Withdraw.css';
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 });
@@ -240,9 +242,10 @@ export const WithdrawSheet: React.FC<SheetProps> = ({ available, minAmount, maxA
                 &times;
               </button>
             </div>
-            <p className="wd-muted wd-avail">
-              Available to withdraw: <strong>{fmtINR(available)}</strong>
-            </p>
+            <div className="wd-banner">
+              <span>Available to withdraw</span>
+              <strong>{fmtINR(available)}</strong>
+            </div>
 
             <label className="wd-label" htmlFor="wd-amount">
               Amount
@@ -271,6 +274,23 @@ export const WithdrawSheet: React.FC<SheetProps> = ({ available, minAmount, maxA
               >
                 Withdraw all
               </button>
+            </div>
+            <div className="wd-quick" role="group" aria-label="Quick amounts">
+              {[500, 1000, 2000]
+                .filter((v) => v >= minAmount && v <= limit)
+                .map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className="wd-quick-chip"
+                    onClick={() => {
+                      setAmountText(String(v));
+                      setTouched(true);
+                    }}
+                  >
+                    {fmtINR(v)}
+                  </button>
+                ))}
             </div>
             <p id="wd-amount-msg" className={touched && amountError ? 'wd-field-error' : 'wd-hint'} role={touched && amountError ? 'alert' : undefined}>
               {touched && amountError ? amountError : `Minimum ${fmtINR(minAmount)}`}
@@ -337,11 +357,6 @@ export const WithdrawSheet: React.FC<SheetProps> = ({ available, minAmount, maxA
               </button>
             )}
 
-            <p className="wd-note">
-              Withdrawals are checked by our team before money is sent. The amount leaves your wallet now and returns
-              if the request is rejected or cancelled.
-            </p>
-
             {error && (
               <p className="wl-error" role="alert">
                 {error}
@@ -364,25 +379,77 @@ export const WithdrawSheet: React.FC<SheetProps> = ({ available, minAmount, maxA
 
 const AddAccountForm: React.FC<{ onBack: () => void; onSaved: (a: BankAccount) => void | Promise<void> }> = ({ onBack, onSaved }) => {
   const [type, setType] = useState<AccountType>('bank');
-  const [f, setF] = useState({ holder: '', bank: '', number: '', confirm: '', ifsc: '', upi: '' });
+  const user = useContext(AuthContext)?.user; // no provider (tests, stories): the name just starts empty
+  const [f, setF] = useState({ holder: user?.name ?? '', bank: '', number: '', confirm: '', ifsc: '', upi: '' });
+  const [otherBank, setOtherBank] = useState(false);
+  const [lookup, setLookup] = useState<IfscLookup>({ status: 'idle' });
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((s) => ({ ...s, [k]: e.target.value }));
+
+  /* Once a full, valid IFSC is typed: look up bank, branch and location, and set the bank from it. */
+  const ifscKey = f.ifsc.trim().toUpperCase();
+  useEffect(() => {
+    if (!IFSC.test(ifscKey)) {
+      setLookup({ status: 'idle' });
+      return;
+    }
+    const ctl = new AbortController();
+    setLookup({ status: 'loading' });
+    lookupIfsc(ifscKey, ctl.signal)
+      .then((r) => {
+        setLookup(r);
+        if (r.status !== 'ok') return;
+        const known = bankByCode(ifscKey.slice(0, 4));
+        if (known) {
+          setOtherBank(false);
+          setF((s) => ({ ...s, bank: known.name }));
+        } else if (r.info.bank) {
+          setOtherBank(true);
+          setF((s) => ({ ...s, bank: r.info.bank }));
+        }
+      })
+      .catch(() => {
+        /* aborted: a newer lookup is running */
+      });
+    return () => ctl.abort();
+  }, [ifscKey]);
+
+  const pickBank = (value: string) => {
+    if (value === '__other') {
+      setOtherBank(true);
+      setF((s) => ({ ...s, bank: '' }));
+      return;
+    }
+    setOtherBank(false);
+    const b = BANKS.find((x) => x.name === value);
+    // Start the IFSC with the bank's 4-letter code so the user only types the rest.
+    setF((s) => ({ ...s, bank: value, ifsc: b && !IFSC.test(s.ifsc.trim().toUpperCase()) && !s.ifsc.toUpperCase().startsWith(b.code) ? `${b.code}0` : s.ifsc }));
+  };
+
+  /* The chosen bank (or the bank the IFSC belongs to) decides how long the account number must be. */
+  const bankInfo = (!otherBank ? BANKS.find((b) => b.name === f.bank) : undefined) ?? (ifscKey.length >= 4 ? bankByCode(ifscKey.slice(0, 4)) : undefined);
+  const lengths = bankInfo ? accountLengths(bankInfo.code) : undefined;
 
   const errors = useMemo(() => {
     const e: Partial<Record<keyof typeof f, string>> = {};
     if (f.holder.trim().length < 2) e.holder = 'Enter the name on the account';
     if (type === 'bank') {
       if (f.bank.trim().length < 2) e.bank = 'Enter the bank name';
-      if (!/^\d{9,18}$/.test(f.number.trim())) e.number = 'Account number must be 9 to 18 digits';
+      const n = f.number.trim();
+      if (!/^\d{9,18}$/.test(n)) e.number = 'Account number must be 9 to 18 digits';
+      else if (lengths && !lengths.includes(n.length)) {
+        e.number = `${bankInfo?.name} account numbers have ${lengthText(lengths)} digits (you entered ${n.length})`;
+      }
       if (f.confirm.trim() !== f.number.trim()) e.confirm = 'Account numbers do not match';
       if (!IFSC.test(f.ifsc.trim().toUpperCase())) e.ifsc = 'Enter a valid IFSC (e.g. HDFC0001234)';
+      else if (lookup.status === 'notfound') e.ifsc = 'This IFSC was not found. Check it and try again';
     } else if (!UPI.test(f.upi.trim())) {
       e.upi = 'Enter a valid UPI ID (e.g. name@bank)';
     }
     return e;
-  }, [f, type]);
+  }, [f, type, lookup, lengths, bankInfo]);
 
   const save = async () => {
     setShowErrors(true);
@@ -462,10 +529,73 @@ const AddAccountForm: React.FC<{ onBack: () => void; onSaved: (a: BankAccount) =
       {field('holder', 'Name on account', { autoCapitalize: 'words', placeholder: 'As shown in your bank' })}
       {type === 'bank' ? (
         <>
-          {field('bank', 'Bank name', { placeholder: 'e.g. HDFC Bank' })}
-          {field('number', 'Account number', { inputMode: 'numeric', maxLength: 18 })}
-          {field('confirm', 'Confirm account number', { inputMode: 'numeric', maxLength: 18, onPaste: (e) => e.preventDefault() })}
-          {field('ifsc', 'IFSC code', { autoCapitalize: 'characters', maxLength: 11, placeholder: 'HDFC0001234' })}
+          <div className="wd-field">
+            <label className="wd-label" htmlFor="wd-bank-select">
+              Bank name
+            </label>
+            <select
+              id="wd-bank-select"
+              className={`wd-input wd-select${showErrors && errors.bank ? ' has-error' : ''}`}
+              value={otherBank ? '__other' : f.bank}
+              onChange={(e) => pickBank(e.target.value)}
+              aria-invalid={showErrors && !!errors.bank}
+            >
+              <option value="" disabled>
+                Select your bank
+              </option>
+              {BANKS.map((b) => (
+                <option key={b.code} value={b.name}>
+                  {b.name}
+                </option>
+              ))}
+              <option value="__other">Other bank (type the name)</option>
+            </select>
+            {otherBank && (
+              <input
+                id="wd-bank"
+                className={`wd-input wd-other${showErrors && errors.bank ? ' has-error' : ''}`}
+                value={f.bank}
+                onChange={set('bank')}
+                placeholder="Type your bank name"
+                autoComplete="off"
+              />
+            )}
+            {showErrors && errors.bank && (
+              <p className="wd-field-error" role="alert">
+                {errors.bank}
+              </p>
+            )}
+          </div>
+          {field('number', 'Account number', {
+            inputMode: 'numeric',
+            maxLength: lengths ? Math.max(...lengths) : 18,
+            onChange: (e) => setF((s) => ({ ...s, number: e.target.value.replace(/\D/g, '') })),
+          })}
+          {lengths && bankInfo && !(showErrors && errors.number) && (
+            <p className={`wd-ifsc-note${lengths.includes(f.number.trim().length) ? ' is-ok' : ''}`}>
+              {lengths.includes(f.number.trim().length) ? '✓ ' : ''}
+              {bankInfo.name} account numbers have {lengthText(lengths)} digits.
+            </p>
+          )}
+          {field('confirm', 'Confirm account number', { inputMode: 'numeric', maxLength: lengths ? Math.max(...lengths) : 18, onPaste: (e) => e.preventDefault() })}
+          {field('ifsc', 'IFSC code', {
+            autoCapitalize: 'characters',
+            maxLength: 11,
+            placeholder: 'HDFC0001234',
+            onChange: (e) => setF((s) => ({ ...s, ifsc: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') })),
+          })}
+          {lookup.status === 'loading' && <p className="wd-ifsc-note">Checking IFSC…</p>}
+          {lookup.status === 'error' && <p className="wd-ifsc-note">Could not check this IFSC right now. You can still save it.</p>}
+          {lookup.status === 'ok' && (
+            <div className="wd-branch" role="status">
+              <span className="wd-branch-tag">Branch found</span>
+              <strong>{lookup.info.bank}</strong>
+              <span>{lookup.info.branch}</span>
+              <small>
+                {[lookup.info.address, lookup.info.city, lookup.info.state].filter(Boolean).join(', ')}
+              </small>
+            </div>
+          )}
         </>
       ) : (
         field('upi', 'UPI ID', { placeholder: 'name@bank', autoCapitalize: 'none', inputMode: 'email' })

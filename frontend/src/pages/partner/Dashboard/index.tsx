@@ -443,14 +443,7 @@ export default function PartnerDashboard() {
         active.map((job) => <JobCard key={job.id} job={job} live />)
       ) : upcoming[0] ? (
         <JobCard job={upcoming[0]} live={false} />
-      ) : (
-        <section className={card}>
-          <p className="text-sm font-bold text-slate-900">No active jobs</p>
-          <p className="mt-1 text-sm text-slate-500">
-            {online ? "New job requests will appear at the top of this page." : "Go online to start receiving requests."}
-          </p>
-        </section>
-      )}
+      ) : null}
 
       {/* ---------- 3. TODAY'S SCHEDULE ---------- */}
       <Section title="Today's schedule" action={{ label: "All jobs", to: "/partner/jobs" }}>

@@ -67,7 +67,12 @@ export const verifyJobStart = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
     const { otp } = req.body as VerifyStartBody;
-    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp), {
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+    const media = [...(files.media ?? []), ...(files.photo ?? [])].map((f) => ({
+      buffer: f.buffer,
+      mimetype: f.mimetype,
+    }));
+    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp, new Date(), media), {
       message: "Job started",
     });
   },

@@ -28,11 +28,12 @@ export async function getMyDocuments(): Promise<PartnerDocuments> {
   return data.data;
 }
 
-/** Fetches the file with the auth token and returns a temporary object URL (revoke it when done). */
-export async function fetchDocumentBlobUrl(docId: string): Promise<string> {
+/** Fetches the file with the auth token and returns a temporary object URL (revoke it when done) and the file type the server sent. */
+export async function fetchDocumentBlob(docId: string): Promise<{ url: string; mimeType: string }> {
   try {
     const res = await http.get<Blob>(`/partner/documents/${docId}/file`, { responseType: "blob" });
-    return URL.createObjectURL(res.data);
+    const mimeType = res.data.type || String(res.headers?.["content-type"] ?? "");
+    return { url: URL.createObjectURL(res.data), mimeType };
   } catch (err) {
     // With responseType "blob" the server's JSON error arrives as a Blob, so read the real reason out of it.
     const e = err as { response?: { status?: number; data?: unknown } };
@@ -46,6 +47,10 @@ export async function fetchDocumentBlobUrl(docId: string): Promise<string> {
     }
     throw new Error(reason ?? (e.response?.status ? `Server error ${e.response.status}` : "Network error"));
   }
+}
+
+export async function fetchDocumentBlobUrl(docId: string): Promise<string> {
+  return (await fetchDocumentBlob(docId)).url;
 }
 
 export type UploadableType = "id_proof" | "address_proof";

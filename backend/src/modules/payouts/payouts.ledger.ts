@@ -3,6 +3,7 @@ import AdminWalletTransactionModel from '../../models/AdminWalletTransaction';
 import PartnerModel from '../../models/Partner';
 import PayoutBatchModel from '../../models/PayoutBatch';
 import UserModel from '../../models/User';
+import type { SettlementChannel } from '../earnings/earnings.constants';
 
 const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 const isDuplicateKeyError = (e: unknown): boolean =>
@@ -32,7 +33,54 @@ async function upsertLine(
   }
 }
 
-/** The only code that writes to the admin (platform) wallet ledger. Idempotent per payout. */
+async function upsertJobLine(
+  key: { type: 'partner_payout' | 'commission'; earningId: string },
+  fields: { amount: number; bookingId: string; partnerId: string; description: string; channel?: SettlementChannel },
+): Promise<void> {
+  if (fields.amount === 0) return;
+  try {
+    await AdminWalletTransactionModel.updateOne(
+      { type: key.type, earningId: new Types.ObjectId(key.earningId) },
+      {
+        $setOnInsert: {
+          amount: fields.amount,
+          bookingId: new Types.ObjectId(fields.bookingId),
+          partnerId: new Types.ObjectId(fields.partnerId),
+          description: fields.description,
+          ...(fields.channel ? { channel: fields.channel } : {}),
+        },
+      },
+      { upsert: true },
+    );
+  } catch (err) {
+    if (!isDuplicateKeyError(err)) throw err;
+  }
+}
+
+/**
+ * Older databases have a plain UNIQUE (type, payoutId) index, which would reject a second per-job line
+ * (payoutId missing = null). Drop it once; mongoose recreates it as the partial index from the model.
+ */
+let indexesChecked = false;
+export async function ensureAdminLedgerIndexes(): Promise<void> {
+  if (indexesChecked) return;
+  indexesChecked = true;
+  try {
+    const indexes = await AdminWalletTransactionModel.collection.indexes();
+    const legacy = indexes.find(
+      (i) => i.unique && i.key && 'payoutId' in i.key && 'type' in i.key && !i.partialFilterExpression,
+    );
+    if (legacy?.name) {
+      await AdminWalletTransactionModel.collection.dropIndex(legacy.name);
+    }
+    await AdminWalletTransactionModel.syncIndexes();
+  } catch (error) {
+    indexesChecked = false;
+    console.error('[admin-wallet] Could not repair ledger indexes', error);
+  }
+}
+
+/** The only code that writes to the admin (platform) wallet ledger. Idempotent per payout / per earning. */
 export const adminWalletLedger = {
   /** Payout confirmed -> commission earned (+) and the partner's net amount paid out (-). */
   async recordPayoutConfirmed(input: {
@@ -61,6 +109,67 @@ export const adminWalletLedger = {
         partnerId: input.partnerId,
         description: 'Payout credited to partner wallet',
         confirmedBy: input.confirmedBy,
+      },
+    );
+  },
+
+  /**
+   * Job completed and paid online -> commission earned (+) and the partner's net share credited (-), in one go.
+   * Idempotent per earning, so a repeated job.completed event never double counts.
+   */
+  async recordJobSettled(input: {
+    earningId: string;
+    bookingId: string;
+    partnerId: string;
+    commission: number;
+    net: number;
+    /** `online` (default) or `upi_qr`: the money is with the platform, so the partner share is credited. */
+    channel?: Exclude<SettlementChannel, 'cod_cash'>;
+  }): Promise<void> {
+    await ensureAdminLedgerIndexes();
+    const channel = input.channel ?? 'online';
+    await upsertJobLine(
+      { type: 'commission', earningId: input.earningId },
+      {
+        amount: round2(input.commission),
+        bookingId: input.bookingId,
+        partnerId: input.partnerId,
+        description: channel === 'upi_qr' ? 'Commission on completed service (QR payment)' : 'Commission on completed service',
+        channel,
+      },
+    );
+    await upsertJobLine(
+      { type: 'partner_payout', earningId: input.earningId },
+      {
+        amount: -round2(input.net),
+        bookingId: input.bookingId,
+        partnerId: input.partnerId,
+        description: 'Service earning credited to partner wallet',
+        channel,
+      },
+    );
+  },
+
+  /**
+   * Cash-on-service job paid in cash: the partner holds the customer's money, so there is NO partner credit.
+   * The admin only records the commission (+), which was cut from the partner wallet at the same moment.
+   * Idempotent per earning.
+   */
+  async recordCashJobCommission(input: {
+    earningId: string;
+    bookingId: string;
+    partnerId: string;
+    commission: number;
+  }): Promise<void> {
+    await ensureAdminLedgerIndexes();
+    await upsertJobLine(
+      { type: 'commission', earningId: input.earningId },
+      {
+        amount: round2(input.commission),
+        bookingId: input.bookingId,
+        partnerId: input.partnerId,
+        description: 'Commission cut from partner wallet (cash on service)',
+        channel: 'cod_cash',
       },
     );
   },
@@ -108,22 +217,23 @@ export const adminWalletLedger = {
     const users = await UserModel.find({ _id: { $in: partners.map((p) => p.userId) } })
       .select('name')
       .lean();
-    const batches = await PayoutBatchModel.find({ _id: { $in: rows.map((r) => r.batchId) } })
+    const batches = await PayoutBatchModel.find({ _id: { $in: rows.map((r) => r.batchId).filter(Boolean) } })
       .select('periodStart periodEnd')
       .lean();
 
     const items = rows.map((row) => {
       const partner = partners.find((p) => String(p._id) === String(row.partnerId));
       const user = users.find((u) => String(u._id) === String(partner?.userId));
-      const batch = batches.find((b) => String(b._id) === String(row.batchId));
+      const batch = row.batchId ? batches.find((b) => String(b._id) === String(row.batchId)) : undefined;
 
       return {
         id: String(row._id),
         type: row.type,
         amount: row.amount,
         description: row.description ?? '',
-        payoutId: String(row.payoutId),
-        batchId: String(row.batchId),
+        payoutId: row.payoutId ? String(row.payoutId) : null,
+        batchId: row.batchId ? String(row.batchId) : null,
+        bookingId: row.bookingId ? String(row.bookingId) : null,
         partnerId: row.partnerId ? String(row.partnerId) : null,
         partnerName: user?.name ?? null,
         periodStart: batch?.periodStart ?? null,

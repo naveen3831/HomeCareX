@@ -49,6 +49,13 @@ adminRoutes.get(
 );
 
 adminRoutes.get(
+  '/bookings/:bookingId/start-media/:key',
+  asyncHandler((req, res) =>
+    adminBookingsController.getStartMedia(req, res),
+  ),
+);
+
+adminRoutes.get(
   '/bookings/:bookingId/eligible-partners',
   asyncHandler((req, res) =>
     adminBookingsController.getEligiblePartners(req, res),

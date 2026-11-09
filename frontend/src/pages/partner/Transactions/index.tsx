@@ -9,9 +9,10 @@ const TYPE_LABEL: Record<string, string> = {
   adjustment: 'Adjustment',
   payout: 'Payout',
   refund_deduction: 'Refund deduction',
+  commission_deduction: 'Admin commission (cash job)',
 };
 
-const TYPES: LedgerType[] = ['earning', 'incentive', 'adjustment', 'payout', 'refund_deduction'];
+const TYPES: LedgerType[] = ['earning', 'incentive', 'adjustment', 'payout', 'refund_deduction', 'commission_deduction'];
 const LIMIT = 8;
 
 const fmtMoney = (n: number) =>
@@ -34,6 +35,7 @@ const Icon: React.FC<{ type: string }> = ({ type }) => {
     payout: 'M7 17L17 7M8 7h9v9',
     adjustment: 'M5 8h14M5 16h14M9 5v6M15 13v6',
     refund_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
+    commission_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
   };
   return (
     <span className={`tx-icon tx-icon-${type}`} aria-hidden="true">

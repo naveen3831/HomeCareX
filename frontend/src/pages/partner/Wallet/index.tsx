@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import { Link } from 'react-router-dom';
 import { getWalletSummary, type WalletSummary } from './wallet.api';
-import EarningsTabs from '../../../components/partner/EarningsTabs';
 import { WithdrawSheet, WithdrawalsSection, fmtINR } from './Withdraw';
 import { withdrawApi, errorMessage, type Withdrawal, type WithdrawalsOverview } from './withdraw.api';
 import './Wallet.css';
@@ -21,6 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
   adjustment: 'Adjustment',
   payout: 'Payout',
   refund_deduction: 'Refund deduction',
+  commission_deduction: 'Admin commission (cash job)',
 };
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -110,6 +110,7 @@ const ICON_PATHS: Record<string, string> = {
   payout: 'M7 17L17 7M8 7h9v9',
   adjustment: 'M5 8h14M5 16h14M9 5v6M15 13v6',
   refund_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
+  commission_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
 };
 
 const Icon: React.FC<{ type: string }> = ({ type }) => (
@@ -399,7 +400,6 @@ export const PartnerWalletPage: React.FC = () => {
 
   return (
     <div className="wl-page">
-      <EarningsTabs />
       {loading && (
         <div className="wl-body" aria-busy="true" aria-live="polite">
           <span className="wl-sr-only">Loading your wallet</span>
@@ -512,6 +512,17 @@ export const PartnerWalletPage: React.FC = () => {
                   </p>
                 )}
               </div>
+
+              {!isDesktop && (
+                <nav className="wl-quick" aria-label="Money pages">
+                  <Link to="/partner/earnings" className="wl-quick-link">
+                    Earnings <span aria-hidden="true">→</span>
+                  </Link>
+                  <Link to="/partner/payouts" className="wl-quick-link">
+                    Payouts <span aria-hidden="true">→</span>
+                  </Link>
+                </nav>
+              )}
             </section>
 
             {wd && wd.items.length > 0 && (
@@ -772,4 +783,4 @@ export const PartnerWalletPage: React.FC = () => {
   );
 };
 
-export default PartnerWalletPage;
+export default PartnerWalletPage;

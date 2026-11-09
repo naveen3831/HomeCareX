@@ -2,12 +2,12 @@
 // The balance (available / pending) is computed on the server from the ledger.
 // Nothing here ever calculates or trusts a balance on the client.
 
-export type LedgerType = 'earning' | 'incentive' | 'adjustment' | 'payout' | 'refund_deduction';
+export type LedgerType = 'earning' | 'incentive' | 'adjustment' | 'payout' | 'refund_deduction' | 'commission_deduction';
 
 export interface LedgerEntry {
   id: string;
   type: LedgerType;
-  amount: number; // INR; negative = money leaving the wallet (payout, refund_deduction)
+  amount: number; // INR; negative = money leaving the wallet (payout, refund_deduction, commission_deduction)
   description: string;
   createdAt: string; // ISO
 }

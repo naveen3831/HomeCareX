@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
-import { BarChart3, CalendarRange, CheckCircle2, ChevronRight, Clock, Download, Inbox, Loader2, TrendingUp } from "lucide-react";
+import { CalendarRange, ChevronRight, FileText, Inbox, Loader2 } from "lucide-react";
 import ErrorState from "@/components/common/ErrorState";
 import Skeleton from "@/components/common/Skeleton";
 import { earningsApi } from "@/services/earningsApi";
 import type { ApiError } from "@/lib/http";
-import type { EarningStatus, EarningsFilters, EarningsLedger, LedgerRow } from "@/types/earnings";
-import EarningsChart, { type ChartKind } from "./EarningsChart";
-import { PRESETS, activePreset, dayKey, dayLabel, inr, presetRange, rangeError, timeFromInstant, type PresetId } from "./earningsFormat";
+import type { EarningStatus, EarningsFilters, EarningsLedger } from "@/types/earnings";
+import { PRESETS, activePreset, inr, presetRange, rangeError, timeFromInstant, type PresetId } from "./earningsFormat";
+import { useAuth } from "@/hooks/useAuth";
 
 const PAGE_SIZE = 10; // rows shown first; each "View more" tap loads the next 10
 
@@ -18,22 +18,9 @@ const STATUS_TABS: { id: EarningStatus | ""; label: string }[] = [
   { id: "settled", label: "Paid out" },
 ];
 
-/** Hands the CSV to the browser's normal download flow. */
-function saveBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export default function EarningsHistory() {
   const [filters, setFilters] = useState<EarningsFilters>(() => presetRange("month"));
   const [custom, setCustom] = useState(false);
-  const [kind, setKind] = useState<ChartKind>("bars");
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -54,17 +41,6 @@ export default function EarningsHistory() {
   const first = pages?.[0];
   const rows = useMemo(() => pages?.flatMap((p) => p.items) ?? [], [pages]);
 
-  const groups = useMemo(() => {
-    const out: { key: string; rows: LedgerRow[] }[] = [];
-    for (const r of rows) {
-      const key = dayKey(r.earnedAt);
-      const last = out[out.length - 1];
-      if (last && last.key === key) last.rows.push(r);
-      else out.push({ key, rows: [r] });
-    }
-    return out;
-  }, [rows]);
-
   const change = (next: EarningsFilters) => {
     setFilters(next);
     setDownloadError(null);
@@ -74,14 +50,16 @@ export default function EarningsHistory() {
     change({ ...presetRange(id), status: filters.status });
   };
 
+  const { user } = useAuth();
   const download = async () => {
     setDownloading(true);
     setDownloadError(null);
     try {
-      const { blob, filename } = await earningsApi.exportCsv(filters);
-      saveBlob(blob, filename);
+      const { buildEarningsStatementPdf } = await import("./earningsStatementPdf");
+      const pdf = await buildEarningsStatementPdf(filters, { partnerName: user?.name, partnerPhone: user?.phone });
+      pdf.save();
     } catch (e) {
-      setDownloadError((e as ApiError).message || "Could not download the file. Please try again.");
+      setDownloadError((e as ApiError)?.message || "Could not create the statement. Please try again.");
     } finally {
       setDownloading(false);
     }
@@ -93,18 +71,13 @@ export default function EarningsHistory() {
   const error = invalid ?? downloadError;
   const canDownload = !!t && t.count > 0 && !invalid;
 
-  return (
-    <section className="ex-history" aria-label="Earnings history">
-      {/* Filters: four quick ranges on one line, then status and custom dates */}
-      <div className="ex-card ex-filters">
-        <div className="ex-card-head">
-          <h2 className="ex-title"><TrendingUp size={17} aria-hidden /> Earnings history</h2>
-          <button type="button" className="ex-download" onClick={() => void download()} disabled={!canDownload || downloading}>
-            {downloading ? <Loader2 size={15} className="ex-spin" aria-hidden /> : <Download size={15} aria-hidden />}
-            {downloading ? "Preparing" : "Download CSV"}
-          </button>
-        </div>
+  const periodName = custom || !active ? "Custom range" : PRESETS.find((p) => p.id === active)?.label ?? "";
 
+  return (
+    <section className="ex-history" aria-label="Earnings statement">
+      <h2 className="ex-title"><FileText size={18} aria-hidden /> Earnings statement</h2>
+
+      <div className="ex-card ex-filters">
         <div className="ex-chips" role="group" aria-label="Date range">
           {PRESETS.map((p) => (
             <button key={p.id} type="button" className="ex-chip" aria-pressed={active === p.id && !custom} onClick={() => pickPreset(p.id)}>
@@ -148,9 +121,8 @@ export default function EarningsHistory() {
       </div>
 
       {!invalid && feed.isPending && (
-        <div className="ex-stack" role="status" aria-label="Loading earnings history">
+        <div className="ex-stack" role="status" aria-label="Loading earnings statement">
           <Skeleton className="ex-skel ex-skel--stats" />
-          <Skeleton className="ex-skel ex-skel--chart" />
           <Skeleton className="ex-skel ex-skel--list" />
         </div>
       )}
@@ -159,26 +131,25 @@ export default function EarningsHistory() {
 
       {!invalid && first && t && (
         <>
-          <div className="ex-stats" aria-live="polite" aria-busy={feed.isFetching}>
-            <div><span>Jobs</span><strong>{t.count}</strong></div>
-            <div><span>Gross</span><strong>{inr(t.gross)}</strong></div>
-            <div><span>Fees</span><strong>{inr(t.commission)}</strong></div>
-            <div className="ex-stats-net"><span>You earned</span><strong>{inr(t.net)}</strong></div>
-          </div>
-
-          <div className="ex-card">
-            <div className="ex-card-head">
-              <h3 className="ex-sub"><BarChart3 size={16} aria-hidden /> Trend</h3>
-              <div className="ex-seg ex-seg--sm" role="group" aria-label="Chart type">
-                <button type="button" aria-pressed={kind === "bars"} onClick={() => setKind("bars")}>Bars</button>
-                <button type="button" aria-pressed={kind === "line"} onClick={() => setKind("line")}>Line</button>
-              </div>
+          <div className="ex-sum" aria-live="polite" aria-busy={feed.isFetching}>
+            <span className="ex-sum-label">{periodName} · You earned</span>
+            <strong className="ex-sum-value">{inr(t.net)}</strong>
+            <div className="ex-sum-grid">
+              <div><span>Jobs</span><strong>{t.count}</strong></div>
+              <div><span>Gross</span><strong>{inr(t.gross)}</strong></div>
+              <div><span>Fees</span><strong>{inr(t.commission)}</strong></div>
             </div>
-            <EarningsChart series={first.series} kind={kind} />
+            <button type="button" className="ex-pdf" onClick={() => void download()} disabled={!canDownload || downloading}>
+              {downloading ? <Loader2 size={17} className="ex-spin" aria-hidden /> : <FileText size={17} aria-hidden />}
+              {downloading ? "Preparing statement…" : "Download statement (PDF)"}
+            </button>
           </div>
 
           <div className="ex-card ex-list-card" aria-busy={feed.isFetching}>
-            <h3 className="ex-sub">All earnings</h3>
+            <div className="ex-list-head">
+              <h3 className="ex-sub">Transactions</h3>
+              <span>{total} {total === 1 ? "entry" : "entries"}</span>
+            </div>
             {rows.length === 0 ? (
               <div className="ex-empty">
                 <span aria-hidden><Inbox size={26} /></span>
@@ -187,38 +158,37 @@ export default function EarningsHistory() {
               </div>
             ) : (
               <>
-                {groups.map((g) => (
-                  <div key={g.key} className="ex-day">
-                    <h4>{dayLabel(g.key)}</h4>
-                    <ul>
-                      {g.rows.map((r) => (
-                        <li key={r.id}>
-                          <Link
-                            to={`/partner/earnings/${r.id}`}
-                            state={{ row: r }}
-                            className="ex-row"
-                            aria-label={`${r.serviceName ?? "Earning"}, ${inr(r.net)}, open details`}
-                          >
-                            <span className={`ex-row-icon ex-row-icon--${r.status}`} aria-hidden>
-                              {r.status === "settled" ? <CheckCircle2 size={18} /> : <Clock size={18} />}
-                            </span>
-                            <span className="ex-row-main">
-                              <span className="ex-row-name">{r.serviceName ?? "Service unavailable"}</span>
-                              <span className="ex-row-meta">
-                                {timeFromInstant(r.earnedAt)} · {r.status === "settled" ? "Paid out" : "Pending payout"}
-                              </span>
-                            </span>
-                            <span className="ex-row-amt">
-                              <strong>+{inr(r.net)}</strong>
-                              <small>Fee {inr(r.commission)}</small>
-                            </span>
-                            <ChevronRight size={16} className="ex-row-go" aria-hidden />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                <ul className="ex-tx">
+                  {rows.map((r) => {
+                    const d = new Date(r.earnedAt);
+                    const day = d.toLocaleDateString("en-IN", { day: "2-digit", timeZone: "Asia/Kolkata" });
+                    const mon = d.toLocaleDateString("en-IN", { month: "short", timeZone: "Asia/Kolkata" });
+                    return (
+                      <li key={r.id}>
+                        <Link
+                          to={`/partner/earnings/${r.id}`}
+                          state={{ row: r }}
+                          className="ex-tx-row"
+                          aria-label={`${r.serviceName ?? "Earning"}, ${inr(r.net)}, open details`}
+                        >
+                          <span className="ex-tx-date" aria-hidden>
+                            <b>{day}</b>
+                            <i>{mon}</i>
+                          </span>
+                          <span className="ex-tx-main">
+                            <span className="ex-tx-name">{r.serviceName ?? "Service unavailable"}</span>
+                            <span className="ex-tx-meta">{timeFromInstant(r.earnedAt)} · Booking #{r.bookingId.slice(-6).toUpperCase()}</span>
+                          </span>
+                          <span className="ex-tx-amt">
+                            <strong>+{inr(r.net)}</strong>
+                            <span className={`ex-tag ex-tag--${r.status}`}>{r.status === "settled" ? "Paid out" : "Pending"}</span>
+                          </span>
+                          <ChevronRight size={16} className="ex-row-go" aria-hidden />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
 
                 <div className="ex-end" aria-live="polite">
                   {feed.isFetchNextPageError && <p>Couldn't load more. Tap View more to try again.</p>}
@@ -228,7 +198,7 @@ export default function EarningsHistory() {
                       {feed.isFetchingNextPage ? "Loading" : `View more${left > 0 ? ` (${left} left)` : ""}`}
                     </button>
                   ) : (
-                    <p>You're all caught up · {total} {total === 1 ? "earning" : "earnings"}</p>
+                    <p>You're all caught up</p>
                   )}
                 </div>
               </>

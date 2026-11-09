@@ -36,6 +36,12 @@ export interface IPayment extends Document {
   status: PaymentStatus;
   errorReason?: string;
   paidAt?: Date;
+  /**
+   * Set once the service is done AND the money has been credited (online / QR: partner wallet + admin commission;
+   * cash on service: admin commission deducted from the partner wallet). The admin Payments page shows
+   * "Paid" only after this is set; before it a received payment still reads "Pending".
+   */
+  creditedAt?: Date | null;
   refund: { status: RefundStatus; amount?: number; requestedAt?: Date };
   createdAt: Date;
   updatedAt: Date;
@@ -55,6 +61,7 @@ const PaymentSchema = new Schema<IPayment>(
     status: { type: String, enum: PAYMENT_STATUSES, default: 'PENDING', index: true },
     errorReason: { type: String, trim: true },
     paidAt: { type: Date },
+    creditedAt: { type: Date, default: null },
     refund: {
       status: { type: String, enum: REFUND_STATUSES, default: 'none' },
       amount: { type: Number, min: 0 },
@@ -75,6 +82,7 @@ const PaymentSchema = new Schema<IPayment>(
 
 PaymentSchema.index({ bookingId: 1, status: 1 });
 PaymentSchema.index({ 'refund.status': 1 });
+PaymentSchema.index({ status: 1, creditedAt: 1 });
 
 // Reuse the compiled model on hot-reload (ts-node-dev) to avoid OverwriteModelError.
 export const PaymentModel: Model<IPayment> =
