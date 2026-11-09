@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
 
 /* =========================================================
@@ -143,6 +143,7 @@ const socials = [
 ========================================================= */
 
 const Footer: React.FC = () => {
+  const { pathname } = useLocation();
   const footerRef = useRef<HTMLElement | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -193,7 +194,11 @@ const Footer: React.FC = () => {
         <div className="grid gap-6 sm:gap-8 md:grid-cols-6 lg:gap-6">
           {/* ================= BRAND (LEFT SIDE - CLEAN WITHOUT CONTACT DETAILS) ================= */}
           <div className="ft-col md:col-span-2" style={delay(0)}>
-            <NavLink to="/" aria-label="HomeCareX Home" className="display inline-block text-2xl font-extrabold tracking-tight">
+            <NavLink
+              to={pathname === "/" ? "/about" : "/"}
+              aria-label={pathname === "/" ? "HomeCareX About" : "HomeCareX Home"}
+              className="display inline-block text-2xl font-extrabold tracking-tight"
+            >
               HOME<span className="text-[#ff8a3d]">CARE</span>X
             </NavLink>
 

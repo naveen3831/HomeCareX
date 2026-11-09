@@ -11,9 +11,14 @@ const BannerSlider = lazy(() => import("./BannerSlider"));
  * slot="middle" (default): HOME, HOME_TOP and HOME_MIDDLE banners, under the hero.
  * slot="bottom": HOME_BOTTOM banners, at the end of the page just above "Need help with your home?".
  */
-const HomeBanners: React.FC<{ className?: string; slot?: "middle" | "bottom" }> = ({
+const HomeBanners: React.FC<{
+  className?: string;
+  slot?: "middle" | "bottom";
+  heightClass?: string;
+}> = ({
   className,
   slot = "middle",
+  heightClass,
 }) => {
   const { data, isLoading, isError } = useBanners();
 
@@ -30,7 +35,7 @@ const HomeBanners: React.FC<{ className?: string; slot?: "middle" | "bottom" }> 
   return (
     <div className={className}>
       <Suspense fallback={null}>
-        <BannerSlider banners={banners} />
+        <BannerSlider banners={banners} heightClass={heightClass} />
       </Suspense>
     </div>
   );
