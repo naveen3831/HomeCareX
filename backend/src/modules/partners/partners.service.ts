@@ -346,11 +346,24 @@ export class PartnersService {
 
   const profiles = await PartnerModel.find({
     userId: { $in: partners.map((p) => p._id) },
-  }).select('userId kyc.status').lean();
+  }).select('userId kyc.status categories').lean();
+
+  // Self-registered partners have no User.designation, so the list falls back to their service categories.
+  const categoryIds = [...new Set(profiles.flatMap((profile) => (profile.categories ?? []).map(String)))];
+  const categoryDocs = categoryIds.length
+    ? await CategoryModel.find({ _id: { $in: categoryIds } }).select('name').lean()
+    : [];
+  const categoryNameById = new Map(categoryDocs.map((c) => [String(c._id), c.name as string]));
+  const categoryLabelByUser = new Map<string, string>();
 
   for (const profile of profiles) {
     const status = String(profile.kyc?.status ?? 'not_started');
     kycByUser.set(String(profile.userId), status === 'not_submitted' ? 'not_started' : status);
+    const label = (profile.categories ?? [])
+      .map((id) => categoryNameById.get(String(id)))
+      .filter(Boolean)
+      .join(', ');
+    if (label) categoryLabelByUser.set(String(profile.userId), label);
   }
 
   for (const partner of partners) {
@@ -364,7 +377,10 @@ export class PartnersService {
     }
   }
 
-  return partners.map((p) => toDto(p, kycByUser.get(String(p._id))));
+  return partners.map((p) => ({
+    ...toDto(p, kycByUser.get(String(p._id))),
+    displayDesignation: p.designation?.trim() || categoryLabelByUser.get(String(p._id)) || undefined,
+  }));
 }
   /**
    * PARTNERS & KYC DIRECTORY

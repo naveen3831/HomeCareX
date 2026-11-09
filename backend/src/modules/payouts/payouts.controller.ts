@@ -5,6 +5,7 @@ import { sendSuccess } from '../../utils/response';
 
 import { payoutsService } from './payouts.service';
 import { adminWalletLedger } from './payouts.ledger';
+import { adminLedgerReport } from './payouts.ledger-report';
 
 const getIp = (req: Request): string =>
   req.ip || req.socket.remoteAddress || 'unknown';
@@ -172,6 +173,37 @@ export const payoutsController = {
     sendSuccess(res, result.items, {
       meta: { pagination: result.pagination, total: result.total },
     });
+  },
+
+  /**
+   * GET /admin/payout-wallet/ledger?frequency=daily|weekly&from=YYYY-MM-DD&to=YYYY-MM-DD
+   *
+   * Credit / debit report: per day or week, what the admin received and what was credited to / debited from partner wallets.
+   */
+  async adminLedger(req: Request, res: Response) {
+    sendSuccess(
+      res,
+      await adminLedgerReport.summary({
+        frequency: str(req.query.frequency),
+        from: str(req.query.from),
+        to: str(req.query.to),
+      }),
+    );
+  },
+
+  /**
+   * GET /admin/payout-wallet/ledger/lines?from&to&page&limit
+   *
+   * The individual services behind one ledger period.
+   */
+  async adminLedgerLines(req: Request, res: Response) {
+    const result = await adminLedgerReport.lines({
+      from: str(req.query.from),
+      to: str(req.query.to),
+      page: num(req.query.page),
+      limit: num(req.query.limit),
+    });
+    sendSuccess(res, result.items, { meta: { pagination: result.pagination } });
   },
 
   /**

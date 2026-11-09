@@ -229,3 +229,17 @@
 }
 @media (max-width: 420px) { .pay-total { padding: 12px; gap: 10px; } .pay-total__icon { width: 36px; height: 36px; } .pay-total__value { font-size: 18px; } }
 @media (prefers-reduced-motion: reduce) { .pay-spin, .pay-skeleton td span, .pdx-skeleton, .pay-sheet-overlay, .pay-sheet { animation: none; } }
+
+/* Settlement pill */
+.pay-settle { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px 3px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--canvas); color: var(--ink); font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+.pay-settle__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); }
+.pay-settle--credited { color: #15803d; background: #ecfdf3; border-color: #bbf7d0; }
+.pay-settle--credited .pay-settle__dot { background: #16a34a; }
+.pay-settle--awaiting-service, .pay-settle--cash-pending, .pay-settle--processing { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+.pay-settle--awaiting-service .pay-settle__dot, .pay-settle--cash-pending .pay-settle__dot, .pay-settle--processing .pay-settle__dot { background: #d97706; }
+.pay-settle--cash-collected { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.pay-settle--cash-collected .pay-settle__dot { background: #2563eb; }
+.pay-settle--commission-deducted { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.pay-settle--commission-deducted .pay-settle__dot { background: #2563eb; }
+.pay-settle--refunded { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
+.pay-settle--refunded .pay-settle__dot { background: #7c3aed; }

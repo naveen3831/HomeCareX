@@ -11,6 +11,7 @@ import type {
 
 import { BookingActionPanel } from "@/components/admin/BookingActionPanel";
 import { NotificationBell } from "@/components/admin/NotificationBell";
+import { StartMediaGallery } from "@/components/admin/StartMediaGallery";
 
 import type { TimelineItem } from "@/components/admin/Timeline";
 
@@ -992,6 +993,8 @@ export const BookingDrawer: React.FC<BookingDrawerProps> = ({
                   </div>
                 </div>
               </section>
+
+              <StartMediaGallery bookingId={booking.id} items={booking.startMedia ?? []} />
 
               <section className="bd__card">
                 <div className="bd__card-h">

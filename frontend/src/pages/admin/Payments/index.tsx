@@ -64,7 +64,7 @@ const FILTER_FIELDS: FilterField[] = [
 ];
 
 const TOTALS = [
-  { status: 'PAID', icon: CheckCircle2, label: 'Collected' },
+  { status: 'PAID', icon: CheckCircle2, label: 'Paid' },
   { status: 'PENDING', icon: Clock3, label: 'Pending' },
   { status: 'FAILED', icon: XCircle, label: 'Failed' },
   { status: 'REFUNDED', icon: Undo2, label: 'Refunded' },
@@ -169,7 +169,7 @@ export const AdminPaymentsPageView: React.FC = () => {
       <header className="pay-head">
         <div>
           <h1 className="pay-head__title">Payments</h1>
-          <p className="pay-head__desc">Every Razorpay checkout attempt, read-only.</p>
+          <p className="pay-head__desc">Every customer payment. A payment shows Pending until the service is completed and the amount is credited, then it shows Paid.</p>
         </div>
       </header>
 
@@ -304,7 +304,11 @@ export const AdminPaymentsPageView: React.FC = () => {
                           <td><code className="pay-mono">{p.bookingRef}</code></td>
                           <td className="pay-num pay-amount">{formatMoney(p.amount, p.currency)}</td>
                           <td><span className="pay-method">{methodLabel(p.method)}</span></td>
-                          <td><StatusBadge status={p.status} /></td>
+                          <td>
+                            <span title={p.customerPaid && p.status === 'PENDING' ? 'Customer has paid. Shows Paid once the service is completed and the amount is credited.' : undefined}>
+                              <StatusBadge status={p.status} />
+                            </span>
+                          </td>
                           <td>
                             <code className="pay-mono pay-clip" title={p.razorpayOrderId}>{p.razorpayOrderId}</code>
                             <code className="pay-mono pay-clip pay-sub" title={p.razorpayPaymentId ?? ''}>

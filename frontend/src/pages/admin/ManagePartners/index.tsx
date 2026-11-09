@@ -59,7 +59,7 @@ export const AdminManagePartnersPage: React.FC = () => {
     const needle = search.trim().toLowerCase();
     if (!needle) return partners;
     return partners.filter((p) =>
-      [p.name, p.designation, p.email, p.phone].some((v) => (v ?? '').toLowerCase().includes(needle)),
+      [p.name, p.designation, p.displayDesignation, p.email, p.phone].some((v) => (v ?? '').toLowerCase().includes(needle)),
     );
   }, [partners, search]);
   const pager = usePagination(visiblePartners, { resetKey: search });
@@ -162,7 +162,7 @@ const loadAll = useCallback(async () => {
                   <span className="mp-avatar" aria-hidden>{initials(s.name)}</span>
                   <div className="mp-card__who">
                     <span className="mp-card__name">{s.name}</span>
-                    <span className="mp-card__role">{s.designation ?? 'No designation'}</span>
+                    <span className="mp-card__role">{s.designation?.trim() || s.displayDesignation || 'No designation'}</span>
                   </div>
                   <PartnerStatus partner={s} />
                 </div>
@@ -214,7 +214,7 @@ const loadAll = useCallback(async () => {
                   pager.pageItems.map((s) => (
                     <tr key={s.id}>
                       <td>{s.name}</td>
-                      <td>{s.designation?.trim() || '—'}</td>
+                      <td>{s.designation?.trim() || s.displayDesignation || '—'}</td>
                       <td>{s.email}</td>
                       <td>{s.phone ?? '—'}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</td>

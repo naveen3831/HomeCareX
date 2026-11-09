@@ -582,7 +582,7 @@
 .tx-icon-incentive, .tx-type-incentive { background: #fff3e4; color: #b45309; }
 .tx-icon-payout, .tx-type-payout { background: #e9f7f0; color: #12805c; }
 .tx-icon-adjustment, .tx-type-adjustment { background: #f0f1f5; color: #565a70; }
-.tx-icon-refund_deduction, .tx-type-refund_deduction { background: #fdeeee; color: #c23a3a; }
+.tx-icon-commission_deduction, .tx-type-commission_deduction, .tx-icon-refund_deduction, .tx-type-refund_deduction { background: #fdeeee; color: #c23a3a; }
 
 /* ---------- empty / loading ---------- */
 
