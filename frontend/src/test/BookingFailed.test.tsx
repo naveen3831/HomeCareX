@@ -116,4 +116,49 @@ describe("BookingFailed Redesigned Component", () => {
     fireEvent.click(slotBtn);
     expect(mockNavigate).toHaveBeenCalledWith("/customer/book/deep-cleaning?step=3", { replace: true });
   });
+
+  it("renders Retry Limit Exceeded with Retry Payment completely removed when reason is max_retries", () => {
+    render(
+      <MemoryRouter initialEntries={["/customer/booking/failed/BK-1D919?reason=max_retries"]}>
+        <Routes>
+          <Route path="/customer/booking/failed/:id" element={<BookingFailed />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { level: 1, name: /Retry Limit Exceeded/i })).toBeInTheDocument();
+    expect(screen.getByText(/You have reached the maximum of 3 payment retries/i)).toBeInTheDocument();
+    expect(screen.getByText(/No more payment attempts are allowed for this transaction/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Retry Payment/i })).not.toBeInTheDocument();
+    const startNewBtn = screen.getByRole("link", { name: /Start a New Booking/i });
+    expect(startNewBtn).toBeInTheDocument();
+    expect(startNewBtn).toHaveAttribute("href", "/customer/services");
+    expect(screen.getByRole("link", { name: /View My Bookings/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Return to Home/i })).toBeInTheDocument();
+  });
+
+  it("clears draft when Start a New Booking is clicked on max_retries failure page", () => {
+    useBookingDraftStore.setState({
+      serviceSlug: "deep-cleaning",
+      serviceId: "srv_deep_1",
+      currentStep: 4,
+      bookingId: "BK-1D919",
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/customer/booking/failed/BK-1D919?reason=max_retries"]}>
+        <Routes>
+          <Route path="/customer/booking/failed/:id" element={<BookingFailed />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const startNewBtn = screen.getByRole("link", { name: /Start a New Booking/i });
+    fireEvent.click(startNewBtn);
+
+    const draft = useBookingDraftStore.getState();
+    expect(draft.serviceId).toBeNull();
+    expect(draft.bookingId).toBeNull();
+    expect(draft.currentStep).toBe(1);
+  });
 });

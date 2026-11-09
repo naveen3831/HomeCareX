@@ -1,9 +1,8 @@
 import { useState, type ComponentType, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import clsx from "clsx";
 import {
   Activity,
-  ArrowLeft,
   CalendarDays,
   CalendarClock,
   ChevronRight,
@@ -254,31 +253,9 @@ function DetailsBody({
   const [mobileTab, setMobileTab] = useState<"overview" | "details" | "actions">("overview");
   const [imgFailed, setImgFailed] = useState(false);
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
-
-  const navigate = useNavigate();
   const location = useLocation();
 
-  const handleBack = () => {
-    if (location.state?.from) {
-      if (location.state.from === customerPath("/tracking") || location.state.from.includes("/payments")) {
-        if (window.history.length > 1) {
-          navigate(-1);
-        } else {
-          navigate(location.state.from, {
-            replace: true,
-            state: { origin: location.state?.origin },
-          });
-        }
-      } else {
-        navigate(location.state.from);
-      }
-    } else if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      navigate(customerPath("/bookings"));
-    }
-  };
-
+  
   const bookingId = String(booking._id || (booking as { id?: string }).id || "");
   const normalizedStatus = String(booking.status || "").toLowerCase();
   const pill = statusPill(booking);
@@ -364,23 +341,7 @@ function DetailsBody({
     <>
       {isMobile ? (
         /* Mobile Redesign (Overview | Details | Actions) */
-        <div className="space-y-3.5 md:hidden">
-          {/* Mobile Header: Sticky / Not scrollable / Not movable */}
-          <div className="sticky top-0 z-30 -mx-4 -mt-6 mb-1 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-[0_2px_8px_rgba(0,0,0,0.03)] px-4 py-2.5">
-            <div className="relative flex items-center justify-center h-10 w-full">
-              <button
-                type="button"
-                onClick={handleBack}
-                aria-label="Back"
-                className="absolute left-0 inline-flex h-9 w-9 items-center justify-center rounded-xl text-slate-800 transition hover:bg-slate-100 active:scale-95"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <h1 className="text-[17px] font-bold text-slate-900 tracking-tight text-center">
-                Booking Details
-              </h1>
-            </div>
-          </div>
+        <div className="-mt-2 space-y-3.5 md:hidden">
 
           {/* Segmented 3-Tab Bar: Equal width/height, perfectly centered labels */}
           <div className="grid grid-cols-3 rounded-2xl bg-[#f4f5f8] p-1.5 gap-1">

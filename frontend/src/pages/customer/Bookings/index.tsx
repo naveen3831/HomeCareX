@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ChevronRight, Plus } from "lucide-react";
 import clsx from "clsx";
 import { EmptyState, ErrorState, OfflineState } from "@/components/customer";
 import { Pagination } from "@/components/customer/catalog/Pagination";
@@ -31,8 +31,6 @@ import { useBookingsUrlState } from "./useBookingsUrlState";
 const PANEL_ID = "bookings-panel";
 
 export default function MyBookingsPage() {
-  const navigate = useNavigate();
- const location = useLocation();
   const {
     state,
     hasFilters,
@@ -73,18 +71,6 @@ export default function MyBookingsPage() {
     if (!isPlaceholderData && totalPages > 0 && state.page > totalPages)
       setPage(totalPages, true);
   }, [isPlaceholderData, totalPages, state.page, setPage]);
-
-  // Go back to referring page (Home or Profile) if available, otherwise Home.
-  const goBack = () => {
-    const from =
-      (location.state as { from?: string; origin?: string })?.from ||
-      (location.state as { from?: string; origin?: string })?.origin;
-    if (from && !from.includes("/bookings")) {
-      navigate(from);
-      return;
-    }
-    navigate(customerPath());
-  };
 
   /** Pay-now strip and the payment result for one booking. Kept here so payment state lives in one place. */
   const renderFooter = (b: BookingListItem): ReactNode => {
@@ -273,26 +259,11 @@ export default function MyBookingsPage() {
 
   return (
     <div className="w-full min-w-0">
-      {/* Mobile-only Header (md:hidden) */}
-      <div className="space-y-3 md:hidden">
-        <div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={goBack}
-              aria-label="Back to Profile"
-              className="-ml-1.5 flex h-9 w-9 items-center justify-center rounded-xl text-slate-900 transition-all hover:bg-slate-100 active:scale-95"
-            >
-              <ChevronLeft className="h-6 w-6 stroke-[2.5]" aria-hidden="true" />
-            </button>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              My Bookings
-            </h1>
-          </div>
-          <p className="mt-1 pl-1 text-xs sm:text-sm text-slate-500 font-normal">
-            Manage and track your service bookings
-          </p>
-        </div>
+      {/* Mobile Subheader & Actions (md:hidden) */}
+      <div className="-mt-2 mb-4 space-y-3 md:hidden">
+        <p className="text-xs sm:text-sm text-slate-500 font-normal">
+          Manage and track your service bookings
+        </p>
 
         {/* Full-width Book a service button */}
         <Link

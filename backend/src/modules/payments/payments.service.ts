@@ -9,7 +9,7 @@ import { getRazorpay } from '../../integrations/razorpay';
 import { AppError } from '../../utils/AppError';
 import { BOOKING_HOLD_MS, BOOKING_STATUS } from '../bookings/bookings.constants';
 import { withSlotLock } from '../bookings/bookings.lock';
-import { PAYMENT_MAX_ATTEMPTS, WEBHOOK_EVENTS, codOrderId, isCodOnlinePayableStatus } from './payments.constants';
+import { PAYMENT_MAX_ATTEMPTS, PAYMENT_MAX_TOTAL_ATTEMPTS, PAYMENT_MAX_RETRIES, WEBHOOK_EVENTS, codOrderId, isCodOnlinePayableStatus } from './payments.constants';
 import { toPaise, verifyCheckoutSignature, verifyWebhookSignature } from './payments.crypto';
 import { settleCapturedPayment, type SettleOutcome } from './payments.settle';
 import type { ListQuery } from './payments.validation';
@@ -99,14 +99,28 @@ export const paymentsService = {
     // Serialise per booking so a double click can never create two Razorpay orders.
     return withSlotLock(`payment-order:${bookingId}`, async () => {
       const booking = await loadOwnedBooking(bookingId, customerId);
-      const totalInr = await assertOrderable(booking);
-      await BookingModel.updateOne({ _id: booking._id, 'paymentDetails.status': 'FAILED' }, { $set: { 'paymentDetails.status': 'PENDING' } });
 
+      // Check payment retry limit FIRST before any slot/hold checks
       const history = await PaymentModel.find({ bookingId: booking._id, razorpayOrderId: { $not: /^cod_/ } }).select('attempts').lean();
       const used = history.reduce((sum, p) => sum + (p.attempts ?? 0), 0);
-      if (used >= PAYMENT_MAX_ATTEMPTS) {
-        throw new AppError(429, 'PAYMENT_ATTEMPTS_EXCEEDED', 'Too many payment attempts for this booking. Please start a new booking.');
+      if (used >= PAYMENT_MAX_TOTAL_ATTEMPTS || booking.paymentStatus === 'FAILED') {
+        await PaymentModel.updateMany(
+          { bookingId: booking._id, status: 'PENDING' },
+          { $set: { status: 'FAILED', errorReason: 'Maximum payment retries exceeded' } },
+        );
+        await BookingModel.updateOne(
+          { _id: booking._id },
+          { $set: { paymentStatus: 'FAILED', 'paymentDetails.status': 'FAILED' } },
+        );
+        throw new AppError(
+          429,
+          'PAYMENT_RETRY_LIMIT_EXCEEDED',
+          'You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.',
+        );
       }
+
+      const totalInr = await assertOrderable(booking);
+      await BookingModel.updateOne({ _id: booking._id, 'paymentDetails.status': 'FAILED' }, { $set: { 'paymentDetails.status': 'PENDING' } });
 
       // Fresh hold window for every attempt.
       await BookingModel.updateOne(
@@ -118,12 +132,11 @@ export const paymentsService = {
       const prefill = { name: user?.name ?? '', email: user?.email ?? '', contact: user?.phone ?? '' };
       const keyId = process.env.RAZORPAY_KEY_ID;
 
-      // Retry after cancel/failure reuses the still-open order.
-      const open = await PaymentModel.findOne({ bookingId: booking._id, status: 'PENDING', razorpayOrderId: { $not: /^cod_/ } }).sort({ createdAt: -1 });
-      if (open && toPaise(open.amount) === toPaise(totalInr)) {
-        await PaymentModel.updateOne({ _id: open._id }, { $inc: { attempts: 1 } });
-        return { orderId: open.razorpayOrderId, amount: toPaise(totalInr), currency: 'INR', keyId, prefill, attempt: used + 1 };
-      }
+      // Close / supersede any previous pending orders so that retries always create a fresh Razorpay order
+      await PaymentModel.updateMany(
+        { bookingId: booking._id, status: 'PENDING', razorpayOrderId: { $not: /^cod_/ } },
+        { $set: { status: 'FAILED', errorReason: 'Superseded by fresh payment attempt' } },
+      );
 
       let order: { id: string; amount: number | string; currency: string };
       try {
@@ -144,7 +157,7 @@ export const paymentsService = {
         amount: totalInr,
         currency: 'INR',
         status: 'PENDING',
-        attempts: 1,
+        attempts: 0,
       });
       await BookingModel.updateOne({ _id: booking._id }, { $set: { 'paymentDetails.orderId': order.id } });
 
@@ -227,10 +240,30 @@ export const paymentsService = {
   async recordAttempt(customerId: string, body: { bookingId: string; orderId?: string; kind: 'CANCELLED' | 'FAILED'; reason?: string }) {
     await loadOwnedBooking(body.bookingId, customerId);
     await PaymentModel.updateOne(
-      { bookingId: body.bookingId, status: 'PENDING', ...(body.orderId ? { razorpayOrderId: body.orderId } : {}) },
-      { $set: { errorReason: `${body.kind}: ${body.reason ?? 'no reason'}` } },
+      { bookingId: body.bookingId, ...(body.orderId ? { razorpayOrderId: body.orderId } : {}) },
+      {
+        $set: {
+          errorReason: `${body.kind}: ${body.reason ?? 'no reason'}`,
+          status: 'FAILED',
+        },
+        ...(body.kind === 'FAILED' ? { $inc: { attempts: 1 } } : {}),
+      },
     );
-    if (body.kind === 'FAILED') await markPaymentFailed(body.bookingId);
+    if (body.kind === 'FAILED') {
+      await markPaymentFailed(body.bookingId);
+      const history = await PaymentModel.find({ bookingId: body.bookingId, razorpayOrderId: { $not: /^cod_/ } }).select('attempts').lean();
+      const used = history.reduce((sum, p) => sum + (p.attempts ?? 0), 0);
+      if (used >= PAYMENT_MAX_TOTAL_ATTEMPTS) {
+        await PaymentModel.updateMany(
+          { bookingId: body.bookingId, status: 'PENDING' },
+          { $set: { status: 'FAILED', errorReason: 'Maximum payment retries exceeded' } },
+        );
+        await BookingModel.updateOne(
+          { _id: body.bookingId },
+          { $set: { paymentStatus: 'FAILED', 'paymentDetails.status': 'FAILED' } },
+        );
+      }
+    }
   },
 
   /** Public callback from Razorpay mobile redirect flow. Authenticated by HMAC signature. */
@@ -259,19 +292,45 @@ export const paymentsService = {
     if (!paymentId || !signature || errorReason) {
       const reason = errorReason || 'Payment not completed';
       if (payment) {
-        await PaymentModel.updateOne({ _id: payment._id, status: 'PENDING' }, { $set: { errorReason: `FAILED: ${reason}` } });
+        await PaymentModel.updateOne({ _id: payment._id }, { $set: { status: 'FAILED', errorReason: `FAILED: ${reason}` }, $inc: { attempts: 1 } });
       }
       await markPaymentFailed(bookingId);
-      return { success: false, bookingId, reason: 'cancelled' };
+      const history = await PaymentModel.find({ bookingId, razorpayOrderId: { $not: /^cod_/ } }).select('attempts').lean();
+      const used = history.reduce((sum, p) => sum + (p.attempts ?? 0), 0);
+      if (used >= PAYMENT_MAX_TOTAL_ATTEMPTS) {
+        await PaymentModel.updateMany(
+          { bookingId, status: 'PENDING' },
+          { $set: { status: 'FAILED', errorReason: 'Maximum payment retries exceeded' } },
+        );
+        await BookingModel.updateOne(
+          { _id: bookingId },
+          { $set: { paymentStatus: 'FAILED', 'paymentDetails.status': 'FAILED' } },
+        );
+        return { success: false, bookingId, reason: 'max_retries' };
+      }
+      return { success: false, bookingId, reason: 'failed' };
     }
 
     // Verify HMAC signature
     const secret = process.env.RAZORPAY_KEY_SECRET ?? '';
     if (!verifyCheckoutSignature(orderId, paymentId, signature, secret)) {
       if (payment) {
-        await PaymentModel.updateOne({ _id: payment._id }, { $set: { errorReason: 'Invalid signature' } });
+        await PaymentModel.updateOne({ _id: payment._id }, { $inc: { attempts: 1 }, $set: { errorReason: 'Invalid signature' } });
       }
       await markPaymentFailed(bookingId);
+      const history = await PaymentModel.find({ bookingId, razorpayOrderId: { $not: /^cod_/ } }).select('attempts').lean();
+      const used = history.reduce((sum, p) => sum + (p.attempts ?? 0), 0);
+      if (used >= PAYMENT_MAX_TOTAL_ATTEMPTS) {
+        await PaymentModel.updateMany(
+          { bookingId, status: 'PENDING' },
+          { $set: { status: 'FAILED', errorReason: 'Maximum payment retries exceeded' } },
+        );
+        await BookingModel.updateOne(
+          { _id: bookingId },
+          { $set: { paymentStatus: 'FAILED', 'paymentDetails.status': 'FAILED' } },
+        );
+        return { success: false, bookingId, reason: 'max_retries' };
+      }
       return { success: false, bookingId, reason: 'verification' };
     }
 
@@ -613,7 +672,7 @@ export const paymentsService = {
     customerId: string,
     params: {
       orderId: string;
-      bookingId: string;
+      bookingId?: string;
       paymentId: string;
       callbackUrl: string;
       outcome: 'S' | 'F';
@@ -627,7 +686,8 @@ export const paymentsService = {
     }
 
     const { orderId, bookingId, paymentId, callbackUrl, outcome } = params;
-    const booking = await loadOwnedBooking(bookingId, customerId);
+    const isBookingValid = Boolean(bookingId && Types.ObjectId.isValid(bookingId));
+    const booking = isBookingValid ? await loadOwnedBooking(bookingId!, customerId) : null;
 
     let resolvedPaymentId = paymentId || '';
     if (!resolvedPaymentId && orderId) {
@@ -704,31 +764,33 @@ export const paymentsService = {
       const signature = createHmac('sha256', keySecret).update(`${orderId}|${resolvedPaymentId}`).digest('hex');
 
       // Atomically settle the payment in database upon mock bank success
-      const payment = await PaymentModel.findOne({ razorpayOrderId: orderId, bookingId: booking._id });
-      if (payment) {
-        await settleCapturedPayment({
-          payment,
-          paymentId: resolvedPaymentId,
-          signature,
-          method: 'netbanking',
-          actor: { role: 'customer', id: customerId },
-          reason: 'Payment verified via test mock bank outcome',
-        });
-      } else {
-        await BookingModel.updateOne(
-          { _id: booking._id },
-          {
-            $set: {
-              paymentStatus: 'PAID',
-              status: BOOKING_STATUS.CONFIRMED,
-              'paymentDetails.status': 'PAID',
-              'paymentDetails.paymentId': resolvedPaymentId,
-              'paymentDetails.orderId': orderId,
-              'paymentDetails.method': 'netbanking',
-              'paymentDetails.paidAt': new Date(),
+      if (booking) {
+        const payment = await PaymentModel.findOne({ razorpayOrderId: orderId, bookingId: booking._id });
+        if (payment) {
+          await settleCapturedPayment({
+            payment,
+            paymentId: resolvedPaymentId,
+            signature,
+            method: 'netbanking',
+            actor: { role: 'customer', id: customerId },
+            reason: 'Payment verified via test mock bank outcome',
+          });
+        } else {
+          await BookingModel.updateOne(
+            { _id: booking._id },
+            {
+              $set: {
+                paymentStatus: 'PAID',
+                status: BOOKING_STATUS.CONFIRMED,
+                'paymentDetails.status': 'PAID',
+                'paymentDetails.paymentId': resolvedPaymentId,
+                'paymentDetails.orderId': orderId,
+                'paymentDetails.method': 'netbanking',
+                'paymentDetails.paidAt': new Date(),
+              },
             },
-          },
-        );
+          );
+        }
       }
 
       return { success: true, status: 'captured', paymentId: resolvedPaymentId, signature };
@@ -773,11 +835,13 @@ export const paymentsService = {
       }
 
       // Mark payment attempt as failed in DB, do NOT confirm booking
-      await PaymentModel.updateOne(
-        { razorpayOrderId: orderId, bookingId: booking._id },
-        { $set: { status: 'FAILED', errorReason: 'FAILED: Customer clicked Failure on mock bank page' } },
-      );
-      await markPaymentFailed(bookingId);
+      if (booking) {
+        await PaymentModel.updateOne(
+          { razorpayOrderId: orderId, bookingId: booking._id },
+          { $set: { status: 'FAILED', errorReason: 'FAILED: Customer clicked Failure on mock bank page' } },
+        );
+        await markPaymentFailed(bookingId!);
+      }
 
       return { success: false, status: 'failed', paymentId: resolvedPaymentId };
     }
