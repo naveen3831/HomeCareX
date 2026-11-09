@@ -173,7 +173,7 @@ const Contact: React.FC = () => {
                 <ArrowRight aria-hidden="true" size={17} className="cx-channel__arrow" />
               </a>
             ))}
-          </div>
+          </aside>
         </div>
       </section>
 

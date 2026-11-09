@@ -464,7 +464,7 @@ export const ServicesPage: React.FC = () => {
                   id={service.slug}
                   image={image}
                   fallbackImage={fallback}
-                  category={service.category.name}
+                  category={service.category?.name ?? "Home Service"}
                   name={service.name}
                   rating={service.rating}
                   price={service.basePrice}

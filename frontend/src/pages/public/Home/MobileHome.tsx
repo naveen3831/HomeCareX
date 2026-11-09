@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { AuthContext } from "@/context/AuthContext";
 import { fetchPublicReviews } from "@/services/reviewsApi";
+import HomeBanners from "../../../components/public/HomeBanners";
 
 /* =========================================================
    CUSTOM CATEGORY ICONS MATCHING MOCKUP DESIGN
