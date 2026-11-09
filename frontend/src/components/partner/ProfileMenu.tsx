@@ -55,6 +55,14 @@ function MenuGroup({ title, items }: { title: string; items: MenuItem[] }) {
           <li key={key}>
             <Link
               to={to}
+              onClick={() => {
+                // Lets the layout's back button return here, even for pages that are also bottom tabs (My jobs).
+                try {
+                  window.sessionStorage.setItem("hcx:partner:fromProfile", "1");
+                } catch {
+                  /* storage unavailable */
+                }
+              }}
               className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#4338ca] sm:px-4 sm:py-3"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50">

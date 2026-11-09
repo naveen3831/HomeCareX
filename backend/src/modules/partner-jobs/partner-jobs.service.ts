@@ -6,6 +6,9 @@ import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
 import { emitJobCompleted } from "../events/eventBus";
+import { PaymentModel } from "../../models/Payment";
+import { codOrderId } from "../payments/payments.constants";
+import { settleEarningForBooking } from "../earnings/earnings.settle";
 import { getIOIfReady, rooms } from "../../sockets";
 import { ensurePartnerProfile } from "../partners/partners.service";
 import {
@@ -13,6 +16,7 @@ import {
   type JobBookingDoc,
 } from "./partner-jobs.repository";
 import { isPartnerTarget } from "./partner-jobs.validation";
+import { deleteJobMedia, saveJobMedia, type IncomingMedia } from "./job-media-storage";
 import type {
   JobActionDto,
   JobAddOnDto,
@@ -519,6 +523,27 @@ export const partnerJobsService = {
       if (!applied) {
         throw invalid("This job was already updated. Refresh to see its latest status");
       }
+
+      // Keep the admin Payments page in step: the Cash-on-Service payment row is now collected.
+      // cash  -> stays "cod" (the partner holds the money)
+      // upi   -> the customer paid the platform through the QR code, so it is an online (UPI) payment
+      await PaymentModel.updateOne(
+        { razorpayOrderId: codOrderId(bookingId), status: "PENDING" },
+        { $set: { status: "PAID", method: method === "cash" ? "cod" : "upi", paidAt: now }, $unset: { errorReason: 1 } },
+      );
+
+      // Settle now that the money is collected:
+      //   cash -> admin commission is cut from the partner wallet
+      //   QR   -> online process: partner net goes to the wallet, admin keeps the commission
+      // Idempotent. A failure here must not undo the collection; the repair script / next call settles it.
+      try {
+        const settled = await settleEarningForBooking(bookingId);
+        if (!settled.settled) {
+          console.warn(`[collect-payment] Booking ${bookingId} collected but not settled (${settled.reason})`);
+        }
+      } catch (error) {
+        console.error(`[collect-payment] Settlement failed for booking ${bookingId}`, error);
+      }
     }
 
     const fresh = await repo.findBooking(bookingId);
@@ -683,6 +708,7 @@ export const partnerJobsService = {
     bookingId: string,
     otp: string,
     now: Date = new Date(),
+    media: IncomingMedia[] = [],
   ): Promise<JobDetailDto> {
     const { partner, booking } = await loadOwnedBooking(
       userId,
@@ -749,14 +775,15 @@ export const partnerJobsService = {
       now,
     );
 
-    const applied = await repo.verifyStartJob(
-      bookingId,
-      partner._id,
-      entry,
-      now,
-    );
+    // Files are checked and saved only after the code is right, so a wrong code stores nothing.
+    const stored = await saveJobMedia(media);
+
+    const applied = stored.length
+      ? await repo.verifyStartJob(bookingId, partner._id, entry, now, stored)
+      : await repo.verifyStartJob(bookingId, partner._id, entry, now);
 
     if (!applied) {
+      await deleteJobMedia(stored.map((m) => m.key));
       throw invalid(
         "This job was already updated. Refresh to see its latest status",
       );

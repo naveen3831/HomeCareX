@@ -233,6 +233,42 @@ function PayoutDetails({
   );
 }
 
+function StatIcon({ tone }: { tone: 'paid' | 'progress' | 'failed' }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 2.2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true,
+  };
+
+  if (tone === 'paid') {
+    return (
+      <svg {...common}>
+        <path d="M5 12.5l4.5 4.5L19 7.5" />
+      </svg>
+    );
+  }
+  if (tone === 'progress') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...common}>
+      <path d="M12 8v5M12 16.5v.01" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
+
 function Stat({
   label,
   value,
@@ -246,10 +282,10 @@ function Stat({
 }) {
   return (
     <article className={`stat stat--${tone}`}>
-      <span className="stat__label">
-        <span className="stat__pip" aria-hidden="true" />
-        {label}
+      <span className="stat__icon">
+        <StatIcon tone={tone} />
       </span>
+      <span className="stat__label">{label}</span>
       <strong className="stat__value">{value}</strong>
       <span className="stat__hint">{hint}</span>
     </article>
@@ -262,10 +298,7 @@ export default function Payouts() {
   const [error, setError] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [filter, setFilter] = useState<Filter>('all');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<Payout['id'] | null>(null);
-
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -301,31 +334,9 @@ export default function Payouts() {
     };
   }, [load]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const handleMouseDown = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false);
-    };
-
-    document.addEventListener('mousedown', handleMouseDown);
-    document.addEventListener('keydown', handleKeyDown);
-
-    return () => {
-      document.removeEventListener('mousedown', handleMouseDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [menuOpen]);
-
   const closeDetails = useCallback(() => setSelectedId(null), []);
 
- const history = useMemo(() => data?.history ?? [], [data?.history]);
+  const history = useMemo(() => data?.history ?? [], [data?.history]);
   const selected =
     selectedId === null ? undefined : history.find(p => p.id === selectedId);
 
@@ -509,58 +520,24 @@ export default function Payouts() {
                   <h2 id="history-title">Payout history</h2>
                 </div>
 
-                <div className="filter-wrapper" ref={menuRef}>
-                  <button
-                    type="button"
-                    className={`filter-btn ${filter !== 'all' ? 'filter-btn--active' : ''}`}
-                    aria-haspopup="menu"
-                    aria-expanded={menuOpen}
-                    aria-label={`Filter payouts (showing ${filterLabel(filter)})`}
-                    onClick={() => setMenuOpen(open => !open)}
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4" />
-                    </svg>
-                  </button>
+                <span className="history__count">
+                  {rows.length} {rows.length === 1 ? 'payout' : 'payouts'}
+                </span>
+              </div>
 
-                  {menuOpen && (
-                    <ul
-                      className="filter-menu"
-                      role="menu"
-                      aria-label="Filter payouts"
-                    >
-                      {FILTERS.map(status => (
-                        <li key={status} role="none">
-                          <button
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={filter === status}
-                            className={`filter-item ${filter === status ? 'filter-item--active' : ''}`}
-                            onClick={() => {
-                              setFilter(status);
-                              setMenuOpen(false);
-                            }}
-                          >
-                            <span>{filterLabel(status)}</span>
-                            <span className="filter-item__count">
-                              {count(status)}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
+              <div className="chips" role="group" aria-label="Filter payouts">
+                {FILTERS.map(status => (
+                  <button
+                    key={status}
+                    type="button"
+                    className={`chip ${filter === status ? 'chip--active' : ''}`}
+                    aria-pressed={filter === status}
+                    onClick={() => setFilter(status)}
+                  >
+                    {filterLabel(status)}
+                    <span className="chip__count">{count(status)}</span>
+                  </button>
+                ))}
               </div>
 
               {rows.length === 0 ? (

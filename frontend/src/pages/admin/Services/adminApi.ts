@@ -7,6 +7,8 @@ export interface PartnerMember {
   phone?: string;
   gender?: 'male' | 'female' | 'other';
   designation?: string;
+  /** Designation, or the partner's service categories when none was set (self-registered partners). Display only. */
+  displayDesignation?: string;
   /** Login account state (User.status). */
   status: 'active' | 'blocked' | 'invited';
   /** Partner profile KYC state; drives the status badge in the list. */

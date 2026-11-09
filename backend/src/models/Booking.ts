@@ -107,6 +107,14 @@ export interface IBooking extends Document {
   requestHash?: string;
   holdExpiresAt?: Date;
   startedAt?: Date;
+  /** Photos / videos the partner added when starting the job. Served to admins only. */
+  startMedia?: Array<{
+    key: string;
+    mimeType: string;
+    kind: 'image' | 'video';
+    size: number;
+    uploadedAt: Date;
+  }>;
   completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -230,6 +238,19 @@ const BookingSchema = new Schema<IBooking>(
       end: { type: String, select: false },
     },
     startOtpAttempts: { type: Number, default: 0, min: 0 },
+    startMedia: {
+      type: [
+        {
+          _id: false,
+          key: { type: String, required: true },
+          mimeType: { type: String, required: true },
+          kind: { type: String, enum: ['image', 'video'], required: true },
+          size: { type: Number, required: true },
+          uploadedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     extraCharges: {
       type: [{
         title: { type: String, required: true, trim: true },

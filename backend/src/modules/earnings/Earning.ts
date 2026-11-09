@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType } from 'mongoose';
-import { EARNING_STATUSES } from './earnings.constants';
+import { EARNING_STATUSES, SETTLEMENT_CHANNELS } from './earnings.constants';
 
 const EarningSchema = new Schema(
   {
@@ -14,6 +14,8 @@ const EarningSchema = new Schema(
     status: { type: String, enum: EARNING_STATUSES, default: 'pending' },
     earnedAt: { type: Date, required: true },
     settledAt: { type: Date, default: null },
+    /** How this earning was settled (see SETTLEMENT_CHANNELS). Null on old rows: those count as `online`. */
+    settlementChannel: { type: String, enum: [...SETTLEMENT_CHANNELS], default: null },
     /** The payout batch that cleared this earning. Null while pending; stops one earning being paid twice. */
     payoutBatchId: { type: Schema.Types.ObjectId, ref: 'PayoutBatch', default: null },
   },
@@ -22,6 +24,7 @@ const EarningSchema = new Schema(
 
 EarningSchema.index({ partnerId: 1, earnedAt: -1 });
 EarningSchema.index({ partnerId: 1, status: 1 });
+EarningSchema.index({ status: 1, settledAt: -1 });
 
 export type Earning = InferSchemaType<typeof EarningSchema>;
 export const EarningModel = model('Earning', EarningSchema);

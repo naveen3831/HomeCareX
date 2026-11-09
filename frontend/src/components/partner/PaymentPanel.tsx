@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, RefreshCw, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, Loader2, RefreshCw, Wallet } from 'lucide-react';
 import { collectPayment, fetchJob, getErrorMessage } from '@/pages/partner/JobDetails/jobDetails.api';
 import type { JobDetails } from '@/pages/partner/JobDetails/jobDetails.types';
 import './paymentPanel.css';
@@ -241,7 +241,7 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         {qrSrc ? (
           <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
         ) : qrFailed ? (
-          <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below or the button.</p>
+          <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below.</p>
         ) : (
           <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
         )}
@@ -259,10 +259,6 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
           <Copy size={16} aria-hidden="true" /> {copied ? 'Copied' : 'Copy ID'}
         </button>
       </div>
-
-      <a className="pp-btn pp-btn-primary" href={upi.uri}>
-        <ExternalLink size={16} aria-hidden="true" /> Open UPI app on this phone
-      </a>
 
       <div className="pp-wait" role="status" aria-live="polite">
         {online ? (

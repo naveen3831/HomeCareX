@@ -959,3 +959,134 @@
     grid-row: auto;
   }
 }
+
+/* ==================================================
+   Redesign: colourful balance card, card sections
+================================================== */
+
+/* ---------- Balance card ---------- */
+.wl-page .wl-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 18px 18px;
+  border: 0;
+  border-radius: 22px;
+  color: #fff;
+  background: linear-gradient(135deg, #3730a3 0%, #4f46e5 55%, #7c3aed 100%);
+  box-shadow: 0 12px 26px rgba(67, 56, 202, 0.30);
+}
+.wl-page .wl-hero::before,
+.wl-page .wl-hero::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.10);
+  pointer-events: none;
+}
+.wl-page .wl-hero::before { width: 170px; height: 170px; right: -50px; top: -70px; }
+.wl-page .wl-hero::after { width: 100px; height: 100px; right: 50px; bottom: -56px; }
+.wl-page .wl-hero > * { position: relative; }
+.wl-page .wl-hero-label { color: rgba(255, 255, 255, 0.85); }
+.wl-page .wl-hero-value { color: #fff; font-size: 2.8rem; }
+.wl-page .wl-split { height: 9px; }
+.wl-page .wl-split-av { background: #ffb25e; }
+.wl-page .wl-split-pe { background: rgba(255, 255, 255, 0.30); }
+.wl-page .wl-hero-figures { gap: 8px; margin-top: 12px; }
+.wl-page .wl-hero-figures dt { color: rgba(255, 255, 255, 0.8); }
+.wl-page .wl-hero-figures dd { color: #fff; }
+.wl-page .wl-key-av { background: #ffb25e; }
+.wl-page .wl-key-pe { background: rgba(255, 255, 255, 0.45); }
+
+.wl-page .wd-btn {
+  background: #fff;
+  color: #3730a3;
+  font-size: 1rem;
+  box-shadow: 0 6px 14px rgba(20, 16, 90, 0.25);
+}
+.wl-page .wd-btn:hover:not(:disabled) { background: #f3f0ff; }
+.wl-page .wd-btn:disabled { background: rgba(255, 255, 255, 0.22); color: rgba(255, 255, 255, 0.75); box-shadow: none; }
+.wl-page .wd-cta-note { color: rgba(255, 255, 255, 0.88); }
+
+.wl-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.wl-quick-link {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 42px; padding: 0 14px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16); color: #fff; font-size: 0.88rem; font-weight: 700; text-decoration: none;
+}
+.wl-quick-link:hover { background: rgba(255, 255, 255, 0.26); }
+
+/* ---------- Withdrawals ---------- */
+.wl-page .wd-section {
+  padding: 14px 16px 6px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--wl-line);
+  box-shadow: 0 2px 10px rgba(30, 27, 75, 0.05);
+}
+.wl-page .wd-item:first-child { border-top: 0; }
+
+/* ---------- Activity card ---------- */
+.wl-page .wl-activity {
+  padding: 16px 14px 8px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--wl-line);
+  box-shadow: 0 2px 10px rgba(30, 27, 75, 0.05);
+}
+.wl-page .wl-view-all {
+  padding: 5px 12px; border-radius: 99px; background: #f0eeff; color: var(--wl-primary); font-weight: 700; text-decoration: none;
+}
+.wl-page .wl-filters { gap: 6px; }
+.wl-page .wl-filter { border-radius: 99px; background: var(--wl-tint); border-color: transparent; font-weight: 700; }
+.wl-page .wl-filter.is-active { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; border-color: transparent; box-shadow: 0 4px 10px rgba(67, 56, 202, 0.30); }
+.wl-page .wl-day-label {
+  margin: 14px 0 2px; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--wl-muted);
+}
+.wl-page .wl-row { padding: 12px 4px; border-radius: 0; }
+.wl-page .wl-list li:last-child .wl-row { border-bottom: 0; }
+
+/* Coloured transaction icons */
+.wl-page .wl-icon { width: 42px; height: 42px; border-radius: 14px; }
+.wl-page .wl-icon-earning { background: #e6f6ee; color: #15803d; }
+.wl-page .wl-icon-incentive { background: #fff1e4; color: #c2570c; }
+.wl-page .wl-icon-adjustment { background: #f0eeff; color: #4338ca; }
+.wl-page .wl-icon-payout { background: #e8f1ff; color: #1d4ed8; }
+.wl-page .wl-icon-refund_deduction,
+.wl-page .wl-icon-commission_deduction { background: #fee2e2; color: #b91c1c; }
+
+/* ---------- Summary card ---------- */
+.wl-page .wl-summary {
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid var(--wl-line);
+  box-shadow: 0 2px 10px rgba(30, 27, 75, 0.05);
+}
+.wl-page .wl-flow { gap: 8px; }
+.wl-page .wl-flow-cell { padding: 10px 12px; border-radius: 14px; background: #f0eeff; }
+.wl-page .wl-flow-cell:nth-child(1) { background: #e6f6ee; }
+.wl-page .wl-flow-cell:nth-child(2) { background: #fee9e9; }
+.wl-page .wl-flow-cell:last-child { background: #f0eeff; }
+
+/* Desktop: the three figures sit on the purple hero, so the cards are frosted glass instead of white (white text on white was unreadable) */
+@media (min-width: 900px) {
+  .wl-page .wl-hero-figures > div,
+  .wl-page .wl-hero-figures > div:last-child {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    backdrop-filter: blur(6px);
+  }
+
+  .wl-page .wl-hero-figures > div:last-child {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .wl-page .wl-hero-figures dt {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .wl-page .wl-hero-figures dd {
+    color: #fff;
+    font-size: 1.4rem;
+  }
+}

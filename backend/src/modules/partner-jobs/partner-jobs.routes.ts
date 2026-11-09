@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import { MAX_START_MEDIA, MAX_START_VIDEO_BYTES } from "./job-media-storage";
 
 import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
@@ -45,6 +46,15 @@ const optionalPhoto = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 1 },
 }).single("photo");
+
+/** verify-start: up to 5 photos / videos (field "media"; the old single "photo" field still works). */
+const startMediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_START_VIDEO_BYTES, files: MAX_START_MEDIA },
+}).fields([
+  { name: "media", maxCount: MAX_START_MEDIA },
+  { name: "photo", maxCount: 1 },
+]);
 
 // GET /api/v1/partner/jobs
 // Partner's live jobs
@@ -121,7 +131,7 @@ partnerJobsRoutes.post(
   authenticate,
   requireRole("partner"),
   requirePermission("partner:jobs:update"),
-  optionalPhoto,
+  startMediaUpload,
   validationMiddleware({ params: jobParamsSchema, body: verifyStartBodySchema }),
   verifyJobStart,
 );
