@@ -43,6 +43,7 @@ export default defineConfig({
     open: false,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*, focus-without-user-activation=*',
     },
 
     proxy: {

@@ -37,7 +37,13 @@ export default function CustomerLayout() {
       firstRender.current = false;
       return;
     }
-    mainRef.current?.focus({ preventScroll: true });
+    try {
+      if (typeof document !== "undefined" && (!document.hasFocus || document.hasFocus())) {
+        mainRef.current?.focus({ preventScroll: true });
+      }
+    } catch {
+      // Ignore Permissions-Policy violation: focus-without-user-activation in embedded iframes
+    }
   }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();

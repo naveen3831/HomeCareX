@@ -21,12 +21,9 @@ import {
   Headphones,
   ShieldCheck,
   Scale,
-  Wrench,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  Zap,
 } from "lucide-react";
 import { aboutData } from "../../../content/about";
 import { ROUTES } from "../../../constants/routes";

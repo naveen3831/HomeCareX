@@ -74,11 +74,10 @@ function validTotal(booking: IBooking): number {
 async function assertOrderable(booking: IBooking): Promise<number> {
   if (booking.paymentStatus === 'PAID') throw new AppError(409, 'ALREADY_PAID', 'This booking is already paid');
   if (booking.status === BOOKING_STATUS.PENDING_PAYMENT) return assertPayable(booking);
-  const codPending =
+  const isPayable =
     booking.paymentStatus === 'PENDING' &&
-    isCodOnlinePayableStatus(booking.status) &&
-    (await PaymentModel.exists({ bookingId: booking._id, razorpayOrderId: codOrderId(String(booking._id)), status: 'PENDING' }));
-  if (!codPending) throw new AppError(409, 'BOOKING_NOT_PAYABLE', 'This booking can no longer be paid. Please start a new booking.');
+    isCodOnlinePayableStatus(booking.status);
+  if (!isPayable) throw new AppError(409, 'BOOKING_NOT_PAYABLE', 'This booking can no longer be paid. Please start a new booking.');
   return validTotal(booking);
 }
 

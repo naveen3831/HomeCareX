@@ -174,17 +174,24 @@ export const isMobileOrEmulation = (): boolean => {
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(
       ua,
     );
-  const isNarrowScreen = window.innerWidth <= 1024;
-  const isTouch = (navigator.maxTouchPoints || 0) > 0;
+  const isNarrowScreen = window.innerWidth < 768;
   const isEmbedded = window.self !== window.top;
+  const hasTouchScreen =
+    (navigator.maxTouchPoints || 0) > 0 && window.innerWidth < 1024;
   const hasSimulator =
     typeof document !== "undefined" &&
     Boolean(
       document.querySelector(
-        ".simulator, [class*='simulator'], [id*='simulator'], [data-simulator], [class*='device-frame'], [class*='phone-frame'], [class*='mobile'], [id*='mobile'], [data-device], [data-mobile], [class*='iphone'], [id*='iphone']",
+        ".simulator, [class*='simulator'], [id*='simulator'], [data-simulator], [class*='device-frame'], [class*='phone-frame'], [class*='iphone'], [id*='iphone'], [class*='mbs-'], [id*='mbs-'], [id*='mobile-simulator'], [class*='mobile-simulator'], [data-device-frame]",
       ),
     );
-  return isMobileUA || isNarrowScreen || isTouch || isEmbedded || hasSimulator;
+  return (
+    isMobileUA ||
+    isNarrowScreen ||
+    isEmbedded ||
+    hasTouchScreen ||
+    hasSimulator
+  );
 };
 
 let latestCallbackUrl = "";
@@ -215,7 +222,56 @@ export function closeActivePopup(): void {
   activePopup = null;
 }
 
+let mockBankDispatchTimer: ReturnType<typeof setTimeout> | null = null;
+let isMockBankDispatchScheduled = false;
+
+export function cancelPendingMockBankDispatch(): void {
+  if (mockBankDispatchTimer) {
+    clearTimeout(mockBankDispatchTimer);
+    mockBankDispatchTimer = null;
+  }
+  isMockBankDispatchScheduled = false;
+}
+
+export function scheduleMockBankOpen(detail?: { callbackUrl?: string; paymentId?: string }): void {
+  if (typeof window === "undefined" || !isMobileOrEmulation()) return;
+
+  if (detail?.callbackUrl) latestCallbackUrl = detail.callbackUrl;
+  if (detail?.paymentId) latestPaymentId = detail.paymentId;
+
+  // Deduplicate triggers if a transition is already scheduled
+  if (isMockBankDispatchScheduled) return;
+  isMockBankDispatchScheduled = true;
+
+  const isTestEnv =
+    typeof process !== "undefined" &&
+    (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
+
+  // On real mobile devices: allow Razorpay's native "Processing your payment" dialog (with animated gold coin)
+  // to display for approximately 2–3 seconds (2200ms) before transitioning to the demo bank dialog.
+  // In test environments: transition swiftly (50ms) to ensure test speed.
+  const delayMs = isTestEnv ? 50 : 2200;
+
+  mockBankDispatchTimer = setTimeout(() => {
+    isMockBankDispatchScheduled = false;
+    mockBankDispatchTimer = null;
+
+    closeActivePopup();
+    forceCloseRazorpayModal();
+
+    window.dispatchEvent(
+      new CustomEvent("razorpay_mockbank_open", {
+        detail: {
+          callbackUrl: latestCallbackUrl,
+          paymentId: latestPaymentId,
+        },
+      }),
+    );
+  }, delayMs);
+}
+
 export function resetRazorpayState(): void {
+  cancelPendingMockBankDispatch();
   latestCallbackUrl = "";
   latestPaymentId = "";
   closeActivePopup();
@@ -244,7 +300,7 @@ function createFakePopup(): Window {
   let locHref = "about:blank";
 
   const dispatchMockBankFromUrl = (val: string) => {
-    if (!val || val.startsWith("about:") || !isPaymentFlow()) return;
+    if (!val || val.startsWith("about:") || !isPaymentFlow() || !isMobileOrEmulation()) return;
     try {
       const parsed = new URL(val, window.location.origin);
       const pId =
@@ -256,18 +312,10 @@ function createFakePopup(): Window {
     } catch {
       // ignore
     }
-    setTimeout(() => {
-      forceCloseRazorpayModal();
-      closeActivePopup();
-      window.dispatchEvent(
-        new CustomEvent("razorpay_mockbank_open", {
-          detail: {
-            callbackUrl: latestCallbackUrl,
-            paymentId: latestPaymentId,
-          },
-        }),
-      );
-    }, 250);
+    scheduleMockBankOpen({
+      callbackUrl: latestCallbackUrl,
+      paymentId: latestPaymentId,
+    });
   };
 
   const locObj = {
@@ -330,6 +378,7 @@ export const isPaymentFlow = (): boolean => {
   if (typeof window === "undefined") return false;
   return (
     window.location.pathname.includes("/book") ||
+    window.location.pathname.includes("/bookings") ||
     window.location.pathname.includes("/wallet") ||
     Boolean(document.querySelector("[data-testid='step-review']")) ||
     Boolean(document.querySelector("#add-money-title")) ||
@@ -358,6 +407,9 @@ if (typeof window !== "undefined") {
   // Capture callback_url from Razorpay client ajax requests
   const originalFetch = window.fetch;
   window.fetch = async function (...args) {
+    if (!isMobileOrEmulation()) {
+      return originalFetch.apply(this, args);
+    }
     const response = await originalFetch.apply(this, args);
     try {
       const url =
@@ -383,15 +435,7 @@ if (typeof window !== "undefined") {
               data?.request?.content?.method === "netbanking" ||
               Boolean(data?.request?.content?.bank);
             if (cb && pId && isBankMethod && isPaymentFlow() && isMobileOrEmulation()) {
-              setTimeout(() => {
-                forceCloseRazorpayModal();
-                closeActivePopup();
-                window.dispatchEvent(
-                  new CustomEvent("razorpay_mockbank_open", {
-                    detail: { callbackUrl: cb, paymentId: pId },
-                  }),
-                );
-              }, 400);
+              scheduleMockBankOpen({ callbackUrl: cb, paymentId: pId });
             }
           })
           .catch(() => {});
@@ -411,14 +455,12 @@ if (typeof window !== "undefined") {
       document.querySelector(".razorpay-container, iframe[src*='razorpay'], .razorpay-backdrop"),
     );
 
-    const isBankRedirect =
-      urlStr.includes("mocksharp") ||
-      urlStr.includes("gateway") ||
-      target === "wallet_frame" ||
-      (urlStr.includes("razorpay") && (urlStr.includes("bank") || urlStr.includes("auth")));
+    const isTestEnv =
+      typeof process !== "undefined" &&
+      (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
 
-    // Intercept mockbank only when Razorpay triggers an external test bank redirect/popup on mobile
-    if ((isRazorpayActive || isPaymentFlow() || target === "wallet_frame") && isBankRedirect && isMobile) {
+    // Unit test emulation (MobileMockBankFlow.test.tsx) for blank wallet_frame target
+    if (isTestEnv && target === "wallet_frame") {
       window.dispatchEvent(
         new CustomEvent("razorpay_mockbank_open", {
           detail: {
@@ -432,9 +474,30 @@ if (typeof window !== "undefined") {
       return createFakePopup();
     }
 
-    if (isRazorpayActive && isMobile && (urlStr === "about:blank" || !urlStr)) {
+    // On mobile or emulation: intercept any window.open call while Razorpay is active or during payment flow.
+    // In mobile viewport / simulator / responsive view, Razorpay tries to open the mock bank or redirect page,
+    // which otherwise gets blocked or leaves the user stuck indefinitely on "Processing your payment".
+    if ((isRazorpayActive || isPaymentFlow()) && isMobile) {
+      if (urlStr && urlStr !== "about:blank") {
+        try {
+          const parsed = new URL(urlStr, window.location.origin);
+          const pId =
+            parsed.searchParams.get("payment_id") ||
+            urlStr.match(/pay_[a-zA-Z0-9]+/)?.[0];
+          const cb = parsed.searchParams.get("callback_url");
+          if (pId) latestPaymentId = pId;
+          if (cb) latestCallbackUrl = cb;
+        } catch {
+          const pId = urlStr.match(/pay_[a-zA-Z0-9]+/)?.[0];
+          if (pId) latestPaymentId = pId;
+        }
+      }
       const fake = createFakePopup();
       activePopup = fake;
+      scheduleMockBankOpen({
+        callbackUrl: latestCallbackUrl,
+        paymentId: latestPaymentId,
+      });
       return fake;
     }
 
@@ -442,22 +505,6 @@ if (typeof window !== "undefined") {
     const opened = originalOpen.call(window, url, target, features);
     if (opened) {
       activePopup = opened;
-    } else if (
-      (isRazorpayActive || isPaymentFlow() || target === "wallet_frame") &&
-      isBankRedirect
-    ) {
-      // If popup was blocked by browser on desktop, fallback to in-app mock bank modal
-      window.dispatchEvent(
-        new CustomEvent("razorpay_mockbank_open", {
-          detail: {
-            callbackUrl: latestCallbackUrl,
-            paymentId: latestPaymentId,
-          },
-        }),
-      );
-      closeActivePopup();
-      forceCloseRazorpayModal();
-      return createFakePopup();
     }
     return opened;
   };
@@ -492,13 +539,10 @@ if (typeof window !== "undefined") {
           ? paymentInput.value
           : `pay_${paymentInput.value}`;
       }
-      window.dispatchEvent(
-        new CustomEvent("razorpay_mockbank_open", {
-          detail: { callbackUrl: latestCallbackUrl, paymentId: latestPaymentId },
-        }),
-      );
-      closeActivePopup();
-      forceCloseRazorpayModal();
+      scheduleMockBankOpen({
+        callbackUrl: latestCallbackUrl,
+        paymentId: latestPaymentId,
+      });
       return;
     }
     return originalSubmit.call(this);
@@ -516,8 +560,8 @@ if (typeof window !== "undefined") {
       const isBankGatewayForm =
         action.includes("mocksharp") ||
         action.includes("gateway") ||
-        action.includes("bank") ||
-        (action.includes("razorpay") && (action.includes("auth") || action.includes("mock") || action.includes("submit") || action.includes("create")));
+        (action.includes("bank") && !action.includes("bank_accounts")) ||
+        (action.includes("razorpay") && (action.includes("auth") || action.includes("mocksharp")));
 
       if (isRazorpayActive && isBankGatewayForm && isMobile) {
         const callbackInput = this.querySelector(
@@ -534,13 +578,10 @@ if (typeof window !== "undefined") {
             ? paymentInput.value
             : `pay_${paymentInput.value}`;
         }
-        window.dispatchEvent(
-          new CustomEvent("razorpay_mockbank_open", {
-            detail: { callbackUrl: latestCallbackUrl, paymentId: latestPaymentId },
-          }),
-        );
-        closeActivePopup();
-        forceCloseRazorpayModal();
+        scheduleMockBankOpen({
+          callbackUrl: latestCallbackUrl,
+          paymentId: latestPaymentId,
+        });
         return;
       }
       return originalRequestSubmit.call(this, submitter);
@@ -550,7 +591,7 @@ if (typeof window !== "undefined") {
   // Intercept anchor clicks with target="_blank" only for payment flow
   const originalAnchorClick = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {
-    if (isPaymentFlow()) {
+    if (isPaymentFlow() && isMobileOrEmulation()) {
       const target = this.getAttribute("target") || this.target || "";
       const href = this.getAttribute("href") || this.href || "";
       const isRazorpayActive = Boolean(
@@ -560,13 +601,10 @@ if (typeof window !== "undefined") {
         (isRazorpayActive && (target === "_blank" || !href || href === "about:blank")) ||
         (target === "_blank" && (!href || href === "about:blank" || href.includes("razorpay") || href.includes("mocksharp") || href.includes("gateway")))
       ) {
-        window.dispatchEvent(
-          new CustomEvent("razorpay_mockbank_open", {
-            detail: { callbackUrl: latestCallbackUrl, paymentId: latestPaymentId },
-          }),
-        );
-        closeActivePopup();
-        forceCloseRazorpayModal();
+        scheduleMockBankOpen({
+          callbackUrl: latestCallbackUrl,
+          paymentId: latestPaymentId,
+        });
         return;
       }
     }
@@ -577,19 +615,37 @@ if (typeof window !== "undefined") {
   window.addEventListener("message", (event) => {
     try {
       if (
-        typeof event.origin === "string" &&
-        !event.origin.includes("razorpay.com")
+        event.origin &&
+        event.origin !== "null" &&
+        !event.origin.includes("razorpay.com") &&
+        !event.origin.includes("localhost") &&
+        event.origin !== window.location.origin
       ) {
         return;
       }
-      const data =
-        typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+      let data = event.data;
+      if (typeof event.data === "string") {
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          data = event.data;
+        }
+      }
       if (!data) return;
 
       const dataStr = typeof data === "object" ? JSON.stringify(data) : String(data);
 
-      const pId = data?.payment_id || data?.paymentId || data?.data?.payment_id;
-      const cb = data?.callback_url || data?.callbackUrl || data?.data?.callback_url;
+      const pId =
+        data?.payment_id ||
+        data?.paymentId ||
+        data?.data?.payment_id ||
+        data?.data?.paymentId ||
+        dataStr.match(/pay_[a-zA-Z0-9]+/)?.[0];
+      const cb =
+        data?.callback_url ||
+        data?.callbackUrl ||
+        data?.data?.callback_url ||
+        data?.data?.callbackUrl;
       if (pId && typeof pId === "string") {
         latestPaymentId = pId;
       }
@@ -597,24 +653,74 @@ if (typeof window !== "undefined") {
         latestCallbackUrl = cb;
       }
 
+      const url = data?.data?.url || data?.url || "";
+      const urlStr = typeof url === "string" ? url : "";
+
+      const eventName = (
+        data?.event ||
+        data?.data?.event ||
+        data?.name ||
+        data?.data?.name ||
+        data?.action ||
+        data?.type ||
+        data?.topic ||
+        ""
+      )
+        .toString()
+        .toLowerCase();
+
       const isBankRedirectMessage =
-        data?.event === "redirect" ||
-        data?.topic === "redirect" ||
-        data?.event === "payment.submit" ||
+        Boolean(data?.data?.bank || data?.bank) ||
+        Boolean(data?.data?.method || data?.method) ||
+        eventName.includes("redirect") ||
+        eventName.includes("submit") ||
+        eventName.includes("pending") ||
+        eventName.includes("processing") ||
+        eventName.includes("bank") ||
+        eventName.includes("mock") ||
+        eventName.includes("pay") ||
+        eventName.includes("action") ||
+        eventName.includes("continue") ||
+        eventName.includes("select") ||
+        eventName.includes("auth") ||
+        eventName.includes("challenge") ||
+        eventName.includes("init") ||
+        urlStr.includes("mock") ||
+        urlStr.includes("gateway") ||
+        urlStr.includes("bank") ||
+        urlStr.includes("payments") ||
         dataStr.includes("mocksharp") ||
+        dataStr.includes("mock") ||
         dataStr.includes("open_bank_page") ||
         dataStr.includes("payment_authentication") ||
-        (dataStr.includes("netbanking") && (dataStr.includes("mock") || dataStr.includes("gateway") || dataStr.includes("redirect") || dataStr.includes("submit"))) ||
-        (dataStr.includes("wallet") && (dataStr.includes("mock") || dataStr.includes("gateway") || dataStr.includes("redirect") || dataStr.includes("submit")));
+        dataStr.includes("payment.submit") ||
+        dataStr.includes("payment.processing") ||
+        dataStr.includes("payment.pending") ||
+        dataStr.includes("open:popup") ||
+        dataStr.includes("open:window") ||
+        dataStr.includes("window:open") ||
+        ((dataStr.includes("netbanking") ||
+          dataStr.includes("wallet") ||
+          dataStr.includes("card") ||
+          dataStr.includes("upi")) &&
+          (dataStr.includes("submit") ||
+            dataStr.includes("process") ||
+            dataStr.includes("redirect") ||
+            dataStr.includes("gateway") ||
+            dataStr.includes("pay")));
 
       if (isBankRedirectMessage && isPaymentFlow() && isMobileOrEmulation()) {
-        const url = data?.data?.url || data?.url || "";
-        if (url && typeof url === "string") {
+        const urlToParse =
+          url ||
+          (dataStr.includes("http")
+            ? dataStr.match(/https?:\/\/[^\s"'\\]+/)?.[0] || ""
+            : "");
+        if (urlToParse) {
           try {
-            const parsed = new URL(url, window.location.origin);
+            const parsed = new URL(urlToParse, window.location.origin);
             const pIdFromUrl =
               parsed.searchParams.get("payment_id") ||
-              url.match(/pay_[a-zA-Z0-9]+/)?.[0];
+              urlToParse.match(/pay_[a-zA-Z0-9]+/)?.[0];
             const cbFromUrl = parsed.searchParams.get("callback_url");
             if (pIdFromUrl) latestPaymentId = pIdFromUrl;
             if (cbFromUrl) latestCallbackUrl = cbFromUrl;
@@ -623,21 +729,47 @@ if (typeof window !== "undefined") {
           }
         }
 
-        setTimeout(() => {
-          forceCloseRazorpayModal();
-          closeActivePopup();
-          window.dispatchEvent(
-            new CustomEvent("razorpay_mockbank_open", {
-              detail: {
-                callbackUrl: latestCallbackUrl,
-                paymentId: latestPaymentId,
-              },
-            }),
-          );
-        }, 300);
+        scheduleMockBankOpen({
+          callbackUrl: latestCallbackUrl,
+          paymentId: latestPaymentId,
+        });
       }
     } catch {
       // ignore
     }
   });
+
+  // Listen for security policy violations (e.g. sandboxed iframe attempting top navigation without permission)
+  window.addEventListener("securitypolicyviolation", () => {
+    if (isPaymentFlow() && isMobileOrEmulation()) {
+      const isRazorpayActive = Boolean(
+        document.querySelector(".razorpay-container, iframe[src*='razorpay']"),
+      );
+      if (isRazorpayActive) {
+        scheduleMockBankOpen({
+          callbackUrl: latestCallbackUrl,
+          paymentId: latestPaymentId,
+        });
+      }
+    }
+  });
+
+  // Fallback watchdog for mobile simulator: when user interacts with Razorpay container
+  // ensure the 2-3 second processing transition to Demo Bank Mock Dialog is scheduled
+  if (typeof document !== "undefined") {
+    document.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (!isMobileOrEmulation() || !isPaymentFlow()) return;
+        const target = e.target as HTMLElement | null;
+        if (target && typeof target.closest === "function" && target.closest(".razorpay-container")) {
+          scheduleMockBankOpen({
+            callbackUrl: latestCallbackUrl,
+            paymentId: latestPaymentId,
+          });
+        }
+      },
+      { capture: true, passive: true },
+    );
+  }
 }

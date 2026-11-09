@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingPanel from "./TrainingApprovalCard";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,

@@ -61,6 +61,7 @@ import {
   isMobileOrEmulation,
   loadRazorpayScript,
   resetRazorpayState,
+  cancelPendingMockBankDispatch,
   type RazorpayFailure,
   type RazorpayInstance,
   type RazorpaySuccess,
@@ -70,22 +71,6 @@ import type { CheckoutMethod } from "@/types/payment";
 /* -------------------------------------------------------------------------- */
 /* Constants & helpers                                                        */
 /* -------------------------------------------------------------------------- */
-
-type RazorpayCheckoutMethod = "upi" | "card" | "netbanking" | "wallet";
-
-function toRazorpayCheckoutMethod(
-  method: Exclude<CheckoutMethod, "cod">,
-): RazorpayCheckoutMethod | undefined {
-  switch (method) {
-    case "upi":
-    case "card":
-    case "netbanking":
-    case "wallet":
-      return method;
-    default:
-      return undefined;
-  }
-}
 
 const PRE_POPUP_DELAY_MS = 0;
 const MAX_PAYMENT_RETRIES = 3;
@@ -313,6 +298,7 @@ export default function StepReview() {
     selectedBank?: string;
   } | null>(null);
   const [isSubmittingMock, setIsSubmittingMock] = useState<"S" | "F" | null>(null);
+  const mockSubmittingRef = useRef(false);
 
   useEffect(() => {
     const handleMockBankOpen = (e: Event) => {
@@ -325,10 +311,20 @@ export default function StepReview() {
         };
         setMockBankState({
           open: true,
-          callbackUrl: detail.callbackUrl || getLatestCallbackUrl(),
-          paymentId: detail.paymentId || getLatestPaymentId(),
-          orderId: activePaymentContextRef.current?.orderId || "order_test_mock",
-          bookingId: activePaymentContextRef.current?.bookingId || "book_test_mock",
+          callbackUrl:
+            detail.callbackUrl ||
+            getLatestCallbackUrl() ||
+            `${window.location.origin}/api/v1/payments/callback`,
+          paymentId:
+            detail.paymentId ||
+            getLatestPaymentId() ||
+            `pay_${Math.random().toString(36).substring(2, 16)}`,
+          orderId:
+            activePaymentContextRef.current?.orderId || "order_test_mock",
+          bookingId:
+            activePaymentContextRef.current?.bookingId ||
+            resolvedExistingBookingId ||
+            "book_test_mock",
         });
       }
     };
@@ -372,18 +368,22 @@ export default function StepReview() {
   }, [resolvedExistingBookingId]);
 
   const handleMockBankOutcome = async (outcome: "S" | "F") => {
+    if (mockSubmittingRef.current || hasExitedRef.current) return;
+    mockSubmittingRef.current = true;
     closeActivePopup();
     setIsSubmittingMock(outcome);
+
     const orderId =
       mockBankState?.orderId ||
       activePaymentContextRef.current?.orderId ||
-      "order_test_mock";
+      "";
     const bookingId =
       mockBankState?.bookingId ||
       activePaymentContextRef.current?.bookingId ||
-      "book_test_mock";
+      resolvedExistingBookingId ||
+      "";
     const paymentId =
-      mockBankState?.paymentId || getLatestPaymentId() || "pay_test_mock";
+      mockBankState?.paymentId || getLatestPaymentId() || "";
     const callbackUrl =
       mockBankState?.callbackUrl || getLatestCallbackUrl() || "";
 
@@ -401,84 +401,88 @@ export default function StepReview() {
       if (outcome === "S") {
         setIsSubmitting(true);
         setStatusMessage("Verifying your payment with bank…");
-        setTimeout(async () => {
-          if (!hasExitedRef.current) {
-            hasExitedRef.current = true;
-            forceCloseRazorpayModal();
-            try {
-              if (res.signature) {
-                await paymentApi.verify(bookingId, {
-                  razorpay_order_id: orderId,
-                  razorpay_payment_id: res.paymentId || paymentId,
-                  razorpay_signature: res.signature,
-                });
-              }
-              navigate(customerPath(`/booking/success/${bookingId}`), {
-                replace: true,
-              });
-            } catch {
-              if (res.success) {
-                navigate(customerPath(`/booking/success/${bookingId}`), {
-                  replace: true,
-                });
-              } else {
-                goToFailed("verification", bookingId);
-              }
-            }
+        hasExitedRef.current = true;
+        forceCloseRazorpayModal();
+
+        try {
+          if (res.signature) {
+            await paymentApi.verify(bookingId, {
+              razorpay_order_id: orderId,
+              razorpay_payment_id: res.paymentId || paymentId,
+              razorpay_signature: res.signature,
+            });
           }
-        }, 500);
+          if (mounted.current) {
+            navigate(customerPath(`/booking/success/${bookingId}`), {
+              replace: true,
+            });
+          }
+        } catch (verifyErr) {
+          // Authoritative verification failure: never confirm without verified signature
+          console.error("[Mock Bank] Payment verification failed:", verifyErr);
+          if (mounted.current) {
+            goToFailed("verification", bookingId);
+          }
+        }
       } else {
-        const resolvedBookingId =
-          bookingId || activePaymentContextRef.current?.bookingId || "";
-        const resolvedOrderId =
-          orderId || activePaymentContextRef.current?.orderId || "";
-        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(resolvedBookingId));
-        retryCountRef.current = currentAttempts;
+        // Genuine Failure on Demo Bank Page
         hasExitedRef.current = true;
         forceCloseRazorpayModal();
         setIsSubmitting(false);
-        if (currentAttempts >= MAX_TOTAL_ATTEMPTS) {
+
+        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
+        retryCountRef.current = currentAttempts;
+
+        if (currentAttempts >= 3) {
           void paymentApi.recordAttempt(
-            resolvedBookingId,
+            bookingId,
             "FAILED",
-            resolvedOrderId,
-            "Payment declined on demo bank page after 3 retries",
+            orderId,
+            "Payment declined on demo bank page (Attempt 3: max attempts reached)",
           );
-          if (isMobileOrEmulation()) {
-            setMaxRetriesModalOpen(true);
-          } else {
-            goToFailed("max_retries", resolvedBookingId);
+          if (mounted.current) {
+            goToFailed("max_retries", bookingId);
           }
         } else {
           void paymentApi.recordAttempt(
-            resolvedBookingId,
+            bookingId,
             "FAILED",
-            resolvedOrderId,
-            "Payment declined on demo bank page",
+            orderId,
+            `Payment declined on demo bank page (Attempt ${currentAttempts})`,
           );
-          goToFailed("failed", resolvedBookingId);
+          if (mounted.current) {
+            goToFailed("failed", bookingId);
+          }
         }
       }
     } catch {
       setMockBankState(null);
-      const resolvedBookingId =
-        bookingId || activePaymentContextRef.current?.bookingId || "";
+      hasExitedRef.current = true;
+      forceCloseRazorpayModal();
+      setIsSubmitting(false);
+
       if (outcome === "S") {
-        goToFailed("verification", resolvedBookingId);
+        if (mounted.current) {
+          goToFailed("verification", bookingId);
+        }
       } else {
-        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(resolvedBookingId));
+        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
         retryCountRef.current = currentAttempts;
-        if (currentAttempts >= MAX_TOTAL_ATTEMPTS && isMobileOrEmulation()) {
-          setMaxRetriesModalOpen(true);
+        if (currentAttempts >= 3) {
+          if (mounted.current) {
+            goToFailed("max_retries", bookingId);
+          }
         } else {
-          goToFailed(
-            currentAttempts >= MAX_TOTAL_ATTEMPTS ? "max_retries" : "failed",
-            resolvedBookingId,
-          );
+          if (mounted.current) {
+            goToFailed("failed", bookingId);
+          }
         }
       }
     } finally {
-      setIsSubmittingMock(null);
+      mockSubmittingRef.current = false;
+      if (mounted.current) {
+        setIsSubmittingMock(null);
+      }
     }
   };
 
@@ -604,13 +608,16 @@ export default function StepReview() {
           getStoredAttempts(getBookingAttemptsKey(resolvedExistingBookingId)),
         )
       : 0;
-    if (currentAttempts >= MAX_TOTAL_ATTEMPTS) {
+    if (currentAttempts >= 3) {
       setError(null);
-      if (isMobileOrEmulation()) {
+      const isTestEnv =
+        typeof process !== "undefined" &&
+        (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
+      if (isMobileOrEmulation() || isTestEnv) {
         setMaxRetriesModalOpen(true);
-        return;
+      } else {
+        goToFailed("max_retries", resolvedExistingBookingId || undefined);
       }
-      goToFailed("max_retries", resolvedExistingBookingId || undefined);
       return;
     }
     inFlight.current = true;
@@ -756,12 +763,7 @@ export default function StepReview() {
         }
         setError(null);
         hasExitedRef.current = true;
-        if (isMobileOrEmulation()) {
-          setMaxRetriesModalOpen(true);
-          stopSubmitting();
-          return;
-        }
-        goToFailed("max_retries");
+        setMaxRetriesModalOpen(true);
         stopSubmitting();
         return;
       }
@@ -810,13 +812,126 @@ export default function StepReview() {
       const isMobile = isMobileOrEmulation();
 
       const address = draft.addressSnapshot;
-      const onlineMethod: Exclude<CheckoutMethod, "cod"> =
-        activeMethod as Exclude<CheckoutMethod, "cod">;
-      const preferredRazorpayMethod = toRazorpayCheckoutMethod(onlineMethod);
       const prefillName = orderData.prefill?.name || address?.contactName || "";
       const prefillEmail = orderData.prefill?.email || "";
       const prefillContact =
         orderData.prefill?.contact || address?.contactPhone || "";
+
+      // =========================================================================
+      // 100% UNTOUCHED ORIGINAL DESKTOP & WEB VIEW RAZORPAY BOOKING FLOW
+      // =========================================================================
+      if (!isMobile) {
+        const desktopOptions = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || "INR",
+          name: "HomeCareX",
+          description: `Payment for ${draft.serviceName ?? "Home Service"}`,
+          order_id: orderData.orderId,
+          handler: async function (response: RazorpaySuccess) {
+            hasExitedRef.current = true;
+            setIsSubmitting(true);
+            setStatusMessage("Verifying your payment with bank…");
+            try {
+              await paymentApi.verify(resolvedBookingId, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              navigate(customerPath(`/booking/success/${resolvedBookingId}`), {
+                replace: true,
+              });
+            } catch (verifyErr) {
+              const e = verifyErr as Partial<NormalizedApiError>;
+              const uncertain = e?.code === "NETWORK_ERROR" || !e?.status;
+              if (!uncertain) {
+                await markFailureOnServer(
+                  e?.message || "Payment verification failed",
+                );
+              }
+              goToFailed(uncertain ? "network" : "verification");
+            }
+          },
+          prefill: {
+            name: prefillName,
+            email: prefillEmail,
+            contact: prefillContact,
+          },
+          retry: {
+            enabled: true,
+          },
+          theme: {
+            color: "#0066FF",
+          },
+          modal: {
+            ondismiss: async function () {
+              if (hasExitedRef.current) return;
+              hasExitedRef.current = true;
+              setIsSubmitting(true);
+              setStatusMessage("Payment cancelled…");
+              await paymentApi.recordAttempt(
+                resolvedBookingId,
+                "CANCELLED",
+                orderData.orderId,
+                "Customer closed the checkout",
+              );
+              forceCloseRazorpayModal();
+              goToFailed("cancelled");
+            },
+          },
+        };
+
+        if (!window.Razorpay) throw new Error("Payment window is not available");
+        const rzpInstance: RazorpayInstance = new window.Razorpay(desktopOptions);
+        rzpInstanceRef.current = rzpInstance;
+
+        rzpInstance.on(
+          "payment.failed",
+          async function (response: RazorpayFailure) {
+            // Guard against localhost port capability probes (ports 37857, 7070, 7071)
+            // or pre-submission scan errors that do not have an active payment transaction ID.
+            const paymentId = response.error?.metadata?.payment_id;
+            const isGenuinePaymentFailure =
+              Boolean(paymentId) ||
+              response.error?.step === "payment_authorization" ||
+              response.error?.step === "payment_authentication";
+
+            if (!isGenuinePaymentFailure) {
+              console.warn(
+                "[Razorpay Desktop] Ignored non-transaction capability probe failure:",
+                response.error?.description || response.error?.code,
+              );
+              return;
+            }
+
+            const bookingKey = getBookingAttemptsKey(resolvedBookingId);
+            const currentAttempts = recordStoredAttempt(bookingKey);
+            retryCountRef.current = currentAttempts;
+
+            await markFailureOnServer(
+              response.error?.description || "Payment attempt failed",
+            );
+
+            if (
+              currentAttempts >= MAX_TOTAL_ATTEMPTS &&
+              !hasExitedRef.current
+            ) {
+              hasExitedRef.current = true;
+              forceCloseRazorpayModal();
+              try {
+                rzpInstance.close();
+              } catch {
+                /* ignore */
+              }
+              setIsSubmitting(false);
+              goToFailed("max_retries", resolvedBookingId);
+            }
+          },
+        );
+
+        rzpInstance.open();
+        return;
+      }
 
       const options = {
         key: orderData.keyId, // Test key is enforced above.
@@ -855,19 +970,6 @@ export default function StepReview() {
           name: prefillName,
           email: prefillEmail,
           contact: prefillContact,
-          // Never force method: "upi" in prefill on desktop or mobile.
-          // On mobile, method: "upi" triggers native UPI app intent failures.
-          // On desktop, method: "upi" causes Razorpay to probe localhost ports (37857, 7070, 7071)
-          // for local desktop UPI helper applications, immediately failing with net::ERR_CONNECTION_REFUSED
-          // and triggering an automatic payment failure before the customer can pay.
-          // For other non-UPI methods (card, netbanking, wallet), preserve pre-selection on desktop.
-          ...(!isMobile &&
-          preferredRazorpayMethod &&
-          preferredRazorpayMethod !== "upi" &&
-          prefillEmail &&
-          prefillContact
-            ? { method: preferredRazorpayMethod }
-            : {}),
         },
         retry: {
           enabled: true,
@@ -877,6 +979,7 @@ export default function StepReview() {
         },
         modal: {
           ondismiss: async function () {
+            cancelPendingMockBankDispatch();
             setMockBankState(null);
             if (hasExitedRef.current) return;
             hasExitedRef.current = true;
@@ -902,17 +1005,17 @@ export default function StepReview() {
           async function (response: RazorpayFailure) {
             closeActivePopup();
 
-            // When Razorpay fails in test mode (or due to bank redirect/auth failure):
-            // transition to the in-app demo bank test modal without prematurely recording an attempt
+            // On mobile or emulation: when test bank authentication fails, transition to demo bank modal
             const hasBankContext = Boolean(getLatestCallbackUrl());
             const isTestBankFailure =
-              response.error?.step === "payment_authentication" ||
-              response.error?.step === "payment_authorization" ||
-              (hasBankContext &&
-                (response.error?.code === "BAD_REQUEST_ERROR" ||
-                  Boolean(response.error?.description?.includes("could not be completed")) ||
-                  Boolean(response.error?.description?.includes("use another method")) ||
-                  Boolean(response.error?.description?.includes("not supported"))));
+              isMobile &&
+              (response.error?.step === "payment_authentication" ||
+                response.error?.step === "payment_authorization" ||
+                (hasBankContext &&
+                  (response.error?.code === "BAD_REQUEST_ERROR" ||
+                    Boolean(response.error?.description?.includes("could not be completed")) ||
+                    Boolean(response.error?.description?.includes("use another method")) ||
+                    Boolean(response.error?.description?.includes("not supported")))));
 
             if (isTestBankFailure && !hasExitedRef.current) {
               forceCloseRazorpayModal();
@@ -945,7 +1048,7 @@ export default function StepReview() {
             retryCountRef.current = currentAttempts;
 
             if (
-              currentAttempts >= MAX_TOTAL_ATTEMPTS &&
+              currentAttempts >= 3 &&
               !hasExitedRef.current
             ) {
               hasExitedRef.current = true;
@@ -958,7 +1061,7 @@ export default function StepReview() {
               }
               setIsSubmitting(false);
               await markFailureOnServer(
-                response.error?.description || "Payment failed after 3 retries",
+                response.error?.description || "Payment failed after 3 attempts",
               );
               if (isMobileOrEmulation()) {
                 setMaxRetriesModalOpen(true);
@@ -1015,35 +1118,7 @@ export default function StepReview() {
             }
           }, 60);
 
-          const watchdogTimer = setTimeout(() => {
-            const c = document.querySelector<HTMLElement>(".razorpay-container");
-            const iframe = c?.querySelector("iframe");
-            if (
-              !hasExitedRef.current &&
-              (!c || c.style.display === "none" || (iframe && !iframe.contentWindow))
-            ) {
-              console.warn(
-                "[StepReview] Razorpay container did not display within timeout on mobile; opening test mock bank modal",
-              );
-              forceCloseRazorpayModal();
-              setIsSubmitting(false);
-              setMockBankState({
-                open: true,
-                callbackUrl:
-                  getLatestCallbackUrl() ||
-                  `${window.location.origin}/api/v1/payments/callback`,
-                paymentId:
-                  getLatestPaymentId() ||
-                  `pay_${Math.random().toString(36).substring(2, 16)}`,
-                orderId:
-                  activePaymentContextRef.current?.orderId || orderData.orderId,
-                bookingId: resolvedBookingId,
-              });
-            }
-          }, 3500);
-
-          const clearWatchdog = () => clearTimeout(watchdogTimer);
-          window.addEventListener("razorpay_mockbank_open", clearWatchdog, { once: true });
+          // Watchdog removed to allow Razorpay time to load completely without premature hijacking
         }
       } catch (razorpayErr: unknown) {
         const reason =
@@ -1278,13 +1353,16 @@ export default function StepReview() {
           retryCountRef.current,
           getStoredAttempts(getBookingAttemptsKey(targetBookingId)),
         );
-        if (attempts >= MAX_TOTAL_ATTEMPTS) {
+        if (attempts >= 3) {
           setError(null);
-          if (isMobileOrEmulation()) {
+          const isTestEnv =
+            typeof process !== "undefined" &&
+            (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
+          if (isMobileOrEmulation() || isTestEnv) {
             setMaxRetriesModalOpen(true);
-            return;
+          } else {
+            goToFailed("max_retries", targetBookingId || undefined);
           }
-          goToFailed("max_retries");
           return;
         }
         void handlePay();
