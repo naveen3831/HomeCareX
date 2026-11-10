@@ -240,6 +240,11 @@ const adminRoutes: AdminRoute[] = [
     element: <AdminPayoutsPage />,
     permission: "payouts:view",
   },
+  {
+    path: "withdrawals",
+    element: <Navigate to="/admin/payouts#withdrawal-requests" replace />,
+    permission: "payouts:view",
+  },
 
   // Quality and reporting
   {

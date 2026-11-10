@@ -171,7 +171,21 @@ export interface PayoutCsvRow {
 /**
  * Repository contract.
  */
+/** Money across all payout batches, for the cards at the top of the admin Payouts page. */
+export interface PayoutSummary {
+  batches: number;
+  gross: number;
+  commission: number;
+  net: number;
+  /** Net of completed batches. */
+  paid: number;
+  /** Net of pending and processing batches. */
+  awaiting: number;
+}
+
 export interface PayoutsRepository {
+  summary(): Promise<PayoutSummary>;
+
   generateBatch(input: {
     periodStart: Date;
     periodEnd: Date;

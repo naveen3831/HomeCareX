@@ -14,7 +14,7 @@ export interface AdminSetting {
   max?: number;
   maxLength?: number;
   optional?: boolean;
-  format?: 'email' | 'phone' | 'pincode';
+  format?: 'email' | 'phone' | 'pincode' | 'url';
   unit?: string;
   updatedAt: string | null;
 }

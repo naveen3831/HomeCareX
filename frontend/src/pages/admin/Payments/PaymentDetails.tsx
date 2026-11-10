@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/admin/PageHeader';
 import { fetchAdminPayment } from '@/services/adminPaymentApi';
 import type { AdminPayment } from '@/types/adminPayment';
 import StatusBadge from './StatusBadge';
+import SettlementBadge from './SettlementBadge';
 import { REFUND_LABEL, formatDateTime, formatMoney, methodLabel } from './paymentFormat';
 import './index.css';
 
@@ -66,6 +67,37 @@ const buildTimeline = (p: AdminPayment): TimelineItem[] => {
     items.push({ key: 'paid', title: 'Payment received', at: p.paidAt, done: true });
   } else {
     items.push({ key: 'await', title: 'Awaiting payment', at: null, done: false });
+  }
+
+  const s = p.settlement;
+  if (s.state === 'credited') {
+    items.push({
+      key: 'credited',
+      title: 'Credited to partner and admin',
+      at: s.creditedAt,
+      done: true,
+      note:
+        s.partnerShare != null && s.commission != null
+          ? `Partner ${formatMoney(s.partnerShare, p.currency)} · Admin commission ${formatMoney(s.commission, p.currency)}`
+          : undefined,
+    });
+  } else if (s.state === 'awaiting_service') {
+    items.push({ key: 'service', title: 'Waiting for the service to be completed', at: null, done: false });
+  } else if (s.state === 'cash_pending') {
+    items.push({ key: 'cash', title: 'Waiting for the partner to collect cash', at: null, done: false });
+  } else if (s.state === 'cash_collected') {
+    items.push({ key: 'cash', title: 'Cash collected by the partner', at: p.paidAt, done: true });
+  } else if (s.state === 'commission_deducted') {
+    items.push({ key: 'cash', title: 'Cash collected by the partner', at: p.paidAt, done: true });
+    items.push({
+      key: 'commission',
+      title: 'Admin commission cut from the partner wallet',
+      at: s.creditedAt,
+      done: true,
+      note: s.commission != null ? `Admin commission ${formatMoney(s.commission, p.currency)}` : undefined,
+    });
+  } else if (s.state === 'processing') {
+    items.push({ key: 'processing', title: 'Settlement processing', at: null, done: false });
   }
 
   if (p.refund.status !== 'none') {
@@ -179,6 +211,30 @@ export const AdminPaymentDetailsPage: React.FC = () => {
                 {p.customer?.phone && <span>{p.customer.phone}</span>}
               </div>
             </div>
+          </div>
+
+          <div className="pdx-section">
+            <h2 className="pdx-h">Settlement</h2>
+            <div className="pdx-stats2">
+              <Stat label="Status"><SettlementBadge settlement={p.settlement} /></Stat>
+              {p.settlement.state === 'commission_deducted' && p.settlement.commission != null ? (
+                <Stat label="Partner wallet">−{formatMoney(p.settlement.commission, p.currency)} (commission)</Stat>
+              ) : (
+                p.settlement.partnerShare != null && (
+                  <Stat label="Partner wallet">+{formatMoney(p.settlement.partnerShare, p.currency)}</Stat>
+                )
+              )}
+              {p.settlement.commission != null && (
+                <Stat label="Admin commission">{formatMoney(p.settlement.commission, p.currency)}</Stat>
+              )}
+              {p.settlement.creditedAt && <Stat label="Credited">{formatDateTime(p.settlement.creditedAt)}</Stat>}
+            </div>
+            {p.settlement.state === 'awaiting_service' && (
+              <p className="pay-muted pdx-none">Money is held. It is credited automatically when the partner completes the service.</p>
+            )}
+            {(p.settlement.state === 'cash_pending' || p.settlement.state === 'cash_collected' || p.settlement.state === 'commission_deducted') && (
+              <p className="pay-muted pdx-none">Cash on Service: the partner takes the cash from the customer, so nothing is credited to the partner wallet. The admin commission is cut from the partner wallet once the cash is collected. If the customer pays the QR code instead, it follows the online payment process.</p>
+            )}
           </div>
 
           <div className="pdx-section">

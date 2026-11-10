@@ -394,7 +394,9 @@ export const partnerJobsRepository = {
           "paymentDetails.status": "PAID",
           "paymentDetails.paidAt": now,
           "paymentDetails.method": method,
-          "paymentDetails.collectedBy": "partner",
+          // cash: the partner holds the money (commission is cut from the wallet).
+          // upi (QR): the customer paid the platform UPI id, so it follows the online-payment process.
+          "paymentDetails.collectedBy": method === "cash" ? "partner" : "platform",
         },
       },
     );

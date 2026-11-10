@@ -17,7 +17,8 @@ const DesktopSettingField: React.FC<Props> = ({ setting, value, error, onChange 
   const isNumber = setting.type === 'number' || setting.type === 'integer';
   const hint = isNumber && (setting.min !== undefined || setting.max !== undefined)
     ? `Allowed: ${setting.min ?? '…'} to ${setting.max ?? '…'}${setting.unit ? ` ${setting.unit}` : ''}`
-    : setting.type === 'list' ? 'Comma-separated, 6-digit pincodes' : '';
+    : setting.type === 'list' ? 'Comma-separated, 6-digit pincodes'
+    : setting.format === 'url' ? 'Full link starting with https://. Leave empty to hide it on the website.' : '';
 
   return (
     <div className="grid gap-2 border-b border-gray-100 py-4 last:border-0 md:grid-cols-[1fr_320px] md:gap-6">
@@ -64,7 +65,8 @@ const DesktopSettingField: React.FC<Props> = ({ setting, value, error, onChange 
         ) : (
           <input
             id={id}
-            type="text"
+            type={setting.format === 'url' ? 'url' : 'text'}
+            placeholder={setting.format === 'url' ? 'https://' : undefined}
             className={desktopInputCls(error)}
             value={typeof value === 'string' ? value : ''}
             maxLength={setting.maxLength}
@@ -90,7 +92,8 @@ const MobileSettingField: React.FC<Props> = ({ setting, value, error, onChange }
   const isBool = setting.type === 'boolean';
   const hint = isNumber && (setting.min !== undefined || setting.max !== undefined)
     ? `Allowed: ${setting.min ?? '…'} to ${setting.max ?? '…'}${setting.unit ? ` ${setting.unit}` : ''}`
-    : setting.type === 'list' ? 'Comma-separated, 6-digit pincodes' : '';
+    : setting.type === 'list' ? 'Comma-separated, 6-digit pincodes'
+    : setting.format === 'url' ? 'Full link starting with https://. Leave empty to hide it on the website.' : '';
 
   const label = (
     <div className="min-w-0">
@@ -149,7 +152,8 @@ const MobileSettingField: React.FC<Props> = ({ setting, value, error, onChange }
         ) : (
           <input
             id={id}
-            type="text"
+            type={setting.format === 'url' ? 'url' : 'text'}
+            placeholder={setting.format === 'url' ? 'https://' : undefined}
             className={inputCls(error)}
             value={typeof value === 'string' ? value : ''}
             maxLength={setting.maxLength}

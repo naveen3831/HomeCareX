@@ -37,6 +37,7 @@ import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
+import { publicSettingsRoutes } from "../modules/settings/settings.public.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
 import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
@@ -181,6 +182,7 @@ rootRouter.use("/admin", adminRoutes);
 // ---- Catalog & Public ----
 rootRouter.use(catalogRoutes);
 rootRouter.use("/banners", publicMarketingRoutes);
+rootRouter.use("/site-settings", publicSettingsRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);

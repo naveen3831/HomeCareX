@@ -1905,3 +1905,20 @@
     min-width: 980px;
   }
 }
+
+/* ---- Refunds list: fit the page on desktop (no scrolling to reach Date / Action) ----
+   Tighter padding, ellipsis on the long text and wrapping on date / method / service.
+   Under 1100px the card still scrolls sideways as before. */
+@media (min-width: 1101px) {
+  .refunds-page .refunds-table { min-width: 0; width: 100%; }
+  .refunds-page .refunds-table thead th { padding: 10px 10px; white-space: normal; }
+  .refunds-page .refunds-table tbody td { padding: 12px 10px; font-size: 13px; }
+  .refunds-page .refunds-customer { min-width: 0; }
+  .refunds-page .refunds-customer__info strong,
+  .refunds-page .refunds-customer__info .refunds-secondary-text { max-width: 150px; }
+  .refunds-page .refunds-id { max-width: 120px; font-size: 12px; }
+  .refunds-page .refunds-id-link { max-width: 130px; font-size: 13px !important; }
+  .refunds-page .refunds-table .refunds-method { white-space: normal; gap: 5px; }
+  .refunds-page .refunds-table .refunds-date { white-space: normal; }
+  .refunds-page .refunds-review-button { padding: 6px 9px; }
+}

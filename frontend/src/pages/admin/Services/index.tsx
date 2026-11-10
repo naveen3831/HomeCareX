@@ -3,14 +3,6 @@ import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
 import clsx from 'clsx';
-import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
@@ -134,8 +126,6 @@ export const AdminServicesPage: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();

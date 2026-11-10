@@ -6,6 +6,9 @@ import type { BookingStatus } from "../bookings/bookings.constants";
 import { applyTransition } from "../bookings/bookings.stateMachine";
 import { trackingService } from "../../services/TrackingService";
 import { emitJobCompleted } from "../events/eventBus";
+import { PaymentModel } from "../../models/Payment";
+import { codOrderId } from "../payments/payments.constants";
+import { settleEarningForBooking } from "../earnings/earnings.settle";
 import { getIOIfReady, rooms } from "../../sockets";
 import { ensurePartnerProfile } from "../partners/partners.service";
 import {
@@ -453,6 +456,27 @@ export const partnerJobsService = {
 
       if (!applied) {
         throw invalid("This job was already updated. Refresh to see its latest status");
+      }
+
+      // Keep the admin Payments page in step: the Cash-on-Service payment row is now collected.
+      // cash  -> stays "cod" (the partner holds the money)
+      // upi   -> the customer paid the platform through the QR code, so it is an online (UPI) payment
+      await PaymentModel.updateOne(
+        { razorpayOrderId: codOrderId(bookingId), status: "PENDING" },
+        { $set: { status: "PAID", method: method === "cash" ? "cod" : "upi", paidAt: now }, $unset: { errorReason: 1 } },
+      );
+
+      // Settle now that the money is collected:
+      //   cash -> admin commission is cut from the partner wallet
+      //   QR   -> online process: partner net goes to the wallet, admin keeps the commission
+      // Idempotent. A failure here must not undo the collection; the repair script / next call settles it.
+      try {
+        const settled = await settleEarningForBooking(bookingId);
+        if (!settled.settled) {
+          console.warn(`[collect-payment] Booking ${bookingId} collected but not settled (${settled.reason})`);
+        }
+      } catch (error) {
+        console.error(`[collect-payment] Settlement failed for booking ${bookingId}`, error);
       }
     }
 

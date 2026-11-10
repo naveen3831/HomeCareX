@@ -45,6 +45,22 @@ payoutsRoutes.get(
 );
 
 /**
+ * Generate a payout batch from settled earnings.
+ * Duplicate protection: earnings already in a batch answer 409.
+ */
+payoutsRoutes.post(
+  '/payouts',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.generate(req, res)),
+);
+
+payoutsRoutes.post(
+  '/payout-batches',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.generate(req, res)),
+);
+
+/**
  * List payout batches.
  */
 payoutsRoutes.get(
@@ -54,27 +70,18 @@ payoutsRoutes.get(
 );
 
 /**
- * Generate a payout batch.
- */
-payoutsRoutes.post(
-  '/payouts',
-  requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
-);
-
-/**
  * Compatibility aliases for older payout-batch endpoints.
  */
+payoutsRoutes.get(
+  '/payout-batches/summary',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.summary(req, res)),
+);
+
 payoutsRoutes.get(
   '/payout-batches',
   requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.list(req, res)),
-);
-
-payoutsRoutes.post(
-  '/payout-batches',
-  requirePermission(PAYOUTS_APPROVE),
-  asyncHandler((req, res) => payoutsController.generate(req, res)),
 );
 
 /**
@@ -110,6 +117,22 @@ payoutsRoutes.get(
   '/payout-wallet/transactions',
   requirePermission('payouts:view'),
   asyncHandler((req, res) => payoutsController.adminWalletTransactions(req, res)),
+);
+
+/**
+ * Credit / debit report per day or week (admin received vs partner wallets). Read-only.
+ * Both routes are registered before /payouts/:id and the generic batch routes.
+ */
+payoutsRoutes.get(
+  '/payout-wallet/ledger',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.adminLedger(req, res)),
+);
+
+payoutsRoutes.get(
+  '/payout-wallet/ledger/lines',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.adminLedgerLines(req, res)),
 );
 
 /**

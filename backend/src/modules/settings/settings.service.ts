@@ -1,4 +1,3 @@
-
 import { Types } from 'mongoose';
 import { SettingModel } from '../../models/Settings';
 import { Errors } from '../../utils/errors';
@@ -243,6 +242,22 @@ export const settingsService = {
       changed: changes.map(([key]) => key),
       ...(await this.list()),
     };
+  },
+
+  /** What the public website shows in its footer. No login needed, so it holds nothing private. */
+  async publicSite() {
+    const [phone, email, hours, country, facebook, instagram, x, linkedin] = await Promise.all([
+      getSetting('support.phone'),
+      getSetting('support.email'),
+      getSetting('support.hours'),
+      getSetting('business.country'),
+      getSetting('social.facebook'),
+      getSetting('social.instagram'),
+      getSetting('social.x'),
+      getSetting('social.linkedin'),
+    ]);
+
+    return { phone, email, hours, country, social: { facebook, instagram, x, linkedin } };
   },
 
   /** Updates one setting using the same validation and audit logic. */
