@@ -91,12 +91,15 @@ const StarRating: React.FC<{
  * MAIN COMPONENT: ReviewsPage
  * ===================================================================== */
 
+const INITIAL_VISIBLE_COUNT = 5;
+
 export default function ReviewsPage() {
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<"recent" | "rating" | "helpful">("recent");
   const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
   const [reviewsList, setReviewsList] = useState<CustomerReview[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [stats, setStats] = useState<{
     averageRating: number;
     totalReviews: number;
@@ -193,6 +196,12 @@ export default function ReviewsPage() {
 
     return list;
   }, [reviewsList, ratingFilter, searchQuery, sortBy, helpfulState]);
+
+  // Sliced reviews: show latest 5 by default, or all when showAll is true
+  const visibleReviews = useMemo(() => {
+    if (showAll) return filteredReviews;
+    return filteredReviews.slice(0, INITIAL_VISIBLE_COUNT);
+  }, [filteredReviews, showAll]);
 
   return (
     <>
@@ -302,18 +311,19 @@ export default function ReviewsPage() {
                   </span>
                 ) : (
                   <>
-                    Showing <span className="font-bold text-[#1e1b4b]">{filteredReviews.length}</span> of {reviewsList.length} reviews
+                    Showing <span className="font-bold text-[#1e1b4b]">{visibleReviews.length}</span> of {filteredReviews.length} reviews
                   </>
                 )}
               </span>
 
-              {(searchQuery || ratingFilter !== "all" || sortBy !== "recent") && (
+              {(searchQuery || ratingFilter !== "all" || sortBy !== "recent" || showAll) && (
                 <button
                   type="button"
                   onClick={() => {
                     setSearchQuery("");
                     setRatingFilter("all");
                     setSortBy("recent");
+                    setShowAll(false);
                   }}
                   className="font-bold text-[#ff8a3d] hover:text-[#e0691e] transition-colors cursor-pointer"
                 >
@@ -425,8 +435,9 @@ export default function ReviewsPage() {
               </div>
             ) : (
               /* One Card in the Row (Single Column Layout) */
-              <div className="flex flex-col gap-4 sm:gap-5">
-                {filteredReviews.map((r) => {
+              <>
+                <div className="flex flex-col gap-4 sm:gap-5">
+                {visibleReviews.map((r) => {
                   const helpful = helpfulState[r.id] ?? { count: r.helpfulCount, liked: false };
                   const hasAvatar = Boolean(r.avatar && !avatarErrors[r.id]);
 
@@ -520,7 +531,32 @@ export default function ReviewsPage() {
                     </article>
                   );
                 })}
-              </div>
+                </div>
+
+                {/* Highlighted View All Reviews Button */}
+                {filteredReviews.length > INITIAL_VISIBLE_COUNT && (
+                  <div className="mt-8 sm:mt-10 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAll((prev) => !prev)}
+                      className="inline-flex items-center gap-2.5 rounded-2xl border-2 border-orange-200 bg-transparent hover:bg-orange-50/40 hover:border-[#ff8a3d] px-8 sm:px-10 py-3.5 sm:py-4 text-xs sm:text-sm shadow-xs hover:shadow-md active:scale-95 transition-all duration-200 cursor-pointer group"
+                    >
+                      <span className="font-black text-sm sm:text-base text-[#ff8a3d] tracking-wide transition-colors">
+                        {showAll ? "Show latest 5 reviews" : "View all"}
+                      </span>
+                      <svg
+                        className={`h-4 w-4 text-[#ff8a3d] transition-transform duration-200 ${showAll ? "rotate-180" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

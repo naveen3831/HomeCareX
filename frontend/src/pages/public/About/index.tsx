@@ -73,9 +73,6 @@ const AboutPage: React.FC = () => {
     cta,
   } = aboutData;
 
-  // Active Zoho Section Tab (Defaults to Mission & Vision)
-  const [activeTab, setActiveTab] = useState<string>("mission-vision");
-
   // Mobile challenge accordion in Story section
   const [expandedChallenge, setExpandedChallenge] = useState<number | null>(0);
 
@@ -93,22 +90,7 @@ const AboutPage: React.FC = () => {
       "Learn about HomeCareX, our mission, vision, and how our digital home-services marketplace connects customers with verified service partners."
     );
   }, []);
-
-  // Navigation Tabs matching Zoho About Us vertical layout
-  const ZOHO_TABS = [
-    {
-      id: "mission-vision",
-      shortLabel: "Mission & Vision",
-      title: "Our Mission & Vision",
-    },
-    {
-      id: "values",
-      shortLabel: "Core Values",
-      title: "Our Core Values & Principles",
-    },
-  ];
-
-  return (
+return (
     <div className="hcx-about min-h-screen bg-white">
       {/* Dynamic Font Styling matching Home Page */}
       <style>{aboutTypographyStyles}</style>
@@ -302,252 +284,190 @@ const AboutPage: React.FC = () => {
       </section>
 
       {/* =========================================================
-          3. MAIN ZOHO-STYLE LEFT VERTICAL TABS LAYOUT
-          (PREVIOUS EDITORIAL STYLE: NO CARD CONTAINER BOX)
+          3. OUR MISSION, VISION & CORE VALUES
+          (CLEAN FULL-WIDTH EDITORIAL LAYOUT - NO LEFT SIDEBAR)
           (EXACT MARGIN: max-w-7xl px-5 sm:px-8 lg:px-10)
           ========================================================= */}
       <section
         aria-label="HomeCareX Core Marketplace Pillars"
-        className="hidden lg:block bg-white py-10 sm:py-14 border-b border-slate-100"
+        className="hidden lg:block bg-white py-12 lg:py-16 border-b border-slate-100"
       >
-        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
-          {/* Mobile Horizontal Scrollable Tab Bar (< lg screens) */}
-          <div className="lg:hidden w-full overflow-x-auto no-scrollbar -mx-5 px-5 sm:-mx-8 sm:px-8 mb-6 border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2 min-w-max">
-              {ZOHO_TABS.map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      isActive
-                        ? "bg-[#4338ca] text-white shadow-xs"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-                    }`}
-                  >
-                    {tab.title}
-                  </button>
-                );
-              })}
+        <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10 space-y-16">
+          {/* ================= PART 1: OUR MISSION & VISION ================= */}
+          <div className="space-y-8">
+            <div className="grid md:grid-cols-12 gap-8 lg:gap-12 items-center">
+              <div className="md:col-span-7 space-y-4">
+                <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                  <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                  {mission.eyebrow}
+                </span>
+                <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                  Our Mission &amp; Vision
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                  {mission.statement}
+                </p>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                  {vision.statement}
+                </p>
+              </div>
+
+              <div className="md:col-span-5 shrink-0">
+                <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                  <img
+                    src="/images/about/about-electrician.jpg"
+                    alt="HomeCareX certified electrician performing diagnostics"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    loading="lazy"
+                  />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                  Standardized quality benchmarks for every home visit.
+                </p>
+              </div>
+            </div>
+
+            {/* 2-Column Pillars: Mission & Vision */}
+            <div className="grid sm:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
+              <div className="group rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-5 hover:border-indigo-400 transition-colors">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[#4338ca]">
+                    <Compass className="h-4 w-4" />
+                  </span>
+                  <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#4338ca]">
+                    OUR MISSION PILLARS
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {mission.pillars.map((pillar) => (
+                    <div key={pillar.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#4338ca]">
+                        <Check className="h-3 w-3" />
+                      </span>
+                      <span>{pillar.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="group rounded-2xl border border-orange-200/80 bg-orange-50/30 p-5 hover:border-orange-400 transition-colors">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-[#ea580c]">
+                    <Target className="h-4 w-4" />
+                  </span>
+                  <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#ea580c]">
+                    LONG-TERM COMMITMENTS
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {vision.commitments.map((c) => (
+                    <div key={c.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#ea580c]">
+                        <Check className="h-3 w-3" />
+                      </span>
+                      <span>{c.title}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Vertical Zoho Tab Navigation (Desktop Only: lg:block, completely undisturbed) */}
-            <aside
-              aria-label="About page section menu"
-              className="hidden lg:block lg:col-span-3 lg:sticky lg:top-24"
-            >
-              <nav className="flex flex-col border-l-2 border-slate-100">
-                {ZOHO_TABS.map((tab) => {
-                  const isActive = activeTab === tab.id;
+          {/* Subtle Section Divider */}
+          <div className="border-t border-slate-100" />
+
+          {/* ================= PART 2: OUR CORE VALUES & PRINCIPLES ================= */}
+          <div className="space-y-8">
+            <div className="grid md:grid-cols-12 gap-8 lg:gap-12 items-center">
+              <div className="md:col-span-7 space-y-4">
+                <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
+                  <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
+                  {values.eyebrow}
+                </span>
+                <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
+                  {values.heading}
+                </h2>
+                <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
+                  {values.subtitle}
+                </p>
+                <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
+                  Our values serve as our daily operating code, guiding product design, partner onboarding, and customer interactions.
+                </p>
+              </div>
+
+              <div className="md:col-span-5 shrink-0">
+                <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
+                  <img
+                    src="/images/about/about-electrician.jpg"
+                    alt="HomeCareX professional embodying craft integrity"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    loading="lazy"
+                  />
+                </div>
+                <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
+                  Integrity and transparent service in every home.
+                </p>
+              </div>
+            </div>
+
+            {/* Core Operating Principles: 5 Guiding Pillars */}
+            <div className="pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
+                  <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
+                    Core Operating Principles:
+                  </h3>
+                </div>
+                <span className="text-xs sm:text-sm font-semibold text-slate-400">
+                  5 Guiding Pillars
+                </span>
+              </div>
+
+              {/* Editorial Interactive Rows */}
+              <div className="divide-y divide-slate-100 border-y border-slate-100">
+                {values.items.map((val) => {
+                  const valIcons: Record<string, React.ReactNode> = {
+                    "Customer First": <Target className="h-5 w-5 text-indigo-600" />,
+                    "Transparency": <Search className="h-5 w-5 text-indigo-600" />,
+                    "Respect": <Users className="h-5 w-5 text-amber-600" />,
+                    "Responsibility": <Scale className="h-5 w-5 text-emerald-600" />,
+                    "Continuous Improvement": <TrendingUp className="h-5 w-5 text-orange-600" />,
+                  };
                   return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`group text-left py-3.5 pl-5 pr-2 text-sm sm:text-base font-bold transition-all duration-200 border-l-2 -ml-[2px] cursor-pointer ${
-                        isActive
-                          ? "border-l-[#ff8a3d] text-[#4338ca] font-extrabold"
-                          : "border-l-transparent text-slate-600 hover:text-slate-900 hover:border-l-slate-300"
-                      }`}
+                    <div
+                      key={val.title}
+                      className="group relative py-4 sm:py-5 px-3 sm:px-5 transition-all duration-300 hover:bg-gradient-to-r hover:from-indigo-50/70 hover:via-white hover:to-orange-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-8 cursor-pointer rounded-xl"
                     >
-                      <span className={`transition-colors ${isActive ? "text-[#4338ca]" : "group-hover:text-slate-900"}`}>
-                        {tab.title}
-                      </span>
-                    </button>
+                      {/* Left: Numeral + Icon + Title */}
+                      <div className="flex items-center gap-3.5 sm:gap-5 min-w-0 sm:min-w-[280px]">
+                        <span className="text-lg sm:text-xl font-black text-slate-300 group-hover:text-[#ff8a3d] transition-colors tabular-nums shrink-0">
+                          {val.number}
+                        </span>
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs group-hover:bg-white group-hover:scale-110 transition-all">
+                          {valIcons[val.title] || <Award className="h-5 w-5 text-indigo-600" />}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                            Pillar {val.number}
+                          </span>
+                          <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors whitespace-nowrap">
+                            {val.title}
+                          </h4>
+                        </div>
+                      </div>
+
+                      {/* Right: Tagline statement */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs sm:text-sm md:text-base text-slate-600 leading-relaxed font-normal group-hover:text-slate-900 transition-colors">
+                          {val.tagline}
+                        </p>
+                      </div>
+                    </div>
                   );
                 })}
-              </nav>
-            </aside>
-
-            {/* Right Tab Content Container */}
-            <main
-              id="zoho-about-section-content"
-              tabIndex={-1}
-              className="lg:col-span-9 bg-white min-h-[500px]"
-            >
-              {/* ================= TAB 1: OUR MISSION & VISION ================= */}
-              {activeTab === "mission-vision" && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="grid md:grid-cols-12 gap-8 items-start">
-                    <div className="md:col-span-7 space-y-4">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
-                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
-                        {mission.eyebrow}
-                      </span>
-                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
-                        Our Mission &amp; Vision
-                      </h2>
-                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
-                        {mission.statement}
-                      </p>
-                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
-                        {vision.statement}
-                      </p>
-                    </div>
-
-                    <div className="md:col-span-5 shrink-0">
-                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
-                        <img
-                          src="/images/about/about-electrician.jpg"
-                          alt="HomeCareX certified electrician performing diagnostics"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                          loading="lazy"
-                        />
-                      </div>
-                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
-                        Standardized quality benchmarks for every home visit.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 2-Column Pillars: Mission & Vision */}
-                  <div className="grid sm:grid-cols-2 gap-5 pt-4 border-t border-slate-100">
-                    <div className="group rounded-2xl border border-indigo-200/80 bg-indigo-50/30 p-5 hover:border-indigo-400 transition-colors">
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-[#4338ca]">
-                          <Compass className="h-4 w-4" />
-                        </span>
-                        <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#4338ca]">
-                          OUR MISSION PILLARS
-                        </h3>
-                      </div>
-                      <div className="space-y-2">
-                        {mission.pillars.map((pillar) => (
-                          <div key={pillar.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[#4338ca]">
-                              <Check className="h-3 w-3" />
-                            </span>
-                            <span>{pillar.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="group rounded-2xl border border-orange-200/80 bg-orange-50/30 p-5 hover:border-orange-400 transition-colors">
-                      <div className="flex items-center gap-2.5 mb-3">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-100 text-[#ea580c]">
-                          <Target className="h-4 w-4" />
-                        </span>
-                        <h3 className="group-hover-heading text-xs sm:text-sm font-bold tracking-widest uppercase text-[#ea580c]">
-                          LONG-TERM COMMITMENTS
-                        </h3>
-                      </div>
-                      <div className="space-y-2">
-                        {vision.commitments.map((c) => (
-                          <div key={c.title} className="flex items-center gap-2.5 text-sm sm:text-base font-semibold text-slate-800">
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-orange-100 text-[#ea580c]">
-                              <Check className="h-3 w-3" />
-                            </span>
-                            <span>{c.title}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ================= TAB 2: OUR CORE VALUES & PRINCIPLES ================= */}
-              {activeTab === "values" && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="grid md:grid-cols-12 gap-8 items-start">
-                    <div className="md:col-span-7 space-y-4">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-indigo-700">
-                        <span className="h-2 w-2 rounded-full bg-[#ff8a3d]" />
-                        {values.eyebrow}
-                      </span>
-                      <h2 className="hover-heading text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight cursor-default">
-                        {values.heading}
-                      </h2>
-                      <p className="text-sm sm:text-base md:text-lg text-slate-600 leading-relaxed font-normal">
-                        {values.subtitle}
-                      </p>
-                      <p className="text-sm sm:text-base text-slate-600 leading-relaxed font-normal">
-                        Our values serve as our daily operating code, guiding product design, partner onboarding, and customer interactions.
-                      </p>
-                    </div>
-
-                    <div className="md:col-span-5 shrink-0">
-                      <div className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 aspect-[4/3] bg-slate-100 group">
-                        <img
-                          src="/images/about/about-electrician.jpg"
-                          alt="HomeCareX professional embodying craft integrity"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                          loading="lazy"
-                        />
-                      </div>
-                      <p className="text-xs sm:text-sm text-slate-500 mt-2 text-center font-medium">
-                        Integrity and transparent service in every home.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* 3rd Image: Latest Modern Editorial Strip Matrix (NO CARD BOXES, NO GUIDING STANDARD COLUMN) */}
-                  <div className="pt-6 border-t border-slate-100">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-[#ff8a3d]" />
-                        <h3 className="hover-heading text-sm sm:text-base font-extrabold uppercase tracking-wider text-[#4338ca] cursor-default">
-                          Core Operating Principles:
-                        </h3>
-                      </div>
-                      <span className="text-xs sm:text-sm font-semibold text-slate-400">
-                        5 Guiding Pillars
-                      </span>
-                    </div>
-
-                    {/* Editorial Interactive Rows (Zero Card Boxes, No Guiding Standard Column) */}
-                    <div className="divide-y divide-slate-100 border-y border-slate-100">
-                      {values.items.map((val) => {
-                        const valIcons: Record<string, React.ReactNode> = {
-                          "Customer First": <Target className="h-5 w-5 text-indigo-600" />,
-                          "Transparency": <Search className="h-5 w-5 text-indigo-600" />,
-                          "Respect": <Users className="h-5 w-5 text-amber-600" />,
-                          "Responsibility": <Scale className="h-5 w-5 text-emerald-600" />,
-                          "Continuous Improvement": <TrendingUp className="h-5 w-5 text-orange-600" />,
-                        };
-                        return (
-                          <div
-                            key={val.title}
-                            className="group relative py-4 sm:py-5 px-3 sm:px-5 transition-all duration-300 hover:bg-gradient-to-r hover:from-indigo-50/70 hover:via-white hover:to-orange-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-8 cursor-pointer rounded-xl"
-                          >
-                            {/* Left: Numeral + Icon + Title (No Truncation) */}
-                            <div className="flex items-center gap-3.5 sm:gap-5 min-w-0 sm:min-w-[280px]">
-                              <span className="text-lg sm:text-xl font-black text-slate-300 group-hover:text-[#ff8a3d] transition-colors tabular-nums shrink-0">
-                                {val.number}
-                              </span>
-                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 shadow-2xs group-hover:bg-white group-hover:scale-110 transition-all">
-                                {valIcons[val.title] || <Award className="h-5 w-5 text-indigo-600" />}
-                              </span>
-                              <div className="min-w-0">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                                  Pillar {val.number}
-                                </span>
-                                <h4 className="group-hover-heading text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors whitespace-nowrap">
-                                  {val.title}
-                                </h4>
-                              </div>
-                            </div>
-
-                            {/* Right: Tagline statement (Fills full width, guiding standard column removed) */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs sm:text-sm md:text-base text-slate-600 leading-relaxed font-normal group-hover:text-slate-900 transition-colors">
-                                {val.tagline}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </main>
+              </div>
+            </div>
           </div>
         </div>
       </section>
