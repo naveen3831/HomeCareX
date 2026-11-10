@@ -255,6 +255,13 @@ function DetailsBody({
   const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
   const location = useLocation();
 
+  const handleMobileTabChange = (tab: "overview" | "details" | "actions") => {
+    setMobileTab(tab);
+    if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   
   const bookingId = String(booking._id || (booking as { id?: string }).id || "");
   const normalizedStatus = String(booking.status || "").toLowerCase();
@@ -343,44 +350,49 @@ function DetailsBody({
         /* Mobile Redesign (Overview | Details | Actions) */
         <div className="-mt-2 space-y-3.5 md:hidden">
 
-          {/* Segmented 3-Tab Bar: Equal width/height, perfectly centered labels */}
-          <div className="grid grid-cols-3 rounded-2xl bg-[#f4f5f8] p-1.5 gap-1">
-            <button
-              type="button"
-              onClick={() => setMobileTab("overview")}
-              className={clsx(
-                "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
-                mobileTab === "overview"
-                  ? "bg-[#4338ca] text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900",
-              )}
-            >
-              Overview
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab("details")}
-              className={clsx(
-                "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
-                mobileTab === "details"
-                  ? "bg-[#4338ca] text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900",
-              )}
-            >
-              Details
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab("actions")}
-              className={clsx(
-                "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
-                mobileTab === "actions"
-                  ? "bg-[#4338ca] text-white shadow-sm"
-                  : "text-slate-600 hover:text-slate-900",
-              )}
-            >
-              Actions
-            </button>
+          {/* Segmented 3-Tab Bar: Sticky under TopBar so it stays pinned while scrolling */}
+          <div
+            className="sticky z-20 -mx-4 bg-canvas px-4 pb-2.5 pt-1.5 border-b border-line/40 shadow-xs"
+            style={{ top: "calc(64px + env(safe-area-inset-top, 0px))" }}
+          >
+            <div className="grid grid-cols-3 rounded-2xl bg-[#f4f5f8] p-1.5 gap-1">
+              <button
+                type="button"
+                onClick={() => handleMobileTabChange("overview")}
+                className={clsx(
+                  "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
+                  mobileTab === "overview"
+                    ? "bg-[#4338ca] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900",
+                )}
+              >
+                Overview
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMobileTabChange("details")}
+                className={clsx(
+                  "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
+                  mobileTab === "details"
+                    ? "bg-[#4338ca] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900",
+                )}
+              >
+                Details
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMobileTabChange("actions")}
+                className={clsx(
+                  "flex items-center justify-center rounded-xl py-2.5 text-xs sm:text-sm font-semibold transition-all",
+                  mobileTab === "actions"
+                    ? "bg-[#4338ca] text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900",
+                )}
+              >
+                Actions
+              </button>
+            </div>
           </div>
 
           {/* TAB 1: OVERVIEW */}
@@ -426,6 +438,28 @@ function DetailsBody({
                 </p>
               </div>
 
+              {/* Pending Extra Charges Alert Banner */}
+              {hasPendingExtraCharges && (
+                <div
+                  role="region"
+                  aria-label="Pending Extra Charge Approval"
+                  className="flex items-start gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 p-4 shadow-sm"
+                >
+                  <CircleAlert
+                    className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-xs sm:text-sm font-bold text-amber-950">
+                      Your partner requested extra charges
+                    </p>
+                    <p className="mt-0.5 text-xs text-amber-900">
+                      Review and approve or reject to continue the service.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Service Info Card */}
               <div className="flex items-start gap-3.5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 {service?.image && !imgFailed ? (
@@ -463,6 +497,17 @@ function DetailsBody({
                   </div>
                 </div>
               </div>
+
+              {/* Extra Charges Section */}
+              {(booking.extraCharges?.length ?? 0) > 0 && (
+                <ExtraChargeApproval
+                  charges={booking.extraCharges}
+                  canDecide={canDecideExtraCharges(booking.status)}
+                  onDecide={(chargeId, decision) =>
+                    decide.mutateAsync({ chargeId, decision })
+                  }
+                />
+              )}
 
               {/* Service Partner Card */}
               <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-3">
@@ -627,6 +672,17 @@ function DetailsBody({
                 )}
               </div>
 
+              {/* Extra Charges Section */}
+              {(booking.extraCharges?.length ?? 0) > 0 && (
+                <ExtraChargeApproval
+                  charges={booking.extraCharges}
+                  canDecide={canDecideExtraCharges(booking.status)}
+                  onDecide={(chargeId, decision) =>
+                    decide.mutateAsync({ chargeId, decision })
+                  }
+                />
+              )}
+
               {/* Price Details Card */}
               <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm space-y-2.5">
                 <div className="flex items-center gap-2">
@@ -650,12 +706,28 @@ function DetailsBody({
                       </div>
                     );
                   })}
+                  {price.extraApproved > 0 && (
+                    <>
+                      <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+                        <span className="text-slate-500">Booking total</span>
+                        <span className="font-semibold text-slate-900">{rupees(price.total)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Approved extra charges</span>
+                        <span className="font-semibold text-slate-900">{rupees(price.extraApproved)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Total Amount Box */}
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-[#f0f2fa] p-3">
-                  <span className="text-xs font-bold text-[#4338ca]">Total Amount</span>
-                  <span className="text-sm font-extrabold text-[#4338ca]">{rupees(price.total)}</span>
+                  <span className="text-xs font-bold text-[#4338ca]">
+                    {price.extraApproved > 0 ? "Total with extras" : "Total Amount"}
+                  </span>
+                  <span className="text-sm font-extrabold text-[#4338ca]">
+                    {rupees(price.grandTotal)}
+                  </span>
                 </div>
               </div>
             </div>
