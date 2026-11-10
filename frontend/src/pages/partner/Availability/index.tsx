@@ -100,7 +100,7 @@ export const PartnerAvailabilityPage: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <div className="mx-auto w-full max-w-xl space-y-3" aria-busy="true">
+      <div className="mx-auto w-full max-w-xl space-y-3 xl:max-w-6xl" aria-busy="true">
         <div className="h-48 animate-pulse rounded-3xl bg-slate-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-slate-100" />
         <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
@@ -110,7 +110,7 @@ export const PartnerAvailabilityPage: React.FC = () => {
 
   if (!data || !summary) {
     return (
-      <div className="mx-auto w-full max-w-xl">
+      <div className="mx-auto w-full max-w-xl xl:max-w-6xl">
         <div className={`${card} text-center`} role="alert">
           <p className="text-sm text-slate-700">{error ?? 'No availability found.'}</p>
           <button type="button" onClick={load} className={`${bigBtn} mt-3 bg-indigo-600 text-white hover:bg-indigo-700`}>
@@ -136,9 +136,9 @@ export const PartnerAvailabilityPage: React.FC = () => {
       : 'Day off today';
 
   return (
-    <div className="mx-auto w-full max-w-xl space-y-3 pb-6 text-slate-900">
+    <div className="mx-auto w-full max-w-xl space-y-3 pb-6 text-slate-900 xl:grid xl:max-w-6xl xl:grid-cols-12 xl:items-start xl:gap-6 xl:space-y-0 xl:pb-10">
       {error && (
-        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 xl:col-span-12">
           {error}
         </p>
       )}
@@ -146,12 +146,12 @@ export const PartnerAvailabilityPage: React.FC = () => {
       {/* 1. Online / offline */}
       <section
         aria-live="polite"
-        className={`rounded-2xl border p-4 ${online ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white shadow-sm'}`}
+        className={`rounded-2xl border p-4 xl:col-span-12 xl:flex xl:items-center xl:gap-8 xl:p-6 ${online ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white shadow-sm'}`}
       >
         <div className="flex items-center gap-3">
           <span
             aria-hidden="true"
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full xl:h-14 xl:w-14 ${
               online ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
             }`}
           >
@@ -159,16 +159,16 @@ export const PartnerAvailabilityPage: React.FC = () => {
           </span>
           <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-500">Your status</p>
-            <h2 className="text-lg font-extrabold leading-6">{online ? 'You are Online' : 'You are Offline'}</h2>
+            <h2 className="text-lg font-extrabold leading-6 xl:text-2xl xl:leading-8">{online ? 'You are Online' : 'You are Offline'}</h2>
           </div>
         </div>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-slate-600 xl:mt-0 xl:flex-1 xl:text-base">
           {online ? 'Customers can book you now.' : "Customers can't see you, so you won't get new jobs."}
         </p>
         <button
           type="button"
           onClick={() => setOnline(!online)}
-          className={`${bigBtn} mt-3 ${
+          className={`${bigBtn} mt-3 xl:mt-0 xl:w-56 xl:shrink-0 ${
             online
               ? 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
               : 'bg-indigo-600 text-white hover:bg-indigo-700'
@@ -179,7 +179,7 @@ export const PartnerAvailabilityPage: React.FC = () => {
       </section>
 
       {/* Today */}
-      <section className={card}>
+      <section className={`${card} xl:col-span-4 xl:col-start-9 xl:row-start-2`}>
         <p className="text-xs font-semibold text-slate-500">Today you work</p>
         <p className="mt-1 flex items-center gap-2 text-base font-extrabold">
           <Clock size={18} className="shrink-0 text-indigo-600" aria-hidden="true" />
@@ -193,22 +193,36 @@ export const PartnerAvailabilityPage: React.FC = () => {
       </section>
 
       {/* 2. Working hours */}
-      <section className={card}>
+      <section className={`${card} xl:col-span-8 xl:col-start-1 xl:row-span-3 xl:row-start-2 xl:p-6`}>
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-base font-bold">My working hours</h3>
+          <h3 className="text-base font-bold xl:text-lg">My working hours</h3>
           <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">
             {fmtHrs(weekHours)} hrs / week
           </span>
         </div>
 
-        <ul className="mt-3 space-y-1.5">
+        {/* Desktop only: time axis for the bars below */}
+        <div className="mt-5 hidden items-center gap-3 px-4 text-[11px] font-semibold text-slate-400 xl:flex" aria-hidden="true">
+          <span className="w-9 shrink-0" />
+          <span className="w-52 shrink-0" />
+          <div className="flex flex-1 justify-between">
+            <span>12 AM</span>
+            <span>6 AM</span>
+            <span>12 PM</span>
+            <span>6 PM</span>
+            <span>12 AM</span>
+          </div>
+          <span className="w-12 shrink-0" />
+        </div>
+
+        <ul className="mt-3 space-y-1.5 xl:mt-2 xl:space-y-1">
           {data.workingHours.map((d) => {
             const isToday = d.day === todayName();
             const hrs = d.off ? 0 : hoursBetween(d.start, d.end);
             return (
               <li
                 key={d.day}
-                className={`flex items-center gap-3 rounded-xl px-2.5 py-2 ${
+                className={`flex items-center gap-3 rounded-xl px-2.5 py-2 xl:px-4 xl:py-3 ${
                   isToday ? 'bg-indigo-50' : ''
                 }`}
               >
@@ -222,7 +236,7 @@ export const PartnerAvailabilityPage: React.FC = () => {
                 >
                   {d.day.slice(0, 2).toUpperCase()}
                 </span>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 xl:w-52 xl:flex-none">
                   <p className={`text-sm leading-5 ${isToday ? 'font-bold text-indigo-800' : 'font-semibold text-slate-800'}`}>
                     {cap(d.day)}
                     {isToday && (
@@ -235,23 +249,36 @@ export const PartnerAvailabilityPage: React.FC = () => {
                     {d.off ? 'Day off' : `${formatTime(d.start)} – ${formatTime(d.end)}`}
                   </p>
                 </div>
-                {!d.off && (
-                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100">
+                <div className="hidden h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100 xl:block" aria-hidden="true">
+                  {!d.off && (
+                    <span
+                      className={`block h-full rounded-full ${isToday ? 'bg-indigo-600' : 'bg-indigo-400'}`}
+                      style={{
+                        marginLeft: `${(toHours(d.start) / 24) * 100}%`,
+                        width: `${(hrs / 24) * 100}%`,
+                      }}
+                    />
+                  )}
+                </div>
+                {!d.off ? (
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-bold text-indigo-700 ring-1 ring-indigo-100 xl:w-12 xl:text-center">
                     {fmtHrs(hrs)}h
                   </span>
+                ) : (
+                  <span className="hidden w-12 shrink-0 xl:block" aria-hidden="true" />
                 )}
               </li>
             );
           })}
         </ul>
 
-        <Link to="/partner/working-hours" className={`${bigBtn} mt-3 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700`}>
+        <Link to="/partner/working-hours" className={`${bigBtn} mt-3 bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 xl:ml-auto xl:mt-5 xl:w-fit xl:px-8`}>
           <Clock size={16} aria-hidden="true" /> Change working hours
         </Link>
       </section>
 
       {/* 3. Two quick tiles */}
-      <section className="grid grid-cols-2 gap-3" aria-label="More options">
+      <section className="grid grid-cols-2 gap-3 xl:col-span-4 xl:col-start-9 xl:row-start-3" aria-label="More options">
         <Link
           to="/partner/blackout-dates"
           className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-orange-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
@@ -282,7 +309,7 @@ export const PartnerAvailabilityPage: React.FC = () => {
       </section>
 
       {/* 4. Next 30 days */}
-      <section className={card}>
+      <section className={`${card} xl:col-span-4 xl:col-start-9 xl:row-start-4`}>
         <h3 className="text-base font-bold">Next {HORIZON} days</h3>
         <div
           className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100"

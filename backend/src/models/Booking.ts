@@ -90,6 +90,8 @@ export interface IBooking extends Document {
   otpCodes?: { start?: string; end?: string };
   /** Wrong start-code tries by the partner; the job locks at START_OTP_MAX_ATTEMPTS. */
   startOtpAttempts?: number;
+  /** Before-work photos/video the partner sent when starting the job. Files live in JOB_PROOF_STORAGE_DIR. */
+  startProof?: Array<{ kind: 'photo' | 'video'; storageKey: string; mimeType: string; size: number; uploadedAt: Date }>;
   extraCharges?: Array<{
     _id: Types.ObjectId;
     title: string;

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
+import type { StartMedia } from "./partner-jobs.proof";
 import type {
   ChecklistBody,
   CollectPaymentBody,

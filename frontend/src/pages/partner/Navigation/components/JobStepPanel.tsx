@@ -72,6 +72,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
   const [otp, setOtp] = useState('');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
@@ -163,6 +164,12 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
     });
   };
 
+  const removeVideo = () => {
+    if (video) URL.revokeObjectURL(video.url);
+    setVideo(null);
+    setVideoError(null);
+  };
+
   const submit = async () => {
     if (!canSubmit) return;
     setBusy(true);
@@ -232,7 +239,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
             ref={cameraRef}
             type="file"
             accept="image/jpeg,image/png"
-            capture="environment"
+            multiple
             className="nav-sr"
             id="nv-photo"
             onChange={(e) => {
@@ -254,7 +261,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
             }}
           />
 
-          {media.length === 0 ? (
+a          {media.length === 0 ? (
             <button type="button" className="nv-step" onClick={() => cameraRef.current?.click()}>
               <Camera size={20} aria-hidden="true" />
               Take start photo
@@ -317,7 +324,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
 
           <button type="button" className="nv-go" onClick={() => void submit()} disabled={!canSubmit} aria-busy={busy}>
             {busy ? <Loader2 size={20} className="nv-spin" aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
-            {busy ? 'Starting…' : 'Verify and start job'}
+            {busy ? (video ? 'Uploading and starting…' : 'Starting…') : 'Verify and start job'}
           </button>
           {!online && <p className="nav-hint">You are offline. Reconnect to start the job.</p>}
         </>

@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import {
   LifeBuoy,
+  MapPin,
   MessageCircle,
   Navigation as NavigationIcon,
   X,
@@ -28,6 +29,7 @@ import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
 import JobStepPanel from "./components/JobStepPanel";
 import "./navigation.css";
+import "./navigationApp.css";
 
 function DemoJobNotice() {
   const go = useNavigate();
@@ -91,6 +93,35 @@ const TEST_MOVE_TO_CUSTOMER = true;
 /* ====================================== */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
+
+/** Headline + one helpful line for the panel, per job status (what the partner should do now). */
+function stepInfo(status: string): { title: string; sub: string } {
+  switch (status) {
+    case "en_route":
+      return {
+        title: "Heading to the customer",
+        sub: "The customer can follow you live on their phone.",
+      };
+    case "arrived":
+      return {
+        title: "You have arrived",
+        sub: "Ask the customer for the start code, then take a start photo.",
+      };
+    case "in_progress":
+      return {
+        title: "Job in progress",
+        sub: "Finish the work, then complete the job below.",
+      };
+    case "completed":
+    case "rated":
+      return { title: "Job completed", sub: "Collect the payment to wrap up." };
+    default:
+      return {
+        title: "Ready to head out",
+        sub: "Tap the button below when you leave so the customer can follow you live.",
+      };
+  }
+}
 
 function NavigationContent({ id }: { id: string }) {
   const online = useOnlineStatus();
@@ -308,8 +339,19 @@ function NavigationContent({ id }: { id: string }) {
     }
   };
 
+  const step = stepInfo(job.status);
+  const initials =
+    job.customer.name
+      .replace(/[^A-Za-z ]/g, "")
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "C";
+
   return (
-    <div className="nav-page nv-page">
+    <div className="nav-page nv-page nv-app">
       <h2 className="nav-sr">Navigation</h2>
 
       {!online && (
@@ -318,54 +360,57 @@ function NavigationContent({ id }: { id: string }) {
         </p>
       )}
 
-      {!finished && (
-        <section className="nv-map" aria-label="Map">
-          <LiveMap customer={customer} partner={partner} summary={mapSummary} />
-        </section>
-      )}
+      <div className={`nv-layout${finished ? " nv-layout-single" : ""}`}>
+        {!finished && (
+          <section className="nv-map" aria-label="Map">
+            <LiveMap customer={customer} partner={partner} summary={mapSummary} />
+          </section>
+        )}
 
-      {!finished && (
-        <button type="button" className="nv-go" onClick={startNavigation}>
-          <NavigationIcon size={20} aria-hidden="true" />
-          Navigation
-        </button>
-      )}
+        <section className="nv-panel" aria-label="Job actions">
+          <span className="nv-grabber" aria-hidden="true" />
 
-      {job.actions.map((a) => (
-        <button
-          key={a.status}
-          type="button"
-          className="nv-step"
-          onClick={() => void runAction(a.status)}
-          disabled={busyAction !== null}
-        >
-          {busyAction === a.status ? "Updating…" : a.label}
-        </button>
-      ))}
+          <header className="nv-status">
+            <div className="nv-status-text">
+              <h3 className="nv-status-title">{step.title}</h3>
+              <p className="nv-status-sub">{step.sub}</p>
+            </div>
+            <span className="nv-code" title="Booking ID">
+              #{job.id.slice(-6).toUpperCase()}
+            </span>
+          </header>
 
-      <JobStepPanel
-        job={job}
-        online={online}
-        onChanged={() => setReloadKey((k) => k + 1)}
-      />
+          <div className="nv-trip">
+            <span className="nv-avatar" aria-hidden="true">
+              {initials}
+            </span>
+            <div className="nv-trip-body">
+              <strong className="nv-trip-name">{job.customer.name}</strong>
+              <span className="nv-trip-service">{job.service.name}</span>
+              <span className="nv-trip-addr">
+                <MapPin size={14} aria-hidden="true" />
+                <span>{addressText}</span>
+              </span>
+            </div>
+          </div>
 
-      <div className="nv-tiles">
-        <div className="nv-call">
-          <MaskedCallButton bookingId={id} disabled={!canCall} />
-        </div>
-        <button
-          type="button"
-          className="nv-tile nv-tile-chat"
-          onClick={() => setChatOpen(true)}
-        >
-          <MessageCircle size={22} aria-hidden="true" />
-          <span>Chat</span>
-        </button>
-        <Link className="nv-tile nv-tile-help" to="/partner/help">
-          <LifeBuoy size={22} aria-hidden="true" />
-          <span>Help</span>
-        </Link>
-      </div>
+          <div className="nv-tiles">
+            <div className="nv-call">
+              <MaskedCallButton bookingId={id} disabled={!canCall} />
+            </div>
+            <button
+              type="button"
+              className="nv-tile nv-tile-chat"
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageCircle size={20} aria-hidden="true" />
+              <span>Chat</span>
+            </button>
+            <Link className="nv-tile nv-tile-help" to="/partner/help">
+              <LifeBuoy size={20} aria-hidden="true" />
+              <span>Help</span>
+            </Link>
+          </div>
 
       {!customer && (
         <p className="nav-note" role="status">

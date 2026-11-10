@@ -447,10 +447,12 @@ export async function verifyStart(id: string, otp: string, media?: File | File[]
       files.forEach((file) => form.append('media', file));
       const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        // A video can take a while on a slow mobile network.
+        timeout: 120_000,
       });
       return mapJob(unwrap(res));
     }
-    // No photo: plain JSON. The server accepts both and the photo is optional.
+    // No files: plain JSON. The server accepts both.
     const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, { otp });
     return mapJob(unwrap(res));
   }

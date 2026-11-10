@@ -6,6 +6,7 @@ import { authenticate } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 import { requireRole } from "../../middleware/role.middleware";
 import { validationMiddleware } from "../../middleware/validation.middleware";
+import { receiveStartMedia } from "./partner-jobs.proof";
 
 import {
   acceptJobOffer,
@@ -125,7 +126,7 @@ partnerJobsRoutes.post(
   raiseJobSos,
 );
 
-// POST /api/v1/partner/jobs/:id/verify-start   body: { otp }
+// POST /api/v1/partner/jobs/:id/verify-start   body: { otp }  (+ optional multipart: photos[] up to 6, video x1)
 partnerJobsRoutes.post(
   "/:id/verify-start",
   authenticate,

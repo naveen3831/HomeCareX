@@ -356,6 +356,7 @@ export const partnerJobsRepository = {
         },
         $push: {
           statusHistory: entry,
+          ...(proof.length > 0 ? { startProof: { $each: proof } } : {}),
         },
       },
     );
