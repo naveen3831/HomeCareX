@@ -34,6 +34,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   const storeAuth = useAuthStore((st) => st.isAuthenticated);
   const isAuthenticated = Boolean(auth?.isAuthenticated || storeAuth);
 
+  const serviceDetailUrl = `/services/${encodeURIComponent(id)}`;
+
   const handleBookNow = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -44,6 +46,20 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       navigate(`/login?returnUrl=${encodeURIComponent(bookPath)}`);
     }
   };
+
+  const handleCardClick = () => {
+    navigate(serviceDetailUrl);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "BUTTON" || target.tagName === "A") return;
+      e.preventDefault();
+      handleCardClick();
+    }
+  };
+
   const webpImage = image.replace(/\.(png|jpe?g)$/i, ".webp");
 
   // If the .webp file is missing, drop the <source> so the browser uses the <img> file.
@@ -54,7 +70,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   const displayRating = rating > 0 ? rating.toFixed(1).replace(/\.0$/, "") : "4.8";
 
   return (
-    <article className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-[0_12px_28px_-6px_rgba(67,56,202,0.14)]">
+    <article
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="link"
+      aria-label={`View details for ${name}`}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_12px_28px_-6px_rgba(37,99,235,0.14)] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+    >
       {/* Image container */}
       <div className="relative aspect-[16/10] w-full overflow-hidden">
         <picture>
@@ -80,7 +103,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
               // Original file also failed: stop here to avoid an error loop.
               img.onerror = null;
             }}
-            className="h-full w-full object-cover transition-transform duration-500 will-change-transform"
+            className="h-full w-full object-cover transition-transform duration-500 will-change-transform group-hover:scale-105"
           />
         </picture>
 
@@ -88,8 +111,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/25 via-black/5 to-transparent" />
 
         {/* Category Pill Badge */}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold tracking-tight text-indigo-700 shadow-xs backdrop-blur-md border border-white/60">
-          <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold tracking-tight text-blue-700 shadow-xs backdrop-blur-md border border-white/60">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
           {category}
         </span>
 
@@ -107,14 +130,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
           {/* Service Name */}
-          <h3 className="line-clamp-2 min-h-[2.75rem] text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-indigo-600">
+          <h3 className="line-clamp-2 min-h-[2.75rem] text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-blue-600">
             {name}
           </h3>
 
           {/* Micro Trust & Duration Badges */}
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] font-medium text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-              <Clock size={11} className="text-indigo-600" />
+              <Clock size={11} className="text-blue-600" />
               <span>{duration}</span>
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-700 font-semibold">
@@ -148,8 +171,9 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         {/* Dual Actions CTA: View Details + Book Now side-by-side */}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Link
-            to={`/services/${encodeURIComponent(id)}`}
-            className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-2.5 text-xs sm:text-sm font-bold text-indigo-700 shadow-2xs transition-all duration-200 hover:bg-indigo-100 hover:border-indigo-300 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            to={serviceDetailUrl}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-xs sm:text-sm font-bold text-blue-700 shadow-2xs transition-all duration-200 hover:bg-blue-100 hover:border-blue-300 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <span>View Details</span>
           </Link>
