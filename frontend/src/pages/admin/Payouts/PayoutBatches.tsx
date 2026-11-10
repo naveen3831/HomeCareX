@@ -315,7 +315,7 @@ export const PayoutBatches: React.FC<{ pendingWithdrawals?: number }> = ({ pendi
                             disabled={!online}
                             onClick={() => setConfirmBatch(b)}
                           >
-                            Confirm payout
+                            Processing payout
                           </button>
                         ) : (
                           <span className="pb-muted">Paid</span>
@@ -332,13 +332,13 @@ export const PayoutBatches: React.FC<{ pendingWithdrawals?: number }> = ({ pendi
 
       <ConfirmDialog
         open={confirmBatch !== null}
-        title="Confirm payout"
+        title="Processing payout"
         message={
           confirmBatch
             ? `Pay ${money(confirmBatch.net)} for ${periodText(confirmBatch)}? Every unpaid partner in this batch is marked Paid and their payout amount is deducted from their wallet. This is recorded in the audit log.`
             : ''
         }
-        confirmLabel="Confirm payout"
+        confirmLabel="Processing payout"
         loading={confirming}
         onConfirm={() => void onConfirm()}
         onCancel={() => setConfirmBatch(null)}

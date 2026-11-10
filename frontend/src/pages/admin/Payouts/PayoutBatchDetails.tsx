@@ -181,7 +181,7 @@ export const PayoutBatchDetails: React.FC = () => {
                 disabled={!online}
                 onClick={() => setConfirmAll(true)}
               >
-                Confirm payout
+                Processing payout
               </button>
             )}
           </PermissionGate>
@@ -317,9 +317,9 @@ export const PayoutBatchDetails: React.FC = () => {
 
       <ConfirmDialog
         open={confirmAll}
-        title="Confirm payout"
+        title="Processing payout"
         message={`Pay ${money(batch.net)} for ${periodText(batch)}? Every unpaid partner in this batch is marked Paid and their payout amount is deducted from their wallet. This is recorded in the audit log.`}
-        confirmLabel="Confirm payout"
+        confirmLabel="Processing payout"
         loading={busy}
         onConfirm={() => void onConfirmBatch()}
         onCancel={() => setConfirmAll(false)}

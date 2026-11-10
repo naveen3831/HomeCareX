@@ -30,6 +30,10 @@ import {
 import { partnersRoutes } from "../modules/partners/partners.routes";
 import { payoutsRoutes } from "../modules/payouts/payouts.routes";
 import {
+  adminWithdrawalsRoutes,
+  partnerWithdrawalsRoutes,
+} from "../modules/partner-withdrawals/partner-withdrawals.routes";
+import {
   adminPricingRoutes,
   pricingRoutes,
 } from "../modules/pricing/pricing.routes";
@@ -172,6 +176,7 @@ rootRouter.use(
 );
 
 // B05: Refunds and payouts; B09: read-only audit logs.
+rootRouter.use("/admin/withdrawals", adminWithdrawalsRoutes);
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);
@@ -219,6 +224,7 @@ rootRouter.use("/partner/earnings", authMiddleware, requireTrainingApproved, ear
 rootRouter.use("/partner/transactions", authMiddleware, requireTrainingApproved, partnerWalletRoutes);
 rootRouter.use("/partner/wallet", authMiddleware, requireTrainingApproved, partnerWalletSummaryRoutes);
 rootRouter.use("/partner/payouts", authMiddleware, requireTrainingApproved, partnerPayoutsRoutes);
+rootRouter.use("/partner/withdrawals", authMiddleware, requireTrainingApproved, partnerWithdrawalsRoutes);
 rootRouter.use("/partner/incentives", authMiddleware, requireTrainingApproved, incentivesRoutes);
 rootRouter.use("/partner/services", authMiddleware, requireTrainingApproved, partnerServicesRoutes);
 rootRouter.use("/partner/service-area", authMiddleware, requireTrainingApproved, partnerServiceAreaRoutes);

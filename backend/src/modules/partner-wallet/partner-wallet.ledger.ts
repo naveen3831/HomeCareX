@@ -87,6 +87,35 @@ export const partnerWalletLedger = {
       { amount: -amount, status: 'settled', description: 'Payout to your account' },
     );
   },
+
+  /** Settled balance right now (sum of settled lines). The only number a withdrawal is checked against. */
+  async availableBalance(partnerId: string): Promise<number> {
+    const [row] = await WalletTransactionModel.aggregate<{ total: number }>([
+      { $match: { partnerId: new Types.ObjectId(partnerId), $or: [{ status: 'settled' }, { status: { $exists: false } }] } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]);
+    return round2(row?.total ?? 0);
+  },
+
+  /** Withdrawal requested -> -amount straight away, so the same money cannot be requested twice. */
+  async holdWithdrawal(input: { partnerId: string; withdrawalId: string; amount: number }): Promise<void> {
+    const amount = round2(input.amount);
+    if (amount <= 0) return;
+    await upsertLine(
+      { partnerId: input.partnerId, type: 'payout', referenceId: `wd:${input.withdrawalId}` },
+      { amount: -amount, status: 'settled', description: 'Withdrawal requested' },
+    );
+  },
+
+  /** Withdrawal rejected or cancelled -> +amount back. Idempotent per withdrawal. */
+  async releaseWithdrawal(input: { partnerId: string; withdrawalId: string; amount: number; reason: 'rejected' | 'cancelled' }): Promise<void> {
+    const amount = round2(input.amount);
+    if (amount <= 0) return;
+    await upsertLine(
+      { partnerId: input.partnerId, type: 'adjustment', referenceId: `wd-release:${input.withdrawalId}` },
+      { amount, status: 'settled', description: input.reason === 'rejected' ? 'Withdrawal rejected, money returned' : 'Withdrawal cancelled, money returned' },
+    );
+  },
 };
 
 export type PartnerWalletLedger = typeof partnerWalletLedger;
