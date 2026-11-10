@@ -899,8 +899,99 @@ export const paymentsService = {
     throw new AppError(409, 'BOOKING_NOT_PAYABLE', 'This booking can no longer be paid. Please start a new booking.');
   },
 
+  /**
+   * Automatically sync/backfill missing Payment records for paid or completed bookings,
+   * and update any stale PENDING payment records for completed/settled bookings.
+   */
+  async syncMissingPayments(customerId: string | Types.ObjectId): Promise<void> {
+    try {
+      const custObjId = typeof customerId === 'string' ? new Types.ObjectId(customerId) : customerId;
+      const paidBookings = await BookingModel.find({
+        customerId: custObjId,
+        $or: [
+          { paymentStatus: 'PAID' },
+          { 'paymentDetails.status': 'PAID' },
+          { status: { $in: ['completed', 'rated'] } },
+        ],
+      }).lean();
+
+      if (paidBookings.length === 0) return;
+
+      const bookingIds = paidBookings.map((b) => b._id);
+      const existingPayments = await PaymentModel.find({
+        bookingId: { $in: bookingIds },
+      }).lean();
+
+      const existingBookingIds = new Set(existingPayments.map((p) => String(p.bookingId)));
+      const existingOrderIds = new Set(existingPayments.map((p) => p.razorpayOrderId).filter(Boolean));
+
+      // 1. Update stale PENDING payments for completed/settled bookings
+      const pendingPaymentsToUpdate = existingPayments.filter(
+        (p) => p.status === 'PENDING' && !p.errorReason,
+      );
+      if (pendingPaymentsToUpdate.length > 0) {
+        const updateIds = pendingPaymentsToUpdate.map((p) => p._id);
+        const now = new Date();
+        await PaymentModel.updateMany(
+          { _id: { $in: updateIds } },
+          { $set: { status: 'PAID', paidAt: now, creditedAt: now } },
+        );
+      }
+
+      // 2. Backfill payments for bookings completely missing a Payment record
+      const missingBookings = paidBookings.filter((b) => !existingBookingIds.has(String(b._id)));
+      if (missingBookings.length === 0) return;
+
+      const docs = missingBookings.map((b) => {
+        const amount = Number(b.priceSnapshot?.total ?? (b as { priceBreakdown?: { total?: number } }).priceBreakdown?.total ?? 0);
+        const paidAt = b.paymentDetails?.paidAt
+          ? new Date(b.paymentDetails.paidAt)
+          : (b as { completedAt?: Date }).completedAt
+          ? new Date((b as { completedAt?: Date }).completedAt!)
+          : b.updatedAt
+          ? new Date(b.updatedAt)
+          : b.createdAt
+          ? new Date(b.createdAt)
+          : new Date();
+
+        let orderId = (b.paymentDetails?.orderId && String(b.paymentDetails.orderId).trim()) || `order_${String(b._id)}`;
+        if (existingOrderIds.has(orderId)) {
+          orderId = `order_${String(b._id)}_${Date.now().toString(36)}`;
+        }
+        existingOrderIds.add(orderId);
+
+        const paymentId = (b.paymentDetails?.paymentId && String(b.paymentDetails.paymentId).trim()) || `pay_${String(b._id)}`;
+        const method = b.paymentDetails?.method || ((b as { paymentMethod?: string }).paymentMethod === 'cash' ? 'cod' : 'netbanking');
+
+        return {
+          bookingId: b._id,
+          customerId: b.customerId,
+          razorpayOrderId: orderId,
+          razorpayPaymentId: paymentId,
+          razorpaySignature: b.paymentDetails?.signature,
+          amount,
+          currency: b.priceSnapshot?.currency || 'INR',
+          method,
+          attempts: 1,
+          status: 'PAID' as const,
+          paidAt,
+          creditedAt: paidAt,
+          refund: { status: 'none' as const },
+          createdAt: paidAt,
+          updatedAt: b.updatedAt ? new Date(b.updatedAt) : paidAt,
+        };
+      });
+
+      await PaymentModel.insertMany(docs, { ordered: false });
+    } catch (err) {
+      console.error('Failed to auto-sync missing payments:', err);
+    }
+  },
+
   /** GET /payments: the signed-in customer's transactions only. */
   async list(customerId: string, query: ListQuery): Promise<PaymentListResult> {
+    await this.syncMissingPayments(customerId);
+
     const filter = {
       customerId: new Types.ObjectId(customerId),
       // A Cash-on-Service placeholder replaced by an online payment is bookkeeping, not a failed payment.
@@ -929,8 +1020,8 @@ export const paymentsService = {
         currency: r.currency,
         method: r.method ?? null,
         status: r.status,
-        paidAt: r.paidAt ? r.paidAt.toISOString() : null,
-        createdAt: r.createdAt.toISOString(),
+        paidAt: r.paidAt ? (r.paidAt instanceof Date ? r.paidAt.toISOString() : new Date(r.paidAt).toISOString()) : null,
+        createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : new Date(r.createdAt).toISOString(),
         receiptNo: r.status === 'PAID' ? `RCPT-${id.slice(-8).toUpperCase()}` : null,
       };
     });

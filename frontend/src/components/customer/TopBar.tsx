@@ -356,6 +356,9 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
         )}
       </div>
 
+      {/* Mobile custom action slot (e.g. Export on Payments) */}
+      <div id="topbar-mobile-action" className="flex items-center md:hidden" />
+
       <div
         className={clsx(
           meta && !isBookingSuccess && "hidden",
