@@ -12,14 +12,6 @@ import {
   CheckCircle2, Eye, EyeOff, History, ImageIcon, Package, Pencil, Plus, Trash2, WifiOff, X, XCircle, Clock, ArrowDown, ArrowUp, GripVertical,
 } from 'lucide-react';
 import clsx from 'clsx';
-import {
-  DndContext, DragOverlay, PointerSensor, KeyboardSensor, closestCenter, useSensor, useSensors,
-  type DragEndEvent, type DragStartEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
@@ -107,21 +99,23 @@ const ServiceRow: React.FC<ServiceRowProps> = ({
           <span>{s.images.length} photo{s.images.length === 1 ? '' : 's'}</span>
         </div>
       </div>
-      <div className="cat-actions">
-        <button
-          type="button" role="switch" aria-checked={s.active} className={clsx('cat-toggle', s.active && 'is-on')}
-          onClick={onToggle} disabled={busy || !editable} aria-label={`${s.active ? 'Deactivate' : 'Activate'} ${s.name}`}
-        >
-          <span className="cat-toggle__track"><i /></span>
-          <span className="cat-toggle__text">{s.active ? 'Active' : 'Inactive'}</span>
-        </button>
-        <span className="cat-actions__move">
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0 || busy} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={15} /></button>
-          <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1 || busy} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={15} /></button>
-        </span>
-        <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
-        <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
-      </div>
+      {canManage && (
+        <div className="cat-actions">
+          <button
+            type="button" role="switch" aria-checked={s.active} className={clsx('cat-toggle', s.active && 'is-on')}
+            onClick={onToggle} disabled={busy || !editable} aria-label={`${s.name} is ${s.active ? 'active' : 'inactive'}`}
+          >
+            <span className="cat-toggle__track"><i /></span>
+            <span className="cat-toggle__text">{s.active ? 'Active' : 'Inactive'}</span>
+          </button>
+          <span className="cat-actions__move">
+            <button type="button" className="cat-iconbtn" onClick={() => onMove(-1)} disabled={!reorderEnabled || index === 0 || busy} aria-label={`Move ${s.name} up`} title="Move up"><ArrowUp size={15} /></button>
+            <button type="button" className="cat-iconbtn" onClick={() => onMove(1)} disabled={!reorderEnabled || index === count - 1 || busy} aria-label={`Move ${s.name} down`} title="Move down"><ArrowDown size={15} /></button>
+          </span>
+          <button type="button" className="cat-iconbtn" onClick={onEdit} disabled={!editable} aria-label={`Edit ${s.name}`} title="Edit"><Pencil size={15} /></button>
+          <button type="button" className="cat-iconbtn svc-danger" onClick={onDelete} disabled={!editable} aria-label={`Delete ${s.name}`} title="Delete"><Trash2 size={15} /></button>
+        </div>
+      )}
     </li>
   );
 };
@@ -153,8 +147,6 @@ export const AdminServicesPage: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [previewing, setPreviewing] = useState<AdminService | null>(null);
   const [savingImages, setSavingImages] = useState(false);
-  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [toast, setToast] = useState<Toast>(null);
   const toastTimer = useRef<number>();

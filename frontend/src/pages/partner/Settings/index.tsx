@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { Link, Navigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ChevronRight } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 import { isAppLanguage, useLanguage } from '@/i18n/LanguageContext';
 import {
   settingsApi,
@@ -23,6 +24,7 @@ const LANGUAGE_OPTIONS: { value: Language; label: string }[] = [
 
 // Which section shows comes from the URL: /partner/settings/:section (the sidebar links to each one).
 const SECTIONS = {
+  account: { blurb: 'Your sign-in details and account pages.' },
   notifications: { blurb: 'Choose how and when we contact you.' },
   privacy: { blurb: 'Control your location and how customers can reach you.' },
   security: { blurb: 'Keep your account safe.' },
@@ -98,6 +100,7 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 export default function PartnerSettingsPage() {
   const { t, setLanguage } = useLanguage();
   const { section } = useParams<{ section: string }>();
+  const { user } = useAuth();
 
   const [status, setStatus] = useState<Status>('loading');
   const [errorText, setErrorText] = useState('');
@@ -222,6 +225,37 @@ export default function PartnerSettingsPage() {
     const { notifications, privacy, security } = data;
 
     switch (section) {
+      case 'account':
+        return (
+          <>
+            <Group title="Your details">
+              <div className="ps-row">
+                <span className="ps-row-text">
+                  <span className="ps-row-label">{t('Name')}</span>
+                  <span className="ps-muted">{user?.name || '-'}</span>
+                </span>
+              </div>
+              <div className="ps-row">
+                <span className="ps-row-text">
+                  <span className="ps-row-label">{t('Mobile')}</span>
+                  <span className="ps-muted">{user?.phone || '-'}</span>
+                </span>
+              </div>
+              <div className="ps-row">
+                <span className="ps-row-text">
+                  <span className="ps-row-label">{t('Email')}</span>
+                  <span className="ps-muted">{user?.email || '-'}</span>
+                </span>
+              </div>
+            </Group>
+            <Group title="Account pages">
+              <LinkRow to="/partner/profile/documents" label="ID and address proof" />
+              <LinkRow to="/partner/profile/preferences" label="Preferences" hint="Language and job preferences" />
+              <LinkRow to="/partner/account/security" label="Account security" hint="Password, sessions and devices" />
+            </Group>
+          </>
+        );
+
       case 'notifications':
         return (
           <>

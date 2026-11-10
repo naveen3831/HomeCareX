@@ -63,7 +63,7 @@ export const submitMockBankOutcomeController = async (req: Request, res: Respons
   const { id } = getAuthUser(req);
   const { orderId, bookingId, paymentId, callbackUrl, outcome } = req.body as {
     orderId: string;
-    bookingId: string;
+    bookingId?: string;
     paymentId: string;
     callbackUrl: string;
     outcome: 'S' | 'F';

@@ -7,7 +7,8 @@ export type TransactionType =
   | 'incentive'
   | 'adjustment'
   | 'payout'
-  | 'refund_deduction';
+  | 'refund_deduction'
+  | 'commission_deduction';
 
 export const TRANSACTION_TYPES: ReadonlyArray<{ value: TransactionType; label: string }> = [
   { value: 'booking_earning', label: 'Booking earning' },
@@ -15,6 +16,7 @@ export const TRANSACTION_TYPES: ReadonlyArray<{ value: TransactionType; label: s
   { value: 'adjustment', label: 'Adjustment' },
   { value: 'payout', label: 'Payout' },
   { value: 'refund_deduction', label: 'Refund deduction' },
+  { value: 'commission_deduction', label: 'Admin commission (cash job)' },
 ];
 
 export interface WalletSummary {

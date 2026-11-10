@@ -1,5 +1,5 @@
 import { Types } from "mongoose";
-import type { StartProofRecord } from "./partner-jobs.proof";
+import type { StoredJobMedia } from "./job-media-storage";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
 import ServiceModel from "../../models/Service";
@@ -340,7 +340,7 @@ export const partnerJobsRepository = {
     partnerId: Types.ObjectId,
     entry: StatusHistoryEntry,
     now: Date = new Date(),
-    proof: StartProofRecord[] = [],
+    startMedia?: StoredJobMedia[],
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
       {
@@ -352,6 +352,7 @@ export const partnerJobsRepository = {
         $set: {
           status: "in_progress",
           startedAt: now,
+          ...(startMedia?.length ? { startMedia } : {}),
         },
         $push: {
           statusHistory: entry,
@@ -409,7 +410,9 @@ export const partnerJobsRepository = {
           "paymentDetails.status": "PAID",
           "paymentDetails.paidAt": now,
           "paymentDetails.method": method,
-          "paymentDetails.collectedBy": "partner",
+          // cash: the partner holds the money (commission is cut from the wallet).
+          // upi (QR): the customer paid the platform UPI id, so it follows the online-payment process.
+          "paymentDetails.collectedBy": method === "cash" ? "partner" : "platform",
         },
       },
     );

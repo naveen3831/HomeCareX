@@ -438,22 +438,13 @@ export async function updateBookingStatus(id: string, status: JobStatus): Promis
  * Same rules in the demo: 400 bad code format, 422 wrong state / wrong code / bad file,
  * 410 expired, 413 photo too big, 423 locked after 5 wrong codes, 409 already started.
  */
-export async function verifyStart(
-  id: string,
-  otp: string,
-  /** One photo or several. They are the "before" pictures of the place. */
-  photos?: File | File[] | null,
-  /** Optional short video of the place before the work begins. */
-  video?: File | null,
-): Promise<JobDetails> {
-  const photoList = photos ? (Array.isArray(photos) ? photos : [photos]) : [];
-
+export async function verifyStart(id: string, otp: string, media?: File | File[] | null): Promise<JobDetails> {
   if (!useDemo(id)) {
-    if (photoList.length > 0 || video) {
+    const files = Array.isArray(media) ? media : media ? [media] : [];
+    if (files.length > 0) {
       const form = new FormData();
       form.append('otp', otp);
-      photoList.forEach((file) => form.append('photos', file));
-      if (video) form.append('video', video);
+      files.forEach((file) => form.append('media', file));
       const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
         // A video can take a while on a slow mobile network.
@@ -479,7 +470,9 @@ export async function verifyStart(
   if (state?.locked) throw demoError(423, 'OTP_LOCKED', 'Starting is locked. Contact support to unlock it.');
   if (state?.expired) throw demoError(410, 'OTP_EXPIRED', 'The start code has expired. Ask support for a new one.');
 
-  for (const file of photoList) await assertStartPhoto(file); // a bad photo never uses up an attempt
+  // A bad photo never uses up an attempt (demo mode checks the first photo only).
+  const demoPhoto = Array.isArray(media) ? media.find((f) => f.type.startsWith('image/')) : media;
+  if (demoPhoto) await assertStartPhoto(demoPhoto);
 
   if (otp !== DEMO_START_OTP) {
     job.startAttempts = (job.startAttempts ?? 0) + 1;

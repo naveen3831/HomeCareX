@@ -7,6 +7,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error | null;
 }
 
 class ErrorBoundary extends React.Component<
@@ -15,11 +16,13 @@ class ErrorBoundary extends React.Component<
 > {
   state: ErrorBoundaryState = {
     hasError: false,
+    error: null,
   };
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return {
       hasError: true,
+      error,
     };
   }
 
@@ -34,11 +37,12 @@ class ErrorBoundary extends React.Component<
   handleRetry = () => {
     this.setState({
       hasError: false,
+      error: null,
     });
   };
 
   handleGoHome = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, error: null });
     window.location.assign("/");
   };
 
@@ -82,6 +86,15 @@ class ErrorBoundary extends React.Component<
             <p className="mt-3 text-sm leading-6 text-gray-600">
               An unexpected error occurred while loading this page. You can try again or return to the home page.
             </p>
+
+            {this.state.error && (
+              <details className="mt-4 text-left text-xs bg-red-50 p-3 rounded-xl border border-red-200 text-red-700">
+                <summary className="font-bold cursor-pointer">{this.state.error.message || String(this.state.error)}</summary>
+                <pre className="mt-2 text-[10px] whitespace-pre-wrap overflow-x-auto text-red-900 font-mono">
+                  {this.state.error.stack}
+                </pre>
+              </details>
+            )}
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <button

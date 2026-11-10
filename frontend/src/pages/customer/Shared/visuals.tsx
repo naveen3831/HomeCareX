@@ -17,6 +17,8 @@ export interface Visual {
   image?: string;
   /** CSS object-position for the photo when it is cropped (default: centre). */
   focus?: string;
+  /** Aspect ratio of the original service photo so containers adapt cleanly without letterboxing or cropping. */
+  aspectRatio?: string;
 }
 
 const T = {
@@ -79,7 +81,7 @@ const ILLUSTRATED :string[] = [];
  */
 const SERVICE_IMAGES: Record<string, string> = {
   ...Object.fromEntries(ILLUSTRATED.map((slug) => [slug, `/images/catalog/${slug}.svg`])),
-    ...Object.fromEntries(PHOTOGRAPHED.map((slug) => [slug, `/images/${slug}.png`])),
+  ...Object.fromEntries(PHOTOGRAPHED.map((slug) => [slug, `/images/${slug}.png`])),
 
   "deep-home-cleaning": PHOTO.clean,
   "sofa-carpet-shampooing": PHOTO.clean,
@@ -114,14 +116,50 @@ const SERVICE_FOCUS: Record<string, string> = {
   "/images/custom-shelf-installation.jpg": "50% 35%",
 };
 
+/** Exact source aspect ratios for all catalog images so containers fit them edge-to-edge with no side spaces or cropping. */
+export const SERVICE_ASPECT_RATIOS: Record<string, string> = {
+  "/images/bathroom-deep-cleaning.png": "2528 / 1696",
+  "/images/kitchen-deep-cleaning.png": "2528 / 1696",
+  "/images/full-home-sanitization.png": "1536 / 1024",
+  "/images/washing-machine-repair.png": "2528 / 1696",
+  "/images/refrigerator-repair.png": "2528 / 1696",
+  "/images/microwave-oven-repair.png": "2528 / 1696",
+  "/images/geyser-installation-repair.png": "2528 / 1696",
+  "/images/water-tank-cleaning.png": "2528 / 1696",
+  "/images/room-painting-per-room.png": "1248 / 832",
+  "/images/terrace-waterproofing.png": "1248 / 832",
+  "/images/texture-accent-wall.png": "2528 / 1696",
+  "/images/mosquito-fogging.png": "2528 / 1696",
+  "/images/bed-bug-treatment.png": "2528 / 1696",
+  "/images/mens-haircut-grooming.png": "2528 / 1696",
+  "/images/bridal-makeup.png": "2528 / 1696",
+  "/images/full-body-massage.png": "2528 / 1696",
+  "/images/home-cleaning.jpg": "528 / 360",
+  "/images/appliance-repair.jpg": "1300 / 650",
+  "/images/electrical.jpg": "612 / 336",
+  "/images/plumbing.jpg": "4 / 3",
+  "/images/furniture-assembly.jpg": "740 / 568",
+  "/images/door-lock-repair.jpg": "1200 / 896",
+  "/images/wardrobe-repair.jpg": "1200 / 896",
+  "/images/custom-shelf-installation.jpg": "1200 / 896",
+  "/images/shelf-curtain-rod-installation.jpg": "1200 / 896",
+  "/images/pest-control-clean.png": "2752 / 1536",
+  "/images/termite-treatment-clean.png": "2752 / 1536",
+  "/images/Home-spa-women-banner.jpg": "1245 / 925",
+  "/images/painting-category.png": "2528 / 1696",
+  "/images/home-maintenance.jpg": "800 / 533",
+};
+
 const FALLBACK: Visual = { asset: "Wrench/3D/wrench_3d", tint: T.indigo, image: "/images/home-maintenance.jpg" };
 
 export const categoryVisual = (categorySlug: string, imageCandidate?: string): Visual => {
   const base = CATEGORY_VISUALS[categorySlug] ?? FALLBACK;
   if (imageCandidate) {
-    return { ...base, image: imageCandidate };
+    const aspectRatio = SERVICE_ASPECT_RATIOS[imageCandidate] ?? "16 / 10";
+    return { ...base, image: imageCandidate, aspectRatio };
   }
-  return base;
+  const aspectRatio = base.image ? (SERVICE_ASPECT_RATIOS[base.image] ?? "16 / 10") : undefined;
+  return { ...base, aspectRatio };
 };
 
 export const serviceVisual = (slug: string, categorySlug: string, imageCandidate?: string): Visual => {
@@ -129,7 +167,8 @@ export const serviceVisual = (slug: string, categorySlug: string, imageCandidate
   const image = imageCandidate || SERVICE_IMAGES[slug] || base.image;
   // Use the category's crop only when the service shows the same photo as its category.
   const focus = image === base.image ? base.focus : image ? (SERVICE_FOCUS[image] ?? "50% 50%") : undefined;
-  return { ...base, asset: SERVICE_ASSETS[slug] ?? base.asset, image, focus };
+  const aspectRatio = image ? (SERVICE_ASPECT_RATIOS[image] ?? base.aspectRatio ?? "16 / 10") : undefined;
+  return { ...base, asset: SERVICE_ASSETS[slug] ?? base.asset, image, focus, aspectRatio };
 };
 
 interface Icon3DProps {

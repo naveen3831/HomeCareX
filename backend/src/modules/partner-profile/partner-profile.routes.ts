@@ -32,7 +32,7 @@ partnerProfileRoutes.get(
     const { sub } = res.locals.auth as { sub: string };
     const [user, partner] = await Promise.all([
       UserModel.findById(sub).select("name phone email").lean(),
-      PartnerModel.findOne({ userId: sub }).select("address categories skills serviceRadiusKm bankDetails").lean(),
+      PartnerModel.findOne({ userId: sub }).select("address categories skills serviceRadiusKm bankDetails bio").lean(),
     ]);
     const categories = partner?.categories?.length
       ? await CategoryModel.find({ _id: { $in: partner.categories } }).select("name").lean()
@@ -43,6 +43,7 @@ partnerProfileRoutes.get(
       name: user?.name ?? "",
       phone: user?.phone ?? "",
       email: user?.email ?? "",
+      bio: (partner as any)?.bio ?? "",
       // What the partner gave when joining (and later changes). Read fresh each time so edits show at once.
       joined: {
         address: {

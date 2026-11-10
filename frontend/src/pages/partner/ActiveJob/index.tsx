@@ -31,6 +31,7 @@ import Checklist from '@/components/partner/Checklist';
 import SosButton from '@/components/partner/SosButton';
 import AddItemDialog from '@/components/partner/AddItemDialog';
 import PaymentPanel from '@/components/partner/PaymentPanel';
+import { getCompletionGate, useNow } from './completionRule';
 import './activeJob.css';
 
 type LoadState = 'loading' | 'ready' | 'notfound' | 'error';
@@ -93,6 +94,7 @@ export const ActiveJobPage: React.FC = () => {
   const [addItemOpen, setAddItemOpen] = useState<boolean>(false);
 
   // Start flow (if navigated here while status is 'arrived'): one call, POST /partner/jobs/:id/verify-start
+  const nowMs = useNow(5000); // re-checks the completion rule so the button unlocks by itself
   const [otpInput, setOtpInput] = useState<string>('');
   const [starting, setStarting] = useState<boolean>(false);
   const [startError, setStartError] = useState<string | null>(null);
@@ -372,8 +374,7 @@ export const ActiveJobPage: React.FC = () => {
   const doneCount = job.checklist.filter((c) => c.done).length;
   const totalCount = job.checklist.length;
   const remainingItems = job.checklist.filter((c) => !c.done);
-  const checklistPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
-  const allDone = totalCount > 0 && remainingItems.length === 0;
+a  const gate = getCompletionGate(job, nowMs);
 
   // Elapsed vs booked time
   const bookedSeconds = (job.service.durationMinutes ?? 180) * 60;
@@ -556,17 +557,24 @@ export const ActiveJobPage: React.FC = () => {
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setCompleteError(null);
-                setShowCompleteConfirm(true);
-              }}
-              disabled={completing || !online}
-              className={`aj-ref-complete-btn aj-ws-complete${allDone ? ' is-ready' : ''}`}
-            >
-              Complete job
-            </button>
+        {/* Bottom Primary Button: Complete job */}
+        <div className="aj-ref-cta-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              setCompleteError(null);
+              setShowCompleteConfirm(true);
+            }}
+            disabled={completing || !online || !gate.canComplete}
+            className="aj-ref-complete-btn disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Complete job
+          </button>
+          {!gate.canComplete && (
+            <p className="mt-2 px-1 text-center text-xs font-semibold text-amber-700" role="status">
+              {gate.message}
+            </p>
+          )}
 
             <Link to={`/partner/jobs/${job.id}`} className="aj-ws-secondary">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View job details

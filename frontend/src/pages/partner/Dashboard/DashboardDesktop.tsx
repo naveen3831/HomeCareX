@@ -488,20 +488,15 @@ export default function DashboardDesktop() {
             </Panel>
           ) : null}
 
-          <Panel title={active.length > 0 ? "Active jobs" : "Next job"} action={{ label: "All jobs", to: "/partner/jobs" }}>
-            {jobsToShow.length === 0 ? (
-              <p className="rounded-xl bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                No active jobs.{" "}
-                {online ? "New job requests will appear at the top of this page." : "Go online to start receiving requests."}
-              </p>
-            ) : (
-              <div className={`grid gap-5 ${jobsToShow.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
+          {jobsToShow.length > 0 ? (
+            <Panel title={active.length > 0 ? "Active jobs" : "Next job"} action={{ label: "All jobs", to: "/partner/jobs" }}>
+              <div className="grid grid-cols-2 gap-5">
                 {jobsToShow.map((job) => (
                   <JobTile key={job.id} job={job} live={active.length > 0} wide={jobsToShow.length === 1} />
                 ))}
               </div>
-            )}
-          </Panel>
+            </Panel>
+          ) : null}
 
           <Panel grow title="Today's schedule" action={{ label: "All jobs", to: "/partner/jobs" }}>
             {todaysJobs.length === 0 ? (

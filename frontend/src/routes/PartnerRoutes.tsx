@@ -36,6 +36,7 @@ import SettingsHome from "../pages/partner/Settings/SettingsHome";
 import LoginHistoryPage from "../pages/partner/Settings/LoginHistoryPage";
 import PartnerSafetyPage from "../pages/partner/Safety";
 import PartnerDocumentsPage from "../pages/partner/Documents";
+import PartnerPreferencesPage from "../pages/partner/Preferences";
 import PartnerOnboardingPage from "../pages/partner/Onboarding";
 import OnboardingGate from "../pages/partner/Onboarding/OnboardingGate";
 
@@ -93,6 +94,7 @@ const REAL_ROUTE_PATHS = new Set([
   "earnings/payouts",
   "profile",
   "profile/documents",
+  "profile/preferences",
   "work/requests",
   "work",
   "services",
@@ -119,6 +121,7 @@ export default function PartnerRoutes() {
         ===================================================== */}
         <Route path="profile" element={<ProfileMenu />} />
         <Route path="profile/documents" element={<PartnerDocumentsPage />} />
+        <Route path="profile/preferences" element={<PartnerPreferencesPage />} />
         <Route path="security" element={<AccountSecurityPage />} />
         <Route path="account/security" element={<AccountSecurityPage />} />
 

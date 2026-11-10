@@ -154,13 +154,15 @@ const PlayIcon = () => (
 
 interface BannerSliderProps {
   banners?: Banner[];
+  heightClass?: string;
 }
 
 const controlButton =
-  "flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white backdrop-blur-sm transition hover:bg-white hover:text-[#4338ca] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#312e81]";
+  "flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 items-center justify-center rounded-full border border-white/30 bg-white/15 text-white backdrop-blur-sm transition hover:bg-white hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900";
 
 const BannerSlider: React.FC<BannerSliderProps> = ({
   banners: suppliedBanners,
+  heightClass = "h-[280px] min-h-[280px] sm:h-[350px] sm:min-h-[350px] lg:h-[400px] lg:min-h-[400px]",
 }) => {
   const { data: apiBanners, isError, isLoading } = useBanners();
 
@@ -411,7 +413,7 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
   return (
     <section
       ref={sectionRef}
-      className="bg-white py-10 sm:py-14"
+      className="bg-white py-6 sm:py-8 lg:py-10"
       aria-roledescription="carousel"
       aria-label="HomeCareX promotional banners"
       onMouseEnter={() => setHoverPaused(true)}
@@ -422,13 +424,13 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div
-          className="relative overflow-hidden rounded-3xl bg-[#312e81] shadow-xl shadow-indigo-900/20"
+          className="relative overflow-hidden rounded-3xl bg-slate-900 shadow-xl shadow-slate-950/20"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
           {/* ===================== SLIDES ===================== */}
 
-          <div className="relative h-[420px] min-h-[420px] sm:h-[480px] sm:min-h-[480px] lg:h-[540px] lg:min-h-[540px]">
+          <div className={`relative ${heightClass}`}>
             {banners.map((banner, index) => {
               const isActive = index === currentIndex;
 
@@ -483,15 +485,15 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
                     }`}
                   />
 
-                  {/* Readability overlays */}
+                  {/* Readability overlays: subtle & localized so the photo remains bright and crystal clear */}
 
-                  <div className="absolute inset-0 bg-gradient-to-r from-[#1e1b4b]/75 via-[#312e81]/30 to-transparent" />
+                  <div className="absolute inset-y-0 left-0 w-full md:w-3/5 bg-gradient-to-r from-black/50 via-black/20 to-transparent pointer-events-none" />
 
-                  <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1e1b4b]/55 to-transparent" />
+                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent pointer-events-none" />
 
                   {/* Banner content (React escapes all of this as text, never as HTML) */}
 
-                  <div className="relative flex h-full items-center px-6 pb-28 pt-12 sm:px-12 lg:px-16">
+                  <div className="relative flex h-full items-center px-5 pb-16 pt-6 sm:px-10 sm:pb-20 sm:pt-8 lg:px-14 lg:pb-20 lg:pt-10">
                     <div
                       className={`max-w-xl text-white ${contentMotion} ${
                         isActive
@@ -499,22 +501,22 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
                           : "translate-y-3 opacity-0"
                       }`}
                     >
-                      <span className="inline-block rounded-full border border-white/25 bg-white/15 px-3.5 py-1 text-sm font-semibold text-white backdrop-blur-sm">
+                      <span className="inline-block rounded-full border border-white/30 bg-black/30 px-3 py-0.5 text-xs font-semibold text-white backdrop-blur-md shadow-xs sm:px-3.5 sm:py-1 sm:text-sm">
                         {banner.category}
                       </span>
 
-                      <h2 className="mt-5 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                      <h2 className="mt-2.5 sm:mt-3.5 lg:mt-4 text-xl sm:text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">
                         {banner.title}
                       </h2>
 
-                      <p className="mt-4 max-w-md text-base leading-7 text-white/90 sm:text-lg">
+                      <p className="mt-1.5 sm:mt-2.5 max-w-md text-xs sm:text-sm lg:text-base leading-snug sm:leading-relaxed text-white/95 font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)] line-clamp-2 sm:line-clamp-none">
                         {banner.description}
                       </p>
 
                       <a
                         href={safeLink(banner.link)}
                         tabIndex={isActive ? 0 : -1}
-                        className="group mt-8 inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-6 py-3.5 font-semibold text-white shadow-lg shadow-black/20 transition hover:bg-[#e0600f] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#312e81]"
+                        className="group mt-3.5 sm:mt-5 lg:mt-6 inline-flex items-center gap-2 rounded-xl bg-[#ff8a3d] px-4 py-2 sm:px-5 sm:py-2.5 lg:px-6 lg:py-3 text-xs sm:text-sm lg:text-base font-semibold text-white shadow-lg shadow-black/20 transition hover:bg-[#e0600f] focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
                       >
                         Explore services
 
@@ -532,7 +534,7 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
           {/* ===================== CONTROL BAR ===================== */}
 
           {showControls && (
-            <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-4 px-6 pb-6 sm:px-12 lg:px-16">
+            <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-3 sm:gap-4 px-5 pb-3.5 sm:px-10 sm:pb-5 lg:px-14 lg:pb-5">
               {/* Progress segments / slide pickers */}
 
               <div
@@ -555,7 +557,7 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
                       className="group flex h-6 flex-1 items-center focus:outline-none"
                     >
                       <span
-                        className={`relative block h-1 w-full overflow-hidden rounded-full bg-white/30 transition group-hover:bg-white/50 group-focus-visible:ring-2 group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-[#312e81] ${
+                        className={`relative block h-1 w-full overflow-hidden rounded-full bg-white/30 transition group-hover:bg-white/50 group-focus-visible:ring-2 group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-slate-900 ${
                           isActive ? "h-1.5" : ""
                         }`}
                       >

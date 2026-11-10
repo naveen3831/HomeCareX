@@ -23,7 +23,7 @@ import {
 } from "../JobDetails/jobDetails.api";
 import type { ApiJob } from "../JobDetails/jobDetails.types";
 import { useLocationSharing } from "../LocationSharing/useLocationSharing";
-import { mapsDirectionsUrl } from "./geo";
+import { distanceKm, mapsDirectionsUrl } from "./geo";
 import { isBookingId } from "./bookingId";
 import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
@@ -82,6 +82,15 @@ const CALL_STATUSES = new Set([
   "arrived",
   "in_progress",
 ]);
+
+/** The partner must be within this many metres of the customer to mark "Arrived". */
+const ARRIVAL_RADIUS_M = 100;
+
+/* ============ TESTING ONLY ============
+ * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
+ * Set to false (or delete the 3 lines marked TEST) after testing. */
+const TEST_MOVE_TO_CUSTOMER = true;
+/* ====================================== */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
 
@@ -176,6 +185,19 @@ function NavigationContent({ id }: { id: string }) {
     };
   }, [id, state, doneStatus]);
 
+  // Location tracking starts by itself: no button needed. Live sharing once the job is on the
+  // way (the server only accepts it then); before that the position is read for the map only.
+  const jobStatus = job?.status;
+  const sharingReady = sharing.load === "ready";
+  const startSharing = sharing.start;
+  const startLocal = local.start;
+  useEffect(() => {
+    if (state !== "ready" || !sharingReady || !jobStatus) return;
+    if (jobStatus === "completed" || jobStatus === "rated") return;
+    if (SHARING_STATUSES.has(jobStatus)) startSharing();
+    else startLocal();
+  }, [state, sharingReady, jobStatus, startSharing, startLocal]);
+
   // ?panel=chat (from a job card) opens the chat straight away.
   // A URL parameter must never start a call by itself, so ?panel=call does nothing.
   useEffect(() => {
@@ -254,7 +276,9 @@ function NavigationContent({ id }: { id: string }) {
   }
 
   const customer = job.location.coordinates;
-  const partner = sharing.coords ?? local.coords;
+  const realPartner = sharing.coords ?? local.coords;
+  // TEST: move the partner to the customer location (remove after testing)
+  const partner = TEST_MOVE_TO_CUSTOMER && customer ? customer : realPartner;
   const addressText = [
     job.location.line1,
     job.location.area,
@@ -284,8 +308,26 @@ function NavigationContent({ id }: { id: string }) {
   };
 
   const runAction = async (status: string) => {
-    setBusyAction(status);
     setActionError(null);
+
+    // "Arrived" only works when the partner is really at the customer's location.
+    if (status === "arrived" && customer) {
+      if (!partner) {
+        setActionError(
+          "Could not read your location yet. Turn on location and try again in a moment.",
+        );
+        return;
+      }
+      const metres = distanceKm(partner, customer) * 1000;
+      if (metres > ARRIVAL_RADIUS_M) {
+        setActionError(
+          "You are not at the customer's location. Please reach the customer location and try again.",
+        );
+        return;
+      }
+    }
+
+    setBusyAction(status);
     try {
      await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
       if (status === "en_route") sharing.start(); // leaving for the job: the customer can now follow live
@@ -370,80 +412,49 @@ function NavigationContent({ id }: { id: string }) {
             </Link>
           </div>
 
-          {job.actions.map((a) => (
-            <button
-              key={a.status}
-              type="button"
-              className="nv-step"
-              onClick={() => void runAction(a.status)}
-              disabled={busyAction !== null}
-            >
-              {busyAction === a.status ? "Updating…" : a.label}
-            </button>
-          ))}
-
-          {!finished && (
-            <button type="button" className="nv-go" onClick={startNavigation}>
-              <NavigationIcon size={18} aria-hidden="true" />
-              Open in Google Maps
-            </button>
-          )}
-
-          <JobStepPanel
-            job={job}
-            online={online}
-            onChanged={() => setReloadKey((k) => k + 1)}
-          />
-
-          {!customer && (
-            <p className="nav-note" role="status">
-              This booking has no map pin. Navigation will search the address
-              instead.
-            </p>
-          )}
-          {geoProblem === "denied" && (
-            <p className="nav-alert" role="alert">
-              Location permission is blocked. Allow it in your browser
-              settings, then tap Open in Google Maps again.
-            </p>
-          )}
-          {geoProblem === "unsupported" && (
-            <p className="nav-alert" role="alert">
-              This browser does not support location sharing.
-            </p>
-          )}
-          {local.error && !sharing.geoProblem && (
-            <p className="nav-alert" role="alert">
-              {local.error}
-            </p>
-          )}
-          {sharing.ended && (
-            <p className="nav-alert" role="alert">
-              Sharing stopped because this job is no longer active.
-            </p>
-          )}
-          {sharing.sendProblem && (
-            <p className="nav-alert" role="alert">
-              {sharing.sendProblem}
-            </p>
-          )}
-          {actionError && (
-            <p className="nav-alert" role="alert">
-              {actionError}
-            </p>
-          )}
-          {sharing.sharing && (
-            <button
-              type="button"
-              className="nv-stop"
-              onClick={() => void sharing.stop()}
-              disabled={sharing.stopping}
-            >
-              {sharing.stopping ? "Stopping…" : "Stop sharing location"}
-            </button>
-          )}
-        </section>
-      </div>
+      {!customer && (
+        <p className="nav-note" role="status">
+          This booking has no map pin. Navigation will search the address instead.
+        </p>
+      )}
+      {geoProblem === "denied" && (
+        <p className="nav-alert" role="alert">
+          Location permission is blocked. Allow it in your browser settings,
+          then reload this page.
+        </p>
+      )}
+      {geoProblem === "unsupported" && (
+        <p className="nav-alert" role="alert">
+          This browser does not support location sharing.
+        </p>
+      )}
+      {local.error && !sharing.geoProblem && (
+        <p className="nav-alert" role="alert">
+          {local.error}
+        </p>
+      )}
+      {sharing.ended && (
+        <p className="nav-alert" role="alert">
+          Sharing stopped because this job is no longer active.
+        </p>
+      )}
+      {sharing.sendProblem && (
+        <p className="nav-alert" role="alert">
+          {sharing.sendProblem}
+        </p>
+      )}
+      {actionError && (
+        <p className="nav-alert" role="alert">
+          {actionError}
+        </p>
+      )}
+      {!canShare && job.status === "assigned" && (
+        <p className="nav-hint">
+          Tap “
+          {job.actions.find((a) => a.status === "en_route")?.label ?? "On the way"}
+          ” when you leave so the customer can follow you live.
+        </p>
+      )}
 
       {chatOpen && (
         <div

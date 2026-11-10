@@ -31,10 +31,10 @@
 .pdoc-error button { border: 0; background: none; color: #4f46e5; font-weight: 700; font-size: 12px; }
 .pdoc-spin { animation: pdoc-spin 1s linear infinite; }
 @keyframes pdoc-spin { to { transform: rotate(360deg); } }
-.pdoc-modal { position: fixed; inset: 0; z-index: 60; background: #fff; display: flex; flex-direction: column; }
+.pdoc-modal { position: fixed; inset: 0; z-index: 2000; background: #fff; display: flex; flex-direction: column; }
 .pdoc-modal__bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
 .pdoc-modal__bar button { border: 0; background: #f1f5f9; border-radius: 10px; width: 36px; height: 36px; display: grid; place-items: center; }
-.pdoc-modal__body { flex: 1; overflow: auto; padding: 12px; }
+.pdoc-modal__body { flex: 1; overflow: auto; padding: 12px 12px max(12px, env(safe-area-inset-bottom)); }
 @media (min-width: 720px) {
   .pdoc { max-width: 640px; margin: 24px auto; background: #fff; border: 1px solid #e2e8f0; border-radius: 22px; overflow: hidden; min-height: 0; padding-bottom: 0; }
 }

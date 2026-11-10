@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, RefreshCw, Wallet } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Copy, Loader2, RefreshCw, Wallet } from 'lucide-react';
 import { collectPayment, fetchJob, getErrorMessage } from '@/pages/partner/JobDetails/jobDetails.api';
 import type { JobDetails } from '@/pages/partner/JobDetails/jobDetails.types';
 import './paymentPanel.css';
@@ -237,17 +237,15 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         </p>
       )}
 
-      <div className="pp-collect-grid">
-        <div className="pp-col pp-col-qr">
-        <div className="pp-qr-wrap">
-          {qrSrc ? (
-            <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
-          ) : qrFailed ? (
-            <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below or the button.</p>
-          ) : (
-            <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
-          )}
-        </div>
+      <div className="pp-qr-wrap">
+        {qrSrc ? (
+          <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
+        ) : qrFailed ? (
+          <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below.</p>
+        ) : (
+          <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
+        )}
+      </div>
 
         <p className="pp-hint">Ask the customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM).</p>
 
@@ -264,17 +262,13 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
           </button>
         </div>
 
-        <a className="pp-btn pp-btn-primary" href={upi.uri}>
-          <ExternalLink size={16} aria-hidden="true" /> Open UPI app on this phone
-        </a>
-
-        <div className="pp-wait" role="status" aria-live="polite">
-          {online ? (
-            <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
-          ) : (
-            <>You are offline. Reconnect to record the payment.</>
-          )}
-        </div>
+      <div className="pp-wait" role="status" aria-live="polite">
+        {online ? (
+          <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
+        ) : (
+          <>You are offline. Reconnect to record the payment.</>
+        )}
+      </div>
 
         <button type="button" className="pp-btn pp-btn-primary" onClick={() => void markCollected('upi')} disabled={cashing || !online}>
           {cashing ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}

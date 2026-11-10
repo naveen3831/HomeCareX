@@ -1,10 +1,19 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { paymentApi } from "@/services/paymentApi";
 import type { NormalizedApiError } from "@/services/bookingApi";
 import { BOOKING_STATUS, PAYMENT_STATUS, type BookingView } from "@/types/booking";
 import type { CheckoutPhase } from "@/types/payment";
-import { loadRazorpayScript, type RazorpayFailure, type RazorpaySuccess } from "./razorpay";
+import {
+  cancelPendingMockBankDispatch,
+  closeActivePopup,
+  forceCloseRazorpayModal,
+  getLatestCallbackUrl,
+  getLatestPaymentId,
+  loadRazorpayScript,
+  type RazorpayFailure,
+  type RazorpaySuccess,
+} from "./razorpay";
 import { PAYMENTS_QUERY_KEY } from "./usePayments";
 
 /** Mirrors backend COD_ONLINE_PAYABLE_STATUSES: a Cash-on-Service booking can still be paid online until it ends. */
@@ -24,13 +33,13 @@ export function isExpiredHold(booking: Pick<BookingView, "status" | "holdExpires
   return new Date(booking.holdExpiresAt).getTime() <= now;
 }
 
-/** The last online payment attempt failed (server flags it) and the customer hasn't paid since. */
+/** The payment attempts for this booking have been exhausted or permanently marked as failed. */
 export function isPaymentFailed(booking: Pick<BookingView, "paymentStatus" | "paymentDetails">): boolean {
-  return booking.paymentStatus === PAYMENT_STATUS.FAILED || (booking.paymentStatus === PAYMENT_STATUS.PENDING && booking.paymentDetails?.status === "FAILED");
+  return booking.paymentStatus === PAYMENT_STATUS.FAILED;
 }
 
 /**
- * Can this booking be paid online right now? Never after a failed payment: those just say "Payment failed".
+ * Can this booking be paid online right now?
  * - pending_payment with its hold still valid: checkout was started but not finished (closed popup, failed payment, left the page).
  * - confirmed or later with payment still PENDING: booked as Cash on Service (online payment always confirms and marks PAID in one step).
  */
@@ -38,7 +47,7 @@ export function canPayOnline(
   booking: Pick<BookingView, "status" | "paymentStatus" | "holdExpiresAt" | "paymentDetails">,
   now: number = Date.now(),
 ): boolean {
-  if (booking.paymentStatus !== PAYMENT_STATUS.PENDING || isPaymentFailed(booking)) return false;
+  if (booking.paymentStatus !== PAYMENT_STATUS.PENDING) return false;
   if (booking.status === BOOKING_STATUS.PENDING_PAYMENT) return !isExpiredHold(booking, now);
   return PAYABLE_STATUSES.includes(booking.status);
 }
@@ -47,6 +56,14 @@ export interface PayBookingState {
   bookingId: string | null;
   phase: CheckoutPhase;
   message?: string;
+}
+
+export interface MockBankState {
+  open: boolean;
+  callbackUrl: string;
+  paymentId: string;
+  orderId: string;
+  bookingId: string;
 }
 
 const IDLE: PayBookingState = { bookingId: null, phase: "idle" };
@@ -63,7 +80,10 @@ const messageOf = (err: unknown, fallback: string): string => {
 export function usePayBooking() {
   const queryClient = useQueryClient();
   const inFlight = useRef(false);
+  const activeContextRef = useRef<{ bookingId: string; orderId: string } | null>(null);
   const [state, setState] = useState<PayBookingState>(IDLE);
+  const [mockBankState, setMockBankState] = useState<MockBankState | null>(null);
+  const [isSubmittingMock, setIsSubmittingMock] = useState<"S" | "F" | null>(null);
 
   const refresh = useCallback(
     () =>
@@ -75,6 +95,128 @@ export function usePayBooking() {
       ]),
     [queryClient],
   );
+
+  useEffect(() => {
+    const handleMockBankOpen = (e: Event) => {
+      if (activeContextRef.current) {
+        const detail = ((e as CustomEvent).detail || {}) as {
+          callbackUrl?: string;
+          paymentId?: string;
+        };
+        forceCloseRazorpayModal();
+        setMockBankState({
+          open: true,
+          callbackUrl:
+            detail.callbackUrl ||
+            getLatestCallbackUrl() ||
+            `${window.location.origin}/api/v1/payments/callback`,
+          paymentId:
+            detail.paymentId ||
+            getLatestPaymentId() ||
+            `pay_${Math.random().toString(36).substring(2, 16)}`,
+          orderId: activeContextRef.current.orderId,
+          bookingId: activeContextRef.current.bookingId,
+        });
+      }
+    };
+
+    window.addEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    return () => {
+      window.removeEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    };
+  }, []);
+
+  const handleMockBankOutcome = useCallback(
+    async (outcome: "S" | "F"): Promise<void> => {
+      if (!mockBankState || isSubmittingMock) return;
+      setIsSubmittingMock(outcome);
+      closeActivePopup();
+      forceCloseRazorpayModal();
+
+      const { bookingId, orderId, paymentId, callbackUrl } = mockBankState;
+      try {
+        const res = await paymentApi.submitMockBankOutcome({
+          orderId,
+          bookingId,
+          paymentId,
+          callbackUrl,
+          outcome,
+        });
+
+        setMockBankState(null);
+
+        if (outcome === "S") {
+          setState({ bookingId, phase: "processing" });
+          if (res.signature) {
+            await paymentApi.verify(bookingId, {
+              razorpay_order_id: orderId,
+              razorpay_payment_id: res.paymentId || paymentId,
+              razorpay_signature: res.signature,
+            });
+          }
+          setState({
+            bookingId,
+            phase: "successful",
+            message: "Payment received. Your booking is now paid.",
+          });
+        } else {
+          await paymentApi.recordAttempt(
+            bookingId,
+            "FAILED",
+            orderId,
+            "Payment declined on test bank page",
+          );
+          setState({
+            bookingId,
+            phase: "failed",
+            message: "The payment could not be completed.",
+          });
+        }
+      } catch (err) {
+        const error = err as Partial<NormalizedApiError>;
+        const isMaxRetries =
+          error?.code === "PAYMENT_ATTEMPTS_EXCEEDED" ||
+          error?.status === 429 ||
+          error?.message?.includes("maximum limit of 3");
+        setState({
+          bookingId,
+          phase: "failed",
+          message: isMaxRetries
+            ? "Maximum payment attempts (3) reached for this booking. This transaction has been marked as failed."
+            : messageOf(
+                err,
+                outcome === "S"
+                  ? "We couldn't confirm your payment yet. If money was deducted, your booking will update shortly."
+                  : "Something went wrong. Please try again.",
+              ),
+        });
+      } finally {
+        setIsSubmittingMock(null);
+        void refresh();
+        inFlight.current = false;
+        activeContextRef.current = null;
+      }
+    },
+    [mockBankState, isSubmittingMock, refresh],
+  );
+
+  const cancelMockBank = useCallback(() => {
+    if (!mockBankState) return;
+    const { bookingId, orderId } = mockBankState;
+    closeActivePopup();
+    forceCloseRazorpayModal();
+    cancelPendingMockBankDispatch();
+    setMockBankState(null);
+    void paymentApi.recordAttempt(
+      bookingId,
+      "CANCELLED",
+      orderId,
+      "Customer closed the payment window",
+    );
+    setState({ bookingId, phase: "cancelled" });
+    inFlight.current = false;
+    activeContextRef.current = null;
+  }, [mockBankState]);
 
   const pay = useCallback(
     async (bookingId: string): Promise<void> => {
@@ -89,6 +231,7 @@ export function usePayBooking() {
           return;
         }
         const order = await paymentApi.createOrder(bookingId);
+        activeContextRef.current = { bookingId, orderId: order.orderId };
 
         await new Promise<void>((resolve) => {
           let finished = false;
@@ -98,14 +241,6 @@ export function usePayBooking() {
             setState(next);
             resolve();
           };
-
-          const isMobile =
-            typeof window !== "undefined" &&
-            (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-              navigator.userAgent,
-            ) ||
-              window.innerWidth < 768 ||
-              window.self !== window.top);
 
           const callbackUrl = `${window.location.origin}/api/v1/payments/callback`;
 
@@ -119,9 +254,11 @@ export function usePayBooking() {
             prefill: order.prefill,
             theme: { color: "#4f46e5" },
             callback_url: callbackUrl,
-            redirect: isMobile,
+            redirect: false,
             handler: (response: RazorpaySuccess) => {
               finished = true; // Razorpay may fire dismiss while closing after a success: ignore it
+              cancelPendingMockBankDispatch();
+              setMockBankState(null);
               setState({ bookingId, phase: "processing" });
               void paymentApi
                 .verify(bookingId, response)
@@ -140,6 +277,8 @@ export function usePayBooking() {
             },
             modal: {
               ondismiss: () => {
+                cancelPendingMockBankDispatch();
+                setMockBankState(null);
                 if (finished) return;
                 void paymentApi.recordAttempt(bookingId, "CANCELLED", order.orderId, "Customer closed the checkout");
                 finish({ bookingId, phase: "cancelled" });
@@ -148,6 +287,8 @@ export function usePayBooking() {
           });
 
           rzp.on("payment.failed", (response: RazorpayFailure) => {
+            cancelPendingMockBankDispatch();
+            setMockBankState(null);
             if (finished) return;
             const reason = response.error?.description ?? "The payment could not be completed.";
             void paymentApi.recordAttempt(bookingId, "FAILED", order.orderId, reason).then(() => refresh()); // server now flags the booking as failed
@@ -158,7 +299,19 @@ export function usePayBooking() {
           rzp.open();
         });
       } catch (err) {
-        setState({ bookingId, phase: "failed", message: messageOf(err, "Something went wrong. Please try again.") });
+        const error = err as Partial<NormalizedApiError>;
+        const isMaxRetries =
+          error?.code === "PAYMENT_ATTEMPTS_EXCEEDED" ||
+          error?.status === 429 ||
+          error?.message?.includes("maximum limit of 3");
+        setState({
+          bookingId,
+          phase: "failed",
+          message: isMaxRetries
+            ? "Maximum payment attempts (3) reached for this booking. This transaction has been marked as failed."
+            : messageOf(err, "Something went wrong. Please try again."),
+        });
+        void refresh();
       } finally {
         inFlight.current = false;
       }
@@ -167,8 +320,20 @@ export function usePayBooking() {
   );
 
   const reset = useCallback(() => {
-    if (!inFlight.current) setState(IDLE);
+    if (!inFlight.current) {
+      setMockBankState(null);
+      setState(IDLE);
+    }
   }, []);
 
-  return { state, pay, reset, busy: state.phase === "pending" || state.phase === "processing" };
+  return {
+    state,
+    pay,
+    reset,
+    busy: state.phase === "pending" || state.phase === "processing",
+    mockBankState,
+    handleMockBankOutcome,
+    cancelMockBank,
+    isSubmittingMock,
+  };
 }

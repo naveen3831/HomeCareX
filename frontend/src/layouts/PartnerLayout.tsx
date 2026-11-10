@@ -289,6 +289,8 @@ const EXTRA_TITLES: Record<string, string> = {
   "/partner/incentives": "Partner Incentives",
   "/partner/settings": "Settings",
   "/partner/settings/security": "Account Security",
+  "/partner/profile/preferences": "Preferences",
+  "/partner/settings/account": "Account",
   "/partner/settings/security/password": "Change Password",
   "/partner/settings/security/sessions": "Active Sessions",
   "/partner/settings/security/history": "Login History",
@@ -300,6 +302,47 @@ const EXTRA_TITLES: Record<string, string> = {
   "/partner/transactions": "Partner Transactions",
   "/partner/wallet": "Partner Wallet",
 };
+
+const PROFILE_TRIP_KEY = "hcx:partner:fromProfile";
+const PROFILE_TRIP_ENDS = new Set([
+  "/partner",
+  "/partner/profile",
+  "/partner/availability",
+  "/partner/earnings",
+]);
+
+const isProfileTrip = () => {
+  try {
+    return window.sessionStorage.getItem(PROFILE_TRIP_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const clearProfileTrip = () => {
+  try {
+    window.sessionStorage.removeItem(PROFILE_TRIP_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+};
+
+/** Pages listed on the Profile page. Back from any of them returns to /partner/profile. */
+const PROFILE_PAGES = new Set([
+  "/partner/services",
+  "/partner/service-area",
+  "/partner/profile/preferences",
+  "/partner/profile/documents",
+  "/partner/performance",
+  "/partner/reviews",
+  "/partner/support",
+  "/partner/safety",
+  "/partner/support/safety",
+  "/partner/help",
+  "/partner/security",
+  "/partner/account/security",
+  "/partner/settings",
+]);
 
 const BOTTOM_NAV = [
   {
@@ -899,7 +942,10 @@ export default function PartnerLayout() {
         cleanPath.startsWith(`${item.to}/`),
   ).sort((a, b) => b.to.length - a.to.length)[0];
 
+  const isActiveJobPage = /^\/partner\/jobs\/[^/]+\/active$/.test(cleanPath);
+
   const title =
+    (isActiveJobPage ? "Active Job" : undefined) ??
     PAGE_TITLES[cleanPath] ??
     EXTRA_TITLES[cleanPath] ??
     current?.label ??
@@ -929,7 +975,25 @@ export default function PartnerLayout() {
     (item) => item.to === cleanPath,
   );
 
+  // Leaving a bottom-tab root (Home, Availability, Earnings, Profile) ends the "opened from Profile" trip.
+  useEffect(() => {
+    if (PROFILE_TRIP_ENDS.has(cleanPath)) clearProfileTrip();
+  }, [cleanPath]);
+
+  // Pages listed on the Profile page go back to the Profile page itself. We go there directly instead of stepping
+  // back in the browser history, because these pages add their own history entries (tabs, filters, search) and a
+  // step back would land on one of those. My jobs is also a bottom tab, so it only returns to Profile when it was
+  // opened from the Profile page (marked in sessionStorage by the Profile menu links).
   const goBack = () => {
+    if (
+      PROFILE_PAGES.has(cleanPath) ||
+      (cleanPath === "/partner/jobs" && isProfileTrip())
+    ) {
+      clearProfileTrip();
+      navigate("/partner/profile", { replace: true });
+      return;
+    }
+
     if (isTabRoot) {
       navigate("/partner");
       return;

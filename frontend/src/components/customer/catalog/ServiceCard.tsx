@@ -34,19 +34,25 @@ export function ServiceCard({ service: s, index }: { service: CatalogService; in
         FOCUS_RING,
       )}
     >
-      <div className={clsx("relative flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-[19px] sm:h-44", v.tint)}>
+      {/* 1. Service Image - Consistent Responsive 16:10 Ratio & Uniform Height */}
+      <div
+        className={clsx(
+          "relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-[19px]",
+          !v.image && clsx("flex items-center justify-center", v.tint),
+        )}
+      >
         {v.image ? (
           <img
             src={v.image}
             alt=""
-            loading={index < 3 ? "eager" : "lazy"}
+            loading={index < 6 ? "eager" : "lazy"}
+            fetchPriority={index < 3 ? "high" : "auto"}
             decoding="async"
             style={{ objectPosition: v.focus }}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.045]"
+            className="h-full w-full object-cover transition-transform duration-700"
           />
         ) : null}
-        <div className={clsx("absolute inset-0", v.image ? "bg-gradient-to-t from-black/20 via-transparent to-white/10" : "bg-white/0")} aria-hidden="true" />
-        <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/40 blur-2xl transition-transform duration-500 group-hover:scale-125" aria-hidden="true" />
+        <div className={clsx("pointer-events-none absolute inset-0", v.image ? "bg-gradient-to-t from-black/20 via-transparent to-white/10" : "bg-white/0")} aria-hidden="true" />
         {badge && (
           <span className="absolute left-3 top-3 z-10 rounded-full border border-white/80 bg-white/90 px-2.5 py-1 text-[10px] font-bold text-[#B45309] shadow-sm backdrop-blur">
             {badge}
@@ -71,15 +77,16 @@ export function ServiceCard({ service: s, index }: { service: CatalogService; in
         </span>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col px-1.5 pb-1 pt-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="line-clamp-2 text-[15px] font-bold leading-5 text-ink">{s.name}</h2>
-            <p className="mt-1 truncate text-xs text-muted">{s.category.name}</p>
-          </div>
-        </div>
+      {/* 2. Content Section - Equal Spacing & Aligned Hierarchy */}
+      <div className="flex min-w-0 flex-1 flex-col px-1.5 pb-1 pt-2.5">
+        {/* Title: Fixed 2-line height (min-h-[2.5rem]) ensures uniform vertical alignment */}
+        <h2 className="line-clamp-2 min-h-[2.5rem] text-[15px] font-bold leading-5 text-ink">{s.name}</h2>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink/70">
+        {/* Category Description */}
+        <p className="mt-1 truncate text-xs text-muted">{s.category.name}</p>
+
+        {/* Rating and Duration */}
+        <div className="mt-2.5 flex items-center gap-3 text-xs text-ink/70">
           <span className="inline-flex items-center gap-1 font-semibold text-ink">
             <Star className="h-3.5 w-3.5 fill-accent text-accent" aria-hidden="true" />
             {s.ratingCount > 0 ? s.rating.toFixed(1) : "New"}
@@ -91,7 +98,8 @@ export function ServiceCard({ service: s, index }: { service: CatalogService; in
           </span>
         </div>
 
-        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+        {/* 3. Bottom Section - Starting At Price & Book Now button aligned */}
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3.5">
           <div>
             <p className="text-[10px] font-medium uppercase tracking-wide text-muted">Starting at</p>
             <p className="mt-0.5 text-lg font-bold tracking-tight text-ink">{formatPrice(s.basePrice)}</p>

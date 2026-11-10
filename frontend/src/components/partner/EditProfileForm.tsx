@@ -26,7 +26,7 @@ export default function EditProfileForm() {
   const [saved, setSaved] = useState(false);
   const [bio, setBio] = useState("");
 
-  const profileQuery = useQuery({ queryKey: ["partner-profile"], queryFn: partnerApi.getProfile });
+  const profileQuery = useQuery({ queryKey: ["partner-profile"], queryFn: () => partnerApi.getProfile() });
   useEffect(() => {
     if (profileQuery.data?.bio !== undefined) setBio(profileQuery.data.bio);
   }, [profileQuery.data?.bio]);

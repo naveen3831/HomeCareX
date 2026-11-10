@@ -139,7 +139,7 @@ export async function settleCapturedPayment(
     return { kind: "replayed", booking: fresh };
   }
 
-  // Customer chose Cash on Service, but an earlier online order still got paid: upgrade to PAID.
+  // Customer chose Cash on Service, or booking is confirmed/in-progress and paid online: upgrade to PAID.
   if (
     isCodOnlinePayableStatus(fresh.status) &&
     fresh.paymentStatus === "PENDING"
@@ -147,23 +147,23 @@ export async function settleCapturedPayment(
     const cod = await PaymentModel.findOne({
       bookingId: fresh._id,
       razorpayOrderId: codOrderId(String(fresh._id)),
-      status: "PENDING",
     });
-    if (cod) {
-      const upgraded = await BookingModel.findOneAndUpdate(
-        { _id: fresh._id, paymentStatus: "PENDING" },
-        {
-          $set: {
-            paymentStatus: "PAID",
-            "paymentDetails.orderId": payment.razorpayOrderId,
-            "paymentDetails.paymentId": paymentId,
-            "paymentDetails.status": "PAID",
-            "paymentDetails.paidAt": now,
-          },
+    const upgraded = await BookingModel.findOneAndUpdate(
+      { _id: fresh._id, paymentStatus: "PENDING" },
+      {
+        $set: {
+          paymentStatus: "PAID",
+          "paymentDetails.orderId": payment.razorpayOrderId,
+          "paymentDetails.paymentId": paymentId,
+          ...(signature ? { "paymentDetails.signature": signature } : {}),
+          "paymentDetails.status": "PAID",
+          "paymentDetails.paidAt": now,
         },
-        { new: true },
-      );
-      if (upgraded) {
+      },
+      { new: true },
+    );
+    if (upgraded) {
+      if (cod) {
         await PaymentModel.updateOne(
           { _id: cod._id },
           {
@@ -173,16 +173,16 @@ export async function settleCapturedPayment(
             },
           },
         );
-        await markPaymentPaid();
-        rewardReferrer(upgraded);
-        // "Pay now" on a Cash-on-Service booking lands here, not in the branch above.
-        alertCustomerPaymentSucceeded({
-          customerId: upgraded.customerId,
-          bookingId: String(upgraded._id),
-          message: "Payment received. Your booking is now paid",
-        });
-        return { kind: "confirmed", booking: upgraded };
       }
+      await markPaymentPaid();
+      rewardReferrer(upgraded);
+      // "Pay now" on a Cash-on-Service booking lands here, not in the branch above.
+      alertCustomerPaymentSucceeded({
+        customerId: upgraded.customerId,
+        bookingId: String(upgraded._id),
+        message: "Payment received. Your booking is now paid",
+      });
+      return { kind: "confirmed", booking: upgraded };
     }
   }
 

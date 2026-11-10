@@ -1,4 +1,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AlertCircle,
+  Banknote,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Copy,
+  Inbox,
+  Landmark,
+  Smartphone,
+  X,
+} from "lucide-react";
 import http, { type ApiResponse } from "@/lib/http";
 import { PageHeader } from "@/components/admin";
 import "./index.css";
@@ -41,22 +55,65 @@ const TABS: { key: Status | "all"; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
+const STATUS_LABEL: Record<Status, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  paid: "Paid",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
 const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+const whenShort = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const msg = (e: unknown, fallback = "Something went wrong.") =>
   e && typeof e === "object" && "message" in e && typeof (e as { message: unknown }).message === "string"
     ? (e as { message: string }).message
     : fallback;
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("") || "?";
+
+const StatusChip: React.FC<{ status: Status }> = ({ status }) => (
+  <span className={`awd-chip awd-chip-${status}`}>
+    <span className="awd-chip-dot" aria-hidden="true" />
+    {STATUS_LABEL[status]}
+  </span>
+);
+
+const DestIcon: React.FC<{ type: "bank" | "upi"; size?: number }> = ({ type, size = 16 }) =>
+  type === "upi" ? <Smartphone size={size} aria-hidden="true" /> : <Landmark size={size} aria-hidden="true" />;
+
+/* ---------- progress steps (requested -> approved -> paid) ---------- */
+
+const Steps: React.FC<{ status: Status }> = ({ status }) => {
+  if (status === "rejected" || status === "cancelled") return null;
+  const reached = status === "pending" ? 0 : status === "approved" ? 1 : 2;
+  const steps = ["Requested", "Approved", "Paid"];
+  return (
+    <ol className="awd-steps" aria-label="Progress">
+      {steps.map((label, i) => (
+        <li key={label} className={`awd-step${i <= reached ? " is-done" : ""}${i === reached ? " is-current" : ""}`}>
+          <span className="awd-step-dot" aria-hidden="true">
+            {i < reached || (i === reached && status === "paid") ? <Check size={12} strokeWidth={3} /> : i + 1}
+          </span>
+          <span className="awd-step-label">{label}</span>
+        </li>
+      ))}
+    </ol>
+  );
+};
 
 /* ---------- review dialog ---------- */
 
-const ReviewDialog: React.FC<{ id: string; partnerName: string; onClose: () => void; onChanged: () => void }> = ({
-  id,
-  partnerName,
-  onClose,
-  onChanged,
-}) => {
+const ReviewDialog: React.FC<{ row: Row; onClose: () => void; onChanged: () => void }> = ({ row, onClose, onChanged }) => {
+  const id = row.id;
   const [d, setD] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -112,9 +169,10 @@ const ReviewDialog: React.FC<{ id: string; partnerName: string; onClose: () => v
   const f = d?.destinationFull;
   const lines: [string, string | null][] = f
     ? f.type === "upi"
-      ? [["Name", f.accountHolder], ["UPI ID", f.upiId]]
-      : [["Name", f.accountHolder], ["Bank", f.bankName], ["Account number", f.accountNumber], ["IFSC", f.ifsc]]
+      ? [["Account holder", f.accountHolder], ["UPI ID", f.upiId]]
+      : [["Account holder", f.accountHolder], ["Bank", f.bankName], ["Account number", f.accountNumber], ["IFSC", f.ifsc]]
     : [];
+  const actionable = d && (d.status === "pending" || d.status === "approved");
 
   return (
     <div className="awd-overlay" onClick={() => !busy && onClose()}>
@@ -128,103 +186,177 @@ const ReviewDialog: React.FC<{ id: string; partnerName: string; onClose: () => v
         onClick={(e) => e.stopPropagation()}
       >
         <div className="awd-dialog-head">
-          <h2>Withdrawal request</h2>
+          <div>
+            <p className="awd-eyebrow">Withdrawal request</p>
+            <h2>{row.partner.name}</h2>
+          </div>
           <button type="button" className="awd-x" onClick={onClose} aria-label="Close" disabled={busy}>
-            &times;
+            <X size={20} />
           </button>
         </div>
 
-        {!d && !error && <p className="awd-muted">Loading…</p>}
-        {error && (
-          <p className="awd-error" role="alert">
-            {error}
-          </p>
-        )}
+        <div className="awd-dialog-body">
+          {!d && !error && (
+            <div className="awd-skel-stack" aria-busy="true">
+              <span className="awd-skel awd-skel-lg" />
+              <span className="awd-skel" />
+              <span className="awd-skel" />
+            </div>
+          )}
 
-        {d && (
-          <>
-            <p className="awd-amount">{inr.format(d.amount)}</p>
-            <p className="awd-muted">
-              {partnerName} · requested {when(d.createdAt)} · <span className={`awd-chip awd-chip-${d.status}`}>{d.status}</span>
+          {error && (
+            <p className="awd-alert" role="alert">
+              <AlertCircle size={16} aria-hidden="true" /> {error}
             </p>
+          )}
 
-            <h3 className="awd-sub">Send money to</h3>
-            <dl className="awd-dl">
-              {lines.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
+          {d && (
+            <>
+              <div className="awd-hero">
+                <div>
+                  <span className="awd-hero-label">Amount</span>
+                  <p className="awd-hero-amount">{inr.format(d.amount)}</p>
+                </div>
+                <StatusChip status={d.status} />
+              </div>
+
+              <Steps status={d.status} />
+
+              <dl className="awd-meta">
+                <div>
+                  <dt>Partner</dt>
                   <dd>
-                    {v ?? "-"}
-                    {v && (
-                      <button type="button" className="awd-copy" onClick={() => void copy(k, v)}>
-                        {copied === k ? "Copied" : "Copy"}
-                      </button>
-                    )}
+                    {row.partner.name}
+                    <span className="awd-sub">{row.partner.email}</span>
+                    {row.partner.phone && <span className="awd-sub">{row.partner.phone}</span>}
                   </dd>
                 </div>
-              ))}
-            </dl>
+                <div>
+                  <dt>Requested</dt>
+                  <dd>{when(d.createdAt)}</dd>
+                </div>
+              </dl>
 
-            {d.status === "rejected" && d.rejectionReason && <p className="awd-muted">Reason: {d.rejectionReason}</p>}
-            {d.status === "paid" && d.transactionId && <p className="awd-muted">Transfer reference: {d.transactionId}</p>}
+              <section className="awd-card" aria-label="Send money to">
+                <h3 className="awd-card-title">
+                  <DestIcon type={d.destinationFull.type} />
+                  Send money to · {d.destinationFull.type === "upi" ? "UPI" : "Bank account"}
+                </h3>
+                <dl className="awd-dl">
+                  {lines.map(([k, v]) => (
+                    <div key={k}>
+                      <dt>{k}</dt>
+                      <dd>
+                        <span className="awd-value">{v ?? "-"}</span>
+                        {v && (
+                          <button type="button" className="awd-copy" onClick={() => void copy(k, v)} aria-label={`Copy ${k}`}>
+                            {copied === k ? <Check size={14} /> : <Copy size={14} />}
+                            {copied === k ? "Copied" : "Copy"}
+                          </button>
+                        )}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
 
-            {(d.status === "pending" || d.status === "approved") && mode === "none" && (
-              <div className="awd-actions">
+              {d.status === "rejected" && d.rejectionReason && (
+                <p className="awd-note awd-note-danger">
+                  <strong>Rejected:</strong> {d.rejectionReason}
+                </p>
+              )}
+              {d.status === "paid" && d.transactionId && (
+                <p className="awd-note awd-note-success">
+                  <strong>Transfer reference:</strong> <span className="awd-value">{d.transactionId}</span>
+                </p>
+              )}
+
+              {mode === "paid" && (
+                <div className="awd-form">
+                  <label htmlFor="awd-txn">Bank transfer / UTR reference</label>
+                  <input
+                    id="awd-txn"
+                    value={txn}
+                    onChange={(e) => setTxn(e.target.value)}
+                    placeholder="e.g. UTR123456789"
+                    autoFocus
+                    maxLength={80}
+                  />
+                  <p className="awd-hint">Enter this after you have sent the money from your bank.</p>
+                </div>
+              )}
+
+              {mode === "reject" && (
+                <div className="awd-form">
+                  <label htmlFor="awd-reason">Reason (the partner will see this)</label>
+                  <input
+                    id="awd-reason"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="e.g. Bank details do not match"
+                    autoFocus
+                    maxLength={300}
+                  />
+                  <p className="awd-hint">The amount goes back to the partner's wallet right away.</p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {actionable && (
+          <div className="awd-dialog-foot">
+            {mode === "none" && (
+              <>
+                <button type="button" className="awd-btn awd-btn-danger-ghost" disabled={busy} onClick={() => setMode("reject")}>
+                  Reject
+                </button>
+                <span className="awd-spacer" />
                 {d.status === "pending" && (
                   <button type="button" className="awd-btn" disabled={busy} onClick={() => void act("approve")}>
-                    Approve
+                    {busy ? "Approving…" : "Approve"}
                   </button>
                 )}
                 <button type="button" className="awd-btn awd-btn-primary" disabled={busy} onClick={() => setMode("paid")}>
                   Mark as paid
                 </button>
-                <button type="button" className="awd-btn awd-btn-danger" disabled={busy} onClick={() => setMode("reject")}>
-                  Reject
-                </button>
-              </div>
+              </>
             )}
 
             {mode === "paid" && (
-              <div className="awd-form">
-                <label htmlFor="awd-txn">Bank transfer / UTR reference</label>
-                <input id="awd-txn" value={txn} onChange={(e) => setTxn(e.target.value)} autoFocus maxLength={80} />
-                <div className="awd-actions">
-                  <button type="button" className="awd-btn" disabled={busy} onClick={() => setMode("none")}>
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    className="awd-btn awd-btn-primary"
-                    disabled={busy || txn.trim().length < 3}
-                    onClick={() => void act("paid", { transactionId: txn.trim() })}
-                  >
-                    {busy ? "Saving…" : "Confirm paid"}
-                  </button>
-                </div>
-              </div>
+              <>
+                <button type="button" className="awd-btn" disabled={busy} onClick={() => setMode("none")}>
+                  Back
+                </button>
+                <span className="awd-spacer" />
+                <button
+                  type="button"
+                  className="awd-btn awd-btn-primary"
+                  disabled={busy || txn.trim().length < 3}
+                  onClick={() => void act("paid", { transactionId: txn.trim() })}
+                >
+                  {busy ? "Saving…" : "Confirm paid"}
+                </button>
+              </>
             )}
 
             {mode === "reject" && (
-              <div className="awd-form">
-                <label htmlFor="awd-reason">Reason (the partner will see this)</label>
-                <input id="awd-reason" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus maxLength={300} />
-                <p className="awd-muted">The amount goes back to the partner's wallet right away.</p>
-                <div className="awd-actions">
-                  <button type="button" className="awd-btn" disabled={busy} onClick={() => setMode("none")}>
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    className="awd-btn awd-btn-danger"
-                    disabled={busy || reason.trim().length < 3}
-                    onClick={() => void act("reject", { reason: reason.trim() })}
-                  >
-                    {busy ? "Rejecting…" : "Reject and refund"}
-                  </button>
-                </div>
-              </div>
+              <>
+                <button type="button" className="awd-btn" disabled={busy} onClick={() => setMode("none")}>
+                  Back
+                </button>
+                <span className="awd-spacer" />
+                <button
+                  type="button"
+                  className="awd-btn awd-btn-danger"
+                  disabled={busy || reason.trim().length < 3}
+                  onClick={() => void act("reject", { reason: reason.trim() })}
+                >
+                  {busy ? "Rejecting…" : "Reject and refund"}
+                </button>
+              </>
             )}
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -262,12 +394,40 @@ const AdminWithdrawalsPage: React.FC = () => {
     void load();
   }, [load]);
 
+  const items = data?.items ?? [];
+  const pageTotal = items.reduce((sum, r) => sum + r.amount, 0);
+  const pending = data?.pendingCount ?? 0;
+
   return (
-    <div className="awd-page">
+    <div className="awd-page admin-page-container">
       <PageHeader
         title="Withdrawals"
         description="Partners ask to move money from their wallet to their bank or UPI. Review each request, send the money, then mark it paid."
       />
+
+      <section className="awd-stats" aria-label="Summary">
+        <div className={`awd-stat${pending > 0 ? " is-attention" : ""}`}>
+          <span className="awd-stat-icon"><Clock3 size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Waiting for review</span>
+            <strong className="awd-stat-value">{data ? pending : "—"}</strong>
+          </div>
+        </div>
+        <div className="awd-stat">
+          <span className="awd-stat-icon"><Banknote size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Amount on this page</span>
+            <strong className="awd-stat-value">{data ? inr.format(pageTotal) : "—"}</strong>
+          </div>
+        </div>
+        <div className="awd-stat">
+          <span className="awd-stat-icon"><CheckCircle2 size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Requests in this view</span>
+            <strong className="awd-stat-value">{data ? data.pagination.total : "—"}</strong>
+          </div>
+        </div>
+      </section>
 
       <div className="awd-tabs" role="tablist" aria-label="Status">
         {TABS.map((t) => (
@@ -283,67 +443,103 @@ const AdminWithdrawalsPage: React.FC = () => {
             }}
           >
             {t.label}
-            {t.key === "pending" && data && data.pendingCount > 0 && <span className="awd-count">{data.pendingCount}</span>}
+            {t.key === "pending" && pending > 0 && <span className="awd-count">{pending}</span>}
           </button>
         ))}
       </div>
 
-      {error && (
-        <p className="awd-error" role="alert">
-          {error}{" "}
-          <button type="button" className="awd-copy" onClick={() => void load()}>
-            Try again
-          </button>
-        </p>
-      )}
+      <section className="awd-panel" aria-busy={loading}>
+        {error ? (
+          <div className="awd-state awd-state-error" role="alert">
+            <AlertCircle size={24} />
+            <p>{error}</p>
+            <button type="button" className="awd-btn" onClick={() => void load()}>
+              Try again
+            </button>
+          </div>
+        ) : loading && !data ? (
+          <ul className="awd-rows" aria-hidden="true">
+            {Array.from({ length: 5 }, (_, i) => (
+              <li key={i} className="awd-row awd-row-skel">
+                <span className="awd-skel" />
+                <span className="awd-skel" />
+                <span className="awd-skel" />
+              </li>
+            ))}
+          </ul>
+        ) : items.length === 0 ? (
+          <div className="awd-state">
+            <span className="awd-state-icon"><Inbox size={26} /></span>
+            <p className="awd-state-title">{tab === "pending" ? "You're all caught up" : "No requests here"}</p>
+            <p className="awd-muted">
+              {tab === "pending" ? "New withdrawal requests from partners will show up here." : "Nothing matches this status yet."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="awd-head-row" aria-hidden="true">
+              <span>Partner</span>
+              <span>Destination</span>
+              <span>Requested</span>
+              <span className="awd-right">Amount</span>
+              <span>Status</span>
+              <span />
+            </div>
+            <ul className="awd-rows">
+              {items.map((r) => (
+                <li key={r.id} className="awd-row">
+                  <div className="awd-cell awd-partner">
+                    <span className="awd-avatar" aria-hidden="true">{initials(r.partner.name)}</span>
+                    <div className="awd-partner-text">
+                      <span className="awd-name">{r.partner.name}</span>
+                      <span className="awd-sub">{r.partner.email}</span>
+                    </div>
+                  </div>
+                  <div className="awd-cell awd-dest" data-label="Destination">
+                    <DestIcon type={r.destination.type} />
+                    <span>{r.destination.label}</span>
+                  </div>
+                  <div className="awd-cell awd-date" data-label="Requested">{whenShort(r.createdAt)}</div>
+                  <div className="awd-cell awd-amount" data-label="Amount">{inr.format(r.amount)}</div>
+                  <div className="awd-cell" data-label="Status"><StatusChip status={r.status} /></div>
+                  <div className="awd-cell awd-action">
+                    <button
+                      type="button"
+                      className={`awd-btn awd-btn-sm${r.status === "pending" || r.status === "approved" ? " awd-btn-primary" : ""}`}
+                      onClick={() => setOpen(r)}
+                    >
+                      {r.status === "pending" || r.status === "approved" ? "Review" : "View"}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
 
-      {loading && !data && <p className="awd-muted">Loading…</p>}
+        {data && data.pagination.pages > 1 && (
+          <footer className="awd-pager">
+            <span className="awd-muted">
+              Page {data.pagination.page} of {data.pagination.pages} · {data.pagination.total} requests
+            </span>
+            <div className="awd-pager-btns">
+              <button type="button" className="awd-btn awd-btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
+                <ChevronLeft size={15} /> Previous
+              </button>
+              <button
+                type="button"
+                className="awd-btn awd-btn-sm"
+                disabled={page >= data.pagination.pages || loading}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next <ChevronRight size={15} />
+              </button>
+            </div>
+          </footer>
+        )}
+      </section>
 
-      {data && data.items.length === 0 && !error && <p className="awd-muted">No requests here.</p>}
-
-      {data && data.items.length > 0 && (
-        <ul className="awd-list">
-          {data.items.map((r) => (
-            <li key={r.id} className="awd-row">
-              <div className="awd-row-main">
-                <span className="awd-row-name">{r.partner.name}</span>
-                <span className="awd-muted">
-                  {r.partner.email} · {r.destination.label}
-                </span>
-                <span className="awd-muted">{when(r.createdAt)}</span>
-              </div>
-              <div className="awd-row-side">
-                <span className="awd-row-amount">{inr.format(r.amount)}</span>
-                <span className={`awd-chip awd-chip-${r.status}`}>{r.status}</span>
-                <button type="button" className="awd-btn" onClick={() => setOpen(r)}>
-                  {r.status === "pending" || r.status === "approved" ? "Review" : "View"}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {data && data.pagination.pages > 1 && (
-        <div className="awd-pager">
-          <button type="button" className="awd-btn" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </button>
-          <span className="awd-muted">
-            Page {data.pagination.page} of {data.pagination.pages}
-          </span>
-          <button
-            type="button"
-            className="awd-btn"
-            disabled={page >= data.pagination.pages || loading}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </button>
-        </div>
-      )}
-
-      {open && <ReviewDialog id={open.id} partnerName={open.partner.name} onClose={() => setOpen(null)} onChanged={() => void load()} />}
+      {open && <ReviewDialog row={open} onClose={() => setOpen(null)} onChanged={() => void load()} />}
     </div>
   );
 };
