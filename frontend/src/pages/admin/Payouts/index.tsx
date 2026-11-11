@@ -1,39 +1,17 @@
-import React, { lazy, Suspense, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React from "react";
+import { Navigate, useParams } from "react-router-dom";
 import "./index.css";
-import PayoutBatches from "./PayoutBatches";
-import PayoutBatchDetails from "./PayoutBatchDetails";
-import { fetchPendingWithdrawalCount } from "@/services/payoutBatchApi";
-
-const AdminWithdrawalsPage = lazy(() => import("@/pages/admin/Withdrawals"));
+import PayoutLedger from "./PayoutLedger";
 
 /**
- * Admin Payouts: everything about paying partners lives here.
- * /admin/payouts      : overview cards, payout batches, then withdrawal requests.
- * /admin/payouts/:id  : one batch with every partner's payout and the services behind it.
+ * Admin Payouts: the daily / weekly credit and debit report.
+ * Partner shares and admin commission are settled automatically when a service is completed,
+ * so there are no payout batches to create or confirm here any more.
  */
 export const AdminPayoutsPage: React.FC = () => {
-  const { id: batchId } = useParams<{ id: string }>();
-  const [pending, setPending] = useState(0);
-
-  // New withdrawal requests show up without a refresh: check now, every minute, and when the tab is focused again.
-  useEffect(() => {
-    if (batchId) return undefined;
-    let alive = true;
-    const check = () => {
-      fetchPendingWithdrawalCount()
-        .then((n) => alive && setPending(n))
-        .catch(() => undefined);
-    };
-    check();
-    const timer = window.setInterval(check, 60_000);
-    window.addEventListener("focus", check);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", check);
-    };
-  }, [batchId]);
+  // Old links to /admin/payouts/:batchId (batch details) now land on the report.
+  const { id: routeId } = useParams<{ id: string }>();
+  if (routeId) return <Navigate to="/admin/payouts" replace />;
 
   return (
     <main className="admin-page-container payout-page">
@@ -41,30 +19,13 @@ export const AdminPayoutsPage: React.FC = () => {
         <div>
           <h1>Payouts</h1>
           <p className="po-sub">
-            Pay partners for settled earnings. Pick a period, create a batch, then process the payout.
+            See how every completed service moved money: what the admin received and what was credited to or debited
+            from partner wallets, day by day or week by week.
           </p>
         </div>
       </header>
 
-      {batchId ? (
-        <PayoutBatchDetails key={batchId} />
-      ) : (
-        <>
-          <PayoutBatches pendingWithdrawals={pending} />
-
-          <section className="pb-withdrawals" id="withdrawal-requests" aria-labelledby="pb-wd-title">
-            <h2 id="pb-wd-title" className="pb-section-title">Withdrawal requests</h2>
-            {pending > 0 && (
-              <p className="pb-wd-msg pb-wd-msg--on" role="status">
-                {`${pending} withdrawal request${pending === 1 ? "" : "s"} waiting for approval.`}
-              </p>
-            )}
-            <Suspense fallback={<p className="pb-state" role="status">Loading withdrawal requests…</p>}>
-              <AdminWithdrawalsPage embedded />
-            </Suspense>
-          </section>
-        </>
-      )}
+      <PayoutLedger />
     </main>
   );
 };

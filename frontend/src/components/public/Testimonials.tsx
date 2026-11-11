@@ -22,99 +22,6 @@ export interface Testimonial {
   helpfulCount?: number;
 }
 
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  {
-    id: "TEST001",
-    name: "Naveen Shetty",
-    city: "Bengaluru",
-    service: "Full Home Deep Cleaning",
-    tag: "CLEANING",
-    headline: "An absolute pleasure! Booking was seamless, and the service exceeded expectations.",
-    review:
-      "An absolute pleasure! Booking was seamless, and the service exceeded expectations.",
-    rating: 5,
-    avatar: "",
-    date: "2 days ago",
-    verifiedBookingsCount: 4,
-    helpfulCount: 38,
-  },
-  {
-    id: "TEST002",
-    name: "Priya Sharma",
-    city: "Bengaluru",
-    service: "Full Home Deep Cleaning",
-    tag: "CLEANING",
-    headline: "My home felt brand new before Diwali!",
-    review:
-      "Preparing for visiting relatives with 60-hour work weeks felt impossible. HomeCareX arrived on time, left every tile and window spotless, and seeing my mother's happy smile was priceless.",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=160&q=80",
-    date: "3 days ago",
-    verifiedBookingsCount: 4,
-    helpfulCount: 38,
-  },
-  {
-    id: "TEST003",
-    name: "Rahul Kumar",
-    city: "Hyderabad",
-    service: "Emergency Plumbing",
-    tag: "PLUMBING",
-    headline: "Pipe burst fixed in 40 minutes flat",
-    review:
-      "Water was gushing under our kitchen sink on Saturday. The plumber Rajesh arrived in 40 mins with the exact valve, fixed it cleanly with zero surge pricing, and saved our weekend.",
-    rating: 4.5,
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=160&q=80",
-    date: "1 week ago",
-    verifiedBookingsCount: 2,
-    helpfulCount: 27,
-  },
-  {
-    id: "TEST004",
-    name: "Ananya Reddy",
-    city: "Chennai",
-    service: "Elderly Care & Electrical",
-    tag: "ELECTRICAL",
-    headline: "Felt so safe having them assist my elderly parents",
-    review:
-      "Living abroad, I worry about my aging parents dealing with home repairs. The technicians were polite, spoke in Tamil, and fixed the main wiring with complete safety gear.",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80",
-    date: "2 weeks ago",
-    verifiedBookingsCount: 6,
-    helpfulCount: 42,
-  },
-  {
-    id: "TEST005",
-    name: "Vikramaditya Verma",
-    city: "Mumbai",
-    service: "AC Deep Servicing",
-    tag: "APPLIANCES",
-    headline: "Rescued us in peak 39°C heatwave",
-    review:
-      "Our AC gave up during the hottest week. The specialist diagnosed the leak quickly, refilled it with genuine parts, and had our room ice cold in an hour. Honest and transparent.",
-    rating: 4,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80",
-    date: "3 weeks ago",
-    verifiedBookingsCount: 3,
-    helpfulCount: 19,
-  },
-  {
-    id: "TEST006",
-    name: "Sneha Mukherjee",
-    city: "Pune",
-    service: "Kitchen Deep Degreasing",
-    tag: "CLEANING",
-    headline: "Stubborn chimney stains completely gone",
-    review:
-      "Years of daily tadka and oil grime on our chimney vanished after their steam degreasing. The kitchen smells fresh, feels hygienic, and looks brand new again.",
-    rating: 4.5,
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
-    date: "1 month ago",
-    verifiedBookingsCount: 5,
-    helpfulCount: 31,
-  },
-];
-
 const clampRating = (n: number) => Math.min(5, Math.max(0, n));
 
 const initials = (name: string) =>
@@ -259,7 +166,7 @@ const Testimonials: React.FC<TestimonialsProps> = ({
 }) => {
   const reduced = usePrefersReducedMotion();
   const [items, setItems] = useState<Testimonial[]>(
-    initialTestimonials ?? DEFAULT_TESTIMONIALS
+    initialTestimonials ?? []
   );
   const [index, setIndex] = useState(0);
   const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
@@ -297,7 +204,7 @@ const Testimonials: React.FC<TestimonialsProps> = ({
           setItems(mapped);
         }
       } catch (err) {
-        console.warn("Could not load dynamic testimonials, using verified default reviews:", err);
+        console.warn("Could not load dynamic testimonials:", err);
       }
     }
 
@@ -357,6 +264,8 @@ const Testimonials: React.FC<TestimonialsProps> = ({
     if (deltaX < 0) goNext();
     else goPrevious();
   };
+
+  if (items.length === 0) return null;
 
   const current = items[index] || items[0];
 

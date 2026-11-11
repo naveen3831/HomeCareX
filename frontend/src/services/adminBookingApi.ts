@@ -115,6 +115,20 @@ export const adminBookingApi = {
     }
   },
 
+  /** One start photo / video as a Blob. Fetched through the API so the admin token is sent. */
+  async getStartMedia(bookingId: string, key: string): Promise<Blob> {
+    try {
+      const { data } = await http.get<Blob>(
+        `/admin/bookings/${bookingId}/start-media/${encodeURIComponent(key)}`,
+        { responseType: "blob" },
+      );
+
+      return data;
+    } catch (err) {
+      throw normalizeAdminBookingError(err);
+    }
+  },
+
   async assignPartner(
     bookingId: string,
     payload: AssignPartnerRequest,

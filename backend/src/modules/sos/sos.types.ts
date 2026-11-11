@@ -13,6 +13,9 @@ export interface SosAlertDto {
   location: SosLocation | null;
   status: SosStatus;
   triggeredAt: string;
+  /** Only on the live admin socket event, so the alert can show who needs help without another request. */
+  partnerName?: string;
+  partnerPhone?: string;
 }
 
 export interface TriggerSosResultDto {

@@ -11,7 +11,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 
 import DocumentViewer from "../../../components/DocumentViewer";
 import KycChecklist from "../../../components/KycChecklist";
-import TrainingPanel from "./TrainingApprovalCard";
+import TrainingApprovalCard from "./TrainingApprovalCard";
 
 import type {
   PartnerDetails as PartnerDetailsType,
@@ -402,8 +402,7 @@ const AdminPartnerDetailsPage: React.FC =
     return (
       <div className="partner-details-page">
         <Link to="/admin/partners" className="partner-details-back">
-          <PdIcon name="back" size={18} />
-          Back to Partners
+          ← Back to Partners
         </Link>
 
         <header className="pd-hero">
@@ -419,17 +418,14 @@ const AdminPartnerDetailsPage: React.FC =
 
             <div className="pd-badges">
               <span className={`pd-badge ${tone(partner.kycStatus)}`}>
-                <PdIcon name={tone(partner.kycStatus) === "is-good" ? "check" : "alert"} size={16} />
-                KYC {partner.kycStatus}
+                KYC · {partner.kycStatus}
               </span>
               <span className={`pd-badge ${tone(partner.accountStatus)}`}>
-                <PdIcon name={tone(partner.accountStatus) === "is-good" ? "check" : "alert"} size={16} />
-                Account {partner.accountStatus}
+                Account: {partner.accountStatus}
               </span>
               {partner.training && (
                 <span className={`pd-badge ${tone(partner.training.status)}`}>
-                  <PdIcon name={tone(partner.training.status) === "is-good" ? "check" : "alert"} size={16} />
-                  Training {partner.training.status}
+                  Training: {partner.training.status}
                 </span>
               )}
             </div>
@@ -438,42 +434,24 @@ const AdminPartnerDetailsPage: React.FC =
 
         <section className="pd-stats" aria-label="Partner summary">
           <div className="pd-stat">
-            <span className="pd-stat__ico"><PdIcon name="mail" size={20} /></span>
-            <div className="pd-stat__body">
-              <span>Email</span>
-              <strong title={partner.email}>{partner.email || "—"}</strong>
-            </div>
+            <span>Email</span>
+            <strong title={partner.email}>{partner.email || "—"}</strong>
           </div>
           <div className="pd-stat">
-            <span className="pd-stat__ico"><PdIcon name="phone" size={20} /></span>
-            <div className="pd-stat__body">
-              <span>Phone</span>
-              <strong>{partner.phone || "—"}</strong>
-            </div>
+            <span>Phone</span>
+            <strong>{partner.phone || "—"}</strong>
           </div>
           <div className="pd-stat">
-            <span className="pd-stat__ico"><PdIcon name="pin" size={20} /></span>
-            <div className="pd-stat__body">
-              <span>City</span>
-              <strong>{partner.city || "—"}</strong>
-            </div>
+            <span>City</span>
+            <strong>{partner.city || "—"}</strong>
           </div>
           <div className="pd-stat">
-            <span className="pd-stat__ico"><PdIcon name="star" size={20} filled /></span>
-            <div className="pd-stat__body">
-              <span>Rating</span>
-              <strong className="pd-stat__rating">
-                <PdIcon name="star" size={16} filled />
-                {partner.rating.toFixed(1)}
-              </strong>
-            </div>
+            <span>Rating</span>
+            <strong>★ {partner.rating.toFixed(1)}</strong>
           </div>
           <div className="pd-stat">
-            <span className="pd-stat__ico"><PdIcon name="calendar" size={20} /></span>
-            <div className="pd-stat__body">
-              <span>Joined</span>
-              <strong>{partner.joined || "—"}</strong>
-            </div>
+            <span>Joined</span>
+            <strong>{partner.joined || "—"}</strong>
           </div>
         </section>
 
@@ -555,7 +533,7 @@ const AdminPartnerDetailsPage: React.FC =
           )}
 
           {activeTab === "training" && (
-            <TrainingPanel
+            <TrainingApprovalCard
               partnerId={partner.id}
               canApprove={hasKycApprovalPermission}
               onChanged={() => {
@@ -752,7 +730,11 @@ const KycTab: React.FC<KycTabProps> = ({
             void onApprove();
           }}
         >
-          {actionLoading ? "Processing..." : "Accept KYC"}
+          {actionLoading
+            ? "Processing..."
+            : partner.kycStatus === "Approved"
+              ? "Resend set-password email"
+              : "Approve KYC"}
         </button>
 
         <button

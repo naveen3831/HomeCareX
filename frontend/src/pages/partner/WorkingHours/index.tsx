@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   getAvailability,
   setWorkingHours,
@@ -171,14 +170,10 @@ export const PartnerWorkingHoursPage: React.FC = () => {
 
   return (
     <div className="pa-page wh-page">
+      {/* The top bar already shows the page title and the back arrow, so only the subtitle is shown here. */}
       <div className="wh-header">
-        <Link className="wh-back" to="/partner/availability" aria-label="Back to availability">
-          &larr;
-        </Link>
-        <div>
-          <h1 className="pa-title wh-h1">Working Hours</h1>
-          <p className="bd-page-sub">Set the days and times customers can book you</p>
-        </div>
+        <h1 className="sr-only">Working Hours</h1>
+        <p className="bd-page-sub">Set the days and times customers can book you</p>
       </div>
 
       {error && <p className="pa-error" role="alert">{error}</p>}

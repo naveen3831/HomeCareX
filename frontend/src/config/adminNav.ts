@@ -1,4 +1,5 @@
 import {
+  Banknote,
   BarChart3,
   Bell,
   CalendarCheck,
@@ -63,6 +64,7 @@ export const adminNavGroups: AdminNavGroup[] = [
       { label: 'Customers', path: '/admin/customers', icon: Users, permission: 'customers:view' },
       { label: 'Manage Partners', path: '/admin/manage-partners', icon: UserPlus, permission: 'partners:view' },
       { label: 'Partners & KYC', path: '/admin/partners', icon: HardHat, permission: 'partners:view' },
+      { label: 'Skill requests', path: '/admin/skill-requests', icon: Wrench, permission: 'partners:view' },
       { label: 'Reviews', path: '/admin/reviews', icon: Star, permission: 'reviews:view' },
     ],
   },
@@ -120,6 +122,12 @@ export const adminNavGroups: AdminNavGroup[] = [
         label: "Payouts",
         path: "/admin/payouts",
         icon: Wallet,
+        permission: "payouts:view",
+      },
+      {
+        label: "Withdrawals",
+        path: "/admin/withdrawals",
+        icon: Banknote,
         permission: "payouts:view",
       },
     ],

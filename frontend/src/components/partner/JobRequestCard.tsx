@@ -17,8 +17,10 @@ import type {
 ========================================================= */
 
 const secondsLeft = (
-  expiresAt: string,
+  expiresAt: string | null,
 ) => {
+  // A job the admin assigned directly has no deadline.
+  if (!expiresAt) return Number.POSITIVE_INFINITY;
   return Math.max(
     0,
     Math.round(
@@ -108,8 +110,9 @@ export default function JobRequestCard({
      EXPIRED
   ======================================================= */
 
+  const noDeadline = !Number.isFinite(left);
   const expired =
-    left === 0;
+    !noDeadline && left === 0;
 
   /* =======================================================
      SCHEDULED TIME
@@ -177,7 +180,9 @@ export default function JobRequestCard({
           aria-label={
             expired
               ? "Expired"
-              : `${left} seconds left to respond`
+              : noDeadline
+                ? "Assigned to you, no deadline"
+                : `${left} seconds left to respond`
           }
         >
           <Timer
@@ -187,7 +192,9 @@ export default function JobRequestCard({
 
           {expired
             ? "Expired"
-            : clock(left)}
+            : noDeadline
+              ? "Assigned to you"
+              : clock(left)}
         </span>
       </div>
 

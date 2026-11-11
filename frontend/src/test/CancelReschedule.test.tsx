@@ -351,7 +351,7 @@ describe("RescheduleDialog", () => {
     await userEvent.click(within(dialog).getAllByRole("radio")[1]);
     await userEvent.click(within(dialog).getByRole("button", { name: /Next/ }));
     await userEvent.click(
-      await within(dialog).findByRole("button", { name: /12:00 PM – 2:00 PM/ }),
+      await within(dialog).findByRole("button", { name: /12:00 PM – 0?2:00 PM/ }),
     );
     await userEvent.click(within(dialog).getByRole("button", { name: /Next/ }));
     return dialog;
@@ -404,6 +404,33 @@ describe("RescheduleDialog", () => {
     ).toBeInTheDocument();
     // Back on the slot step with nothing selected, so Next is off until a new slot is chosen.
     expect(within(dialog).getByRole("button", { name: /Next/ })).toBeDisabled();
+  });
+
+  it("keeps the customer on the review step when booking itself is not reschedulable (409)", async () => {
+    getBookingDetail.mockResolvedValue(detail({ date: "2020-01-01" }));
+    getSlots.mockResolvedValue(slots());
+    rescheduleBooking.mockRejectedValue({
+      status: 409,
+      code: "BOOKING_NOT_RESCHEDULABLE",
+      message: "A partner has already been assigned to this booking",
+    });
+    renderPage();
+    const dialog = await openAndPickSlot();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Confirm new time" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "A partner has already been assigned to this booking",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(/Please pick another slot/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Confirm new time" }),
+    ).toBeInTheDocument();
   });
 
   it("does not offer the slot the booking already has on the same day", async () => {

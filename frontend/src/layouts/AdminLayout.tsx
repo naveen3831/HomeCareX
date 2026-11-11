@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/admin/Sidebar';
 import { Header } from '@/components/admin/Header';
 import { AdminSearch } from '@/components/admin/AdminSearch';
 import { AdminBottomNav } from '@/components/admin/AdminBottomNav';
+import SosAlertOverlay from '@/components/admin/SosAlertOverlay';
 import { useUIStore } from '@/store/useUIStore';
 import { useAutoDragScroll } from '@/hooks/useAutoDragScroll';
 import '@/styles/admin.css';
@@ -52,6 +53,7 @@ export const AdminLayout: React.FC = () => {
       </div>
 
       <AdminBottomNav />
+      <SosAlertOverlay />
     </div>
   );
 };

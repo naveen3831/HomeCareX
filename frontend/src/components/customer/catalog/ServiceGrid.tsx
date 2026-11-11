@@ -3,7 +3,7 @@ import type { CatalogService } from "@/types/catalog";
 import { ServiceCard } from "./ServiceCard";
 import { ServiceCardSkeleton } from "./ServiceCardSkeleton";
 
-const GRID = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3";
+const GRID = "grid gap-3.5 sm:gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
 interface Props {
   services: CatalogService[];
@@ -31,7 +31,7 @@ export function ServiceGrid({ services, busy = false }: Props) {
 }
 
 /** First load: same grid shape as ServiceGrid so nothing jumps. */
-export function ServiceGridSkeleton({ count = 6 }: { count?: number }) {
+export function ServiceGridSkeleton({ count = 8 }: { count?: number }) {
   return (
     <div role="status" aria-live="polite" aria-busy="true">
       <span className="sr-only">Loading services…</span>

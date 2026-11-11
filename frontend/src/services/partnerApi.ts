@@ -67,6 +67,21 @@ export interface PartnerProfileInput {
   bio?: string;
 }
 
+/** What the partner gave when joining (address, services, bank), as saved now. */
+export interface PartnerJoinDetails {
+  name: string;
+  phone: string;
+  email: string;
+  bio?: string;
+  joined: {
+    address: { line1: string; city: string; state: string; pincode: string };
+    categories: string[];
+    skills: string[];
+    serviceRadiusKm: number | null;
+    bank: { accountHolder: string; accountLast4: string; ifsc: string; upiId: string } | null;
+  };
+}
+
 export type {
   ActiveJob,
   EarningsSummary,
@@ -391,7 +406,8 @@ const mapRequest = (req: JobRequest): PartnerJob => ({
   scheduledAt: req.scheduledAt,
   amount: req.price > 0 ? req.price : pickAmount(asRecord(req)),
   status: "requested",
-  expiresAt: req.expiresAt,
+  expiresAt: req.expiresAt ?? undefined,
+  assignedByAdmin: req.assignedByAdmin ?? !req.expiresAt,
   image: pickImage(asRecord(req)),
 });
 
@@ -411,6 +427,7 @@ const mapLiveJob = (rawItem: unknown): PartnerJob => {
     scheduledAt: typeof item.scheduledAt === "string" ? item.scheduledAt : new Date().toISOString(),
     amount: pickAmount(item),
     status: toJobStatus(typeof item.status === "string" ? item.status : ""),
+    accepted: typeof item.accepted === "boolean" ? item.accepted : undefined,
     image: pickImage(service, item),
   };
 };
@@ -424,7 +441,8 @@ async function fetchLive(scope?: "completed" | "cancelled"): Promise<PartnerJob[
   const res = await http.get<ApiResponse<unknown[]>>("/partner/jobs", {
     params: scope ? { scope } : undefined,
   });
-  return (res.data.data ?? []).map(mapLiveJob);
+  // A job the admin assigned that the partner has not accepted yet is a request (see fetchRequests), not a live job.
+  return (res.data.data ?? []).map(mapLiveJob).filter((job) => job.accepted !== false);
 }
 
 /**
@@ -523,9 +541,13 @@ export const partnerApi = {
 
   /* Profile */
 
-  async getProfile(): Promise<PartnerProfileInput & { email: string }> {
-    const res = await http.get<ApiResponse<PartnerProfileInput & { email: string }>>("/partner/profile");
+  async getProfile(): Promise<PartnerJoinDetails> {
+    const res = await http.get<ApiResponse<PartnerJoinDetails>>("/partner/profile");
     return res.data.data;
+  },
+
+  async getProfileDetails(): Promise<PartnerJoinDetails> {
+    return this.getProfile();
   },
 
   async updateProfile(input: PartnerProfileInput): Promise<PartnerProfileInput> {

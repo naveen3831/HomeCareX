@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { StoredJobMedia } from "./job-media-storage";
 import BookingModel, { type IBooking } from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
 import ServiceModel from "../../models/Service";
@@ -147,6 +148,18 @@ export const partnerJobsRepository = {
     return ServiceModel.find({ _id: { $in: serviceIds } })
       .select("media")
       .lean<Array<{ _id: Types.ObjectId; media?: Array<{ url: string }> }>>();
+  },
+
+  /** Jobs the admin assigned straight to this partner that the partner has not accepted yet. */
+  findAdminAssignedAwaitingAcceptance(partnerId: Types.ObjectId, limit = 50) {
+    return BookingModel.find({
+      partnerId,
+      status: "assigned",
+      offers: { $not: { $elemMatch: { partnerId, response: "accepted" } } },
+    })
+      .sort({ scheduledAt: 1 })
+      .limit(limit)
+      .lean<JobBookingDoc[]>();
   },
 
   findJobRequests(
@@ -327,6 +340,7 @@ export const partnerJobsRepository = {
     partnerId: Types.ObjectId,
     entry: StatusHistoryEntry,
     now: Date = new Date(),
+    startMedia?: StoredJobMedia[],
   ): Promise<boolean> {
     const result = await BookingModel.updateOne(
       {
@@ -338,9 +352,11 @@ export const partnerJobsRepository = {
         $set: {
           status: "in_progress",
           startedAt: now,
+          ...(startMedia?.length ? { startMedia } : {}),
         },
         $push: {
           statusHistory: entry,
+          ...(proof.length > 0 ? { startProof: { $each: proof } } : {}),
         },
       },
     );
@@ -461,6 +477,82 @@ export const partnerJobsRepository = {
     return result.modifiedCount === 1;
   },
 
+  /**
+   * The admin assigned this job straight to the partner (no offer was ever sent). Accepting records an
+   * "accepted" offer entry so the job counts as accepted, the same way an accepted offer does.
+   * Returns false when the job is not assigned to this partner any more.
+   */
+  async acceptAssignment(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    userId: string,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      {
+        _id: bookingId,
+        partnerId,
+        status: "assigned",
+        offers: { $not: { $elemMatch: { partnerId, response: "accepted" } } },
+      },
+      {
+        $push: {
+          offers: { partnerId, offeredAt: now, expiresAt: now, response: "accepted", respondedAt: now },
+          statusHistory: {
+            from: "assigned",
+            to: "assigned",
+            at: now,
+            actorRole: "partner",
+            actorId: userId,
+            reason: "Assignment accepted by partner",
+          },
+        },
+      },
+    );
+
+    return result.matchedCount === 1;
+  },
+
+  /**
+   * The partner declines a job the admin assigned to them. The job goes back to "searching_for_partner"
+   * with no partner, so the admin can assign someone else. The decline is kept as a rejected offer.
+   */
+  async releaseAssignment(
+    bookingId: string,
+    partnerId: Types.ObjectId,
+    userId: string,
+    reason: string | undefined,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const result = await BookingModel.updateOne(
+      { _id: bookingId, partnerId, status: "assigned" },
+      {
+        $set: { status: "searching_for_partner" },
+        $unset: { partnerId: "" },
+        $push: {
+          offers: {
+            partnerId,
+            offeredAt: now,
+            expiresAt: now,
+            response: "rejected",
+            respondedAt: now,
+            ...(reason ? { rejectReason: reason } : {}),
+          },
+          statusHistory: {
+            from: "assigned",
+            to: "searching_for_partner",
+            at: now,
+            actorRole: "partner",
+            actorId: userId,
+            reason: reason ? `Declined by partner: ${reason}` : "Declined by partner",
+          },
+        },
+      },
+    );
+
+    return result.matchedCount === 1;
+  },
+
   async updateChecklist(
     bookingId: string,
     partnerId: Types.ObjectId,
@@ -475,7 +567,7 @@ export const partnerJobsRepository = {
         _id: bookingId,
         partnerId,
         status: {
-          $in: ["assigned", "en_route", "arrived", "in_progress"],
+          $in: ["assigned", "en_route", "arrived", "in_progress", "completed"],
         },
       },
       {
@@ -485,6 +577,7 @@ export const partnerJobsRepository = {
       },
     );
 
-    return result.modifiedCount === 1;
+    // matchedCount: ticking an item that is already in that state changes nothing, but it is not an error.
+    return result.matchedCount === 1;
   },
 };

@@ -4,7 +4,7 @@ import { requireRole } from "../../middleware/role.middleware";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import PartnerModel from "../../models/Partner";
-import { readKycDocument, saveKycDocument } from "../partners/kyc-storage";
+import { kycDocumentExists, readKycDocument, saveKycDocument } from "../partners/kyc-storage";
 
 /**
  * Mounted at /partner/documents. A partner can list and open their OWN KYC documents
@@ -12,6 +12,25 @@ import { readKycDocument, saveKycDocument } from "../partners/kyc-storage";
  * Not behind requireTrainingApproved on purpose: documents are part of KYC, not of the work area.
  */
 export const partnerDocumentsRoutes = Router();
+
+/** Old records may hold an external link instead of a stored file. Only public http(s) hosts, max 10 MB, 10 s. */
+async function fetchLegacyUrl(raw: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.toLowerCase();
+    const privateHost =
+      host === "localhost" || host.endsWith(".local") || /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|0\.|\[?::1\]?$)/.test(host);
+    if (!/^https?:$/.test(u.protocol) || privateHost) return null;
+    const r = await fetch(u, { signal: AbortSignal.timeout(10_000) });
+    if (!r.ok) return null;
+    const buffer = Buffer.from(await r.arrayBuffer());
+    if (buffer.length === 0 || buffer.length > 10 * 1024 * 1024) return null;
+    return { buffer, contentType: r.headers.get("content-type") ?? "application/octet-stream" };
+  } catch {
+    return null;
+  }
+}
+
 
 const base = [authenticate, requireRole("partner")];
 
@@ -28,15 +47,19 @@ partnerDocumentsRoutes.get(
       rejectionReason: kyc?.rejectionReason ?? null,
       submittedAt: kyc?.submittedAt ?? null,
       reviewedAt: kyc?.reviewedAt ?? null,
-      documents: (kyc?.documents ?? []).map((d) => ({
-        id: String(d._id),
-        type: d.type,
-        label: d.label ?? d.type,
-        mimeType: d.mimeType ?? null,
-        status: d.status ?? "pending",
-        reviewNote: d.reviewNote ?? null,
-        uploadedAt: d.uploadedAt ?? null,
-      })),
+      documents: await Promise.all(
+        (kyc?.documents ?? []).map(async (d) => ({
+          id: String(d._id),
+          type: d.type,
+          label: d.label ?? d.type,
+          mimeType: d.mimeType ?? null,
+          status: d.status ?? "pending",
+          reviewNote: d.reviewNote ?? null,
+          uploadedAt: d.uploadedAt ?? null,
+          // false = old record whose file was never saved on this server; the app asks the partner to upload it again.
+          fileAvailable: (await kycDocumentExists(d.storageKey)) || /^https?:\/\//i.test(d.url ?? ""),
+        })),
+      ),
     });
   }),
 );
@@ -103,8 +126,26 @@ partnerDocumentsRoutes.get(
     const { sub } = res.locals.auth as { sub: string };
     const partner = await PartnerModel.findOne({ userId: sub }).select("kyc.documents").lean();
     const doc = partner?.kyc?.documents?.find((d) => String(d._id) === req.params.docId);
-    if (!doc || !doc.storageKey) {
+    if (!doc) {
       res.status(404).json({ success: false, message: "Document not found", code: "NOT_FOUND" });
+      return;
+    }
+    if (!doc.storageKey) {
+      // Older records only have an external link; open that instead of failing.
+      if (doc.url && /^https?:\/\//i.test(doc.url)) {
+        // Fetch it on the server and pass it on. A redirect would make the browser call another site
+        // directly, which CORS blocks (the app shows "Network error").
+        const remote = await fetchLegacyUrl(doc.url);
+        if (remote) {
+          res.setHeader("Content-Type", doc.mimeType ?? remote.contentType);
+          res.setHeader("Content-Disposition", "inline");
+          res.setHeader("Cache-Control", "private, no-store");
+          res.setHeader("X-Content-Type-Options", "nosniff");
+          res.send(remote.buffer);
+          return;
+        }
+      }
+      res.status(404).json({ success: false, message: "This document has no stored file. Please upload it again.", code: "NOT_FOUND" });
       return;
     }
     const buffer = await readKycDocument(doc.storageKey);

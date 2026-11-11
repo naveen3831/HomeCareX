@@ -47,7 +47,8 @@ import {
   isRealDate,
   nowInBookingTz,
 } from "./bookings.time";
-import { BOOKING_PAYMENT_STATUS } from "../../models/Booking";
+import { BookingModel, BOOKING_PAYMENT_STATUS } from "../../models/Booking";
+import { PAYMENT_MAX_ATTEMPTS } from "../payments/payments.constants";
 import { ServiceModel } from "../../models/Service";
 import {
   calculatePricing,
@@ -357,7 +358,19 @@ export const BookingService = {
     };
 
     const replayed = await replay();
-    if (replayed) return replayed;
+    if (replayed) {
+      if (
+        replayed.booking.paymentStatus === "FAILED" ||
+        (replayed.booking as { paymentDetails?: { status?: string } }).paymentDetails?.status === "FAILED"
+      ) {
+        throw new AppError(
+          429,
+          "PAYMENT_RETRY_LIMIT_EXCEEDED",
+          "You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.",
+        );
+      }
+      return replayed;
+    }
 
     const row = await ServiceModel.findOne(
       { _id: input.serviceId, active: { $ne: false } },
@@ -1031,11 +1044,13 @@ export const BookingService = {
       );
     }
 
-    if (hasSlotStarted(booking.date, booking.slot)) {
+    if (booking.partnerId) {
       throw new AppError(
         409,
         "BOOKING_NOT_RESCHEDULABLE",
-        "This booking has already started",
+        hasSlotStarted(booking.date, booking.slot)
+          ? "This booking has already started"
+          : "A partner has already been assigned to this booking",
       );
     }
 

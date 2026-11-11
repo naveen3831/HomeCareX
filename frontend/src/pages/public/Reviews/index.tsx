@@ -23,105 +23,6 @@ export interface CustomerReview {
   helpfulCount: number;
 }
 
-const ALL_CUSTOMER_REVIEWS: CustomerReview[] = [
-  {
-    id: "REV001",
-    name: "Priya Sharma",
-    city: "Bengaluru",
-    service: "Full Home Deep Cleaning",
-    category: "Cleaning",
-    tag: "❤️ Lifesaver",
-    headline: "My home felt brand new before Diwali!",
-    review:
-      "Preparing for visiting relatives with 60-hour work weeks felt impossible. HomeCareX arrived on time with professional equipment, left every tile and window spotless, and seeing my mother's happy smile was priceless.",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
-    date: "2 days ago",
-    verifiedBookingsCount: 4,
-    helpfulCount: 38,
-  },
-  {
-    id: "REV002",
-    name: "Rahul Kumar",
-    city: "Hyderabad",
-    service: "Emergency Plumbing",
-    category: "Plumbing",
-    tag: "⚡ Saved Weekend",
-    headline: "Pipe burst fixed in 40 minutes flat",
-    review:
-      "Water was gushing under our kitchen sink on Saturday morning. The plumber Rajesh arrived in 40 mins with the exact valve, fixed it cleanly with zero surge pricing, and saved our weekend gathering.",
-    rating: 4.5,
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=200&q=80",
-    date: "1 week ago",
-    verifiedBookingsCount: 2,
-    helpfulCount: 27,
-  },
-  {
-    id: "REV003",
-    name: "Ananya Reddy",
-    city: "Chennai",
-    service: "Elderly Care & Electrical",
-    category: "Electrical",
-    tag: "✨ Pure Peace of Mind",
-    headline: "Felt so safe having them assist my elderly parents",
-    review:
-      "Living abroad, I worry about my aging parents dealing with home repairs alone. The technicians were polite, spoke in Tamil to comfort them, and fixed the main wiring with complete safety gear.",
-    rating: 5,
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
-    date: "2 weeks ago",
-    verifiedBookingsCount: 6,
-    helpfulCount: 42,
-  },
-  {
-    id: "REV004",
-    name: "Vikramaditya Verma",
-    city: "Mumbai",
-    service: "AC Deep Servicing",
-    category: "Appliances",
-    tag: "❄️ Instant Relief",
-    headline: "Rescued us in peak 39°C heatwave",
-    review:
-      "Our split AC gave up during the hottest week of May. The specialist diagnosed the refrigerant leak quickly, refilled it with genuine parts, and had our bedroom ice cold in an hour. Honest and transparent.",
-    rating: 4,
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
-    date: "3 weeks ago",
-    verifiedBookingsCount: 3,
-    helpfulCount: 19,
-  },
-  {
-    id: "REV005",
-    name: "Arjun Mehta",
-    city: "Delhi NCR",
-    service: "Carpentry & Repairs",
-    category: "Carpentry",
-    tag: "🔨 Skilled & Honest",
-    headline: "Great craftsmanship, arrived slightly late due to traffic",
-    review:
-      "The carpenter did exceptional work rebuilding our wooden wardrobe hinges and leveling the doors. Deducted half a star because he arrived 20 minutes late in morning traffic, but he communicated proactively and finished cleanly.",
-    rating: 3.5,
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
-    date: "1 month ago",
-    verifiedBookingsCount: 1,
-    helpfulCount: 15,
-  },
-  {
-    id: "REV006",
-    name: "Sneha Mukherjee",
-    city: "Pune",
-    service: "Kitchen Deep Degreasing",
-    category: "Cleaning",
-    tag: "🌟 Pure Delight",
-    headline: "Stubborn chimney stains completely gone",
-    review:
-      "Years of daily tadka and oil grime on our kitchen chimney vanished after their steam degreasing. The kitchen smells fresh, feels hygienic, and looks brand new again without any harsh chemical odors.",
-    rating: 4.5,
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=200&q=80",
-    date: "1 month ago",
-    verifiedBookingsCount: 5,
-    helpfulCount: 31,
-  },
-];
-
 const initials = (name: string) =>
   name
     .split(" ")
@@ -190,33 +91,29 @@ const StarRating: React.FC<{
  * MAIN COMPONENT: ReviewsPage
  * ===================================================================== */
 
+const INITIAL_VISIBLE_COUNT = 5;
+
 export default function ReviewsPage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<"recent" | "rating" | "helpful">("recent");
   const [avatarErrors, setAvatarErrors] = useState<Record<string, boolean>>({});
-  const [reviewsList, setReviewsList] = useState<CustomerReview[]>(ALL_CUSTOMER_REVIEWS);
+  const [reviewsList, setReviewsList] = useState<CustomerReview[]>([]);
+  const [showAll, setShowAll] = useState(false);
   const [stats, setStats] = useState<{
     averageRating: number;
     totalReviews: number;
     satisfactionRate: number;
     homesServed: string;
   }>({
-    averageRating: 4.9,
-    totalReviews: ALL_CUSTOMER_REVIEWS.length,
-    satisfactionRate: 98.4,
-    homesServed: "45,000+",
+    averageRating: 0,
+    totalReviews: 0,
+    satisfactionRate: 0,
+    homesServed: "0",
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const [helpfulState, setHelpfulState] = useState<Record<string, { count: number; liked: boolean }>>(() => {
-    const map: Record<string, { count: number; liked: boolean }> = {};
-    ALL_CUSTOMER_REVIEWS.forEach((r) => {
-      map[r.id] = { count: r.helpfulCount, liked: false };
-    });
-    return map;
-  });
+  const [helpfulState, setHelpfulState] = useState<Record<string, { count: number; liked: boolean }>>({});
 
   // Fetch reviews & stats dynamically from backend
   useEffect(() => {
@@ -225,25 +122,22 @@ export default function ReviewsPage() {
       try {
         setIsLoading(true);
         const res = await fetchPublicReviews();
-        if (isMounted && res?.reviews && Array.isArray(res.reviews) && res.reviews.length > 0) {
-          setReviewsList(res.reviews as CustomerReview[]);
+        if (isMounted && res) {
+          const list = Array.isArray(res.reviews) ? (res.reviews as CustomerReview[]) : [];
+          setReviewsList(list);
           if (res.stats) {
             setStats({
-              averageRating: res.stats.averageRating || 4.9,
-              totalReviews: res.stats.totalReviews || res.reviews.length,
-              satisfactionRate: res.stats.satisfactionRate || 98.4,
-              homesServed: res.stats.homesServed || "45,000+",
+              averageRating: res.stats.averageRating ?? 0,
+              totalReviews: res.stats.totalReviews ?? list.length,
+              satisfactionRate: res.stats.satisfactionRate ?? 0,
+              homesServed: res.stats.homesServed || (list.length > 0 ? `${list.length * 10}+` : "0"),
             });
           }
-          setHelpfulState((prev) => {
-            const next = { ...prev };
-            res.reviews.forEach((r) => {
-              if (!next[r.id]) {
-                next[r.id] = { count: r.helpfulCount || 20, liked: false };
-              }
-            });
-            return next;
+          const nextHelpful: Record<string, { count: number; liked: boolean }> = {};
+          list.forEach((r) => {
+            nextHelpful[r.id] = { count: r.helpfulCount || 0, liked: false };
           });
+          setHelpfulState(nextHelpful);
         }
       } catch (err) {
         console.warn("Reviews API unavailable, using local high-fidelity reviews fallback:", err);
@@ -274,29 +168,9 @@ export default function ReviewsPage() {
     });
   };
 
-  // Category counts
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: reviewsList.length };
-    reviewsList.forEach((r) => {
-      counts[r.category] = (counts[r.category] || 0) + 1;
-    });
-    return counts;
-  }, [reviewsList]);
-
-  const categories = [
-    { id: "All", label: "All Reviews", count: categoryCounts.All },
-    { id: "Cleaning", label: "Cleaning", count: categoryCounts.Cleaning || 0 },
-    { id: "Plumbing", label: "Plumbing", count: categoryCounts.Plumbing || 0 },
-    { id: "Electrical", label: "Electrical", count: categoryCounts.Electrical || 0 },
-    { id: "Appliances", label: "Appliances", count: categoryCounts.Appliances || 0 },
-    { id: "Carpentry", label: "Carpentry", count: categoryCounts.Carpentry || 0 },
-  ];
-
   // Filtered & Sorted Reviews
   const filteredReviews = useMemo(() => {
     let list = reviewsList.filter((r) => {
-      const matchesCategory =
-        selectedCategory === "All" || r.category === selectedCategory;
       const matchesRating =
         ratingFilter === "all" || Math.floor(r.rating) >= ratingFilter;
       const matchesSearch =
@@ -307,7 +181,7 @@ export default function ReviewsPage() {
         r.headline.toLowerCase().includes(searchQuery.toLowerCase()) ||
         r.review.toLowerCase().includes(searchQuery.toLowerCase());
 
-      return matchesCategory && matchesRating && matchesSearch;
+      return matchesRating && matchesSearch;
     });
 
     if (sortBy === "rating") {
@@ -321,7 +195,13 @@ export default function ReviewsPage() {
     }
 
     return list;
-  }, [selectedCategory, ratingFilter, searchQuery, sortBy, helpfulState]);
+  }, [reviewsList, ratingFilter, searchQuery, sortBy, helpfulState]);
+
+  // Sliced reviews: show latest 5 by default, or all when showAll is true
+  const visibleReviews = useMemo(() => {
+    if (showAll) return filteredReviews;
+    return filteredReviews.slice(0, INITIAL_VISIBLE_COUNT);
+  }, [filteredReviews, showAll]);
 
   return (
     <>
@@ -341,16 +221,20 @@ export default function ReviewsPage() {
           aria-hidden
         />
 
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
           {/* ===================== HERO SECTION ===================== */}
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-orange-50/90 border border-orange-200/70 px-3.5 py-1 text-xs font-bold text-orange-800 shadow-2xs">
               <span className="text-[#f59e0b]">★</span>
-              <span>4.9 Average Rating from 1,200+ Verified Bookings</span>
+              <span>
+                {stats.totalReviews > 0
+                  ? `${stats.averageRating.toFixed(1)} Average Rating from ${stats.totalReviews} Verified Review${stats.totalReviews === 1 ? "" : "s"}`
+                  : "Verified Customer Reviews & Feedback"}
+              </span>
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
-              <span className="bg-gradient-to-r from-[#1e1b4b] via-[#4338ca] to-[#3b82f6] bg-clip-text text-transparent">
+              <span className="text-[#2563eb]">
                 Customer Stories
               </span>{" "}
               <span className="text-[#f97316] font-extrabold">&amp;</span>{" "}
@@ -363,111 +247,93 @@ export default function ReviewsPage() {
               Real experiences and verified stories from homeowners and families who rely on HomeCareX every day.
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {/* Action Buttons: 2 buttons in 1 row on mobile view */}
+            <div className="mt-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-3 w-full max-w-sm sm:max-w-none mx-auto">
               <Link
                 to="/customer/reviews"
-                className="group inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white shadow-[0_6px_20px_rgba(255,138,61,0.32)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(255,138,61,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d]"
+                className="group flex items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] px-2.5 sm:px-6 py-2.5 sm:py-3 text-[11px] sm:text-sm font-bold text-white shadow-[0_6px_20px_rgba(255,138,61,0.32)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_26px_rgba(255,138,61,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8a3d] text-center"
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                <span>Share your experience</span>
-                <span className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                <span className="truncate">Share your story</span>
+                <span className="hidden sm:inline transition-transform duration-200 group-hover:translate-x-1">→</span>
               </Link>
               <Link
                 to="/services"
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-[#1e1b4b] shadow-2xs transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ff8a3d] hover:bg-orange-50/40 hover:text-[#ff8a3d]"
+                className="flex items-center justify-center gap-1 sm:gap-2 rounded-xl border border-slate-300 bg-white px-2.5 sm:px-5 py-2.5 sm:py-3 text-[11px] sm:text-sm font-bold text-[#1e1b4b] shadow-2xs transition-all duration-300 hover:-translate-y-0.5 hover:border-[#ff8a3d] hover:bg-orange-50/40 hover:text-[#ff8a3d] text-center"
               >
-                <span>Explore all services</span>
+                <span className="truncate">Explore services</span>
               </Link>
             </div>
           </div>
 
-          {/* ===================== TRUST STATS BAR ===================== */}
-          <div className="mt-8 sm:mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 max-w-4xl mx-auto">
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#1e1b4b] tabular-nums">{stats.averageRating.toFixed(1)} ★</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Overall Rating</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 tabular-nums">{stats.satisfactionRate.toFixed(1)}%</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Satisfaction Rate</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
-              <p className="text-2xl sm:text-3xl font-extrabold text-[#ff8a3d] tabular-nums">{stats.homesServed}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Homes Served</p>
-            </div>
-            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
-              <p className="text-2xl sm:text-3xl font-extrabold text-blue-600 tabular-nums">100%</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">Verified Technicians</p>
+          {/* ===================== TRUST STATS: SLEEK METRICS STRIP (NON-CARD FORMAT) ===================== */}
+          <div className="mt-8 sm:mt-10 max-w-4xl mx-auto border-y border-slate-200/80 py-4 sm:py-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-slate-200/70 text-center">
+              <div className="px-2 sm:px-3 py-1">
+                <p className="text-2xl sm:text-3xl font-black text-[#1e1b4b] tabular-nums tracking-tight">
+                  {stats.totalReviews > 0 ? `${stats.averageRating.toFixed(1)} ★` : "—"}
+                </p>
+                <p className="mt-1 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Overall Rating</p>
+              </div>
+              <div className="px-2 sm:px-3 py-1">
+                <p className="text-2xl sm:text-3xl font-black text-emerald-600 tabular-nums tracking-tight">
+                  {stats.totalReviews > 0 ? `${stats.satisfactionRate.toFixed(1)}%` : "—"}
+                </p>
+                <p className="mt-1 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Satisfaction Rate</p>
+              </div>
+              <div className="px-2 sm:px-3 py-1">
+                <p className="text-2xl sm:text-3xl font-black text-[#ff8a3d] tabular-nums tracking-tight">
+                  {stats.totalReviews > 0 ? stats.homesServed : "—"}
+                </p>
+                <p className="mt-1 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Homes Served</p>
+              </div>
+              <div className="px-2 sm:px-3 py-1">
+                <p className="text-2xl sm:text-3xl font-black text-blue-600 tabular-nums tracking-tight">100%</p>
+                <p className="mt-1 text-[11px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">Verified Technicians</p>
+              </div>
             </div>
           </div>
 
-          {/* ===================== HIGH-CLARITY FILTER SUITE ===================== */}
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
-            {/* Top Row: Service Category Pills with Full Visibility */}
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                  <svg className="h-3.5 w-3.5 text-[#ff8a3d]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  <span>Filter by Service</span>
-                </span>
+          {/* ===================== HIGH-CLARITY PROFESSIONAL FILTER SUITE ===================== */}
+          <div className="mt-8 rounded-2xl sm:rounded-3xl border border-slate-200/80 bg-white p-3.5 sm:p-5 shadow-2xs sm:shadow-xs">
+            {/* Filter Suite Header: Live count and optional reset */}
+            <div className="mb-3 flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-500">
+                {isLoading ? (
+                  <span className="inline-flex items-center gap-1.5 text-orange-600 font-semibold">
+                    <svg className="animate-spin h-3 w-3 text-orange-500" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Updating...
+                  </span>
+                ) : (
+                  <>
+                    Showing <span className="font-bold text-[#1e1b4b]">{visibleReviews.length}</span> of {filteredReviews.length} reviews
+                  </>
+                )}
+              </span>
 
-                <span className="text-xs font-medium text-slate-500">
-                  {isLoading ? (
-                    <span className="inline-flex items-center gap-1.5 text-orange-600 font-semibold">
-                      <svg className="animate-spin h-3 w-3 text-orange-500" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Updating from backend...
-                    </span>
-                  ) : (
-                    <>
-                      Showing <span className="font-bold text-[#1e1b4b]">{filteredReviews.length}</span> of {reviewsList.length} reviews
-                    </>
-                  )}
-                </span>
-              </div>
-
-              {/* Category Pills (Wrap naturally without truncation) */}
-              <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                {categories.map((cat) => {
-                  const active = selectedCategory === cat.id;
-                  return (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`group inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all duration-200 cursor-pointer ${
-                        active
-                          ? "bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] text-white shadow-xs ring-2 ring-orange-400/30"
-                          : "bg-slate-50 text-slate-700 border border-slate-200 hover:border-orange-300 hover:bg-orange-50/40 hover:text-[#1e1b4b]"
-                      }`}
-                    >
-                      <span>{cat.label}</span>
-                      <span
-                        className={`rounded-full px-1.5 py-0.2 text-[10px] font-black tabular-nums transition-colors ${
-                          active
-                            ? "bg-white/25 text-white"
-                            : "bg-white text-slate-600 border border-slate-200 group-hover:border-orange-200 group-hover:text-orange-700"
-                        }`}
-                      >
-                        {cat.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {(searchQuery || ratingFilter !== "all" || sortBy !== "recent" || showAll) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setRatingFilter("all");
+                    setSortBy("recent");
+                    setShowAll(false);
+                  }}
+                  className="font-bold text-[#ff8a3d] hover:text-[#e0691e] transition-colors cursor-pointer"
+                >
+                  Reset filters
+                </button>
+              )}
             </div>
 
-            {/* Subtle Divider */}
-            <div className="my-3.5 border-t border-slate-100" />
-
             {/* Bottom Row: Search Box, Rating Pills, and Sort Dropdown */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               {/* Search Box */}
               <div className="relative flex-1 sm:max-w-md">
                 <input
@@ -492,9 +358,9 @@ export default function ReviewsPage() {
               </div>
 
               {/* Rating Pills and Sort */}
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center justify-between sm:justify-start gap-2">
                 {/* Rating Filter Segmented Controls */}
-                <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200/80">
+                <div className="flex flex-1 sm:flex-initial items-center justify-between gap-0.5 rounded-xl bg-slate-100 p-1 border border-slate-200/80">
                   {(["all", 5, 4, 3] as const).map((r) => {
                     const active = ratingFilter === r;
                     const label = r === "all" ? "All Stars" : r === 5 ? "5.0 ★" : `${r}.0+ ★`;
@@ -503,7 +369,7 @@ export default function ReviewsPage() {
                         key={String(r)}
                         type="button"
                         onClick={() => setRatingFilter(r)}
-                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+                        className={`rounded-lg px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold transition-all cursor-pointer whitespace-nowrap text-center flex-1 sm:flex-initial ${
                           active
                             ? "bg-white text-[#1e1b4b] shadow-2xs font-extrabold"
                             : "text-slate-600 hover:text-slate-900"
@@ -516,17 +382,17 @@ export default function ReviewsPage() {
                 </div>
 
                 {/* Sort dropdown */}
-                <div className="relative">
+                <div className="relative shrink-0">
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as "recent" | "rating" | "helpful")}
-                    className="rounded-xl border border-slate-200 bg-white py-1.5 pl-3 pr-8 text-xs font-bold text-slate-700 shadow-2xs focus:border-[#ff8a3d] focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/20 cursor-pointer appearance-none"
+                    className="rounded-xl border border-slate-200 bg-white py-1.5 pl-3 pr-7 text-xs font-bold text-slate-700 shadow-2xs focus:border-[#ff8a3d] focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/20 cursor-pointer appearance-none"
                   >
-                    <option value="recent">Newest first</option>
-                    <option value="rating">Highest rated</option>
-                    <option value="helpful">Most helpful</option>
+                    <option value="recent">Newest</option>
+                    <option value="rating">Highest</option>
+                    <option value="helpful">Helpful</option>
                   </select>
-                  <span className="pointer-events-none absolute right-2.5 top-2 text-[10px] text-slate-400">▼</span>
+                  <span className="pointer-events-none absolute right-2 top-2 text-[10px] text-slate-400">▼</span>
                 </div>
               </div>
             </div>
@@ -534,33 +400,44 @@ export default function ReviewsPage() {
 
           {/* ===================== REVIEWS FEED (ONE CARD PER ROW) ===================== */}
           <div className="mt-8">
-            {filteredReviews.length === 0 ? (
+            {isLoading ? (
+              <div className="rounded-3xl border border-slate-200 bg-white py-14 text-center shadow-xs">
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+                <p className="mt-3 text-sm text-slate-500 font-medium">Loading verified reviews...</p>
+              </div>
+            ) : filteredReviews.length === 0 ? (
               <div className="rounded-3xl border border-slate-200 bg-white py-14 text-center shadow-xs">
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-[#ff8a3d] ring-4 ring-orange-50/60">
                   <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </span>
-                <h3 className="mt-3.5 text-base sm:text-lg font-bold text-[#1e1b4b]">No reviews found</h3>
+                <h3 className="mt-3.5 text-base sm:text-lg font-bold text-[#1e1b4b]">
+                  {reviewsList.length === 0 ? "No reviews yet" : "No reviews found"}
+                </h3>
                 <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                  Try clearing your search query or choosing another service category.
+                  {reviewsList.length === 0
+                    ? "Verified customer reviews will appear here once bookings are reviewed."
+                    : "Try clearing your search query or adjusting your star rating filter."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory("All");
-                    setRatingFilter("all");
-                    setSearchQuery("");
-                  }}
-                  className="mt-4 rounded-xl bg-gradient-to-r from-[#ff8a3d] to-[#f97316] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:shadow-xs cursor-pointer"
-                >
-                  Reset all filters
-                </button>
+                {reviewsList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRatingFilter("all");
+                      setSearchQuery("");
+                    }}
+                    className="mt-4 rounded-xl bg-gradient-to-r from-[#ff8a3d] to-[#f97316] px-4 py-2 text-xs font-bold text-white shadow-2xs hover:shadow-xs cursor-pointer"
+                  >
+                    Reset all filters
+                  </button>
+                )}
               </div>
             ) : (
               /* One Card in the Row (Single Column Layout) */
-              <div className="flex flex-col gap-4 sm:gap-5">
-                {filteredReviews.map((r) => {
+              <>
+                <div className="flex flex-col gap-4 sm:gap-5">
+                {visibleReviews.map((r) => {
                   const helpful = helpfulState[r.id] ?? { count: r.helpfulCount, liked: false };
                   const hasAvatar = Boolean(r.avatar && !avatarErrors[r.id]);
 
@@ -654,7 +531,32 @@ export default function ReviewsPage() {
                     </article>
                   );
                 })}
-              </div>
+                </div>
+
+                {/* Highlighted View All Reviews Button */}
+                {filteredReviews.length > INITIAL_VISIBLE_COUNT && (
+                  <div className="mt-8 sm:mt-10 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setShowAll((prev) => !prev)}
+                      className="inline-flex items-center gap-2.5 rounded-2xl border-2 border-orange-200 bg-transparent hover:bg-orange-50/40 hover:border-[#ff8a3d] px-8 sm:px-10 py-3.5 sm:py-4 text-xs sm:text-sm shadow-xs hover:shadow-md active:scale-95 transition-all duration-200 cursor-pointer group"
+                    >
+                      <span className="font-black text-sm sm:text-base text-[#ff8a3d] tracking-wide transition-colors">
+                        {showAll ? "Show latest 5 reviews" : "View all"}
+                      </span>
+                      <svg
+                        className={`h-4 w-4 text-[#ff8a3d] transition-transform duration-200 ${showAll ? "rotate-180" : ""}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2.5}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

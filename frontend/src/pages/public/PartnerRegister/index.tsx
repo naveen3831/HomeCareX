@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   User,
-  Users,
   Mail,
   Phone,
   ArrowRight,
@@ -18,10 +17,11 @@ import {
   CreditCard,
   Briefcase,
   MapPin,
-  Calendar,
   Eye,
   EyeOff,
   Sparkles,
+  Lock,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { classifyApiError } from '@/lib/apiError';
@@ -171,9 +171,7 @@ export const PartnerRegisterPage: React.FC = () => {
   const [error, setError] = useState('');
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [avatarPreview, setAvatarPreview] = useState<string>('');
 
-  const avatarInputRef = useRef<HTMLInputElement>(null);
   const idDocInputRef = useRef<HTMLInputElement>(null);
   const addressDocInputRef = useRef<HTMLInputElement>(null);
 
@@ -267,34 +265,6 @@ export const PartnerRegisterPage: React.FC = () => {
   }
 
   // Profile photo handling
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setFieldErrors((prev) => ({ ...prev, avatar: 'Please select a valid image (JPEG, PNG or WebP).' }));
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setFieldErrors((prev) => ({ ...prev, avatar: 'Profile photo size must be under 2MB.' }));
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setAvatarPreview(dataUrl);
-      handleChange('avatar', dataUrl);
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function removeAvatar() {
-    setAvatarPreview('');
-    handleChange('avatar', '');
-    if (avatarInputRef.current) avatarInputRef.current.value = '';
-  }
 
   /** Reads the real file contents (base64 data: URL) so the backend can store it and admins can preview it. */
   function readFileAsDataUrl(file: File): Promise<string> {
@@ -686,15 +656,15 @@ export const PartnerRegisterPage: React.FC = () => {
   ];
 
   return (
-    <div className="w-full max-w-[560px] lg:max-w-[580px] xl:max-w-[620px] 2xl:max-w-[640px] bg-white/85 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-900/10 border border-white/80 ring-1 ring-black/[0.03] p-5 sm:p-6 relative transition-all my-auto max-h-[calc(100dvh-2.5rem)] sm:max-h-[calc(100dvh-3.5rem)] overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
+    <div className="w-full sm:max-w-[580px] xl:max-w-[620px] 2xl:max-w-[640px] bg-white sm:bg-white/85 sm:backdrop-blur-xl rounded-none sm:rounded-3xl shadow-none sm:shadow-2xl sm:shadow-slate-900/10 border-0 sm:border sm:border-white/80 ring-0 sm:ring-1 sm:ring-black/[0.03] px-4 py-4 sm:p-5 xl:p-6 pb-8 sm:pb-5 relative transition-all min-h-[100dvh] sm:min-h-0 flex flex-col justify-between sm:block sm:my-auto sm:max-h-[calc(100vh-2rem)] overflow-y-visible sm:overflow-y-auto overflow-x-hidden scroll-smooth no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0">
       {/* Top Action Bar: Back to Home + Top Right Logo */}
-      <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-100/80 shrink-0">
+      <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-100/90 shrink-0">
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors py-0.5 group focus:outline-none focus:ring-2 focus:ring-blue-500/30 rounded"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors py-1 px-1.5 -ml-1 rounded-lg hover:bg-slate-50 group focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           aria-label="Back to Home"
         >
-          <ArrowLeft size={14} className="text-slate-400 group-hover:-translate-x-0.5 transition-transform" />
+          <ArrowLeft size={16} className="text-slate-400 group-hover:-translate-x-0.5 group-hover:text-blue-600 transition-all" />
           <span>Back to Home</span>
         </Link>
 
@@ -706,16 +676,17 @@ export const PartnerRegisterPage: React.FC = () => {
           <img
             src="/logo.webp"
             alt="HomeCareX"
-            className="h-5 sm:h-5.5 md:h-6 w-auto object-contain"
+            className="h-6 sm:h-6 md:h-6.5 w-auto object-contain"
           />
         </Link>
       </div>
 
-      {/* Partner Registration accessible title */}
-      <span className="sr-only">Partner Registration</span>
-
-      {/* Heading */}
-      <div className="text-center mb-2.5 shrink-0">
+      {/* Heading + Partner Registration Badge */}
+      <div className="text-center mb-3 shrink-0">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 mb-1.5 rounded-full text-[11px] font-bold text-blue-700 bg-blue-50/90 border border-blue-200/80">
+          <Sparkles size={11} className="text-blue-600" />
+          <span>Partner Registration</span>
+        </div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
           Become a <span className="text-blue-600">HomeCareX</span> Partner
         </h1>
@@ -724,10 +695,10 @@ export const PartnerRegisterPage: React.FC = () => {
         </p>
       </div>
 
-      {/* Stepper progress indicator */}
-      <nav aria-label="Registration Progress" className="mb-2 shrink-0">
-        {/* Step pills grid */}
-        <div className="grid grid-cols-5 gap-1 mb-1">
+      {/* Modern Stepper progress indicator */}
+      <nav aria-label="Registration Progress" className="mb-3.5 shrink-0">
+        {/* 5-segment sleek progress bar */}
+        <div className="grid grid-cols-5 gap-1.5 h-1.5 w-full">
           {[
             { step: 1, label: 'Personal' },
             { step: 2, label: 'Identity' },
@@ -744,35 +715,20 @@ export const PartnerRegisterPage: React.FC = () => {
                 onClick={() => {
                   if (step < currentStep) setCurrentStep(step);
                 }}
-                disabled={step > currentStep}
+                disabled={step >= currentStep}
                 aria-current={isActive ? 'step' : undefined}
-                aria-label={`Step ${step}: ${label}${isDone ? ' (Completed)' : isActive ? ' (Current)' : ''}`}
-                className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-xs font-bold transition-all ${
+                aria-label={`Step ${step}: ${label}${isDone ? ' (Completed - click to return)' : isActive ? ' (Current)' : ''}`}
+                className={`h-1.5 w-full rounded-full transition-all duration-300 ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-2xs'
+                    ? 'bg-blue-600 ring-2 ring-blue-500/20'
                     : isDone
-                    ? 'bg-blue-50 text-blue-600 hover:bg-blue-100 cursor-pointer border border-blue-200/60'
-                    : 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200/50'
+                    ? 'bg-blue-500/80 hover:bg-blue-600 cursor-pointer'
+                    : 'bg-slate-200/90 cursor-default'
                 }`}
-              >
-                <span
-                  className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full text-[9px] font-bold ${
-                    isActive
-                      ? 'bg-white text-blue-600'
-                      : isDone
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-200 text-slate-500'
-                  }`}
-                >
-                  {isDone ? '✓' : step}
-                </span>
-                <span className="hidden sm:inline font-semibold text-[10px] xl:text-[11px] truncate">{label}</span>
-              </button>
+              />
             );
           })}
         </div>
-
-        
       </nav>
 
       {/* Server error alert */}
@@ -795,97 +751,34 @@ export const PartnerRegisterPage: React.FC = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-2">
+      <form onSubmit={handleSubmit} noValidate className="space-y-3">
         {/* ======================================================== */}
         {/* STEP 1: SECTION A - PERSONAL INFORMATION                 */}
         {/* ======================================================== */}
         {currentStep === 1 && (
-          <section aria-labelledby="step-1-title" className="space-y-2">
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
-              <h2 id="step-1-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
-                Section A: Personal Information
-              </h2>
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200/70 px-2.5 py-0.5 rounded-full">
+          <section aria-labelledby="step-1-title" className="space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div>
+                <h2 id="step-1-title" className="text-sm sm:text-base font-bold text-slate-800 tracking-tight">
+                  Section A: Personal Information
+                </h2>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                  Basic profile information for your partner identity
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                 Step 1 of 5
               </span>
             </div>
 
-            {/* Profile Photo Preview / Replace / Remove (Ultra-compact inline avatar) */}
-            <div className="p-1.5 px-2.5 bg-slate-50/80 border border-slate-200/70 rounded-xl flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="relative shrink-0">
-                  {avatarPreview ? (
-                    <img
-                      src={avatarPreview}
-                      alt="Profile preview"
-                      className="w-7 h-7 rounded-full object-cover border-2 border-blue-600 shadow-2xs"
-                    />
-                  ) : (
-                    <label
-                      htmlFor="partner-avatar-input"
-                      className="w-7 h-7 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 hover:bg-blue-100 cursor-pointer transition-colors shadow-2xs"
-                      title="Upload profile photo"
-                    >
-                      <User size={14} />
-                    </label>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium text-slate-700">Profile Photo</span>
-                    <span className="text-[9px] font-medium text-slate-500 bg-slate-200/70 px-1 py-0.2 rounded">Optional</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 truncate">Clear front-facing photo (JPG, PNG or WebP, max 2MB)</p>
-                </div>
-              </div>
-
-              {/* Upload / Replace / Remove Button */}
-              <div className="flex items-center gap-1 shrink-0">
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  id="partner-avatar-input"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleAvatarChange}
-                  className="sr-only"
-                  aria-label="Upload profile photo"
-                />
-                <label
-                  htmlFor="partner-avatar-input"
-                  className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-medium bg-white border border-slate-200 hover:border-blue-400 text-slate-700 hover:text-blue-600 px-2 py-0.5 rounded-lg shadow-2xs transition-all active:scale-95 whitespace-nowrap"
-                >
-                  <Upload size={11} className="text-blue-600" />
-                  <span>{avatarPreview ? 'Change' : 'Upload Photo'}</span>
-                </label>
-                {avatarPreview && (
-                  <button
-                    type="button"
-                    onClick={removeAvatar}
-                    aria-label="Remove profile photo"
-                    title="Remove profile photo"
-                    className="inline-flex items-center justify-center h-6 px-1.5 rounded-lg text-[11px] font-medium text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200/60 transition-colors"
-                  >
-                    <Trash2 size={11} className="mr-0.5" />
-                    <span>Remove</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {fieldErrors.avatar && (
-              <p role="alert" className="text-[10px] text-red-600 font-medium pl-1">
-                {fieldErrors.avatar}
-              </p>
-            )}
-
             {/* Full Name */}
             <div className="group">
-              <label htmlFor="partner-name" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-name" className="block text-xs font-semibold text-slate-700 mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
-                  <User size={15} aria-hidden="true" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
+                  <User size={16} aria-hidden="true" />
                 </div>
                 <input
                   id="partner-name"
@@ -897,52 +790,47 @@ export const PartnerRegisterPage: React.FC = () => {
                   placeholder="e.g. Ramesh Kumar"
                   aria-invalid={Boolean(fieldErrors.name)}
                   aria-describedby={fieldErrors.name ? 'name-error' : undefined}
-                  className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
-                    fieldErrors.name ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.name ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
               </div>
               {fieldErrors.name && (
-                <p id="name-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
+                <p id="name-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.name}
                 </p>
               )}
             </div>
 
-            {/* Date of Birth & Gender in 2 columns */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Date of Birth & Gender: 2 columns on mobile & desktop */}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               {/* DOB */}
               <div className="group">
-                <label htmlFor="partner-dob" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-dob" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   Date of Birth <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
-                    <Calendar size={15} aria-hidden="true" />
-                  </div>
-                  <input
-                    id="partner-dob"
-                    type="date"
-                    name="dob"
-                    max={new Date().toISOString().split('T')[0]}
-                    value={form.dob}
-                    onChange={(e) => handleChange('dob', e.target.value)}
-                    onClick={(e) => {
-                      try {
-                        e.currentTarget.showPicker();
-                      } catch {}
-                    }}
-                    aria-invalid={Boolean(fieldErrors.dob)}
-                    aria-describedby={fieldErrors.dob ? 'dob-error' : undefined}
-                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-2.5 sm:pr-3 text-xs sm:text-sm cursor-pointer ${
-                      !form.dob ? 'text-slate-400' : 'text-slate-800'
-                    } focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-60 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 ${
-                      fieldErrors.dob ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
-                    }`}
-                  />
-                </div>
+                <input
+                  id="partner-dob"
+                  type="date"
+                  name="dob"
+                  max={new Date().toISOString().split('T')[0]}
+                  value={form.dob}
+                  onChange={(e) => handleChange('dob', e.target.value)}
+                  onClick={(e) => {
+                    try {
+                      e.currentTarget.showPicker();
+                    } catch {}
+                  }}
+                  aria-invalid={Boolean(fieldErrors.dob)}
+                  aria-describedby={fieldErrors.dob ? 'dob-error' : undefined}
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3.5 text-xs sm:text-sm cursor-pointer ${
+                    !form.dob ? 'text-slate-400' : 'text-slate-900'
+                  } focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-70 hover:[&::-webkit-calendar-picker-indicator]:opacity-100 ${
+                    fieldErrors.dob ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
+                  }`}
+                />
                 {fieldErrors.dob && (
-                  <p id="dob-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
+                  <p id="dob-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.dob}
                   </p>
                 )}
@@ -950,13 +838,10 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Gender */}
               <div className="group">
-                <label htmlFor="partner-gender" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-gender" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   Gender <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
-                    <Users size={15} aria-hidden="true" />
-                  </div>
                   <select
                     id="partner-gender"
                     name="gender"
@@ -964,10 +849,10 @@ export const PartnerRegisterPage: React.FC = () => {
                     onChange={(e) => handleChange('gender', e.target.value)}
                     aria-invalid={Boolean(fieldErrors.gender)}
                     aria-describedby={fieldErrors.gender ? 'gender-error' : undefined}
-                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-7 sm:pr-8 text-xs sm:text-sm cursor-pointer ${
-                      !form.gender ? 'text-slate-400' : 'text-slate-800'
-                    } focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
-                      fieldErrors.gender ? 'border-red-400 focus:ring-red-400/30' : 'border-slate-300'
+                    className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3.5 pr-8 text-xs sm:text-sm cursor-pointer appearance-none ${
+                      !form.gender ? 'text-slate-400' : 'text-slate-900'
+                    } focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                      fieldErrors.gender ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                     }`}
                   >
                     <option value="" className="text-slate-400">Select Gender</option>
@@ -975,43 +860,47 @@ export const PartnerRegisterPage: React.FC = () => {
                     <option value="female" className="text-slate-800">Female</option>
                     <option value="other" className="text-slate-800">Other</option>
                   </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={16} />
+                  </div>
                 </div>
                 {fieldErrors.gender && (
-                  <p id="gender-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
+                  <p id="gender-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.gender}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Mobile Number & Email Address in 2 columns */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Mobile Number & Email Address */}
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
               {/* Mobile Number */}
               <div className="group">
-                <label htmlFor="partner-phone" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-phone" className="block text-xs font-semibold text-slate-700 mb-1">
                   Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
-                    <Phone size={15} aria-hidden="true" />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
+                    <Phone size={16} aria-hidden="true" />
                   </div>
                   <input
                     id="partner-phone"
                     type="tel"
                     name="phone"
                     autoComplete="tel"
+                    maxLength={10}
                     value={form.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
+                    onChange={(e) => handleChange('phone', e.target.value.replace(/\D/g, ''))}
                     placeholder="9876543210"
                     aria-invalid={Boolean(fieldErrors.phone)}
                     aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
-                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
-                      fieldErrors.phone ? 'border-red-400' : 'border-slate-300'
+                    className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                      fieldErrors.phone ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                     }`}
                   />
                 </div>
                 {fieldErrors.phone && (
-                  <p id="phone-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
+                  <p id="phone-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.phone}
                   </p>
                 )}
@@ -1019,12 +908,12 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Email Address */}
               <div className="group">
-                <label htmlFor="partner-email" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-email" className="block text-xs font-semibold text-slate-700 mb-1">
                   Email Address <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
-                    <Mail size={15} aria-hidden="true" />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
+                    <Mail size={16} aria-hidden="true" />
                   </div>
                   <input
                     id="partner-email"
@@ -1036,13 +925,13 @@ export const PartnerRegisterPage: React.FC = () => {
                     placeholder="ramesh@example.com"
                     aria-invalid={Boolean(fieldErrors.email)}
                     aria-describedby={fieldErrors.email ? 'email-error' : undefined}
-                    className={`w-full h-9.5 sm:h-10 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 pl-9 sm:pl-9.5 pr-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-3 focus:ring-blue-500/15 focus:border-blue-600 transition-all shadow-2xs ${
-                      fieldErrors.email ? 'border-red-400' : 'border-slate-300'
+                    className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                      fieldErrors.email ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                     }`}
                   />
                 </div>
                 {fieldErrors.email && (
-                  <p id="email-error" role="alert" className="mt-0.5 text-[10px] text-red-600">
+                  <p id="email-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.email}
                   </p>
                 )}
@@ -1050,7 +939,7 @@ export const PartnerRegisterPage: React.FC = () => {
             </div>
 
             {/* Password & Confirm Password */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
               <div>
                 <PasswordField
                   id="partner-password"
@@ -1061,8 +950,8 @@ export const PartnerRegisterPage: React.FC = () => {
                   value={form.password}
                   onChange={(e) => handleChange('password', e.target.value)}
                   error={fieldErrors.password}
-                  labelClassName="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1"
-                  className="!h-10 sm:!h-10.5 !text-sm !rounded-xl"
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1"
+                  className="!h-11 sm:!h-10 !text-sm !rounded-xl !bg-slate-50/60 focus:!bg-white focus:!border-blue-600 focus:!ring-4 focus:!ring-blue-500/10"
                 />
                 <PasswordStrength password={form.password} />
               </div>
@@ -1076,8 +965,8 @@ export const PartnerRegisterPage: React.FC = () => {
                   value={form.confirmPassword}
                   onChange={(e) => handleChange('confirmPassword', e.target.value)}
                   error={fieldErrors.confirmPassword}
-                  labelClassName="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1"
-                  className="!h-10 sm:!h-10.5 !text-sm !rounded-xl"
+                  labelClassName="block text-xs font-semibold text-slate-700 mb-1"
+                  className="!h-11 sm:!h-10 !text-sm !rounded-xl !bg-slate-50/60 focus:!bg-white focus:!border-blue-600 focus:!ring-4 focus:!ring-blue-500/10"
                 />
               </div>
             </div>
@@ -1088,22 +977,22 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 2: SECTION B - IDENTITY PROOF                       */}
         {/* ======================================================== */}
         {currentStep === 2 && (
-          <section aria-labelledby="step-2-title" className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <section aria-labelledby="step-2-title" className="space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
-                <h2 id="step-2-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
+                <h2 id="step-2-title" className="text-sm sm:text-base font-bold text-slate-800 tracking-tight">
                   Section B: Identity Proof
                 </h2>
-                <p className="text-xs text-slate-500">Government identity for background verification and customer trust</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Government identity for background verification and customer trust</p>
               </div>
-              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                 Step 2 of 5
               </span>
             </div>
 
             {/* ID Proof Type */}
             <div>
-              <label htmlFor="partner-id-type" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-id-type" className="block text-xs font-semibold text-slate-700 mb-1">
                 ID Proof Type <span className="text-red-500">*</span>
               </label>
               <select
@@ -1111,7 +1000,7 @@ export const PartnerRegisterPage: React.FC = () => {
                 name="idProofType"
                 value={form.idProofType}
                 onChange={(e) => handleChange('idProofType', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca]"
+                className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all cursor-pointer"
               >
                 {ID_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -1123,7 +1012,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* ID Proof Number */}
             <div className="group">
-              <label htmlFor="partner-id-number" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-id-number" className="block text-xs font-semibold text-slate-700 mb-1">
                 ID Proof Number <span className="text-red-500">*</span>
               </label>
               <input
@@ -1141,12 +1030,12 @@ export const PartnerRegisterPage: React.FC = () => {
                 }
                 aria-invalid={Boolean(fieldErrors.idProofNumber)}
                 aria-describedby={fieldErrors.idProofNumber ? 'id-number-error' : undefined}
-                className={`w-full rounded-lg border bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                  fieldErrors.idProofNumber ? 'border-red-400' : 'border-gray-300'
+                className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                  fieldErrors.idProofNumber ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                 }`}
               />
               {fieldErrors.idProofNumber && (
-                <p id="id-number-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p id="id-number-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.idProofNumber}
                 </p>
               )}
@@ -1154,12 +1043,12 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* ID Proof Document Upload */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Upload ID Proof Document <span className="text-red-500">*</span>
               </label>
               <div
-                className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${
-                  fieldErrors.idProof ? 'border-red-300 bg-red-50/50' : 'border-gray-300 bg-gray-50/60 hover:bg-gray-50'
+                className={`border-2 border-dashed rounded-xl p-4 text-center transition-all ${
+                  fieldErrors.idProof ? 'border-red-300 bg-red-50/50' : 'border-slate-200/90 bg-slate-50/60 hover:bg-slate-50'
                 }`}
               >
                 <input
@@ -1231,27 +1120,27 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 3: SECTION C - ADDRESS PROOF                        */}
         {/* ======================================================== */}
         {currentStep === 3 && (
-          <section aria-labelledby="step-3-title" className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <section aria-labelledby="step-3-title" className="space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
-                <h2 id="step-3-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
+                <h2 id="step-3-title" className="text-sm sm:text-base font-bold text-slate-800 tracking-tight">
                   Section C: Address Proof
                 </h2>
-                <p className="text-xs text-slate-500">Your base location where nearby customers will discover your services</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Your base location where nearby customers will discover your services</p>
               </div>
-              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                 Step 3 of 5
               </span>
             </div>
 
             {/* Street Address */}
             <div className="group">
-              <label htmlFor="partner-address" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-address" className="block text-xs font-semibold text-slate-700 mb-1">
                 Street Address / Locality <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-2.5 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
-                  <MapPin size={15} aria-hidden="true" />
+                <div className="absolute left-3 top-3 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
+                  <MapPin size={16} aria-hidden="true" />
                 </div>
                 <textarea
                   id="partner-address"
@@ -1262,23 +1151,23 @@ export const PartnerRegisterPage: React.FC = () => {
                   placeholder="Flat / Door No, Street, Landmark"
                   aria-invalid={Boolean(fieldErrors.address)}
                   aria-describedby={fieldErrors.address ? 'address-error' : undefined}
-                  className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.address ? 'border-red-400' : 'border-gray-300'
+                  className={`w-full rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 pl-10 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.address ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
               </div>
               {fieldErrors.address && (
-                <p id="address-error" role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p id="address-error" role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.address}
                 </p>
               )}
             </div>
 
-            {/* City & State in 2 columns */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            {/* City & State: 2 columns */}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               {/* City */}
               <div className="group">
-                <label htmlFor="partner-city" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-city" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   City <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1289,12 +1178,12 @@ export const PartnerRegisterPage: React.FC = () => {
                   onChange={(e) => handleChange('city', e.target.value)}
                   placeholder="e.g. Hyderabad"
                   aria-invalid={Boolean(fieldErrors.city)}
-                  className={`w-full rounded-lg border bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.city ? 'border-red-400' : 'border-gray-300'
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.city ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
                 {fieldErrors.city && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.city}
                   </p>
                 )}
@@ -1302,7 +1191,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* State */}
               <div>
-                <label htmlFor="partner-state" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-state" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   State <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -1310,7 +1199,7 @@ export const PartnerRegisterPage: React.FC = () => {
                   name="state"
                   value={form.state}
                   onChange={(e) => handleChange('state', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca]"
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all cursor-pointer"
                 >
                   {INDIAN_STATES.map((s) => (
                     <option key={s} value={s}>
@@ -1319,7 +1208,7 @@ export const PartnerRegisterPage: React.FC = () => {
                   ))}
                 </select>
                 {fieldErrors.state && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.state}
                   </p>
                 )}
@@ -1328,7 +1217,7 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Pincode */}
             <div className="group">
-              <label htmlFor="partner-pincode" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-pincode" className="block text-xs font-semibold text-slate-700 mb-1">
                 Pincode <span className="text-red-500">*</span>
               </label>
               <input
@@ -1340,12 +1229,12 @@ export const PartnerRegisterPage: React.FC = () => {
                 onChange={(e) => handleChange('pincode', e.target.value.replace(/\D/g, ''))}
                 placeholder="500001"
                 aria-invalid={Boolean(fieldErrors.pincode)}
-                className={`w-full rounded-lg border bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                  fieldErrors.pincode ? 'border-red-400' : 'border-gray-300'
+                className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                  fieldErrors.pincode ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                 }`}
               />
               {fieldErrors.pincode && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.pincode}
                 </p>
               )}
@@ -1353,12 +1242,12 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Address Proof Upload */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Upload Address Proof Document <span className="text-red-500">*</span>
               </label>
               <div
-                className={`border-2 border-dashed rounded-lg p-3 text-center transition-colors ${
-                  fieldErrors.addressProof ? 'border-red-300 bg-red-50/50' : 'border-gray-300 bg-gray-50/60 hover:bg-gray-50'
+                className={`border-2 border-dashed rounded-xl p-4 text-center transition-all ${
+                  fieldErrors.addressProof ? 'border-red-300 bg-red-50/50' : 'border-slate-200/90 bg-slate-50/60 hover:bg-slate-50'
                 }`}
               >
                 <input
@@ -1425,22 +1314,22 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 4: SECTION D - PROFESSIONAL DETAILS                 */}
         {/* ======================================================== */}
         {currentStep === 4 && (
-          <section aria-labelledby="step-4-title" className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <section aria-labelledby="step-4-title" className="space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
-                <h2 id="step-4-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
+                <h2 id="step-4-title" className="text-sm sm:text-base font-bold text-slate-800 tracking-tight">
                   Section D: Professional Details
                 </h2>
-                <p className="text-xs text-slate-500">Select your core services, skills, and weekly availability</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Select your core services, skills, and weekly availability</p>
               </div>
-              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                 Step 4 of 5
               </span>
             </div>
 
             {/* Service Category */}
             <div>
-              <label htmlFor="partner-category" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-category" className="block text-xs font-semibold text-slate-700 mb-1">
                 Primary Service Category <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1455,7 +1344,7 @@ export const PartnerRegisterPage: React.FC = () => {
                     const newSkills = CATEGORY_SKILLS_MAP[catSlug]?.slice(0, 2) || [];
                     handleChange('skills', newSkills);
                   }}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca]"
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white hover:border-slate-300 px-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all cursor-pointer"
                 >
                   {categories.map((c) => (
                     <option key={c.slug} value={c.slug}>
@@ -1465,7 +1354,7 @@ export const PartnerRegisterPage: React.FC = () => {
                 </select>
               </div>
               {fieldErrors.category && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.category}
                 </p>
               )}
@@ -1473,10 +1362,10 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Sub-Services / Skills Badges */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Select Your Skills / Services <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex flex-wrap gap-1.5 p-2.5 bg-slate-50/80 border border-slate-200/80 rounded-xl">
                 {availableSkills.map((skill) => {
                   const isSelected = form.skills.includes(skill);
                   return (
@@ -1484,10 +1373,10 @@ export const PartnerRegisterPage: React.FC = () => {
                       type="button"
                       key={skill}
                       onClick={() => toggleSkill(skill)}
-                      className={`text-xs px-2.5 py-1 rounded-full font-medium transition-all ${
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
                         isSelected
-                          ? 'bg-[#4338ca] text-white shadow-xs'
-                          : 'bg-white border border-gray-300 text-gray-700 hover:border-gray-400'
+                          ? 'bg-blue-600 text-white shadow-2xs font-semibold'
+                          : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
                       }`}
                     >
                       {isSelected ? '✓ ' : '+ '}
@@ -1497,22 +1386,22 @@ export const PartnerRegisterPage: React.FC = () => {
                 })}
               </div>
               {fieldErrors.skills && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.skills}
                 </p>
               )}
             </div>
 
-            {/* Experience & Service Radius in 2 columns */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            {/* Experience & Service Radius: 2 columns */}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               {/* Experience Years */}
               <div className="group">
-                <label htmlFor="partner-exp" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-exp" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   Years of Experience <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <Briefcase size={15} />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Briefcase size={16} />
                   </div>
                   <input
                     id="partner-exp"
@@ -1522,11 +1411,11 @@ export const PartnerRegisterPage: React.FC = () => {
                     name="experienceYears"
                     value={form.experienceYears}
                     onChange={(e) => handleChange('experienceYears', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white pl-8 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca]"
+                    className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white pl-9.5 pr-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all"
                   />
                 </div>
                 {fieldErrors.experienceYears && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.experienceYears}
                   </p>
                 )}
@@ -1552,10 +1441,10 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* Service Radius */}
               <div className="group">
-                <label htmlFor="partner-radius" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
-                  Service Radius <span className="text-[#4338ca] font-semibold">({form.serviceRadiusKm} km)</span>
+                <label htmlFor="partner-radius" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
+                  Radius <span className="text-blue-600 font-bold">({form.serviceRadiusKm} km)</span>
                 </label>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-2 h-11 sm:h-10 px-2 rounded-xl bg-slate-50/60 border border-slate-200/90">
                   <input
                     id="partner-radius"
                     type="range"
@@ -1565,14 +1454,11 @@ export const PartnerRegisterPage: React.FC = () => {
                     name="serviceRadiusKm"
                     value={form.serviceRadiusKm}
                     onChange={(e) => handleChange('serviceRadiusKm', Number(e.target.value))}
-                    className="w-full accent-[#4338ca] cursor-pointer"
+                    className="w-full accent-blue-600 cursor-pointer"
                   />
-                  <span className="text-xs font-medium text-gray-600 shrink-0 w-12 text-right">
-                    {form.serviceRadiusKm} km
-                  </span>
                 </div>
                 {fieldErrors.serviceRadiusKm && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.serviceRadiusKm}
                   </p>
                 )}
@@ -1581,10 +1467,10 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Working Days */}
             <div>
-              <label className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Working Days <span className="text-red-500">*</span>
               </label>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {ALL_DAYS.map((day) => {
                   const isChecked = form.workingDays.includes(day);
                   return (
@@ -1592,10 +1478,10 @@ export const PartnerRegisterPage: React.FC = () => {
                       type="button"
                       key={day}
                       onClick={() => toggleDay(day)}
-                      className={`text-xs px-2.5 py-1 rounded font-medium transition ${
+                      className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
                         isChecked
-                          ? 'bg-[#ff8a3d] text-white'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {day}
@@ -1604,16 +1490,16 @@ export const PartnerRegisterPage: React.FC = () => {
                 })}
               </div>
               {fieldErrors.workingDays && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.workingDays}
                 </p>
               )}
             </div>
 
             {/* Working Hours Start & End */}
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               <div>
-                <label htmlFor="partner-start-time" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-start-time" className="block text-xs font-semibold text-slate-700 mb-1">
                   Start Time
                 </label>
                 <input
@@ -1622,11 +1508,11 @@ export const PartnerRegisterPage: React.FC = () => {
                   name="workingHoursStart"
                   value={form.workingHoursStart}
                   onChange={(e) => handleChange('workingHoursStart', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30"
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white px-3 text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all"
                 />
               </div>
               <div>
-                <label htmlFor="partner-end-time" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-end-time" className="block text-xs font-semibold text-slate-700 mb-1">
                   End Time
                 </label>
                 <input
@@ -1635,12 +1521,12 @@ export const PartnerRegisterPage: React.FC = () => {
                   name="workingHoursEnd"
                   value={form.workingHoursEnd}
                   onChange={(e) => handleChange('workingHoursEnd', e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs sm:text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30"
+                  className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 hover:bg-white px-3 text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all"
                 />
               </div>
             </div>
             {fieldErrors.workingHours && (
-              <p role="alert" className="text-[11px] text-red-600">
+              <p role="alert" className="text-xs text-red-600 font-medium">
                 {fieldErrors.workingHours}
               </p>
             )}
@@ -1651,25 +1537,25 @@ export const PartnerRegisterPage: React.FC = () => {
         {/* STEP 5: SECTION E - BANK DETAILS & REVIEW                */}
         {/* ======================================================== */}
         {currentStep === 5 && (
-          <section aria-labelledby="step-5-title" className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+          <section aria-labelledby="step-5-title" className="space-y-3.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div>
-                <h2 id="step-5-title" className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight">
+                <h2 id="step-5-title" className="text-sm sm:text-base font-bold text-slate-800 tracking-tight">
                   Section E: Bank & Payout Details
                 </h2>
-                <p className="text-xs text-slate-500">Secure bank account or UPI ID for weekly earnings deposit</p>
+                <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">Secure bank account or UPI ID for weekly earnings deposit</p>
               </div>
-              <span className="text-xs font-semibold text-[#4338ca] bg-indigo-50 border border-indigo-200/70 px-2.5 py-0.5 rounded-full shrink-0">
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 rounded-full shrink-0">
                 Step 5 of 5
               </span>
             </div>
 
             {/* Direct Activation status badge */}
-            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2">
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200/80 rounded-xl flex items-start gap-2">
               <Sparkles size={16} className="text-emerald-600 shrink-0 mt-0.5" />
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-emerald-900">Direct Activation:</span>
+                  <span className="text-xs font-bold text-emerald-900">Direct Activation:</span>
                   <span className="text-[10px] font-bold bg-emerald-200/70 text-emerald-900 px-2 py-0.5 rounded-full">
                     Instant Access
                   </span>
@@ -1682,12 +1568,12 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Account Holder Name */}
             <div className="group">
-              <label htmlFor="partner-holder-name" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-holder-name" className="block text-xs font-semibold text-slate-700 mb-1">
                 Account Holder Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
-                  <User size={15} />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
+                  <User size={16} />
                 </div>
                 <input
                   id="partner-holder-name"
@@ -1697,13 +1583,13 @@ export const PartnerRegisterPage: React.FC = () => {
                   onChange={(e) => handleChange('accountHolder', e.target.value)}
                   placeholder="As written in passbook or cheque"
                   aria-invalid={Boolean(fieldErrors.accountHolder)}
-                  className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.accountHolder ? 'border-red-400' : 'border-gray-300'
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white pl-10 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.accountHolder ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
               </div>
               {fieldErrors.accountHolder && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.accountHolder}
                 </p>
               )}
@@ -1711,12 +1597,12 @@ export const PartnerRegisterPage: React.FC = () => {
 
             {/* Bank Account Number with concealment toggle */}
             <div className="group">
-              <label htmlFor="partner-account-number" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+              <label htmlFor="partner-account-number" className="block text-xs font-semibold text-slate-700 mb-1">
                 Bank Account Number <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
-                  <CreditCard size={15} />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
+                  <CreditCard size={16} />
                 </div>
                 <input
                   id="partner-account-number"
@@ -1726,36 +1612,36 @@ export const PartnerRegisterPage: React.FC = () => {
                   onChange={(e) => handleChange('accountNumber', e.target.value.replace(/\D/g, ''))}
                   placeholder="9 to 18 digits"
                   aria-invalid={Boolean(fieldErrors.accountNumber)}
-                  className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-9 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.accountNumber ? 'border-red-400' : 'border-gray-300'
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.accountNumber ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowAccountNumber((prev) => !prev)}
                   aria-label={showAccountNumber ? 'Hide account number' : 'Show account number'}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
                 >
-                  {showAccountNumber ? <EyeOff size={15} /> : <Eye size={15} />}
+                  {showAccountNumber ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               {fieldErrors.accountNumber && (
-                <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                   {fieldErrors.accountNumber}
                 </p>
               )}
             </div>
 
-            {/* IFSC & UPI ID in 2 columns */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+            {/* IFSC & UPI ID: 2 columns */}
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
               {/* IFSC */}
               <div className="group">
-                <label htmlFor="partner-ifsc" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
+                <label htmlFor="partner-ifsc" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
                   IFSC Code <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#4338ca] pointer-events-none">
-                    <Building size={15} />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 pointer-events-none">
+                    <Building size={16} />
                   </div>
                   <input
                     id="partner-ifsc"
@@ -1766,13 +1652,13 @@ export const PartnerRegisterPage: React.FC = () => {
                     onChange={(e) => handleChange('ifsc', e.target.value.toUpperCase())}
                     placeholder="e.g. SBIN0001234"
                     aria-invalid={Boolean(fieldErrors.ifsc)}
-                    className={`w-full rounded-lg border bg-white pl-8 sm:pl-9 pr-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                      fieldErrors.ifsc ? 'border-red-400' : 'border-gray-300'
+                    className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white pl-9.5 pr-2.5 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                      fieldErrors.ifsc ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                     }`}
                   />
                 </div>
                 {fieldErrors.ifsc && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.ifsc}
                   </p>
                 )}
@@ -1780,8 +1666,8 @@ export const PartnerRegisterPage: React.FC = () => {
 
               {/* UPI ID (Optional) */}
               <div className="group">
-                <label htmlFor="partner-upi" className="block text-xs sm:text-[13px] font-medium text-slate-600 mb-1">
-                  UPI ID <span className="text-gray-400 text-[10px] font-normal">(Optional)</span>
+                <label htmlFor="partner-upi" className="block text-xs font-semibold text-slate-700 mb-1 truncate">
+                  UPI ID <span className="text-slate-400 text-[10px] font-normal">(Opt)</span>
                 </label>
                 <input
                   id="partner-upi"
@@ -1791,12 +1677,12 @@ export const PartnerRegisterPage: React.FC = () => {
                   onChange={(e) => handleChange('upiId', e.target.value.toLowerCase())}
                   placeholder="name@okhdfcbank"
                   aria-invalid={Boolean(fieldErrors.upiId)}
-                  className={`w-full rounded-lg border bg-white px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] ${
-                    fieldErrors.upiId ? 'border-red-400' : 'border-gray-300'
+                  className={`w-full h-11 sm:h-10 rounded-xl border bg-slate-50/60 hover:bg-white px-3 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all ${
+                    fieldErrors.upiId ? 'border-red-400 bg-red-50/20' : 'border-slate-200/90'
                   }`}
                 />
                 {fieldErrors.upiId && (
-                  <p role="alert" className="mt-0.5 text-[11px] text-red-600">
+                  <p role="alert" className="mt-1 text-xs text-red-600 font-medium">
                     {fieldErrors.upiId}
                   </p>
                 )}
@@ -1864,15 +1750,15 @@ export const PartnerRegisterPage: React.FC = () => {
         )}
 
         {/* Stepper Actions: Back, Continue, Submit */}
-        <div className="pt-1 flex items-center gap-2 shrink-0">
+        <div className="pt-3 flex items-center gap-2.5 shrink-0">
           {currentStep > 1 && (
             <button
               type="button"
               onClick={handleBack}
               disabled={loading}
-              className="w-1/3 h-9 sm:h-9.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs sm:text-sm transition flex items-center justify-center gap-1 focus:outline-none focus:ring-2 focus:ring-slate-300 shadow-2xs active:scale-98 cursor-pointer"
+              className="w-1/3 h-12 sm:h-11 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-sm transition flex items-center justify-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300 shadow-2xs active:scale-[0.99] cursor-pointer"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={17} />
               <span>Back</span>
             </button>
           )}
@@ -1883,16 +1769,18 @@ export const PartnerRegisterPage: React.FC = () => {
               onClick={handleContinue}
               className={`${
                 currentStep > 1 ? 'w-2/3' : 'w-full'
-              } h-9.5 sm:h-10 bg-gradient-to-r from-blue-600 via-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm active:scale-98 cursor-pointer`}
+              } h-12 sm:h-11 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/35 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base active:scale-[0.99] cursor-pointer`}
             >
               <span>Continue to Step {currentStep + 1}</span>
-              <ArrowRight size={14} />
+              <ArrowRight size={18} />
             </button>
           ) : (
             <button
               type="submit"
               disabled={loading || !termsAccepted}
-              className="w-2/3 h-9.5 sm:h-10 bg-gradient-to-r from-[#ff8a3d] to-[#e0600f] hover:from-[#e0600f] hover:to-[#c24e07] text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:shadow-[#ff8a3d]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d] text-xs sm:text-sm active:scale-98 cursor-pointer"
+              className={`${
+                currentStep > 1 ? 'w-2/3' : 'w-full'
+              } h-12 sm:h-11 bg-gradient-to-r from-[#ff8a3d] to-[#e0600f] hover:from-[#e0600f] hover:to-[#c24e07] text-white font-bold rounded-xl shadow-md hover:shadow-lg hover:shadow-[#ff8a3d]/25 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d] text-sm sm:text-base active:scale-[0.99] cursor-pointer`}
             >
               {loading ? (
                 <>
@@ -1902,7 +1790,7 @@ export const PartnerRegisterPage: React.FC = () => {
               ) : (
                 <>
                   <span>Register as Partner</span>
-                  <CheckCircle2 size={15} />
+                  <CheckCircle2 size={18} />
                 </>
               )}
             </button>
@@ -1910,12 +1798,32 @@ export const PartnerRegisterPage: React.FC = () => {
         </div>
       </form>
 
-      <p className="text-center text-xs text-slate-500 mt-2 shrink-0">
-        Already registered as a partner?{' '}
-        <Link to="/login" className="text-blue-600 font-bold hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
-          Sign in here
-        </Link>
-      </p>
+      <div className="shrink-0 mt-4 sm:mt-2.5">
+        <p className="text-center text-xs text-slate-500">
+          Already registered as a partner?{' '}
+          <Link to="/login" className="text-blue-600 font-bold hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+            Sign in here
+          </Link>
+        </p>
+
+        {/* Mobile Trust Badges Footer: hidden on desktop */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex sm:hidden items-center justify-center gap-3 text-[11px] font-medium text-slate-400 select-none">
+          <span className="flex items-center gap-1">
+            <ShieldCheck size={13} className="text-emerald-500" />
+            Verified Platform
+          </span>
+          <span>&middot;</span>
+          <span className="flex items-center gap-1">
+            <Sparkles size={13} className="text-blue-500" />
+            Fast Payouts
+          </span>
+          <span>&middot;</span>
+          <span className="flex items-center gap-1">
+            <Lock size={13} className="text-slate-400" />
+            256-bit Secure
+          </span>
+        </div>
+      </div>
     </div>
   );
 };

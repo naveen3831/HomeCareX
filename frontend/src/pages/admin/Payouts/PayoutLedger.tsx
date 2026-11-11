@@ -71,6 +71,8 @@ const keyOf = (p: LedgerPeriod): string => `${p.periodStart}_${p.periodEnd}`;
 /** Credit / debit report: per day or week, what the admin received and what moved in and out of partner wallets. */
 export const PayoutLedger: React.FC = () => {
   const [frequency, setFrequency] = useState<LedgerFrequency>('daily');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [report, setReport] = useState<LedgerReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,49 +80,25 @@ export const PayoutLedger: React.FC = () => {
   const [lines, setLines] = useState<Record<string, LinesState>>({});
   const latest = useRef(0);
 
-  const openKeyRef = useRef('');
-  openKeyRef.current = openKey;
-
-  /** `silent` = background refresh: keeps the open row and its services, only updates the numbers. */
-  const load = useCallback(async (silent = false) => {
+  const load = useCallback(async () => {
     const req = ++latest.current;
-    if (!silent) {
-      setLoading(true);
-      setError('');
-    }
+    setLoading(true);
+    setError('');
     try {
-      const data = await fetchPayoutLedger({ frequency });
+      const data = await fetchPayoutLedger({ frequency, from, to });
       if (req !== latest.current) return;
       setReport(data);
-      setError('');
-      if (!silent) {
-        setOpenKey('');
-        setLines({});
-      } else if (openKeyRef.current) {
-        const open = data.periods.find((p) => keyOf(p) === openKeyRef.current);
-        if (open) void loadLines(open, 1);
-      }
+      setOpenKey('');
+      setLines({});
     } catch (e) {
-      if (req === latest.current && !silent) setError(errorMessage(e));
+      if (req === latest.current) setError(errorMessage(e));
     } finally {
-      if (req === latest.current && !silent) setLoading(false);
+      if (req === latest.current) setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frequency]);
+  }, [frequency, from, to]);
 
   useEffect(() => {
     void load();
-  }, [load]);
-
-  // Live numbers without a Refresh button: update every 30 s and when the tab is opened again.
-  useEffect(() => {
-    const tick = () => { if (document.visibilityState === 'visible') void load(true); };
-    const timer = window.setInterval(tick, 30_000);
-    document.addEventListener('visibilitychange', tick);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', tick);
-    };
   }, [load]);
 
   const loadLines = async (p: LedgerPeriod, page: number) => {
@@ -159,11 +137,8 @@ export const PayoutLedger: React.FC = () => {
     if (!lines[key] || lines[key].error) void loadLines(p, 1);
   };
 
+  const totals = report?.totals;
   const periods = report?.periods ?? [];
-  // Cards show the opened day / week when a row is open, otherwise the whole report.
-  const selected = periods.find((p) => keyOf(p) === openKey);
-  const totals = selected ?? report?.totals;
-  const scopeLabel = selected ? periodLabel(selected, frequency).title : '';
   const noun = frequency === 'daily' ? 'day' : 'week';
 
   return (
@@ -183,6 +158,23 @@ export const PayoutLedger: React.FC = () => {
             </button>
           ))}
         </div>
+
+        <label className="po-field pl-date">
+          <span>From</span>
+          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="po-field pl-date">
+          <span>To</span>
+          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        {(from || to) && (
+          <button type="button" className="po-btn is-small" onClick={() => { setFrom(''); setTo(''); }}>
+            Reset dates
+          </button>
+        )}
+        <button type="button" className="po-btn" onClick={() => void load()} disabled={loading}>
+          {loading ? 'Loading…' : 'Refresh'}
+        </button>
       </div>
 
       {error && (
@@ -192,18 +184,7 @@ export const PayoutLedger: React.FC = () => {
         </div>
       )}
 
-      <div className="pl-scope" aria-live="polite">
-        {selected ? (
-          <>
-            Showing <b>{scopeLabel}</b> only ·{' '}
-            <button type="button" className="po-link" onClick={() => setOpenKey('')}>Show overall total</button>
-          </>
-        ) : (
-          <>Showing overall total · press a {noun} to see that {noun} only</>
-        )}
-      </div>
-
-      <div className="po-strip pl-strip" aria-label={selected ? `Totals for ${scopeLabel}` : 'Totals for this report'}>
+      <div className="po-strip pl-strip" aria-label="Totals for this report">
         <div>
           <span>Admin received</span>
           <strong className="pl-in">{totals ? signed(totals.adminReceived) : '—'}</strong>
@@ -228,6 +209,11 @@ export const PayoutLedger: React.FC = () => {
             {totals ? `${totals.onlineJobs} online · ${totals.qrJobs} QR · ${totals.cashJobs} cash` : ' '}
           </small>
         </div>
+      </div>
+
+      <div className="pl-legend" aria-label="How the money moves">
+        <span><b>Online / QR</b> partner wallet <i className="pl-in">+ partner share</i> · admin <i className="pl-in">+ commission</i></span>
+        <span><b>Cash</b> partner wallet <i className="pl-out">− commission</i> · admin <i className="pl-in">+ commission</i></span>
       </div>
 
       <section className="po-card" aria-busy={loading}>

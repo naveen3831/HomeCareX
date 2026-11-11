@@ -90,17 +90,33 @@ export interface IBooking extends Document {
   otpCodes?: { start?: string; end?: string };
   /** Wrong start-code tries by the partner; the job locks at START_OTP_MAX_ATTEMPTS. */
   startOtpAttempts?: number;
+  /** Before-work photos/video the partner sent when starting the job. Files live in JOB_PROOF_STORAGE_DIR. */
+  startProof?: Array<{ kind: 'photo' | 'video'; storageKey: string; mimeType: string; size: number; uploadedAt: Date }>;
   extraCharges?: Array<{
     _id: Types.ObjectId;
     title: string;
+    reason?: string;
     amount: number;
+    quantity?: number;
     status: 'pending' | 'approved' | 'rejected';
+    requestedAt?: Date;
+    decidedAt?: Date;
   }>;
+  /** Partner's per-job checklist ticks. Seeded from the service inclusions on the first tick. */
+  checklist?: Array<{ id: string; label: string; done: boolean }>;
   slotSeat?: number;
   idempotencyKey?: string;
   requestHash?: string;
   holdExpiresAt?: Date;
   startedAt?: Date;
+  /** Photos / videos the partner added when starting the job. Served to admins only. */
+  startMedia?: Array<{
+    key: string;
+    mimeType: string;
+    kind: 'image' | 'video';
+    size: number;
+    uploadedAt: Date;
+  }>;
   completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -224,11 +240,38 @@ const BookingSchema = new Schema<IBooking>(
       end: { type: String, select: false },
     },
     startOtpAttempts: { type: Number, default: 0, min: 0 },
+    startMedia: {
+      type: [
+        {
+          _id: false,
+          key: { type: String, required: true },
+          mimeType: { type: String, required: true },
+          kind: { type: String, enum: ['image', 'video'], required: true },
+          size: { type: Number, required: true },
+          uploadedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
     extraCharges: {
       type: [{
         title: { type: String, required: true, trim: true },
+        reason: { type: String, trim: true },
         amount: { type: Number, required: true, min: 0 },
+        quantity: { type: Number, default: 1, min: 1 },
         status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+        requestedAt: { type: Date, default: Date.now },
+        decidedAt: { type: Date },
+      }],
+      default: [],
+    },
+    /** Without this field Mongoose silently dropped every checklist save. */
+    checklist: {
+      type: [{
+        _id: false,
+        id: { type: String, required: true },
+        label: { type: String, required: true, trim: true },
+        done: { type: Boolean, default: false },
       }],
       default: [],
     },

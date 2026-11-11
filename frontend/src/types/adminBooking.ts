@@ -93,6 +93,15 @@ export interface BookingTimelineItem {
   location?: string;
 }
 
+/** A photo or video the partner added when starting the job. Bytes: GET /admin/bookings/:id/start-media/:key */
+export interface AdminStartMedia {
+  key: string;
+  kind: "image" | "video";
+  mimeType: string;
+  size: number;
+  uploadedAt?: string;
+}
+
 export interface AdminBooking {
   id: string;
   customer: BookingCustomer;
@@ -107,6 +116,8 @@ export interface AdminBooking {
   createdAt: string;
   updatedAt: string;
   timeline: BookingTimelineItem[];
+  /** Photos / videos from the start of the job (empty until the partner starts it). */
+  startMedia?: AdminStartMedia[];
 }
 
 export interface BookingFilters {

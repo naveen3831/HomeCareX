@@ -183,6 +183,37 @@ test('reschedule is refused once a partner is on the way or the job started', as
   }
 });
 
+test('reschedule is allowed for an overdue/unassigned booking when no partner is assigned', async () => {
+  const d = doc({
+    partnerId: null,
+    date: '2020-01-01',
+    slot: '08:00-10:00',
+    status: 'confirmed',
+  });
+  let args: any;
+  let reads = 0;
+  stub({
+    findByIdForCustomer: async () => (++reads === 1 ? d : doc({ date: tomorrow(), slot: '12:00-14:00' })),
+    releaseStaleHolds: async () => null,
+    findFreeSeat: async () => 1,
+    reschedule: async (a: any) => {
+      args = a;
+      return doc({ date: tomorrow(), slot: '12:00-14:00' });
+    },
+  });
+  const view = await BookingService.rescheduleBooking('c1', 'b1', { date: tomorrow(), slot: '12:00-14:00' });
+  assert.equal(args?.to.slot, '12:00-14:00');
+  assert.equal(view.slot, '12:00-14:00');
+});
+
+test('reschedule is refused if a partner has already been assigned', async () => {
+  stub({ findByIdForCustomer: async () => doc({ partnerId: 'partner_123', status: 'confirmed' }) });
+  await assert.rejects(() => BookingService.rescheduleBooking('c1', 'b1', { date: tomorrow(), slot: '12:00-14:00' }), {
+    statusCode: 409,
+    code: 'BOOKING_NOT_RESCHEDULABLE',
+  });
+});
+
 test('picking the slot the booking already has is a 400', async () => {
   const d = doc();
   stub({ findByIdForCustomer: async () => d });

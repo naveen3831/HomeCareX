@@ -1,0 +1,28 @@
+.etabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 14px;
+  border-radius: 14px;
+  background: #f3f3fc;
+}
+.etabs a {
+  flex: 1;
+  text-align: center;
+  padding: 9px 0;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #6b6f8d;
+  text-decoration: none;
+}
+.etabs a[aria-current="page"] {
+  background: linear-gradient(135deg, #4338ca, #7c3aed);
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(67, 56, 202, 0.35);
+}
+.etabs a:focus-visible { outline: 2px solid #4338ca; outline-offset: 2px; }
+
+@media (min-width: 720px) {
+  .etabs { max-width: 380px; }
+}
