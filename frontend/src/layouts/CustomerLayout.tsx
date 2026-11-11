@@ -30,9 +30,16 @@ export default function CustomerLayout() {
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
-  // After a page change, move focus to the content area so keyboard and screen-reader users start at the new page, not at the top bar.
+  // After a page change, scroll to the very top and move focus to the content area so users always start at the top of the new page.
   // Skipped on first load, and for query-string-only changes (filters, pagination) because only the path is a dependency.
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+
     if (firstRender.current) {
       firstRender.current = false;
       return;

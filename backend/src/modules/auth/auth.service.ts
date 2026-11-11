@@ -33,6 +33,7 @@ import { UserModel } from '../../models/User';
 import { saveKycDocument, type StoredKycFile } from '../partners/kyc-storage';
 import { notifyAdminsKycSubmitted } from '../partners/partner-kyc.notify';
 import { mailService } from '../../services/mail.service';
+import { referralsService } from '../referrals/referrals.service';
 
 const accessSecret = () => process.env.JWT_SECRET || 'dev_access_secret_change_me';
 const refreshSecret = () => process.env.JWT_REFRESH_SECRET || `${accessSecret()}_refresh`;
@@ -239,6 +240,17 @@ export const authService = {
     }
     const dbReady = mongoose.connection?.readyState === 1;
     const isPartner = input.role === 'partner';
+    const isCustomer = input.role === 'customer';
+
+    // Validate referral code early if supplied for a customer account
+    let resolvedReferrerId: string | undefined;
+    if (isCustomer && input.referralCode?.trim() && dbReady) {
+      try {
+        resolvedReferrerId = await referralsService.resolve(input.referralCode.trim());
+      } catch (refErr) {
+        throw new HttpError(400, 'This referral code is not valid.', 'INVALID_REFERRAL');
+      }
+    }
 
     // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
     let storedId: StoredKycFile | undefined;
@@ -261,6 +273,19 @@ export const authService = {
       gender: input.gender,
       avatar: input.avatar,
     });
+
+    // Attach referral if customer registered with a valid code
+    if (isCustomer && resolvedReferrerId && input.referralCode?.trim() && dbReady) {
+      try {
+        await referralsService.attach(
+          String(user._id || user.id),
+          input.referralCode.trim(),
+          resolvedReferrerId,
+        );
+      } catch (attachErr) {
+        console.warn('[auth.service] Failed to attach referral:', attachErr);
+      }
+    }
 
     if (input.role === 'partner' && mongoose.connection?.readyState === 1) {
       try {

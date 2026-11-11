@@ -118,9 +118,15 @@ export const referralsService = {
     }
   },
   async summary(userId: string, page: number) {
+    try {
+      await referralsService.syncRefereeReward(userId);
+    } catch {
+      // Non-fatal
+    }
+
     const code = await referralsService.code(userId);
     const filter = { referrerId: new Types.ObjectId(userId) };
-    const [totals, entries, total] = await Promise.all([
+    const [totals, entries, total, referredByDoc] = await Promise.all([
       ReferralModel.aggregate<{
         invited: number;
         completed: number;
@@ -148,26 +154,76 @@ export const referralsService = {
         .sort({ createdAt: -1, _id: -1 })
         .skip((page - 1) * 10)
         .limit(10)
+        .populate("refereeId", "name email phone avatar")
         .lean(),
       ReferralModel.countDocuments(filter),
+      ReferralModel.findOne({ refereeId: new Types.ObjectId(userId) })
+        .populate("referrerId", "name avatar")
+        .lean(),
     ]);
+
+    const rewardPerReferralPaise = configuredRewardPaise();
+
+    const referrerUser =
+      referredByDoc?.referrerId &&
+      typeof referredByDoc.referrerId === "object" &&
+      !(referredByDoc.referrerId instanceof Types.ObjectId)
+        ? (referredByDoc.referrerId as any)
+        : null;
+
+    const referredBy = referredByDoc
+      ? {
+          code: referredByDoc.code,
+          referrerName: referrerUser?.name || "a friend",
+          referrerAvatar: referrerUser?.avatar || null,
+          status: referredByDoc.status,
+          rewardPaise: referredByDoc.rewardPaise || rewardPerReferralPaise,
+          rewardedAt: referredByDoc.rewardedAt?.toISOString() ?? null,
+        }
+      : null;
+
+    const referrerRewardsPaise = totals[0]?.rewardPaise ?? 0;
+    const refereeWelcomeRewardPaise =
+      referredByDoc && referredByDoc.status === "rewarded"
+        ? (referredByDoc.rewardPaise || rewardPerReferralPaise || 5000)
+        : 0;
+    const totalRewardsPaise = referrerRewardsPaise + refereeWelcomeRewardPaise;
+
     return {
       code,
-      rewardPerReferralPaise: configuredRewardPaise(),
-      stats: totals[0]
-        ? {
-            invited: totals[0].invited,
-            completed: totals[0].completed,
-            rewardsPaise: totals[0].rewardPaise,
-          }
-        : { invited: 0, completed: 0, rewardsPaise: 0 },
-      entries: entries.map((row) => ({
-        id: String(row._id),
-        status: row.status,
-        rewardPaise: row.rewardPaise,
-        createdAt: row.createdAt.toISOString(),
-        rewardedAt: row.rewardedAt?.toISOString() ?? null,
-      })),
+      rewardPerReferralPaise,
+      referredBy,
+      stats: {
+        invited: totals[0]?.invited ?? 0,
+        completed: totals[0]?.completed ?? 0,
+        rewardsPaise: totalRewardsPaise,
+      },
+      entries: entries.map((row: any) => {
+        const referee =
+          row.refereeId && typeof row.refereeId === "object" && !(row.refereeId instanceof Types.ObjectId)
+            ? row.refereeId
+            : null;
+        return {
+          id: String(row._id),
+          status: row.status,
+          rewardPaise: row.rewardPaise,
+          createdAt: row.createdAt.toISOString(),
+          rewardedAt: row.rewardedAt?.toISOString() ?? null,
+          referee: referee
+            ? {
+                id: String(referee._id || ""),
+                name: referee.name || "Friend",
+                email: referee.email || null,
+                phone: referee.phone || null,
+                avatar: referee.avatar || null,
+              }
+            : null,
+          friendName: referee?.name || null,
+          friendEmail: referee?.email || null,
+          friendPhone: referee?.phone || null,
+          friendAvatar: referee?.avatar || null,
+        };
+      }),
       meta: { page, pages: Math.max(1, Math.ceil(total / 10)), total },
     };
   },
@@ -218,7 +274,8 @@ export const referralsService = {
         { new: true, session },
       );
       if (!claimed) return;
-      const wallet = await WalletModel.findOneAndUpdate(
+      // 1. Credit Referrer Wallet
+      const referrerWallet = await WalletModel.findOneAndUpdate(
         { userId: String(claimed.referrerId) },
         { $inc: { balance: rewardPaise / 100 } },
         { new: true, upsert: true, session, setDefaultsOnInsert: true },
@@ -226,20 +283,68 @@ export const referralsService = {
       await WalletLedgerModel.create(
         [
           {
-            walletId: wallet._id,
+            walletId: referrerWallet._id,
             userId: String(claimed.referrerId),
             type: "referral_reward",
             amount: rewardPaise / 100,
-            balanceAfter: wallet.balance,
-            description: "Referral reward: first completed booking",
-            referenceId: `referral:${claimed._id}`,
+            balanceAfter: referrerWallet.balance,
+            description: "Referral reward: friend's first completed booking",
+            referenceId: `referral:${claimed._id}:referrer`,
           },
         ],
         { session },
       );
+
+      // 2. Credit Referee (New Customer) Wallet
+      const refereeIdToCredit = claimed.refereeId ? String(claimed.refereeId) : refereeId;
+      if (refereeIdToCredit) {
+        const refereeWallet = await WalletModel.findOneAndUpdate(
+          { userId: refereeIdToCredit },
+          { $inc: { balance: rewardPaise / 100 } },
+          { new: true, upsert: true, session, setDefaultsOnInsert: true },
+        );
+        await WalletLedgerModel.create(
+          [
+            {
+              walletId: refereeWallet._id,
+              userId: refereeIdToCredit,
+              type: "referral_reward",
+              amount: rewardPaise / 100,
+              balanceAfter: refereeWallet.balance,
+              description: "Referral welcome bonus: first completed booking",
+              referenceId: `referral:${claimed._id}:referee`,
+            },
+          ],
+          { session },
+        );
+      }
     });
   },
   async reconcile() {
+    try {
+      const unattached = await UserModel.find({
+        role: "customer",
+        referralCode: { $exists: true, $nin: [null, ""] },
+      })
+        .select("_id referralCode")
+        .lean();
+
+      for (const u of unattached) {
+        if (!u.referralCode) continue;
+        const exists = await ReferralModel.exists({ refereeId: u._id });
+        if (!exists) {
+          try {
+            const referrerId = await referralsService.resolve(u.referralCode);
+            await referralsService.attach(String(u._id), u.referralCode, referrerId);
+          } catch {
+            // Ignore invalid/self referrals
+          }
+        }
+      }
+    } catch (backfillErr) {
+      console.warn("[referrals] Auto-backfill in reconcile caught:", backfillErr);
+    }
+
     let after: Types.ObjectId | undefined;
     while (true) {
       const batch = await ReferralModel.find({
@@ -253,6 +358,119 @@ export const referralsService = {
       for (const row of batch)
         await referralsService.rewardForReferee(String(row.refereeId));
       after = batch[batch.length - 1]._id;
+    }
+
+    // Also reconcile rewarded referrals where either referee or referrer wallet ledger is missing
+    try {
+      const rewardedBatch = await ReferralModel.find({ status: "rewarded" }).lean();
+      for (const ref of rewardedBatch) {
+        const rewardPaise = ref.rewardPaise || configuredRewardPaise() || 5000;
+        const amountRupees = rewardPaise / 100;
+
+        // 1. Backfill Referee wallet credit if missing
+        if (ref.refereeId) {
+          const refereeUserId = String(ref.refereeId);
+          const refereeLedgerExists = await WalletLedgerModel.exists({
+            $or: [
+              { referenceId: `referral:${ref._id}:referee` },
+              { referenceId: `referral:${ref._id}`, userId: refereeUserId },
+            ],
+          });
+
+          if (!refereeLedgerExists) {
+            const refereeWallet = await WalletModel.findOneAndUpdate(
+              { userId: refereeUserId },
+              { $inc: { balance: amountRupees } },
+              { new: true, upsert: true, setDefaultsOnInsert: true },
+            );
+            await WalletLedgerModel.create({
+              walletId: refereeWallet._id,
+              userId: refereeUserId,
+              type: "referral_reward",
+              amount: amountRupees,
+              balanceAfter: refereeWallet.balance,
+              description: "Referral welcome bonus: first completed booking",
+              referenceId: `referral:${ref._id}:referee`,
+            });
+          }
+        }
+
+        // 2. Backfill Referrer wallet credit if missing
+        if (ref.referrerId) {
+          const referrerUserId = String(ref.referrerId);
+          const referrerLedgerExists = await WalletLedgerModel.exists({
+            $or: [
+              { referenceId: `referral:${ref._id}:referrer` },
+              { referenceId: `referral:${ref._id}`, userId: referrerUserId },
+            ],
+          });
+
+          if (!referrerLedgerExists) {
+            const referrerWallet = await WalletModel.findOneAndUpdate(
+              { userId: referrerUserId },
+              { $inc: { balance: amountRupees } },
+              { new: true, upsert: true, setDefaultsOnInsert: true },
+            );
+            await WalletLedgerModel.create({
+              walletId: referrerWallet._id,
+              userId: referrerUserId,
+              type: "referral_reward",
+              amount: amountRupees,
+              balanceAfter: referrerWallet.balance,
+              description: "Referral reward: friend's first completed booking",
+              referenceId: `referral:${ref._id}:referrer`,
+            });
+          }
+        }
+      }
+    } catch (rewardedReconcileErr) {
+      console.warn("[referrals] Rewarded reconcile caught:", rewardedReconcileErr);
+    }
+  },
+  async syncRefereeReward(refereeId: string) {
+    try {
+      await referralsService.rewardForReferee(refereeId);
+    } catch {
+      // Non-fatal
+    }
+
+    try {
+      const rewardedReferral = await ReferralModel.findOne({
+        refereeId: new Types.ObjectId(refereeId),
+        status: "rewarded",
+      }).lean();
+
+      if (!rewardedReferral) return;
+
+      const refereeUserId = String(refereeId);
+      const existingLedger = await WalletLedgerModel.exists({
+        $or: [
+          { referenceId: `referral:${rewardedReferral._id}:referee` },
+          { referenceId: `referral:${rewardedReferral._id}`, userId: refereeUserId },
+        ],
+      });
+
+      if (!existingLedger) {
+        const rewardPaise =
+          rewardedReferral.rewardPaise || configuredRewardPaise() || 5000;
+        const amountRupees = rewardPaise / 100;
+        const refereeWallet = await WalletModel.findOneAndUpdate(
+          { userId: refereeUserId },
+          { $inc: { balance: amountRupees } },
+          { new: true, upsert: true, setDefaultsOnInsert: true },
+        );
+        await WalletLedgerModel.create({
+          walletId: refereeWallet._id,
+          userId: refereeUserId,
+          type: "referral_reward",
+          amount: amountRupees,
+          balanceAfter: refereeWallet.balance,
+          description: "Referral welcome bonus: first completed booking",
+          referenceId: `referral:${rewardedReferral._id}:referee`,
+        });
+      }
+    } catch (syncErr) {
+      console.warn("[referrals] syncRefereeReward caught:", syncErr);
     }
   },
 };

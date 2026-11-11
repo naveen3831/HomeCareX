@@ -6,7 +6,7 @@
 export type Icon3DName =
   | "ant" | "broom" | "bug" | "droplet" | "gift" | "gift-green" | "house" | "house-garden" | "light-bulb" | "massage"
   | "paintbrush" | "palette" | "party" | "plug" | "scissors" | "shower" | "snowflake" | "soap"
-  | "toolbox" | "tools" | "wrench";
+  | "sparkles-lavender" | "toolbox" | "tools" | "wrench";
 
 const EMOJI_TO_ICON: Record<string, Icon3DName> = {
   "🧹": "broom", "🧽": "soap", "🧼": "soap", "🔧": "wrench", "🛠": "tools", "🪚": "tools", "🔨": "tools",
@@ -44,6 +44,7 @@ export function resolveIcon3D(...hints: (string | null | undefined)[]): Icon3DNa
     if (!hint) continue;
     const text = hint.toLowerCase();
     if (text === "gift-green") return "gift-green";
+    if (text === "sparkles-lavender") return "sparkles-lavender";
     for (const [pattern, name] of KEYWORDS) if (pattern.test(text)) return name;
   }
   return "tools";

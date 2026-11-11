@@ -8,10 +8,11 @@ interface Props {
   /** The committed query (from the URL). */
   value: string;
   onSearch: (q: string) => void;
+  placeholder?: string;
 }
 
 /** Types freely, commits to the URL after a short pause (or immediately on Enter / clear). */
-export function ServiceSearch({ value, onSearch }: Props) {
+export function ServiceSearch({ value, onSearch, placeholder = "Search for a service, e.g. AC repair" }: Props) {
   const [text, setText] = useState(value);
   /** Last query this box sent up. Lets us tell "the URL caught up with what I typed" from "something else changed the URL". */
   const sent = useRef(value);
@@ -51,7 +52,7 @@ export function ServiceSearch({ value, onSearch }: Props) {
           setText(e.target.value);
           commit(e.target.value);
         }}
-        placeholder="Search for a service, e.g. AC repair"
+        placeholder={placeholder}
         className={clsx(
           "h-12 w-full rounded-2xl border border-line bg-panel pl-11 pr-11 text-sm text-ink shadow-[0_4px_14px_-8px_rgba(30,27,46,.18)] placeholder:text-muted [&::-webkit-search-cancel-button]:hidden",
           FOCUS_RING,
