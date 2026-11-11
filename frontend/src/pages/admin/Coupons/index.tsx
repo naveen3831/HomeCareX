@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import http, { type ApiResponse } from "@/lib/http";
 import { TablePagination, usePagination } from "@/components/tables";
+import { CheckGrid, useCatalogOptions } from "@/components/admin/CatalogScope";
 import "./index.css";
 
 type CouponType = "PERCENT" | "FLAT";
@@ -38,6 +39,9 @@ interface Coupon {
   categoryIds: Array<
     string | CouponCategoryReference
   >;
+  serviceIds?: Array<
+    string | CouponCategoryReference
+  >;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +65,7 @@ interface CouponForm {
   totalLimit: string;
   perUserLimit: string;
   categoryIds: string[];
+  serviceIds: string[];
   active: boolean;
 }
 
@@ -131,6 +136,7 @@ const getInitialForm = (): CouponForm => {
     totalLimit: "",
     perUserLimit: "",
     categoryIds: [],
+    serviceIds: [],
     active: true,
   };
 };
@@ -300,6 +306,9 @@ export const AdminCouponsPage: React.FC =
 
     // Must stay above the early return that opens the create / edit form.
     const pager = usePagination(coupons);
+
+    // Services list for the "Applicable Services" picker and the table.
+    const catalog = useCatalogOptions();
 
     const [
       categories,
@@ -647,6 +656,23 @@ export const AdminCouponsPage: React.FC =
                     ) =>
                       getCategoryReferenceId(
                         category,
+                      ),
+                  )
+                  .filter(
+                    Boolean,
+                  ),
+
+              serviceIds:
+                (
+                  coupon.serviceIds ??
+                  []
+                )
+                  .map(
+                    (
+                      service,
+                    ) =>
+                      getCategoryReferenceId(
+                        service,
                       ),
                   )
                   .filter(
@@ -1158,6 +1184,9 @@ export const AdminCouponsPage: React.FC =
 
           categoryIds:
             form.categoryIds,
+
+          serviceIds:
+            form.serviceIds,
 
           active:
             form.active,
@@ -1725,8 +1754,26 @@ export const AdminCouponsPage: React.FC =
 
                 <span className="admin-coupons-form-help">
                   Select categories if this coupon should
-                  only apply to specific services.
+                  only apply to these categories.
                 </span>
+              </div>
+
+              <div className="admin-coupons-form-group">
+                <CheckGrid
+                  label="Applicable Services"
+                  options={catalog.services}
+                  selected={form.serviceIds}
+                  loading={catalog.loading}
+                  searchable
+                  emptyText="No services available."
+                  helpText="Select specific services to limit this coupon to them. With categories and services both empty, the coupon works on every service."
+                  onChange={(serviceIds) =>
+                    setForm((current) => ({
+                      ...current,
+                      serviceIds,
+                    }))
+                  }
+                />
               </div>
             </section>
 
@@ -2068,7 +2115,7 @@ export const AdminCouponsPage: React.FC =
                     </th>
 
                     <th>
-                      Category
+                      Applies To
                     </th>
 
                     <th>
@@ -2109,10 +2156,23 @@ export const AdminCouponsPage: React.FC =
                           coupon,
                         );
 
-                      const categoryNames =
-                        getCategoryNames(
+                      const categoryNames = [
+                        ...getCategoryNames(
                           coupon.categoryIds,
-                        );
+                        ),
+                        ...(coupon.serviceIds ?? [])
+                          .map(
+                            (service) =>
+                              (typeof service !== "string" && service.name) ||
+                              catalog.services.find(
+                                (item) =>
+                                  item.id ===
+                                  getCategoryReferenceId(service),
+                              )?.name ||
+                              "",
+                          )
+                          .filter(Boolean),
+                      ];
 
                       let statusLabel =
                         "Active";
@@ -2211,7 +2271,7 @@ export const AdminCouponsPage: React.FC =
                             {categoryNames.length ===
                             0 ? (
                               <span className="admin-coupon-muted">
-                                All Categories
+                                All Services
                               </span>
                             ) : (
                               <div className="admin-coupon-category-cell">

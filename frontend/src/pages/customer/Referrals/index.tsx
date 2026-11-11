@@ -46,8 +46,15 @@ export default function Referrals() {
             : "Reconnect to load your referral code."}
         </p>
       )}
-      {query.data && (
+      {query.data && !query.data.offers?.length && (
+        <div className="hcx-support-state" role="status">
+          <h3>No referral offers right now</h3>
+          <p>Check back soon. New referral offers will appear here.</p>
+        </div>
+      )}
+      {query.data && (query.data.offers?.length || query.data.entries.length) ? (
         <>
+          {!!query.data.offers?.length && (
           <div
             className="hcx-support-referral-stats"
             aria-label="Referral statistics"
@@ -65,9 +72,12 @@ export default function Referrals() {
               <span>Wallet rewards credited</span>
             </div>
           </div>
+          )}
+          {!!query.data.offers?.length && (
           <div className="hcx-support-panel">
             <ReferralCard data={query.data} />
           </div>
+          )}
           <section className="hcx-support-panel hcx-support-referral-history">
             <h2>Referral activity</h2>
             {query.data.entries.length ? (
@@ -133,7 +143,7 @@ export default function Referrals() {
             )}
           </section>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

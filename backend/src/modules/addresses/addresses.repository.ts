@@ -25,9 +25,13 @@ export class AddressesRepository {
     const session = await mongoose.startSession();
     try {
       let result!: T;
-      await session.withTransaction(async () => {
-        result = await work(session);
-      });
+      await session.withTransaction(
+        async () => {
+          result = await work(session);
+        },
+        // The app connects with readPreference=primaryPreferred, but reads inside a transaction must use primary.
+        { readPreference: 'primary' },
+      );
       return result;
     } catch (err) {
       if (transactionsUnsupported(err)) return work(undefined);
@@ -46,6 +50,7 @@ export class AddressesRepository {
 
   countByCustomer(customerId: string, session?: AddressSession): Promise<number> {
     return AddressModel.countDocuments({ customerId: new Types.ObjectId(customerId) })
+      .read('primary')
       .session(session ?? null)
       .exec();
   }
@@ -54,6 +59,7 @@ export class AddressesRepository {
   findOwned(id: string, customerId: string, session?: AddressSession): Promise<IAddress | null> {
     if (!Types.ObjectId.isValid(id)) return Promise.resolve(null);
     return AddressModel.findOne({ _id: id, customerId: new Types.ObjectId(customerId) })
+      .read('primary')
       .session(session ?? null)
       .lean<IAddress>()
       .exec();
@@ -63,6 +69,7 @@ export class AddressesRepository {
   findNewest(customerId: string, session?: AddressSession): Promise<IAddress | null> {
     return AddressModel.findOne({ customerId: new Types.ObjectId(customerId) })
       .sort({ createdAt: -1, _id: -1 })
+      .read('primary')
       .session(session ?? null)
       .lean<IAddress>()
       .exec();

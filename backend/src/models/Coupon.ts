@@ -72,6 +72,14 @@ const CouponSchema = new Schema(
       default: [],
     },
 
+    // Services this coupon is limited to. Empty = no service restriction.
+    // A coupon with categoryIds and/or serviceIds applies to a service that matches either list.
+    serviceIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "Service",
+      default: [],
+    },
+
     active: {
       type: Boolean,
       default: true,

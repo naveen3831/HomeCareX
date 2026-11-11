@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const objectId = z.string().trim().regex(/^[a-f\d]{24}$/i, 'Invalid category id');
+const objectId = z.string().trim().regex(/^[a-f\d]{24}$/i, 'Invalid id');
 
 const baseCouponSchema = z.object({
   code: z
@@ -28,6 +28,8 @@ const baseCouponSchema = z.object({
   perUserLimit: z.number().int().min(0).nullable().optional(),
 
   categoryIds: z.array(objectId).default([]),
+
+  serviceIds: z.array(objectId).default([]),
 
   active: z.boolean().default(true),
 });

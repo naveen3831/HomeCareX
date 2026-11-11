@@ -67,7 +67,16 @@ export default function PriceBreakdown({ quote, isLoading, isRefreshing = false,
       <div className="border-t border-line pt-1.5">
         <Row label="Subtotal" value={formatINR(quote.subtotal)} />
       </div>
-      {quote.coupon && <Row label={`Coupon (${quote.coupon.code})`} value={`−${formatINR(quote.discount)}`} positive />}
+      {quote.coupon && (
+        <Row
+          label={`Coupon (${quote.coupon.code})`}
+          value={`−${formatINR(quote.coupon.discount ?? quote.discount - (quote.referral?.discount ?? 0))}`}
+          positive
+        />
+      )}
+      {quote.referral && quote.referral.discount > 0 && (
+        <Row label={`Referral offer · ${quote.referral.name}`} value={`−${formatINR(quote.referral.discount)}`} positive />
+      )}
       <Row label="Convenience fee" value={formatINR(quote.convenienceFee)} muted />
       <Row label="GST" value={formatINR(quote.gst)} muted />
       <div className="border-t border-line pt-1.5">

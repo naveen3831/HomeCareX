@@ -38,6 +38,7 @@ const AdminPricingPage = lazy(() => import("@/pages/admin/Pricing"));
 
 // Coupons and marketing
 const AdminCouponsPage = lazy(() => import("@/pages/admin/Coupons"));
+const AdminReferralsPage = lazy(() => import("@/pages/admin/Referrals"));
 const AdminMarketingPage = lazy(() => import("@/pages/admin/Marketing"));
 
 // Finance
@@ -190,6 +191,13 @@ const adminRoutes: AdminRoute[] = [
     path: "coupons/:id/edit",
     element: <AdminCouponsPage />,
     permission: "coupons:update",
+  },
+
+  // Referrals (same permissions as coupons)
+  {
+    path: "referrals",
+    element: <AdminReferralsPage />,
+    permission: "coupons:view",
   },
 
   // Marketing

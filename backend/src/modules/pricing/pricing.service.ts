@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { AppError } from '../../utils/AppError';
 import { HttpError } from '../auth/auth.types';
 import { couponsService } from '../coupons/coupons.service';
+import { referralsService } from '../referrals/referrals.service';
 import { ServiceModel } from '../../models/Service';
 import type { SurgeWindow } from '../../models/PricingRule';
 import { CONVENIENCE_FEE } from '../bookings/bookings.constants';
@@ -157,6 +158,17 @@ export const pricingService = {
       }
     }
 
+    // Referral: a referred customer's first booking gets the admin-configured discount, on top of any coupon.
+    let referral: PriceQuote['referral'] = null;
+    if (userId) {
+      const orderValue = lines.reduce((sum, l) => sum + l.amount, 0);
+      const offer = await referralsService.refereeDiscount(userId, input.serviceId, orderValue);
+      if (offer) {
+        const discount = Math.max(0, Math.min(offer.discount, orderValue - (coupon?.discount ?? 0)));
+        if (discount > 0) referral = { programId: offer.programId, name: offer.name, discount };
+      }
+    }
+
     const now = new Date();
     return {
       quoteId: randomUUID(),
@@ -165,8 +177,9 @@ export const pricingService = {
       mode: rule?.mode ?? 'FIXED',
       cancellationFee: rule?.cancellationFee ?? 0,
       lines,
-      ...calculatePricing({ lines, slot: input.slot, discount: coupon?.discount ?? 0, rule }),
+      ...calculatePricing({ lines, slot: input.slot, discount: (coupon?.discount ?? 0) + (referral?.discount ?? 0), rule }),
       coupon,
+      referral,
       ...(couponError ? { couponError } : {}),
       computedAt: now.toISOString(),
     };

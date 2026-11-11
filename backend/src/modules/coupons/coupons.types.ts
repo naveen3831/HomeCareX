@@ -13,6 +13,7 @@ export interface CouponDto {
   perUserLimit: number | null;
   usedCount: number;
   categoryIds: string[];
+  serviceIds: string[];
   active: boolean;
   createdAt: string;
   updatedAt: string;
