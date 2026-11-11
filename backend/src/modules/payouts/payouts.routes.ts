@@ -45,6 +45,22 @@ payoutsRoutes.get(
 );
 
 /**
+ * Generate a payout batch from settled earnings.
+ * Duplicate protection: earnings already in a batch answer 409.
+ */
+payoutsRoutes.post(
+  '/payouts',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.generate(req, res)),
+);
+
+payoutsRoutes.post(
+  '/payout-batches',
+  requirePermission(PAYOUTS_APPROVE),
+  asyncHandler((req, res) => payoutsController.generate(req, res)),
+);
+
+/**
  * List payout batches.
  */
 payoutsRoutes.get(
@@ -56,6 +72,12 @@ payoutsRoutes.get(
 /**
  * Compatibility aliases for older payout-batch endpoints.
  */
+payoutsRoutes.get(
+  '/payout-batches/summary',
+  requirePermission('payouts:view'),
+  asyncHandler((req, res) => payoutsController.summary(req, res)),
+);
+
 payoutsRoutes.get(
   '/payout-batches',
   requirePermission('payouts:view'),

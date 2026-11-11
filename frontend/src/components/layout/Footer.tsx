@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { ROUTES } from "../../constants/routes";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 /* =========================================================
    STYLES (same design tokens as the other HomeCareX pages)
@@ -99,6 +100,12 @@ const icons = {
       <path d="m22 7-10 6L2 7" />
     </svg>
   ),
+  clock: (
+    <svg {...iconProps} className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  ),
   pin: (
     <svg {...iconProps} className="h-2.5 w-2.5 sm:h-3.5 sm:w-3.5">
       <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z" />
@@ -131,12 +138,25 @@ const icons = {
   ),
 };
 
-const socials = [
-  { label: "Facebook", href: "https://www.facebook.com/", icon: icons.facebook },
-  { label: "Instagram", href: "https://www.instagram.com/", icon: icons.instagram },
-  { label: "X", href: "https://x.com/", icon: icons.x },
-  { label: "LinkedIn", href: "https://www.linkedin.com/", icon: icons.linkedin },
-];
+const SOCIALS = [
+  { key: "facebook", label: "Facebook", icon: icons.facebook },
+  { key: "instagram", label: "Instagram", icon: icons.instagram },
+  { key: "x", label: "X", icon: icons.x },
+  { key: "linkedin", label: "LinkedIn", icon: icons.linkedin },
+] as const;
+
+/* Shown until the admin's saved details arrive, and if the server cannot be reached */
+const FALLBACK = {
+  phone: "+91 9390212572",
+  email: "support@homecarex.com",
+  country: "India",
+  social: {
+    facebook: "https://www.facebook.com/",
+    instagram: "https://www.instagram.com/",
+    x: "https://x.com/",
+    linkedin: "https://www.linkedin.com/",
+  },
+};
 
 /* =========================================================
    COMPONENT
@@ -145,6 +165,20 @@ const socials = [
 const Footer: React.FC = () => {
   const { pathname } = useLocation();
   const footerRef = useRef<HTMLElement | null>(null);
+  const site = useSiteSettings();
+
+  // Contact details come from admin Settings. An empty value falls back to the built-in one.
+  const phone = site?.phone || FALLBACK.phone;
+  const email = site?.email || FALLBACK.email;
+  const country = site?.country || FALLBACK.country;
+  const hours = site?.hours ?? "";
+  // A social link the admin cleared is hidden. Before the saved links arrive the usual four show, so nothing pops in.
+  const savedSocial = site ? site.social : FALLBACK.social;
+  const socials = SOCIALS.filter((item) => savedSocial[item.key]).map((item) => ({
+    ...item,
+    href: savedSocial[item.key],
+  }));
+
   const [visible, setVisible] = useState(false);
 
   // Reveal the footer columns once, when the footer scrolls into view
@@ -236,31 +270,39 @@ const Footer: React.FC = () => {
               <ul className="space-y-1.5 sm:space-y-2.5 text-[10px] sm:text-sm text-indigo-100">
                 <li>
                   <a
-                    href="tel:+919390212572"
+                    href={`tel:${phone.replace(/[^\d+]/g, "")}`}
                     className="group flex items-start gap-1 sm:gap-2 transition-colors duration-200 hover:text-white"
                   >
                     <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a] mt-0.5">
                       {icons.phone}
                     </span>
-                    <span className="whitespace-nowrap sm:whitespace-normal leading-tight text-[9.5px] sm:text-sm">+91 9390212572</span>
+                    <span className="whitespace-nowrap sm:whitespace-normal leading-tight text-[9.5px] sm:text-sm">{phone}</span>
                   </a>
                 </li>
                 <li>
                   <a
-                    href="mailto:support@homecarex.com"
+                    href={`mailto:${email}`}
                     className="group flex items-start gap-1 sm:gap-2 transition-colors duration-200 hover:text-white"
                   >
                     <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d] transition duration-200 group-hover:bg-[#ff8a3d] group-hover:text-[#1b1b3a] mt-0.5">
                       {icons.mail}
                     </span>
-                    <span className="break-all sm:break-normal leading-tight text-[9.5px] sm:text-sm">support@homecarex.com</span>
+                    <span className="break-all sm:break-normal leading-tight text-[9.5px] sm:text-sm">{email}</span>
                   </a>
                 </li>
-                <li className="flex items-center gap-1 sm:gap-2 text-indigo-100">
+                {hours && (
+                  <li className="flex items-start gap-1 sm:gap-2 text-indigo-100">
+                    <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d]">
+                      {icons.clock}
+                    </span>
+                    <span className="leading-tight text-[9.5px] sm:text-sm">{hours}</span>
+                  </li>
+                )}
+                <li className="flex items-start gap-1 sm:gap-2 text-indigo-100">
                   <span className="flex h-4 w-4 sm:h-6 sm:w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[#ff8a3d]">
                     {icons.pin}
                   </span>
-                  <span>India</span>
+                  <span>{country}</span>
                 </li>
               </ul>
             </div>
@@ -274,23 +316,27 @@ const Footer: React.FC = () => {
         >
           {/* Row 1: Follow Us & Back to Top IN THE SAME ROW ON MOBILE */}
           <div className="flex flex-row items-center justify-between gap-2 sm:gap-3">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <span className="text-xs font-semibold text-indigo-200 shrink-0">Follow us:</span>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {socials.map((s) => (
-                  <a
-                    key={s.label}
-                    href={s.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={s.label}
-                    className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/5 text-indigo-100 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ff8a3d] hover:text-[#1b1b3a]"
-                  >
-                    {s.icon}
-                  </a>
-                ))}
+            {socials.length > 0 ? (
+              <div className="flex items-center gap-2 sm:gap-3">
+                <span className="text-xs font-semibold text-indigo-200 shrink-0">Follow us:</span>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  {socials.map((s) => (
+                    <a
+                      key={s.label}
+                      href={s.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={s.label}
+                      className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/5 text-indigo-100 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#ff8a3d] hover:text-[#1b1b3a]"
+                    >
+                      {s.icon}
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <span />
+            )}
 
             <button
               type="button"

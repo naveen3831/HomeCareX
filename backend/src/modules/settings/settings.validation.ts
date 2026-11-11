@@ -3,11 +3,14 @@ import { SETTING_META, type SettingKey, type SettingMeta } from './settings.cons
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^\+?[0-9][0-9 -]{6,18}$/;
 const PINCODE = /^\d{6}$/;
+// Opened in a new tab from the footer, so only web links: anything else (javascript:, data:) is refused.
+const URL_LINK = /^https?:\/\/[^\s/$.?#][^\s]*$/i;
 
 const FORMATS = {
   email: { re: EMAIL, message: 'must be a valid email address' },
   phone: { re: PHONE, message: 'must be a valid phone number' },
   pincode: { re: PINCODE, message: 'must be a 6-digit pincode' },
+  url: { re: URL_LINK, message: 'must be a full link starting with https://' },
 } as const;
 
 export type Checked = { ok: true; value: unknown } | { ok: false; message: string };

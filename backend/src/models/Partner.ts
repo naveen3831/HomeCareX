@@ -30,6 +30,9 @@ const PartnerSchema = new Schema(
     skills: [{ type: String, trim: true }],
     services: [{ type: Schema.Types.ObjectId, ref: 'Service' }],
     serviceRadiusKm: { type: Number, default: 10, min: 1, max: 100 },
+    /** Shown on the admin Partners & KYC profile. Must be in the schema or Mongoose silently drops it on save. */
+    experience: { type: Number, default: 0, min: 0, max: 60 },
+    bio: { type: String, trim: true, maxlength: 500 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
     bio: { type: String, trim: true, maxlength: 500 },

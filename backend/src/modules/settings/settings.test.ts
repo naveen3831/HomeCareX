@@ -21,6 +21,8 @@ test('invalid settings are rejected with a clear message', () => {
     ['serviceability.pincodes', ['500001', '12']],
     ['serviceability.pincodes', []],
     ['notifications.adminBookingAlerts', 'yes'],
+    ['social.facebook', 'facebook.com/homecarex'],
+    ['social.instagram', 'javascript:alert(1)'],
   ];
   for (const [key, value] of bad) assert.equal(checkSetting(key, value).ok, false, `${key}=${JSON.stringify(value)}`);
 });
@@ -29,6 +31,8 @@ test('valid settings are accepted and cleaned', () => {
   assert.deepEqual(checkSetting('slots.capacityPerSlot', 8), { ok: true, value: 8 });
   assert.deepEqual(checkSetting('business.name', '  Acme  '), { ok: true, value: 'Acme' });
   assert.deepEqual(checkSetting('support.phone', ''), { ok: true, value: '' });
+  assert.deepEqual(checkSetting('social.x', ' https://x.com/homecarex '), { ok: true, value: 'https://x.com/homecarex' });
+  assert.deepEqual(checkSetting('social.linkedin', ''), { ok: true, value: '' }); // empty hides the icon
   assert.deepEqual(checkSetting('serviceability.pincodes', ['500001', ' 500001 ', '500002']), { ok: true, value: ['500001', '500002'] });
 });
 
@@ -60,7 +64,7 @@ afterEach(() => {
 
 test('GET shape: every section lists label, value, description and validation', async () => {
   const { sections } = await settingsService.list();
-  assert.deepEqual(sections.map((s) => s.id), ['business', 'pricing', 'tax', 'cancellation', 'support', 'booking', 'slots', 'notifications']);
+  assert.deepEqual(sections.map((s) => s.id), ['business', 'pricing', 'tax', 'cancellation', 'support', 'social', 'booking', 'slots', 'notifications']);
   const slot = sections.find((s) => s.id === 'slots')!.settings[0];
   assert.equal(slot.key, 'slots.capacityPerSlot');
   assert.ok(slot.label && slot.description);
@@ -92,4 +96,21 @@ test('changing slot capacity changes what the booking slots use', async () => {
   assert.equal(await bookingSettings.getSlotCapacity('svc'), 5);
   await settingsService.updateMany({ 'slots.capacityPerSlot': 2 }, actor);
   assert.equal(await bookingSettings.getSlotCapacity('svc'), 2);
+});
+
+test('public site settings follow what the admin saved, and an empty link stays empty', async () => {
+  const before = await settingsService.publicSite();
+  assert.equal(before.social.instagram, 'https://www.instagram.com/');
+
+  await settingsService.updateMany(
+    { 'support.phone': '+91 98765 43210', 'social.instagram': 'https://www.instagram.com/homecarex', 'social.x': '' },
+    actor,
+  );
+
+  const after = await settingsService.publicSite();
+  assert.equal(after.phone, '+91 98765 43210');
+  assert.equal(after.social.instagram, 'https://www.instagram.com/homecarex');
+  assert.equal(after.social.x, '');
+  assert.equal(after.country, 'India');
+  assert.equal(after.hours, '9 AM - 8 PM, all days');
 });

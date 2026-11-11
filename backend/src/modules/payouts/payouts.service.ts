@@ -26,9 +26,9 @@ import { isPayoutFrequency, parseAnchorDate, resolvePayoutPeriod } from './payou
 
 type RepositoryPort = Omit<
   PayoutsRepository,
-  'markPaid' | 'getPayoutDetails' | 'confirmBatch'
+  'markPaid' | 'getPayoutDetails' | 'confirmBatch' | 'summary'
 > &
-  Partial<Pick<PayoutsRepository, 'markPaid' | 'getPayoutDetails' | 'confirmBatch'>>;
+  Partial<Pick<PayoutsRepository, 'markPaid' | 'getPayoutDetails' | 'confirmBatch' | 'summary'>>;
 
 type PayoutStatus = 'pending' | 'processing' | 'paid' | 'failed';
 
@@ -330,6 +330,60 @@ export class PayoutsService {
   }
 
   /**
+   * Who was paid and for which services, as flat strings the audit screen can show.
+   * Best effort: a lookup problem must never block or fail the payout itself.
+   */
+  private async describePayout(payoutId: string): Promise<Record<string, string | number>> {
+    try {
+      if (!this.repository.getPayoutDetails) return {};
+
+      const d = (await this.repository.getPayoutDetails(payoutId)) as {
+        payout?: { batchId?: string };
+        partner?: { id?: string; name?: string };
+        days?: { services: { serviceName: string; bookingId: string; net: number }[] }[];
+      };
+      const services = (d.days ?? []).flatMap((day) => day.services);
+
+      return {
+        partner: `${d.partner?.name ?? 'Unknown partner'} (${d.partner?.id ?? '-'})`,
+        batchId: d.payout?.batchId ?? '',
+        servicesCount: services.length,
+        services: services
+          .map((svc) => `${svc.serviceName} (booking ${svc.bookingId}, Rs ${svc.net})`)
+          .join('; '),
+      };
+    } catch (error) {
+      console.error('[payouts] Could not describe payout for audit', error);
+      return {};
+    }
+  }
+
+  /** "Name Rs 100; Other Rs 50" for the partners of a batch that were still unpaid. */
+  private async describeBatchPartners(batchId: string, onlyIds?: Set<string>): Promise<Record<string, string | number>> {
+    try {
+      const rows = (await this.repository.listPayouts(batchId)) as unknown as {
+        _id: unknown;
+        partnerId: { name?: string } | string | null;
+        amount: number;
+        servicesCount?: number;
+      }[];
+      const picked = onlyIds ? rows.filter((row) => onlyIds.has(idToString(row._id))) : rows;
+
+      return {
+        partners: picked
+          .map((row) => {
+            const name = row.partnerId && typeof row.partnerId === 'object' ? row.partnerId.name : undefined;
+            return `${name ?? 'Partner'} Rs ${row.amount} (${row.servicesCount ?? 0} services)`;
+          })
+          .join('; '),
+      };
+    } catch (error) {
+      console.error('[payouts] Could not describe batch partners for audit', error);
+      return {};
+    }
+  }
+
+  /**
    * Loads batch period dates from MongoDB for payout references
    * that are not populated or do not contain period dates.
    */
@@ -460,6 +514,15 @@ export class PayoutsService {
     }
   }
 
+  /** Totals across every batch (failed batches excluded). */
+  async getSummary() {
+    if (!this.repository.summary) {
+      throw new AppError(501, 'NOT_SUPPORTED', 'Payout summary is not supported by this repository');
+    }
+
+    return this.repository.summary();
+  }
+
   async listBatches(input: ListBatchesInput = {}) {
     const page = input.page ?? DEFAULT_PAGE;
     const limit = input.limit ?? DEFAULT_LIMIT;
@@ -572,6 +635,7 @@ export class PayoutsService {
           amount: payout.amount,
           paidAt: payout.paidAt,
           transactionId: input.transactionId,
+          ...(await this.describePayout(input.payoutId)),
         },
         ip: input.ip,
         result: 'Success',
@@ -613,6 +677,18 @@ export class PayoutsService {
     }
 
     try {
+      const unpaidBefore = await this.repository
+        .listPayouts(input.batchId)
+        .then(
+          (rows) =>
+            new Set(
+              (rows as unknown as { _id: unknown; status: string }[])
+                .filter((row) => row.status !== 'paid')
+                .map((row) => idToString(row._id)),
+            ),
+        )
+        .catch(() => undefined);
+
       const result = await this.repository.confirmBatch({
         batchId: input.batchId,
         adminId: input.adminId,
@@ -628,6 +704,7 @@ export class PayoutsService {
           confirmedCount: result.confirmedCount,
           confirmedAmount: result.confirmedAmount,
           failedCount: result.failed.length,
+          ...(await this.describeBatchPartners(input.batchId, unpaidBefore)),
         },
         ip: input.ip,
         result: result.failed.length ? 'Failed' : 'Success',

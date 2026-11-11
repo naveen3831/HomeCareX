@@ -25,6 +25,15 @@ const str = (value: unknown): string | undefined =>
 
 export const payoutsController = {
   /**
+   * GET /admin/payout-batches/summary
+   *
+   * Gross, commission, net, paid and awaiting totals across all batches.
+   */
+  async summary(_req: Request, res: Response) {
+    sendSuccess(res, await payoutsService.getSummary());
+  },
+
+  /**
    * POST /admin/payouts
    * POST /admin/payout-batches
    *
@@ -35,6 +44,8 @@ export const payoutsController = {
     const batch = await payoutsService.generateBatch({
       periodStart: String(req.body?.periodStart ?? ''),
       periodEnd: String(req.body?.periodEnd ?? ''),
+      frequency: str(req.body?.frequency),
+      date: str(req.body?.date),
       adminId: admin.id,
       ip: getIp(req),
     });
