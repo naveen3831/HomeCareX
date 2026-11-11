@@ -72,7 +72,6 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
   const [otp, setOtp] = useState('');
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [videoError, setVideoError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
@@ -162,12 +161,6 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
       if (gone) URL.revokeObjectURL(gone.url);
       return list.filter((m) => m.id !== id);
     });
-  };
-
-  const removeVideo = () => {
-    if (video) URL.revokeObjectURL(video.url);
-    setVideo(null);
-    setVideoError(null);
   };
 
   const submit = async () => {
@@ -261,7 +254,7 @@ function StartStep({ job, online, onChanged }: { job: ApiJob; online: boolean; o
             }}
           />
 
-a          {media.length === 0 ? (
+          {media.length === 0 ? (
             <button type="button" className="nv-step" onClick={() => cameraRef.current?.click()}>
               <Camera size={20} aria-hidden="true" />
               Take start photo
@@ -324,7 +317,7 @@ a          {media.length === 0 ? (
 
           <button type="button" className="nv-go" onClick={() => void submit()} disabled={!canSubmit} aria-busy={busy}>
             {busy ? <Loader2 size={20} className="nv-spin" aria-hidden="true" /> : <PlayCircle size={20} aria-hidden="true" />}
-            {busy ? (video ? 'Uploading and starting…' : 'Starting…') : 'Verify and start job'}
+            {busy ? (media.some((m) => m.kind === 'video') ? 'Uploading and starting…' : 'Starting…') : 'Verify and start job'}
           </button>
           {!online && <p className="nav-hint">You are offline. Reconnect to start the job.</p>}
         </>

@@ -374,7 +374,9 @@ export const ActiveJobPage: React.FC = () => {
   const doneCount = job.checklist.filter((c) => c.done).length;
   const totalCount = job.checklist.length;
   const remainingItems = job.checklist.filter((c) => !c.done);
-a  const gate = getCompletionGate(job, nowMs);
+  const allDone = totalCount > 0 && doneCount === totalCount;
+  const checklistPct = totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
+  const gate = getCompletionGate(job, nowMs);
 
   // Elapsed vs booked time
   const bookedSeconds = (job.service.durationMinutes ?? 180) * 60;
@@ -575,6 +577,7 @@ a  const gate = getCompletionGate(job, nowMs);
               {gate.message}
             </p>
           )}
+        </div>
 
             <Link to={`/partner/jobs/${job.id}`} className="aj-ws-secondary">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View job details
