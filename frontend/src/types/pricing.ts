@@ -58,6 +58,8 @@ export interface PriceQuote {
   total: number;
   /** Present only when the server accepted the coupon in the request. */
   coupon: { code: string; discount: number } | null;
+  /** First-booking discount for a referred customer. Already included in `discount`. */
+  referral?: { programId: string; name: string; discount: number } | null;
   /** Set when the request carried a coupon the server no longer accepts (it was dropped). */
   couponError?: { code: CouponErrorCode; minOrder?: number };
   computedAt: string;

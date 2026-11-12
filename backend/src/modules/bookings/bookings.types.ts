@@ -36,6 +36,9 @@ export interface PriceSnapshot {
   subtotal: number;
   discount: number;
   couponCode?: string;
+  /** Part of `discount` that came from the referral program (referred customer's first booking). */
+  referralDiscount?: number;
+  referralProgramId?: string;
   convenienceFee: number;
   gst: number;
   total: number;

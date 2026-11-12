@@ -55,6 +55,7 @@ import {
   toQuoteCouponCode,
 } from "../pricing/pricing.service";
 import { couponsService } from "../coupons/coupons.service";
+import { referralsService } from "../referrals/referrals.service";
 import { HttpError } from "../auth/auth.types";
 
 export interface SlotAvailability {
@@ -492,11 +493,29 @@ export const BookingService = {
       ...addOnLines,
     ];
 
+    // Referred customer's first booking: same rule as POST /pricing/quote so the totals match.
+    let referral: { programId: string; discount: number } | null = null;
+    {
+      const orderValue = lines.reduce((sum, l) => sum + l.amount, 0);
+      const offer = await referralsService.refereeDiscount(
+        customerId,
+        input.serviceId,
+        orderValue,
+      );
+      if (offer) {
+        const discount = Math.max(
+          0,
+          Math.min(offer.discount, orderValue - (coupon?.discount ?? 0)),
+        );
+        if (discount > 0) referral = { programId: offer.programId, discount };
+      }
+    }
+
     // Use the same calculation as POST /pricing/quote.
     const pricing = calculatePricing({
       lines,
       slot: input.slot,
-      discount: coupon?.discount ?? 0,
+      discount: (coupon?.discount ?? 0) + (referral?.discount ?? 0),
     });
 
     const priceSnapshot: PriceSnapshot = {
@@ -504,6 +523,12 @@ export const BookingService = {
       lines,
       ...pricing,
       ...(coupon ? { couponCode: coupon.code } : {}),
+      ...(referral
+        ? {
+            referralDiscount: referral.discount,
+            referralProgramId: referral.programId,
+          }
+        : {}),
       computedAt: new Date(),
     };
 
@@ -632,6 +657,19 @@ export const BookingService = {
               customerId,
               String((createdBooking as { _id?: unknown })._id ?? ""),
             );
+          }
+
+          if (referral) {
+            await referralsService
+              .recordRefereeDiscount(
+                customerId,
+                String((createdBooking as { _id?: unknown })._id ?? ""),
+                referral.programId,
+                referral.discount,
+              )
+              .catch((error) =>
+                console.error("[referrals] Could not record referee discount:", error),
+              );
           }
 
           return createdBooking;

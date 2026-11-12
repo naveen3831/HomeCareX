@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -670,8 +669,8 @@ const AdminReportsPage: React.FC = () => {
           resetKey={`${reportType}|${normalizedSearch}|${rows.length}`}
         >
           {(pageRows) => (
-        <div className="w-full overflow-x-auto rounded-xl border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+        <div className="w-full overflow-x-hidden rounded-xl border border-gray-200 bg-white">
+          <table className="w-full divide-y divide-gray-200 text-left text-sm">
             <thead className="bg-gray-50">
               <tr>
                 {reportColumns.map((column) => (
@@ -753,11 +752,6 @@ const AdminReportsPage: React.FC = () => {
                         className={`px-4 py-3 ${
                           isIdentifier ? 'report-id-cell' : ''
                         }`}
-                        style={
-                          isIdentifier
-                            ? undefined
-                            : { whiteSpace: 'nowrap' }
-                        }
                       >
                         {display}
                       </td>

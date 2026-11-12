@@ -1,0 +1,51 @@
+.ref-admin { display: flex; flex-direction: column; gap: 20px; padding: 24px 24px 32px; box-sizing: border-box; width: 100%; max-width: 1200px; margin: 0 auto; }
+.ref-admin__header { display: flex; justify-content: space-between; gap: 16px 24px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 4px; }
+.ref-admin__header h1 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 22px; line-height: 1.3; color: #1f2544; }
+.ref-admin__header p { margin: 8px 0 0; color: #6b7280; font-size: 14px; line-height: 1.55; max-width: 60ch; }
+.ref-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; }
+.ref-form { display: flex; flex-direction: column; gap: 14px; }
+.ref-form h2 { margin: 0; font-size: 17px; color: #1f2544; }
+.ref-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: end; }
+.ref-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: #374151; }
+.ref-field input, .ref-field select { padding: 9px 12px; border: 1px solid #e5e7eb; border-radius: 10px; font: inherit; font-weight: 400; font-size: 14px; background: #fff; }
+.ref-field input:focus, .ref-field select:focus { outline: 2px solid #ff8a3d55; border-color: #ff8a3d; }
+.ref-check { display: flex; align-items: center; gap: 8px; font-size: 14px; padding-bottom: 8px; }
+.ref-check input { accent-color: #ff8a3d; }
+.ref-scope { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 12px; margin: 0; min-width: 0; }
+.ref-scope legend { font-size: 13px; font-weight: 600; color: #374151; padding: 0 6px; }
+.ref-scope__options { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; }
+.ref-scope__option { display: flex; gap: 8px; align-items: flex-start; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; cursor: pointer; font-size: 14px; }
+.ref-scope__option small { display: block; color: #6b7280; font-size: 12px; }
+.ref-scope__option.is-selected { border-color: #ff8a3d; background: #fff7f0; }
+.ref-scope__option input { margin-top: 3px; accent-color: #ff8a3d; }
+.ref-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.ref-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: 1px solid #e5e7eb; background: #fff; font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; color: #1f2544; }
+.ref-btn--primary { background: #ff8a3d; border-color: #ff8a3d; color: #fff; }
+.ref-btn:disabled { opacity: .6; cursor: not-allowed; }
+.ref-alert { padding: 10px 14px; border-radius: 10px; font-size: 14px; }
+.ref-alert--ok { background: #ecfdf3; color: #166534; }
+.ref-alert--error { background: #fef2f2; color: #b91c1c; }
+.ref-muted { color: #6b7280; margin: 0; font-size: 14px; }
+.ref-table-wrap { width: 100%; overflow-x: hidden; }
+.ref-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ref-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
+.ref-table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; overflow-wrap: anywhere; }
+.ref-table td small { display: block; color: #6b7280; font-size: 12px; }
+.ref-table tbody tr:last-child td { border-bottom: 0; }
+.ref-table__actions { white-space: nowrap; text-align: right; }
+.ref-pill { border: 0; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ref-pill--on { background: #dcfce7; color: #166534; }
+.ref-pill--off { background: #f3f4f6; color: #6b7280; }
+.ref-pill:disabled { cursor: default; }
+.ref-icon { border: 1px solid #e5e7eb; background: #fff; border-radius: 8px; padding: 6px; cursor: pointer; color: #374151; margin-left: 6px; }
+.ref-icon--danger { color: #b91c1c; }
+@media (max-width: 760px) {
+  .ref-admin { padding: 16px 16px 24px; }
+  .ref-table thead { display: none; }
+  .ref-table, .ref-table tbody, .ref-table tr, .ref-table td { display: block; width: 100%; }
+  .ref-table tr { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+  .ref-table td { border: 0; padding: 4px 0; }
+  .ref-table td[data-label]::before { content: attr(data-label) ": "; font-weight: 600; color: #6b7280; }
+  .ref-table__actions { text-align: left; }
+  .ref-icon:first-child { margin-left: 0; }
+}

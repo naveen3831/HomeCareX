@@ -29,6 +29,7 @@ export interface PricingBreakdown {
   surgeLabel?: string;
   /** base + add-ons + surge */
   subtotal: number;
+  /** coupon discount + referral discount */
   discount: number;
   convenienceFee: number;
   gst: number;
@@ -45,6 +46,8 @@ export interface PriceQuote extends PricingBreakdown {
   lines: QuoteLine[];
   coupon: { code: string; discount: number } | null;
   couponError?: { code: string; minOrder?: number };
+  /** First-booking discount for a referred customer. Already included in `discount`. */
+  referral?: { programId: string; name: string; discount: number } | null;
   computedAt: string;
 }
 

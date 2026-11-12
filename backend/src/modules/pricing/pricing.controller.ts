@@ -8,7 +8,8 @@ import type { QuoteInput } from './pricing.types';
 
 export const pricingController = {
   async quote(req: Request, res: Response) {
-    const quote = await pricingService.quote(req.body as QuoteInput);
+    // The user id lets the quote include coupon per-user limits and the referral first-booking discount.
+    const quote = await pricingService.quote(req.body as QuoteInput, getAuthUser(req).id);
     res.json({ success: true, data: quote });
   },
 

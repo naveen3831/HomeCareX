@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { User, Mail, Phone, Lock, Eye, EyeOff, Tag, ArrowRight, ArrowLeft, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { classifyApiError } from '@/lib/apiError';
@@ -13,6 +13,9 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 export const RegisterPage: React.FC = () => {
   const { register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  // A friend's invite link is /register?ref=CODE: prefill the referral code from it.
+  const [searchParams] = useSearchParams();
+  const invitedBy = (searchParams.get('ref') ?? '').trim().toUpperCase().slice(0, 30);
 
   const [form, setForm] = useState({
     name: '',
@@ -20,7 +23,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    referralCode: '',
+    referralCode: invitedBy,
   });
 
   const [showPassword, setShowPassword] = useState(false);

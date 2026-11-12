@@ -951,3 +951,54 @@
     min-height: 44px;
   }
 }
+
+.hcx-support .hcx-support-referral-offers {
+  margin: 16px 0 4px;
+  padding: 14px 16px;
+  border: 1px solid #f3dcc2;
+  border-radius: 12px;
+  background: #fffbf6;
+}
+.hcx-support .hcx-support-referral-offers h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.hcx-support .hcx-support-referral-offers ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.hcx-support .hcx-support-referral-offers li {
+  display: grid;
+  gap: 2px;
+}
+.hcx-support .hcx-support-referral-offer-value {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.hcx-support .hcx-support-referral-actions a.hcx-support-wa {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  min-height: 42px;
+  border: 1px solid #d5dbe3;
+  border-radius: 10px;
+  background: #fff;
+  color: #15803d;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hcx-support .hcx-support-referral-offer-block {
+  margin-top: 18px;
+  padding-top: 6px;
+}
+.hcx-support .hcx-support-referral-offer-block .hcx-support-referral-offers {
+  display: grid;
+  gap: 2px;
+  margin-top: 0;
+}

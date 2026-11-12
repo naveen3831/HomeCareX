@@ -63,6 +63,7 @@ import {
   customerProfileRoutes,
 } from "../modules/customer-profile/customer-profile.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
+import { referralProgramsRoutes } from "../modules/referrals/referral-programs.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { availabilityRoutes } from "../modules/availability/availability.routes";
 import { blackoutRoutes } from "../modules/availability/blackout.routes";
@@ -170,6 +171,14 @@ rootRouter.use(
   requireAdmin,
   requireResourceAccess("coupons"),
   couponsRoutes,
+);
+
+rootRouter.use(
+  "/admin/referral-programs",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("coupons"),
+  referralProgramsRoutes,
 );
 
 rootRouter.use(

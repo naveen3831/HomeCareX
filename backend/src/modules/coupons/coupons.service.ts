@@ -33,6 +33,7 @@ interface CouponDocumentLike {
   perUserLimit?: number | null;
   usedCount: number;
   categoryIds: Types.ObjectId[];
+  serviceIds?: Types.ObjectId[];
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -51,6 +52,9 @@ const toDto = (coupon: CouponDocumentLike): CouponDto => ({
   perUserLimit: coupon.perUserLimit ?? null,
   usedCount: coupon.usedCount ?? 0,
   categoryIds: (coupon.categoryIds ?? []).map((id) =>
+    id.toString(),
+  ),
+  serviceIds: (coupon.serviceIds ?? []).map((id) =>
     id.toString(),
   ),
   active: coupon.active,
@@ -430,14 +434,23 @@ export class CouponsService {
       );
     }
 
-    if (
-      coupon.categoryIds.length > 0 &&
-      !coupon.categoryIds.some(
+    // Scope: a coupon limited to categories and/or services applies when the service matches either.
+    const scopedCategoryIds = coupon.categoryIds ?? [];
+    const scopedServiceIds = coupon.serviceIds ?? [];
+    const isScoped =
+      scopedCategoryIds.length > 0 || scopedServiceIds.length > 0;
+    const inScope =
+      scopedCategoryIds.some(
         (categoryId) =>
           categoryId.toString() ===
           service.categoryId.toString(),
-      )
-    ) {
+      ) ||
+      scopedServiceIds.some(
+        (serviceId) =>
+          serviceId.toString() === service._id.toString(),
+      );
+
+    if (isScoped && !inScope) {
       throw new HttpError(
         422,
         'This coupon is not applicable to this service',
@@ -538,6 +551,7 @@ export class CouponsService {
       endAt: { $gte: now },
     })
       .populate('categoryIds', 'name slug')
+      .populate('serviceIds', 'name')
       .sort({
         createdAt: -1,
       });
@@ -563,7 +577,12 @@ export class CouponsService {
         .map((c) => (typeof c === 'object' && c !== null ? c.name : ''))
         .filter(Boolean);
 
-      const categoryScope = categoryNames.length > 0 ? ` on ${categoryNames.join(', ')}` : '';
+      const serviceNames = ((coupon.serviceIds ?? []) as unknown as Array<{ name?: string }>)
+        .map((s) => (typeof s === 'object' && s !== null ? s.name : ''))
+        .filter(Boolean);
+
+      const scopeNames = [...categoryNames, ...serviceNames];
+      const categoryScope = scopeNames.length > 0 ? ` on ${scopeNames.join(', ')}` : '';
 
       const title =
         coupon.type === 'PERCENT'
