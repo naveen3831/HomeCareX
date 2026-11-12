@@ -8,6 +8,7 @@ import { FilterButton, FilterPanel, type FilterField } from '@/components/admin/
 import { fetchAdminPayments } from '@/services/adminPaymentApi';
 import { PAYMENT_STATUSES, type AdminPayment, type AdminPaymentsPage, type PaymentStatus } from '@/types/adminPayment';
 import StatusBadge from './StatusBadge';
+import ReferralMoney from './ReferralMoney';
 import { METHOD_OPTIONS, STATUS_LABEL, formatDateTime, formatMoney, methodLabel } from './paymentFormat';
 import './index.css';
 
@@ -70,7 +71,7 @@ const TOTALS = [
   { status: 'REFUNDED', icon: Undo2, label: 'Refunded' },
 ] as const;
 
-export const AdminPaymentsPageView: React.FC = () => {
+const PaymentsList: React.FC = () => {
   const [filters, setFilters] = useState<Filters>(EMPTY); // applied from the filter panel
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -354,6 +355,24 @@ export const AdminPaymentsPageView: React.FC = () => {
         )}
       </section>
     </div>
+  );
+};
+
+/** Payments page: the payments list, plus a "Referral money" tab (who got referral credit, referral discounts used). */
+export const AdminPaymentsPageView: React.FC = () => {
+  const [view, setView] = useState<'payments' | 'referrals'>('payments');
+  return (
+    <>
+      <div className="pay-tabs" role="tablist" aria-label="Payments sections">
+        <button type="button" role="tab" aria-selected={view === 'payments'} className={`pay-tab${view === 'payments' ? ' is-selected' : ''}`} onClick={() => setView('payments')}>
+          Payments
+        </button>
+        <button type="button" role="tab" aria-selected={view === 'referrals'} className={`pay-tab${view === 'referrals' ? ' is-selected' : ''}`} onClick={() => setView('referrals')}>
+          Referral money
+        </button>
+      </div>
+      {view === 'payments' ? <PaymentsList /> : <ReferralMoney />}
+    </>
   );
 };
 

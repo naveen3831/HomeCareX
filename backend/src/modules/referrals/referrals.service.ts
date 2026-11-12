@@ -4,6 +4,8 @@ import { ReferralCodeModel, ReferralModel, ReferralOfferCodeModel } from "./refe
 import { UserModel } from "../../models/User";
 import BookingModel from "../../models/Booking";
 import { WalletLedgerModel, WalletModel } from "../../models/Wallet";
+import { PartnerModel } from "../../models/Partner";
+import WalletTransactionModel from "../partner-wallet/WalletTransaction";
 import { HttpError } from "../auth/auth.types";
 import { referralProgramsService } from "./referral-programs.service";
 import { ReferralProgramModel } from "./referral-programs.model";
@@ -97,6 +99,7 @@ async function activeOffers(userId: string) {
   const now = new Date();
   const rows = await ReferralProgramModel.find({
     active: true,
+    audience: { $ne: "PARTNER" },
     $and: [
       { $or: [{ startAt: null }, { startAt: { $lte: now } }] },
       { $or: [{ endAt: null }, { endAt: { $gte: now } }] },
@@ -141,6 +144,65 @@ async function activeOffers(userId: string) {
   return out;
 }
 
+type Audience = "CUSTOMER" | "PARTNER";
+
+/** First paid, not-cancelled booking of a customer (qualifies the referral). */
+async function firstPaidBooking(customerId: string) {
+  const first = await BookingModel.findOne({
+    customerId,
+    paymentStatus: "PAID",
+    status: {
+      $nin: ["pending_payment", "cancelled_by_customer", "cancelled_by_partner", "cancelled_by_admin", "no_show"],
+    },
+  })
+    .sort({ "paymentDetails.paidAt": 1, createdAt: 1, _id: 1 })
+    .select("_id");
+  return first?._id ?? null;
+}
+
+/** First completed job of a partner (qualifies a partner-to-partner referral). */
+async function firstCompletedJob(partnerUserId: string) {
+  const partner = await PartnerModel.findOne({ userId: partnerUserId }).select("_id").lean<{ _id: Types.ObjectId }>();
+  if (!partner) return null;
+  const job = await BookingModel.findOne({ partnerId: partner._id, status: "completed" })
+    .sort({ completedAt: 1, createdAt: 1, _id: 1 })
+    .select("_id");
+  return job?._id ?? null;
+}
+
+/**
+ * Credits wallet money inside the reward transaction. Customers: Wallet + WalletLedger (rupees).
+ * Partners: a settled `incentive` line in the partner wallet ledger (unique per referenceId, so no double credit).
+ */
+async function creditReferralWallet(
+  audience: Audience,
+  userId: string,
+  rupees: number,
+  referenceId: string,
+  description: string,
+  session: mongoose.ClientSession,
+) {
+  if (!(rupees > 0)) return;
+  if (audience === "PARTNER") {
+    const partner = await PartnerModel.findOne({ userId }).select("_id").session(session).lean<{ _id: Types.ObjectId }>();
+    if (!partner) return; // no partner profile (yet): nothing to credit
+    await WalletTransactionModel.create(
+      [{ partnerId: partner._id, type: "incentive", amount: rupees, status: "settled", description, referenceId }],
+      { session },
+    );
+    return;
+  }
+  const wallet = await WalletModel.findOneAndUpdate(
+    { userId },
+    { $inc: { balance: rupees } },
+    { new: true, upsert: true, session, setDefaultsOnInsert: true },
+  );
+  await WalletLedgerModel.create(
+    [{ walletId: wallet._id, userId, type: "referral_reward", amount: rupees, balanceAfter: wallet.balance, description, referenceId }],
+    { session },
+  );
+}
+
 export const referralsService = {
   /** One code per customer: HCX + first name (e.g. HCXCHARAN); numbered/random suffix only on a clash. */
   async code(userId: string): Promise<string> {
@@ -171,7 +233,7 @@ export const referralsService = {
       "REFERRAL_UNAVAILABLE",
     );
   },
-  async resolve(code: string): Promise<string> {
+  async resolve(code: string, role: "customer" | "partner" = "customer"): Promise<string> {
     const match = await ReferralCodeModel.findOne({
       code: code.trim().toUpperCase(),
     });
@@ -179,7 +241,7 @@ export const referralsService = {
       !match ||
       !(await UserModel.exists({
         _id: match.referrerId,
-        role: "customer",
+        role,
         status: "active",
       }))
     ) {
@@ -199,25 +261,43 @@ export const referralsService = {
    * Who a sign-up code belongs to and which offer it carries. An offer code (HCXNAME-WELCOME) is tied to
    * that offer; a plain customer code has programId null (the best offer then applies at booking time).
    */
-  async resolveInvite(code: string): Promise<{ referrerId: string; programId: string | null }> {
+  async resolveInvite(
+    code: string,
+    role: "customer" | "partner" = "customer",
+  ): Promise<{ referrerId: string; programId: string | null }> {
+    // Partner-to-partner uses the plain partner code (the reward comes from the best live partner offer).
+    if (role === "partner") return { referrerId: await referralsService.resolve(code, "partner"), programId: null };
     const offer = await ReferralOfferCodeModel.findOne({ code: code.trim().toUpperCase() });
     if (!offer) return { referrerId: await referralsService.resolve(code), programId: null };
     const [referrerOk, program] = await Promise.all([
       UserModel.exists({ _id: offer.referrerId, role: "customer", status: "active" }),
-      ReferralProgramModel.findById(offer.programId).lean<{ active?: boolean; endAt?: Date | null }>(),
+      ReferralProgramModel.findById(offer.programId).lean<{ active?: boolean; startAt?: Date | null; endAt?: Date | null }>(),
     ]);
     if (!referrerOk) throw new HttpError(400, "This referral code is not valid.", "INVALID_REFERRAL");
-    if (!program || !program.active || (program.endAt && program.endAt < new Date()))
-      throw new HttpError(400, "This referral offer is no longer available.", "REFERRAL_OFFER_ENDED");
+    // Separate messages so it is obvious WHY an offer code is rejected (was one generic "no longer available").
+    const now = new Date();
+    if (!program) throw new HttpError(400, "This referral offer no longer exists.", "REFERRAL_OFFER_ENDED");
+    if (!program.active) throw new HttpError(400, "This referral offer is currently inactive.", "REFERRAL_OFFER_INACTIVE");
+    if (program.startAt && program.startAt > now)
+      throw new HttpError(400, "This referral offer has not started yet.", "REFERRAL_OFFER_NOT_STARTED");
+    if (program.endAt && program.endAt < now)
+      throw new HttpError(400, "This referral offer has expired.", "REFERRAL_OFFER_ENDED");
     return { referrerId: String(offer.referrerId), programId: String(offer.programId) };
   },
-  async attach(refereeId: string, code: string, referrerId: string, programId?: string | null) {
+  async attach(
+    refereeId: string,
+    code: string,
+    referrerId: string,
+    programId?: string | null,
+    audience: "CUSTOMER" | "PARTNER" = "CUSTOMER",
+  ) {
     assertNotSelfReferral(referrerId, refereeId);
     try {
       await ReferralModel.create({
         refereeId,
         referrerId,
         code: code.trim().toUpperCase(),
+        audience,
         ...(programId ? { programId } : {}),
       });
     } catch (error) {
@@ -233,7 +313,8 @@ export const referralsService = {
   },
   async summary(userId: string, page: number) {
     const code = await referralsService.code(userId);
-    const filter = { referrerId: new Types.ObjectId(userId) };
+    const filter = { referrerId: new Types.ObjectId(userId), audience: { $ne: "PARTNER" as const } };
+    const rewards = await referralProgramsService.rewardsFor(null, "CUSTOMER");
     const [totals, entries, total, offers] = await Promise.all([
       ReferralModel.aggregate<{
         invited: number;
@@ -252,7 +333,16 @@ export const referralsService = {
             },
             rewardPaise: {
               $sum: {
-                $cond: [{ $eq: ["$status", "rewarded"] }, "$rewardPaise", 0],
+                $cond: [
+                  {
+                    $or: [
+                      { $eq: ["$status", "rewarded"] },
+                      { $ne: [{ $ifNull: ["$referrerCreditedAt", null] }, null] },
+                    ],
+                  },
+                  "$rewardPaise",
+                  0,
+                ],
               },
             },
           },
@@ -268,7 +358,8 @@ export const referralsService = {
     ]);
     return {
       code,
-      rewardPerReferralPaise: configuredRewardPaise(),
+      rewardPerReferralPaise: Math.round(rewards.referrerRupees * 100),
+      refereeRewardPaise: Math.round(rewards.refereeRupees * 100),
       stats: totals[0]
         ? {
             invited: totals[0].invited,
@@ -287,7 +378,11 @@ export const referralsService = {
       offers,
     };
   },
-  /** Database transaction + unique wallet reference: retries and concurrent bookings cannot double-credit. */
+  /**
+   * Pays BOTH sides (referrer and the new friend) into their wallets when the friend's first booking
+   * (customer: first PAID booking) or first completed job (partner) qualifies.
+   * Database transaction + unique wallet reference: retries and concurrent bookings cannot double-credit.
+   */
   async rewardForReferee(refereeId: string) {
     const referral = await ReferralModel.findOne({
       refereeId,
@@ -295,65 +390,147 @@ export const referralsService = {
     });
     if (!referral) return;
     assertNotSelfReferral(String(referral.referrerId), refereeId);
-    // A friend's first PAID booking qualifies (payment captured and the booking not cancelled/refunded),
-    // so the reward no longer waits for a partner to mark the job completed.
-    const first = await BookingModel.findOne({
-      customerId: refereeId,
-      paymentStatus: "PAID",
-      status: {
-        $nin: [
-          "pending_payment",
-          "cancelled_by_customer",
-          "cancelled_by_partner",
-          "cancelled_by_admin",
-          "no_show",
-        ],
-      },
-    })
-      .sort({ "paymentDetails.paidAt": 1, createdAt: 1, _id: 1 })
-      .select("_id");
-    if (!first) return;
+    const audience: Audience = referral.audience === "PARTNER" ? "PARTNER" : "CUSTOMER";
+    const firstId = audience === "PARTNER" ? await firstCompletedJob(refereeId) : await firstPaidBooking(refereeId);
+    if (!firstId) return;
     await ReferralModel.updateOne(
       { _id: referral._id, status: "invited" },
-      { $set: { status: "completed", firstBookingId: first._id } },
+      { $set: { status: "completed", firstBookingId: firstId } },
     );
-    const rewardPaise = configuredRewardPaise();
-    // Monetary policy is configured by HomeCareX; do not invent a default reward.
-    if (!rewardPaise) return;
+    const rewards = await referralProgramsService.rewardsFor(
+      referral.programId ? String(referral.programId) : null,
+      audience,
+    );
+    const referrerPaise = Math.round(rewards.referrerRupees * 100);
+    const refereePaise = Math.round(rewards.refereeRupees * 100);
+    // Customers are paid when the friend registers; here we only pay what is still owed
+    // (older referrals, or a signup credit that failed). Partners are paid here, after their first job.
+    const friendDue = !(audience === "CUSTOMER" && referral.refereeCreditedAt);
+    const referrerDue = !(audience === "CUSTOMER" && referral.referrerCreditedAt);
+    if (!(referrerDue && referrerPaise) && !(friendDue && refereePaise)) {
+      if (!referrerDue && !friendDue) {
+        await ReferralModel.updateOne(
+          { _id: referral._id, status: "completed" },
+          { $set: { status: "rewarded", rewardedAt: new Date(), firstBookingId: firstId } },
+        );
+      }
+      return;
+    }
     await mongoose.connection.transaction(async (session) => {
       const claimed = await ReferralModel.findOneAndUpdate(
         { _id: referral._id, status: "completed" },
         {
           $set: {
             status: "rewarded",
-            firstBookingId: first._id,
-            rewardPaise,
+            firstBookingId: firstId,
+            ...(referrerDue ? { rewardPaise: referrerPaise } : {}),
+            ...(friendDue ? { refereeRewardPaise: refereePaise } : {}),
             rewardedAt: new Date(),
           },
         },
         { new: true, session },
       );
       if (!claimed) return;
-      const wallet = await WalletModel.findOneAndUpdate(
-        { userId: String(claimed.referrerId) },
-        { $inc: { balance: rewardPaise / 100 } },
-        { new: true, upsert: true, session, setDefaultsOnInsert: true },
+      const id = String(claimed._id);
+      const partner = audience === "PARTNER";
+      if (referrerDue) await creditReferralWallet(
+        audience,
+        String(claimed.referrerId),
+        referrerPaise / 100,
+        `referral:${id}`,
+        partner ? "Referral reward: the partner you referred completed their first job" : "Referral reward: your friend's first booking",
+        session,
       );
-      await WalletLedgerModel.create(
-        [
-          {
-            walletId: wallet._id,
-            userId: String(claimed.referrerId),
-            type: "referral_reward",
-            amount: rewardPaise / 100,
-            balanceAfter: wallet.balance,
-            description: "Referral reward: first completed booking",
-            referenceId: `referral:${claimed._id}`,
-          },
-        ],
-        { session },
+      if (friendDue) await creditReferralWallet(
+        audience,
+        refereeId,
+        refereePaise / 100,
+        `referral-friend:${id}`,
+        partner ? "Referral bonus: first job completed with a referral code" : "Referral bonus: your first booking with a referral code",
+        session,
       );
     });
+  },
+  /**
+   * Signup bonus: when a customer registers with a referral code, BOTH the new customer and the referrer get
+   * their wallet credit straight away (no booking needed). Safe to call twice: claimed once, and the wallet
+   * references are unique.
+   */
+  async creditRefereeSignupBonus(refereeId: string) {
+    const referral = await ReferralModel.findOne({
+      refereeId,
+      audience: { $ne: "PARTNER" as const },
+      refereeCreditedAt: null,
+    });
+    if (!referral) return;
+    const rewards = await referralProgramsService.rewardsFor(
+      referral.programId ? String(referral.programId) : null,
+      "CUSTOMER",
+    );
+    const paise = Math.round(rewards.refereeRupees * 100);
+    const referrerPaise = Math.round(rewards.referrerRupees * 100);
+    await mongoose.connection.transaction(async (session) => {
+      const now = new Date();
+      const claimed = await ReferralModel.findOneAndUpdate(
+        { _id: referral._id, refereeCreditedAt: null },
+        {
+          $set: {
+            refereeCreditedAt: now,
+            referrerCreditedAt: now,
+            refereeRewardPaise: paise,
+            rewardPaise: referrerPaise,
+          },
+        },
+        { new: true, session },
+      );
+      if (!claimed) return;
+      await creditReferralWallet(
+        "CUSTOMER",
+        String(claimed.referrerId),
+        referrerPaise / 100,
+        `referral:${String(claimed._id)}`,
+        "Referral reward: your friend joined with your referral code",
+        session,
+      );
+      await creditReferralWallet(
+        "CUSTOMER",
+        refereeId,
+        paise / 100,
+        `referral-friend:${String(claimed._id)}`,
+        "Welcome bonus: you joined with a referral code",
+        session,
+      );
+    });
+  },
+  /** Partner side of the Referrals page: own code, current reward, and who joined with it. */
+  async partnerSummary(userId: string) {
+    const code = await referralsService.code(userId);
+    const rewards = await referralProgramsService.rewardsFor(null, "PARTNER");
+    const rows = await ReferralModel.find({ referrerId: userId, audience: "PARTNER" })
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(50)
+      .lean();
+    return {
+      code,
+      rewardForYouRupees: rewards.referrerRupees,
+      rewardForFriendRupees: rewards.refereeRupees,
+      stats: {
+        invited: rows.length,
+        completed: rows.filter((r) => r.status !== "invited").length,
+        rewardsRupees: rows.filter((r) => r.status === "rewarded").reduce((sum, r) => sum + (r.rewardPaise ?? 0), 0) / 100,
+      },
+      entries: rows.map((r) => ({
+        id: String(r._id),
+        status: r.status,
+        rewardRupees: (r.rewardPaise ?? 0) / 100,
+        createdAt: r.createdAt.toISOString(),
+        rewardedAt: r.rewardedAt?.toISOString() ?? null,
+      })),
+    };
+  },
+  /** Removes a referral link (used when a registration is rolled back). */
+  async detach(refereeId: string) {
+    await ReferralModel.deleteOne({ refereeId });
   },
   /**
    * Discount on a referred customer's FIRST booking. null when the customer was not referred, already

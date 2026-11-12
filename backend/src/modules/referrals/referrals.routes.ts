@@ -7,6 +7,16 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { referralsService } from "./referrals.service";
 
+export const partnerReferralsRoutes = Router();
+partnerReferralsRoutes.use(authenticate, requireRole("partner"));
+partnerReferralsRoutes.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    sendSuccess(res, await referralsService.partnerSummary(getAuthUser(req).id));
+  }),
+);
+
 export const referralsRoutes = Router();
 referralsRoutes.use(authenticate, requireRole("customer"));
 referralsRoutes.get(

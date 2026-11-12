@@ -51,6 +51,14 @@ const schema = new Schema(
       required: true,
     },
     rewardPaise: { type: Number, default: 0, min: 0 },
+    /** Wallet credit the new customer/partner (referee) received when the reward was paid. */
+    refereeRewardPaise: { type: Number, default: 0, min: 0 },
+    /** When the new customer's signup bonus hit their wallet (customers get it on registration). */
+    refereeCreditedAt: { type: Date, default: null },
+    /** When the referrer's signup bonus hit their wallet (customers: as soon as the friend registers). */
+    referrerCreditedAt: { type: Date, default: null },
+    /** CUSTOMER = customer-to-customer, PARTNER = partner-to-partner. */
+    audience: { type: String, enum: ["CUSTOMER", "PARTNER"], default: "CUSTOMER", index: true },
     firstBookingId: { type: Schema.Types.ObjectId, ref: "Booking" },
     /** The offer whose code the friend signed up with (null = generic code: best offer applies). */
     programId: { type: Schema.Types.ObjectId, ref: "ReferralProgram", default: null },

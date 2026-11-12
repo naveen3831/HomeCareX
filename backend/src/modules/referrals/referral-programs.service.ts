@@ -1,6 +1,12 @@
 import { Types } from "mongoose";
 import { z } from "zod";
-import { ReferralProgramModel, REFERRAL_SCOPES } from "./referral-programs.model";
+import {
+  ReferralProgramModel,
+  REFERRAL_SCOPES,
+  REFERRAL_AUDIENCES,
+  DEFAULT_REFERRAL_REWARD_RUPEES,
+  type ReferralAudience,
+} from "./referral-programs.model";
 import { ServiceModel } from "../../models/Service";
 import { HttpError } from "../auth/auth.types";
 
@@ -8,6 +14,9 @@ const objectId = z.string().trim().regex(/^[a-f\d]{24}$/i, "Invalid id");
 
 const baseSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(80),
+  audience: z.enum(REFERRAL_AUDIENCES).default("CUSTOMER"),
+  referrerReward: z.number().min(0, "Reward cannot be negative").max(100_000).default(DEFAULT_REFERRAL_REWARD_RUPEES),
+  refereeReward: z.number().min(0, "Reward cannot be negative").max(100_000).default(DEFAULT_REFERRAL_REWARD_RUPEES),
   scope: z.enum(REFERRAL_SCOPES),
   categoryIds: z.array(objectId).default([]),
   serviceIds: z.array(objectId).default([]),
@@ -27,9 +36,6 @@ function refine(
 ) {
   if (data.discountType === "PERCENT" && data.value !== undefined && data.value > 100) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["value"], message: "Percentage value cannot exceed 100" });
-  }
-  if (data.value !== undefined && data.value <= 0) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["value"], message: "Discount must be greater than 0" });
   }
   if (data.startAt && data.endAt && data.endAt <= data.startAt) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["endAt"], message: "End date must be after start date" });
@@ -54,7 +60,9 @@ function parse<S extends z.ZodTypeAny>(schema: S, input: unknown): z.infer<S> {
 }
 
 /** Only the ids that the chosen scope uses are kept, so a stale list can never widen a program. */
-function normalizeScope<T extends { scope?: string; categoryIds?: string[]; serviceIds?: string[] }>(d: T): T {
+function normalizeScope<T extends { audience?: string; scope?: string; categoryIds?: string[]; serviceIds?: string[] }>(d: T): T {
+  // Partner offers are wallet credits only: no service scope.
+  if (d.audience === "PARTNER") return { ...d, scope: "ALL", categoryIds: [], serviceIds: [] };
   if (d.scope === "ALL") return { ...d, categoryIds: [], serviceIds: [] };
   if (d.scope === "CATEGORY") return { ...d, serviceIds: [] };
   if (d.scope === "SERVICE") return { ...d, categoryIds: [] };
@@ -64,6 +72,9 @@ function normalizeScope<T extends { scope?: string; categoryIds?: string[]; serv
 interface ProgramLike {
   _id: Types.ObjectId;
   name: string;
+  audience?: ReferralAudience;
+  referrerReward?: number;
+  refereeReward?: number;
   scope: "ALL" | "CATEGORY" | "SERVICE";
   categoryIds?: Types.ObjectId[];
   serviceIds?: Types.ObjectId[];
@@ -82,6 +93,9 @@ interface ProgramLike {
 const toDto = (p: ProgramLike) => ({
   id: String(p._id),
   name: p.name,
+  audience: p.audience ?? ("CUSTOMER" as ReferralAudience),
+  referrerReward: p.referrerReward ?? DEFAULT_REFERRAL_REWARD_RUPEES,
+  refereeReward: p.refereeReward ?? DEFAULT_REFERRAL_REWARD_RUPEES,
   scope: p.scope,
   categoryIds: (p.categoryIds ?? []).map(String),
   serviceIds: (p.serviceIds ?? []).map(String),
@@ -150,6 +164,9 @@ export const referralProgramsService = {
     const merged = normalizeScope(
       parse(createSchema, {
         name: current.name,
+        audience: current.audience,
+        referrerReward: current.referrerReward,
+        refereeReward: current.refereeReward,
         scope: current.scope,
         categoryIds: current.categoryIds,
         serviceIds: current.serviceIds,
@@ -187,6 +204,7 @@ export const referralProgramsService = {
     if (!service?.categoryId || !row) return null;
     const p = row as unknown as ProgramLike;
     const now = new Date();
+    if (p.audience === "PARTNER") return null; // partner offers never discount a booking
     if (!p.active || (p.startAt && p.startAt > now) || (p.endAt && p.endAt < now)) return null;
     if (orderValue < (p.minOrder ?? 0)) return null;
     if (!programCoversService(p, serviceId, String(service.categoryId))) return null;
@@ -204,6 +222,7 @@ export const referralProgramsService = {
     const now = new Date();
     const rows = await ReferralProgramModel.find({
       active: true,
+      audience: { $ne: "PARTNER" },
       $and: [
         { $or: [{ startAt: null }, { startAt: { $lte: now } }] },
         { $or: [{ endAt: null }, { endAt: { $gte: now } }] },
@@ -217,5 +236,38 @@ export const referralProgramsService = {
       if (discount > 0 && (!best || discount > best.discount)) best = { programId: String(p._id), name: p.name, discount };
     }
     return best;
+  },
+
+  /**
+   * Wallet credit (rupees) for both sides of a referral, paid on the friend's first booking / job.
+   * A referral that signed up with a specific offer code uses that offer; otherwise the best live offer for
+   * the audience; with no offer at all both sides still get the default ₹50.
+   */
+  async rewardsFor(
+    programId: string | null | undefined,
+    audience: ReferralAudience,
+  ): Promise<{ programId: string | null; referrerRupees: number; refereeRupees: number }> {
+    const fallback = { programId: null, referrerRupees: DEFAULT_REFERRAL_REWARD_RUPEES, refereeRupees: DEFAULT_REFERRAL_REWARD_RUPEES };
+    const pick = (p: ProgramLike) => ({
+      programId: String(p._id),
+      referrerRupees: p.referrerReward ?? DEFAULT_REFERRAL_REWARD_RUPEES,
+      refereeRupees: p.refereeReward ?? DEFAULT_REFERRAL_REWARD_RUPEES,
+    });
+    if (programId && Types.ObjectId.isValid(programId)) {
+      const row = await ReferralProgramModel.findById(programId).lean();
+      if (row) return pick(row as unknown as ProgramLike);
+    }
+    const now = new Date();
+    const rows = (await ReferralProgramModel.find({
+      active: true,
+      ...(audience === "PARTNER" ? { audience: "PARTNER" } : { audience: { $ne: "PARTNER" } }),
+      $and: [
+        { $or: [{ startAt: null }, { startAt: { $lte: now } }] },
+        { $or: [{ endAt: null }, { endAt: { $gte: now } }] },
+      ],
+    }).lean()) as unknown as ProgramLike[];
+    if (!rows.length) return fallback;
+    const total = (p: ProgramLike) => (p.referrerReward ?? DEFAULT_REFERRAL_REWARD_RUPEES) + (p.refereeReward ?? DEFAULT_REFERRAL_REWARD_RUPEES);
+    return pick(rows.reduce((a, b) => (total(b) > total(a) ? b : a)));
   },
 };
