@@ -238,22 +238,23 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
       )}
 
       <div className="pp-collect-grid">
-      <div className="pp-col pp-col-qr">
-      <div className="pp-qr-wrap">
-        {qrSrc ? (
-          <img
-            className="pp-qr"
-            src={qrSrc}
-            alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`}
-            width={220}
-            height={220}
-          />
-        ) : qrFailed ? (
-          <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below.</p>
-        ) : (
-          <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
-        )}
-      </div>
+        <div className="pp-col pp-col-qr">
+          <div className="pp-qr-wrap">
+            {qrSrc ? (
+              <img
+                className="pp-qr"
+                src={qrSrc}
+                alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`}
+                width={220}
+                height={220}
+              />
+            ) : qrFailed ? (
+              <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below.</p>
+            ) : (
+              <div className="pp-qr-skel" aria-busy="true" aria-label="Preparing QR code" />
+            )}
+          </div>
+        </div>
 
       <div className="pp-col pp-col-actions">
         <div className="pp-payee">
@@ -289,6 +290,7 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         {checkError && <p className="pp-error" role="alert">{checkError}</p>}
 
         {cashButton}
+      </div>
       </div>
     </section>
   );

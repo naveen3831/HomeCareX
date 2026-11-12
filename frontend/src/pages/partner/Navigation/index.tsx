@@ -5,15 +5,17 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { LifeBuoy, MapPin, MessageCircle, X } from "lucide-react";
+import { LifeBuoy, MapPin, MessageCircle, Navigation as NavigationIcon, X } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import LiveMap from "@/components/partner/LiveMap";
 import MaskedCallButton from "@/components/MaskedCallButton";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { getErrorMessage, getHttpStatus } from "../JobDetails/jobDetails.api";
+import { getErrorMessage, getHttpStatus, updateBookingStatus } from "../JobDetails/jobDetails.api";
 import type { ApiJob } from "../JobDetails/jobDetails.types";
 import { useLocationSharing } from "../LocationSharing/useLocationSharing";
+import JobStepPanel from "./components/JobStepPanel";
 import { isBookingId } from "./bookingId";
+import { distanceKm, mapsDirectionsUrl } from "./geo";
 import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
 import "./navigation.css";
@@ -70,6 +72,7 @@ const CALL_STATUSES = new Set([
   "arrived",
   "in_progress",
 ]);
+const ARRIVAL_RADIUS_M = 150;
 
 /* ============ TESTING ONLY ============
  * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
@@ -117,7 +120,8 @@ function NavigationContent({ id }: { id: string }) {
   const [state, setState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
-  const [actionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   // ?panel=chat / ?panel=call come from the buttons on the Job Requests card.
   const [params] = useSearchParams();
@@ -502,8 +506,6 @@ function NavigationContent({ id }: { id: string }) {
               </div>
             </div>
           )}
-        </section>
-      </div>
     </div>
   );
 }

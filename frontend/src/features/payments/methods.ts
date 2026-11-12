@@ -10,7 +10,7 @@ export const CHECKOUT_METHODS: MethodInfo[] = [
   { id: "upi", label: "UPI", hint: "Google Pay, PhonePe, Paytm, any UPI app" },
   { id: "card", label: "Credit / Debit card", hint: "Visa, Mastercard, RuPay" },
   { id: "netbanking", label: "Netbanking", hint: "All major banks" },
-  { id: "wallet", label: "Wallet", hint: "Paytm, PhonePe and other wallets" },
+  { id: "wallet", label: "Other Wallets", hint: "Paytm, PhonePe and other third-party wallets" },
   { id: "cod", label: "Cash on service", hint: "Pay the professional after the service" },
 ];
 

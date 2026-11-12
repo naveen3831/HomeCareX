@@ -61,7 +61,7 @@ function normalizeScope<T extends { scope?: string; categoryIds?: string[]; serv
   return d;
 }
 
-interface ProgramLike {
+export interface ProgramLike {
   _id: Types.ObjectId;
   name: string;
   scope: "ALL" | "CATEGORY" | "SERVICE";

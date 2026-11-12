@@ -12,6 +12,7 @@ import { withSlotLock } from '../bookings/bookings.lock';
 import { PAYMENT_MAX_ATTEMPTS, PAYMENT_MAX_TOTAL_ATTEMPTS, PAYMENT_MAX_RETRIES, WEBHOOK_EVENTS, codOrderId, isCodOnlinePayableStatus } from './payments.constants';
 import { toPaise, verifyCheckoutSignature, verifyWebhookSignature } from './payments.crypto';
 import { settleCapturedPayment, type SettleOutcome } from './payments.settle';
+import { referralsService } from '../referrals/referrals.service';
 import type { ListQuery } from './payments.validation';
 import type { PaymentListItem, PaymentListResult, RazorpayPaymentEntity, WebhookPayload, WebhookResult } from './payments.types';
 
@@ -27,7 +28,7 @@ function toClient(booking: IBooking): Record<string, unknown> {
   return rest;
 }
 
-const bookingTotalPaise = (booking: IBooking): number => toPaise(Number(booking.priceSnapshot?.total));
+const bookingTotalPaise = (booking: IBooking): number => toPaise(Number(booking.payable ?? booking.priceSnapshot?.total));
 
 /** Amount, currency and state of a Razorpay payment must match the booking's server-side price. */
 export const entityMatchesBooking = (entity: RazorpayPaymentEntity, orderId: string, booking: IBooking): boolean => {
@@ -59,11 +60,12 @@ async function loadOwnedBooking(bookingId: string, customerId: string): Promise<
  */
 async function markPaymentFailed(bookingId: string): Promise<void> {
   await BookingModel.updateOne({ _id: bookingId, paymentStatus: 'PENDING' }, { $set: { 'paymentDetails.status': 'FAILED' } });
+  await referralsService.refundWalletUsed(bookingId).catch(() => null);
 }
 
 function validTotal(booking: IBooking): number {
-  const total = Number(booking.priceSnapshot?.total);
-  if (!Number.isFinite(total) || total <= 0) throw new AppError(422, 'INVALID_AMOUNT', 'Invalid booking amount');
+  const total = Number(booking.payable ?? booking.priceSnapshot?.total);
+  if (!Number.isFinite(total) || total < 0) throw new AppError(422, 'INVALID_AMOUNT', 'Invalid booking amount');
   return total;
 }
 

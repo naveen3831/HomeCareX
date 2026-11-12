@@ -1,5 +1,5 @@
 import { randomInt } from 'crypto';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { BookingModel, type IBooking } from '../../models/Booking';
 import { UserModel } from '../../models/User';
 import { PaymentModel, type IPayment } from '../../models/Payment';
@@ -32,7 +32,7 @@ export class BookingsRepository {
   }
 
   /** Cancels lapsed pending_payment holds for one slot so their seats are freed. */
-  releaseStaleHolds(serviceId?: string, date?: string, slot?: string, now: Date = new Date()): Promise<unknown> {
+  async releaseStaleHolds(serviceId?: string, date?: string, slot?: string, now: Date = new Date()): Promise<unknown> {
     const filter: Record<string, unknown> = {
       status: BOOKING_STATUS.PENDING_PAYMENT,
       holdExpiresAt: { $lte: now },
@@ -40,6 +40,22 @@ export class BookingsRepository {
     if (serviceId && Types.ObjectId.isValid(serviceId)) filter.serviceId = new Types.ObjectId(serviceId);
     if (date) filter.date = date;
     if (slot) filter.slot = slot;
+
+    // Refund any wallet balance used on holds that lapsed before payment was completed
+    try {
+      const staleWithWallet = await BookingModel.find({
+        ...filter,
+        $or: [{ wallet_used: { $gt: 0 } }, { walletUsed: { $gt: 0 } }],
+      }).select('_id').lean();
+      if (staleWithWallet.length > 0) {
+        const { referralsService } = await import('../referrals/referrals.service');
+        for (const b of staleWithWallet) {
+          await referralsService.refundWalletUsed(String(b._id)).catch(() => null);
+        }
+      }
+    } catch (e) {
+      console.error('[bookings] Error refunding wallet for stale holds:', e);
+    }
 
     return BookingModel.updateMany(
       filter,
@@ -96,7 +112,11 @@ export class BookingsRepository {
     return null;
   }
 
-  create(doc: Partial<IBooking>): Promise<IBooking> {
+  async create(doc: Partial<IBooking>, options?: { session?: mongoose.ClientSession }): Promise<IBooking> {
+    if (options?.session) {
+      const [created] = await BookingModel.create([doc], options);
+      return created;
+    }
     return BookingModel.create(doc);
   }
 

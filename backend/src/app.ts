@@ -56,6 +56,7 @@ app.get('/api/v1/health', (_req, res) => {
 });
 
 app.use('/api/v1', rootRouter);
+app.use('/api', rootRouter);
 
 // Error Handling Pipeline (registered exactly once, in order)
 app.use(notFoundHandler);
