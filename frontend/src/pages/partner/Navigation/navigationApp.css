@@ -225,8 +225,8 @@
 
 /* ---------- start step: photo + video previews ---------- */
 .nv-media {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 .nv-media-head {
@@ -349,5 +349,26 @@
 @media (min-width: 1024px) {
   .nv-thumbs {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- mobile polish (start / complete cards) ---------- */
+@media (max-width: 640px) {
+  .nav-page.nv-app .nv-card {
+    padding: 14px;
+    gap: 12px;
+  }
+  .nav-page.nv-app .nv-otp {
+    text-align: center;
+    letter-spacing: 0.5em;
+    font-size: 1.5rem;
+  }
+  .nav-page.nv-app .nv-step,
+  .nav-page.nv-app .nv-card .nv-go {
+    width: 100%;
+    min-height: 52px;
+  }
+  .nv-panel {
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
 }

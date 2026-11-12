@@ -1126,7 +1126,20 @@
   }
 }
 @media (min-width: 1101px) {
-  .rvw-table { min-width: 0; }
-  .rvw-table th, .rvw-table td { padding-left: 12px; padding-right: 12px; }
-  .rvw-customer { min-width: 0; }
+  /* Fit the table to the page (sidebar open or closed) instead of cutting the last columns. */
+  .rvw-table { min-width: 0; table-layout: fixed; }
+  .rvw-table th, .rvw-table td { padding-left: 12px; padding-right: 12px; overflow-wrap: anywhere; }
+  .rvw-table th:nth-child(1) { width: 20%; }
+  .rvw-table th:nth-child(2) { width: 10%; }
+  .rvw-table th:nth-child(3) { width: 24%; }
+  .rvw-table th:nth-child(4) { width: 11%; }
+  .rvw-table th:nth-child(5) { width: 11%; }
+  .rvw-table th:nth-child(6) { width: 10%; }
+  .rvw-table th:nth-child(7) { width: 14%; }
+  .rvw-customer { width: 100%; min-width: 0; max-width: none; }
+  .rvw-customer-name, .rvw-sub { max-width: 100%; }
+  .rvw-review-cell { min-width: 0; max-width: none; }
+  .rvw-date { min-width: 0; white-space: normal; }
+  .rvw-actions { min-width: 0; }
+  .rvw-rating { flex-wrap: wrap; }
 }

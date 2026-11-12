@@ -237,6 +237,8 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         </p>
       )}
 
+      <div className="pp-collect-grid">
+      <div className="pp-col pp-col-qr">
       <div className="pp-qr-wrap">
         {qrSrc ? (
           <img

@@ -31,6 +31,10 @@ import {
 import { partnersRoutes } from "../modules/partners/partners.routes";
 import { payoutsRoutes } from "../modules/payouts/payouts.routes";
 import {
+  adminWithdrawalsRoutes,
+  partnerWithdrawalsRoutes,
+} from "../modules/partner-withdrawals/partner-withdrawals.routes";
+import {
   adminPricingRoutes,
   pricingRoutes,
 } from "../modules/pricing/pricing.routes";
@@ -38,6 +42,7 @@ import refundsRoutes from "../modules/refunds/refunds.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { servicesRoutes } from "../modules/services/services.routes";
 import { settingsRoutes } from "../modules/settings/settings.routes";
+import { publicSettingsRoutes } from "../modules/settings/settings.public.routes";
 import { catalogRoutes } from "../modules/catalog/catalog.routes";
 import leadsRoutes from "../modules/leads/leads.routes";
 import { adminLeadsRoutes } from "../modules/leads/admin-leads.routes";
@@ -58,6 +63,7 @@ import {
   customerProfileRoutes,
 } from "../modules/customer-profile/customer-profile.routes";
 import { referralsRoutes } from "../modules/referrals/referrals.routes";
+import { referralProgramsRoutes } from "../modules/referrals/referral-programs.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { availabilityRoutes } from "../modules/availability/availability.routes";
 import { blackoutRoutes } from "../modules/availability/blackout.routes";
@@ -168,6 +174,14 @@ rootRouter.use(
 );
 
 rootRouter.use(
+  "/admin/referral-programs",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("coupons"),
+  referralProgramsRoutes,
+);
+
+rootRouter.use(
   "/admin/banners",
   authMiddleware,
   requireAdmin,
@@ -188,6 +202,7 @@ rootRouter.use(
 );
 
 // B05: Refunds and payouts; B09: read-only audit logs.
+rootRouter.use("/admin/withdrawals", adminWithdrawalsRoutes);
 rootRouter.use("/admin", payoutsRoutes);
 rootRouter.use("/admin", refundsRoutes);
 rootRouter.use("/admin", auditRoutes);
@@ -198,6 +213,7 @@ rootRouter.use("/admin", adminRoutes);
 // ---- Catalog & Public ----
 rootRouter.use(catalogRoutes);
 rootRouter.use("/banners", publicMarketingRoutes);
+rootRouter.use("/site-settings", publicSettingsRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
 rootRouter.use(leadsRoutes);

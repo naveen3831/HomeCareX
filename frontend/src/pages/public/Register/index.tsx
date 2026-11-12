@@ -13,14 +13,9 @@ const PHONE_RE = /^[6-9]\d{9}$/;
 export const RegisterPage: React.FC = () => {
   const { register, user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  // A friend's invite link is /register?ref=CODE: prefill the referral code from it.
   const [searchParams] = useSearchParams();
-
-  const refFromUrl = (
-    searchParams.get('ref') ||
-    searchParams.get('referralCode') ||
-    searchParams.get('code') ||
-    ''
-  ).trim().toUpperCase();
+  const invitedBy = (searchParams.get('ref') ?? '').trim().toUpperCase().slice(0, 30);
 
   const [form, setForm] = useState({
     name: '',
@@ -28,7 +23,7 @@ export const RegisterPage: React.FC = () => {
     phone: '',
     password: '',
     confirmPassword: '',
-    referralCode: refFromUrl,
+    referralCode: invitedBy,
   });
 
   useEffect(() => {

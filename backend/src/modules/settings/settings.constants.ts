@@ -24,9 +24,15 @@ export const SETTING_DEFAULTS = {
   /** Shown on invoices, emails and the customer app. */
   'business.name': { value: 'HomeCareX', description: 'Public business name' },
   'business.address': { value: '', description: 'Registered business address (printed on invoices)' },
+  'business.country': { value: 'India', description: 'Country shown in the website footer' },
   'support.email': { value: 'support@homecarex.in', description: 'Support email shown to customers and partners' },
   'support.phone': { value: '', description: 'Support phone number shown to customers and partners' },
   'support.hours': { value: '9 AM - 8 PM, all days', description: 'Support hours shown to customers' },
+  /** Follow-us links in the website footer. An empty link hides that icon. */
+  'social.facebook': { value: 'https://www.facebook.com/', description: 'Facebook page link shown in the website footer' },
+  'social.instagram': { value: 'https://www.instagram.com/', description: 'Instagram profile link shown in the website footer' },
+  'social.x': { value: 'https://x.com/', description: 'X (Twitter) profile link shown in the website footer' },
+  'social.linkedin': { value: 'https://www.linkedin.com/', description: 'LinkedIn page link shown in the website footer' },
   /** Admin bell alerts. SOS alerts are never switched off. */
   'notifications.adminBookingAlerts': { value: true, description: 'Notify admins when a booking is created' },
   'notifications.adminTicketAlerts': { value: true, description: 'Notify admins when a support ticket is raised or gets a reply' },
@@ -48,6 +54,7 @@ export const SETTING_SECTION_IDS = [
   'tax',
   'cancellation',
   'support',
+  'social',
   'booking',
   'slots',
   'notifications',
@@ -55,11 +62,12 @@ export const SETTING_SECTION_IDS = [
 export type SettingSectionId = (typeof SETTING_SECTION_IDS)[number];
 
 export const SETTING_SECTION_LABELS: Record<SettingSectionId, { label: string; description: string }> = {
-  business: { label: 'Business', description: 'Name and address used across the platform.' },
+  business: { label: 'Business', description: 'Name, address and country used across the platform.' },
   pricing: { label: 'Pricing', description: 'Platform commission on completed jobs.' },
   tax: { label: 'Tax', description: 'Tax charged on bookings.' },
   cancellation: { label: 'Cancellation', description: 'Free-cancellation window and the fee after it.' },
-  support: { label: 'Support', description: 'How customers and partners reach you.' },
+  support: { label: 'Support', description: 'How customers and partners reach you. Phone, email and hours also show in the website footer.' },
+  social: { label: 'Social links', description: 'Follow-us links in the website footer. Leave one empty to hide it.' },
   booking: { label: 'Booking', description: 'Where bookings are accepted.' },
   slots: { label: 'Slots', description: 'How many bookings one time slot can hold.' },
   notifications: { label: 'Notifications', description: 'Which events alert admins in the bell.' },
@@ -79,7 +87,7 @@ export interface SettingMeta {
   /** string: an empty value is allowed */
   optional?: boolean;
   /** string / list items: format rule, with the message shown when it fails */
-  format?: 'email' | 'phone' | 'pincode';
+  format?: 'email' | 'phone' | 'pincode' | 'url';
   /** Unit shown next to a number, e.g. '%', 'hours', 'INR'. */
   unit?: string;
 }
@@ -87,6 +95,7 @@ export interface SettingMeta {
 export const SETTING_META: Record<SettingKey, SettingMeta> = {
   'business.name': { section: 'business', label: 'Business name', type: 'string', maxLength: 80 },
   'business.address': { section: 'business', label: 'Business address', type: 'string', maxLength: 200, optional: true },
+  'business.country': { section: 'business', label: 'Country', type: 'string', maxLength: 60 },
   'commission.percent': { section: 'pricing', label: 'Platform commission', type: 'number', min: 0, max: 100, unit: '%' },
   'tax.gstPercent': { section: 'tax', label: 'GST', type: 'number', min: 0, max: 100, unit: '%' },
   'cancellation.windowHours': { section: 'cancellation', label: 'Free-cancellation window', type: 'integer', min: 0, max: 168, unit: 'hours' },
@@ -94,6 +103,10 @@ export const SETTING_META: Record<SettingKey, SettingMeta> = {
   'support.email': { section: 'support', label: 'Support email', type: 'string', maxLength: 120, format: 'email' },
   'support.phone': { section: 'support', label: 'Support phone', type: 'string', maxLength: 20, format: 'phone', optional: true },
   'support.hours': { section: 'support', label: 'Support hours', type: 'string', maxLength: 80 },
+  'social.facebook': { section: 'social', label: 'Facebook', type: 'string', maxLength: 200, format: 'url', optional: true },
+  'social.instagram': { section: 'social', label: 'Instagram', type: 'string', maxLength: 200, format: 'url', optional: true },
+  'social.x': { section: 'social', label: 'X (Twitter)', type: 'string', maxLength: 200, format: 'url', optional: true },
+  'social.linkedin': { section: 'social', label: 'LinkedIn', type: 'string', maxLength: 200, format: 'url', optional: true },
   'serviceability.pincodes': { section: 'booking', label: 'Serviceable pincodes', type: 'list', format: 'pincode' },
   'slots.capacityPerSlot': { section: 'slots', label: 'Bookings per slot', type: 'integer', min: 1, max: 50 },
   'notifications.adminBookingAlerts': { section: 'notifications', label: 'New booking alerts', type: 'boolean' },

@@ -1,4 +1,3 @@
-
 import { Types } from 'mongoose';
 import PartnerModel from '../../models/Partner';
 import PayoutModel from '../../models/Payout';
@@ -43,7 +42,7 @@ const alreadyExists = () =>
 
 /**
  * Confirming a payout is what puts the money in the wallets:
- *  - partner wallet: the payout's earnings move pending -> settled, so the total becomes available balance
+ *  - partner wallet: the payout's earnings move pending -> settled, then the net amount is debited (paid out to the bank)
  *  - admin wallet:   commission (+) and the partner payout (-) are recorded
  * Both steps are idempotent, so a retry after an interrupted confirm is safe.
  */
@@ -73,15 +72,39 @@ async function applyWalletsForConfirmedPayout(
 
   await partnerWalletLedger.settleEarnings(earningIds);
 
-  if (payout.batchId) {
-    await adminWalletLedger.recordPayoutConfirmed({
+  // The net amount leaves the partner wallet (it is now with the partner's bank / UPI). Idempotent per payout.
+  if (payout.partnerId) {
+    await partnerWalletLedger.debitPayout({
+      partnerId: String(payout.partnerId),
       payoutId: String(payout._id),
-      batchId: String(payout.batchId),
-      partnerId: payout.partnerId ? String(payout.partnerId) : undefined,
-      commission: payout.commission ?? 0,
-      net: payout.amount,
-      confirmedBy: adminId,
+      amount: payout.amount,
     });
+  }
+
+  if (payout.batchId) {
+    // Earnings cleared when the job was paid (settlementChannel set) already put their commission and the partner
+    // credit in the admin wallet. Record only the rest here, or the admin wallet would count them twice.
+    let commission = payout.commission ?? 0;
+    let net = payout.amount;
+    if (earningIds.length) {
+      const rows = await EarningModel.find({ _id: { $in: earningIds } })
+        .select('commission net settlementChannel')
+        .lean();
+      const notYetRecorded = rows.filter((row) => !row.settlementChannel);
+      commission = round2(notYetRecorded.reduce((sum, row) => sum + row.commission, 0));
+      net = round2(notYetRecorded.reduce((sum, row) => sum + row.net, 0));
+    }
+
+    if (commission > 0 || net > 0) {
+      await adminWalletLedger.recordPayoutConfirmed({
+        payoutId: String(payout._id),
+        batchId: String(payout.batchId),
+        partnerId: payout.partnerId ? String(payout.partnerId) : undefined,
+        commission,
+        net,
+        confirmedBy: adminId,
+      });
+    }
   }
 }
 
@@ -119,35 +142,40 @@ export const payoutsRepository: PayoutsRepository = {
     const batchId = new Types.ObjectId();
     const now = new Date();
 
+    // Two kinds of earning wait for a payout:
+    //  - pending: not cleared yet (older flow)
+    //  - settled with no batch: cleared the moment the job was completed and paid (online / QR). These were
+    //    invisible to batches before. Cash-on-service jobs are excluded: the partner already holds that money.
     const candidates = await EarningModel.find({
-      status: 'pending',
       payoutBatchId: null,
       earnedAt: {
         $gte: periodStart,
         $lt: periodEnd,
       },
+      $or: [
+        { status: 'pending' },
+        { status: 'settled', settlementChannel: { $ne: 'cod_cash' } },
+      ],
     })
-      .select('_id')
+      .select('_id status')
       .lean();
 
     if (!candidates.length) {
       throw noEarnings();
     }
 
+    const pendingIds = candidates.filter((c) => c.status === 'pending').map((c) => c._id);
+    const clearedIds = candidates.filter((c) => c.status !== 'pending').map((c) => c._id);
+
     // Claim eligible earnings so they cannot be included in another batch.
+    // Already-cleared earnings keep their original settledAt; only the batch link is added.
     await EarningModel.updateMany(
-      {
-        _id: { $in: candidates.map((candidate) => candidate._id) },
-        status: 'pending',
-        payoutBatchId: null,
-      },
-      {
-        $set: {
-          status: 'settled',
-          settledAt: now,
-          payoutBatchId: batchId,
-        },
-      },
+      { _id: { $in: pendingIds }, status: 'pending', payoutBatchId: null },
+      { $set: { status: 'settled', settledAt: now, payoutBatchId: batchId } },
+    );
+    await EarningModel.updateMany(
+      { _id: { $in: clearedIds }, status: 'settled', payoutBatchId: null },
+      { $set: { payoutBatchId: batchId } },
     );
 
     const claimed = await EarningModel.find({
@@ -159,8 +187,6 @@ export const payoutsRepository: PayoutsRepository = {
     if (!claimed.length) {
       throw noEarnings();
     }
-
-    const earningIds = claimed.map((earning) => String(earning._id));
 
     try {
       const groups = groupEarningsByPartner(
@@ -255,19 +281,19 @@ export const payoutsRepository: PayoutsRepository = {
         _id: batchId,
       }).catch(() => undefined);
 
+      // Only earnings that were pending go back to pending; already-cleared ones just lose the batch link.
       await partnerWalletLedger
-        .unsettleEarnings(earningIds)
+        .unsettleEarnings(pendingIds.map(String))
         .catch(() => undefined);
 
       await EarningModel.updateMany(
-        { payoutBatchId: batchId },
-        {
-          $set: {
-            status: 'pending',
-            settledAt: null,
-            payoutBatchId: null,
-          },
-        },
+        { _id: { $in: pendingIds }, payoutBatchId: batchId },
+        { $set: { status: 'pending', settledAt: null, payoutBatchId: null } },
+      ).catch(() => undefined);
+
+      await EarningModel.updateMany(
+        { _id: { $in: clearedIds }, payoutBatchId: batchId },
+        { $set: { payoutBatchId: null } },
       ).catch(() => undefined);
 
       if (isDuplicateKeyError(error)) {
@@ -281,6 +307,39 @@ export const payoutsRepository: PayoutsRepository = {
   /**
    * Lists payout batches with pagination and an optional status filter.
    */
+  async summary() {
+    const rows = await PayoutBatchModel.aggregate<{
+      _id: string;
+      count: number;
+      gross: number;
+      commission: number;
+      net: number;
+    }>([
+      { $match: { status: { $ne: 'failed' } } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+          gross: { $sum: '$gross' },
+          commission: { $sum: '$commission' },
+          net: { $sum: '$net' },
+        },
+      },
+    ]);
+
+    const sum = (pick: (row: (typeof rows)[number]) => number, only?: string[]): number =>
+      round2(rows.filter((row) => !only || only.includes(row._id)).reduce((total, row) => total + pick(row), 0));
+
+    return {
+      batches: sum((row) => row.count),
+      gross: sum((row) => row.gross),
+      commission: sum((row) => row.commission),
+      net: sum((row) => row.net),
+      paid: sum((row) => row.net, ['completed']),
+      awaiting: sum((row) => row.net, ['pending', 'processing']),
+    };
+  },
+
   async listBatches({ page = 1, limit = 20, status }) {
     const safePage =
       Number.isInteger(page) && page > 0 ? page : 1;

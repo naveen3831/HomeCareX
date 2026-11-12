@@ -8,7 +8,7 @@ import type { SosAlertDto, TriggerSosResultDto } from "./sos.types";
 import type { TriggerSosBody } from "./sos.validation";
 
 /** A second press inside this window returns the first alert instead of paging the admins again. */
-export const SOS_DEDUPE_WINDOW_MS = 60_000;
+export const SOS_DEDUPE_WINDOW_MS = 5_000; 
 
 export const SOS_EVENT = "partner:sos";
 

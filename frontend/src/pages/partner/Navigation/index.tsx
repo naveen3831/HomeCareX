@@ -74,7 +74,7 @@ const CALL_STATUSES = new Set([
 /* ============ TESTING ONLY ============
  * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
  * Set to false (or delete the 3 lines marked TEST) after testing. */
-const TEST_MOVE_TO_CUSTOMER = true;
+const TEST_MOVE_TO_CUSTOMER = false;
 /* ====================================== */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
@@ -279,6 +279,50 @@ function NavigationContent({ id }: { id: string }) {
     ? "Your location and the customer location"
     : "Customer location unavailable";
 
+  // Opens Google Maps directions to the customer. No start point is passed, so Maps
+  // starts from the partner's present location. Also starts live location sharing.
+  const startNavigation = () => {
+    if (canShare) sharing.start();
+    else local.start();
+    window.open(
+      mapsDirectionsUrl(customer, addressText),
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
+  const runAction = async (status: string) => {
+    setActionError(null);
+
+    // "Arrived" only works when the partner is really at the customer's location.
+    if (status === "arrived" && customer) {
+      if (!partner) {
+        setActionError(
+          "Could not read your location yet. Turn on location and try again in a moment.",
+        );
+        return;
+      }
+      const metres = distanceKm(partner, customer) * 1000;
+      if (metres > ARRIVAL_RADIUS_M) {
+        setActionError(
+          "You are not at the customer's location. Please reach the customer location and try again.",
+        );
+        return;
+      }
+    }
+
+    setBusyAction(status);
+    try {
+      await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
+      if (status === "en_route") sharing.start(); // leaving for the job: the customer can now follow live
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Could not update the job status."));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const step = stepInfo(job.status);
   const initials =
     job.customer.name
@@ -388,6 +432,22 @@ function NavigationContent({ id }: { id: string }) {
               {actionError}
             </p>
           )}
+
+          {/* Primary status buttons the server allows right now (On the way / I have arrived) */}
+          {!finished &&
+            job.actions.map((a) => (
+              <button
+                key={a.status}
+                type="button"
+                className="nv-step"
+                onClick={() => void runAction(a.status)}
+                disabled={busyAction !== null || !online}
+                aria-busy={busyAction === a.status}
+              >
+                {busyAction === a.status ? "Please wait…" : a.label}
+              </button>
+            ))}
+
           {!canShare && job.status === "assigned" && (
             <p className="nav-hint">
               Tap “
@@ -395,6 +455,22 @@ function NavigationContent({ id }: { id: string }) {
               ” when you leave so the customer can follow you live.
             </p>
           )}
+
+          {/* Google Maps directions */}
+          {!finished && (
+            <button type="button" className="nv-go" onClick={startNavigation}>
+              <NavigationIcon size={18} aria-hidden="true" /> Open in Google Maps
+            </button>
+          )}
+
+          {/* Arrived: start code + photo. In progress: complete. Completed: payment. */}
+          <JobStepPanel
+            job={job}
+            online={online}
+            onChanged={() => setReloadKey((k) => k + 1)}
+          />
+        </section>
+      </div>
 
           {chatOpen && (
             <div

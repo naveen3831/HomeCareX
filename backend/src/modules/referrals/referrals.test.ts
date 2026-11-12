@@ -238,6 +238,7 @@ test("reward: with no configured reward the referral is completed but the wallet
 test("summary: a new customer gets a code and zeroed stats (empty state)", async () => {
   await withReward("5000", async () => {
     stub(referralsService, "code", async () => "HCXABCDEF1234");
+    stub(referralsService, "offers", async () => []);
     stub(ReferralModel, "aggregate", async () => []);
     stub(ReferralModel, "find", () => ({
       sort: () => ({

@@ -262,6 +262,16 @@ export const authService = {
       storedAddress = await saveKycDocument(input.addressProofDocument, 'Address proof');
     }
 
+    // A referral code (from a friend's invite link) must belong to a real customer; fail before creating the account.
+    const referralCode = input.referralCode?.trim();
+    let referrerId: string | undefined;
+    let referralProgramId: string | null = null;
+    if (referralCode && !isPartner && dbReady) {
+      const invite = await referralsService.resolveInvite(referralCode);
+      referrerId = invite.referrerId;
+      referralProgramId = invite.programId;
+    }
+
     const passwordHash = await bcrypt.hash(input.password, 12);
     const user = await authRepository.create({
       name: input.name,
@@ -274,16 +284,12 @@ export const authService = {
       avatar: input.avatar,
     });
 
-    // Attach referral if customer registered with a valid code
-    if (isCustomer && resolvedReferrerId && input.referralCode?.trim() && dbReady) {
+    // Link the new customer to the friend who referred them, so their first booking gets the referral discount.
+    if (referrerId && referralCode) {
       try {
-        await referralsService.attach(
-          String(user._id || user.id),
-          input.referralCode.trim(),
-          resolvedReferrerId,
-        );
-      } catch (attachErr) {
-        console.warn('[auth.service] Failed to attach referral:', attachErr);
+        await referralsService.attach(String(user._id || user.id), referralCode, referrerId, referralProgramId);
+      } catch (err) {
+        console.error('Failed to link referral during registration', err);
       }
     }
 

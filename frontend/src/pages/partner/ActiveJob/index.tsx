@@ -375,7 +375,7 @@ export const ActiveJobPage: React.FC = () => {
   const totalCount = job.checklist.length;
   const remainingItems = job.checklist.filter((c) => !c.done);
   const allDone = totalCount > 0 && doneCount === totalCount;
-  const checklistPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const checklistPct = totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
   const gate = getCompletionGate(job, nowMs);
 
   // Elapsed vs booked time
@@ -559,24 +559,25 @@ export const ActiveJobPage: React.FC = () => {
               </p>
             )}
 
-            <div className="aj-ref-cta-wrap">
-              <button
-                type="button"
-                onClick={() => {
-                  setCompleteError(null);
-                  setShowCompleteConfirm(true);
-                }}
-                disabled={completing || !online || !gate.canComplete}
-                className="aj-ref-complete-btn disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Complete job
-              </button>
-              {!gate.canComplete && (
-                <p className="mt-2 px-1 text-center text-xs font-semibold text-amber-700" role="status">
-                  {gate.message}
-                </p>
-              )}
-            </div>
+        {/* Bottom Primary Button: Complete job */}
+        <div className="aj-ref-cta-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              setCompleteError(null);
+              setShowCompleteConfirm(true);
+            }}
+            disabled={completing || !online || !gate.canComplete}
+            className="aj-ref-complete-btn disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Complete job
+          </button>
+          {!gate.canComplete && (
+            <p className="mt-2 px-1 text-center text-xs font-semibold text-amber-700" role="status">
+              {gate.message}
+            </p>
+          )}
+        </div>
 
             <Link to={`/partner/jobs/${job.id}`} className="aj-ws-secondary">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" /> View job details

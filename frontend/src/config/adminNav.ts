@@ -1,4 +1,3 @@
-
 import {
   Banknote,
   BarChart3,
@@ -21,6 +20,7 @@ import {
   ShieldCheck,
   Tag,
   Ticket,
+  Gift,
   UserCircle,
   Users,
   Wallet,
@@ -94,6 +94,12 @@ export const adminNavGroups: AdminNavGroup[] = [
         label: "Coupons",
         path: "/admin/coupons",
         icon: Ticket,
+        permission: "coupons:view",
+      },
+      {
+        label: "Referrals",
+        path: "/admin/referrals",
+        icon: Gift,
         permission: "coupons:view",
       },
       {

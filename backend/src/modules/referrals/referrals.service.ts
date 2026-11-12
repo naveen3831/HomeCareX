@@ -1,10 +1,14 @@
 import { randomBytes } from "node:crypto";
 import mongoose, { Types } from "mongoose";
-import { ReferralCodeModel, ReferralModel } from "./referrals.model";
+import { ReferralCodeModel, ReferralModel, ReferralOfferCodeModel } from "./referrals.model";
 import { UserModel } from "../../models/User";
 import BookingModel from "../../models/Booking";
 import { WalletLedgerModel, WalletModel } from "../../models/Wallet";
 import { HttpError } from "../auth/auth.types";
+import { referralProgramsService } from "./referral-programs.service";
+import { ReferralProgramModel } from "./referral-programs.model";
+import { CategoryModel } from "../../models/Category";
+import { ServiceModel } from "../../models/Service";
 
 const duplicate = (error: unknown) =>
   (error as { code?: number } | null)?.code === 11000;
@@ -48,6 +52,95 @@ export function referralCodeCandidate(
   if (attempt <= 4) return `${base}${attempt + 1}`;
   return `${base}${randomBytes(2).toString("hex").toUpperCase()}`;
 }
+/** Per-offer code: the customer's HCX code + the offer name, e.g. HCXVAISHNAV-WELCOME (suffix only on a clash). */
+export function offerCodeCandidate(
+  name: string | null | undefined,
+  programName: string | null | undefined,
+  attempt: number,
+): string {
+  let base = referralCodeBase(name);
+  if (base === CODE_PREFIX) base = `${CODE_PREFIX}${randomBytes(3).toString("hex").toUpperCase()}`;
+  const suffix =
+    (programName ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) || "OFFER";
+  const plain = `${base}-${suffix}`;
+  if (attempt === 0) return plain;
+  if (attempt <= 4) return `${plain}${attempt + 1}`;
+  return `${plain}${randomBytes(2).toString("hex").toUpperCase()}`;
+}
+
+/** The customer's own code for one offer; created on first use and then stable (renaming the offer keeps it). */
+async function offerCodeFor(userId: string, userName: string | null | undefined, programId: string, programName: string) {
+  const existing = await ReferralOfferCodeModel.findOne({ referrerId: userId, programId });
+  if (existing) return existing.code;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const row = await ReferralOfferCodeModel.create({
+        referrerId: userId,
+        programId,
+        code: offerCodeCandidate(userName, programName, attempt),
+      });
+      return row.code;
+    } catch (error) {
+      if (!duplicate(error)) throw error;
+      const concurrent = await ReferralOfferCodeModel.findOne({ referrerId: userId, programId });
+      if (concurrent) return concurrent.code;
+    }
+  }
+  throw new HttpError(503, "Could not generate your referral code. Please retry.", "REFERRAL_UNAVAILABLE");
+}
+
+/**
+ * Active, in-date referral offers (admin "Welcome friend" style programs) for the Referrals page,
+ * each with THIS customer's own code for that offer.
+ */
+async function activeOffers(userId: string) {
+  const now = new Date();
+  const rows = await ReferralProgramModel.find({
+    active: true,
+    $and: [
+      { $or: [{ startAt: null }, { startAt: { $lte: now } }] },
+      { $or: [{ endAt: null }, { endAt: { $gte: now } }] },
+    ],
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+  if (!rows.length) return [];
+  const categoryIds = rows.flatMap((r) => (r.categoryIds ?? []).map(String));
+  const serviceIds = rows.flatMap((r) => (r.serviceIds ?? []).map(String));
+  const [cats, svcs, user] = await Promise.all([
+    categoryIds.length
+      ? CategoryModel.find({ _id: { $in: categoryIds } }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>()
+      : [],
+    serviceIds.length
+      ? ServiceModel.find({ _id: { $in: serviceIds } }).select("name").lean<{ _id: Types.ObjectId; name: string }[]>()
+      : [],
+    UserModel.findById(userId).select("name").lean<{ name?: string | null }>(),
+  ]);
+  const catName = new Map(cats.map((c) => [String(c._id), c.name]));
+  const svcName = new Map(svcs.map((c) => [String(c._id), c.name]));
+  const out = [];
+  for (const r of rows) {
+    out.push({
+      id: String(r._id),
+      name: r.name,
+      code: await offerCodeFor(userId, user?.name, String(r._id), r.name),
+      scope: r.scope,
+      appliesTo:
+        r.scope === "ALL"
+          ? []
+          : (r.scope === "CATEGORY" ? r.categoryIds ?? [] : r.serviceIds ?? [])
+              .map((id) => (r.scope === "CATEGORY" ? catName : svcName).get(String(id)))
+              .filter((n): n is string => Boolean(n)),
+      discountType: r.discountType,
+      value: r.value,
+      maxDiscount: r.maxDiscount ?? null,
+      minOrder: r.minOrder ?? 0,
+      endAt: r.endAt ? r.endAt.toISOString() : null,
+    });
+  }
+  return out;
+}
+
 export const referralsService = {
   /** One code per customer: HCX + first name (e.g. HCXCHARAN); numbered/random suffix only on a clash. */
   async code(userId: string): Promise<string> {
@@ -98,13 +191,34 @@ export const referralsService = {
     }
     return String(match.referrerId);
   },
-  async attach(refereeId: string, code: string, referrerId: string) {
+  /** Offers (with this customer's own code per offer) shown on the Referrals page. */
+  offers(userId: string) {
+    return activeOffers(userId);
+  },
+  /**
+   * Who a sign-up code belongs to and which offer it carries. An offer code (HCXNAME-WELCOME) is tied to
+   * that offer; a plain customer code has programId null (the best offer then applies at booking time).
+   */
+  async resolveInvite(code: string): Promise<{ referrerId: string; programId: string | null }> {
+    const offer = await ReferralOfferCodeModel.findOne({ code: code.trim().toUpperCase() });
+    if (!offer) return { referrerId: await referralsService.resolve(code), programId: null };
+    const [referrerOk, program] = await Promise.all([
+      UserModel.exists({ _id: offer.referrerId, role: "customer", status: "active" }),
+      ReferralProgramModel.findById(offer.programId).lean<{ active?: boolean; endAt?: Date | null }>(),
+    ]);
+    if (!referrerOk) throw new HttpError(400, "This referral code is not valid.", "INVALID_REFERRAL");
+    if (!program || !program.active || (program.endAt && program.endAt < new Date()))
+      throw new HttpError(400, "This referral offer is no longer available.", "REFERRAL_OFFER_ENDED");
+    return { referrerId: String(offer.referrerId), programId: String(offer.programId) };
+  },
+  async attach(refereeId: string, code: string, referrerId: string, programId?: string | null) {
     assertNotSelfReferral(referrerId, refereeId);
     try {
       await ReferralModel.create({
         refereeId,
         referrerId,
         code: code.trim().toUpperCase(),
+        ...(programId ? { programId } : {}),
       });
     } catch (error) {
       if (!duplicate(error)) throw error;
@@ -126,7 +240,7 @@ export const referralsService = {
 
     const code = await referralsService.code(userId);
     const filter = { referrerId: new Types.ObjectId(userId) };
-    const [totals, entries, total, referredByDoc] = await Promise.all([
+    const [totals, entries, total, offers] = await Promise.all([
       ReferralModel.aggregate<{
         invited: number;
         completed: number;
@@ -157,9 +271,7 @@ export const referralsService = {
         .populate("refereeId", "name email phone avatar")
         .lean(),
       ReferralModel.countDocuments(filter),
-      ReferralModel.findOne({ refereeId: new Types.ObjectId(userId) })
-        .populate("referrerId", "name avatar")
-        .lean(),
+      referralsService.offers(userId),
     ]);
 
     const rewardPerReferralPaise = configuredRewardPaise();
@@ -225,6 +337,7 @@ export const referralsService = {
         };
       }),
       meta: { page, pages: Math.max(1, Math.ceil(total / 10)), total },
+      offers,
     };
   },
   /** Database transaction + unique wallet reference: retries and concurrent bookings cannot double-credit. */
@@ -319,6 +432,46 @@ export const referralsService = {
         );
       }
     });
+  },
+  /**
+   * Discount on a referred customer's FIRST booking. null when the customer was not referred, already
+   * has a real booking, or no active referral program covers this service.
+   * Abandoned (pending_payment) and cancelled bookings do not count, so the offer is not lost.
+   */
+  async refereeDiscount(userId: string, serviceId: string, orderValue: number) {
+    if (!Types.ObjectId.isValid(userId)) return null;
+    const referral = await ReferralModel.findOne({ refereeId: userId }).select("_id discountBookingId programId").lean();
+    if (!referral) return null;
+    const hadBooking = await BookingModel.exists({
+      customerId: userId,
+      status: {
+        $nin: [
+          "pending_payment",
+          "cancelled_by_customer",
+          "cancelled_by_partner",
+          "cancelled_by_admin",
+          "no_show",
+        ],
+      },
+    });
+    if (hadBooking) return null;
+    // Signed up with a specific offer's code: only that offer can apply. Generic code: best offer wins.
+    if (referral.programId)
+      return referralProgramsService.forProgram(String(referral.programId), serviceId, orderValue);
+    return referralProgramsService.bestFor(serviceId, orderValue);
+  },
+  /** Called after the booking is created: remembers which program gave the discount. */
+  async recordRefereeDiscount(
+    userId: string,
+    bookingId: string,
+    programId: string,
+    amount: number,
+  ) {
+    await ReferralModel.updateOne(
+      { refereeId: userId },
+      { $set: { discountBookingId: bookingId, discountProgramId: programId, discountAmount: amount } },
+    );
+    await ReferralProgramModel.updateOne({ _id: programId }, { $inc: { usedCount: 1 } });
   },
   async reconcile() {
     try {

@@ -96,6 +96,7 @@ export class AddressesRepository {
   findNewest(customerId: string, session?: AddressSession): Promise<IAddress | null> {
     return AddressModel.findOne(ownerFilter(customerId))
       .sort({ createdAt: -1, _id: -1 })
+      .read('primary')
       .session(session ?? null)
       .lean<IAddress>()
       .exec();
