@@ -5,19 +5,34 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { LifeBuoy, MapPin, MessageCircle, X } from "lucide-react";
+import {
+  LifeBuoy,
+  MapPin,
+  MessageCircle,
+  Navigation as NavigationIcon,
+  X,
+} from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import LiveMap from "@/components/partner/LiveMap";
 import MaskedCallButton from "@/components/MaskedCallButton";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { getErrorMessage, getHttpStatus } from "../JobDetails/jobDetails.api";
+import {
+  getErrorMessage,
+  getHttpStatus,
+  updateBookingStatus,
+} from "../JobDetails/jobDetails.api";
 import type { ApiJob } from "../JobDetails/jobDetails.types";
 import { useLocationSharing } from "../LocationSharing/useLocationSharing";
 import { isBookingId } from "./bookingId";
+import { distanceKm, mapsDirectionsUrl } from "./geo";
 import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
+import JobStepPanel from "./components/JobStepPanel";
 import "./navigation.css";
 import "./navigationApp.css";
+
+/** How close (in metres) the partner must be to the customer to mark "arrived". Adjust to your rule. */
+const ARRIVAL_RADIUS_M = 200;
 
 function DemoJobNotice() {
   const go = useNavigate();
@@ -74,7 +89,7 @@ const CALL_STATUSES = new Set([
 /* ============ TESTING ONLY ============
  * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
  * Set to false (or delete the 3 lines marked TEST) after testing. */
-const TEST_MOVE_TO_CUSTOMER = false;
+const TEST_MOVE_TO_CUSTOMER = true;
 /* ====================================== */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
@@ -117,7 +132,8 @@ function NavigationContent({ id }: { id: string }) {
   const [state, setState] = useState<LoadState>("loading");
   const [message, setMessage] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
-  const [actionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
 
   // ?panel=chat / ?panel=call come from the buttons on the Job Requests card.
   const [params] = useSearchParams();
@@ -285,7 +301,7 @@ function NavigationContent({ id }: { id: string }) {
     if (canShare) sharing.start();
     else local.start();
     window.open(
-      mapsDirectionsUrl(customer, addressText),
+      mapsDirectionsUrl(customer ?? null, addressText),
       "_blank",
       "noopener,noreferrer",
     );
@@ -313,7 +329,10 @@ function NavigationContent({ id }: { id: string }) {
 
     setBusyAction(status);
     try {
-      await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
+      await updateBookingStatus(
+        id,
+        status as Parameters<typeof updateBookingStatus>[1],
+      );
       if (status === "en_route") sharing.start(); // leaving for the job: the customer can now follow live
       setReloadKey((k) => k + 1);
     } catch (err) {
@@ -472,38 +491,36 @@ function NavigationContent({ id }: { id: string }) {
         </section>
       </div>
 
-          {chatOpen && (
-            <div
-              className="nv-overlay"
-              role="presentation"
-              onClick={() => setChatOpen(false)}
-            >
-              <div
-                className="nv-sheet"
-                role="dialog"
-                aria-modal="true"
-                aria-label="Chat with customer"
-                onClick={(e) => e.stopPropagation()}
+      {chatOpen && (
+        <div
+          className="nv-overlay"
+          role="presentation"
+          onClick={() => setChatOpen(false)}
+        >
+          <div
+            className="nv-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chat with customer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="nv-sheet-bar">
+              <strong>Chat</strong>
+              <button
+                type="button"
+                className="nv-sheet-close"
+                onClick={() => setChatOpen(false)}
+                aria-label="Close chat"
               >
-                <div className="nv-sheet-bar">
-                  <strong>Chat</strong>
-                  <button
-                    type="button"
-                    className="nv-sheet-close"
-                    onClick={() => setChatOpen(false)}
-                    aria-label="Close chat"
-                  >
-                    <X size={20} aria-hidden="true" />
-                  </button>
-                </div>
-                <div className="nv-sheet-body">
-                  <ChatPanel bookingId={id} viewerRole="partner" />
-                </div>
-              </div>
+                <X size={20} aria-hidden="true" />
+              </button>
             </div>
-          )}
-        </section>
-      </div>
+            <div className="nv-sheet-body">
+              <ChatPanel bookingId={id} viewerRole="partner" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
