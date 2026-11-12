@@ -4,7 +4,7 @@ import { Check, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { CustomerNotification } from "@/services/notificationApi";
-import { GROUP_META, bookingHref, describeNotification, fullDate, notificationTargets, reviewHref, ticketHref, timeAgo } from "../notificationModel";
+import { GROUP_META, describeNotification, fullDate, notificationTargets, reviewHref, ticketHref, timeAgo } from "../notificationModel";
 
 interface Props {
   notification: CustomerNotification;
@@ -144,16 +144,11 @@ export function NotificationItem({ notification: n, onMarkRead, onDelete, markin
         <p className="mt-0.5 break-words text-sm text-muted">{message}</p>
         <p className="mt-1 text-[11px] font-semibold uppercase tracking-wide text-muted/80">{meta.label}</p>
 
-        {(bookingId || ticketId || unread) && (
+        {((n.type === "booking.completed" && bookingId) || ticketId || unread) && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {n.type === "booking.completed" && bookingId && (
               <Link to={reviewHref(bookingId)} onClick={markOnOpen} className={ACTION_PRIMARY}>
                 Rate service
-              </Link>
-            )}
-            {bookingId && (
-              <Link to={bookingHref(bookingId)} onClick={markOnOpen} className={ACTION}>
-                Open booking
               </Link>
             )}
             {ticketId && (

@@ -74,7 +74,10 @@ export default function RescheduleDialog({
         onSuccess: () => setStep("done"),
         // The slot filled up while the customer was deciding: send them back to pick another.
         onError: (err) => {
-          if (err.status === 409) {
+          if (
+            err.status === 409 &&
+            (err.code === "SLOT_UNAVAILABLE" || err.code === "SLOT_TAKEN")
+          ) {
             setSlot(null);
             setStep("slot");
           }
@@ -142,11 +145,15 @@ export default function RescheduleDialog({
         <p className="text-sm text-muted">
           Choose a new time on {date ? formatWhen(date, "", true) : "the day you picked"}.
         </p>
-        {reschedule.isError && reschedule.error.status === 409 && (
-          <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-            {reschedule.error.message} Please pick another slot.
-          </p>
-        )}
+        {reschedule.isError &&
+          (reschedule.error.code === "SLOT_UNAVAILABLE" ||
+            reschedule.error.code === "SLOT_TAKEN") && (
+            <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              {reschedule.error.message.endsWith(".")
+                ? `${reschedule.error.message} Please pick another slot.`
+                : `${reschedule.error.message}. Please pick another slot.`}
+            </p>
+          )}
         {slotsView}
       </div>
     );
@@ -168,11 +175,13 @@ export default function RescheduleDialog({
         <p className="text-xs text-muted">
           We check the slot is still free when you confirm. If it was just taken, we'll ask you to pick another.
         </p>
-        {reschedule.isError && reschedule.error.status !== 409 && (
-          <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
-            {reschedule.error.message}
-          </p>
-        )}
+        {reschedule.isError &&
+          reschedule.error.code !== "SLOT_UNAVAILABLE" &&
+          reschedule.error.code !== "SLOT_TAKEN" && (
+            <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              {reschedule.error.message}
+            </p>
+          )}
         {!online && (
           <p role="status" className="text-sm text-muted">
             You're offline. Reconnect to confirm.

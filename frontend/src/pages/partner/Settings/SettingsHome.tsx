@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Bell, ChevronRight, Globe, LogOut, MapPin, Shield } from 'lucide-react';
+import { Bell, ChevronRight, Globe, LogOut, MapPin, Shield, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useT } from '@/i18n/LanguageContext';
 import { SETTINGS_HOME } from './paths';
@@ -20,6 +20,7 @@ function useIsMobile() {
 }
 
 const ITEMS = [
+  { id: 'account', label: 'Account', hint: 'Your details and account pages', icon: User },
   { id: 'notifications', label: 'Notifications', hint: 'Push, SMS and email', icon: Bell },
   { id: 'privacy', label: 'Privacy', hint: 'Location and customer contact', icon: MapPin },
   { id: 'security', label: 'Security', hint: 'Login alerts and sessions', icon: Shield },

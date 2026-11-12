@@ -7,7 +7,7 @@ import './ServiceAreaTicker.css';
 
 /**
  * One small line for the mobile top bar, right under the HomeCareX name.
- * Shows the partner's service area, e.g. "Vijayawada, Guntur · 24 km". When the text is longer than the space,
+ * Shows the partner's service area, e.g. "Rekulakunta · 3 km" (the base location from the map; cities only if no base location name is saved). When the text is longer than the space,
  * it slides sideways back and forth so all of it can be read. Tapping opens the Service area page.
  */
 export default function ServiceAreaTicker({ className = '' }: { className?: string }) {
@@ -17,7 +17,12 @@ export default function ServiceAreaTicker({ className = '' }: { className?: stri
     staleTime: 60_000,
   });
 
-  const places = Array.from(new Set([...(data?.cities ?? []), ...(data?.areas ?? [])])).slice(0, 8);
+  // Show the place the partner set on the map (the base location), the same name the Service area map card shows.
+  // Cities and areas are a separate list, so they are used only when no base location name is saved yet.
+  const base = data?.baseLocation?.label?.trim();
+  const places = base
+    ? [base]
+    : Array.from(new Set([...(data?.cities ?? []), ...(data?.areas ?? [])])).slice(0, 8);
   const text = isPending
     ? 'Loading service area…'
     : data?.configured && places.length

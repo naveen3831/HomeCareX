@@ -1,3 +1,7 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { fetchReviews } from '../Reviews/reviews.api';
+import type { PartnerReview } from '../Reviews/reviews.types';
 import { TARGETS, meetsTarget, type Tip } from './performance.tips';
 import type { MetricKey, PerformanceSummary, TrendPoint } from './performance.types';
 import './performance.mobile.css';
@@ -39,6 +43,59 @@ function changeSince(points: TrendPoint[], key: RateKey): { diff: number; since:
   const last = known[known.length - 1];
   const prev = known[known.length - 2];
   return { diff: (last[key] as number) - (prev[key] as number), since: monthName(prev.period) };
+}
+
+const STAR_GLYPHS = '\u2605\u2605\u2605\u2605\u2605';
+
+const shortDate = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
+type ReviewsState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; items: PartnerReview[] };
+
+/** The three newest customer reviews, shown under the numbers. */
+function RecentReviews() {
+  const [state, setState] = useState<ReviewsState>({ status: 'loading' });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchReviews(1, 3, controller.signal)
+      .then((page) => setState({ status: 'ready', items: page.reviews }))
+      .catch(() => {
+        if (!controller.signal.aborted) setState({ status: 'error' });
+      });
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <section aria-labelledby="pm-reviews-title">
+      <div className="pm-sec-head">
+        <h2 id="pm-reviews-title" className="pm-title">Customer reviews</h2>
+        <Link to="/partner/reviews" className="pm-link">See all</Link>
+      </div>
+      {state.status === 'loading' && <p className="pm-note" role="status">Loading reviews</p>}
+      {state.status === 'error' && <p className="pm-note">Could not load reviews right now.</p>}
+      {state.status === 'ready' && state.items.length === 0 && <p className="pm-note">No reviews yet. They appear after customers rate your jobs.</p>}
+      {state.status === 'ready' && state.items.length > 0 && (
+        <ul className="pm-rv-list">
+          {state.items.map((r) => (
+            <li key={r.id} className="pm-rv">
+              <div className="pm-rv-top">
+                <span className="pm-rv-name">{r.customer}</span>
+                <span className="pm-rv-date">{shortDate(r.createdAt)}</span>
+              </div>
+              <span className="pm-stars pm-stars-sm" role="img" aria-label={`${r.customer} rated ${r.rating} out of 5`}>
+                <span className="pm-stars-bg" aria-hidden="true">{STAR_GLYPHS}</span>
+                <span className="pm-stars-fg" aria-hidden="true" style={{ width: `${Math.max(0, Math.min(100, (r.rating / 5) * 100))}%` }}>{STAR_GLYPHS}</span>
+              </span>
+              <p className="pm-rv-text">{r.comment || 'No written comment.'}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 export default function PerformanceMobile({ summary, points }: Props) {
@@ -107,6 +164,8 @@ export default function PerformanceMobile({ summary, points }: Props) {
           })}
         </ul>
       </section>
+
+      <RecentReviews />
     </div>
   );
 }

@@ -3,3 +3,4 @@ export { default as PaymentResult } from "./PaymentResult";
 export { default as LedgerTable } from "./LedgerTable";
 export { default as StatusPill } from "./StatusPill";
 export { default as ReceiptDialog } from "./ReceiptDialog";
+export { default as ExportPaymentsMenu } from "./ExportPaymentsMenu";

@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 
 import { authMiddleware } from "../middleware/auth.middleware";
@@ -77,6 +78,11 @@ import {
 import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.routes";
 import { partnerOnboardingRoutes } from "../modules/partner-onboarding/partner-onboarding.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
+import {
+  adminWithdrawalsRoutes,
+  partnerBankAccountsRoutes,
+  partnerWithdrawalsRoutes,
+} from "../modules/partner-withdrawals/partner-withdrawals.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
 import { partnerReviewsRoutes } from "../modules/partner-reviews/partner-reviews.routes";
@@ -92,7 +98,9 @@ import {
 } from "../modules/partner-wallet/partner-wallet.routes";
 import { sosRoutes } from "../modules/sos/sos.routes";
 import { partnerKycRoutes } from "../modules/partners/partner-kyc.routes";
+import { adminSkillRequestsRoutes, partnerSkillsRoutes } from "../modules/partner-skills/partner-skills.routes";
 import { partnerDocumentsRoutes } from "../modules/partner-documents/partner-documents.routes";
+import { partnerProfileRoutes } from "../modules/partner-profile/partner-profile.routes";
 
 export const rootRouter = Router();
 
@@ -121,6 +129,14 @@ rootRouter.use(
 );
 
 rootRouter.use(
+  "/admin/skill-requests",
+  authMiddleware,
+  requireAdmin,
+  requireResourceAccess("partners"),
+  adminSkillRequestsRoutes,
+);
+
+rootRouter.use(
   "/admin/leads",
   authMiddleware,
   requireAdmin,
@@ -137,6 +153,7 @@ rootRouter.use(
 );
 
 rootRouter.use("/admin/payments", adminPaymentsRoutes);
+rootRouter.use("/admin/withdrawals", adminWithdrawalsRoutes);
 rootRouter.use("/admin/tickets", adminTicketsRoutes);
 rootRouter.use("/admin/ticket-assignees", adminStaffRoutes);
 
@@ -173,7 +190,7 @@ rootRouter.use(
 );
 
 rootRouter.use("/admin/pricing", adminPricingRoutes);
-
+rootRouter.use("/admin/incentives", incentivesRoutes);
 
 // B08: Reports & CSV exports.
 rootRouter.use(
@@ -233,14 +250,19 @@ rootRouter.use("/partner/earnings", authMiddleware, requireTrainingApproved, ear
 rootRouter.use("/partner/transactions", authMiddleware, requireTrainingApproved, partnerWalletRoutes);
 rootRouter.use("/partner/wallet", authMiddleware, requireTrainingApproved, partnerWalletSummaryRoutes);
 rootRouter.use("/partner/payouts", authMiddleware, requireTrainingApproved, partnerPayoutsRoutes);
+rootRouter.use("/partner/bank-accounts", authMiddleware, requireTrainingApproved, partnerBankAccountsRoutes);
 rootRouter.use("/partner/withdrawals", authMiddleware, requireTrainingApproved, partnerWithdrawalsRoutes);
 rootRouter.use("/partner/incentives", authMiddleware, requireTrainingApproved, incentivesRoutes);
+rootRouter.use("/partner/skills", authMiddleware, requireTrainingApproved, partnerSkillsRoutes);
 rootRouter.use("/partner/services", authMiddleware, requireTrainingApproved, partnerServicesRoutes);
 rootRouter.use("/partner/service-area", authMiddleware, requireTrainingApproved, partnerServiceAreaRoutes);
 rootRouter.use("/partner/performance", authMiddleware, requireTrainingApproved, partnerPerformanceRoutes);
 rootRouter.use("/partner/reviews", authMiddleware, requireTrainingApproved, partnerReviewsRoutes);
 rootRouter.use("/partner/support/tickets", partnerTicketsRoutes);
 rootRouter.use("/partner/settings", partnerSettingsRoutes);
+// Profile (name + phone + what the partner gave at joining). Like settings, it is not behind the training gate.
+// The router applies authenticate + requireRole("partner") + permissions itself.
+rootRouter.use("/partner/profile", partnerProfileRoutes);
 rootRouter.use("/partner/safety", sosRoutes);
 rootRouter.use("/partner/jobs", authMiddleware, requireTrainingApproved, partnerJobsRoutes);
 rootRouter.use("/partner/job-requests", authMiddleware, requireTrainingApproved, partnerJobRequestsRoutes);

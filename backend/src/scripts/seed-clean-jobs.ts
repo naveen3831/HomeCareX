@@ -1,8 +1,11 @@
 /**
- * Wipes every job / job request tied to the test partner and leaves EXACTLY ONE open request
- * (status searching_for_partner, pending offer to the partner, expires in 24h).
+ * Wipes every job / job request tied to the test partner and leaves EXACTLY TWO open requests
+ * (status searching_for_partner, pending offer to the partner, each expires in 24h).
  *
  *   npm run seed -- clean-jobs
+ *
+ * Two are needed on purpose: a tester can accept one and still has a second one left to reject
+ * ("Reject job" can never be tried if the only offer was already accepted).
  *
  * Needs partner@homecarex.com and customer@homecarex.com (npm run seed -- users). Dev / staging only.
  */
@@ -13,6 +16,40 @@ import { PartnerModel } from "../models/Partner";
 import { UserModel } from "../models/User";
 
 dotenv.config();
+
+const HOUR = 60 * 60 * 1000;
+
+/** The open requests to create. Add a row here to seed more. */
+const REQUESTS = [
+  {
+    key: "a",
+    serviceName: "Deep Home Cleaning",
+    address: {
+      line1: "Flat 402, Sai Residency, Road No. 3",
+      area: "Gachibowli",
+      city: "Hyderabad",
+      pincode: "500032",
+      coordinates: [78.3489, 17.4401],
+    },
+    startsInHours: 3,
+    total: 1499,
+    partnerEarning: 1200,
+  },
+  {
+    key: "b",
+    serviceName: "AC Service & Repair",
+    address: {
+      line1: "Plot 18, Lake View Colony, Road No. 12",
+      area: "Madhapur",
+      city: "Hyderabad",
+      pincode: "500081",
+      coordinates: [78.3915, 17.4483],
+    },
+    startsInHours: 5,
+    total: 899,
+    partnerEarning: 700,
+  },
+] as const;
 
 async function main() {
   if (process.env.NODE_ENV === "production")
@@ -39,36 +76,42 @@ async function main() {
   console.log(`Removed ${removed.deletedCount} partner jobs/requests`);
 
   const now = new Date();
-  const booking = await BookingModel.create({
-    customerId: customer._id,
-    idempotencyKey: `clean-jobs-request-${now.getTime()}`,
-    serviceName: "Deep Home Cleaning",
-    customerName: customer.name,
-    quantity: 1,
-    address: {
-      line1: "Flat 402, Sai Residency, Road No. 3",
-      area: "Gachibowli",
-      city: "Hyderabad",
-      pincode: "500032",
-      location: { type: "Point", coordinates: [78.3489, 17.4401] },
-    },
-    scheduledAt: new Date(now.getTime() + 3 * 60 * 60 * 1000),
-    priceBreakdown: { base: 1499, addOns: 0, surge: 0, discount: 0, convenienceFee: 0, tax: 0, total: 1499 },
-    partnerEarning: 1200,
-    status: "searching_for_partner",
-    paymentStatus: "PAID",
-    offers: [
-      {
-        partnerId: partner._id,
-        offeredAt: now,
-        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
-        response: "pending",
-      },
-    ],
-    statusHistory: [{ from: null, to: "searching_for_partner", at: now, actorRole: "system" }],
-  });
+  const created: string[] = [];
 
-  console.log(`Created 1 open request: ${booking._id}`);
+  for (const r of REQUESTS) {
+    const booking = await BookingModel.create({
+      customerId: customer._id,
+      idempotencyKey: `clean-jobs-request-${r.key}-${now.getTime()}`,
+      serviceName: r.serviceName,
+      customerName: customer.name,
+      quantity: 1,
+      address: {
+        line1: r.address.line1,
+        area: r.address.area,
+        city: r.address.city,
+        pincode: r.address.pincode,
+        location: { type: "Point", coordinates: [...r.address.coordinates] },
+      },
+      scheduledAt: new Date(now.getTime() + r.startsInHours * HOUR),
+      priceBreakdown: { base: r.total, addOns: 0, surge: 0, discount: 0, convenienceFee: 0, tax: 0, total: r.total },
+      partnerEarning: r.partnerEarning,
+      status: "searching_for_partner",
+      paymentStatus: "PAID",
+      offers: [
+        {
+          partnerId: partner._id,
+          offeredAt: now,
+          expiresAt: new Date(now.getTime() + 24 * HOUR),
+          response: "pending",
+        },
+      ],
+      statusHistory: [{ from: null, to: "searching_for_partner", at: now, actorRole: "system" }],
+    });
+    created.push(`${r.serviceName} (${booking._id})`);
+  }
+
+  console.log(`Created ${created.length} open requests:`);
+  for (const line of created) console.log(`  - ${line}`);
   await mongoose.disconnect();
 }
 

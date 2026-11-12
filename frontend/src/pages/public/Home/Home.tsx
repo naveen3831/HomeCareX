@@ -396,6 +396,7 @@ const SectionHead: React.FC<{ title: React.ReactNode; text?: string; eyebrow?: s
 
 const Home: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [hoveredStepIndex, setHoveredStepIndex] = useState<number | null>(null);
   const [processRef, processSeen] = useInView<HTMLDivElement>(0.3);
   const faqButtons = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -757,55 +758,86 @@ const Home: React.FC = () => {
             text="Four steps from request to a job well done."
           />
 
-          <div ref={processRef} className={`relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 ${processSeen ? "is-in" : ""}`}>
-            {/* Connecting progress track line on desktop */}
-            <div className="absolute left-[12.5%] right-[12.5%] top-16 hidden h-1 bg-gradient-to-r from-blue-200 via-indigo-200 to-orange-200 lg:block rounded-full opacity-60" aria-hidden="true">
-              <div className="hcx-line h-full w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-[#ff8a3d] rounded-full" />
-            </div>
+          <div ref={processRef} className={`relative grid grid-cols-4 gap-2 sm:gap-6 pt-2 ${processSeen ? "is-in" : ""}`}>
+            {/* Base Progress Track: strictly connects from center of Node 01 (12.5%) to center of Node 04 (87.5%) */}
+            <div
+              className="absolute left-[12.5%] right-[12.5%] top-[34px] sm:top-[38px] h-1 bg-slate-200 rounded-full z-0 block"
+              aria-hidden="true"
+            />
+
+            {/* Active Progress Line: bounded to 75% max width, never crosses or overshoots past step 4 */}
+            <div
+              className="absolute left-[12.5%] top-[34px] sm:top-[38px] h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-[#ff8a3d] rounded-full z-0 block transition-all duration-500 ease-out"
+              style={{
+                width:
+                  hoveredStepIndex !== null
+                    ? `${(hoveredStepIndex / 3) * 75}%`
+                    : processSeen
+                      ? "75%"
+                      : "25%",
+                maxWidth: "75%",
+              }}
+              aria-hidden="true"
+            />
 
             {steps.map((s, i) => {
               const stepPalette = [
                 {
-                  badge: "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.3)] ring-4 ring-blue-50",
-                  hoverBorder: "hover:border-blue-400/60",
+                  badge: "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-[0_8px_20px_rgba(37,99,235,0.3)] ring-4 sm:ring-8 ring-white",
                   number: "01",
                 },
                 {
-                  badge: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3)] ring-4 ring-indigo-50",
-                  hoverBorder: "hover:border-indigo-400/60",
+                  badge: "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3)] ring-4 sm:ring-8 ring-white",
                   number: "02",
                 },
                 {
-                  badge: "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(147,51,234,0.3)] ring-4 ring-purple-50",
-                  hoverBorder: "hover:border-purple-400/60",
+                  badge: "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-[0_8px_20px_rgba(147,51,234,0.3)] ring-4 sm:ring-8 ring-white",
                   number: "03",
                 },
                 {
-                  badge: "bg-gradient-to-br from-[#ff8a3d] to-[#f97316] text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] ring-4 ring-orange-50",
-                  hoverBorder: "hover:border-orange-400/60",
+                  badge: "bg-gradient-to-br from-[#ff8a3d] to-[#f97316] text-white shadow-[0_8px_20px_rgba(249,115,22,0.35)] ring-4 sm:ring-8 ring-white",
                   number: "04",
                 },
               ][i];
 
+              const isHovered = hoveredStepIndex === i;
+
               return (
-                <Reveal key={s.title} delay={i * 120} className="relative">
-                  <div className={`group relative flex h-full flex-col items-center text-center rounded-2xl bg-white p-6 sm:p-7 border border-slate-200/80 shadow-xs transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg ${stepPalette.hoverBorder}`}>
+                <Reveal key={s.title} delay={i * 120} className="relative z-10">
+                  <div
+                    className="group relative flex flex-col items-center text-center px-1 sm:px-4 py-1 sm:py-2 transition-transform duration-300 cursor-pointer"
+                    onMouseEnter={() => setHoveredStepIndex(i)}
+                    onMouseLeave={() => setHoveredStepIndex(null)}
+                    onClick={() => setHoveredStepIndex(hoveredStepIndex === i ? null : i)}
+                  >
                     {/* Vibrant Step Badge */}
                     <div
-                      className={`display relative z-10 flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-extrabold transition-transform duration-300 group-hover:scale-110 ${stepPalette.badge}`}
+                      className={`display relative z-10 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl text-base sm:text-lg font-extrabold transition-all duration-300 ${
+                        isHovered ? "scale-110 shadow-lg" : "group-hover:scale-105"
+                      } ${stepPalette.badge}`}
                     >
                       {stepPalette.number}
                     </div>
 
                     {/* Step Title */}
-                    <h3 className="mt-5 text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">
+                    <h3 className="mt-3 sm:mt-4 text-xs sm:text-base lg:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight sm:leading-snug">
                       {s.title}
                     </h3>
 
-                    {/* Step Description */}
-                    <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-500">
-                      {s.text}
-                    </p>
+                    {/* Step Description: revealed on hover or tap */}
+                    <div
+                      className={`grid transition-all duration-300 ease-out overflow-hidden ${
+                        isHovered
+                          ? "grid-rows-[1fr] opacity-100"
+                          : "grid-rows-[0fr] sm:group-hover:grid-rows-[1fr] opacity-0 sm:group-hover:opacity-100"
+                      }`}
+                    >
+                      <div className="overflow-hidden">
+                        <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-xs lg:text-sm leading-relaxed text-slate-500 max-w-[200px] mx-auto pt-0.5">
+                          {s.text}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </Reveal>
               );

@@ -39,20 +39,20 @@ export const shortDate = (ymd: string, withYear = false): string =>
 export const dateFromInstant = (iso: string): string =>
   new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: IST });
 
-export type PresetId = "week" | "month" | "30d" | "all";
+export type PresetId = "today" | "week" | "month" | "all";
 
 export const PRESETS: { id: PresetId; label: string }[] = [
+  { id: "today", label: "Today" },
   { id: "week", label: "This week" },
   { id: "month", label: "This month" },
-  { id: "30d", label: "Last 30 days" },
   { id: "all", label: "All time" },
 ];
 
 export function presetRange(id: PresetId, today = todayIst()): { from?: string; to?: string } {
   switch (id) {
+    case "today": return { from: today, to: today };
     case "week": return { from: mondayOf(today), to: today };
     case "month": return { from: firstOfMonth(today), to: today };
-    case "30d": return { from: addDays(today, -29), to: today };
     default: return {};
   }
 }
@@ -82,3 +82,17 @@ export const monthKey = (iso: string): string =>
 /** "2026-11" -> "November 2026". */
 export const monthLabel = (key: string): string =>
   new Date(`${key}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+
+/** ISO instant -> "2026-11-04" in India time. */
+export const dayKey = (iso: string): string => new Date(iso).toLocaleDateString("en-CA", { timeZone: IST });
+
+/** "Today", "Yesterday" or "3 Nov" for a "YYYY-MM-DD" key. */
+export function dayLabel(key: string, today = todayIst()): string {
+  if (key === today) return "Today";
+  if (key === addDays(today, -1)) return "Yesterday";
+  return shortDate(key, key.slice(0, 4) !== today.slice(0, 4));
+}
+
+/** ISO instant -> "4:30 pm" in India time. */
+export const timeFromInstant = (iso: string): string =>
+  new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: IST });

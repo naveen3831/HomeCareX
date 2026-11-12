@@ -52,7 +52,7 @@ const STAGE_META: Record<TrainingStatus['stage'], { label: string; tone: string;
  * Admin view of a partner’s training (the in-app demo): progress, each step, and the two decisions.
  * A partner who finished every step stays locked out until an admin approves.
  */
-export default function TrainingPanel({
+export default function TrainingApprovalCard({
   partnerId,
   canApprove,
   onChanged,
@@ -87,9 +87,15 @@ export default function TrainingPanel({
     setNotice('');
     try {
       const res = await http.post<ApiResponse<TrainingStatus>>(`${base(partnerId)}/${action}`);
-      setStatus(res.data.data);
+      const next = res.data.data;
+      setStatus(next);
+      const ok = action === 'approve' ? next.stage === 'approved' : next.completedSteps === 0;
+      if (!ok) {
+        setError('The server did not save the change. Please try again.');
+        return;
+      }
       setNotice(res.data.message ?? 'Done.');
-      setConfirmReset(false);
+      if (action === 'reset') setConfirmReset(false);
       onChanged?.();
     } catch (err) {
       setError(messageOf(err, 'Could not save. Try again.'));

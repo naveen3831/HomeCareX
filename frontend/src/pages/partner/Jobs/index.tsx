@@ -99,7 +99,8 @@ function JobCard({ job, onAccept, onReject, accepting, rejecting }: CardProps) {
   const seconds = useCountdown(job.expiresAt);
 
   const isRequest = job.status === "requested";
-  const expired = isRequest && seconds <= 0;
+  const hasDeadline = Boolean(job.expiresAt);
+  const expired = isRequest && hasDeadline && seconds <= 0;
   const busy = accepting || rejecting;
   const detailsPath = `/partner/jobs/${job.id}`;
 
@@ -118,7 +119,7 @@ function JobCard({ job, onAccept, onReject, accepting, rejecting }: CardProps) {
             className={expired ? "pj-timer pj-timer-expired" : "pj-timer"}
             role="timer"
           >
-            {expired ? "Expired" : formatClock(seconds)}
+            {!hasDeadline ? "Assigned to you" : expired ? "Expired" : formatClock(seconds)}
           </span>
         </div>
       )}

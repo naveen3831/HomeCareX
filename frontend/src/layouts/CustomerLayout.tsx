@@ -37,14 +37,32 @@ export default function CustomerLayout() {
       firstRender.current = false;
       return;
     }
-    mainRef.current?.focus({ preventScroll: true });
+    try {
+      if (typeof document !== "undefined" && (!document.hasFocus || document.hasFocus())) {
+        mainRef.current?.focus({ preventScroll: true });
+      }
+    } catch {
+      // Ignore Permissions-Policy violation: focus-without-user-activation in embedded iframes
+    }
   }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
   // Edit profile / Change password / Notifications settings / Terms / Privacy are focused full pages on phones: no bottom nav
   // (the top bar still shows the back arrow + title like every other inner page).
   const path = pathname.replace(/\/+$/, "").toLowerCase();
-  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
+  const isBookingSuccess =
+    path.startsWith(customerPath("/booking/success").toLowerCase()) ||
+    path.startsWith(customerPath("/booking/booked").toLowerCase());
+
+  const focusPage =
+    isBookingSuccess ||
+    [
+      customerPath("/profile/edit"),
+      customerPath("/profile/password"),
+      customerPath("/profile/notifications"),
+      customerPath("/profile/terms"),
+      customerPath("/profile/privacy"),
+    ].includes(path);
 
   return (
     <div className="customer-shell flex min-h-screen overflow-x-clip bg-canvas">
@@ -72,9 +90,16 @@ export default function CustomerLayout() {
           id="customer-main"
           tabIndex={-1}
           className={clsx(
-            "flex-1 px-4 py-6 outline-none md:px-8 md:pb-6",
+            "flex-1 outline-none md:px-8",
+            isBookingSuccess
+              ? "px-3 sm:px-4 py-2.5 sm:py-3 md:py-5 md:pb-6"
+              : "px-4 py-6 md:pb-6",
             // Leave room for the fixed bottom nav (it shows on every page, Profile included).
-            focusPage ? "pb-[calc(2rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            focusPage
+              ? isBookingSuccess
+                ? "pb-[calc(1rem+env(safe-area-inset-bottom))]"
+                : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+              : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
           )}
         >
           <RouteErrorBoundary resetKey={pathname}>

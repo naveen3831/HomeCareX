@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import {
@@ -21,10 +22,11 @@ import {
   OfflineState,
 } from "@/components/customer";
 import { FOCUS_RING } from "@/components/customer/focusRing";
-import { ReceiptDialog, StatusPill } from "@/components/customer/payments";
+import { ExportPaymentsMenu, ReceiptDialog, StatusPill } from "@/components/customer/payments";
 import { formatMoney, methodLabel, usePayments } from "@/features/payments";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { customerPath } from "@/routes/customerPath";
+import { paymentApi } from "@/services/paymentApi";
 import type { PaymentRecordStatus, PaymentRow } from "@/types/payment";
 
 const FILTERS: { value: "" | PaymentRecordStatus; label: string }[] = [
@@ -248,6 +250,34 @@ export default function Payments() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
+  // Locate Mobile TopBar custom action slot in DOM
+  const [mobilePortalEl, setMobilePortalEl] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setMobilePortalEl(document.getElementById("topbar-mobile-action"));
+  }, []);
+
+  const handleFetchAllPayments = async (): Promise<PaymentRow[]> => {
+    if (!data) return [];
+    if (data.items.length >= data.total) return data.items;
+    const res = await paymentApi.list({
+      page: 1,
+      limit: Math.max(data.total, 100),
+      ...(status ? { status } : {}),
+    });
+    return res.items;
+  };
+
+  const mobileExportElement = (
+    <ExportPaymentsMenu
+      payments={data?.items ?? []}
+      activeFilter={status}
+      variant="mobile"
+      disabled={isLoading || (data?.items?.length ?? 0) === 0}
+      onFetchAll={handleFetchAllPayments}
+    />
+  );
+
   /* Shared empty / error / loading elements */
   const renderEmptyState = () => (
     <EmptyState
@@ -311,35 +341,46 @@ export default function Payments() {
             Every payment for your bookings, with receipts.
           </p>
 
-          {/* Desktop Toolbar: Filter by status dropdown */}
-          <div className="mb-4 mt-4 flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
-            <label
-              htmlFor="payments-status-desktop"
-              className="inline-flex items-center gap-1.5 text-sm text-muted"
-            >
-              <Filter className="h-4 w-4" aria-hidden="true" />
-              Status
-            </label>
-            <div className="relative w-full sm:w-44">
-              <select
-                id="payments-status-desktop"
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value as "" | PaymentRecordStatus);
-                }}
-                className={`min-h-[44px] w-full appearance-none rounded-lg border border-line bg-white py-0 pl-3 pr-9 text-sm font-medium text-ink shadow-sm hover:border-brand/40 sm:min-h-[40px] ${FOCUS_RING}`}
+          {/* Desktop Toolbar: Filter by status dropdown on left, Export menu on right */}
+          <div className="mb-4 mt-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="payments-status-desktop"
+                className="inline-flex items-center gap-1.5 text-sm text-muted"
               >
-                {FILTERS.map((f) => (
-                  <option key={f.value || "all"} value={f.value}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
-                aria-hidden="true"
-              />
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                Status
+              </label>
+              <div className="relative w-44">
+                <select
+                  id="payments-status-desktop"
+                  value={status}
+                  onChange={(e) => {
+                    setStatus(e.target.value as "" | PaymentRecordStatus);
+                  }}
+                  className={`min-h-[40px] w-full appearance-none rounded-lg border border-line bg-white py-0 pl-3 pr-9 text-sm font-medium text-ink shadow-sm hover:border-brand/40 ${FOCUS_RING}`}
+                >
+                  {FILTERS.map((f) => (
+                    <option key={f.value || "all"} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+                  aria-hidden="true"
+                />
+              </div>
             </div>
+
+            {/* Desktop Export Menu */}
+            <ExportPaymentsMenu
+              payments={data?.items ?? []}
+              activeFilter={status}
+              variant="desktop"
+              disabled={isLoading || (data?.items?.length ?? 0) === 0}
+              onFetchAll={handleFetchAllPayments}
+            />
           </div>
 
           {/* Desktop Table Content */}
@@ -467,11 +508,22 @@ export default function Payments() {
         </div>
       </div>
 
+      {/* Portalled Mobile Export Button into TopBar header right action slot */}
+      {mobilePortalEl && createPortal(mobileExportElement, mobilePortalEl)}
+
       {/* =========================================================================
           MOBILE VIEW (below md: 320px, 375px, 390px, 414px)
-          100% UNCHANGED: Compact cards, horizontal status pills, bottom nav clearance.
+          Compact cards, horizontal status pills, bottom nav clearance.
           ========================================================================= */}
       <div className="mx-auto w-full max-w-xl space-y-3.5 pb-28 sm:pb-12 md:hidden">
+        {/* Fallback mobile export button if TopBar portal target is not in DOM */}
+        {!mobilePortalEl && (
+          <div className="flex items-center justify-between pb-1">
+            <h2 className="text-lg font-bold text-ink">Payments</h2>
+            {mobileExportElement}
+          </div>
+        )}
+
         {/* 1. Top Header Information Banner */}
         <div className="flex items-center gap-3.5 rounded-2xl border border-[#e5e0fb] bg-gradient-to-br from-[#f0eeff] via-[#f4f2ff] to-[#edf0ff] p-4 shadow-2xs">
           <div

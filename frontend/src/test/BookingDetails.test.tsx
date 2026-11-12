@@ -340,4 +340,49 @@ describe("BookingDetails page", () => {
       screen.getByText("Invoice is not available as this booking was not completed."),
     ).toBeInTheDocument();
   });
+
+  it("displays extra charges and their status in mobile responsive view", async () => {
+    const origMatchMedia = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("767px"),
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      getBookingDetail.mockResolvedValue(
+        detail({
+          status: "in_progress",
+          extraCharges: [
+            {
+              _id: "x_rej",
+              title: "axxcv",
+              amount: 123,
+              status: "rejected",
+              requestedAt: "2026-11-10T08:58:00.000Z",
+            },
+          ],
+        }),
+      );
+      renderPage();
+
+      // On Overview tab:
+      expect(await screen.findByText("axxcv")).toBeInTheDocument();
+      expect(screen.getByText("Rejected")).toBeInTheDocument();
+      expect(screen.getByText("₹123")).toBeInTheDocument();
+
+      // Switch to Details tab:
+      await userEvent.click(screen.getByRole("button", { name: "Details" }));
+      expect(screen.getByText("axxcv")).toBeInTheDocument();
+      expect(screen.getByText("Rejected")).toBeInTheDocument();
+      expect(screen.getByText("₹123")).toBeInTheDocument();
+    } finally {
+      window.matchMedia = origMatchMedia;
+    }
+  });
 });

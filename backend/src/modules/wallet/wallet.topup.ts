@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import type { Request, Response } from 'express';
 import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
+import { WalletTopupOrderModel } from '../../models/WalletTopupOrder';
 import { getAuthUser } from '../../middleware/auth.middleware';
 
 let razorpayInstance: Razorpay | null = null;
@@ -34,7 +35,7 @@ function resolveUserId(req: Request): string | null {
 export async function createTopupOrder(req: Request, res: Response): Promise<Response> {
   try {
     const userId = resolveUserId(req);
-    const { amount } = req.body;
+    const { amount, retryOrderId } = req.body;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
@@ -46,6 +47,36 @@ export async function createTopupOrder(req: Request, res: Response): Promise<Res
         success: false,
         message: 'Invalid amount. Minimum top-up is ₹10 and maximum is ₹50,000.',
       });
+    }
+
+    // Check if client is retrying an existing order
+    if (retryOrderId) {
+      const openOrder = await WalletTopupOrderModel.findOne({ razorpayOrderId: retryOrderId, userId });
+      if (openOrder) {
+        if (openOrder.status === 'FAILED' || openOrder.attempts >= 4) {
+          if (openOrder.status !== 'FAILED') {
+            openOrder.status = 'FAILED';
+            openOrder.errorReason = 'Maximum payment retries exceeded';
+            await openOrder.save();
+          }
+          return res.status(429).json({
+            success: false,
+            code: 'PAYMENT_ATTEMPTS_EXCEEDED',
+            message: 'You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.',
+          });
+        }
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            orderId: openOrder.razorpayOrderId,
+            amount: Math.round(openOrder.amount * 100),
+            currency: openOrder.currency,
+            keyId: process.env.RAZORPAY_KEY_ID,
+            attempt: openOrder.attempts + 1,
+          },
+        });
+      }
     }
 
     // Razorpay accepts amounts in paise (1 INR = 100 paise)
@@ -61,6 +92,15 @@ export async function createTopupOrder(req: Request, res: Response): Promise<Res
       },
     });
 
+    await WalletTopupOrderModel.create({
+      userId,
+      razorpayOrderId: order.id,
+      amount: amountInRupees,
+      currency: 'INR',
+      attempts: 0,
+      status: 'PENDING',
+    });
+
     return res.status(200).json({
       success: true,
       data: {
@@ -68,6 +108,7 @@ export async function createTopupOrder(req: Request, res: Response): Promise<Res
         amount: order.amount,
         currency: order.currency,
         keyId: process.env.RAZORPAY_KEY_ID,
+        attempt: 1,
       },
     });
   } catch (error: unknown) {
@@ -117,6 +158,16 @@ export async function verifyTopupPayment(req: Request, res: Response): Promise<R
       });
     }
 
+    // Prevent verification of failed orders exceeding max retries
+    const topupOrder = await WalletTopupOrderModel.findOne({ razorpayOrderId: razorpay_order_id });
+    if (topupOrder && (topupOrder.status === 'FAILED' || topupOrder.attempts >= 4)) {
+      return res.status(400).json({
+        success: false,
+        code: 'PAYMENT_ATTEMPTS_EXCEEDED',
+        message: 'You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.',
+      });
+    }
+
     // 2. Prevent duplicate credit (idempotency check)
     const existingLedger = await WalletLedgerModel.findOne({
       referenceId: razorpay_payment_id,
@@ -161,6 +212,11 @@ export async function verifyTopupPayment(req: Request, res: Response): Promise<R
       referenceId: razorpay_payment_id,
     });
 
+    if (topupOrder) {
+      topupOrder.status = 'PAID';
+      await topupOrder.save();
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Wallet credited successfully',
@@ -185,47 +241,101 @@ export async function verifyTopupPayment(req: Request, res: Response): Promise<R
 export async function recordFailedTopup(req: Request, res: Response): Promise<Response> {
   try {
     const userId = resolveUserId(req);
-    const { orderId, amount, reason } = req.body;
+    const { orderId, amount, reason, attempts: passedAttempts, markFailed } = req.body;
+    const resolvedOrderId = orderId || req.body?.razorpay_order_id;
 
     if (!userId) {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    // Prevent duplicate entries for the same order
-    const existingEntry = await WalletLedgerModel.findOne({ referenceId: orderId });
-    if (existingEntry) {
-      return res.status(200).json({
-        success: true,
-        message: 'Failure already recorded',
-        data: { transaction: existingEntry },
+    if (!resolvedOrderId) {
+      return res.status(400).json({
+        success: false,
+        code: 'BAD_REQUEST',
+        message: 'Order ID is required',
       });
     }
 
-    let wallet = await WalletModel.findOne({ userId });
-    if (!wallet) {
-      wallet = await WalletModel.create({ userId, balance: 0 });
+    const topupOrder = await WalletTopupOrderModel.findOne({ razorpayOrderId: resolvedOrderId, userId });
+    let attempts = 0;
+    let isMaxRetries = false;
+
+    if (topupOrder) {
+      if (req.body.incrementAttempt !== false) {
+        topupOrder.attempts += 1;
+      } else if (passedAttempts !== undefined) {
+        topupOrder.attempts = Number(passedAttempts);
+      }
+      attempts = topupOrder.attempts;
+      isMaxRetries = attempts >= 4 || markFailed === true;
+      topupOrder.errorReason = reason || 'Payment failed';
+      if (isMaxRetries) {
+        topupOrder.status = 'FAILED';
+      }
+      await topupOrder.save();
+    } else {
+      isMaxRetries = markFailed === true;
     }
 
-    const amountInRupees = Math.round(Number(amount) / 100);
+    // Only record a failed ledger entry once when max retries are reached
+    if (isMaxRetries) {
+      const existingEntry = await WalletLedgerModel.findOne({ referenceId: resolvedOrderId });
+      if (existingEntry) {
+        return res.status(200).json({
+          success: true,
+          maxRetriesReached: true,
+          attempts,
+          message: 'Failure already recorded',
+          data: { transaction: existingEntry },
+        });
+      }
 
-    // Record ledger entry with type 'failed' (balance remains unchanged)
-    const ledger = await WalletLedgerModel.create({
-      walletId: wallet._id,
-      userId,
-      type: 'failed',
-      amount: amountInRupees,
-      balanceAfter: wallet.balance,
-      description: reason || 'Top-up payment failed (3 attempts)',
-      referenceId: orderId,
-    });
+      let amountInRupees: number = topupOrder ? topupOrder.amount : 0;
+      if (!amountInRupees) {
+        try {
+          const rzpOrder = await getRazorpay().orders.fetch(resolvedOrderId);
+          if (rzpOrder && typeof rzpOrder.amount === 'number') {
+            amountInRupees = Math.round(rzpOrder.amount / 100);
+          } else {
+            amountInRupees = Math.round(Number(amount || 0) / 100) || 0;
+          }
+        } catch {
+          amountInRupees = Math.round(Number(amount || 0) / 100) || 0;
+        }
+      }
+
+      let wallet = await WalletModel.findOne({ userId });
+      if (!wallet) {
+        wallet = await WalletModel.create({ userId, balance: 0 });
+      }
+
+      const ledger = await WalletLedgerModel.create({
+        walletId: wallet._id,
+        userId,
+        type: 'failed',
+        amount: amountInRupees,
+        balanceAfter: wallet.balance,
+        description: reason || 'Top-up payment failed (maximum 3 retries reached)',
+        referenceId: resolvedOrderId,
+      });
+
+      return res.status(200).json({
+        success: true,
+        maxRetriesReached: true,
+        attempts,
+        message: 'You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.',
+        data: {
+          balance: wallet.balance,
+          transaction: ledger,
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      message: 'Payment failure recorded',
-      data: {
-        balance: wallet.balance,
-        transaction: ledger,
-      },
+      maxRetriesReached: false,
+      attempts,
+      message: `Payment attempt recorded (${attempts}/4)`,
     });
   } catch (error: unknown) {
     const err = error as Error;

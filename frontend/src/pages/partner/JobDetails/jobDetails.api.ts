@@ -431,45 +431,29 @@ export async function updateBookingStatus(id: string, status: JobStatus): Promis
   return mapJob(unwrap(await api.patch<{ data: ApiJob }>(`/bookings/${id}/status`, { status })));
 }
 
-/** Checks the start code without starting the job (older start flow with the code typed first). */
-export async function verifyJobOtp(id: string, otp: string): Promise<{ verified: boolean; message?: string }> {
-  if (useDemo(id)) {
-    requireRoute(id);
-    return otp === DEMO_START_OTP
-      ? { verified: true }
-      : { verified: false, message: 'Incorrect OTP. Please check the code with the customer.' };
-  }
-  const data = unwrap(await api.post<{ data: { verified?: boolean; message?: string } }>(`/partner/jobs/${id}/verify-otp`, { otp }));
-  return { verified: Boolean(data?.verified), message: data?.message };
-}
-
-/** Starts the job once the code is right (older flow without a photo). */
-export async function startJob(id: string, otp: string): Promise<JobDetails> {
-  if (useDemo(id)) {
-    const job = requireRoute(id);
-    if (job.status === 'in_progress') throw demoError(409, 'ALREADY_STARTED', 'This job has already started.');
-    if (otp !== DEMO_START_OTP) throw demoError(422, 'INVALID_OTP', 'Incorrect OTP.');
-    pushHistory(job, 'in_progress');
-    job.schedule = { ...job.schedule, startedAt: new Date().toISOString() };
-    saveRoute(job);
-    return view(job);
-  }
-  return mapJob(unwrap(await api.patch<{ data: ApiJob }>(`/bookings/${id}/status`, { status: 'in_progress', otp })));
-}
-
 /**
- * POST /partner/jobs/:id/verify-start: 4-digit code + a photo of the work area.
+ * POST /partner/jobs/:id/verify-start: the customer's 4-digit code, and optionally a photo of the work area.
+ * This is the ONLY way to start a job: it checks the code and starts the job in one call.
+ * (There is no separate "verify code" route and PATCH /bookings/:id/status cannot move a job to in_progress.)
  * Same rules in the demo: 400 bad code format, 422 wrong state / wrong code / bad file,
  * 410 expired, 413 photo too big, 423 locked after 5 wrong codes, 409 already started.
  */
-export async function verifyStart(id: string, otp: string, photo: File): Promise<JobDetails> {
+export async function verifyStart(id: string, otp: string, media?: File | File[] | null): Promise<JobDetails> {
   if (!useDemo(id)) {
-    const form = new FormData();
-    form.append('otp', otp);
-    form.append('photo', photo);
-    const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const files = Array.isArray(media) ? media : media ? [media] : [];
+    if (files.length > 0) {
+      const form = new FormData();
+      form.append('otp', otp);
+      files.forEach((file) => form.append('media', file));
+      const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // A video can take a while on a slow mobile network.
+        timeout: 120_000,
+      });
+      return mapJob(unwrap(res));
+    }
+    // No files: plain JSON. The server accepts both.
+    const res = await api.post<{ data: ApiJob }>(`/partner/jobs/${id}/verify-start`, { otp });
     return mapJob(unwrap(res));
   }
 
@@ -486,7 +470,9 @@ export async function verifyStart(id: string, otp: string, photo: File): Promise
   if (state?.locked) throw demoError(423, 'OTP_LOCKED', 'Starting is locked. Contact support to unlock it.');
   if (state?.expired) throw demoError(410, 'OTP_EXPIRED', 'The start code has expired. Ask support for a new one.');
 
-  await assertStartPhoto(photo); // a bad photo never uses up an attempt
+  // A bad photo never uses up an attempt (demo mode checks the first photo only).
+  const demoPhoto = Array.isArray(media) ? media.find((f) => f.type.startsWith('image/')) : media;
+  if (demoPhoto) await assertStartPhoto(demoPhoto);
 
   if (otp !== DEMO_START_OTP) {
     job.startAttempts = (job.startAttempts ?? 0) + 1;
@@ -554,15 +540,15 @@ export async function addJobItem(bookingId: string, input: AddJobItemInput): Pro
   await api.post(`/partner/jobs/${bookingId}/extra-charges`, { ...input, quantity: 1 });
 }
 
-/** Partner confirms the customer paid in cash. */
-export async function collectPayment(jobId: string, method: 'cash'): Promise<JobDetails> {
+/** Partner confirms the customer paid, in cash or by UPI. */
+export async function collectPayment(jobId: string, method: 'cash' | 'upi'): Promise<JobDetails> {
   if (useDemo(jobId)) {
     const job = requireRoute(jobId);
     job.payment = { ...job.payment, status: 'PAID', phase: 'paid', method, paidAt: new Date().toISOString() };
     saveRoute(job);
     return view(job);
   }
-  await api.post(`/partner/jobs/${jobId}/payment/collect`, { method });
+  await api.post(`/partner/jobs/${jobId}/collect-payment`, { method });
   return fetchJob(jobId);
 }
 
