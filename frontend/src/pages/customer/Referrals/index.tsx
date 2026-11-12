@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Gift } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Gift, ArrowRight, Wallet, Check } from "lucide-react";
+import clsx from "clsx";
 import { useReferral } from "@/hooks/useReferral";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { problem, when } from "@/features/support/types";
@@ -82,30 +84,77 @@ export default function Referrals() {
             <h2>Referral activity</h2>
             {query.data.entries.length ? (
               <ul className="hcx-support-ticket-list">
-                {query.data.entries.map((entry, i) => (
-                  <li key={entry.id} className="hcx-support-ticket">
-                    <div>
-                      <h3>Invitation {(page - 1) * 10 + i + 1}</h3>
-                      <time dateTime={entry.createdAt}>
-                        {when(entry.createdAt)}
-                      </time>
-                    </div>
-                    <div className="hcx-support-ticket-meta">
-                      <span className="hcx-support-badge">
-                        {entry.status === "rewarded"
-                          ? "Reward credited"
-                          : entry.status === "completed"
-                            ? "Reward pending"
-                            : "Awaiting first booking"}
-                      </span>
-                      <span>
-                        {entry.status === "rewarded"
-                          ? money(entry.rewardPaise)
-                          : "Not credited yet"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
+                {query.data.entries.map((entry, i) => {
+                  const friendName =
+                    entry.referee?.name ||
+                    entry.friendName ||
+                    `Invitation ${(page - 1) * 10 + i + 1}`;
+                  const friendContact =
+                    entry.referee?.email ||
+                    entry.friendEmail ||
+                    entry.referee?.phone ||
+                    entry.friendPhone;
+                  const friendAvatar =
+                    entry.referee?.avatar || entry.friendAvatar;
+                  const initial = (friendName.trim()[0] || "F").toUpperCase();
+
+                  return (
+                    <li key={entry.id} className="hcx-support-ticket">
+                      <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white font-bold flex items-center justify-center text-sm shrink-0 shadow-2xs ring-2 ring-indigo-100 overflow-hidden select-none">
+                          {friendAvatar ? (
+                            <img
+                              src={friendAvatar}
+                              alt={friendName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>{initial}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">
+                            {friendName}
+                          </h3>
+                          {friendContact && (
+                            <p className="text-xs text-slate-500 truncate mt-0.5 font-medium">
+                              {friendContact}
+                            </p>
+                          )}
+                          <time
+                            dateTime={entry.createdAt}
+                            className="text-[11px] sm:text-xs text-slate-400 mt-1 block"
+                          >
+                            Joined {when(entry.createdAt)}
+                          </time>
+                        </div>
+                      </div>
+                      <div className="hcx-support-ticket-meta">
+                        <span
+                          className={clsx(
+                            "hcx-support-badge",
+                            entry.status === "rewarded"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : entry.status === "completed"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                          )}
+                        >
+                          {entry.status === "rewarded"
+                            ? "Reward credited"
+                            : entry.status === "completed"
+                              ? "Reward pending"
+                              : "Awaiting first booking"}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-600">
+                          {entry.status === "rewarded"
+                            ? money(entry.rewardPaise)
+                            : "Not credited yet"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <div className="hcx-support-state">

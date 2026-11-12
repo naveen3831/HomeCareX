@@ -240,6 +240,17 @@ export const authService = {
     }
     const dbReady = mongoose.connection?.readyState === 1;
     const isPartner = input.role === 'partner';
+    const isCustomer = input.role === 'customer';
+
+    // Validate referral code early if supplied for a customer account
+    let resolvedReferrerId: string | undefined;
+    if (isCustomer && input.referralCode?.trim() && dbReady) {
+      try {
+        resolvedReferrerId = await referralsService.resolve(input.referralCode.trim());
+      } catch (refErr) {
+        throw new HttpError(400, 'This referral code is not valid.', 'INVALID_REFERRAL');
+      }
+    }
 
     // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
     let storedId: StoredKycFile | undefined;

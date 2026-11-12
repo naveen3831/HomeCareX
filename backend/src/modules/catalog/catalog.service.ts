@@ -107,6 +107,10 @@ export const catalogService = {
           s === 'full-home-sanitization' || s === 'home-sanitization' || s.includes('sanitiz');
         if (isSanitization(catKey) && (isSanitization(slug) || isSanitization(name))) return true;
 
+        const isAcRepair = (s: string) =>
+          s.includes('ac-repair') || s.includes('ac repair') || s === 'ac';
+        if (isAcRepair(catKey) && (isAppliance(slug) || isAppliance(name))) return true;
+
         return false;
       });
     }

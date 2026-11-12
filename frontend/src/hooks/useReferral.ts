@@ -3,17 +3,42 @@ import http, { type ApiResponse } from "@/lib/http";
 import { useAuth } from "@/hooks/useAuth";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
+export interface RefereeInfo {
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  avatar?: string;
+}
+
+export interface ReferralEntry {
+  id: string;
+  status: "invited" | "completed" | "rewarded";
+  rewardPaise: number;
+  createdAt: string;
+  rewardedAt: string | null;
+  referee?: RefereeInfo | null;
+  friendName?: string | null;
+  friendEmail?: string | null;
+  friendPhone?: string | null;
+  friendAvatar?: string | null;
+}
+
+export interface ReferredByInfo {
+  code: string;
+  referrerName: string;
+  referrerAvatar?: string | null;
+  status: "invited" | "completed" | "rewarded";
+  rewardPaise: number;
+  rewardedAt?: string | null;
+}
+
 export interface ReferralSummary {
   code: string;
   rewardPerReferralPaise: number;
+  referredBy?: ReferredByInfo | null;
   stats: { invited: number; completed: number; rewardsPaise: number };
-  entries: {
-    id: string;
-    status: "invited" | "completed" | "rewarded";
-    rewardPaise: number;
-    createdAt: string;
-    rewardedAt: string | null;
-  }[];
+  entries: ReferralEntry[];
   meta: { page: number; pages: number; total: number };
   /** Active admin referral offers: what a friend gets on their first booking. */
   offers?: {

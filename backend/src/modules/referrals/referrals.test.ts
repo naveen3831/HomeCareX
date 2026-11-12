@@ -137,6 +137,7 @@ test("reward: first completed booking credits the referrer wallet once, in rupee
     stub(ReferralModel, "findOneAndUpdate", async () => ({
       _id: id.referral,
       referrerId: id.referrer,
+      refereeId: id.referee,
     }));
     const wallet = stub(WalletModel, "findOneAndUpdate", async () => ({
       _id: new Types.ObjectId(),
@@ -146,19 +147,35 @@ test("reward: first completed booking credits the referrer wallet once, in rupee
 
     await referralsService.rewardForReferee(String(id.referee));
 
-    assert.equal(wallet.mock.callCount(), 1);
-    const [filter, update] = wallet.mock.calls[0].arguments as unknown as [
+    // Both referrer and referee (new customer) get credited
+    assert.equal(wallet.mock.callCount(), 2);
+    const [referrerFilter, referrerUpdate] = wallet.mock.calls[0].arguments as unknown as [
       { userId: string },
       { $inc: { balance: number } },
     ];
-    assert.equal(filter.userId, String(id.referrer));
-    assert.equal(update.$inc.balance, 50); // 5000 paise = ₹50
-    const [[entry]] = ledger.mock.calls[0].arguments as unknown as [
+    assert.equal(referrerFilter.userId, String(id.referrer));
+    assert.equal(referrerUpdate.$inc.balance, 50); // 5000 paise = ₹50
+
+    const [refereeFilter, refereeUpdate] = wallet.mock.calls[1].arguments as unknown as [
+      { userId: string },
+      { $inc: { balance: number } },
+    ];
+    assert.equal(refereeFilter.userId, String(id.referee));
+    assert.equal(refereeUpdate.$inc.balance, 50);
+
+    const [[referrerEntry]] = ledger.mock.calls[0].arguments as unknown as [
       [{ type: string; amount: number; referenceId: string }],
     ];
-    assert.equal(entry.type, "referral_reward");
-    assert.equal(entry.amount, 50);
-    assert.equal(entry.referenceId, `referral:${id.referral}`);
+    assert.equal(referrerEntry.type, "referral_reward");
+    assert.equal(referrerEntry.amount, 50);
+    assert.equal(referrerEntry.referenceId, `referral:${id.referral}:referrer`);
+
+    const [[refereeEntry]] = ledger.mock.calls[1].arguments as unknown as [
+      [{ type: string; amount: number; referenceId: string }],
+    ];
+    assert.equal(refereeEntry.type, "referral_reward");
+    assert.equal(refereeEntry.amount, 50);
+    assert.equal(refereeEntry.referenceId, `referral:${id.referral}:referee`);
   });
 });
 
@@ -225,10 +242,19 @@ test("summary: a new customer gets a code and zeroed stats (empty state)", async
     stub(ReferralModel, "aggregate", async () => []);
     stub(ReferralModel, "find", () => ({
       sort: () => ({
-        skip: () => ({ limit: () => ({ lean: async () => [] }) }),
+        skip: () => ({
+          limit: () => ({
+            populate: () => ({ lean: async () => [] }),
+            lean: async () => [],
+          }),
+        }),
       }),
     }));
     stub(ReferralModel, "countDocuments", async () => 0);
+    stub(ReferralModel, "findOne", () => ({
+      populate: () => ({ lean: async () => null }),
+      lean: async () => null,
+    }));
     const result = await referralsService.summary(
       String(new Types.ObjectId()),
       1,

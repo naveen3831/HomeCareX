@@ -241,7 +241,13 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
       <div className="pp-col pp-col-qr">
       <div className="pp-qr-wrap">
         {qrSrc ? (
-          <img className="pp-qr" src={qrSrc} alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`} width={220} height={220} />
+          <img
+            className="pp-qr"
+            src={qrSrc}
+            alt={`UPI QR code to pay ${money.format(payment.amount)} to ${upi.payeeName}`}
+            width={220}
+            height={220}
+          />
         ) : qrFailed ? (
           <p className="pp-error" role="alert">Could not draw the QR. Use the UPI ID below.</p>
         ) : (
@@ -249,10 +255,7 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         )}
       </div>
 
-        <p className="pp-hint">Ask the customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM).</p>
-
-        </div>
-        <div className="pp-col pp-col-actions">
+      <div className="pp-col pp-col-actions">
         <div className="pp-payee">
           <div>
             <span className="pp-label">Paying to</span>
@@ -264,13 +267,15 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
           </button>
         </div>
 
-      <div className="pp-wait" role="status" aria-live="polite">
-        {online ? (
-          <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
-        ) : (
-          <>You are offline. Reconnect to record the payment.</>
-        )}
-      </div>
+        <p className="pp-hint">Ask the customer to scan with any UPI app (GPay, PhonePe, Paytm, BHIM).</p>
+
+        <div className="pp-wait" role="status" aria-live="polite">
+          {online ? (
+            <>After the customer pays, check the money in your UPI app, then tap “UPI payment received”.</>
+          ) : (
+            <>You are offline. Reconnect to record the payment.</>
+          )}
+        </div>
 
         <button type="button" className="pp-btn pp-btn-primary" onClick={() => void markCollected('upi')} disabled={cashing || !online}>
           {cashing ? <Loader2 size={16} className="pp-spin" aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
@@ -284,7 +289,6 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
         {checkError && <p className="pp-error" role="alert">{checkError}</p>}
 
         {cashButton}
-        </div>
       </div>
     </section>
   );

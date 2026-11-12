@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { WalletModel, WalletLedgerModel } from '../../models/Wallet';
+import { referralsService } from '../referrals/referrals.service';
 
 let razorpayInstance: Razorpay | null = null;
 function getRazorpay(): Razorpay {
@@ -18,6 +19,12 @@ export class WalletService {
    * Matches Frontend data contract: { balance, ledger: { items, total, limit, page } }
    */
   async getWallet(userId: string, page = 1, limit = 15, type?: string) {
+    try {
+      await referralsService.syncRefereeReward(userId);
+    } catch {
+      // Non-fatal, do not block wallet retrieval
+    }
+
     const numPage = Math.max(1, Number(page) || 1);
     const numLimit = Math.min(100, Math.max(1, Number(limit) || 15));
     const skip = (numPage - 1) * numLimit;
