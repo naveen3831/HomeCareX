@@ -89,7 +89,7 @@ const ARRIVAL_RADIUS_M = 100;
 /* ============ TESTING ONLY ============
  * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
  * Set to false (or delete the 3 lines marked TEST) after testing. */
-const TEST_MOVE_TO_CUSTOMER = true;
+const TEST_MOVE_TO_CUSTOMER = false;
 /* ====================================== */
 
 type LoadState = "loading" | "ready" | "notfound" | "error";
@@ -329,7 +329,7 @@ function NavigationContent({ id }: { id: string }) {
 
     setBusyAction(status);
     try {
-     await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
+      await updateBookingStatus(id, status as Parameters<typeof updateBookingStatus>[1]);
       if (status === "en_route") sharing.start(); // leaving for the job: the customer can now follow live
       setReloadKey((k) => k + 1);
     } catch (err) {
@@ -412,49 +412,81 @@ function NavigationContent({ id }: { id: string }) {
             </Link>
           </div>
 
-      {!customer && (
-        <p className="nav-note" role="status">
-          This booking has no map pin. Navigation will search the address instead.
-        </p>
-      )}
-      {geoProblem === "denied" && (
-        <p className="nav-alert" role="alert">
-          Location permission is blocked. Allow it in your browser settings,
-          then reload this page.
-        </p>
-      )}
-      {geoProblem === "unsupported" && (
-        <p className="nav-alert" role="alert">
-          This browser does not support location sharing.
-        </p>
-      )}
-      {local.error && !sharing.geoProblem && (
-        <p className="nav-alert" role="alert">
-          {local.error}
-        </p>
-      )}
-      {sharing.ended && (
-        <p className="nav-alert" role="alert">
-          Sharing stopped because this job is no longer active.
-        </p>
-      )}
-      {sharing.sendProblem && (
-        <p className="nav-alert" role="alert">
-          {sharing.sendProblem}
-        </p>
-      )}
-      {actionError && (
-        <p className="nav-alert" role="alert">
-          {actionError}
-        </p>
-      )}
-      {!canShare && job.status === "assigned" && (
-        <p className="nav-hint">
-          Tap “
-          {job.actions.find((a) => a.status === "en_route")?.label ?? "On the way"}
-          ” when you leave so the customer can follow you live.
-        </p>
-      )}
+          {!customer && (
+            <p className="nav-note" role="status">
+              This booking has no map pin. Navigation will search the address instead.
+            </p>
+          )}
+          {geoProblem === "denied" && (
+            <p className="nav-alert" role="alert">
+              Location permission is blocked. Allow it in your browser settings,
+              then reload this page.
+            </p>
+          )}
+          {geoProblem === "unsupported" && (
+            <p className="nav-alert" role="alert">
+              This browser does not support location sharing.
+            </p>
+          )}
+          {local.error && !sharing.geoProblem && (
+            <p className="nav-alert" role="alert">
+              {local.error}
+            </p>
+          )}
+          {sharing.ended && (
+            <p className="nav-alert" role="alert">
+              Sharing stopped because this job is no longer active.
+            </p>
+          )}
+          {sharing.sendProblem && (
+            <p className="nav-alert" role="alert">
+              {sharing.sendProblem}
+            </p>
+          )}
+          {actionError && (
+            <p className="nav-alert" role="alert">
+              {actionError}
+            </p>
+          )}
+
+          {/* Primary status buttons the server allows right now (On the way / I have arrived) */}
+          {!finished &&
+            job.actions.map((a) => (
+              <button
+                key={a.status}
+                type="button"
+                className="nv-step"
+                onClick={() => void runAction(a.status)}
+                disabled={busyAction !== null || !online}
+                aria-busy={busyAction === a.status}
+              >
+                {busyAction === a.status ? "Please wait…" : a.label}
+              </button>
+            ))}
+
+          {!canShare && job.status === "assigned" && (
+            <p className="nav-hint">
+              Tap “
+              {job.actions.find((a) => a.status === "en_route")?.label ?? "On the way"}
+              ” when you leave so the customer can follow you live.
+            </p>
+          )}
+
+          {/* Google Maps directions */}
+          {!finished && (
+            <button type="button" className="nv-go" onClick={startNavigation}>
+              <NavigationIcon size={18} aria-hidden="true" /> Open in Google Maps
+            </button>
+          )}
+
+          {/* Arrived: start code + photo. In progress: complete. Completed: payment. */}
+          <JobStepPanel
+            job={job}
+            online={online}
+            onChanged={() => setReloadKey((k) => k + 1)}
+          />
+        </section>
+      </div>
 
       {chatOpen && (
         <div
