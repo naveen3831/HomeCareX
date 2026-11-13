@@ -8,10 +8,22 @@ import "./index.css";
 
 type Scope = "ALL" | "CATEGORY" | "SERVICE";
 type DiscountType = "PERCENT" | "FLAT";
+type Audience = "CUSTOMER" | "PARTNER";
+
+/** Pre-filled suggestion for a NEW offer's wallet credit fields. The admin can change it to any amount. */
+const DEFAULT_REWARD = "50";
+
+const AUDIENCE_TABS: { value: Audience; label: string; hint: string }[] = [
+  { value: "CUSTOMER", label: "Customer → Customer", hint: "A customer refers a friend who books a service" },
+  { value: "PARTNER", label: "Partner → Partner", hint: "A partner refers another partner who completes a job" },
+];
 
 interface Program {
   id: string;
   name: string;
+  audience?: Audience;
+  referrerReward?: number;
+  refereeReward?: number;
   scope: Scope;
   categoryIds: string[];
   serviceIds: string[];
@@ -27,6 +39,9 @@ interface Program {
 
 interface Form {
   name: string;
+  audience: Audience;
+  referrerReward: string;
+  refereeReward: string;
   scope: Scope;
   categoryIds: string[];
   serviceIds: string[];
@@ -41,10 +56,13 @@ interface Form {
 
 const EMPTY: Form = {
   name: "",
+  audience: "CUSTOMER",
+  referrerReward: DEFAULT_REWARD,
+  refereeReward: DEFAULT_REWARD,
   scope: "ALL",
   categoryIds: [],
   serviceIds: [],
-  discountType: "PERCENT",
+  discountType: "FLAT",
   value: "",
   maxDiscount: "",
   minOrder: "0",
@@ -82,6 +100,7 @@ export const AdminReferralsPage: React.FC = () => {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const [tab, setTab] = useState<Audience>("CUSTOMER");
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
@@ -119,14 +138,19 @@ export const AdminReferralsPage: React.FC = () => {
     return `${prefix}: ${list.slice(0, 3).join(", ")}${list.length > 3 ? ` +${list.length - 3}` : ""}`;
   };
 
+  const shown = useMemo(() => programs.filter((p) => (p.audience ?? "CUSTOMER") === tab), [programs, tab]);
+  const isPartnerTab = tab === "PARTNER";
+
   const discountLabel = (p: Program) =>
-    p.discountType === "PERCENT"
+    p.value === 0
+      ? "No discount"
+      : p.discountType === "PERCENT"
       ? `${p.value}% off${p.maxDiscount ? ` (up to ₹${p.maxDiscount})` : ""}`
       : `₹${p.value} off`;
 
   const openCreate = () => {
     setEditingId(null);
-    setForm(EMPTY);
+    setForm({ ...EMPTY, audience: tab });
     setFormError("");
     setFormOpen(true);
   };
@@ -135,12 +159,16 @@ export const AdminReferralsPage: React.FC = () => {
     setEditingId(p.id);
     setForm({
       name: p.name,
+      audience: p.audience ?? "CUSTOMER",
+      referrerReward: String(p.referrerReward ?? 50),
+      refereeReward: String(p.refereeReward ?? 50),
       scope: p.scope,
       categoryIds: p.categoryIds,
       serviceIds: p.serviceIds,
-      discountType: p.discountType,
-      value: String(p.value),
-      maxDiscount: p.maxDiscount === null ? "" : String(p.maxDiscount),
+      discountType: "FLAT",
+      // Old percentage offers: the % value is not a rupee amount, so ask for a flat amount instead.
+      value: p.discountType === "PERCENT" ? "" : String(p.value),
+      maxDiscount: "",
       minOrder: String(p.minOrder ?? 0),
       startAt: toLocalInput(p.startAt),
       endAt: toLocalInput(p.endAt),
@@ -156,23 +184,31 @@ export const AdminReferralsPage: React.FC = () => {
     event.preventDefault();
     const value = Number(form.value);
     if (!form.name.trim()) return setFormError("Give the referral offer a name.");
-    if (!Number.isFinite(value) || value <= 0) return setFormError("Enter a discount greater than 0.");
-    if (form.discountType === "PERCENT" && value > 100) return setFormError("A percentage cannot exceed 100.");
-    if (form.scope === "CATEGORY" && form.categoryIds.length === 0) return setFormError("Select at least one category.");
-    if (form.scope === "SERVICE" && form.serviceIds.length === 0) return setFormError("Select at least one service.");
+    const referrerReward = Number(form.referrerReward);
+    const refereeReward = Number(form.refereeReward);
+    if (!Number.isFinite(referrerReward) || referrerReward < 0) return setFormError("Enter the referrer's wallet credit (0 or more).");
+    if (!Number.isFinite(refereeReward) || refereeReward < 0) return setFormError("Enter the friend's wallet credit (0 or more).");
+    const isCustomer = form.audience === "CUSTOMER";
+    if (isCustomer && (!Number.isFinite(value) || value < 0)) return setFormError("Enter a discount of 0 or more (0 = wallet credit only).");
+    if (isCustomer && form.scope === "CATEGORY" && form.categoryIds.length === 0) return setFormError("Select at least one category.");
+    if (isCustomer && form.scope === "SERVICE" && form.serviceIds.length === 0) return setFormError("Select at least one service.");
     const start = form.startAt ? new Date(form.startAt) : null;
     const end = form.endAt ? new Date(form.endAt) : null;
     if (start && end && end <= start) return setFormError("End date must be after the start date.");
 
     const payload = {
       name: form.name.trim(),
-      scope: form.scope,
-      categoryIds: form.scope === "CATEGORY" ? form.categoryIds : [],
-      serviceIds: form.scope === "SERVICE" ? form.serviceIds : [],
-      discountType: form.discountType,
-      value,
-      maxDiscount: form.discountType === "PERCENT" && form.maxDiscount.trim() !== "" ? Number(form.maxDiscount) : null,
-      minOrder: Number(form.minOrder) || 0,
+      audience: form.audience,
+      referrerReward,
+      refereeReward,
+      // Partner offers are wallet credit only: no service scope, no booking discount.
+      scope: isCustomer ? form.scope : "ALL",
+      categoryIds: isCustomer && form.scope === "CATEGORY" ? form.categoryIds : [],
+      serviceIds: isCustomer && form.scope === "SERVICE" ? form.serviceIds : [],
+      discountType: "FLAT",
+      value: isCustomer ? value : 0,
+      maxDiscount: null,
+      minOrder: isCustomer ? Number(form.minOrder) || 0 : 0,
       startAt: start ? start.toISOString() : null,
       endAt: end ? end.toISOString() : null,
       active: form.active,
@@ -228,8 +264,9 @@ export const AdminReferralsPage: React.FC = () => {
         <div>
           <h1><Gift size={22} aria-hidden="true" /> Referrals</h1>
           <p>
-            When a customer shares their referral code and a friend signs up with it, the friend gets
-            one of these discounts on their first booking.
+            When someone shares their referral code and a friend joins with it, both get the wallet credit amounts you set on the offer.
+            Customers: both are credited as soon as the new friend registers.
+            Partners: both after the new partner's first completed job.
           </p>
         </div>
         {canCreate && (
@@ -241,6 +278,22 @@ export const AdminReferralsPage: React.FC = () => {
 
       {notice && <div className="ref-alert ref-alert--ok" role="status">{notice}</div>}
       {error && <div className="ref-alert ref-alert--error" role="alert">{error}</div>}
+
+      <div className="ref-tabs" role="tablist" aria-label="Referral type">
+        {AUDIENCE_TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.value}
+            className={`ref-tab${tab === t.value ? " is-selected" : ""}`}
+            onClick={() => { setTab(t.value); closeForm(); }}
+          >
+            {t.label}
+            <small>{t.hint}</small>
+          </button>
+        ))}
+      </div>
 
       {formOpen && (
         <form className="ref-card ref-form" onSubmit={save} noValidate>
@@ -258,17 +311,42 @@ export const AdminReferralsPage: React.FC = () => {
 
           <div className="ref-row">
             <label className="ref-field">
-              <span>Discount type</span>
+              <span>Referral type</span>
               <select
-                value={form.discountType}
-                onChange={(e) => setForm({ ...form, discountType: e.target.value as DiscountType })}
+                value={form.audience}
+                onChange={(e) => setForm({ ...form, audience: e.target.value as Audience })}
               >
-                <option value="PERCENT">Percentage (%)</option>
-                <option value="FLAT">Flat amount (₹)</option>
+                {AUDIENCE_TABS.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
               </select>
             </label>
             <label className="ref-field">
-              <span>{form.discountType === "PERCENT" ? "Percent off" : "Amount off (₹)"}</span>
+              <span>Referrer wallet credit (₹)</span>
+              <input
+                type="number"
+                min="0"
+                value={form.referrerReward}
+                onChange={(e) => setForm({ ...form, referrerReward: e.target.value })}
+              />
+            </label>
+            <label className="ref-field">
+              <span>New friend wallet credit (₹)</span>
+              <input
+                type="number"
+                min="0"
+                value={form.refereeReward}
+                onChange={(e) => setForm({ ...form, refereeReward: e.target.value })}
+              />
+            </label>
+          </div>
+
+          {form.audience === "CUSTOMER" && (
+          <>
+
+          <div className="ref-row">
+            <label className="ref-field">
+              <span>Amount off (₹)</span>
               <input
                 type="number"
                 min="0"
@@ -276,17 +354,6 @@ export const AdminReferralsPage: React.FC = () => {
                 onChange={(e) => setForm({ ...form, value: e.target.value })}
               />
             </label>
-            {form.discountType === "PERCENT" && (
-              <label className="ref-field">
-                <span>Max discount (₹, optional)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.maxDiscount}
-                  onChange={(e) => setForm({ ...form, maxDiscount: e.target.value })}
-                />
-              </label>
-            )}
             <label className="ref-field">
               <span>Minimum order (₹)</span>
               <input
@@ -339,6 +406,8 @@ export const AdminReferralsPage: React.FC = () => {
               />
             )}
           </fieldset>
+          </>
+          )}
 
           <div className="ref-row">
             <label className="ref-field">
@@ -369,9 +438,9 @@ export const AdminReferralsPage: React.FC = () => {
       <section className="ref-card">
         {loading ? (
           <p className="ref-muted">Loading…</p>
-        ) : programs.length === 0 ? (
+        ) : shown.length === 0 ? (
           <p className="ref-muted">
-            No referral offers yet. Until one is created, referred friends get no first-booking discount.
+            No {isPartnerTab ? "partner-to-partner" : "customer-to-customer"} referral offers yet. Create one to set the wallet credit for the referrer and the new friend.
           </p>
         ) : (
           <div className="ref-table-wrap">
@@ -379,39 +448,51 @@ export const AdminReferralsPage: React.FC = () => {
               <thead>
                 <tr>
                   <th>Offer</th>
-                  <th>Discount</th>
-                  <th>Applies to</th>
+                  <th>Wallet credit</th>
+                  {!isPartnerTab && <th>Discount</th>}
+                  {!isPartnerTab && <th>Applies to</th>}
                   <th>Validity</th>
-                  <th>Used</th>
+                  {!isPartnerTab && <th>Used</th>}
                   <th>Status</th>
                   <th aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
-                {programs.map((p) => (
+                {shown.map((p) => (
                   <tr key={p.id}>
                     <td data-label="Offer"><strong>{p.name}</strong></td>
-                    <td data-label="Discount">
-                      {discountLabel(p)}
-                      {p.minOrder > 0 && <small>Min order ₹{p.minOrder}</small>}
+                    <td data-label="Wallet credit">
+                      ₹{p.referrerReward ?? 50} referrer
+                      <small>₹{p.refereeReward ?? 50} new friend</small>
                     </td>
-                    <td data-label="Applies to">{scopeLabel(p)}</td>
+                    {!isPartnerTab && (
+                      <td data-label="Discount">
+                        {discountLabel(p)}
+                        {p.minOrder > 0 && <small>Min order ₹{p.minOrder}</small>}
+                      </td>
+                    )}
+                    {!isPartnerTab && <td data-label="Applies to">{scopeLabel(p)}</td>}
                     <td data-label="Validity">
                       {p.startAt || p.endAt
                         ? `${p.startAt ? new Date(p.startAt).toLocaleDateString() : "Now"} – ${p.endAt ? new Date(p.endAt).toLocaleDateString() : "No end"}`
                         : "Always"}
                     </td>
-                    <td data-label="Used">{p.usedCount}</td>
+                    {!isPartnerTab && <td data-label="Used">{p.usedCount}</td>}
                     <td data-label="Status">
-                      <button
-                        type="button"
-                        className={`ref-pill ${p.active ? "ref-pill--on" : "ref-pill--off"}`}
-                        onClick={() => void toggleActive(p)}
-                        disabled={!canUpdate}
-                        aria-label={`${p.active ? "Deactivate" : "Activate"} ${p.name}`}
-                      >
-                        {p.active ? "Active" : "Inactive"}
-                      </button>
+                      <div className="ref-switch-wrap">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={p.active}
+                          className={`ref-switch${p.active ? " is-on" : ""}`}
+                          onClick={() => void toggleActive(p)}
+                          disabled={!canUpdate}
+                          aria-label={`${p.active ? "Deactivate" : "Activate"} ${p.name}`}
+                        >
+                          <span className="ref-switch__knob" />
+                        </button>
+                        <span className={`ref-switch__label${p.active ? " is-on" : ""}`}>{p.active ? "Active" : "Inactive"}</span>
+                      </div>
                     </td>
                     <td className="ref-table__actions">
                       {canUpdate && (

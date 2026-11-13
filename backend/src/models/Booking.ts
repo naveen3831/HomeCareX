@@ -65,6 +65,9 @@ export interface IBooking extends Document {
     computedAt: Date;
   };
   priceBreakdown: { base: number; addOns: number; surge?: number; discount: number; convenienceFee: number; tax: number; total: number };
+  wallet_used?: number;
+  walletUsed?: number;
+  payable?: number;
   partnerEarning: number;
   status: BookingStatus;
   statusHistory: StatusHistoryItem[];
@@ -195,6 +198,9 @@ const BookingSchema = new Schema<IBooking>(
     scheduledAt: { type: Date, required: true, index: true },
     priceSnapshot: { type: Schema.Types.Mixed },
     priceBreakdown: { type: PriceBreakdownSchema, default: () => ({}) },
+    wallet_used: { type: Number, default: 0, min: 0 },
+    walletUsed: { type: Number, default: 0, min: 0 },
+    payable: { type: Number, min: 0 },
     /** Partner's share after commission. Used for earnings totals. */
     partnerEarning: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: BOOKING_STATUSES, default: 'created', index: true },

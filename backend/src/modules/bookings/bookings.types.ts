@@ -39,6 +39,9 @@ export interface PriceSnapshot {
   /** Part of `discount` that came from the referral program (referred customer's first booking). */
   referralDiscount?: number;
   referralProgramId?: string;
+  wallet_used?: number;
+  walletUsed?: number;
+  payable?: number;
   convenienceFee: number;
   gst: number;
   total: number;
@@ -65,6 +68,9 @@ export interface CreateBookingInput {
   date: string;
   slot: string;
   couponCode?: string;
+  couponId?: string;
+  useReferralWallet?: boolean;
+  useWallet?: boolean;
   /** Client's last-seen total (from the running estimate). Server recomputes and 409s on drift
    *  past `PRICE_CHANGED_TOLERANCE` rather than trusting it. */
   expectedTotal?: number;

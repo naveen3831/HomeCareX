@@ -62,7 +62,7 @@ import {
   customerPreferencesRoutes,
   customerProfileRoutes,
 } from "../modules/customer-profile/customer-profile.routes";
-import { referralsRoutes } from "../modules/referrals/referrals.routes";
+import { referralsRoutes, partnerReferralsRoutes } from "../modules/referrals/referrals.routes";
 import { referralProgramsRoutes } from "../modules/referrals/referral-programs.routes";
 import { ticketsRoutes } from "../modules/tickets/tickets.routes";
 import { availabilityRoutes } from "../modules/availability/availability.routes";
@@ -79,9 +79,7 @@ import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.ro
 import { partnerOnboardingRoutes } from "../modules/partner-onboarding/partner-onboarding.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import {
-  adminWithdrawalsRoutes,
   partnerBankAccountsRoutes,
-  partnerWithdrawalsRoutes,
 } from "../modules/partner-withdrawals/partner-withdrawals.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";
@@ -233,6 +231,7 @@ rootRouter.use("/wallet", walletRoutes);
 rootRouter.use("/tickets", ticketsRoutes);
 rootRouter.use("/support/tickets", ticketsRoutes);
 rootRouter.use("/referrals", referralsRoutes);
+rootRouter.use("/partner/referrals", partnerReferralsRoutes);
 rootRouter.use("/coupons", couponCustomerRoutes);
 
 // ---- Partner ----

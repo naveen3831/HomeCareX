@@ -257,6 +257,15 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
           </div>
         </div>
 
+      <div className="pp-col pp-col-actions">
+        <div className="pp-payee">
+          <div>
+            <span className="pp-label">Paying to</span>
+            <strong>{upi.payeeName}</strong>
+            <span className="pp-upi-id">{upi.payeeId}</span>
+          </div>
+        </div>
+
         <div className="pp-col pp-col-actions">
           <div className="pp-payee">
             <div>
@@ -292,6 +301,7 @@ export default function PaymentPanel({ job, onJobChange, online = true }: Paymen
 
           {cashButton}
         </div>
+      </div>
       </div>
     </section>
   );

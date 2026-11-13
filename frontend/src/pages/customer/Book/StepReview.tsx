@@ -10,7 +10,6 @@ import {
   ChevronUp,
   CreditCard,
   IndianRupee,
-  Info,
   Landmark,
   Lock,
   MapPin,
@@ -48,6 +47,7 @@ import {
 } from "@/types/pricing";
 import { formatSlotLabel } from "./components/SlotPicker";
 import { couponErrorText } from "./components/CouponInput";
+import { walletApi } from "@/services/walletApi";
 import PriceBreakdown from "./components/PriceBreakdown";
 import { formatINR } from "./formatMoney";
 import { settledBookingDestination } from "./settledBooking";
@@ -62,6 +62,7 @@ import {
   loadRazorpayScript,
   resetRazorpayState,
   cancelPendingMockBankDispatch,
+  WALLET_QUERY_KEY,
   type RazorpayFailure,
   type RazorpayInstance,
   type RazorpaySuccess,
@@ -228,6 +229,8 @@ export default function StepReview() {
   // Mobile coupon list starts compact and expands only when the customer asks.
   const [showAllCoupons, setShowAllCoupons] = useState(false);
   const [mobileCouponsExpanded, setMobileCouponsExpanded] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [isWalletSelected, setIsWalletSelected] = useState<boolean>(false);
   const inFlight = useRef(false);
   const mounted = useRef(true);
   const retryCountRef = useRef(0);
@@ -413,6 +416,8 @@ export default function StepReview() {
             });
           }
           if (mounted.current) {
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             navigate(customerPath(`/booking/success/${bookingId}`), {
               replace: true,
             });
@@ -421,6 +426,8 @@ export default function StepReview() {
           // Authoritative verification failure: never confirm without verified signature
           console.error("[Mock Bank] Payment verification failed:", verifyErr);
           if (mounted.current) {
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             goToFailed("verification", bookingId);
           }
         }
@@ -429,6 +436,8 @@ export default function StepReview() {
         hasExitedRef.current = true;
         forceCloseRazorpayModal();
         setIsSubmitting(false);
+        void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+        void refreshWalletBalance();
 
         const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
         retryCountRef.current = currentAttempts;
@@ -567,6 +576,39 @@ export default function StepReview() {
       couponErrorText(quote.couponError.code, quote.couponError.minOrder),
     );
   }, [quote, isPlaceholder, draft.couponCode, setCouponCode]);
+
+  const refreshWalletBalance = useCallback(async () => {
+    try {
+      const w = await walletApi.get();
+      if (typeof w?.balance === "number") {
+        setWalletBalance(w.balance);
+      }
+    } catch (err) {
+      console.warn("[wallet] Could not fetch wallet balance:", err);
+    }
+  }, []);
+
+  const handleToggleWallet = useCallback(() => {
+    setIsWalletSelected((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    walletApi
+      .get()
+      .then((w) => {
+        if (isMounted && typeof w?.balance === "number") {
+          setWalletBalance(w.balance);
+        }
+      })
+      .catch((err) => {
+        console.warn("[wallet] Could not fetch wallet balance:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const handleApplyCoupon = async (code: string) => {
     if (!baseRequest) return;
     setCouponError(null);
@@ -662,7 +704,7 @@ export default function StepReview() {
       return;
     }
     const isSdkLoaded =
-      activeMethod === "cod" ? true : await loadRazorpayScript();
+      activeMethod === "cod" || isZeroTotal ? true : await loadRazorpayScript();
     if (!isSdkLoaded) {
       setError({
         message:
@@ -681,10 +723,12 @@ export default function StepReview() {
         addOnId: a.id,
         quantity: a.quantity,
       })),
-      ...(PRICING_IS_MOCK ? {} : { expectedTotal: fresh.total }),
+      ...(PRICING_IS_MOCK ? {} : { expectedTotal: displayTotal }),
       ...(!PRICING_IS_MOCK && fresh.coupon
         ? { couponCode: fresh.coupon.code }
         : {}),
+      useWallet: isWalletSelected,
+      useReferralWallet: isWalletSelected,
     };
     const idempotencyKey = draft.getIdempotencyKey(JSON.stringify(payload));
     try {
@@ -700,14 +744,16 @@ export default function StepReview() {
           payload,
           idempotencyKey,
         );
-        // The booking now exists: refresh the dashboard (active / upcoming) and the bookings list so they show it when the customer goes back.
+        // The booking now exists: refresh dashboard, bookings list, and wallet balance.
         void queryClient.invalidateQueries({ queryKey: ["customer"] });
         void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+        void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+        void refreshWalletBalance();
         resolvedBookingId = booking._id;
         draft.setBookingId?.(resolvedBookingId);
         activePaymentContextRef.current = { orderId: "", bookingId: resolvedBookingId };
 
-        // Already settled (CONFIRMED without payment, or a replay of a paid booking): there is nothing to pay
+        // Already settled (CONFIRMED without payment, wallet-only checkout, or replay): nothing to pay
         const settled = settledBookingDestination(booking, activeMethod);
         if (settled) {
           navigate(customerPath(settled.path), {
@@ -838,6 +884,8 @@ export default function StepReview() {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               });
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
               navigate(customerPath(`/booking/success/${resolvedBookingId}`), {
                 replace: true,
               });
@@ -849,6 +897,8 @@ export default function StepReview() {
                   e?.message || "Payment verification failed",
                 );
               }
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
               goToFailed(uncertain ? "network" : "verification");
             }
           },
@@ -869,6 +919,8 @@ export default function StepReview() {
               hasExitedRef.current = true;
               setIsSubmitting(true);
               setStatusMessage("Payment cancelled…");
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
               await paymentApi.recordAttempt(
                 resolvedBookingId,
                 "CANCELLED",
@@ -953,6 +1005,8 @@ export default function StepReview() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             navigate(customerPath(`/booking/success/${resolvedBookingId}`), {
               replace: true,
             });
@@ -963,6 +1017,8 @@ export default function StepReview() {
               await markFailureOnServer(
                 e?.message || "Payment verification failed",
               );
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             goToFailed(uncertain ? "network" : "verification");
           }
         },
@@ -985,6 +1041,8 @@ export default function StepReview() {
             hasExitedRef.current = true;
             setIsSubmitting(true);
             setStatusMessage("Payment cancelled…");
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             await paymentApi.recordAttempt(
               resolvedBookingId,
               "CANCELLED",
@@ -1304,12 +1362,22 @@ export default function StepReview() {
   );
   const address = draft.addressSnapshot;
   const dateLabel = draft.date ? prettyDate(draft.date) : "Mon, 2 Nov, 2026";
+  const originalTotal = quote?.total ?? 0;
+  const walletApplied = isWalletSelected
+    ? Math.min(Math.max(0, walletBalance), originalTotal)
+    : 0;
+  const remainingPayable = Math.max(0, originalTotal - walletApplied);
+  const displayTotal = remainingPayable;
+  const isZeroTotal = Boolean(quoteReady && displayTotal === 0);
+
   const payLabel = isSubmitting
     ? "Processing…"
-    : method === "cod"
-      ? "Place order"
-      : "Confirm & Pay";
-  const totalText = quoteReady && quote ? formatINR(quote.total) : "—";
+    : isZeroTotal
+      ? "Confirm Booking"
+      : method === "cod"
+        ? "Place order"
+        : "Confirm & Pay";
+  const totalText = quoteReady && quote ? formatINR(displayTotal) : "—";
   const saving = quoteReady && quote && quote.discount > 0 ? quote.discount : 0;
   const couponBusy = !online || isSubmitting || isValidating;
 
@@ -1376,9 +1444,9 @@ export default function StepReview() {
       )}
     >
       <Lock className="h-4 w-4" aria-hidden="true" />
-      {payLabel}
-      {quoteReady && !isSubmitting && (
-        <span className="tabular-nums">· {totalText}</span>
+      <span>{payLabel}</span>
+      {quoteReady && !isSubmitting && !isZeroTotal && (
+        <span className="tabular-nums"> • {totalText}</span>
       )}
     </button>
   );
@@ -1859,7 +1927,7 @@ export default function StepReview() {
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 leading-snug">Wallet</p>
+                  <p className="text-xs font-bold text-slate-900 leading-snug">Other Wallets</p>
                   <p className="text-[11px] text-slate-500 leading-tight">
                     Paytm, Amazon Pay, etc.
                   </p>
@@ -1927,60 +1995,20 @@ export default function StepReview() {
             </h3>
           </div>
 
-          <div className="space-y-2.5 pt-1 text-xs">
-            {/* Service base */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span>
-                Service ({draft.serviceName ? draft.serviceName.replace(/\s*\([^)]*\)/, "") : "Room Painting"})
-              </span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote
-                  ? formatINR(quote.subtotal)
-                  : draft.basePrice
-                    ? formatINR(draft.basePrice * (draft.quantity || 1))
-                    : "₹3,499"}
-              </span>
-            </div>
-
-            {/* Discount */}
-            {((quoteReady && quote && quote.discount > 0) || draft.couponCode) && (
-              <div className="flex items-center justify-between text-[#16A34A] font-medium">
-                <span>Discount ({draft.couponCode || "T1793688242"})</span>
-                <span className="tabular-nums font-semibold">
-                  – {quoteReady && quote && quote.discount > 0 ? formatINR(quote.discount) : "₹350"}
-                </span>
-              </div>
-            )}
-
-            {/* Convenience fee */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span className="inline-flex items-center gap-1">
-                Convenience Fee
-                <Info className="h-3.5 w-3.5 text-slate-400" />
-              </span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote ? formatINR(quote.convenienceFee) : "₹29"}
-              </span>
-            </div>
-
-            {/* GST */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span>GST (18%)</span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote ? formatINR(quote.gst) : "₹985"}
-              </span>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-100 my-1" />
-
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900">Total Amount</span>
-              <span className="text-base font-extrabold text-[#4F46E5] tabular-nums">
-                {totalText}
-              </span>
-            </div>
+          <div className="pt-1">
+            <PriceBreakdown
+              quote={quote}
+              isLoading={isLoading}
+              isRefreshing={isRefreshing}
+              isError={isError}
+              errorMessage={quoteError?.message}
+              onRetry={() => void refetch()}
+              walletBalance={walletBalance}
+              isWalletSelected={isWalletSelected}
+              onToggleWallet={handleToggleWallet}
+              walletApplied={walletApplied}
+              remainingPayable={remainingPayable}
+            />
           </div>
         </div>
 
@@ -2008,9 +2036,11 @@ export default function StepReview() {
               <span>
                 {isSubmitting
                   ? "Processing…"
-                  : method === "cod"
-                    ? `Place order • ${totalText}`
-                    : `Confirm & Pay ${totalText}`}
+                  : isZeroTotal
+                    ? "Confirm Booking"
+                    : method === "cod"
+                      ? `Place order • ${totalText}`
+                      : `Confirm & Pay • ${totalText}`}
               </span>
             </button>
           </div>
@@ -2483,6 +2513,11 @@ export default function StepReview() {
                   isError={isError}
                   errorMessage={quoteError?.message}
                   onRetry={() => void refetch()}
+                  walletBalance={walletBalance}
+                  isWalletSelected={isWalletSelected}
+                  onToggleWallet={handleToggleWallet}
+                  walletApplied={walletApplied}
+                  remainingPayable={remainingPayable}
                 />
               </div>
               <div className="hidden space-y-3 border-t border-line bg-canvas px-6 py-5 lg:block">

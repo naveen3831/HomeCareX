@@ -1002,3 +1002,61 @@
   gap: 2px;
   margin-top: 0;
 }
+
+.hcx-support a.hcx-referral-cta,
+.hcx-support a.hcx-referral-cta:visited,
+.hcx-support a.hcx-referral-cta:hover,
+.hcx-support a.hcx-referral-cta:active,
+.hcx-support a.hcx-referral-cta span {
+  color: #ffffff !important;
+  text-decoration: none !important;
+}
+
+/* Referral Welcome Reward Celebratory Card */
+.hcx-support .hcx-referral-welcome-card {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 28px !important;
+  border: 1.5px solid #6ee7b7 !important;
+  background: linear-gradient(135deg, #f6edff 0%, #edf1ff 35%, #ecfdf5 75%, #d1fae5 100%) !important;
+  box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.14), 0 4px 12px -2px rgba(99, 102, 241, 0.08) !important;
+  padding: 24px 22px !important;
+  margin-bottom: 24px !important;
+}
+
+@media (max-width: 640px) {
+  .hcx-support .hcx-referral-welcome-card {
+    border-radius: 24px !important;
+    padding: 20px 18px !important;
+    margin-bottom: 20px !important;
+  }
+}
+
+.hcx-support .hcx-referral-welcome-card .hcx-referral-pill-btn,
+.hcx-support .hcx-referral-welcome-card .hcx-referral-pill-btn:visited {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 48px !important;
+  border-radius: 9999px !important;
+  background: #272069 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  text-decoration: none !important;
+  box-shadow: 0 4px 14px rgba(39, 32, 105, 0.28) !important;
+  transition: all 0.2s ease !important;
+}
+
+.hcx-support .hcx-referral-welcome-card .hcx-referral-pill-btn:hover {
+  background: #1e1855 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(39, 32, 105, 0.35) !important;
+}
+
+.hcx-support .hcx-referral-welcome-card .hcx-referral-pill-btn:active {
+  transform: scale(0.99) !important;
+}
+

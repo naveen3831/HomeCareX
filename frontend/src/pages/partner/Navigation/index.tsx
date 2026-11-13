@@ -5,24 +5,15 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import {
-  LifeBuoy,
-  MapPin,
-  MessageCircle,
-  Navigation as NavigationIcon,
-  X,
-} from "lucide-react";
+import { LifeBuoy, MapPin, MessageCircle, Navigation as NavigationIcon, X } from "lucide-react";
 import ChatPanel from "@/components/ChatPanel";
 import LiveMap from "@/components/partner/LiveMap";
 import MaskedCallButton from "@/components/MaskedCallButton";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import {
-  getErrorMessage,
-  getHttpStatus,
-  updateBookingStatus,
-} from "../JobDetails/jobDetails.api";
+import { getErrorMessage, getHttpStatus, updateBookingStatus } from "../JobDetails/jobDetails.api";
 import type { ApiJob } from "../JobDetails/jobDetails.types";
 import { useLocationSharing } from "../LocationSharing/useLocationSharing";
+import JobStepPanel from "./components/JobStepPanel";
 import { isBookingId } from "./bookingId";
 import { distanceKm, mapsDirectionsUrl } from "./geo";
 import { fetchNavigationJob } from "./navigation.api";
@@ -85,6 +76,7 @@ const CALL_STATUSES = new Set([
   "arrived",
   "in_progress",
 ]);
+const ARRIVAL_RADIUS_M = 150;
 
 /* ============ TESTING ONLY ============
  * true  = pretend the partner is standing at the customer's location (map pin + Arrived check).
@@ -515,12 +507,7 @@ function NavigationContent({ id }: { id: string }) {
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-            <div className="nv-sheet-body">
-              <ChatPanel bookingId={id} viewerRole="partner" />
-            </div>
-          </div>
-        </div>
-      )}
+          )}
     </div>
   );
 }

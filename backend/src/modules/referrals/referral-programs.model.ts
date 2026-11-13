@@ -1,5 +1,9 @@
 import { Schema, model } from "mongoose";
 
+export const REFERRAL_AUDIENCES = ["CUSTOMER", "PARTNER"] as const;
+export type ReferralAudience = (typeof REFERRAL_AUDIENCES)[number];
+export const DEFAULT_REFERRAL_REWARD_RUPEES = 50;
+
 export const REFERRAL_SCOPES = ["ALL", "CATEGORY", "SERVICE"] as const;
 export type ReferralScope = (typeof REFERRAL_SCOPES)[number];
 
@@ -13,6 +17,12 @@ export type ReferralScope = (typeof REFERRAL_SCOPES)[number];
 const programSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, minlength: 2, maxlength: 80 },
+    /** CUSTOMER = customer-to-customer, PARTNER = partner-to-partner. */
+    audience: { type: String, enum: REFERRAL_AUDIENCES, default: "CUSTOMER", index: true },
+    /** Wallet credit (rupees) for the person who referred, paid when the friend's first booking / job qualifies. */
+    referrerReward: { type: Number, min: 0, default: DEFAULT_REFERRAL_REWARD_RUPEES },
+    /** Wallet credit (rupees) for the friend who joined with the code, paid at the same moment. */
+    refereeReward: { type: Number, min: 0, default: DEFAULT_REFERRAL_REWARD_RUPEES },
     scope: { type: String, enum: REFERRAL_SCOPES, required: true, default: "ALL" },
     categoryIds: { type: [Schema.Types.ObjectId], ref: "Category", default: [] },
     serviceIds: { type: [Schema.Types.ObjectId], ref: "Service", default: [] },

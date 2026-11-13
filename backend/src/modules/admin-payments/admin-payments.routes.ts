@@ -14,6 +14,9 @@ adminPaymentsRoutes.use(authenticate, requireAdmin, requirePermission(PAYMENTS_R
 // GET /api/v1/admin/payments?status=&method=&from=&to=&customer=&booking=&search=&page=&limit=
 adminPaymentsRoutes.get('/', asyncHandler((req, res) => adminPaymentsController.list(req, res)));
 
+// GET /api/v1/admin/payments/referrals?type=CUSTOMER|PARTNER&page=&limit=  (declared before /:id on purpose)
+adminPaymentsRoutes.get('/referrals', asyncHandler((req, res) => adminPaymentsController.referrals(req, res)));
+
 // GET /api/v1/admin/payments/:id  (detail page; still read-only)
 adminPaymentsRoutes.get('/:id', asyncHandler((req, res) => adminPaymentsController.get(req, res)));
 
