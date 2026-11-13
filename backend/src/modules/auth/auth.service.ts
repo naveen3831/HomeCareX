@@ -242,14 +242,14 @@ export const authService = {
     const isPartner = input.role === 'partner';
     const isCustomer = input.role === 'customer';
 
-    // Validate referral code early if supplied for a customer account
-    let resolvedReferrerId: string | undefined;
-    if (isCustomer && input.referralCode?.trim() && dbReady) {
-      try {
-        resolvedReferrerId = await referralsService.resolve(input.referralCode.trim());
-      } catch (refErr) {
-        throw new HttpError(400, 'This referral code is not valid.', 'INVALID_REFERRAL');
-      }
+    // A referral code (from a friend's invite link) must belong to a real customer; fail before creating the account.
+    const referralCode = input.referralCode?.trim();
+    let referrerId: string | undefined;
+    let referralProgramId: string | null = null;
+    if (referralCode && !isPartner && dbReady) {
+      const invite = await referralsService.resolveInvite(referralCode);
+      referrerId = invite.referrerId;
+      referralProgramId = invite.programId;
     }
 
     // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
@@ -260,16 +260,6 @@ export const authService = {
       if (!input.addressProofDocument) throw new HttpError(400, 'Address proof document is required.', 'VALIDATION_ERROR');
       storedId = await saveKycDocument(input.idProofDocument, 'ID proof');
       storedAddress = await saveKycDocument(input.addressProofDocument, 'Address proof');
-    }
-
-    // A referral code (from a friend's invite link) must belong to a real customer; fail before creating the account.
-    const referralCode = input.referralCode?.trim();
-    let referrerId: string | undefined;
-    let referralProgramId: string | null = null;
-    if (referralCode && !isPartner && dbReady) {
-      const invite = await referralsService.resolveInvite(referralCode);
-      referrerId = invite.referrerId;
-      referralProgramId = invite.programId;
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);

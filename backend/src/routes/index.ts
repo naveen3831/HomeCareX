@@ -79,9 +79,7 @@ import { partnerDashboardRoutes } from "../modules/partners/partner-dashboard.ro
 import { partnerOnboardingRoutes } from "../modules/partner-onboarding/partner-onboarding.routes";
 import { partnerLocationRoutes } from "../modules/partner-location/partner-location.routes";
 import {
-  adminWithdrawalsRoutes,
   partnerBankAccountsRoutes,
-  partnerWithdrawalsRoutes,
 } from "../modules/partner-withdrawals/partner-withdrawals.routes";
 import { partnerPayoutsRoutes } from "../modules/partner-payouts/partner-payouts.routes";
 import { partnerPerformanceRoutes } from "../modules/partner-performance/partner-performance.routes";

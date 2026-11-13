@@ -28,3 +28,16 @@ referralsRoutes.get(
     );
   }),
 );
+
+referralsRoutes.get(
+  "/eligibility",
+  asyncHandler(async (req, res) => {
+    res.setHeader("Cache-Control", "private, no-store");
+    const result = await referralsService.getEligibility(
+      getAuthUser(req).id,
+      req.query.serviceId ? String(req.query.serviceId) : undefined,
+      req.query.orderValue ? Number(req.query.orderValue) : undefined,
+    );
+    sendSuccess(res, result);
+  }),
+);

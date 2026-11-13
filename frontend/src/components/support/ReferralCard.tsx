@@ -136,8 +136,21 @@ function OfferDetails({ o }: { o: Offer }) {
 
 export default function ReferralCard({ data }: { data: ReferralSummary }) {
   const offers = data.offers ?? [];
-  // No active admin offer = nothing to share, so no code is shown at all.
-  if (!offers.length) return null;
+  if (!offers.length) {
+    if (!data.code) return null;
+    return (
+      <section className="hcx-support-referral-card">
+        <p className="hcx-support-eyebrow">A GOOD THING TO SHARE</p>
+        <h2>Invite a friend to HomeCareX</h2>
+        <CodeShare code={data.code} inputId="referral-code" />
+        <p className="hcx-support-muted">
+          {data.rewardPerReferralPaise > 0
+            ? `${money(data.rewardPerReferralPaise)} is credited to your wallet after your friend’s first paid booking. Each friend can earn one referral reward.`
+            : "Referral rewards will be announced by HomeCareX. Your invitations and completed bookings are still tracked."}
+        </p>
+      </section>
+    );
+  }
   return (
     <section className="hcx-support-referral-card">
       <p className="hcx-support-eyebrow">A GOOD THING TO SHARE</p>

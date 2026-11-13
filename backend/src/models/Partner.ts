@@ -35,7 +35,6 @@ const PartnerSchema = new Schema(
     bio: { type: String, trim: true, maxlength: 500 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0, min: 0 },
-    bio: { type: String, trim: true, maxlength: 500 },
     /** Counters maintained by matching/booking services; rates are derived from these. */
     stats: {
       offersReceived: { type: Number, default: 0, min: 0 },

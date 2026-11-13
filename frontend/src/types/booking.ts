@@ -85,6 +85,11 @@ export interface PriceSnapshot {
   subtotal: number;
   discount: number;
   couponCode?: string;
+  useReferralWallet?: boolean;
+  useWallet?: boolean;
+  wallet_used?: number;
+  walletUsed?: number;
+  payable?: number;
   convenienceFee: number;
 
   /** Added by the pricing engine (R02); older snapshots do not have them. */
@@ -165,6 +170,8 @@ export type BaseCreateBookingRequest = {
   date: string;
   slot: string;
   couponCode?: string;
+  useReferralWallet?: boolean;
+  useWallet?: boolean;
 
   /**
    * The total the server quoted and the customer agreed to.

@@ -15,7 +15,7 @@ export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   // A friend's invite link is /register?ref=CODE: prefill the referral code from it.
   const [searchParams] = useSearchParams();
-  const invitedBy = (searchParams.get('ref') ?? '').trim().toUpperCase().slice(0, 30);
+  const invitedBy = (searchParams.get('ref') ?? '').trim().toUpperCase().replace(/\s+/g, '-').slice(0, 30);
 
   const [form, setForm] = useState({
     name: '',
@@ -27,10 +27,10 @@ export const RegisterPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (refFromUrl && !form.referralCode) {
-      setForm((prev) => ({ ...prev, referralCode: refFromUrl }));
+    if (invitedBy && !form.referralCode) {
+      setForm((prev) => ({ ...prev, referralCode: invitedBy }));
     }
-  }, [refFromUrl]);
+  }, [invitedBy, form.referralCode]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -155,7 +155,7 @@ export const RegisterPage: React.FC = () => {
         phone: cleanedPhone,
         password: form.password,
         confirmPassword: form.confirmPassword,
-        referralCode: form.referralCode.trim() || undefined,
+        referralCode: form.referralCode.trim().replace(/\s+/g, '-') || undefined,
         role: 'customer',
       });
 
@@ -427,7 +427,7 @@ export const RegisterPage: React.FC = () => {
               <label htmlFor="register-referral" className="block text-xs font-semibold text-slate-700">
                 Referral Code <span className="text-slate-400 text-xs font-normal">(Optional)</span>
               </label>
-              {refFromUrl && form.referralCode === refFromUrl && (
+              {invitedBy && form.referralCode.trim().replace(/\s+/g, '-') === invitedBy && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                   ✓ Applied from invite link
                 </span>
@@ -447,7 +447,7 @@ export const RegisterPage: React.FC = () => {
                 className="w-full h-11 sm:h-10 rounded-xl border border-slate-200/90 bg-slate-50/60 pl-10 pr-3 text-sm text-slate-900 uppercase placeholder:normal-case placeholder:text-slate-400 transition-all focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 hover:border-slate-300"
               />
             </div>
-            {refFromUrl && form.referralCode === refFromUrl && (
+            {invitedBy && form.referralCode.trim().replace(/\s+/g, '-') === invitedBy && (
               <p className="mt-1 text-[11px] text-slate-500">
                 You were invited to HomeCareX! Referral rewards will be credited on your first completed booking.
               </p>
