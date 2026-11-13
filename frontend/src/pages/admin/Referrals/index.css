@@ -49,3 +49,17 @@
   .ref-table__actions { text-align: left; }
   .ref-icon:first-child { margin-left: 0; }
 }
+.ref-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.ref-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; font: inherit; font-weight: 600; font-size: 14px; color: #1f2544; cursor: pointer; text-align: left; }
+.ref-tab small { font-weight: 400; font-size: 12px; color: #6b7280; }
+.ref-tab.is-selected { border-color: #ff8a3d; background: #fff7f0; }
+
+.ref-switch-wrap { display: inline-flex; align-items: center; gap: 10px; }
+.ref-switch { position: relative; width: 46px; height: 22px; padding: 0; border: 0; border-radius: 999px; background: #d1d5db; cursor: pointer; transition: background .2s; flex: none; }
+.ref-switch.is-on { background: #b3c5f5; }
+.ref-switch__knob { position: absolute; top: 50%; left: 0; width: 26px; height: 26px; margin-top: -13px; border-radius: 50%; background: #9ca3af; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s, background .2s; }
+.ref-switch.is-on .ref-switch__knob { transform: translateX(20px); background: #3b68e8; }
+.ref-switch:focus-visible { outline: 2px solid #3b68e8; outline-offset: 3px; }
+.ref-switch:disabled { opacity: .55; cursor: not-allowed; }
+.ref-switch__label { font-size: 12px; font-weight: 600; color: #6b7280; }
+.ref-switch__label.is-on { color: #1d4ed8; }

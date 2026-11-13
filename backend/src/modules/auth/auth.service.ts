@@ -246,8 +246,8 @@ export const authService = {
     const referralCode = input.referralCode?.trim();
     let referrerId: string | undefined;
     let referralProgramId: string | null = null;
-    if (referralCode && !isPartner && dbReady) {
-      const invite = await referralsService.resolveInvite(referralCode);
+    if (referralCode && dbReady) {
+      const invite = await referralsService.resolveInvite(referralCode, isPartner ? 'partner' : 'customer');
       referrerId = invite.referrerId;
       referralProgramId = invite.programId;
     }
@@ -277,7 +277,15 @@ export const authService = {
     // Link the new customer to the friend who referred them, so their first booking gets the referral discount.
     if (referrerId && referralCode) {
       try {
-        await referralsService.attach(String(user._id || user.id), referralCode, referrerId, referralProgramId);
+        await referralsService.attach(
+          String(user._id || user.id),
+          referralCode,
+          referrerId,
+          referralProgramId,
+          isPartner ? 'PARTNER' : 'CUSTOMER',
+        );
+        // New customers get their referral wallet credit right away (partners are paid after their first job).
+        if (!isPartner) await referralsService.creditRefereeSignupBonus(String(user._id || user.id));
       } catch (err) {
         console.error('Failed to link referral during registration', err);
       }
@@ -415,6 +423,7 @@ export const authService = {
         console.error('Failed to provision partner profile during registration', err);
         // A partner without a profile and documents is unusable: roll back so they can register again.
         await UserModel.deleteOne({ _id: user._id || user.id }).catch(() => undefined);
+        await referralsService.detach(String(user._id || user.id)).catch(() => undefined);
         throw new HttpError(500, 'We could not complete your registration. Please try again.', 'REGISTRATION_FAILED');
       }
     }
