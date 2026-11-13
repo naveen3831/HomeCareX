@@ -1,0 +1,540 @@
+/* ==================================================
+   Partner wallet: withdraw
+   Same quiet look as the wallet. Indigo for actions,
+   green / red only for status.
+================================================== */
+
+/* ---------- Withdraw button + notices (wallet hero) ---------- */
+
+.wd-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.wd-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--wl-primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.wd-btn:hover:not(:disabled) {
+  background: var(--wl-strong);
+}
+
+.wd-btn:disabled {
+  background: var(--wl-pe);
+  color: var(--wl-muted);
+  cursor: not-allowed;
+}
+
+.wd-cta-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--wl-muted);
+}
+
+@media (min-width: 900px) {
+  .wd-btn {
+    width: auto;
+    align-self: flex-start;
+    padding: 12px 28px;
+  }
+}
+
+/* ---------- Withdrawals list ---------- */
+
+.wd-section {
+  order: 2; /* under the balance, with the activity list (see .wl-hero / .wl-activity) */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+
+.wd-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wd-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--wl-line);
+}
+
+.wd-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wd-item-amount {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wd-item-sub,
+.wd-item-note {
+  font-size: 0.8rem;
+  color: var(--wl-muted);
+  overflow-wrap: anywhere;
+}
+
+.wd-item-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wd-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--wl-tint);
+  color: var(--wl-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wd-chip-pending,
+.wd-chip-approved {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.wd-chip-paid {
+  background: #dcfce7;
+  color: var(--wl-pos);
+}
+
+.wd-chip-rejected {
+  background: var(--wl-neg-bg);
+  color: var(--wl-neg);
+}
+
+/* ---------- Text-style buttons ---------- */
+
+.wd-link {
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--wl-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wd-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.wd-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.wd-danger {
+  color: var(--wl-neg);
+}
+
+/* ---------- Sheet ---------- */
+
+.wd-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.wd-muted {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  color: var(--wl-muted);
+}
+
+.wd-avail {
+  margin-bottom: 18px;
+}
+
+.wd-avail strong {
+  color: var(--wl-ink);
+}
+
+.wd-label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--wl-ink);
+}
+
+.wd-amount {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px;
+  border: 1.5px solid var(--wl-line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wd-amount:focus-within {
+  border-color: var(--wl-primary);
+}
+
+.wd-amount.has-error,
+.wd-input.has-error {
+  border-color: var(--wl-neg);
+}
+
+.wd-amount > span {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--wl-muted);
+}
+
+.wd-amount input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--wl-ink);
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wd-hint,
+.wd-field-error {
+  margin: 6px 0 0;
+  font-size: 0.8rem;
+}
+
+.wd-hint {
+  color: var(--wl-muted);
+}
+
+.wd-field-error {
+  color: var(--wl-neg);
+  font-weight: 600;
+}
+
+/* ---------- Saved accounts ---------- */
+
+.wd-accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wd-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--wl-line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.wd-account.is-selected {
+  border-color: var(--wl-primary);
+  background: var(--wl-tint);
+}
+
+.wd-account:focus-within {
+  outline: 3px solid var(--wl-focus);
+  outline-offset: 2px;
+}
+
+.wd-account input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--wl-primary);
+  flex-shrink: 0;
+}
+
+.wd-account-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--wl-tint);
+  color: var(--wl-primary);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.wd-account.is-selected .wd-account-icon {
+  background: #fff;
+}
+
+.wd-account-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wd-account-label {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.wd-account-sub {
+  font-size: 0.78rem;
+  color: var(--wl-muted);
+  overflow-wrap: anywhere;
+}
+
+.wd-remove,
+.wd-remove-confirm {
+  display: inline-block;
+  margin: 2px 0 0 4px;
+  font-size: 0.8rem;
+}
+
+.wd-remove {
+  color: var(--wl-muted);
+}
+
+.wd-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  border: 1.5px dashed var(--wl-primary);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--wl-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wd-add:hover {
+  background: var(--wl-tint);
+}
+
+.wd-note {
+  margin: 16px 0;
+  font-size: 0.8rem;
+  color: var(--wl-muted);
+}
+
+.wd-skel {
+  height: 64px;
+}
+
+.wl-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- Add account form ---------- */
+
+.wd-back {
+  padding: 8px 0;
+  border: none;
+  background: none;
+  color: var(--wl-primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wd-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--wl-tint);
+}
+
+.wd-tab {
+  min-height: 40px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--wl-muted);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wd-tab.is-active {
+  background: #fff;
+  color: var(--wl-ink);
+  box-shadow: 0 1px 3px rgba(30, 27, 75, 0.12);
+}
+
+.wd-field .wd-label {
+  margin-top: 12px;
+}
+
+.wd-input {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--wl-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--wl-ink);
+  font: inherit;
+  font-size: 1rem; /* 16px stops iOS zooming into the field */
+}
+
+.wd-input:focus {
+  outline: none;
+  border-color: var(--wl-primary);
+}
+
+/* ---------- Success ---------- */
+
+.wd-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 8px 0 0;
+}
+
+.wd-done .wd-muted {
+  margin-bottom: 18px;
+}
+
+.wd-done-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: var(--wl-pos);
+}
+
+.wd-done-amount {
+  margin: 4px 0 0;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.wd-sheet :is(a, button, input):focus-visible {
+  outline: 3px solid var(--wl-focus);
+  outline-offset: 2px;
+}
+
+
+/* ==================================================
+   Redesign: withdraw sheet
+================================================== */
+.wd-sheet { position: relative; padding-top: 28px; }
+.wd-sheet::before {
+  content: ""; position: absolute; top: 9px; left: 50%; width: 42px; height: 4px; margin-left: -21px;
+  border-radius: 99px; background: #d9dcf0;
+}
+.wd-sheet .wl-close { width: 36px; height: 36px; background: var(--wl-tint); font-size: 1.5rem; }
+.wd-sheet .wd-title { font-size: 1.3rem; }
+
+/* Available banner */
+.wd-banner {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; margin: 12px 0 4px; padding: 14px 16px;
+  border-radius: 16px; color: #fff; background: linear-gradient(135deg, #3730a3, #4f46e5 55%, #7c3aed);
+  box-shadow: 0 8px 18px rgba(67, 56, 202, 0.25);
+}
+.wd-banner::after { content: ""; position: absolute; right: -24px; top: -34px; width: 110px; height: 110px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); }
+.wd-banner span { font-size: 0.8rem; font-weight: 600; color: rgba(255, 255, 255, 0.85); }
+.wd-banner strong { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+/* Amount field: the wrapper shows focus, not the input */
+.wd-sheet .wd-amount { padding: 6px 14px; border-radius: 16px; background: var(--wl-tint); border-color: transparent; }
+.wd-sheet .wd-amount:focus-within { background: #fff; border-color: var(--wl-primary); box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.14); }
+.wd-sheet .wd-amount > span { color: var(--wl-primary); }
+.wd-sheet .wd-amount input:focus-visible { outline: none; }
+.wd-sheet .wd-amount .wd-link { padding: 6px 12px; border-radius: 99px; background: #fff; box-shadow: 0 1px 4px rgba(30, 27, 75, 0.12); white-space: nowrap; }
+
+.wd-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.wd-quick:empty { display: none; }
+.wd-quick-chip {
+  min-height: 34px; padding: 0 14px; border: 1px solid #d6d1fb; border-radius: 99px; background: #f0eeff;
+  color: var(--wl-primary); font: inherit; font-size: 0.84rem; font-weight: 700; cursor: pointer;
+}
+.wd-quick-chip:hover { background: #e6e2ff; }
+
+/* Send to */
+.wd-sheet .wd-label { margin-top: 18px; }
+.wd-sheet .wd-account { border-radius: 16px; padding: 12px; background: #fff; }
+.wd-sheet .wd-account.is-selected { border-color: var(--wl-primary); background: #f0eeff; box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.10); }
+.wd-sheet .wd-account:focus-within { outline: none; box-shadow: 0 0 0 3px rgba(67, 56, 202, 0.22); }
+.wd-sheet .wd-account-icon { height: 30px; border-radius: 8px; background: #f0eeff; }
+.wd-sheet .wd-add { border-radius: 16px; background: #faf9ff; }
+
+/* Note + main button */
+.wd-sheet .wd-note { margin: 16px 0; padding: 10px 12px; border-radius: 12px; background: #fff7ed; color: #9a4a12; border-left: 3px solid #ff8a3d; line-height: 1.45; }
+.wd-sheet .wl-btn-block, .wd-sheet .wl-btn {
+  min-height: 52px; border: 0; border-radius: 16px; color: #fff; font-size: 1rem; font-weight: 800;
+  background: linear-gradient(135deg, #4338ca, #7c3aed); box-shadow: 0 8px 18px rgba(67, 56, 202, 0.30);
+}
+.wd-sheet .wl-btn:disabled { box-shadow: none; }
+
+/* Add account form */
+.wd-sheet .wd-tabs { border-radius: 14px; }
+.wd-sheet .wd-tab.is-active { background: linear-gradient(135deg, #4338ca, #7c3aed); color: #fff; box-shadow: 0 4px 10px rgba(67, 56, 202, 0.30); }
+.wd-sheet .wd-input { border-radius: 14px; background: var(--wl-tint); border-color: transparent; }
+.wd-sheet .wd-input:focus { background: #fff; border-color: var(--wl-primary); box-shadow: 0 0 0 4px rgba(67, 56, 202, 0.14); }
+.wd-sheet .wd-input:focus-visible { outline: none; }
+
+/* Success */
+.wd-sheet .wd-done-icon { width: 64px; height: 64px; box-shadow: 0 0 0 8px #f0fdf4; }
+.wd-sheet .wd-done-amount { color: var(--wl-primary); }
+
+
+/* ---------- Add account: bank list + IFSC branch card ---------- */
+.wd-sheet .wd-select {
+  appearance: none; -webkit-appearance: none; padding-right: 42px; cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%234338ca' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.wd-sheet .wd-other { margin-top: 8px; }
+.wd-ifsc-note { margin: 6px 2px 0; font-size: 0.8rem; color: var(--wl-muted); }
+.wd-branch {
+  display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding: 12px 14px; border-radius: 14px;
+  background: linear-gradient(135deg, #e8f8f5, #f0eeff); border: 1px solid #b6e8df; font-size: 0.88rem; color: var(--wl-ink);
+}
+.wd-branch strong { font-size: 0.98rem; }
+.wd-branch small { color: var(--wl-muted); font-size: 0.78rem; line-height: 1.4; overflow-wrap: anywhere; }
+.wd-branch-tag { align-self: flex-start; margin-bottom: 4px; padding: 2px 9px; border-radius: 99px; background: #0f766e; color: #fff; font-size: 0.68rem; font-weight: 700; }
+.wd-ifsc-note.is-ok { color: #0f766e; font-weight: 600; }

@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   BlackoutDate,
   listBlackouts,
@@ -220,15 +219,17 @@ export const PartnerBlackoutDatesPage: React.FC = () => {
 
   const count = items?.length ?? 0;
   const next = items?.find((i) => daysUntil(i.date) >= 0);
+  const upcoming30 = (items ?? []).filter((i) => {
+    const n = daysUntil(i.date);
+    return n >= 0 && n <= 30;
+  }).length;
 
   return (
     <div className="pa-page bd-page">
+      {/* The top bar already shows the page title and the back arrow, so only the subtitle is shown here. */}
       <div className="bd-header">
-        <Link className="bd-back" to="/partner/availability" aria-label="Back to availability">&larr;</Link>
-        <div>
-          <h1 className="pa-title bd-h1">Blackout Dates</h1>
-          <p className="bd-page-sub">Days you're unavailable for new jobs</p>
-        </div>
+        <h1 className="sr-only">Blackout Dates</h1>
+        <p className="bd-page-sub">Days you're unavailable for new jobs</p>
       </div>
 
       {error && (
@@ -237,6 +238,31 @@ export const PartnerBlackoutDatesPage: React.FC = () => {
           <button type="button" className="pa-btn" onClick={() => { void load(); }}>Try again</button>
         </div>
       )}
+
+      {/* Desktop summary cards (hidden on phones by CSS) */}
+      <div className="bd-stats" aria-label="Blackout summary">
+        <div className="bd-stat">
+          <span className="bd-stat-icon bd-stat-indigo" aria-hidden="true"><IconBlock /></span>
+          <div>
+            <p className="bd-stat-num"><Tween value={count} /></p>
+            <p className="bd-stat-label">Blackout {count === 1 ? 'date' : 'dates'}</p>
+          </div>
+        </div>
+        <div className="bd-stat">
+          <span className="bd-stat-icon bd-stat-orange" aria-hidden="true"><IconCalendar /></span>
+          <div>
+            <p className="bd-stat-num bd-stat-text">{next ? fmtDate(next.date) : 'None'}</p>
+            <p className="bd-stat-label">{next ? `Next · ${whenLabel(daysUntil(next.date))}` : 'No upcoming blackout'}</p>
+          </div>
+        </div>
+        <div className="bd-stat">
+          <span className="bd-stat-icon bd-stat-green" aria-hidden="true"><IconNote /></span>
+          <div>
+            <p className="bd-stat-num"><Tween value={upcoming30} /></p>
+            <p className="bd-stat-label">In the next 30 days</p>
+          </div>
+        </div>
+      </div>
 
       <div className="bd-layout">
         <form className="bd-form" onSubmit={add} noValidate>
@@ -264,6 +290,12 @@ export const PartnerBlackoutDatesPage: React.FC = () => {
             />
           </label>
 
+          <div className="bd-chips" aria-label="Quick reasons">
+            {['Family event', 'Medical', 'Festival', 'Travel', 'Personal work'].map((r) => (
+              <button key={r} type="button" className="bd-chip" onClick={() => setReason(r)}>{r}</button>
+            ))}
+          </div>
+
           {formError && (
             <p key={errKey} className="pa-error bd-form-err" role="alert">{formError}</p>
           )}
@@ -285,6 +317,10 @@ export const PartnerBlackoutDatesPage: React.FC = () => {
         </form>
 
         <div className="bd-right">
+          <div className="bd-panel-head">
+            <h2 className="bd-panel-title">Your blackout dates</h2>
+            <span className="bd-panel-count">{count === 0 ? 'None yet' : `${count} total`}</span>
+          </div>
           <div className="bd-count-row">
             <span className="bd-count-label">
               {count === 0 ? 'No blackout dates' : (

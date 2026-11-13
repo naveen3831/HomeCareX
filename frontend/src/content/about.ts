@@ -208,16 +208,16 @@ export interface AboutPageData {
 }
 
 /* =========================================================================
-   CONTENT DEFINITIONS
+   CONTENT DEFINITIONS (CLEAN, MINIMAL, EXECUTIVE TONE)
    ========================================================================= */
 
 export const aboutData: AboutPageData = {
   /* 1. HERO */
   hero: {
     title: "About HomeCareX",
-    subtitle: "Making Home Services Simpler, One Booking at a Time.",
+    subtitle: "Everyday Home Services, Thoughtfully Simplified.",
     description:
-      "HomeCareX is an on-demand home-services marketplace connecting customers with service partners. Our platform is designed to make finding, scheduling, and managing essential home services simpler, clearer, and more organized.",
+      "A unified digital platform connecting homeowners with certified craft specialists for transparent, dependable doorstep care.",
     primaryCta: {
       label: "Explore Services",
       href: ROUTES.SERVICES,
@@ -229,15 +229,15 @@ export const aboutData: AboutPageData = {
     highlights: [
       {
         icon: "🔍",
-        title: "Direct Discovery",
+        title: "Transparent Scopes & Rates",
       },
       {
         icon: "📅",
-        title: "Structured Booking",
+        title: "Confirmed Arrival Slots",
       },
       {
         icon: "🔄",
-        title: "Tracked Workflows",
+        title: "Verified Service Guarantee",
       },
     ],
   },
@@ -247,29 +247,32 @@ export const aboutData: AboutPageData = {
     eyebrow: "Our Purpose & Background",
     heading: "Our Story",
     introQuote:
-      "HomeCareX was created around a simple idea: accessing everyday home services should feel easier, clearer, and more organized.",
+      "HomeCareX was created around a simple idea: accessing everyday home services should feel straightforward, transparent, and dependable.",
     paragraphs: [
-      "In many communities, finding dependable assistance for everyday home maintenance—from plumbing and electrical repairs to residential cleaning—often involves fragmented inquiries, uncertain arrival schedules, and unclear pricing details.",
-      "At the same time, skilled service professionals often lack a structured digital platform through which customers can discover and request their services directly without unnecessary friction.",
-      "We built HomeCareX as a centralized digital marketplace to address these everyday challenges. Our platform enables customers to browse clear service catalogs with published scopes, while providing service professionals with an organized channel to manage and fulfill service opportunities.",
+      "Finding reliable home repairs often means opaque pricing, delayed arrival windows, and fragmented coordination.",
+      "At the same time, skilled technicians struggle with manual scheduling, irregular inquiries, and administrative friction.",
+      "HomeCareX unifies both with transparent rate cards, confirmed time slots, and checklist-verified fulfillment for every home.",
     ],
     challengesTitle: "Key Challenges We Address",
     challenges: [
       {
         icon: "🔍",
         title: "Uncertain Rates & Fragmented Discovery",
+        description: "Standardized service rates, upfront scopes, and zero surprise fees.",
       },
       {
         icon: "⏱️",
         title: "Manual Booking & Timing Conflicts",
+        description: "Confirmed calendar time slots with automated technician dispatch.",
       },
       {
         icon: "📱",
         title: "Disorganized Service Workflows",
+        description: "End-to-end digital tracking from request to doorstep completion.",
       },
     ],
     image: {
-      src: "/images/home-cleaning.jpg",
+      src: "/images/about/about-plumber.jpg",
       alt: "Resident reviewing clear home service details on a mobile device",
     },
   },
@@ -279,15 +282,15 @@ export const aboutData: AboutPageData = {
     eyebrow: "WHAT WE DO",
     heading: "Home Services, Made Simpler",
     description:
-      "HomeCareX is a digital platform connecting customers who need everyday home services with independent service partners. We make finding, scheduling, and managing essential home services clear, reliable, and accessible.",
+      "We connect homeowners who need everyday repairs with certified, independent service partners through clear scopes and standardized pricing.",
     services: [
       {
         id: "home-cleaning",
         name: "Cleaning",
         category: "Essential Care",
         description:
-          "Professional home cleaning services for everyday spaces and essential cleaning needs.",
-        image: "/images/home-cleaning.jpg",
+          "Residential deep cleaning for everyday spaces and seasonal upkeep.",
+        image: "/images/about/about-cleaning-team.jpg",
         icon: "✨",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -297,8 +300,8 @@ export const aboutData: AboutPageData = {
         name: "Plumbing",
         category: "Repairs & Installs",
         description:
-          "Get help with common plumbing requirements and household maintenance.",
-        image: "/images/plumbing.jpg",
+          "Prompt diagnosis, pipe repairs, and household fixture installations.",
+        image: "/images/about/about-plumber.jpg",
         icon: "🔧",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -308,8 +311,8 @@ export const aboutData: AboutPageData = {
         name: "Electrical",
         category: "Safety & Wiring",
         description:
-          "Find support for everyday electrical installation, maintenance, and repair needs.",
-        image: "/images/electrical.jpg",
+          "Certified diagnostics, safe wiring, and household appliance setups.",
+        image: "/images/about/about-electrician.jpg",
         icon: "⚡",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -319,8 +322,8 @@ export const aboutData: AboutPageData = {
         name: "Appliance Services",
         category: "Appliance Care",
         description:
-          "Convenient access to services for common household appliances.",
-        image: "/images/appliance-repair.jpg",
+          "Convenient maintenance and precision repairs for essential home appliances.",
+        image: "/images/about/about-service-crew.jpg",
         icon: "🛠️",
         ctaText: "Explore",
         href: ROUTES.SERVICES,
@@ -333,20 +336,20 @@ export const aboutData: AboutPageData = {
     eyebrow: "Our Purpose",
     heading: "Our Mission",
     statement:
-      "To make everyday home services easier to discover, request, and manage while creating a structured digital platform for service professionals.",
+      "To make everyday home maintenance effortless to discover and trust, while providing independent technicians with a dependable digital platform.",
     supportingText:
-      "We are building a platform rooted in simplicity, accessibility, and transparency. By removing friction from service discovery and fostering respectful relationships with skilled professionals, our goal is to deliver better digital experiences for every home.",
+      "Rooted in simplicity, clarity, and respect, HomeCareX removes the guesswork from home repairs through verified standards and upfront pricing.",
     pillars: [
       {
         title: "Simplicity & Accessibility",
         icon: "✨",
       },
       {
-        title: "Transparency & Clear Scope",
+        title: "Transparent Rates & Published Scope",
         icon: "👁️",
       },
       {
-        title: "Respect for Professionals",
+        title: "Fair Growth for Service Partners",
         icon: "🤝",
       },
     ],
@@ -357,12 +360,12 @@ export const aboutData: AboutPageData = {
     eyebrow: "Looking Forward",
     heading: "Our Vision",
     statement:
-      "To build a home-services ecosystem where customers can access services with greater confidence and service professionals can connect with meaningful opportunities through technology.",
+      "To build an ecosystem where homeowners book with complete peace of mind and skilled professionals build thriving livelihoods through technology.",
     aspirationalNote:
-      "Our vision represents an ongoing aspiration. While our current platform enables direct booking and tracking, we are continuously evolving our tools to expand service accessibility and strengthen community connections.",
+      "Continuous innovation in scheduling, partner empowerment, and service reliability drives our long-term roadmap.",
     commitments: [
       {
-        title: "Confidence in Every Booking",
+        title: "Dependability in Every Booking",
         icon: "🎯",
       },
       {
@@ -370,7 +373,7 @@ export const aboutData: AboutPageData = {
         icon: "💻",
       },
       {
-        title: "Continuous Platform Evolution",
+        title: "Community Trust & High Standards",
         icon: "🔄",
       },
     ],
@@ -381,45 +384,57 @@ export const aboutData: AboutPageData = {
     eyebrow: "Platform Safeguards",
     heading: "Trust & Safety",
     subtitle:
-      "Platform principles and safeguards designed to create a secure, dependable experience.",
+      "Platform safeguards designed to ensure security, transparency, and dependability.",
     subtleNote:
-      "We continue to improve the systems and processes that support a safer and more dependable service experience.",
+      "We continuously refine the systems and protocols that support a safer, more dependable service experience.",
     practices: [
       {
         title: "Clear Service Information",
         tag: "Clarity",
         icon: "📋",
+        description:
+          "Upfront pricing, published checklists, and guaranteed estimates.",
       },
       {
         title: "Transparent Communication",
         tag: "Communication",
         icon: "💬",
+        description:
+          "In-app messaging, verified partner ID, and live arrival updates.",
       },
       {
         title: "Structured Interactions",
         tag: "Workflow",
         icon: "🔄",
+        description:
+          "Standard operating checklists for verified doorstep fulfillment.",
       },
       {
         title: "Responsible Data Handling",
         tag: "Privacy",
         icon: "🔒",
+        description:
+          "Encrypted records and privacy-first phone number masking.",
       },
       {
         title: "Slot Concurrency Controls",
         tag: "Integrity",
         icon: "🛡️",
+        description:
+          "Intelligent scheduling to eliminate overlapping arrivals and delays.",
       },
       {
         title: "Resolution Pathways",
         tag: "Support",
         icon: "🤝",
+        description:
+          "Dedicated support specialists and satisfaction guarantee coverage.",
       },
     ],
     faqCta: {
       heading: "Have questions about how HomeCareX works?",
       description:
-        "Find answers about services, bookings, payments, cancellations, and other common questions.",
+        "Find clear answers about bookings, rates, guarantees, and service scopes.",
       buttonLabel: "View FAQs",
       href: ROUTES.FAQ,
     },
@@ -430,33 +445,33 @@ export const aboutData: AboutPageData = {
     eyebrow: "Standards & Process",
     heading: "Our Approach to Quality",
     supportingMessage:
-      "Quality starts with a clear experience—from discovering a service to completing the request.",
+      "Operational excellence embedded across every stage of the booking lifecycle.",
     description:
-      "Rather than presenting quality as an abstract promise, HomeCareX treats quality as an ongoing operational discipline embedded across every stage of the platform.",
+      "From discovery through post-service warranty, every booking adheres to strict platform standards.",
     steps: [
       {
         step: "01",
-        title: "Clear Service Information",
+        title: "Clear Service Scope",
         icon: "📋",
       },
       {
         step: "02",
-        title: "Consistent Service Workflows",
+        title: "SOP Compliance",
         icon: "🔄",
       },
       {
         step: "03",
-        title: "Thoughtful User Experience",
+        title: "Seamless Experience",
         icon: "📱",
       },
       {
         step: "04",
-        title: "Structured Partner Collaboration",
+        title: "Partner Enablement",
         icon: "🤝",
       },
       {
         step: "05",
-        title: "Feedback & Continuous Improvement",
+        title: "Feedback & Auditing",
         icon: "📈",
       },
     ],
@@ -467,9 +482,9 @@ export const aboutData: AboutPageData = {
     eyebrow: "Our Organization",
     heading: "The People Behind HomeCareX",
     subtitle:
-      "The cross-functional teams focused on building and operating the platform.",
+      "Cross-functional teams building and operating the platform.",
     intro:
-      "HomeCareX brings together people focused on product, technology, service operations, and customer experience.",
+      "Bringing together product engineers, service operators, and user advocates.",
     disciplines: [
       {
         id: "prod-tech",
@@ -525,38 +540,38 @@ export const aboutData: AboutPageData = {
   /* 9. OUR VALUES */
   values: {
     eyebrow: "Guiding Principles",
-    heading: "Our Values",
+    heading: "Our Core Values",
     subtitle:
-      "The core principles guiding how we build our platform and serve our community.",
+      "The operating principles guiding our product design, partnerships, and customer experience.",
     items: [
       {
         number: "01",
         title: "Customer First",
-        tagline: "Design experiences around real customer needs.",
+        tagline: "Designing simple, reliable experiences centered on homeowner peace of mind.",
         icon: "🎯",
       },
       {
         number: "02",
         title: "Transparency",
-        tagline: "Make service information and interactions easier to understand.",
+        tagline: "Zero hidden charges, published scopes, and honest communication.",
         icon: "🔍",
       },
       {
         number: "03",
         title: "Respect",
-        tagline: "Value the time, skills, and effort of service professionals.",
+        tagline: "Valuing the craft, time, and livelihood of service professionals.",
         icon: "🤝",
       },
       {
         number: "04",
         title: "Responsibility",
-        tagline: "Build and operate the platform thoughtfully.",
+        tagline: "Taking full ownership of safety, reliability, and platform trust.",
         icon: "⚖️",
       },
       {
         number: "05",
         title: "Continuous Improvement",
-        tagline: "Learn from feedback and improve the experience over time.",
+        tagline: "Refining our tools, service benchmarks, and customer care daily.",
         icon: "📈",
       },
     ],
@@ -565,14 +580,14 @@ export const aboutData: AboutPageData = {
   /* 10. HOW HOMECAREX CONNECTS PEOPLE */
   howItWorks: {
     eyebrow: "How It Works",
-    heading: "How HomeCareX Connects People",
+    heading: "The 4-Step Customer Journey",
     subtitle:
-      "A simple 3-step digital journey from service discovery to fulfilled care.",
+      "A structured 4-step pathway from service selection to completed care.",
     steps: [
       {
         number: "01",
         title: "Discover",
-        summary: "Customers explore available home services.",
+        summary: "Explore vetted home services with transparent rates and clear inclusions.",
         details: [
           "Browse residential service categories",
           "Inspect transparent rate cards & inclusions",
@@ -583,7 +598,7 @@ export const aboutData: AboutPageData = {
       {
         number: "02",
         title: "Request",
-        summary: "Customers select and request the service they need through the platform.",
+        summary: "Select a preferred date, time slot, and task specifications.",
         details: [
           "Choose preferred date & time slot",
           "Provide task details and location",
@@ -593,12 +608,23 @@ export const aboutData: AboutPageData = {
       },
       {
         number: "03",
-        title: "Connect",
-        summary: "The platform facilitates the interaction between customers and service partners.",
+        title: "Fulfill",
+        summary: "Certified professionals arrive on time to complete checklist-verified work.",
         details: [
-          "Platform coordinates partner assignment",
+          "Platform coordinates partner dispatch",
           "Track real-time status transitions",
-          "Provide post-service feedback and review",
+          "Standardized checklist fulfillment",
+        ],
+        icon: "⚡",
+      },
+      {
+        number: "04",
+        title: "Review & Guarantee",
+        summary: "Inspect finished work, complete payment securely, and share feedback.",
+        details: [
+          "Post-service quality inspection",
+          "Transparent digital payment settlement",
+          "Customer reviews and satisfaction guarantee",
         ],
         icon: "🤝",
       },
@@ -607,9 +633,9 @@ export const aboutData: AboutPageData = {
 
   /* 11. FINAL CTA */
   cta: {
-    heading: "Your Home. Your Time. Simplified.",
+    heading: "Ready for Simpler Home Services?",
     description:
-      "Explore the services available through HomeCareX and find a simpler way to manage your everyday home-service needs.",
+      "Book verified professionals with upfront pricing and guaranteed quality.",
     primaryCta: {
       label: "Explore Services",
       href: ROUTES.SERVICES,

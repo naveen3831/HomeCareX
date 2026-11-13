@@ -69,7 +69,7 @@ function normalizeScope<T extends { audience?: string; scope?: string; categoryI
   return d;
 }
 
-interface ProgramLike {
+export interface ProgramLike {
   _id: Types.ObjectId;
   name: string;
   audience?: ReferralAudience;

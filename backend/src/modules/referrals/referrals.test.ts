@@ -34,7 +34,9 @@ test("reward amounts are server configuration and must be integer paise", () => 
 // ---- Behaviour tests: models are stubbed, so these run without a database. ----
 import { mock } from "node:test";
 import mongoose, { Types } from "mongoose";
-import { ReferralCodeModel, ReferralModel } from "./referrals.model";
+import { ReferralCodeModel, ReferralModel, ReferralOfferCodeModel } from "./referrals.model";
+import { ReferralProgramModel } from "./referral-programs.model";
+import { referralProgramsService } from "./referral-programs.service";
 import { referralsService } from "./referrals.service";
 import BookingModel from "../../models/Booking";
 import { WalletLedgerModel, WalletModel } from "../../models/Wallet";
@@ -137,6 +139,7 @@ test("reward: first completed booking credits the referrer wallet once, in rupee
     stub(ReferralModel, "findOneAndUpdate", async () => ({
       _id: id.referral,
       referrerId: id.referrer,
+      refereeId: id.referee,
     }));
     const wallet = stub(WalletModel, "findOneAndUpdate", async () => ({
       _id: new Types.ObjectId(),
@@ -146,19 +149,35 @@ test("reward: first completed booking credits the referrer wallet once, in rupee
 
     await referralsService.rewardForReferee(String(id.referee));
 
-    assert.equal(wallet.mock.callCount(), 1);
-    const [filter, update] = wallet.mock.calls[0].arguments as unknown as [
+    // Both referrer and referee (new customer) get credited
+    assert.equal(wallet.mock.callCount(), 2);
+    const [referrerFilter, referrerUpdate] = wallet.mock.calls[0].arguments as unknown as [
       { userId: string },
       { $inc: { balance: number } },
     ];
-    assert.equal(filter.userId, String(id.referrer));
-    assert.equal(update.$inc.balance, 50); // 5000 paise = ₹50
-    const [[entry]] = ledger.mock.calls[0].arguments as unknown as [
+    assert.equal(referrerFilter.userId, String(id.referrer));
+    assert.equal(referrerUpdate.$inc.balance, 50); // 5000 paise = ₹50
+
+    const [refereeFilter, refereeUpdate] = wallet.mock.calls[1].arguments as unknown as [
+      { userId: string },
+      { $inc: { balance: number } },
+    ];
+    assert.equal(refereeFilter.userId, String(id.referee));
+    assert.equal(refereeUpdate.$inc.balance, 50);
+
+    const [[referrerEntry]] = ledger.mock.calls[0].arguments as unknown as [
       [{ type: string; amount: number; referenceId: string }],
     ];
-    assert.equal(entry.type, "referral_reward");
-    assert.equal(entry.amount, 50);
-    assert.equal(entry.referenceId, `referral:${id.referral}`);
+    assert.equal(referrerEntry.type, "referral_reward");
+    assert.equal(referrerEntry.amount, 50);
+    assert.equal(referrerEntry.referenceId, `referral:${id.referral}:referrer`);
+
+    const [[refereeEntry]] = ledger.mock.calls[1].arguments as unknown as [
+      [{ type: string; amount: number; referenceId: string }],
+    ];
+    assert.equal(refereeEntry.type, "referral_reward");
+    assert.equal(refereeEntry.amount, 50);
+    assert.equal(refereeEntry.referenceId, `referral:${id.referral}:referee`);
   });
 });
 
@@ -225,10 +244,19 @@ test("summary: a new customer gets a code and zeroed stats (empty state)", async
     stub(ReferralModel, "aggregate", async () => []);
     stub(ReferralModel, "find", () => ({
       sort: () => ({
-        skip: () => ({ limit: () => ({ lean: async () => [] }) }),
+        skip: () => ({
+          limit: () => ({
+            populate: () => ({ lean: async () => [] }),
+            lean: async () => [],
+          }),
+        }),
       }),
     }));
     stub(ReferralModel, "countDocuments", async () => 0);
+    stub(ReferralModel, "findOne", () => ({
+      populate: () => ({ lean: async () => null }),
+      lean: async () => null,
+    }));
     const result = await referralsService.summary(
       String(new Types.ObjectId()),
       1,
@@ -286,3 +314,180 @@ test("code(): an existing code is returned unchanged", async () => {
   assert.equal(create.mock.callCount(), 0);
   mock.restoreAll();
 });
+
+test("resolve(): resolves base customer referral code", async () => {
+  const referrerId = new Types.ObjectId();
+  stub(ReferralCodeModel, "findOne", async () => ({
+    code: "HCXTEST",
+    referrerId,
+  }));
+  stub(UserModel, "exists", async () => true);
+
+  const resolved = await referralsService.resolve("HCXTEST");
+  assert.equal(resolved, String(referrerId));
+  mock.restoreAll();
+});
+
+test("resolve(): resolves per-offer referral code and handles spaces/hyphens", async () => {
+  const referrerId = new Types.ObjectId();
+  stub(ReferralCodeModel, "findOne", async () => null);
+  stub(ReferralOfferCodeModel, "findOne", async () => ({
+    code: "HCXTEST-WELCOMFR",
+    referrerId,
+  }));
+  stub(UserModel, "exists", async () => true);
+
+  // Both hyphenated and space-separated should resolve
+  assert.equal(await referralsService.resolve("HCXTEST-WELCOMFR"), String(referrerId));
+  assert.equal(await referralsService.resolve("HCXTEST WELCOMFR"), String(referrerId));
+  mock.restoreAll();
+});
+
+test("resolveInvite(): resolves offer code with referrerId and programId", async () => {
+  const referrerId = new Types.ObjectId();
+  const programId = new Types.ObjectId();
+  stub(ReferralOfferCodeModel, "findOne", async () => ({
+    code: "HCXTEST-WELCOMFR",
+    referrerId,
+    programId,
+  }));
+  stub(UserModel, "exists", async () => true);
+  stub(ReferralProgramModel, "findById", () => ({
+    lean: async () => ({
+      active: true,
+      startAt: new Date(Date.now() - 86400000),
+      endAt: new Date(Date.now() + 86400000),
+    }),
+  }));
+
+  const invite = await referralsService.resolveInvite("HCXTEST-WELCOMFR");
+  assert.equal(invite.referrerId, String(referrerId));
+  assert.equal(invite.programId, String(programId));
+
+  // Should also work with spaces
+  const inviteWithSpaces = await referralsService.resolveInvite("HCXTEST WELCOMFR");
+  assert.equal(inviteWithSpaces.referrerId, String(referrerId));
+  assert.equal(inviteWithSpaces.programId, String(programId));
+  mock.restoreAll();
+});
+
+test("resolveInvite(): falls back to base referral code with programId: null", async () => {
+  const referrerId = new Types.ObjectId();
+  stub(ReferralOfferCodeModel, "findOne", async () => null);
+  stub(ReferralCodeModel, "findOne", async () => ({
+    code: "HCXTEST",
+    referrerId,
+  }));
+  stub(UserModel, "exists", async () => true);
+
+  const invite = await referralsService.resolveInvite("HCXTEST");
+  assert.equal(invite.referrerId, String(referrerId));
+  assert.equal(invite.programId, null);
+  mock.restoreAll();
+});
+
+test("resolveInvite(): throws REFERRAL_OFFER_ENDED when offer is inactive or expired", async () => {
+  const referrerId = new Types.ObjectId();
+  const programId = new Types.ObjectId();
+  stub(ReferralOfferCodeModel, "findOne", async () => ({
+    code: "HCXTEST-WELCOMFR",
+    referrerId,
+    programId,
+  }));
+  stub(UserModel, "exists", async () => true);
+  stub(ReferralProgramModel, "findById", () => ({
+    lean: async () => ({
+      active: false,
+    }),
+  }));
+
+  await assert.rejects(
+    referralsService.resolveInvite("HCXTEST-WELCOMFR"),
+    { status: 400, code: "REFERRAL_OFFER_ENDED" },
+  );
+  mock.restoreAll();
+});
+
+test("refereeDiscount(): applies referral program discount on eligible service", async () => {
+  const userId = new Types.ObjectId();
+  const programId = new Types.ObjectId();
+  const serviceId = new Types.ObjectId();
+
+  stub(ReferralModel, "findOne", () => ({
+    select: () => ({
+      lean: async () => ({
+        _id: new Types.ObjectId(),
+        programId,
+        discountBookingId: null,
+      }),
+    }),
+  }));
+  stub(BookingModel, "exists", async () => false);
+  stub(referralProgramsService, "forProgram", async () => ({
+    programId: String(programId),
+    name: "welcom friend",
+    discount: 160,
+  }));
+
+  const offer = await referralsService.refereeDiscount(String(userId), String(serviceId), 799);
+  assert.deepEqual(offer, {
+    programId: String(programId),
+    name: "welcom friend",
+    discount: 160,
+  });
+  mock.restoreAll();
+});
+
+test("refereeDiscount(): returns null if discount was already used on an active booking", async () => {
+  const userId = new Types.ObjectId();
+  const programId = new Types.ObjectId();
+  const serviceId = new Types.ObjectId();
+  const bookingId = new Types.ObjectId();
+
+  stub(ReferralModel, "findOne", () => ({
+    select: () => ({
+      lean: async () => ({
+        _id: new Types.ObjectId(),
+        programId,
+        discountBookingId: bookingId,
+      }),
+    }),
+  }));
+  stub(BookingModel, "exists", async () => true);
+
+  const offer = await referralsService.refereeDiscount(String(userId), String(serviceId), 799);
+  assert.equal(offer, null);
+  mock.restoreAll();
+});
+
+test("refereeDiscount(): allows discount if an earlier booking did NOT use referral discount", async () => {
+  const userId = new Types.ObjectId();
+  const programId = new Types.ObjectId();
+  const serviceId = new Types.ObjectId();
+
+  stub(ReferralModel, "findOne", () => ({
+    select: () => ({
+      lean: async () => ({
+        _id: new Types.ObjectId(),
+        programId,
+        discountBookingId: null,
+      }),
+    }),
+  }));
+  // BookingModel.exists returns false because no booking with referralDiscount exists
+  stub(BookingModel, "exists", async () => false);
+  stub(referralProgramsService, "forProgram", async () => ({
+    programId: String(programId),
+    name: "welcom friend",
+    discount: 160,
+  }));
+
+  const offer = await referralsService.refereeDiscount(String(userId), String(serviceId), 799);
+  assert.deepEqual(offer, {
+    programId: String(programId),
+    name: "welcom friend",
+    discount: 160,
+  });
+  mock.restoreAll();
+});
+

@@ -47,6 +47,9 @@ export const createBookingBodySchema = z
     date: dateString,
     slot: slotString,
     couponCode: z.string().trim().min(1).max(30).optional(),
+    couponId: z.string().trim().optional(),
+    useReferralWallet: z.boolean().optional(),
+    useWallet: z.boolean().optional(),
     expectedTotal: z.number().int().min(0).optional(),
   })
   .refine(

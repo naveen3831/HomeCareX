@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { ArrowRight, Star, Clock, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthContext } from "@/context/AuthContext";
+import { useAuthStore } from "@/store/useAuthStore";
 import { safeAlt } from "@/lib/querySanitize";
 
 interface ServiceCardProps {
@@ -27,6 +29,37 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   duration,
   priority = false,
 }) => {
+  const navigate = useNavigate();
+  const auth = useContext(AuthContext);
+  const storeAuth = useAuthStore((st) => st.isAuthenticated);
+  const isAuthenticated = Boolean(auth?.isAuthenticated || storeAuth);
+
+  const serviceDetailUrl = `/services/${encodeURIComponent(id)}`;
+
+  const handleBookNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const bookPath = `/customer/book/${encodeURIComponent(id)}`;
+    if (isAuthenticated) {
+      navigate(bookPath);
+    } else {
+      navigate(`/login?returnUrl=${encodeURIComponent(bookPath)}`);
+    }
+  };
+
+  const handleCardClick = () => {
+    navigate(serviceDetailUrl);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "BUTTON" || target.tagName === "A") return;
+      e.preventDefault();
+      handleCardClick();
+    }
+  };
+
   const webpImage = image.replace(/\.(png|jpe?g)$/i, ".webp");
 
   // If the .webp file is missing, drop the <source> so the browser uses the <img> file.
@@ -37,9 +70,16 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
   const displayRating = rating > 0 ? rating.toFixed(1).replace(/\.0$/, "") : "4.8";
 
   return (
-    <article className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-[0_12px_28px_-6px_rgba(67,56,202,0.14)]">
+    <article
+      onClick={handleCardClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="link"
+      aria-label={`View details for ${name}`}
+      className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_12px_28px_-6px_rgba(37,99,235,0.14)] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+    >
       {/* Image container */}
-      <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-indigo-50 to-slate-100">
+      <div className="relative aspect-[16/10] w-full overflow-hidden">
         <picture>
           {canUseWebp && <source srcSet={webpImage} type="image/webp" />}
 
@@ -71,8 +111,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
         <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/25 via-black/5 to-transparent" />
 
         {/* Category Pill Badge */}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold tracking-tight text-indigo-700 shadow-xs backdrop-blur-md border border-white/60">
-          <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold tracking-tight text-blue-700 shadow-xs backdrop-blur-md border border-white/60">
+          <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
           {category}
         </span>
 
@@ -90,14 +130,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
           {/* Service Name */}
-          <h3 className="text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-indigo-600 line-clamp-1">
+          <h3 className="line-clamp-2 min-h-[2.75rem] text-[16px] sm:text-[17px] font-extrabold text-slate-900 transition-colors group-hover:text-blue-600">
             {name}
           </h3>
 
           {/* Micro Trust & Duration Badges */}
           <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] font-medium text-slate-500">
             <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
-              <Clock size={11} className="text-indigo-600" />
+              <Clock size={11} className="text-blue-600" />
               <span>{duration}</span>
             </span>
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-700 font-semibold">
@@ -128,14 +168,25 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
           </div>
         </div>
 
-        {/* Full-width View Details CTA */}
-        <Link
-          to={`/services/${encodeURIComponent(id)}`}
-          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#4338ca] to-[#3730a3] px-4 py-2.5 text-xs sm:text-sm font-bold text-white shadow-xs transition-all duration-200 hover:from-[#3730a3] hover:to-[#2e2680] hover:shadow-indigo-300/40 active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-          <span>View Details</span>
-          <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-        </Link>
+        {/* Dual Actions CTA: View Details + Book Now side-by-side */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            to={serviceDetailUrl}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5 text-xs sm:text-sm font-bold text-blue-700 shadow-2xs transition-all duration-200 hover:bg-blue-100 hover:border-blue-300 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <span>View Details</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleBookNow}
+            className="group/btn flex items-center justify-center gap-1.5 rounded-xl bg-[#ff8a3d] px-3 py-2.5 text-xs sm:text-sm font-semibold text-white shadow-md transition duration-300 hover:bg-[#f97316] hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#ff8a3d]/50 cursor-pointer"
+          >
+            <span>Book Now</span>
+            <ArrowRight size={14} className="transition-transform duration-300 group-hover/btn:translate-x-1" />
+          </button>
+        </div>
       </div>
     </article>
   );

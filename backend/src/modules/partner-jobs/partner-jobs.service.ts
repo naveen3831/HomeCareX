@@ -16,6 +16,7 @@ import {
   type JobBookingDoc,
 } from "./partner-jobs.repository";
 import { isPartnerTarget } from "./partner-jobs.validation";
+import { deleteJobMedia, saveJobMedia, type IncomingMedia } from "./job-media-storage";
 import type {
   JobActionDto,
   JobAddOnDto,
@@ -77,6 +78,32 @@ export const maskPhone = (phone?: string): string | null => {
   if (digits.length < 4) return null;
 
   return `${"*".repeat(6)}${digits.slice(-4)}`;
+};
+
+/** Accepted = the partner took an offer, or confirmed a job the admin assigned to them. */
+const isAccepted = (booking: JobBookingDoc): boolean =>
+  !!booking.partnerId &&
+  (booking.offers ?? []).some(
+    (o) => o.response === "accepted" && o.partnerId.toString() === booking.partnerId?.toString(),
+  );
+
+/** How long a partner has to accept a job the admin assigned to them. */
+export const ASSIGNMENT_ACCEPT_WINDOW_MS = 5 * 60 * 1000;
+
+/** When the admin assigned this job to the partner (latest move into "assigned"), or null if unknown. */
+const assignedAtOf = (booking: JobBookingDoc): Date | null => {
+  const history = booking.statusHistory ?? [];
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const entry = history[i];
+    if (entry.to === "assigned" && entry.from !== "assigned") return new Date(entry.at);
+  }
+  return null;
+};
+
+/** The accept deadline of an admin-assigned job: 5 minutes after the assignment. */
+const assignmentDeadlineOf = (booking: JobBookingDoc): Date | null => {
+  const at = assignedAtOf(booking);
+  return at ? new Date(at.getTime() + ASSIGNMENT_ACCEPT_WINDOW_MS) : null;
 };
 
 /** Buttons the partner may press right now. */
@@ -204,6 +231,7 @@ async function buildDetail(booking: JobBookingDoc): Promise<JobDetailDto> {
   return {
     id: booking._id.toString(),
     status: booking.status,
+    accepted: isAccepted(booking),
     customer: {
       name: maskName(customer?.name ?? booking.customerName),
       phone: maskPhone(customer?.phone),
@@ -320,6 +348,7 @@ export const partnerJobsService = {
     return rows.map((booking) => ({
       id: booking._id.toString(),
       status: booking.status,
+      accepted: isAccepted(booking),
       service: { name: booking.serviceName },
       customerName: maskName(booking.customerName),
       address: [
@@ -357,32 +386,46 @@ export const partnerJobsService = {
     now: Date = new Date(),
   ): Promise<JobRequestDto[]> {
     const partner = await getPartnerProfile(userId);
-    const bookings = await repo.findJobRequests(partner._id, now);
+    const [bookings, assigned] = await Promise.all([
+      repo.findJobRequests(partner._id, now),
+      repo.findAdminAssignedAwaitingAcceptance(partner._id),
+    ]);
 
-    return bookings.flatMap((booking): JobRequestDto[] => {
+    const toDto = (booking: JobBookingDoc, expiresAt: Date | null, assignedByAdmin: boolean): JobRequestDto => ({
+      id: booking._id.toString(),
+      service: booking.serviceName,
+      area: booking.address.area || booking.address.city,
+      price: money(booking.partnerEarning || booking.priceBreakdown?.total || 0),
+      scheduledAt: booking.scheduledAt.toISOString(),
+      expiresAt: expiresAt ? expiresAt.toISOString() : null,
+      assignedByAdmin,
+    });
+
+    const offers = bookings.flatMap((booking): JobRequestDto[] => {
       const offer = booking.offers?.find(
         (item) =>
           item.partnerId.toString() === partner._id.toString() &&
           item.response === "pending",
       );
-
-      if (!offer?.expiresAt) return [];
-
-      return [
-        {
-          id: booking._id.toString(),
-          service: booking.serviceName,
-          area: booking.address.area || booking.address.city,
-          price: money(
-            booking.partnerEarning ||
-              booking.priceBreakdown?.total ||
-              0,
-          ),
-          scheduledAt: booking.scheduledAt.toISOString(),
-          expiresAt: offer.expiresAt.toISOString(),
-        },
-      ];
+      return offer?.expiresAt ? [toDto(booking, offer.expiresAt, false)] : [];
     });
+
+    const seen = new Set(offers.map((item) => item.id));
+    const direct: JobRequestDto[] = [];
+    for (const booking of assigned) {
+      if (seen.has(booking._id.toString())) continue;
+      const deadline = assignmentDeadlineOf(booking);
+      if (deadline && deadline.getTime() <= now.getTime()) {
+        // Nobody answered in 5 minutes: hand the job back to the admin to assign someone else.
+        await repo
+          .releaseAssignment(booking._id.toString(), partner._id, userId, "No response within 5 minutes", now)
+          .catch(() => false);
+        continue;
+      }
+      direct.push(toDto(booking, deadline, true));
+    }
+
+    return [...direct, ...offers];
   },
 
   /** POST /partner/jobs/:id/accept */
@@ -404,6 +447,20 @@ export const partnerJobsService = {
     }
 
     if (result === "EXPIRED_OR_UNAVAILABLE") {
+      // Not an open offer. It may be a job the admin assigned straight to this partner: confirm that instead.
+      const mine = await repo.findBooking(bookingId);
+      if (mine?.partnerId && mine.partnerId.toString() === partner._id.toString() && mine.status === "assigned") {
+        if (!isAccepted(mine)) {
+          const deadline = assignmentDeadlineOf(mine);
+          if (deadline && deadline.getTime() <= now.getTime()) {
+            await repo.releaseAssignment(bookingId, partner._id, userId, "No response within 5 minutes", now).catch(() => false);
+            throw httpError(409, ERROR_CODES.CONFLICT, "The 5 minutes to accept this job are over. It went back to the admin");
+          }
+          await repo.acceptAssignment(bookingId, partner._id, userId, now);
+        }
+        return { success: true, message: "Job accepted successfully" };
+      }
+
       throw httpError(
         409,
         ERROR_CODES.CONFLICT,
@@ -429,6 +486,15 @@ export const partnerJobsService = {
     const result = await repo.rejectOffer(bookingId, partner._id, reason);
 
     if (result === "NOT_FOUND") {
+      // Not an open offer. A job the admin assigned to this partner can be declined too: it goes back to the admin.
+      const mine = await repo.findBooking(bookingId);
+      if (!mine) throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
+
+      if (mine.partnerId && mine.partnerId.toString() === partner._id.toString() && mine.status === "assigned") {
+        const released = await repo.releaseAssignment(bookingId, partner._id, userId, reason);
+        if (released) return { success: true, message: "Job declined" };
+      }
+
       throw Errors.notFound(ERROR_CODES.BOOKING_NOT_FOUND, "Job not found");
     }
 
@@ -642,6 +708,7 @@ export const partnerJobsService = {
     bookingId: string,
     otp: string,
     now: Date = new Date(),
+    media: IncomingMedia[] = [],
   ): Promise<JobDetailDto> {
     const { partner, booking } = await loadOwnedBooking(
       userId,
@@ -708,14 +775,15 @@ export const partnerJobsService = {
       now,
     );
 
-    const applied = await repo.verifyStartJob(
-      bookingId,
-      partner._id,
-      entry,
-      now,
-    );
+    // Files are checked and saved only after the code is right, so a wrong code stores nothing.
+    const stored = await saveJobMedia(media);
+
+    const applied = stored.length
+      ? await repo.verifyStartJob(bookingId, partner._id, entry, now, stored)
+      : await repo.verifyStartJob(bookingId, partner._id, entry, now);
 
     if (!applied) {
+      await deleteJobMedia(stored.map((m) => m.key));
       throw invalid(
         "This job was already updated. Refresh to see its latest status",
       );

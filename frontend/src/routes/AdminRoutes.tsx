@@ -12,6 +12,7 @@ const AdminDashboardPage = lazy(
 
 // Operations
 const AdminLeadsPage = lazy(() => import("@/pages/admin/Leads"));
+const AdminSkillRequestsPage = lazy(() => import("@/pages/admin/SkillRequests"));
 const AdminBookingsPage = lazy(() => import("@/pages/admin/Bookings"));
 const AdminCustomersPage = lazy(() => import("@/pages/admin/Customers"));
 const AdminCustomerDetailsPage = lazy(
@@ -48,6 +49,7 @@ const AdminPaymentDetailsPage = lazy(
 );
 const AdminRefundsPage = lazy(() => import("@/pages/admin/Refunds"));
 const AdminPayoutsPage = lazy(() => import("@/pages/admin/Payouts"));
+const AdminWithdrawalsPage = lazy(() => import("@/pages/admin/Withdrawals"));
 
 // Quality and reporting
 const AdminReviewsPage = lazy(() => import("@/pages/admin/Reviews"));
@@ -141,6 +143,11 @@ const adminRoutes: AdminRoute[] = [
   {
     path: "manage-partners",
     element: <AdminManagePartnersPage />,
+    permission: "partners:view",
+  },
+  {
+    path: "skill-requests",
+    element: <AdminSkillRequestsPage />,
     permission: "partners:view",
   },
   {
@@ -250,7 +257,7 @@ const adminRoutes: AdminRoute[] = [
   },
   {
     path: "withdrawals",
-    element: <Navigate to="/admin/payouts#withdrawal-requests" replace />,
+    element: <AdminWithdrawalsPage />,
     permission: "payouts:view",
   },
 

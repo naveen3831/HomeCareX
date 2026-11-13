@@ -42,8 +42,10 @@ export interface JobRequest {
   address?: string;
   price: number;
   scheduledAt: string;
-  /** ISO time after which the offer can no longer be accepted. */
-  expiresAt: string;
+  /** ISO time after which the offer can no longer be accepted. null for a job the admin assigned directly (no deadline). */
+  expiresAt: string | null;
+  /** true when the admin assigned this job straight to the partner. */
+  assignedByAdmin?: boolean;
 }
 
 export interface PartnerNotification {
@@ -90,6 +92,10 @@ export interface PartnerJob {
   status: PartnerJobStatus;
   instructions?: string;
   expiresAt?: string;
+  /** true when the admin assigned this job straight to the partner: no countdown, just accept or reject. */
+  assignedByAdmin?: boolean;
+  /** false while the partner has not accepted an assigned job yet. */
+  accepted?: boolean;
   /** Service photo URL, when the backend sends one. */
   image?: string;
 }

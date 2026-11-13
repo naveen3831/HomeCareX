@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
+import { ReferralModel } from "../referrals/referrals.model";
 import { notifyAdmins } from "../notifications";
 import { alertRefundRequested } from "../notifications/admin-alerts";
 import { AppError } from "../../utils/AppError";
@@ -47,7 +48,8 @@ import {
   isRealDate,
   nowInBookingTz,
 } from "./bookings.time";
-import { BOOKING_PAYMENT_STATUS } from "../../models/Booking";
+import { BookingModel, BOOKING_PAYMENT_STATUS } from "../../models/Booking";
+import { PAYMENT_MAX_ATTEMPTS } from "../payments/payments.constants";
 import { ServiceModel } from "../../models/Service";
 import {
   calculatePricing,
@@ -358,7 +360,19 @@ export const BookingService = {
     };
 
     const replayed = await replay();
-    if (replayed) return replayed;
+    if (replayed) {
+      if (
+        replayed.booking.paymentStatus === "FAILED" ||
+        (replayed.booking as { paymentDetails?: { status?: string } }).paymentDetails?.status === "FAILED"
+      ) {
+        throw new AppError(
+          429,
+          "PAYMENT_RETRY_LIMIT_EXCEEDED",
+          "You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.",
+        );
+      }
+      return replayed;
+    }
 
     const row = await ServiceModel.findOne(
       { _id: input.serviceId, active: { $ne: false } },
@@ -480,22 +494,22 @@ export const BookingService = {
       ...addOnLines,
     ];
 
-    // Referred customer's first booking: same rule as POST /pricing/quote so the totals match.
+    // Referred customer's first booking: discount if applicable.
     let referral: { programId: string; discount: number } | null = null;
-    {
-      const orderValue = lines.reduce((sum, l) => sum + l.amount, 0);
-      const offer = await referralsService.refereeDiscount(
-        customerId,
-        input.serviceId,
-        orderValue,
+    let walletUsed = 0;
+    const orderValue = lines.reduce((sum, l) => sum + l.amount, 0);
+
+    const offer = await referralsService.refereeDiscount(
+      customerId,
+      input.serviceId,
+      orderValue,
+    ).catch(() => null);
+    if (offer) {
+      const discount = Math.max(
+        0,
+        Math.min(offer.discount, orderValue - (coupon?.discount ?? 0)),
       );
-      if (offer) {
-        const discount = Math.max(
-          0,
-          Math.min(offer.discount, orderValue - (coupon?.discount ?? 0)),
-        );
-        if (discount > 0) referral = { programId: offer.programId, discount };
-      }
+      if (discount > 0) referral = { programId: offer.programId, discount };
     }
 
     // Use the same calculation as POST /pricing/quote.
@@ -504,6 +518,25 @@ export const BookingService = {
       slot: input.slot,
       discount: (coupon?.discount ?? 0) + (referral?.discount ?? 0),
     });
+
+    const originalTotal = pricing.total;
+
+    // HomeCareX Wallet deduction
+    if (input.useWallet || input.useReferralWallet) {
+      const { WalletModel } = await import("../../models/Wallet");
+      const wallet = await WalletModel.findOne({ userId: customerId });
+      const balance = Math.max(0, wallet?.balance ?? 0);
+      if (balance <= 0) {
+        throw new AppError(
+          400,
+          "INSUFFICIENT_WALLET_BALANCE",
+          "Insufficient wallet balance to apply to booking",
+        );
+      }
+      walletUsed = Math.min(balance, originalTotal);
+    }
+
+    const payable = Math.max(0, originalTotal - walletUsed);
 
     const priceSnapshot: PriceSnapshot = {
       currency: "INR",
@@ -516,31 +549,37 @@ export const BookingService = {
             referralProgramId: referral.programId,
           }
         : {}),
+      wallet_used: walletUsed,
+      walletUsed,
+      payable,
       computedAt: new Date(),
     };
 
+    const targetExpected = (input.useWallet || input.useReferralWallet) ? payable : priceSnapshot.total;
     if (
       input.expectedTotal !== undefined &&
-      Math.abs(input.expectedTotal - priceSnapshot.total) >
+      Math.abs(input.expectedTotal - targetExpected) >
         PRICE_CHANGED_TOLERANCE
     ) {
       throw new AppError(
         409,
         "PRICE_CHANGED",
-        `The price changed to ₹${priceSnapshot.total}. Please review and confirm again.`,
+        `The price changed to ₹${targetExpected}. Please review and confirm again.`,
         {
           expectedTotal: input.expectedTotal,
-          total: priceSnapshot.total,
+          total: targetExpected,
         },
       );
     }
 
     const requirePayment = await bookingSettings.isPaymentRequired();
     const capacity = await bookingSettings.getSlotCapacity(input.serviceId);
-    const initialStatus = requirePayment
+    const initialStatus = (requirePayment && payable > 0)
       ? BOOKING_STATUS.PENDING_PAYMENT
       : BOOKING_STATUS.CONFIRMED;
-    const initialPaymentStatus = BOOKING_PAYMENT_STATUS.PENDING;
+    const initialPaymentStatus = (payable === 0)
+      ? BOOKING_PAYMENT_STATUS.PAID
+      : BOOKING_PAYMENT_STATUS.PENDING;
     const now = new Date();
 
     try {
@@ -618,6 +657,13 @@ export const BookingService = {
             priceSnapshot,
             status: initialStatus,
             paymentStatus: initialPaymentStatus,
+            paymentDetails: (payable === 0)
+              ? {
+                  status: "PAID",
+                  method: "wallet",
+                  paidAt: now,
+                }
+              : undefined,
             statusHistory: [
               {
                 from: null,
@@ -625,18 +671,76 @@ export const BookingService = {
                 at: now,
                 actorId: customerId,
                 actorRole: "customer",
-                reason: requirePayment
+                reason: (requirePayment && payable > 0)
                   ? "Booking created, awaiting payment"
-                  : "Booking confirmed",
+                  : (payable === 0 && walletUsed > 0)
+                    ? "Booking confirmed via HomeCareX Wallet payment"
+                    : "Booking confirmed",
               },
             ],
             slotSeat: seat,
+            wallet_used: walletUsed,
+            walletUsed,
+            payable,
             idempotencyKey,
             requestHash,
-            holdExpiresAt: requirePayment
+            holdExpiresAt: (requirePayment && payable > 0)
               ? new Date(now.getTime() + BOOKING_HOLD_MS)
               : undefined,
           } as never);
+
+          if (walletUsed > 0) {
+            const session = await mongoose.startSession();
+            try {
+              await session.withTransaction(
+                async () => {
+                  const { WalletModel, WalletLedgerModel } = await import("../../models/Wallet");
+                  const wallet = await WalletModel.findOne({ userId: customerId }).session(session);
+                  if (!wallet || wallet.balance < walletUsed) {
+                    throw new AppError(400, "INSUFFICIENT_WALLET_BALANCE", "Insufficient wallet balance");
+                  }
+                  wallet.balance -= walletUsed;
+                  await wallet.save({ session });
+
+                  await WalletLedgerModel.create(
+                    [
+                      {
+                        walletId: wallet._id,
+                        userId: customerId,
+                        bookingId: (createdBooking as { _id?: unknown })._id,
+                        type: "DEBIT",
+                        reason: "BOOKING_PAYMENT",
+                        amount: walletUsed,
+                        balanceAfter: wallet.balance,
+                        description: `HomeCareX Wallet deduction for booking ${service.name}`,
+                      },
+                    ],
+                    { session }
+                  );
+
+                  await ReferralModel.updateOne(
+                    { refereeId: customerId },
+                    {
+                      $set: {
+                        referralUsed: true,
+                        usedAt: now,
+                        discountBookingId: (createdBooking as { _id?: unknown })._id,
+                        discountAmount: walletUsed,
+                      },
+                    },
+                    { session }
+                  );
+                },
+                {
+                  readPreference: "primary",
+                  readConcern: { level: "local" },
+                  writeConcern: { w: "majority" },
+                }
+              );
+            } finally {
+              await session.endSession();
+            }
+          }
 
           if (coupon) {
             await couponsService.recordUsage(
@@ -977,6 +1081,8 @@ export const BookingService = {
       );
     }
 
+    await referralsService.refundWalletUsed(bookingId).catch(() => null);
+
     let refundStatus: CancellationSummary["refundStatus"] = "none";
 
     if (quote.refundAmount > 0 && isPaid) {
@@ -1069,11 +1175,13 @@ export const BookingService = {
       );
     }
 
-    if (hasSlotStarted(booking.date, booking.slot)) {
+    if (booking.partnerId) {
       throw new AppError(
         409,
         "BOOKING_NOT_RESCHEDULABLE",
-        "This booking has already started",
+        hasSlotStarted(booking.date, booking.slot)
+          ? "This booking has already started"
+          : "A partner has already been assigned to this booking",
       );
     }
 

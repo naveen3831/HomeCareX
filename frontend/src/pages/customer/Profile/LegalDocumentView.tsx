@@ -1,5 +1,5 @@
-import { Fragment, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { AlertCircle, ChevronDown, type LucideIcon } from "lucide-react";
 import clsx from "clsx";
 import type { LegalDocumentContent } from "@/content/terms";
@@ -54,7 +54,21 @@ interface Props {
  * styled like the rest of the dashboard: a summary card, then collapsible numbered sections (first one open).
  */
 export default function LegalDocumentView({ doc, other }: Props) {
-  const [open, setOpen] = useState<Record<string, boolean>>(() => (doc.sections[0] ? { [doc.sections[0].id]: true } : {}));
+  const { hash } = useLocation();
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    if (hash) {
+      const id = hash.replace(/^#/, "");
+      if (id) return { [id]: true };
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, []);
+
   const allOpen = doc.sections.length > 0 && doc.sections.every((s) => open[s.id]);
   const toggleAll = () => setOpen(Object.fromEntries(doc.sections.map((s) => [s.id, !allOpen])));
   const OtherIcon = other.icon;

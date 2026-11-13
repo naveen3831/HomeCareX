@@ -408,9 +408,9 @@ const Header: React.FC = () => {
         >
           {/* LOGO */}
           <NavLink
-            to="/"
+            to={pathname === "/" ? "/about" : "/"}
             onClick={closeMenu}
-            aria-label="HomeCareX Home"
+            aria-label={pathname === "/" ? "HomeCareX About" : "HomeCareX Home"}
             className="flex items-center justify-self-start rounded-xl"
           >
             <img

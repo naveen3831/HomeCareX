@@ -1,13 +1,13 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, Receipt } from "lucide-react";
 import { FOCUS_RING } from "@/components/customer/focusRing";
 import type { ExtraCharge, ExtraChargeDecision } from "@/types/bookingDetail";
 import { rupees } from "../../Bookings/bookingModel";
 import { formatMoment } from "../bookingDetailModel";
 
 interface Props {
-  charges: ExtraCharge[];
+  charges?: ExtraCharge[];
   /** The partner is on site, so a decision is allowed. Otherwise pending charges are shown but not actionable. */
   canDecide: boolean;
   /** Sends the decision. Rejects with an Error-like object ({ message }) when the server refuses. */
@@ -15,6 +15,7 @@ interface Props {
     chargeId: string,
     decision: ExtraChargeDecision,
   ) => Promise<unknown>;
+  className?: string;
 }
 
 const STATUS_TEXT: Record<
@@ -34,9 +35,10 @@ const BUTTON =
 
 /** Extra work the partner asked for. Approve adds it to the bill; reject declines it. */
 export default function ExtraChargeApproval({
-  charges,
+  charges = [],
   canDecide,
   onDecide,
+  className,
 }: Props) {
   const [busy, setBusy] = useState<{
     id: string;
@@ -47,7 +49,7 @@ export default function ExtraChargeApproval({
   );
   const [announcement, setAnnouncement] = useState("");
 
-  if (charges.length === 0) return null;
+  if (!charges || charges.length === 0) return null;
   const hasPending = charges.some((c) => c.status === "pending");
 
   async function decide(charge: ExtraCharge, decision: ExtraChargeDecision) {
@@ -73,33 +75,44 @@ export default function ExtraChargeApproval({
     <section
       aria-labelledby="extra-charges-heading"
       className={clsx(
-        "rounded-2xl border p-4 sm:p-5",
+        "rounded-2xl border p-4 sm:p-5 shadow-sm",
         hasPending && canDecide
           ? "border-amber-300 bg-amber-50/60"
-          : "border-line bg-panel",
+          : "border-slate-100 bg-white md:border-line md:bg-panel",
+        className,
       )}
     >
       <h2
         id="extra-charges-heading"
         className="flex items-center gap-2 text-sm font-bold text-ink"
       >
-        {hasPending && canDecide && (
+        {hasPending && canDecide ? (
           <CircleAlert className="h-4 w-4 text-amber-600" aria-hidden="true" />
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#eeebf9] text-[#4338ca] md:hidden"
+          >
+            <Receipt className="h-3.5 w-3.5" />
+          </span>
         )}
-        {hasPending && canDecide
-          ? "Your partner needs your approval"
-          : "Extra charges"}
+        <span>
+          {hasPending && canDecide
+            ? "Your partner needs your approval"
+            : "Extra charges"}
+        </span>
       </h2>
 
       <ul className="mt-3 space-y-3">
         {charges.map((charge) => {
-          const status = STATUS_TEXT[charge.status] ?? STATUS_TEXT.pending;
+          const statusKey = String(charge.status || "pending").toLowerCase() as ExtraCharge["status"];
+          const status = STATUS_TEXT[statusKey] ?? STATUS_TEXT.pending;
           const isBusy = busy?.id === charge._id;
           const requested = formatMoment(charge.requestedAt);
           return (
             <li
               key={charge._id}
-              className="rounded-xl border border-line bg-panel p-3"
+              className="rounded-xl border border-slate-100 bg-slate-50/60 p-3 md:border-line md:bg-panel"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">

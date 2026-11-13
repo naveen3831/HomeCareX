@@ -28,6 +28,10 @@ export const NOTIFICATION_TYPES = [
   'refund.requested',
   'payout.failed',
   'sla.breach',
+  /** A partner asked to add a new skill; an admin must approve it. */
+  'skill.requested',
+  /** An admin approved or rejected a partner's skill request. */
+  'skill.reviewed',
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -53,7 +57,7 @@ export const GROUP_PREFIXES: Record<
 > = {
   booking: ['booking.'],
   payment: ['payment.', 'payout.', 'refund.'],
-  partner: ['partner.', 'kyc.', 'training.'],
+  partner: ['partner.', 'kyc.', 'training.', 'skill.'],
   offers: ['offer.'],
   support: ['ticket.', 'support.'],
 };

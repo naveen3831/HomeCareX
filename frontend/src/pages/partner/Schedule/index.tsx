@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { getSchedule, Schedule as ScheduleData, ScheduleJob } from './schedule.api';
 import '../Availability/Availability.css';
 import './Schedule.css';
@@ -154,7 +153,7 @@ export const PartnerSchedulePage: React.FC = () => {
   if (!data) {
     return (
       <div className="sc-root">
-        <h1 className="pa-title sc-h1">Schedule</h1>
+        <h1 className="sr-only">Schedule</h1>
         <p className="pa-error" role="alert">{error ?? 'No schedule found.'}</p>
         <button className="pa-btn" onClick={() => load(view.y, view.m)}>Try again</button>
       </div>
@@ -179,12 +178,10 @@ export const PartnerSchedulePage: React.FC = () => {
   return (
     <div className="sc-root">
       <div className="sc-top">
+        {/* The top bar already shows the page title and the back arrow, so only the subtitle is shown here. */}
         <div className="sc-header">
-          <Link className="sc-back" to="/partner/availability" aria-label="Back to availability">&larr;</Link>
-          <div>
-            <h1 className="pa-title sc-h1">Schedule</h1>
-            <p className="sc-sub">Your working days, blackouts and jobs</p>
-          </div>
+          <h1 className="sr-only">Schedule</h1>
+          <p className="sc-sub">Your working days, blackouts and jobs</p>
         </div>
       </div>
 

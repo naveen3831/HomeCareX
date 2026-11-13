@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Wallet,
   CreditCard,
-  ArrowUpRight,
   ArrowLeft,
   CalendarDays,
   UserRound,

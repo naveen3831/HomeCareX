@@ -240,16 +240,7 @@ export const authService = {
     }
     const dbReady = mongoose.connection?.readyState === 1;
     const isPartner = input.role === 'partner';
-
-    // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
-    let storedId: StoredKycFile | undefined;
-    let storedAddress: StoredKycFile | undefined;
-    if (isPartner && dbReady) {
-      if (!input.idProofDocument) throw new HttpError(400, 'ID proof document is required.', 'VALIDATION_ERROR');
-      if (!input.addressProofDocument) throw new HttpError(400, 'Address proof document is required.', 'VALIDATION_ERROR');
-      storedId = await saveKycDocument(input.idProofDocument, 'ID proof');
-      storedAddress = await saveKycDocument(input.addressProofDocument, 'Address proof');
-    }
+    const isCustomer = input.role === 'customer';
 
     // A referral code (from a friend's invite link) must belong to a real customer; fail before creating the account.
     const referralCode = input.referralCode?.trim();
@@ -259,6 +250,16 @@ export const authService = {
       const invite = await referralsService.resolveInvite(referralCode, isPartner ? 'partner' : 'customer');
       referrerId = invite.referrerId;
       referralProgramId = invite.programId;
+    }
+
+    // Validate and store the KYC files first: a bad file must not leave an orphan account behind.
+    let storedId: StoredKycFile | undefined;
+    let storedAddress: StoredKycFile | undefined;
+    if (isPartner && dbReady) {
+      if (!input.idProofDocument) throw new HttpError(400, 'ID proof document is required.', 'VALIDATION_ERROR');
+      if (!input.addressProofDocument) throw new HttpError(400, 'Address proof document is required.', 'VALIDATION_ERROR');
+      storedId = await saveKycDocument(input.idProofDocument, 'ID proof');
+      storedAddress = await saveKycDocument(input.addressProofDocument, 'Address proof');
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
@@ -703,13 +704,29 @@ export const authService = {
       (currentSid && sessionId === currentSid) || sessionId === 'current',
     );
 
+    const userSessions = Array.isArray((user as any).sessions)
+      ? (user as any).sessions
+      : [];
+
+    const sessionExists =
+      isCurrent ||
+      userSessions.some(
+        (s: any) =>
+          s.sessionId === sessionId ||
+          s._id?.toString() === sessionId,
+      );
+
+    if (!sessionExists) {
+      throw new HttpError(404, 'Session not found', 'SESSION_NOT_FOUND');
+    }
+
     markSessionRevoked(sessionId);
 
-    if (Array.isArray((user as any).sessions)) {
-      (user as any).sessions = (user as any).sessions.filter(
-        (s: any) => s.sessionId !== sessionId,
-      );
-    }
+    (user as any).sessions = userSessions.filter(
+      (s: any) =>
+        s.sessionId !== sessionId &&
+        s._id?.toString() !== sessionId,
+    );
 
     if (isCurrent) {
       user.tokenVersion = (user.tokenVersion ?? 0) + 1;

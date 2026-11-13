@@ -16,11 +16,13 @@ export interface IWalletLedger extends Document {
   walletId: mongoose.Types.ObjectId;
   userId: string;
   type: LedgerType;
+  reason?: string;
   amount: number; // in rupees
   balanceAfter: number;
   description: string;
   referenceId?: string;
   bookingId?: mongoose.Types.ObjectId | string;
+  referralId?: mongoose.Types.ObjectId | string;
   refundId?: mongoose.Types.ObjectId | string;
   createdAt: Date;
 }
@@ -64,13 +66,25 @@ const WalletLedgerSchema = new Schema<IWalletLedger>(
     balanceAfter: { type: Number, required: true },
     description: { type: String, required: true },
     referenceId: { type: String, index: true },
+    reason: { type: String, index: true },
     bookingId: { type: Schema.Types.ObjectId, ref: 'Booking' },
+    referralId: { type: Schema.Types.ObjectId, ref: 'Referral' },
     refundId: { type: Schema.Types.ObjectId, ref: 'Refund' },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
 WalletLedgerSchema.index({ userId: 1, createdAt: -1 });
+WalletLedgerSchema.index(
+  { userId: 1, referralId: 1, reason: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      referralId: { $type: "objectId" },
+    },
+  }
+);
+WalletLedgerSchema.index({ bookingId: 1, reason: 1 });
 
 export const WalletModel: Model<IWallet> =
   (mongoose.models.Wallet as Model<IWallet>) ||

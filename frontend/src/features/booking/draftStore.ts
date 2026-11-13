@@ -34,6 +34,8 @@ export interface BookingDraftState {
   slot: string | null;
   couponCode: string | null;
   currentStep: number;
+  bookingId: string | null;
+  setBookingId: (bookingId: string | null) => void;
   /** One-off message shown above the stepper after Step 4 sends the customer back (not persisted). */
   idempotency: DraftIdempotency | null;
   notice: string | null;
@@ -73,6 +75,7 @@ const initialState = {
   slot: null as string | null,
   couponCode: null as string | null,
   currentStep: 1,
+  bookingId: null as string | null,
   idempotency: null as DraftIdempotency | null,
   notice: null as string | null,
 };
@@ -98,6 +101,7 @@ export const useBookingDraftStore = create<BookingDraftState>()(
       setDate: (date) => set({ date }),
       setSlot: (slot) => set({ slot }),
       setCouponCode: (couponCode) => set({ couponCode }),
+      setBookingId: (bookingId) => set({ bookingId }),
       setStep: (step) => set({ currentStep: Math.min(4, Math.max(1, step)) }),
       setNotice: (notice) => set({ notice }),
       getIdempotencyKey: (signature) => {
@@ -119,10 +123,6 @@ export const useBookingDraftStore = create<BookingDraftState>()(
     }),
     {
       name: "booking-draft-storage",
-      // v1 drafts held mock address ids ("addr-1"); v2 drafts held mock service/add-on ids
-      // ("650000...") that the API rejects with SERVICE_NOT_FOUND. The API needs real ids, so drop them.
-      // v3 drafts could still carry those ids without a matching slug, so they are dropped too.
-      // v4 drafts were saved while Step 1 still read the 9-service mock catalog (mock ids and prices), so drop them.
       version: 5,
       migrate: () => ({ ...initialState }),
       partialize: (state) => ({
@@ -138,6 +138,7 @@ export const useBookingDraftStore = create<BookingDraftState>()(
         slot: state.slot,
         couponCode: state.couponCode,
         currentStep: state.currentStep,
+        bookingId: state.bookingId,
         idempotency: state.idempotency,
       }),
     }

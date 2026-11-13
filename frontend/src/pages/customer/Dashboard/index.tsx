@@ -171,7 +171,7 @@ export default function Dashboard() {
 
       {recommendedServices.length > 0 && (
         <section className="dashboard-section">
-          <SectionHeader title="Recommended for you" />
+          <SectionHeader title="Services for you" />
           <RecommendedServices services={recommendedServices} />
         </section>
       )}

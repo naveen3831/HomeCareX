@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import BookingModel from "../../models/Booking";
 import PartnerModel from "../../models/Partner";
+import UserModel from "../../models/User";
 import SosAlertModel, { type SosStatus } from "./SosAlert";
 import type { SosLocation } from "./sos.types";
 
@@ -35,6 +36,14 @@ export const sosRepository = {
   findPartnerIdByUserId: async (userId: string): Promise<string | null> => {
     const partner = await PartnerModel.findOne({ userId }).select("_id").lean();
     return partner ? String(partner._id) : null;
+  },
+
+  /** Name and phone of the partner, for the admin alert. Null when either record is missing. */
+  findPartnerSummary: async (partnerId: string): Promise<{ name: string; phone?: string } | null> => {
+    const partner = await PartnerModel.findById(partnerId).select("userId").lean();
+    if (!partner) return null;
+    const user = await UserModel.findById(partner.userId).select("name phone").lean<{ name?: string; phone?: string }>();
+    return user?.name ? { name: user.name, phone: user.phone } : null;
   },
 
   /** True only when the booking exists AND is assigned to this partner. */

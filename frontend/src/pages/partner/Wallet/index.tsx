@@ -7,6 +7,8 @@ import React, {
 } from 'react';
 import { Link } from 'react-router-dom';
 import { getWalletSummary, type WalletSummary } from './wallet.api';
+import { WithdrawSheet, WithdrawalsSection, fmtINR } from './Withdraw';
+import { withdrawApi, errorMessage, type Withdrawal, type WithdrawalsOverview } from './withdraw.api';
 import './Wallet.css';
 
 type Entry = WalletSummary['recent'][number];
@@ -18,6 +20,7 @@ const TYPE_LABEL: Record<string, string> = {
   adjustment: 'Adjustment',
   payout: 'Payout',
   refund_deduction: 'Refund deduction',
+  commission_deduction: 'Admin commission (cash job)',
 };
 
 const FILTERS: { key: Filter; label: string }[] = [
@@ -107,6 +110,7 @@ const ICON_PATHS: Record<string, string> = {
   payout: 'M7 17L17 7M8 7h9v9',
   adjustment: 'M5 8h14M5 16h14M9 5v6M15 13v6',
   refund_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
+  commission_deduction: 'M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3',
 };
 
 const Icon: React.FC<{ type: string }> = ({ type }) => (
@@ -242,6 +246,10 @@ export const PartnerWalletPage: React.FC = () => {
   const [selected, setSelected] = useState<Entry | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [filter, setFilter] = useState<Filter>('all');
+  const [wd, setWd] = useState<WithdrawalsOverview | null>(null);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [wdMessage, setWdMessage] = useState<string | null>(null);
 
   const isDesktop = useMediaQuery('(min-width: 900px)');
   const summaryOpen = isDesktop || showSummary;
@@ -254,8 +262,15 @@ export const PartnerWalletPage: React.FC = () => {
     setError(null);
 
     try {
-      const result = await getWalletSummary();
-      if (id === requestId.current) setData(result);
+      // The withdrawals list is secondary: if it fails the wallet still shows.
+      const [result, overview] = await Promise.all([
+        getWalletSummary(),
+        withdrawApi.overview().catch(() => null),
+      ]);
+      if (id === requestId.current) {
+        setData(result);
+        setWd(overview);
+      }
     } catch (e) {
       if (id === requestId.current) {
         setError(
@@ -275,6 +290,38 @@ export const PartnerWalletPage: React.FC = () => {
   }, [load]);
 
   const closeSheet = useCallback(() => setSelected(null), []);
+  const closeWithdraw = useCallback(() => setShowWithdraw(false), []);
+
+  /* Reload quietly after a request so the balance and list update without a skeleton flash. */
+  const refreshAfterChange = useCallback(async () => {
+    try {
+      const [result, overview] = await Promise.all([
+        getWalletSummary(),
+        withdrawApi.overview().catch(() => null),
+      ]);
+      setData(result);
+      setWd(overview);
+    } catch {
+      /* the next full load will show any error */
+    }
+  }, []);
+
+  const cancelRequest = useCallback(
+    async (w: Withdrawal) => {
+      setCancellingId(w.id);
+      setWdMessage(null);
+      try {
+        await withdrawApi.cancel(w.id);
+        setWdMessage('Request cancelled. The money is back in your wallet.');
+        await refreshAfterChange();
+      } catch (e) {
+        setWdMessage(errorMessage(e));
+      } finally {
+        setCancellingId(null);
+      }
+    },
+    [refreshAfterChange]
+  );
 
   const total = data ? data.available + data.pending : 0;
   const availablePct = total > 0 && data ? (data.available / total) * 100 : 0;
@@ -428,7 +475,63 @@ export const PartnerWalletPage: React.FC = () => {
                   <dd>{fmtMoney(total)}</dd>
                 </div>
               </dl>
+
+              {/* ---------- Withdraw ---------- */}
+              <div className="wd-cta">
+                <button
+                  type="button"
+                  className="wd-btn"
+                  disabled={
+                    !wd || !!wd.pending || data.available < wd.minAmount
+                  }
+                  onClick={() => {
+                    setWdMessage(null);
+                    setShowWithdraw(true);
+                  }}
+                >
+                  Withdraw
+                </button>
+
+                {!wd ? (
+                  <p className="wd-cta-note">
+                    Withdrawals are unavailable right now. Pull to refresh or try again later.
+                  </p>
+                ) : wd.pending ? (
+                  <p className="wd-cta-note">
+                    You have a {fmtINR(wd.pending.amount)} request waiting for approval.
+                  </p>
+                ) : data.available < wd.minAmount ? (
+                  <p className="wd-cta-note">
+                    You need at least {fmtINR(wd.minAmount)} available to withdraw.
+                  </p>
+                ) : null}
+
+                {wdMessage && (
+                  <p className="wd-cta-note" role="status">
+                    {wdMessage}
+                  </p>
+                )}
+              </div>
+
+              {!isDesktop && (
+                <nav className="wl-quick" aria-label="Money pages">
+                  <Link to="/partner/earnings" className="wl-quick-link">
+                    Earnings <span aria-hidden="true">→</span>
+                  </Link>
+                  <Link to="/partner/payouts" className="wl-quick-link">
+                    Payouts <span aria-hidden="true">→</span>
+                  </Link>
+                </nav>
+              )}
             </section>
+
+            {wd && wd.items.length > 0 && (
+              <WithdrawalsSection
+                items={wd.items}
+                onCancel={cancelRequest}
+                cancellingId={cancellingId}
+              />
+            )}
 
             {/* ---------- Recent summary ---------- */}
             <section
@@ -666,6 +769,16 @@ export const PartnerWalletPage: React.FC = () => {
       )}
 
       {selected && <EntrySheet entry={selected} onClose={closeSheet} />}
+
+      {showWithdraw && data && wd && (
+        <WithdrawSheet
+          available={data.available}
+          minAmount={wd.minAmount}
+          maxAmount={wd.maxAmount}
+          onClose={closeWithdraw}
+          onRequested={refreshAfterChange}
+        />
+      )}
     </div>
   );
 };

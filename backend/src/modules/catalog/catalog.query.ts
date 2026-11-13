@@ -31,6 +31,10 @@ export function buildServiceQuery(query: ServiceQuery, categoryIds?: Types.Objec
     filter.categoryId = { $in: categoryIds };
   }
 
+  if (query.category && (query.category.toLowerCase().includes('ac-repair') || query.category.toLowerCase() === 'ac')) {
+    filter.$or = [{ name: { $regex: /ac/i } }, { slug: { $regex: /ac/i } }];
+  }
+
   if (query.q) filter.$text = { $search: query.q };
   if (query.rating !== undefined && query.rating > 0) filter.ratingAvg = { $gte: query.rating };
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {

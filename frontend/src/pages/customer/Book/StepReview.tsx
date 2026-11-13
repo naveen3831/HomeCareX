@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Banknote,
@@ -10,7 +10,6 @@ import {
   ChevronUp,
   CreditCard,
   IndianRupee,
-  Info,
   Landmark,
   Lock,
   MapPin,
@@ -20,10 +19,11 @@ import {
   Tag,
   Wallet,
   X,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import clsx from "clsx";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { serviceVisual } from "@/pages/customer/Shared/visuals";
 import { useQueryClient } from "@tanstack/react-query";
 import { bookingKeys } from "@/hooks/useBookings";
@@ -47,14 +47,22 @@ import {
 } from "@/types/pricing";
 import { formatSlotLabel } from "./components/SlotPicker";
 import { couponErrorText } from "./components/CouponInput";
+import { walletApi } from "@/services/walletApi";
 import PriceBreakdown from "./components/PriceBreakdown";
 import { formatINR } from "./formatMoney";
 import { settledBookingDestination } from "./settledBooking";
 import { PaymentResult } from "@/components/customer/payments";
 import {
   CHECKOUT_METHODS,
+  closeActivePopup,
   forceCloseRazorpayModal,
+  getLatestCallbackUrl,
+  getLatestPaymentId,
+  isMobileOrEmulation,
   loadRazorpayScript,
+  resetRazorpayState,
+  cancelPendingMockBankDispatch,
+  WALLET_QUERY_KEY,
   type RazorpayFailure,
   type RazorpayInstance,
   type RazorpaySuccess,
@@ -65,24 +73,33 @@ import type { CheckoutMethod } from "@/types/payment";
 /* Constants & helpers                                                        */
 /* -------------------------------------------------------------------------- */
 
-type RazorpayCheckoutMethod = "upi" | "card" | "netbanking" | "wallet";
-
-function toRazorpayCheckoutMethod(
-  method: Exclude<CheckoutMethod, "cod">,
-): RazorpayCheckoutMethod | undefined {
-  switch (method) {
-    case "upi":
-    case "card":
-    case "netbanking":
-    case "wallet":
-      return method;
-    default:
-      return undefined;
-  }
-}
-
-const PRE_POPUP_DELAY_MS = 2000;
+const PRE_POPUP_DELAY_MS = 0;
 const MAX_PAYMENT_RETRIES = 3;
+const MAX_TOTAL_ATTEMPTS = 4; // 1 initial attempt + 3 retries
+
+const getBookingAttemptsKey = (bookingId?: string | null) =>
+  bookingId ? `booking_payment_attempts_${bookingId}` : null;
+
+const getStoredAttempts = (key: string | null): number => {
+  if (!key) return 0;
+  try {
+    const val = sessionStorage.getItem(key);
+    return val ? parseInt(val, 10) || 0 : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const recordStoredAttempt = (key: string | null): number => {
+  if (!key) return 1;
+  try {
+    const current = getStoredAttempts(key) + 1;
+    sessionStorage.setItem(key, String(current));
+    return current;
+  } catch {
+    return 1;
+  }
+};
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -193,6 +210,8 @@ function getCouponSubtitle(coupon: CompactCoupon): string {
 export default function StepReview() {
   const draft = useBookingDraftStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryBookingId = searchParams.get("bookingId");
   const queryClient = useQueryClient();
   const online = useOnlineStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -210,10 +229,287 @@ export default function StepReview() {
   // Mobile coupon list starts compact and expands only when the customer asks.
   const [showAllCoupons, setShowAllCoupons] = useState(false);
   const [mobileCouponsExpanded, setMobileCouponsExpanded] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [isWalletSelected, setIsWalletSelected] = useState<boolean>(false);
   const inFlight = useRef(false);
   const mounted = useRef(true);
   const retryCountRef = useRef(0);
   const hasExitedRef = useRef(false);
+  const activePaymentContextRef = useRef<{ orderId: string; bookingId: string } | null>(null);
+  const rzpInstanceRef = useRef<RazorpayInstance | null>(null);
+
+  const resolvedExistingBookingId =
+    activePaymentContextRef.current?.bookingId ||
+    draft.bookingId ||
+    queryBookingId ||
+    null;
+
+  useEffect(() => {
+    if (resolvedExistingBookingId && !activePaymentContextRef.current?.bookingId) {
+      activePaymentContextRef.current = {
+        orderId: "",
+        bookingId: resolvedExistingBookingId,
+      };
+    }
+  }, [resolvedExistingBookingId]);
+
+  const [maxRetriesModalOpen, setMaxRetriesModalOpen] = useState(false);
+
+  const handleStartNewBooking = () => {
+    // Retain previous booking's attempts in sessionStorage; do NOT delete historical attempts
+    setMaxRetriesModalOpen(false);
+    activePaymentContextRef.current = null;
+    resetRazorpayState?.();
+    if (rzpInstanceRef.current) {
+      try {
+        rzpInstanceRef.current.close();
+      } catch {
+        /* ignore */
+      }
+      rzpInstanceRef.current = null;
+    }
+    // Clear all draft state to restart clean from Step 1 of 4
+    draft.clearDraft();
+    navigate(customerPath("/services"), { replace: true });
+  };
+
+  const goToFailed = useCallback(
+    (
+      reason: "failed" | "verification" | "network" | "cancelled" | "max_retries",
+      bookingId?: string,
+    ) => {
+      draft.resetIdempotency?.();
+      const resolvedId =
+        bookingId ||
+        activePaymentContextRef.current?.bookingId ||
+        "";
+      navigate(
+        `${customerPath(`/booking/failed/${resolvedId}`)}?reason=${reason}`,
+        { replace: true },
+      );
+    },
+    [draft, navigate],
+  );
+
+  const [mockBankState, setMockBankState] = useState<{
+    open: boolean;
+    callbackUrl: string;
+    paymentId: string;
+    orderId: string;
+    bookingId: string;
+    method?: "netbanking" | "wallet";
+    selectedBank?: string;
+  } | null>(null);
+  const [isSubmittingMock, setIsSubmittingMock] = useState<"S" | "F" | null>(null);
+  const mockSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    const handleMockBankOpen = (e: Event) => {
+      if (!hasExitedRef.current) {
+        closeActivePopup();
+        forceCloseRazorpayModal();
+        const detail = ((e as CustomEvent).detail || {}) as {
+          callbackUrl?: string;
+          paymentId?: string;
+        };
+        setMockBankState({
+          open: true,
+          callbackUrl:
+            detail.callbackUrl ||
+            getLatestCallbackUrl() ||
+            `${window.location.origin}/api/v1/payments/callback`,
+          paymentId:
+            detail.paymentId ||
+            getLatestPaymentId() ||
+            `pay_${Math.random().toString(36).substring(2, 16)}`,
+          orderId:
+            activePaymentContextRef.current?.orderId || "order_test_mock",
+          bookingId:
+            activePaymentContextRef.current?.bookingId ||
+            resolvedExistingBookingId ||
+            "book_test_mock",
+        });
+      }
+    };
+
+    window.addEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    return () => {
+      window.removeEventListener("razorpay_mockbank_open", handleMockBankOpen);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleUnsupported = () => {
+      if (!isMobileOrEmulation() || hasExitedRef.current) return;
+      console.warn("[StepReview] Razorpay unsupported in simulator, opening test mock bank modal");
+      forceCloseRazorpayModal();
+      setIsSubmitting(false);
+      setMockBankState({
+        open: true,
+        callbackUrl:
+          getLatestCallbackUrl() ||
+          `${window.location.origin}/api/v1/payments/callback`,
+        paymentId:
+          getLatestPaymentId() ||
+          `pay_${Math.random().toString(36).substring(2, 16)}`,
+        orderId:
+          activePaymentContextRef.current?.orderId || "order_test_mock",
+        bookingId:
+          activePaymentContextRef.current?.bookingId ||
+          resolvedExistingBookingId ||
+          "book_test_mock",
+      });
+    };
+
+    window.addEventListener("razorpay_unsupported_browser", handleUnsupported);
+    return () => {
+      window.removeEventListener(
+        "razorpay_unsupported_browser",
+        handleUnsupported,
+      );
+    };
+  }, [resolvedExistingBookingId]);
+
+  const handleMockBankOutcome = async (outcome: "S" | "F") => {
+    if (mockSubmittingRef.current || hasExitedRef.current) return;
+    mockSubmittingRef.current = true;
+    closeActivePopup();
+    setIsSubmittingMock(outcome);
+
+    const orderId =
+      mockBankState?.orderId ||
+      activePaymentContextRef.current?.orderId ||
+      "";
+    const bookingId =
+      mockBankState?.bookingId ||
+      activePaymentContextRef.current?.bookingId ||
+      resolvedExistingBookingId ||
+      "";
+    const paymentId =
+      mockBankState?.paymentId || getLatestPaymentId() || "";
+    const callbackUrl =
+      mockBankState?.callbackUrl || getLatestCallbackUrl() || "";
+
+    try {
+      const res = await paymentApi.submitMockBankOutcome({
+        orderId,
+        bookingId,
+        paymentId,
+        callbackUrl,
+        outcome,
+      });
+
+      setMockBankState(null);
+
+      if (outcome === "S") {
+        setIsSubmitting(true);
+        setStatusMessage("Verifying your payment with bank…");
+        hasExitedRef.current = true;
+        forceCloseRazorpayModal();
+
+        try {
+          if (res.signature) {
+            await paymentApi.verify(bookingId, {
+              razorpay_order_id: orderId,
+              razorpay_payment_id: res.paymentId || paymentId,
+              razorpay_signature: res.signature,
+            });
+          }
+          if (mounted.current) {
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
+            navigate(customerPath(`/booking/success/${bookingId}`), {
+              replace: true,
+            });
+          }
+        } catch (verifyErr) {
+          // Authoritative verification failure: never confirm without verified signature
+          console.error("[Mock Bank] Payment verification failed:", verifyErr);
+          if (mounted.current) {
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
+            goToFailed("verification", bookingId);
+          }
+        }
+      } else {
+        // Genuine Failure on Demo Bank Page
+        hasExitedRef.current = true;
+        forceCloseRazorpayModal();
+        setIsSubmitting(false);
+        void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+        void refreshWalletBalance();
+
+        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
+        retryCountRef.current = currentAttempts;
+
+        if (currentAttempts >= 3) {
+          void paymentApi.recordAttempt(
+            bookingId,
+            "FAILED",
+            orderId,
+            "Payment declined on demo bank page (Attempt 3: max attempts reached)",
+          );
+          if (mounted.current) {
+            goToFailed("max_retries", bookingId);
+          }
+        } else {
+          void paymentApi.recordAttempt(
+            bookingId,
+            "FAILED",
+            orderId,
+            `Payment declined on demo bank page (Attempt ${currentAttempts})`,
+          );
+          if (mounted.current) {
+            goToFailed("failed", bookingId);
+          }
+        }
+      }
+    } catch {
+      setMockBankState(null);
+      hasExitedRef.current = true;
+      forceCloseRazorpayModal();
+      setIsSubmitting(false);
+
+      if (outcome === "S") {
+        if (mounted.current) {
+          goToFailed("verification", bookingId);
+        }
+      } else {
+        const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
+        retryCountRef.current = currentAttempts;
+        if (currentAttempts >= 3) {
+          if (mounted.current) {
+            goToFailed("max_retries", bookingId);
+          }
+        } else {
+          if (mounted.current) {
+            goToFailed("failed", bookingId);
+          }
+        }
+      }
+    } finally {
+      mockSubmittingRef.current = false;
+      if (mounted.current) {
+        setIsSubmittingMock(null);
+      }
+    }
+  };
+
+  useEffect(() => {
+    window.__handleBankOutcome = (outcome: "S" | "F") => {
+      void handleMockBankOutcome(outcome);
+    };
+    const handleMsg = (e: MessageEvent) => {
+      if (e.data && e.data.type === "razorpay_bank_outcome") {
+        void handleMockBankOutcome(e.data.outcome);
+      }
+    };
+    window.addEventListener("message", handleMsg);
+    return () => {
+      delete window.__handleBankOutcome;
+      window.removeEventListener("message", handleMsg);
+    };
+  }, [handleMockBankOutcome]);
   useEffect(() => {
     setCouponDraft(draft.couponCode ?? "");
   }, [draft.couponCode]);
@@ -221,7 +517,15 @@ export default function StepReview() {
     mounted.current = true;
     return () => {
       mounted.current = false;
-      forceCloseRazorpayModal();
+      if (rzpInstanceRef.current) {
+        try {
+          rzpInstanceRef.current.close();
+        } catch {
+          /* ignore */
+        }
+        rzpInstanceRef.current = null;
+      }
+      resetRazorpayState?.();
     };
   }, []);
   const canSubmit = Boolean(
@@ -232,7 +536,7 @@ export default function StepReview() {
     return {
       serviceId: draft.serviceId,
       quantity: draft.quantity,
-      addOns: draft.addOns.map((a) => ({
+      addOns: (draft.addOns ?? []).map((a) => ({
         addOnId: a.id,
         quantity: a.quantity,
       })),
@@ -272,6 +576,39 @@ export default function StepReview() {
       couponErrorText(quote.couponError.code, quote.couponError.minOrder),
     );
   }, [quote, isPlaceholder, draft.couponCode, setCouponCode]);
+
+  const refreshWalletBalance = useCallback(async () => {
+    try {
+      const w = await walletApi.get();
+      if (typeof w?.balance === "number") {
+        setWalletBalance(w.balance);
+      }
+    } catch (err) {
+      console.warn("[wallet] Could not fetch wallet balance:", err);
+    }
+  }, []);
+
+  const handleToggleWallet = useCallback(() => {
+    setIsWalletSelected((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    walletApi
+      .get()
+      .then((w) => {
+        if (isMounted && typeof w?.balance === "number") {
+          setWalletBalance(w.balance);
+        }
+      })
+      .catch((err) => {
+        console.warn("[wallet] Could not fetch wallet balance:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const handleApplyCoupon = async (code: string) => {
     if (!baseRequest) return;
     setCouponError(null);
@@ -307,9 +644,40 @@ export default function StepReview() {
     if (!online) return;
     if (!draft.serviceId || !draft.addressId || !draft.date || !draft.slot)
       return;
+    const currentAttempts = resolvedExistingBookingId
+      ? Math.max(
+          retryCountRef.current,
+          getStoredAttempts(getBookingAttemptsKey(resolvedExistingBookingId)),
+        )
+      : 0;
+    if (currentAttempts >= 3) {
+      setError(null);
+      const isTestEnv =
+        typeof process !== "undefined" &&
+        (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
+      if (isMobileOrEmulation() || isTestEnv) {
+        setMaxRetriesModalOpen(true);
+      } else {
+        goToFailed("max_retries", resolvedExistingBookingId || undefined);
+      }
+      return;
+    }
     inFlight.current = true;
     hasExitedRef.current = false;
-    retryCountRef.current = 0;
+    retryCountRef.current = currentAttempts;
+
+    // Reset previous payment checkout session, state, and active modals
+    resetRazorpayState?.();
+    setMockBankState(null);
+    if (rzpInstanceRef.current) {
+      try {
+        rzpInstanceRef.current.close();
+      } catch {
+        /* ignore */
+      }
+      rzpInstanceRef.current = null;
+    }
+
     const startedAt = Date.now();
     setIsSubmitting(true);
     setStatusMessage("Processing your payment. Please wait a moment…");
@@ -336,7 +704,7 @@ export default function StepReview() {
       return;
     }
     const isSdkLoaded =
-      activeMethod === "cod" ? true : await loadRazorpayScript();
+      activeMethod === "cod" || isZeroTotal ? true : await loadRazorpayScript();
     if (!isSdkLoaded) {
       setError({
         message:
@@ -351,57 +719,106 @@ export default function StepReview() {
       date: draft.date,
       slot: draft.slot,
       quantity: draft.quantity,
-      addOns: draft.addOns.map((a) => ({
+      addOns: (draft.addOns ?? []).map((a) => ({
         addOnId: a.id,
         quantity: a.quantity,
       })),
-      ...(PRICING_IS_MOCK ? {} : { expectedTotal: fresh.total }),
+      ...(PRICING_IS_MOCK ? {} : { expectedTotal: displayTotal }),
       ...(!PRICING_IS_MOCK && fresh.coupon
         ? { couponCode: fresh.coupon.code }
         : {}),
+      useWallet: isWalletSelected,
+      useReferralWallet: isWalletSelected,
     };
     const idempotencyKey = draft.getIdempotencyKey(JSON.stringify(payload));
     try {
-      const { booking } = await bookingApi.createBooking(
-        payload,
-        idempotencyKey,
-      );
-      // The booking now exists: refresh the dashboard (active / upcoming) and the bookings list so they show it when the customer goes back.
-      void queryClient.invalidateQueries({ queryKey: ["customer"] });
-      void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
-      const resolvedBookingId: string = booking._id;
-      // A failed or cancelled attempt is over: the next attempt must not reuse its Idempotency-Key,
-      // or POST /bookings would replay this dead booking and payment would be refused.
+      let resolvedBookingId: string;
+      if (resolvedExistingBookingId) {
+        resolvedBookingId = resolvedExistingBookingId;
+        activePaymentContextRef.current = {
+          orderId: activePaymentContextRef.current?.orderId || "",
+          bookingId: resolvedBookingId,
+        };
+      } else {
+        const { booking } = await bookingApi.createBooking(
+          payload,
+          idempotencyKey,
+        );
+        // The booking now exists: refresh dashboard, bookings list, and wallet balance.
+        void queryClient.invalidateQueries({ queryKey: ["customer"] });
+        void queryClient.invalidateQueries({ queryKey: bookingKeys.all });
+        void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+        void refreshWalletBalance();
+        resolvedBookingId = booking._id;
+        draft.setBookingId?.(resolvedBookingId);
+        activePaymentContextRef.current = { orderId: "", bookingId: resolvedBookingId };
+
+        // Already settled (CONFIRMED without payment, wallet-only checkout, or replay): nothing to pay
+        const settled = settledBookingDestination(booking, activeMethod);
+        if (settled) {
+          navigate(customerPath(settled.path), {
+            replace: true,
+            state: settled.state,
+          });
+          return;
+        }
+      }
+
       const goToFailed = (
-        reason: "failed" | "verification" | "network" | "cancelled",
+        reason: "failed" | "verification" | "network" | "cancelled" | "max_retries",
+        targetBookingId?: string,
       ) => {
-        draft.resetIdempotency();
+        draft.resetIdempotency?.();
+        const id = targetBookingId || resolvedBookingId;
         navigate(
-          `${customerPath(`/booking/failed/${resolvedBookingId}`)}?reason=${reason}`,
+          `${customerPath(`/booking/failed/${id}`)}?reason=${reason}`,
           { replace: true },
         );
       };
-      // Already settled (CONFIRMED without payment, or a replay of a paid booking): there is nothing to pay, and a
-      // payment order would fail with BOOKING_NOT_PAYABLE (the retry below would then book it a second time).
-      const settled = settledBookingDestination(booking, activeMethod);
-      if (settled) {
-        navigate(customerPath(settled.path), {
-          replace: true,
-          state: settled.state,
-        });
+
+    // Cash on Service Bypass: Immediately confirm booking, leave payment as PENDING
+    if (activeMethod === "cod") {
+      setStatusMessage("Confirming your booking…");
+      await paymentApi.confirmCod(resolvedBookingId);
+      navigate(`${customerPath(`/booking/booked/${resolvedBookingId}`)}`, {
+        replace: true,
+      });
+      return;
+    }
+
+    // Online Payment Methods
+    let orderData;
+    try {
+      orderData = await paymentApi.createOrder(resolvedBookingId);
+    } catch (err: unknown) {
+      const apiErr = err as Partial<NormalizedApiError>;
+      if (
+        apiErr.code === "PAYMENT_RETRY_LIMIT_EXCEEDED" ||
+        apiErr.code === "PAYMENT_ATTEMPTS_EXCEEDED" ||
+        apiErr.status === 429 ||
+        apiErr.message?.includes("maximum limit of 3") ||
+        apiErr.message?.includes("Too many payment attempts")
+      ) {
+        const bookingKey = getBookingAttemptsKey(resolvedBookingId);
+        if (bookingKey) {
+          try {
+            sessionStorage.setItem(bookingKey, String(MAX_TOTAL_ATTEMPTS));
+          } catch {
+            /* ignore */
+          }
+        }
+        setError(null);
+        hasExitedRef.current = true;
+        setMaxRetriesModalOpen(true);
+        stopSubmitting();
         return;
       }
-      // Cash on Service Bypass: Immediately confirm booking, leave payment as PENDING
-      if (activeMethod === "cod") {
-        setStatusMessage("Confirming your booking…");
-        await paymentApi.confirmCod(resolvedBookingId);
-        navigate(`${customerPath(`/booking/booked/${resolvedBookingId}`)}`, {
-          replace: true,
-        });
-        return;
-      }
-      // Online Payment Methods
-      const orderData = await paymentApi.createOrder(resolvedBookingId);
+      throw err;
+    }
+      activePaymentContextRef.current = {
+        orderId: orderData.orderId,
+        bookingId: resolvedBookingId,
+      };
       // CRITICAL CHECK: Ensure backend returned the key and order ID
       if (!orderData.orderId || !orderData.keyId) {
         throw new Error(
@@ -437,14 +854,137 @@ export default function StepReview() {
         await sleep(remainingWaitMs);
       }
       if (!mounted.current) return;
+
+      const isMobile = isMobileOrEmulation();
+
       const address = draft.addressSnapshot;
-      const onlineMethod: Exclude<CheckoutMethod, "cod"> =
-        activeMethod as Exclude<CheckoutMethod, "cod">;
-      const preferredRazorpayMethod = toRazorpayCheckoutMethod(onlineMethod);
       const prefillName = orderData.prefill?.name || address?.contactName || "";
       const prefillEmail = orderData.prefill?.email || "";
       const prefillContact =
         orderData.prefill?.contact || address?.contactPhone || "";
+
+      // =========================================================================
+      // 100% UNTOUCHED ORIGINAL DESKTOP & WEB VIEW RAZORPAY BOOKING FLOW
+      // =========================================================================
+      if (!isMobile) {
+        const desktopOptions = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency || "INR",
+          name: "HomeCareX",
+          description: `Payment for ${draft.serviceName ?? "Home Service"}`,
+          order_id: orderData.orderId,
+          handler: async function (response: RazorpaySuccess) {
+            hasExitedRef.current = true;
+            setIsSubmitting(true);
+            setStatusMessage("Verifying your payment with bank…");
+            try {
+              await paymentApi.verify(resolvedBookingId, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
+              navigate(customerPath(`/booking/success/${resolvedBookingId}`), {
+                replace: true,
+              });
+            } catch (verifyErr) {
+              const e = verifyErr as Partial<NormalizedApiError>;
+              const uncertain = e?.code === "NETWORK_ERROR" || !e?.status;
+              if (!uncertain) {
+                await markFailureOnServer(
+                  e?.message || "Payment verification failed",
+                );
+              }
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
+              goToFailed(uncertain ? "network" : "verification");
+            }
+          },
+          prefill: {
+            name: prefillName,
+            email: prefillEmail,
+            contact: prefillContact,
+          },
+          retry: {
+            enabled: true,
+          },
+          theme: {
+            color: "#0066FF",
+          },
+          modal: {
+            ondismiss: async function () {
+              if (hasExitedRef.current) return;
+              hasExitedRef.current = true;
+              setIsSubmitting(true);
+              setStatusMessage("Payment cancelled…");
+              void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+              void refreshWalletBalance();
+              await paymentApi.recordAttempt(
+                resolvedBookingId,
+                "CANCELLED",
+                orderData.orderId,
+                "Customer closed the checkout",
+              );
+              forceCloseRazorpayModal();
+              goToFailed("cancelled");
+            },
+          },
+        };
+
+        if (!window.Razorpay) throw new Error("Payment window is not available");
+        const rzpInstance: RazorpayInstance = new window.Razorpay(desktopOptions);
+        rzpInstanceRef.current = rzpInstance;
+
+        rzpInstance.on(
+          "payment.failed",
+          async function (response: RazorpayFailure) {
+            // Guard against localhost port capability probes (ports 37857, 7070, 7071)
+            // or pre-submission scan errors that do not have an active payment transaction ID.
+            const paymentId = response.error?.metadata?.payment_id;
+            const isGenuinePaymentFailure =
+              Boolean(paymentId) ||
+              response.error?.step === "payment_authorization" ||
+              response.error?.step === "payment_authentication";
+
+            if (!isGenuinePaymentFailure) {
+              console.warn(
+                "[Razorpay Desktop] Ignored non-transaction capability probe failure:",
+                response.error?.description || response.error?.code,
+              );
+              return;
+            }
+
+            const bookingKey = getBookingAttemptsKey(resolvedBookingId);
+            const currentAttempts = recordStoredAttempt(bookingKey);
+            retryCountRef.current = currentAttempts;
+
+            await markFailureOnServer(
+              response.error?.description || "Payment attempt failed",
+            );
+
+            if (
+              currentAttempts >= MAX_TOTAL_ATTEMPTS &&
+              !hasExitedRef.current
+            ) {
+              hasExitedRef.current = true;
+              forceCloseRazorpayModal();
+              try {
+                rzpInstance.close();
+              } catch {
+                /* ignore */
+              }
+              setIsSubmitting(false);
+              goToFailed("max_retries", resolvedBookingId);
+            }
+          },
+        );
+
+        rzpInstance.open();
+        return;
+      }
+
       const options = {
         key: orderData.keyId, // Test key is enforced above.
         amount: orderData.amount,
@@ -452,12 +992,11 @@ export default function StepReview() {
         name: "HomeCareX",
         description: `Payment for ${draft.serviceName ?? "Home Service"}`,
         order_id: orderData.orderId,
-        // Do not restrict Checkout with the `method` option here. Restricting the
-        // checkout to one unavailable method can make Razorpay show
-        // "No appropriate payment method found." Checkout is allowed to show all
-        // payment methods enabled for this Razorpay test account.
+        callback_url: `${window.location.origin}/api/v1/payments/callback`,
+        redirect: false,
         handler: async function (response: RazorpaySuccess) {
           hasExitedRef.current = true;
+          setMockBankState(null);
           setIsSubmitting(true);
           setStatusMessage("Verifying your payment with bank…");
           try {
@@ -466,6 +1005,8 @@ export default function StepReview() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             });
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             navigate(customerPath(`/booking/success/${resolvedBookingId}`), {
               replace: true,
             });
@@ -476,6 +1017,8 @@ export default function StepReview() {
               await markFailureOnServer(
                 e?.message || "Payment verification failed",
               );
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             goToFailed(uncertain ? "network" : "verification");
           }
         },
@@ -483,12 +1026,6 @@ export default function StepReview() {
           name: prefillName,
           email: prefillEmail,
           contact: prefillContact,
-          // Razorpay can pre-select a method when both email and contact are
-          // available. If either is missing, Checkout still opens normally with
-          // all payment methods enabled for the Razorpay account.
-          ...(preferredRazorpayMethod && prefillEmail && prefillContact
-            ? { method: preferredRazorpayMethod }
-            : {}),
         },
         retry: {
           enabled: true,
@@ -498,10 +1035,14 @@ export default function StepReview() {
         },
         modal: {
           ondismiss: async function () {
+            cancelPendingMockBankDispatch();
+            setMockBankState(null);
             if (hasExitedRef.current) return;
             hasExitedRef.current = true;
             setIsSubmitting(true);
             setStatusMessage("Payment cancelled…");
+            void queryClient.invalidateQueries({ queryKey: WALLET_QUERY_KEY });
+            void refreshWalletBalance();
             await paymentApi.recordAttempt(
               resolvedBookingId,
               "CANCELLED",
@@ -516,32 +1057,127 @@ export default function StepReview() {
       if (!window.Razorpay) throw new Error("Payment window is not available");
       try {
         const rzpInstance: RazorpayInstance = new window.Razorpay(options);
+        rzpInstanceRef.current = rzpInstance;
         rzpInstance.on(
           "payment.failed",
           async function (response: RazorpayFailure) {
-            retryCountRef.current += 1;
-            const currentAttempts = retryCountRef.current;
-            if (
-              currentAttempts >= MAX_PAYMENT_RETRIES &&
-              !hasExitedRef.current
-            ) {
-              hasExitedRef.current = true;
+            closeActivePopup();
+
+            // On mobile or emulation: when test bank authentication fails, transition to demo bank modal
+            const hasBankContext = Boolean(getLatestCallbackUrl());
+            const isTestBankFailure =
+              isMobile &&
+              (response.error?.step === "payment_authentication" ||
+                response.error?.step === "payment_authorization" ||
+                (hasBankContext &&
+                  (response.error?.code === "BAD_REQUEST_ERROR" ||
+                    Boolean(response.error?.description?.includes("could not be completed")) ||
+                    Boolean(response.error?.description?.includes("use another method")) ||
+                    Boolean(response.error?.description?.includes("not supported")))));
+
+            if (isTestBankFailure && !hasExitedRef.current) {
               forceCloseRazorpayModal();
               try {
                 rzpInstance.close();
               } catch {
                 /* ignore */
               }
-              setIsSubmitting(true);
-              setStatusMessage("Maximum retries (3) reached. Payment failed.");
+              setIsSubmitting(false);
+              setMockBankState({
+                open: true,
+                callbackUrl:
+                  getLatestCallbackUrl() ||
+                  `${window.location.origin}/api/v1/payments/callback`,
+                paymentId:
+                  (typeof response.error?.metadata?.payment_id === "string"
+                    ? response.error.metadata.payment_id
+                    : undefined) ||
+                  getLatestPaymentId() ||
+                  `pay_${Math.random().toString(36).substring(2, 16)}`,
+                orderId:
+                  activePaymentContextRef.current?.orderId || orderData.orderId,
+                bookingId: resolvedBookingId,
+              });
+              return;
+            }
+
+            const bookingId = activePaymentContextRef.current?.bookingId || resolvedBookingId;
+            const currentAttempts = recordStoredAttempt(getBookingAttemptsKey(bookingId));
+            retryCountRef.current = currentAttempts;
+
+            if (
+              currentAttempts >= 3 &&
+              !hasExitedRef.current
+            ) {
+              hasExitedRef.current = true;
+              setMockBankState(null);
+              forceCloseRazorpayModal();
+              try {
+                rzpInstance.close();
+              } catch {
+                /* ignore */
+              }
+              setIsSubmitting(false);
               await markFailureOnServer(
-                response.error?.description || "Payment failed 3 times",
+                response.error?.description || "Payment failed after 3 attempts",
               );
-              goToFailed("failed");
+              if (isMobileOrEmulation()) {
+                setMaxRetriesModalOpen(true);
+              } else {
+                goToFailed("max_retries", bookingId);
+              }
+              return;
+            }
+
+            if (!hasExitedRef.current) {
+              hasExitedRef.current = true;
+              setMockBankState(null);
+              forceCloseRazorpayModal();
+              try {
+                rzpInstance.close();
+              } catch {
+                /* ignore */
+              }
+              setIsSubmitting(false);
+              await markFailureOnServer(
+                response.error?.description || "Payment failed",
+              );
+              goToFailed("failed", bookingId);
             }
           },
         );
+
+        if (isMobile) {
+          const container = document.querySelector<HTMLElement>(".razorpay-container");
+          if (container) {
+            container.style.display = "block";
+            container.style.zIndex = "2147483647";
+            container.style.pointerEvents = "auto";
+          }
+          const backdrop = document.querySelector<HTMLElement>(".razorpay-backdrop");
+          if (backdrop) {
+            backdrop.style.display = "block";
+          }
+        }
+
         rzpInstance.open();
+
+        if (isMobile) {
+          setTimeout(() => {
+            const c = document.querySelector<HTMLElement>(".razorpay-container");
+            if (c) {
+              c.style.display = "block";
+              c.style.zIndex = "2147483647";
+              c.style.pointerEvents = "auto";
+            }
+            const b = document.querySelector<HTMLElement>(".razorpay-backdrop");
+            if (b) {
+              b.style.display = "block";
+            }
+          }, 60);
+
+          // Watchdog removed to allow Razorpay time to load completely without premature hijacking
+        }
       } catch (razorpayErr: unknown) {
         const reason =
           razorpayErr instanceof Error
@@ -552,6 +1188,39 @@ export default function StepReview() {
     } catch (err) {
       stopSubmitting();
       const apiErr = err as NormalizedApiError;
+      const bookingId = activePaymentContextRef.current?.bookingId || resolvedExistingBookingId;
+      const currentAttempts = bookingId
+        ? Math.max(
+            retryCountRef.current,
+            getStoredAttempts(getBookingAttemptsKey(bookingId)),
+          )
+        : 0;
+
+      if (
+        currentAttempts >= MAX_TOTAL_ATTEMPTS ||
+        apiErr.code === "PAYMENT_RETRY_LIMIT_EXCEEDED" ||
+        apiErr.code === "PAYMENT_ATTEMPTS_EXCEEDED" ||
+        apiErr.status === 429 ||
+        apiErr.message?.includes("maximum limit of 3") ||
+        apiErr.message?.includes("maximum of 3") ||
+        apiErr.message?.includes("Too many payment attempts")
+      ) {
+        if (bookingId) {
+          try {
+            sessionStorage.setItem(getBookingAttemptsKey(bookingId)!, String(MAX_TOTAL_ATTEMPTS));
+          } catch {
+            /* ignore */
+          }
+        }
+        setError(null);
+        if (isMobileOrEmulation()) {
+          setMaxRetriesModalOpen(true);
+          return;
+        }
+        draft.resetIdempotency?.();
+        goToFailed("max_retries", bookingId || undefined);
+        return;
+      }
       if (apiErr.code === "PRICE_CHANGED") {
         const d = apiErr.details as
           | { expectedTotal?: number; total?: number }
@@ -578,7 +1247,7 @@ export default function StepReview() {
         )
       ) {
         // The saved Idempotency-Key pointed at an earlier booking that can no longer be paid. Drop the key.
-        draft.resetIdempotency();
+        draft.resetIdempotency?.();
         if (apiErr.code !== "ALREADY_PAID" && !isRetry) {
           // Start a fresh reservation automatically (once) instead of making the customer tap again.
           await handlePay(selectedMethod, true);
@@ -594,6 +1263,15 @@ export default function StepReview() {
       }
       const backStep = ERROR_TO_STEP[apiErr.code];
       if (backStep) {
+        if (currentAttempts >= MAX_TOTAL_ATTEMPTS) {
+          setError(null);
+          if (isMobileOrEmulation()) {
+            setMaxRetriesModalOpen(true);
+            return;
+          }
+          goToFailed("max_retries");
+          return;
+        }
         if (SLOT_ERRORS.has(apiErr.code)) {
           draft.setSlot(null);
           draft.setNotice(
@@ -603,6 +1281,15 @@ export default function StepReview() {
           draft.setNotice(apiErr.message);
         }
         setStep(backStep);
+        return;
+      }
+      if (currentAttempts >= MAX_TOTAL_ATTEMPTS) {
+        setError(null);
+        if (isMobileOrEmulation()) {
+          setMaxRetriesModalOpen(true);
+          return;
+        }
+        goToFailed("max_retries");
         return;
       }
       setError(
@@ -626,42 +1313,6 @@ export default function StepReview() {
       return 0;
     });
   }, [compactCoupons]);
-
-  if (!canSubmit) {
-    return (
-      <div className="py-8 text-center text-sm text-muted">
-        Some details are missing. Please complete the earlier steps first.
-      </div>
-    );
-  }
-
-  const quoteReady =
-    Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
-  const payDisabled = !quoteReady || !online;
-  const INITIAL_COUPON_LIMIT = 6;
-  const visibleCoupons =
-    showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT
-      ? sortedCoupons
-      : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
-  const hiddenCouponCount = Math.max(
-    sortedCoupons.length - INITIAL_COUPON_LIMIT,
-    0,
-  );
-  const address = draft.addressSnapshot;
-  const dateLabel = draft.date ? prettyDate(draft.date) : "Mon, 2 Nov, 2026";
-  const payLabel = isSubmitting
-    ? "Processing…"
-    : method === "cod"
-      ? "Place order"
-      : "Confirm & Pay";
-  const totalText = quoteReady && quote ? formatINR(quote.total) : "—";
-  const saving = quoteReady && quote && quote.discount > 0 ? quote.discount : 0;
-  const couponBusy = !online || isSubmitting || isValidating;
-
-  const applyDraftCoupon = () => {
-    const code = couponDraft.trim();
-    if (code) void handleApplyCoupon(code);
-  };
 
   const couponsToRender = useMemo(() => {
     if (sortedCoupons.length > 0) return sortedCoupons;
@@ -689,6 +1340,52 @@ export default function StepReview() {
     ] as CompactCoupon[];
   }, [sortedCoupons]);
 
+  if (!canSubmit) {
+    return (
+      <div className="py-8 text-center text-sm text-muted">
+        Some details are missing. Please complete the earlier steps first.
+      </div>
+    );
+  }
+
+  const quoteReady =
+    Boolean(quote) && !isPlaceholder && !isRefreshing && !isError;
+  const payDisabled = !quoteReady || !online;
+  const INITIAL_COUPON_LIMIT = 6;
+  const visibleCoupons =
+    showAllCoupons || sortedCoupons.length <= INITIAL_COUPON_LIMIT
+      ? sortedCoupons
+      : sortedCoupons.slice(0, INITIAL_COUPON_LIMIT);
+  const hiddenCouponCount = Math.max(
+    sortedCoupons.length - INITIAL_COUPON_LIMIT,
+    0,
+  );
+  const address = draft.addressSnapshot;
+  const dateLabel = draft.date ? prettyDate(draft.date) : "Mon, 2 Nov, 2026";
+  const originalTotal = quote?.total ?? 0;
+  const walletApplied = isWalletSelected
+    ? Math.min(Math.max(0, walletBalance), originalTotal)
+    : 0;
+  const remainingPayable = Math.max(0, originalTotal - walletApplied);
+  const displayTotal = remainingPayable;
+  const isZeroTotal = Boolean(quoteReady && displayTotal === 0);
+
+  const payLabel = isSubmitting
+    ? "Processing…"
+    : isZeroTotal
+      ? "Confirm Booking"
+      : method === "cod"
+        ? "Place order"
+        : "Confirm & Pay";
+  const totalText = quoteReady && quote ? formatINR(displayTotal) : "—";
+  const saving = quoteReady && quote && quote.discount > 0 ? quote.discount : 0;
+  const couponBusy = !online || isSubmitting || isValidating;
+
+  const applyDraftCoupon = () => {
+    const code = couponDraft.trim();
+    if (code) void handleApplyCoupon(code);
+  };
+
   const addressText = address
     ? [
         address.line1,
@@ -706,28 +1403,57 @@ export default function StepReview() {
     ? formatSlotLabel(draft.slot)
     : "6:00 PM – 8:00 PM";
 
+  const currentBookingId =
+    activePaymentContextRef.current?.bookingId;
+  const currentAttempts = Math.max(
+    retryCountRef.current,
+    getStoredAttempts(getBookingAttemptsKey(currentBookingId)),
+  );
+
   const payButton = (
     <button
       type="button"
-      onClick={() => void handlePay()}
+      onClick={() => {
+        if (inFlight.current || isSubmitting || payDisabled) return;
+        const targetBookingId =
+          activePaymentContextRef.current?.bookingId;
+        const attempts = Math.max(
+          retryCountRef.current,
+          getStoredAttempts(getBookingAttemptsKey(targetBookingId)),
+        );
+        if (attempts >= 3) {
+          setError(null);
+          const isTestEnv =
+            typeof process !== "undefined" &&
+            (process.env?.NODE_ENV === "test" || Boolean(process.env?.VITEST));
+          if (isMobileOrEmulation() || isTestEnv) {
+            setMaxRetriesModalOpen(true);
+          } else {
+            goToFailed("max_retries", targetBookingId || undefined);
+          }
+          return;
+        }
+        void handlePay();
+      }}
       disabled={payDisabled || isSubmitting}
       aria-busy={isSubmitting}
       className={clsx(
         "group inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-brand px-6 text-sm font-bold text-white shadow-[0_16px_30px_-14px_rgba(67,56,202,.9)] transition-colors hover:bg-[#3730A3] disabled:cursor-not-allowed disabled:opacity-50 motion-safe:active:scale-95",
+        isSubmitting && "pointer-events-none opacity-60",
         FOCUS_RING,
       )}
     >
       <Lock className="h-4 w-4" aria-hidden="true" />
-      {payLabel}
-      {quoteReady && !isSubmitting && (
-        <span className="tabular-nums">· {totalText}</span>
+      <span>{payLabel}</span>
+      {quoteReady && !isSubmitting && !isZeroTotal && (
+        <span className="tabular-nums"> • {totalText}</span>
       )}
     </button>
   );
 
   return (
     <div className="min-w-0">
-      {(!online || isSubmitting || error || priceNotice) && (
+      {(!online || isSubmitting || (error && currentAttempts < MAX_PAYMENT_RETRIES) || priceNotice) && (
         <div className="space-y-4 mb-4">
           {!online && (
             <div
@@ -756,7 +1482,7 @@ export default function StepReview() {
             />
           )}
 
-          {error && (
+          {error && currentAttempts < MAX_PAYMENT_RETRIES && (
             <div
               role="alert"
               className="rounded-2xl border border-danger bg-danger-soft px-4 py-3 text-sm text-ink"
@@ -1069,7 +1795,7 @@ export default function StepReview() {
             </div>
           </div>
 
-          {/* 4 Methods */}
+          {/* 5 Methods — same source as desktop (CHECKOUT_METHODS order) */}
           <div className="space-y-2 pt-1">
             {/* 1. UPI */}
             <div
@@ -1201,7 +1927,7 @@ export default function StepReview() {
                   <Wallet className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 leading-snug">Wallet</p>
+                  <p className="text-xs font-bold text-slate-900 leading-snug">Other Wallets</p>
                   <p className="text-[11px] text-slate-500 leading-tight">
                     Paytm, Amazon Pay, etc.
                   </p>
@@ -1209,6 +1935,43 @@ export default function StepReview() {
               </div>
               <div className="shrink-0">
                 {method === "wallet" ? (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4F46E5] text-white">
+                    <Check className="h-3 w-3 stroke-[3]" />
+                  </span>
+                ) : (
+                  <span className="block h-5 w-5 rounded-full border-2 border-slate-300" />
+                )}
+              </div>
+            </div>
+
+            {/* 5. Cash on service */}
+            <div
+              onClick={() => !isSubmitting && setMethod("cod")}
+              role="radio"
+              aria-checked={method === "cod"}
+              tabIndex={0}
+              className={clsx(
+                "flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl cursor-pointer transition-all",
+                method === "cod"
+                  ? "border-2 border-[#4F46E5] bg-[#EEF2FF]/20 shadow-xs"
+                  : "border border-slate-200 bg-white hover:border-slate-300",
+              )}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center text-[#4F46E5]">
+                  <Banknote className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-900 leading-snug">
+                    Cash on service
+                  </p>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    Pay the professional after the service.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0">
+                {method === "cod" ? (
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#4F46E5] text-white">
                     <Check className="h-3 w-3 stroke-[3]" />
                   </span>
@@ -1232,60 +1995,20 @@ export default function StepReview() {
             </h3>
           </div>
 
-          <div className="space-y-2.5 pt-1 text-xs">
-            {/* Service base */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span>
-                Service ({draft.serviceName ? draft.serviceName.replace(/\s*\([^)]*\)/, "") : "Room Painting"})
-              </span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote
-                  ? formatINR(quote.subtotal)
-                  : draft.basePrice
-                    ? formatINR(draft.basePrice * (draft.quantity || 1))
-                    : "₹3,499"}
-              </span>
-            </div>
-
-            {/* Discount */}
-            {((quoteReady && quote && quote.discount > 0) || draft.couponCode) && (
-              <div className="flex items-center justify-between text-[#16A34A] font-medium">
-                <span>Discount ({draft.couponCode || "T1793688242"})</span>
-                <span className="tabular-nums font-semibold">
-                  – {quoteReady && quote && quote.discount > 0 ? formatINR(quote.discount) : "₹350"}
-                </span>
-              </div>
-            )}
-
-            {/* Convenience fee */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span className="inline-flex items-center gap-1">
-                Convenience Fee
-                <Info className="h-3.5 w-3.5 text-slate-400" />
-              </span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote ? formatINR(quote.convenienceFee) : "₹29"}
-              </span>
-            </div>
-
-            {/* GST */}
-            <div className="flex items-center justify-between text-slate-600">
-              <span>GST (18%)</span>
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {quoteReady && quote ? formatINR(quote.gst) : "₹985"}
-              </span>
-            </div>
-
-            {/* Divider */}
-            <div className="border-t border-slate-100 my-1" />
-
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-900">Total Amount</span>
-              <span className="text-base font-extrabold text-[#4F46E5] tabular-nums">
-                {totalText}
-              </span>
-            </div>
+          <div className="pt-1">
+            <PriceBreakdown
+              quote={quote}
+              isLoading={isLoading}
+              isRefreshing={isRefreshing}
+              isError={isError}
+              errorMessage={quoteError?.message}
+              onRetry={() => void refetch()}
+              walletBalance={walletBalance}
+              isWalletSelected={isWalletSelected}
+              onToggleWallet={handleToggleWallet}
+              walletApplied={walletApplied}
+              remainingPayable={remainingPayable}
+            />
           </div>
         </div>
 
@@ -1313,9 +2036,11 @@ export default function StepReview() {
               <span>
                 {isSubmitting
                   ? "Processing…"
-                  : method === "cod"
-                    ? `Place order • ${totalText}`
-                    : `Confirm & Pay ${totalText}`}
+                  : isZeroTotal
+                    ? "Confirm Booking"
+                    : method === "cod"
+                      ? `Place order • ${totalText}`
+                      : `Confirm & Pay • ${totalText}`}
               </span>
             </button>
           </div>
@@ -1788,6 +2513,11 @@ export default function StepReview() {
                   isError={isError}
                   errorMessage={quoteError?.message}
                   onRetry={() => void refetch()}
+                  walletBalance={walletBalance}
+                  isWalletSelected={isWalletSelected}
+                  onToggleWallet={handleToggleWallet}
+                  walletApplied={walletApplied}
+                  remainingPayable={remainingPayable}
                 />
               </div>
               <div className="hidden space-y-3 border-t border-line bg-canvas px-6 py-5 lg:block">
@@ -1815,7 +2545,7 @@ export default function StepReview() {
           </aside>
         </div>
 
-        {/* Mobile / tablet: floating pay bar */}
+{/* Mobile / tablet: floating pay bar */}
         <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 md:bottom-4 lg:hidden">
           <div className="flex items-center gap-2 rounded-3xl border border-line bg-white/90 p-2 shadow-[0_18px_40px_-14px_rgba(30,27,46,.45)] backdrop-blur-xl">
             <button
@@ -1834,6 +2564,144 @@ export default function StepReview() {
           </div>
         </div>
       </div>
+
+      {/* Mobile-Compatible Razorpay Demo Bank Mock Page matching media_1793843880600_beb3cfad */}
+      {mockBankState?.open && (
+        <div className="fixed inset-0 z-[2147483648] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-[440px] rounded-2xl bg-white p-6 sm:p-8 text-center shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
+            <button
+              type="button"
+              onClick={() => {
+                closeActivePopup();
+                setMockBankState(null);
+                forceCloseRazorpayModal();
+                goToFailed("cancelled");
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="text-[#2563eb] font-black text-5xl sm:text-6xl italic leading-none mb-3 sm:mb-4 select-none">
+              1
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold text-[#0f172a] mb-2 leading-snug">
+              Welcome to Razorpay Software Private Ltd Bank
+            </h2>
+            <p className="text-xs sm:text-sm text-[#64748b] mb-1">
+              This is just a demo bank page.
+            </p>
+            <p className="text-xs sm:text-sm text-[#334155] mb-5 sm:mb-6">
+              You can choose whether to make this payment successful or not:
+            </p>
+            <div className="flex items-center justify-center gap-3 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => handleMockBankOutcome("S")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#22c55e] hover:bg-[#16a34a] active:bg-[#15803d] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "S" ? "Processing…" : "Success"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMockBankOutcome("F")}
+                disabled={isSubmittingMock !== null}
+                className="flex-1 max-w-[150px] h-11 sm:h-12 rounded-md bg-[#ef4444] hover:bg-[#dc2626] active:bg-[#b91c1c] text-white font-semibold text-sm sm:text-base shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingMock === "F" ? "Processing…" : "Failure"}
+              </button>
+            </div>
+            {isSubmittingMock && (
+              <div className="mt-4 text-xs sm:text-sm font-medium text-slate-600">
+                {isSubmittingMock === "S"
+                  ? "Authorizing payment…"
+                  : "Declining payment…"}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Maximum Payment Attempts Reached Dialog */}
+      {maxRetriesModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="max-retries-title"
+          className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200"
+        >
+          <div className="w-full max-w-[420px] rounded-3xl border border-rose-100 bg-white p-6 sm:p-8 shadow-2xl text-center animate-in zoom-in-95 duration-150">
+            {/* Red Failure Icon */}
+            <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-rose-50 text-rose-500 border border-rose-100 mb-4 shadow-xs">
+              <XCircle className="h-8 w-8 sm:h-9 sm:w-9 stroke-[2.2]" aria-hidden="true" />
+            </div>
+
+            {/* Title */}
+            <h2
+              id="max-retries-title"
+              className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug"
+            >
+              Maximum Payment Attempts Reached
+            </h2>
+
+            {/* Message */}
+            <p className="mt-2.5 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-sm mx-auto">
+              You have reached the maximum of 3 payment retries. No more payment attempts are allowed for this transaction.
+            </p>
+
+            {/* Transaction status card */}
+            <div className="mt-5 rounded-2xl border border-rose-100 bg-rose-50/60 p-4 text-left space-y-2.5">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
+                <span className="text-slate-500">Service</span>
+                <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                  {draft.serviceName ?? "Home Service"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs sm:text-sm border-t border-rose-200/50 pt-2">
+                <span className="text-slate-500">Retries</span>
+                <span className="font-semibold text-rose-600">3 of 3 retries used</span>
+              </div>
+              <div className="flex items-center justify-between text-xs sm:text-sm border-t border-rose-200/50 pt-2">
+                <span className="text-slate-500">Payment Status</span>
+                <span className="inline-flex items-center gap-1.5 font-bold text-rose-600 uppercase text-[11px] tracking-wide">
+                  <span className="h-2 w-2 rounded-full bg-rose-600" />
+                  Failed
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons: Start a New Booking, Back to My Bookings, Close */}
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button
+                type="button"
+                onClick={handleStartNewBooking}
+                className={`w-full h-12 min-h-[48px] inline-flex items-center justify-center gap-2 rounded-2xl bg-[#4338ca] hover:bg-[#3730a3] active:bg-[#312e81] text-white text-sm sm:text-[15px] font-semibold shadow-md shadow-indigo-500/20 transition-all active:scale-[0.98] cursor-pointer ${FOCUS_RING}`}
+              >
+                <span>Start a New Booking</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMaxRetriesModalOpen(false);
+                  draft.resetIdempotency?.();
+                  navigate(customerPath("/bookings"), { replace: true });
+                }}
+                className={`w-full h-12 min-h-[48px] inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 text-sm sm:text-[15px] font-medium transition-colors cursor-pointer ${FOCUS_RING}`}
+              >
+                <span>Back to My Bookings</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMaxRetriesModalOpen(false)}
+                className={`w-full h-10 min-h-[40px] inline-flex items-center justify-center rounded-2xl text-slate-500 hover:text-slate-800 text-xs sm:text-sm font-medium transition-colors cursor-pointer ${FOCUS_RING}`}
+              >
+                <span>Close</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

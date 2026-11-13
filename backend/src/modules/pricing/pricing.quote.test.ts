@@ -32,6 +32,16 @@ test('a PricingRule surge window replaces the built-in evening surge', () => {
   assert.equal(evening.surge, 0); // the rule has no evening window, so no built-in surge either
 });
 
+test('referral discount is combined with coupon and reduces taxable amount', () => {
+  // base 799; referral discount 160 (20%) -> subtotal 799; discount 160; fee 29; GST (799 - 160 + 29)*0.18 = 120; total = 788
+  const p = calculatePricing({ lines: lines(799), slot: '14:00-16:00', discount: 160 });
+  assert.equal(p.subtotal, 799);
+  assert.equal(p.discount, 160);
+  assert.equal(p.convenienceFee, 29);
+  assert.equal(p.gst, 120);
+  assert.equal(p.total, 788);
+});
+
 test('coupon module error codes fold into the codes the frontend knows', () => {
   assert.equal(toQuoteCouponCode('COUPON_EXPIRED'), 'COUPON_EXPIRED');
   assert.equal(toQuoteCouponCode('COUPON_MIN_ORDER'), 'COUPON_MIN_ORDER');

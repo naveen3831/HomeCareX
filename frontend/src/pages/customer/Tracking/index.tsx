@@ -430,24 +430,19 @@ export default function TrackingPage() {
       >
         {/* ---------- header ---------- */}
         <header className="tk-header w-full min-w-0 space-y-1 pb-1">
-          {/* Top Row: Back button (left) + Live Tracking badge (right) - Mobile only */}
-          <div className="flex w-full items-center justify-between md:hidden">
+          {/* Mobile Header: Back button with title (left) + Live Tracking badge (right) - Matches Profile header */}
+          <div className="-mx-4 -mt-6 mb-3 flex h-[64px] items-center justify-between gap-3 bg-white px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] sticky top-0 z-30 md:hidden">
             <button
               type="button"
               onClick={handleBack}
+              aria-label={`Back from ${serviceName || "Track your service"}`}
               className={clsx(
-                "inline-flex items-center gap-1.5 text-xs font-semibold text-[#4338ca] transition-colors hover:underline sm:text-sm",
+                "inline-flex min-h-[44px] min-w-0 flex-1 items-center gap-1 rounded-lg pl-1 pr-1.5 text-[15px] font-semibold text-ink transition-colors hover:text-brand active:opacity-70",
                 FOCUS_RING,
               )}
             >
-              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>
-                {location.state?.from === customerPath("/bookings")
-                  ? "Back to My Bookings"
-                  : location.state?.from && location.state.from.includes("/bookings/")
-                    ? "Back to booking"
-                    : "Back to Active Bookings"}
-              </span>
+              <ArrowLeft className="h-5 w-5 shrink-0" aria-hidden="true" />
+              <span className="truncate">{serviceName || "Track your service"}</span>
             </button>
 
             <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#eeebf9] px-3 py-1 text-xs font-semibold text-[#4338ca]">
@@ -459,7 +454,7 @@ export default function TrackingPage() {
           {/* Service Title Row: Service Name (left) + Live Tracking badge (desktop right) */}
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <h1 className="text-[17px] font-bold tracking-tight text-slate-900 leading-snug min-[360px]:text-[18px] sm:text-[20px] md:text-[21px]">
+              <h1 className="hidden md:block text-[17px] font-bold tracking-tight text-slate-900 leading-snug min-[360px]:text-[18px] sm:text-[20px] md:text-[21px]">
                 {serviceName || "Track your service"}
               </h1>
 

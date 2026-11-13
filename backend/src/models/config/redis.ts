@@ -7,9 +7,12 @@ export const redisConfig = {};
 type RedisClient = ReturnType<typeof createClient>;
 
 let clientPromise: Promise<RedisClient | null> | null = null;
-/** After a failed connect, don't retry for a while: requests fall straight back to no-Redis mode. */
+/** After a failed connect, don't retry immediately; requests fall straight back to in-memory lock mode. */
 let retryAfter = 0;
-const RETRY_COOLDOWN_MS = 30_000;
+const INITIAL_COOLDOWN_MS = 60_000;
+const MAX_COOLDOWN_MS = 300_000; // 5 minutes
+let currentCooldown = INITIAL_COOLDOWN_MS;
+let hasLoggedUnreachable = false;
 let warned = false;
 
 /**
@@ -40,26 +43,43 @@ export function getRedisClient(): Promise<RedisClient | null> {
           },
         },
       });
+
       client.on('ready', () => {
         everConnected = true;
         warned = false;
+        hasLoggedUnreachable = false;
+        currentCooldown = INITIAL_COOLDOWN_MS;
       });
+
       client.on('error', (err: Error) => {
-        // Log once per outage (the message is often empty for AggregateError, so fall back to code/name).
+        // While establishing initial connection, the catch block handles unreachable state cleanly.
+        if (!everConnected) return;
         if (warned) return;
         warned = true;
         const e = err as Error & { code?: string };
-        console.error('[redis]', e.message || e.code || e.name || 'connection error');
+        console.warn('[redis]', e.message || e.code || e.name || 'connection error');
       });
+
       try {
         await client.connect();
         return client;
       } catch (err) {
-        const e = err as Error & { code?: string };
-        console.error('[redis] connect failed, continuing without Redis:', e.message || e.code || 'unreachable');
-        retryAfter = Date.now() + RETRY_COOLDOWN_MS;
+        if (!hasLoggedUnreachable) {
+          hasLoggedUnreachable = true;
+          const e = err as Error & { code?: string };
+          console.info(
+            `[redis] Redis server unreachable (${e.message || e.code || 'ECONNREFUSED'}); continuing with in-memory lock.`,
+          );
+        }
+        retryAfter = Date.now() + currentCooldown;
+        currentCooldown = Math.min(currentCooldown * 2, MAX_COOLDOWN_MS);
         clientPromise = null; // allow a later retry (after the cooldown)
-        client.disconnect().catch(() => undefined);
+        try {
+          client.removeAllListeners('error');
+          await client.disconnect();
+        } catch {
+          // ignore disconnect errors on failed connect
+        }
         return null;
       }
     })();

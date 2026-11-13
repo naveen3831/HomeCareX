@@ -1,8 +1,14 @@
 export const PAYMENT_METHODS = ['upi', 'card', 'netbanking', 'wallet', 'cod'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
+/** Maximum retries permitted after initial payment attempt. */
+export const PAYMENT_MAX_RETRIES = 3;
+
+/** Maximum total payment attempts (1 initial attempt + 3 retries). */
+export const PAYMENT_MAX_TOTAL_ATTEMPTS = 4;
+
 /** Order creations / reuses allowed per booking before the customer must start a new booking. */
-export const PAYMENT_MAX_ATTEMPTS = 5;
+export const PAYMENT_MAX_ATTEMPTS = 4;
 
 /** Razorpay webhook events this module acts on. Anything else is acknowledged and ignored. */
 export const WEBHOOK_EVENTS = {

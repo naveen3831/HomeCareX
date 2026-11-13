@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BadgeCheck,
   Briefcase,
   ChevronRight,
-  FileText,
   HelpCircle,
   LifeBuoy,
   LogOut,
@@ -21,6 +20,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { partnerApi, type PartnerProfileInput } from "@/services/partnerApi";
 import { getMyDocuments, type PartnerDocuments } from "@/pages/partner/Documents/documents.api";
+import JoinDetailsCard from "./JoinDetailsCard";
 import EditProfileSheet from "./EditProfileSheet";
 
 interface MenuItem { key: string; label: string; to: string; description: string; icon: LucideIcon }
@@ -46,18 +46,6 @@ function verification(docs: PartnerDocuments | undefined): { label: string; tone
   }
 }
 
-function documentsHint(docs: PartnerDocuments | undefined): string {
-  if (!docs) return "ID proof, address proof and approval status";
-  if (docs.documents.length === 0) return "Upload your ID and address proof";
-  switch (docs.status) {
-    case "approved": return "Approved. View your documents";
-    case "submitted":
-    case "in_review": return "Our team is checking your documents";
-    case "rejected": return "Something needs fixing. Tap to see why";
-    default: return "ID proof, address proof and approval status";
-  }
-}
-
 function MenuGroup({ title, items }: { title: string; items: MenuItem[] }) {
   return (
     <section aria-label={title}>
@@ -67,6 +55,14 @@ function MenuGroup({ title, items }: { title: string; items: MenuItem[] }) {
           <li key={key}>
             <Link
               to={to}
+              onClick={() => {
+                // Lets the layout's back button return here, even for pages that are also bottom tabs (My jobs).
+                try {
+                  window.sessionStorage.setItem("hcx:partner:fromProfile", "1");
+                } catch {
+                  /* storage unavailable */
+                }
+              }}
               className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#4338ca] sm:px-4 sm:py-3"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
@@ -101,6 +97,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 export default function ProfileMenu() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<PartnerProfileInput>({
     name: user?.name ?? "Partner",
     phone: (user?.phone ?? "").replace(/\D/g, "").slice(-10),
@@ -118,6 +115,15 @@ export default function ProfileMenu() {
   const dashboard = useQuery({ queryKey: ["partner", "dashboard"], queryFn: () => partnerApi.getDashboard(), retry: 1 });
   const docs = useQuery({ queryKey: ["partner", "documents"], queryFn: getMyDocuments, retry: 1 });
 
+  const details = useQuery({ queryKey: ["partner", "profile"], queryFn: () => partnerApi.getProfileDetails(), retry: 1 });
+
+  // Show what is saved on the server (the sign-in copy can be older).
+  useEffect(() => {
+    if (!details.data) return;
+    const { name, phone } = details.data;
+    setProfile((p) => ({ name: name || p.name, phone: phone ? phone.replace(/\D/g, "").slice(-10) : p.phone }));
+  }, [details.data]);
+
   const d = dashboard.data;
   const rating = d?.performance ? d.performance.rating : d && d.rating > 0 ? d.rating : null;
   const reviews = d?.performance?.ratingCount ?? 0;
@@ -127,7 +133,6 @@ export default function ProfileMenu() {
   const mine: MenuItem[] = [
     { key: "services", label: "My services", to: "/partner/services", description: "What you offer and your training", icon: Wrench },
     { key: "area", label: "Service area", to: "/partner/service-area", description: "Cities and distance you cover", icon: MapPin },
-    { key: "documents", label: "Documents and verification", to: "/partner/profile/documents", description: documentsHint(docs.data), icon: FileText },
     { key: "preferences", label: "Preferences", to: "/partner/profile/preferences", description: "Language and job preferences", icon: SlidersHorizontal },
   ];
   const work: MenuItem[] = [
@@ -182,22 +187,11 @@ export default function ProfileMenu() {
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Your numbers">
+        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Your numbers">
           <Stat label={reviews > 0 ? `${reviews} ${reviews === 1 ? "review" : "reviews"}` : "Rating"} value={rating === null ? "New" : `${rating.toFixed(1)} ★`} />
           <Stat label="Jobs done" value={jobsDone === null ? "–" : String(jobsDone)} />
-          <Stat label="Status" value={badge ? badge.label : "–"} />
         </div>
 
-        <dl className="mt-4 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs text-slate-500">Mobile</dt>
-            <dd className="font-medium text-slate-900">{profile.phone ? `+91 ${profile.phone}` : "Not added"}</dd>
-          </div>
-          <div className="min-w-0">
-            <dt className="text-xs text-slate-500">Email</dt>
-            <dd className="truncate font-medium text-slate-900">{user?.email ?? "Not added"}</dd>
-          </div>
-        </dl>
       </section>
 
       {notice && (
@@ -205,6 +199,8 @@ export default function ProfileMenu() {
           {notice}
         </p>
       )}
+
+      <JoinDetailsCard details={details.data} docs={docs.data} loading={details.isLoading || docs.isLoading} phone={profile.phone} email={user?.email} />
 
       <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
         <div className="space-y-4">
@@ -234,6 +230,7 @@ export default function ProfileMenu() {
           onClose={() => setEditing(false)}
           onSaved={(value) => {
             setProfile(value);
+            void queryClient.invalidateQueries({ queryKey: ["partner", "profile"] });
             setEditing(false);
             setNotice("Profile updated.");
           }}

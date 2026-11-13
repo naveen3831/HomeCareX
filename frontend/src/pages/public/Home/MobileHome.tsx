@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -7,11 +7,11 @@ import {
   Star,
   Heart,
   ShieldCheck,
-  Clock,
-  Headphones,
   Flower2,
   Bug,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   Home as HomeIcon,
   Percent,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { AuthContext } from "@/context/AuthContext";
 import HomeBanners from "@/components/public/HomeBanners";
+import { fetchPublicReviews } from "@/services/reviewsApi";
 
 /* =========================================================
    CUSTOM CATEGORY ICONS MATCHING MOCKUP DESIGN
@@ -216,41 +217,6 @@ const stepperSteps = [
   },
 ];
 
-const mobileTestimonials = [
-  {
-    id: "t1",
-    name: "Priya Sharma",
-    city: "Bengaluru",
-    service: "Full Home Deep Cleaning",
-    rating: 5,
-    quote: "HomeCareX arrived on time, left every tile and window spotless. Booking was effortless!",
-  },
-  {
-    id: "t2",
-    name: "Rahul Kumar",
-    city: "Hyderabad",
-    service: "Emergency Plumbing",
-    rating: 5,
-    quote: "Pipe burst fixed in 40 mins with zero surge pricing. Honest, prompt, and highly professional.",
-  },
-  {
-    id: "t3",
-    name: "Vikramaditya V.",
-    city: "Mumbai",
-    service: "AC Deep Servicing",
-    rating: 5,
-    quote: "Rescued us in peak heat. Quick diagnosis, genuine parts, and ice cold cooling within an hour.",
-  },
-  {
-    id: "t4",
-    name: "Ananya Reddy",
-    city: "Chennai",
-    service: "Electrical Safety Check",
-    rating: 5,
-    quote: "Polite technicians, total safety gear, and great service. I trust them completely for my parents.",
-  },
-];
-
 const mobileFaqs = [
   {
     question: "What services does HomeCareX provide?",
@@ -301,7 +267,95 @@ export const MobileHome: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [favorites, setFavorites] = useState<Record<string, boolean>>({});
   const [copiedCoupon, setCopiedCoupon] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [faqSlide, setFaqSlide] = useState<number>(0);
+  const faqTouchStartX = useRef<number | null>(null);
+  const faqTouchEndX = useRef<number | null>(null);
+
+  const handleFaqTouchStart = (e: React.TouchEvent) => {
+    faqTouchStartX.current = e.targetTouches[0].clientX;
+  };
+  const handleFaqTouchMove = (e: React.TouchEvent) => {
+    faqTouchEndX.current = e.targetTouches[0].clientX;
+  };
+  const handleFaqTouchEnd = () => {
+    if (faqTouchStartX.current === null || faqTouchEndX.current === null) return;
+    const distance = faqTouchStartX.current - faqTouchEndX.current;
+    if (distance > 40) {
+      // Swiped left -> next
+      setFaqSlide((prev) => (prev + 1) % mobileFaqs.length);
+    } else if (distance < -40) {
+      // Swiped right -> prev
+      setFaqSlide((prev) => (prev - 1 + mobileFaqs.length) % mobileFaqs.length);
+    }
+    faqTouchStartX.current = null;
+    faqTouchEndX.current = null;
+  };
+  const [hoveredStepperStep, setHoveredStepperStep] = useState<number | null>(null);
+  const [mobileReviews, setMobileReviews] = useState<
+    Array<{
+      id: string;
+      name: string;
+      city: string;
+      service: string;
+      rating: number;
+      quote: string;
+    }>
+  >([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadReviews() {
+      try {
+        const res = await fetchPublicReviews({ limit: 6 });
+        if (isMounted && res?.reviews && Array.isArray(res.reviews) && res.reviews.length > 0) {
+          setMobileReviews(
+            res.reviews.map((r) => ({
+              id: r.id,
+              name: r.name,
+              city: r.city,
+              service: r.service,
+              rating: r.rating || 5,
+              quote: r.review || r.headline || "",
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn("Could not load mobile reviews:", err);
+      }
+    }
+    loadReviews();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const [activePromoSlide, setActivePromoSlide] = useState(0);
+  const promoTouchStartX = useRef<number | null>(null);
+
+  // Auto rotate bottom promo cards carousel every 4.5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActivePromoSlide((prev) => (prev === 0 ? 1 : 0));
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handlePromoTouchStart = (e: React.TouchEvent) => {
+    promoTouchStartX.current = e.touches[0].clientX;
+  };
+
+  const handlePromoTouchEnd = (e: React.TouchEvent) => {
+    if (promoTouchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - promoTouchStartX.current;
+    promoTouchStartX.current = null;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX < 0) {
+        setActivePromoSlide(1);
+      } else {
+        setActivePromoSlide(0);
+      }
+    }
+  };
 
   // Auto rotate hero carousel every 5 seconds
   useEffect(() => {
@@ -333,7 +387,7 @@ export const MobileHome: React.FC = () => {
   };
 
   return (
-    <div className="block md:hidden bg-[#fdfdfd] pb-24 px-4 pt-2.5 space-y-4">
+    <div className="block md:hidden bg-[#fdfdfd] pb-2 px-4 pt-2.5 space-y-4">
       {/* ================= GREETING HEADER (EXACT MOCKUP STYLE) ================= */}
       <div className="pt-0.5">
         <p className="text-xs sm:text-sm font-semibold text-slate-500">
@@ -711,34 +765,63 @@ export const MobileHome: React.FC = () => {
               aria-hidden="true"
             />
 
-            <div className="space-y-4">
-              {stepperSteps.map((step) => (
-                <div key={step.number} className="relative flex items-start gap-3.5 group">
-                  {/* Step Number Circle */}
-                  <div
-                    className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white font-extrabold text-xs shadow-xs ring-4 ${step.nodeColor}`}
-                  >
-                    {step.number}
-                  </div>
+            <div className="space-y-3.5">
+              {stepperSteps.map((step, idx) => {
+                const isExpanded = hoveredStepperStep === idx;
 
-                  {/* Step Details */}
-                  <div className="flex-1 pt-0.5">
-                    <div className="flex items-center justify-between gap-1">
-                      <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                        {step.title}
-                      </h3>
-                      <span
-                        className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold border shrink-0 ${step.tagColor}`}
-                      >
-                        {step.tag}
-                      </span>
+                return (
+                  <div
+                    key={step.number}
+                    className="relative flex items-start gap-3.5 group cursor-pointer rounded-xl p-1.5 -m-1.5 transition-colors hover:bg-slate-50/70"
+                    onMouseEnter={() => setHoveredStepperStep(idx)}
+                    onMouseLeave={() => setHoveredStepperStep(null)}
+                    onClick={() => setHoveredStepperStep(hoveredStepperStep === idx ? null : idx)}
+                  >
+                    {/* Step Number Circle */}
+                    <div
+                      className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white font-extrabold text-xs shadow-xs ring-4 transition-transform duration-200 group-hover:scale-105 ${step.nodeColor}`}
+                    >
+                      {step.number}
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-500 leading-relaxed font-normal">
-                      {step.desc}
-                    </p>
+
+                    {/* Step Details */}
+                    <div className="flex-1 pt-0.5 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <h3 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {step.title}
+                        </h3>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span
+                            className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold border ${step.tagColor}`}
+                          >
+                            {step.tag}
+                          </span>
+                          <ChevronDown
+                            className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+                              isExpanded ? "rotate-180 text-blue-600" : "group-hover:rotate-180"
+                            }`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Step Description: shown on hover / tap */}
+                      <div
+                        className={`grid transition-all duration-300 ease-out overflow-hidden ${
+                          isExpanded
+                            ? "grid-rows-[1fr] opacity-100 mt-1"
+                            : "grid-rows-[0fr] opacity-0 group-hover:grid-rows-[1fr] group-hover:opacity-100 group-hover:mt-1"
+                        }`}
+                      >
+                        <div className="overflow-hidden">
+                          <p className="text-[11px] text-slate-500 leading-relaxed font-normal pt-0.5">
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -758,253 +841,175 @@ export const MobileHome: React.FC = () => {
         </div>
       </div>
 
-      {/* ================= WHY CHOOSE HOMECAREX? ================= */}
-      <div className="space-y-2.5 pt-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-500/15">
-              <ShieldCheck className="h-3 w-3" />
-              <span>TRUST &amp; GUARANTEE</span>
+      {/* ================= WHAT CUSTOMERS SAY ================= */}
+      {mobileReviews.length > 0 && (
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-400/20">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>TESTIMONIALS</span>
+              </div>
+              <h2 className="text-base font-extrabold text-slate-900 tracking-tight">
+                What Customers Say
+              </h2>
             </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Why Choose <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">HomeCareX?</span>
-            </h2>
+
+            <Link
+              to="/reviews"
+              className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            >
+              <span>View All</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-          <Link
-            to="/about"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            <span>View All</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+
+          {/* Testimonials Horizontal Carousel */}
+          <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+            {mobileReviews.map((t) => (
+              <div
+                key={t.id}
+                className="flex min-w-[260px] max-w-[270px] shrink-0 flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-2xs"
+              >
+                <div>
+                  {/* Author Info & Rating */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-[11px] font-bold text-white shadow-2xs">
+                        {t.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .slice(0, 2)
+                          .join("")}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 leading-tight">
+                          {t.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          {t.city}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5 Stars */}
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[...Array(Math.round(t.rating || 5))].map((_, i) => (
+                        <Star key={i} className="h-3 w-3 fill-amber-400" />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Service Tag */}
+                  <div className="mt-2.5">
+                    <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
+                      {t.service}
+                    </span>
+                  </div>
+
+                  {/* Quote */}
+                  <p className="mt-2 text-xs leading-relaxed text-slate-600 italic">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
+                </div>
+
+                {/* Verified Badge */}
+                <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 pt-2 border-t border-slate-100">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Verified Customer Booking</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ================= FREQUENTLY ASKED QUESTIONS (CLEAN NO-CARD CAROUSEL) ================= */}
+      <div className="py-2 select-none">
+        {/* Centered Heading Matching Desktop Text Color */}
+        <div className="text-center">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-0.5 text-[11px] font-bold text-orange-700 ring-1 ring-orange-400/20 shadow-2xs">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-[#ff8a3d] animate-pulse" />
+            <span>GOT QUESTIONS?</span>
+          </div>
+          <h2 className="text-[17px] sm:text-2xl font-extrabold tracking-tight text-[#1e1b4b] leading-tight whitespace-nowrap">
+            Frequently Asked{" "}
+            <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">
+              Questions
+            </span>
+          </h2>
         </div>
 
-        {/* 2 Rows (2x2 Grid) */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* Verified Professionals */}
-          <div className="flex items-start gap-2.5 rounded-2xl bg-white border border-slate-200/80 p-3 shadow-2xs">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-100 text-purple-600 shrink-0 shadow-2xs">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-tight">
-                Verified Professionals
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 leading-tight">
-                Trained &amp; background checked
-              </div>
-            </div>
-          </div>
-
-          {/* Transparent Pricing */}
-          <div className="flex items-start gap-2.5 rounded-2xl bg-white border border-slate-200/80 p-3 shadow-2xs">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 font-bold text-sm shrink-0 shadow-2xs">
-              ₹
-            </span>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-tight">
-                Transparent Pricing
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 leading-tight">
-                Upfront &amp; no hidden charges
-              </div>
-            </div>
-          </div>
-
-          {/* On-Time Service */}
-          <div className="flex items-start gap-2.5 rounded-2xl bg-white border border-slate-200/80 p-3 shadow-2xs">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 shrink-0 shadow-2xs">
-              <Clock className="h-5 w-5" />
-            </span>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-tight">
-                On-Time Service
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 leading-tight">
-                Prompt doorstep arrival
-              </div>
-            </div>
-          </div>
-
-          {/* 24/7 Support */}
+        {/* Q&A Carousel with Left/Right Arrows (No Card Border, No Background Color) */}
+        <div
+          className="relative mt-5 min-h-[140px] flex flex-col justify-center px-1"
+          onTouchStart={handleFaqTouchStart}
+          onTouchMove={handleFaqTouchMove}
+          onTouchEnd={handleFaqTouchEnd}
+        >
+          {/* Left Chevron Button */}
           <button
             type="button"
-            onClick={() => navigate("/contact")}
-            className="flex items-start text-left gap-2.5 rounded-2xl bg-white border border-slate-200/80 p-3 shadow-2xs transition-all active:scale-95 hover:border-orange-200 group w-full"
-            aria-label="24/7 Support"
-            data-testid="mobile-support-card"
+            onClick={() => setFaqSlide((prev) => (prev - 1 + mobileFaqs.length) % mobileFaqs.length)}
+            aria-label="Previous question"
+            className="absolute left-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-800 active:scale-90 transition cursor-pointer"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 shrink-0 shadow-2xs transition-transform group-hover:scale-105">
-              <Headphones className="h-4 w-4" />
-            </span>
-            <div>
-              <div className="text-xs font-bold text-slate-900 leading-tight group-hover:text-orange-600 transition-colors">
-                24/7 Support
-              </div>
-              <div className="text-[10px] text-slate-500 mt-1 leading-tight">
-                Dedicated help desk
-              </div>
-            </div>
+            <ChevronLeft className="h-5 w-5" />
           </button>
-        </div>
-      </div>
 
-      {/* ================= WHAT CUSTOMERS SAY ================= */}
-      <div className="space-y-2.5 pt-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 ring-1 ring-amber-500/20">
-              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-              <span>REAL EXPERIENCES</span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              What Customers <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">Say</span>
-            </h2>
-          </div>
-          <Link
-            to="/reviews"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+          {/* Right Chevron Button */}
+          <button
+            type="button"
+            onClick={() => setFaqSlide((prev) => (prev + 1) % mobileFaqs.length)}
+            aria-label="Next question"
+            className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-800 active:scale-90 transition cursor-pointer"
           >
-            <span>View All</span>
-            <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
+            <ChevronRight className="h-5 w-5" />
+          </button>
 
-        {/* Testimonials Horizontal Carousel */}
-        <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
-          {mobileTestimonials.map((t) => (
-            <div
-              key={t.id}
-              className="flex min-w-[260px] max-w-[270px] shrink-0 flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-2xs"
-            >
-              <div>
-                {/* Author Info & Rating */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 text-[11px] font-bold text-white shadow-2xs">
-                      {t.name
-                        .split(" ")
-                        .map((n) => n[0])
-                        .slice(0, 2)
-                        .join("")}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 leading-tight">
-                        {t.name}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-medium">
-                        {t.city}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 5 Stars */}
-                  <div className="flex items-center gap-0.5 text-amber-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="h-3 w-3 fill-amber-400" />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Service Tag */}
-                <div className="mt-2.5">
-                  <span className="inline-block rounded-md bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 border border-blue-100">
-                    {t.service}
-                  </span>
-                </div>
-
-                {/* Quote */}
-                <p className="mt-2 text-xs leading-relaxed text-slate-600 italic">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-              </div>
-
-              {/* Verified Badge */}
-              <div className="mt-3 flex items-center gap-1 text-[10px] font-semibold text-emerald-600 pt-2 border-t border-slate-100">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span>Verified Customer Booking</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ================= FREQUENTLY ASKED QUESTIONS ================= */}
-      <div className="space-y-2.5 pt-1">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-0.5 text-[10px] font-bold text-orange-700 ring-1 ring-orange-400/20">
-              <span>💬</span>
-              <span>GOT QUESTIONS?</span>
-            </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Frequently Asked <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">Questions</span>
-            </h2>
+          {/* Slide Question & Answer */}
+          <div className="px-8 sm:px-10 text-center transition-all duration-300">
+            <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+              {mobileFaqs[faqSlide].question}
+            </h3>
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600 max-w-sm mx-auto">
+              {mobileFaqs[faqSlide].answer}
+            </p>
           </div>
+
+          {/* Dot Indicators */}
+          <div className="mt-5 flex items-center justify-center gap-2">
+            {mobileFaqs.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setFaqSlide(idx)}
+                aria-label={`Go to question ${idx + 1}`}
+                className={`rounded-full transition-all duration-300 cursor-pointer ${
+                  faqSlide === idx
+                    ? "h-2 w-2.5 bg-[#4338ca] scale-110"
+                    : "h-1.5 w-1.5 bg-slate-300 hover:bg-slate-400"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom Navigation Links */}
+        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-4 text-xs font-bold">
           <Link
             to="/faq"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+            className="text-[#4338ca] hover:text-indigo-800 transition inline-flex items-center gap-1"
           >
             <span>More FAQs</span>
             <ArrowRight className="h-3 w-3" />
           </Link>
-        </div>
-
-        {/* FAQ Accordion List */}
-        <div className="space-y-2">
-          {mobileFaqs.map((faq, index) => {
-            const isOpen = openFaq === index;
-            return (
-              <div
-                key={faq.question}
-                className={`overflow-hidden rounded-2xl border transition-all ${
-                  isOpen
-                    ? "border-orange-300 bg-orange-50/20 shadow-xs"
-                    : "border-slate-200/80 bg-white"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(isOpen ? null : index)}
-                  className="flex w-full items-center justify-between gap-3 p-3 text-left transition-colors"
-                  aria-expanded={isOpen}
-                >
-                  <span className="text-xs font-bold text-slate-900 leading-snug">
-                    {faq.question}
-                  </span>
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform duration-200 ${
-                      isOpen
-                        ? "rotate-180 bg-orange-500 text-white shadow-2xs"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </span>
-                </button>
-
-                {isOpen && (
-                  <div className="px-3 pb-3 pt-0 text-[11px] leading-relaxed text-slate-600 border-t border-orange-100/60 mt-1">
-                    <p className="pt-2">{faq.answer}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Still Have Questions Box */}
-        <div className="mt-3 flex items-center justify-between rounded-2xl bg-indigo-50/70 border border-indigo-100 p-3 shadow-2xs">
-          <div>
-            <div className="text-xs font-bold text-slate-900">Have more questions?</div>
-            <div className="text-[10px] text-slate-500 mt-0.5">We reply in ~5 mins</div>
-          </div>
+          <span className="text-slate-300">•</span>
           <button
             type="button"
             onClick={() => navigate("/contact")}
-            className="inline-flex items-center gap-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-indigo-700"
-            aria-label="Contact Support"
             data-testid="mobile-faq-support-btn"
+            className="text-[#ff8a3d] hover:text-[#ea580c] transition inline-flex items-center gap-1 cursor-pointer"
           >
             <span>Contact Support</span>
             <ArrowRight className="h-3 w-3" />
@@ -1012,72 +1017,106 @@ export const MobileHome: React.FC = () => {
         </div>
       </div>
 
-      {/* Banners the admin placed at HOME_BOTTOM: last on the page, above "Need help with your home?" */}
-      <HomeBanners slot="bottom" className="-mx-4 overflow-hidden" />
+      {/* ================= PROMO / ACTION CARDS CAROUSEL ================= */}
+      <div className="space-y-2 pt-1">
+        <div
+          className="relative overflow-hidden rounded-2xl border border-slate-200/80 shadow-xs"
+          onTouchStart={handlePromoTouchStart}
+          onTouchEnd={handlePromoTouchEnd}
+        >
+          <div
+            className="flex transition-transform duration-500 ease-out will-change-transform"
+            style={{ transform: `translateX(-${activePromoSlide * 100}%)` }}
+          >
+            {/* Slide 1: Need Help With Your Home? */}
+            <div className="w-full shrink-0 bg-[#eef0ff] p-4 flex flex-col justify-between min-h-[175px]">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4338ca] text-white shadow-xs">
+                  <HomeIcon className="h-5 w-5" />
+                </span>
 
-      {/* ================= NEED HELP WITH YOUR HOME? ================= */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#eef0ff] border border-indigo-200/60 p-4 shadow-xs">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#4338ca] text-white shadow-xs">
-            <HomeIcon className="h-5 w-5" />
-          </span>
+                <div className="flex-1">
+                  <h2 className="text-base font-bold text-[#1e1b6e] leading-snug">
+                    Need help with your{" "}
+                    <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">
+                      home?
+                    </span>
+                  </h2>
 
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-[#1e1b6e] leading-snug">
-              Need help with your <span className="bg-gradient-to-r from-[#ff8a3d] via-[#f97316] to-[#ff6b00] bg-clip-text text-transparent">home?</span>
-            </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-[#5b5b7a] font-normal">
+                    Find reliable home services and make home maintenance simple, quick, and convenient.
+                  </p>
 
-            <p className="mt-1 text-xs leading-relaxed text-[#5b5b7a] font-normal">
-              Find reliable home services and make home maintenance simple, quick, and convenient.
-            </p>
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <Link
+                      to="/services"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[#ff8a3d] px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-[#ff7a22]"
+                    >
+                      <span>Explore Services</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/contact")}
+                      className="inline-flex items-center rounded-xl border border-[#4338ca] px-3.5 py-2 text-xs font-bold text-[#4338ca] transition-transform active:scale-95 hover:bg-[#4338ca] hover:text-white cursor-pointer"
+                      aria-label="Contact Us"
+                    >
+                      <span>Contact Us</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <div className="mt-3.5 flex flex-wrap items-center gap-2">
-              <Link
-                to="/services"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#ff8a3d] px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-[#ff7a22]"
-              >
-                <span>Explore Services</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => navigate("/contact")}
-                className="inline-flex items-center rounded-xl border border-[#4338ca] px-3.5 py-2 text-xs font-bold text-[#4338ca] transition-transform active:scale-95 hover:bg-[#4338ca] hover:text-white"
-                aria-label="Contact Us"
-              >
-                <span>Contact Us</span>
-              </button>
+            {/* Slide 2: Are You A Service Professional? */}
+            <div className="w-full shrink-0 bg-gradient-to-br from-[#fff7ed] via-[#fff3ea] to-[#ffedd5] p-4 flex flex-col justify-between min-h-[175px]">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ff8a3d] text-white shadow-xs">
+                  <Wrench className="h-5 w-5" />
+                </span>
+
+                <div className="flex-1">
+                  <h2 className="text-base font-bold text-[#1e1b6e] leading-snug">
+                    Are you a service{" "}
+                    <span className="bg-gradient-to-r from-[#4338ca] via-indigo-600 to-[#6366f1] bg-clip-text text-transparent">
+                      professional?
+                    </span>
+                  </h2>
+
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600 font-normal">
+                    Join HomeCareX and connect with customers looking for your skills. Get flexible hours, transparent rates &amp; reliable payouts.
+                  </p>
+
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <Link
+                      to="/register/partner"
+                      className="group inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-4 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-[#1e1b6e]"
+                    >
+                      <span>Join as a Professional</span>
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ================= ARE YOU A SERVICE PROFESSIONAL? ================= */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#fff7ed] via-[#fff3ea] to-[#ffedd5] border border-orange-200/80 p-4 shadow-xs">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#ff8a3d] text-white shadow-xs">
-            <Wrench className="h-5 w-5" />
-          </span>
-
-          <div className="flex-1">
-            <h2 className="text-base font-bold text-[#1e1b6e] leading-snug">
-              Are you a service <span className="bg-gradient-to-r from-[#4338ca] via-indigo-600 to-[#6366f1] bg-clip-text text-transparent">professional?</span>
-            </h2>
-
-            <p className="mt-1 text-xs leading-relaxed text-slate-600 font-normal">
-              Join HomeCareX and connect with customers looking for your skills. Get flexible hours, transparent rates &amp; reliable payouts.
-            </p>
-
-            <div className="mt-3">
-              <Link
-                to="/register/partner"
-                className="group inline-flex items-center gap-1.5 rounded-xl bg-[#4338ca] px-4 py-2 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 hover:bg-[#1e1b6e]"
-              >
-                <span>Join as a Professional</span>
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-          </div>
+        {/* Carousel Dots */}
+        <div className="flex items-center justify-center gap-1.5 pt-0.5">
+          {[0, 1].map((idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setActivePromoSlide(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                activePromoSlide === idx
+                  ? "w-5 bg-indigo-600"
+                  : "w-1.5 bg-slate-300 hover:bg-slate-400"
+              }`}
+              aria-label={`Go to promo slide ${idx + 1}`}
+            />
+          ))}
         </div>
       </div>
     </div>

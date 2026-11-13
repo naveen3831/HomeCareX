@@ -13,7 +13,6 @@ import {
   Smartphone,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import http, { type ApiResponse } from "@/lib/http";
 import { PageHeader } from "@/components/admin";
 import "./index.css";
@@ -366,7 +365,7 @@ const ReviewDialog: React.FC<{ row: Row; onClose: () => void; onChanged: () => v
 
 /* ---------- page ---------- */
 
-const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
+const AdminWithdrawalsPage: React.FC = () => {
   const [tab, setTab] = useState<Status | "all">("pending");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<ListResponse | null>(null);
@@ -381,7 +380,7 @@ const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = fal
     setError(null);
     try {
       const res = await http.get<ApiResponse<ListResponse>>("/admin/withdrawals", {
-        params: { page, limit: embedded ? 50 : 20, ...(tab === "all" ? {} : { status: tab }) },
+        params: { page, limit: 20, ...(tab === "all" ? {} : { status: tab }) },
       });
       if (id === reqId.current) setData(res.data.data);
     } catch (e) {
@@ -389,7 +388,7 @@ const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = fal
     } finally {
       if (id === reqId.current) setLoading(false);
     }
-  }, [tab, page, embedded]);
+  }, [tab, page]);
 
   useEffect(() => {
     void load();
@@ -400,44 +399,35 @@ const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = fal
   const pending = data?.pendingCount ?? 0;
 
   return (
-    <div className={embedded ? "awd-page" : "awd-page admin-page-container"}>
-      {!embedded && (
-        <>
-          <Link className="awd-back" to="/admin/payouts">
-            <ChevronLeft size={16} aria-hidden="true" /> Back to payouts
-          </Link>
-          <PageHeader
-            title="Withdrawals"
-            description="Partners ask to move money from their wallet to their bank or UPI. Review each request, send the money, then mark it paid."
-          />
-        </>
-      )}
+    <div className="awd-page admin-page-container">
+      <PageHeader
+        title="Withdrawals"
+        description="Partners ask to move money from their wallet to their bank or UPI. Review each request, send the money, then mark it paid."
+      />
 
-      {!embedded && (
-        <section className="awd-stats" aria-label="Summary">
-          <div className={`awd-stat${pending > 0 ? " is-attention" : ""}`}>
-            <span className="awd-stat-icon"><Clock3 size={18} /></span>
-            <div>
-              <span className="awd-stat-label">Waiting for review</span>
-              <strong className="awd-stat-value">{data ? pending : "—"}</strong>
-            </div>
+      <section className="awd-stats" aria-label="Summary">
+        <div className={`awd-stat${pending > 0 ? " is-attention" : ""}`}>
+          <span className="awd-stat-icon"><Clock3 size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Waiting for review</span>
+            <strong className="awd-stat-value">{data ? pending : "—"}</strong>
           </div>
-          <div className="awd-stat">
-            <span className="awd-stat-icon"><Banknote size={18} /></span>
-            <div>
-              <span className="awd-stat-label">Amount on this page</span>
-              <strong className="awd-stat-value">{data ? inr.format(pageTotal) : "—"}</strong>
-            </div>
+        </div>
+        <div className="awd-stat">
+          <span className="awd-stat-icon"><Banknote size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Amount on this page</span>
+            <strong className="awd-stat-value">{data ? inr.format(pageTotal) : "—"}</strong>
           </div>
-          <div className="awd-stat">
-            <span className="awd-stat-icon"><CheckCircle2 size={18} /></span>
-            <div>
-              <span className="awd-stat-label">Requests in this view</span>
-              <strong className="awd-stat-value">{data ? data.pagination.total : "—"}</strong>
-            </div>
+        </div>
+        <div className="awd-stat">
+          <span className="awd-stat-icon"><CheckCircle2 size={18} /></span>
+          <div>
+            <span className="awd-stat-label">Requests in this view</span>
+            <strong className="awd-stat-value">{data ? data.pagination.total : "—"}</strong>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       <div className="awd-tabs" role="tablist" aria-label="Status">
         {TABS.map((t) => (
@@ -480,12 +470,10 @@ const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = fal
         ) : items.length === 0 ? (
           <div className="awd-state">
             <span className="awd-state-icon"><Inbox size={26} /></span>
-            <p className="awd-state-title">{embedded ? (tab === "all" ? "No withdrawal requests" : `No ${tab} withdrawal requests`) : tab === "pending" ? "You're all caught up" : "No requests here"}</p>
-            {!embedded && (
-              <p className="awd-muted">
-                {tab === "pending" ? "New withdrawal requests from partners will show up here." : "Nothing matches this status yet."}
-              </p>
-            )}
+            <p className="awd-state-title">{tab === "pending" ? "You're all caught up" : "No requests here"}</p>
+            <p className="awd-muted">
+              {tab === "pending" ? "New withdrawal requests from partners will show up here." : "Nothing matches this status yet."}
+            </p>
           </div>
         ) : (
           <>
@@ -529,7 +517,7 @@ const AdminWithdrawalsPage: React.FC<{ embedded?: boolean }> = ({ embedded = fal
           </>
         )}
 
-        {data && !embedded && data.pagination.pages > 1 && (
+        {data && data.pagination.pages > 1 && (
           <footer className="awd-pager">
             <span className="awd-muted">
               Page {data.pagination.page} of {data.pagination.pages} · {data.pagination.total} requests

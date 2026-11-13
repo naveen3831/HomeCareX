@@ -310,7 +310,7 @@ export const ServicesPage: React.FC = () => {
   const categoryName = category ? slugToTitle(category) : "";
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-[#ffffff] to-[#f4f7ff] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+    <main className="relative min-h-screen bg-gradient-to-b from-[#f8faff] via-white to-[#f4f7fa] pb-16 pt-6 sm:pb-20 sm:pt-8">
       {/* Ambient background decorative glow */}
       <div
         className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-72 w-full max-w-5xl bg-gradient-to-r from-indigo-200/25 via-blue-100/20 to-orange-100/25 blur-3xl"
@@ -343,19 +343,19 @@ export const ServicesPage: React.FC = () => {
         ])}
       />
 
-      <div className="relative mx-auto max-w-6xl">
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
         {/* ====================================================
             PAGE HEADER (Compact, Vibrant & Aesthetic)
         ==================================================== */}
         <header className="mb-6 text-center sm:mb-8">
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-indigo-100/80 bg-white/90 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-indigo-700 shadow-2xs backdrop-blur-md">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-100/80 bg-white/90 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-blue-700 shadow-2xs backdrop-blur-md">
             <Sparkles size={12} className="text-[#f97316]" />
             <span>Discover & Book Services</span>
           </div>
 
           <h1 className="mt-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
             Find the{" "}
-            <span className="bg-gradient-to-r from-[#4338ca] via-indigo-600 to-[#f97316] bg-clip-text text-transparent">
+            <span className="text-blue-600">
               Right Service
             </span>{" "}
             for Your Home
@@ -402,7 +402,7 @@ export const ServicesPage: React.FC = () => {
           </p>
 
           {category && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-indigo-50/80 px-2.5 py-0.5 text-[11px] font-bold text-indigo-700">
+            <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50/80 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
               {categoryName || category}
             </span>
           )}
@@ -455,15 +455,16 @@ export const ServicesPage: React.FC = () => {
         ) : apiServices.length > 0 ? (
           <div className="grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {apiServices.map((service, idx) => {
-              const image = serviceImageFor(service.name);
+              const fallback = serviceImageFor(service.name);
+              const image = service.image || fallback;
 
               return (
                 <ServiceCard
                   key={service.id}
                   id={service.slug}
                   image={image}
-                  fallbackImage={image}
-                  category={service.category.name}
+                  fallbackImage={fallback}
+                  category={service.category?.name ?? "Home Service"}
                   name={service.name}
                   rating={service.rating}
                   price={service.basePrice}

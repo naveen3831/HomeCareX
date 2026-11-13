@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock, FileText, Home, CreditCard, RefreshCw, ShieldCheck, Upload, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import DocumentViewer from "@/components/DocumentViewer";
 import {
   ACCEPTED_TYPES,
   MAX_UPLOAD_BYTES,
-  fetchDocumentBlobUrl,
+  fetchDocumentBlob,
   getMyDocuments,
   uploadMyDocument,
   type DocStatus,
@@ -38,16 +39,18 @@ const fmtDate = (iso: string | null) =>
 const iconFor = (type: string) => (type === "address_proof" ? Home : type === "id_proof" ? CreditCard : FileText);
 
 export default function PartnerDocumentsPage() {
+  const queryClient = useQueryClient();
   const [data, setData] = useState<PartnerDocuments | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<{ doc: PartnerDoc; url: string } | null>(null);
+  const [viewer, setViewer] = useState<{ doc: PartnerDoc; url: string; mimeType: string } | null>(null);
   const [uploading, setUploading] = useState<UploadableType | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedNote, setUploadedNote] = useState<string | null>(null);
   const pickType = useRef<UploadableType>("id_proof");
   const fileInput = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,13 +74,20 @@ export default function PartnerDocumentsPage() {
     return () => URL.revokeObjectURL(viewer.url);
   }, [viewer]);
 
+  // Show errors where the person is looking, not only at the top of a page they may have scrolled past.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [error]);
+
   const open = async (doc: PartnerDoc) => {
     setOpening(doc.id);
     setError(null);
     try {
-      setViewer({ doc, url: await fetchDocumentBlobUrl(doc.id) });
-    } catch {
-      setError("Could not open this document. Please try again.");
+      const file = await fetchDocumentBlob(doc.id);
+      setViewer({ doc, url: file.url, mimeType: doc.mimeType || file.mimeType });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : "";
+      setError(reason ? `Could not open this document: ${reason}` : "Could not open this document. Please try again.");
     } finally {
       setOpening(null);
     }
@@ -109,6 +119,8 @@ export default function PartnerDocumentsPage() {
       await uploadMyDocument(type, file);
       setUploadedNote("Uploaded. Our team will review it soon.");
       await load();
+      // The Profile page shows the same documents: make it fetch the new list.
+      void queryClient.invalidateQueries({ queryKey: ["partner", "documents"] });
     } catch (err) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setUploadError(msg ?? "Could not upload the file. Please try again.");
@@ -138,7 +150,7 @@ export default function PartnerDocumentsPage() {
       )}
 
       {error && (
-        <div role="alert" className="pdoc-error">
+        <div role="alert" className="pdoc-error" ref={errorRef}>
           <AlertTriangle size={16} aria-hidden="true" />
           <span>{error}</span>
           <button type="button" onClick={() => void load()}>Retry</button>
@@ -163,9 +175,18 @@ export default function PartnerDocumentsPage() {
               <ul className="pdoc-list">
                 {data.documents.map((d) => {
                   const Icon = iconFor(d.type);
+                  // The record exists but its file was never saved on the server: viewing is impossible, so offer a re-upload.
+                  const fileMissing = d.fileAvailable === false;
+                  const canReupload = fileMissing && (d.type === "id_proof" || d.type === "address_proof");
                   return (
                     <li key={d.id}>
-                      <button type="button" className="pdoc-row" onClick={() => void open(d)} disabled={opening === d.id} aria-label={`View ${d.label}`}>
+                      <button
+                        type="button"
+                        className="pdoc-row"
+                        onClick={() => (canReupload ? chooseFile(d.type as UploadableType) : void open(d))}
+                        disabled={opening === d.id || uploading !== null}
+                        aria-label={canReupload ? `Upload ${d.label} again` : `View ${d.label}`}
+                      >
                         <span className="pdoc-row__icon" aria-hidden="true"><Icon size={20} /></span>
                         <span className="pdoc-row__main">
                           <span className="pdoc-row__title">{d.label}</span>
@@ -173,12 +194,19 @@ export default function PartnerDocumentsPage() {
                             {d.uploadedAt ? `Uploaded ${fmtDate(d.uploadedAt)}` : "Uploaded"}
                           </span>
                           {d.status === "rejected" && d.reviewNote && <span className="pdoc-row__note">{d.reviewNote}</span>}
+                          {fileMissing && <span className="pdoc-row__note">The file could not be found. Tap to upload it again.</span>}
                         </span>
                         <span className={`pdoc-chip pdoc-chip--${d.status}`}>
                           {d.status === "verified" && <CheckCircle2 size={12} aria-hidden="true" />}
                           {STATUS_TEXT[d.status]}
                         </span>
-                        {opening === d.id ? <RefreshCw size={16} className="pdoc-spin" aria-hidden="true" /> : <ChevronRight size={18} className="pdoc-row__go" aria-hidden="true" />}
+                        {opening === d.id || (canReupload && uploading === d.type) ? (
+                          <RefreshCw size={16} className="pdoc-spin" aria-hidden="true" />
+                        ) : canReupload ? (
+                          <Upload size={16} className="pdoc-row__go" aria-hidden="true" />
+                        ) : (
+                          <ChevronRight size={18} className="pdoc-row__go" aria-hidden="true" />
+                        )}
                       </button>
                     </li>
                   );
@@ -233,7 +261,7 @@ export default function PartnerDocumentsPage() {
             <button type="button" onClick={() => setViewer(null)} aria-label="Close"><X size={20} /></button>
           </header>
           <div className="pdoc-modal__body">
-            <DocumentViewer url={viewer.url} name={viewer.doc.label} mimeType={viewer.doc.mimeType ?? undefined} height={Math.round(window.innerHeight * 0.75)} />
+            <DocumentViewer url={viewer.url} name={viewer.doc.label} mimeType={viewer.mimeType || undefined} height={Math.max(300, Math.round(window.innerHeight - 190))} />
           </div>
         </div>
       )}

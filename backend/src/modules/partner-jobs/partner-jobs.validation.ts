@@ -43,7 +43,7 @@ export const sosBodySchema = z
 
 export type SosBody = z.infer<typeof sosBodySchema>;
 
-/** Body of POST /partner/jobs/:id/verify-start. Sent as JSON or multipart (an optional photo is accepted and ignored). */
+/** Body of POST /partner/jobs/:id/verify-start. Sent as JSON or multipart (photos[] and video are read by receiveStartMedia, not by this schema). */
 export const verifyStartBodySchema = z.object({
   otp: z.string({ required_error: "otp is required" }).trim().regex(/^\d{4,6}$/, "Enter the 4-digit code from the customer"),
 });
@@ -76,3 +76,27 @@ export type RateCustomerBody = z.infer<typeof rateCustomerBodySchema>;
 
 export const isPartnerTarget = (value: string): value is PartnerJobTarget =>
   PARTNER_JOB_TARGETS.includes(value as PartnerJobTarget);
+
+/** Params of PATCH /partner/jobs/:id/checklist/:itemId. The item id is whatever id the job's checklist carries ("1", "2"...). */
+export const checklistParamsSchema = jobParamsSchema.extend({
+  itemId: z.string().trim().min(1).max(80),
+});
+
+/** Body of PATCH /partner/jobs/:id/checklist/:itemId. */
+export const checklistBodySchema = z.object({ done: z.boolean({ required_error: "done is required" }) }).strict();
+
+export type ChecklistBody = z.infer<typeof checklistBodySchema>;
+
+/** Body of POST /partner/jobs/:id/extra-charges. The app sends `title`; `description` is accepted too. */
+export const extraChargeBodySchema = z
+  .object({
+    title: z.string().trim().min(2, "Describe the item (at least 2 characters)").max(120).optional(),
+    description: z.string().trim().min(2).max(120).optional(),
+    amount: z.number({ required_error: "amount is required" }).positive("Amount must be more than 0").max(1_000_000),
+    quantity: z.number().int().min(1).max(100).optional(),
+    reason: z.string().trim().max(300).optional(),
+  })
+  .strict()
+  .refine((b) => !!(b.title || b.description), { message: "Describe the item", path: ["title"] });
+
+export type ExtraChargeBody = z.infer<typeof extraChargeBodySchema>;

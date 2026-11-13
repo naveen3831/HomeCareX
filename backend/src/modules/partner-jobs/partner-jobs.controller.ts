@@ -2,9 +2,12 @@ import type { Request, Response } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/response";
 import { partnerJobsService } from "./partner-jobs.service";
+import type { StartMedia } from "./partner-jobs.proof";
 import type {
+  ChecklistBody,
   CollectPaymentBody,
   CompleteBody,
+  ExtraChargeBody,
   RateCustomerBody,
   RejectBody,
   SosBody,
@@ -65,7 +68,12 @@ export const verifyJobStart = asyncHandler(
   async (req: Request, res: Response) => {
     const { sub } = res.locals.auth as { sub: string };
     const { otp } = req.body as VerifyStartBody;
-    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp), {
+    const files = (req.files ?? {}) as Record<string, Express.Multer.File[]>;
+    const media = [...(files.media ?? []), ...(files.photo ?? [])].map((f) => ({
+      buffer: f.buffer,
+      mimetype: f.mimetype,
+    }));
+    sendSuccess(res, await partnerJobsService.verifyStart(sub, req.params.id, otp, new Date(), media), {
       message: "Job started",
     });
   },
@@ -110,5 +118,34 @@ export const updateBookingStatus = asyncHandler(
       await partnerJobsService.updateStatus(sub, req.params.id, status, reason),
       { message: "Job status updated" },
     );
+  },
+);
+
+export const updateJobChecklistItem = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const { done } = req.body as ChecklistBody;
+    sendSuccess(res, await partnerJobsService.updateChecklistItem(sub, req.params.id, req.params.itemId, done));
+  },
+);
+
+export const listJobExtraCharges = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    sendSuccess(res, await partnerJobsService.listExtraCharges(sub, req.params.id));
+  },
+);
+
+export const createJobExtraCharge = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sub } = res.locals.auth as { sub: string };
+    const body = req.body as ExtraChargeBody;
+    const result = await partnerJobsService.createExtraCharge(sub, req.params.id, {
+      description: (body.title ?? body.description) as string,
+      quantity: body.quantity ?? 1,
+      amount: body.amount,
+      reason: body.reason,
+    });
+    sendSuccess(res, result, { message: "Sent to the customer for approval" });
   },
 );

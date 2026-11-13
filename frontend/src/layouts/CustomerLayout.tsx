@@ -30,21 +30,46 @@ export default function CustomerLayout() {
   const { pathname } = useLocation();
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
-  // After a page change, move focus to the content area so keyboard and screen-reader users start at the new page, not at the top bar.
+  // After a page change, scroll to the very top and move focus to the content area so users always start at the top of the new page.
   // Skipped on first load, and for query-string-only changes (filters, pagination) because only the path is a dependency.
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+
     if (firstRender.current) {
       firstRender.current = false;
       return;
     }
-    mainRef.current?.focus({ preventScroll: true });
+    try {
+      if (typeof document !== "undefined" && (!document.hasFocus || document.hasFocus())) {
+        mainRef.current?.focus({ preventScroll: true });
+      }
+    } catch {
+      // Ignore Permissions-Policy violation: focus-without-user-activation in embedded iframes
+    }
   }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
   useHiddenPageScrollbar();
   // Edit profile / Change password / Notifications settings / Terms / Privacy are focused full pages on phones: no bottom nav
   // (the top bar still shows the back arrow + title like every other inner page).
   const path = pathname.replace(/\/+$/, "").toLowerCase();
-  const focusPage = [customerPath("/profile/edit"), customerPath("/profile/password"), customerPath("/profile/notifications"), customerPath("/profile/terms"), customerPath("/profile/privacy")].includes(path);
+  const isBookingSuccess =
+    path.startsWith(customerPath("/booking/success").toLowerCase()) ||
+    path.startsWith(customerPath("/booking/booked").toLowerCase());
+
+  const focusPage =
+    isBookingSuccess ||
+    [
+      customerPath("/profile/edit"),
+      customerPath("/profile/password"),
+      customerPath("/profile/notifications"),
+      customerPath("/profile/terms"),
+      customerPath("/profile/privacy"),
+    ].includes(path);
 
   return (
     <div className="customer-shell flex min-h-screen overflow-x-clip bg-canvas">
@@ -72,9 +97,16 @@ export default function CustomerLayout() {
           id="customer-main"
           tabIndex={-1}
           className={clsx(
-            "flex-1 px-4 py-6 outline-none md:px-8 md:pb-6",
+            "flex-1 outline-none md:px-8",
+            isBookingSuccess
+              ? "px-3 sm:px-4 py-2.5 sm:py-3 md:py-5 md:pb-6"
+              : "px-4 py-6 md:pb-6",
             // Leave room for the fixed bottom nav (it shows on every page, Profile included).
-            focusPage ? "pb-[calc(2rem+env(safe-area-inset-bottom))]" : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            focusPage
+              ? isBookingSuccess
+                ? "pb-[calc(1rem+env(safe-area-inset-bottom))]"
+                : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+              : "pb-[calc(5rem+env(safe-area-inset-bottom))]",
           )}
         >
           <RouteErrorBoundary resetKey={pathname}>

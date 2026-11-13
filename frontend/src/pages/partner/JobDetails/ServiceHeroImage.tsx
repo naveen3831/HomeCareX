@@ -7,6 +7,8 @@ import {
   Scissors,
   Sparkles,
   Wrench,
+  ChevronLeft,
+  ChevronRight,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -165,6 +167,33 @@ export default function ServiceHeroImage({ serviceName }: { serviceName: string 
           </div>
         ))}
       </div>
+
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            className="jdx-arrow jdx-arrow-prev"
+            aria-label="Previous picture"
+            onClick={() => {
+              pauseAutoSlide();
+              goTo((active - 1 + images.length) % images.length);
+            }}
+          >
+            <ChevronLeft size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="jdx-arrow jdx-arrow-next"
+            aria-label="Next picture"
+            onClick={() => {
+              pauseAutoSlide();
+              goTo((active + 1) % images.length);
+            }}
+          >
+            <ChevronRight size={20} aria-hidden="true" />
+          </button>
+        </>
+      )}
 
       {images.length > 1 && (
         <div className="jdx-dots">

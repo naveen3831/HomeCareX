@@ -196,16 +196,15 @@ const loadAll = useCallback(async () => {
                   <th>Email</th>
                   <th>Phone</th>
                   <th>Gender</th>
-                  <th className="mp-col-status">Status</th>
-                  <th className="mp-col-actions">Actions</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7}>Loading…</td></tr>
+                  <tr><td colSpan={6}>Loading…</td></tr>
                 ) : visiblePartners.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={6}>
                       {partners.length === 0
                         ? 'No partners yet. Click “Add Partner” to register one.'
                         : 'No partners match your search.'}
@@ -219,10 +218,7 @@ const loadAll = useCallback(async () => {
                       <td>{s.email}</td>
                       <td>{s.phone ?? '—'}</td>
                       <td style={{ textTransform: 'capitalize' }}>{s.gender ?? '—'}</td>
-                      <td className="mp-col-status">
-                        <PartnerStatus partner={s} />
-                      </td>
-                      <td className="mp-col-actions">
+                      <td>
                         <div className="flex items-center gap-2">
                           <button type="button" className="hcx-btn hcx-btn--ghost" style={{ minHeight: 30, padding: '4px 8px' }} onClick={() => openEdit(s)} aria-label={`Edit ${s.name}`} title="Edit">
                             <Pencil size={15} />

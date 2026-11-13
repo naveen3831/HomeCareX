@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { readJobMedia } from '../partner-jobs/job-media-storage';
 import type { Request, Response } from 'express';
 
 import { BookingModel } from '../../models/Booking';
@@ -23,6 +24,7 @@ import {
 import { applyTransition } from '../bookings/bookings.stateMachine';
 import { getRazorpay } from '../../integrations/razorpay';
 import { auditService } from '../audit/audit.service';
+import { notify, alertCustomerPartnerAssigned } from '../notifications';
 import { ONBOARDING_TOTAL_STEPS } from '../partner-onboarding/partner-onboarding.service';
 
 type AdminPaymentStatus = 'Pending' | 'Paid' | 'Failed' | 'Refunded';
@@ -38,6 +40,7 @@ interface RefundResult {
 
 interface AdminBookingSource {
   _id: { toString(): string };
+  startMedia?: Array<{ key: string; mimeType: string; kind: 'image' | 'video'; size: number; uploadedAt?: Date }>;
 
   customerId?: { toString(): string };
   customerName?: string;
@@ -110,9 +113,9 @@ interface PartnerSource {
   ratingAvg?: number;
   ratingCount?: number;
   trainingCompleted?: boolean;
-  onboarding?: { completedSteps?: number; approvedAt?: Date };
+  onboarding?: { completedSteps?: number; approvedAt?: Date | null } | null;
   serviceRadiusKm?: number;
-  kyc?: { status?: string };
+  kyc?: { status?: string } | null;
 }
 
 
@@ -502,6 +505,14 @@ export class AdminBookingsController {
       createdAt,
       updatedAt,
       timeline,
+      // Photos / videos the partner added when starting the job (file bytes: GET .../start-media/:key).
+      startMedia: (booking.startMedia ?? []).map((m) => ({
+        key: m.key,
+        kind: m.kind,
+        mimeType: m.mimeType,
+        size: m.size,
+        uploadedAt: m.uploadedAt ? this.toISOString(m.uploadedAt) : undefined,
+      })),
     };
   }
 
@@ -723,6 +734,27 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
     );
 
     res.status(200).json({ success: true, data });
+  }
+
+  /** GET /api/v1/admin/bookings/:bookingId/start-media/:key  (streams one start photo / video) */
+  async getStartMedia(req: Request, res: Response): Promise<void> {
+    this.assertAdmin(req);
+
+    const { bookingId, key } = req.params;
+    const booking = await BookingModel.findById(bookingId).select('startMedia').lean().exec();
+    // Only keys that really belong to this booking can be read.
+    const item = booking?.startMedia?.find((m) => m.key === key);
+
+    if (!item) {
+      throw new HttpError(404, 'File not found', 'NOT_FOUND');
+    }
+
+    const buffer = await readJobMedia(item.key);
+    res.setHeader('Content-Type', item.mimeType);
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(200).send(buffer);
   }
 
   async getBookingById(req: Request, res: Response): Promise<void> {
@@ -1315,7 +1347,7 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
       );
     }
 
-    if (!isTrainingDone(partner)) {
+    if (!isTrainingDone(partner as unknown as PartnerSource)) {
       throw new HttpError(
         400,
         'Partner training is not completed',
@@ -1472,6 +1504,18 @@ if (partner && Types.ObjectId.isValid(partner)) query.partnerId = new Types.Obje
     }
 
     await booking.save();
+
+    // Tell the partner (and the customer) about the assignment. Fire-and-forget: a failed
+    // notification must never fail the assignment itself.
+    void notify(String(partner.userId), 'booking.assigned', {
+      title: 'New job assigned to you',
+      message: 'A new job has been assigned to you. Open My Jobs to confirm it.',
+      bookingId,
+    }).catch((err) => console.error('[admin-bookings] partner assigned notification failed', err));
+
+    if (booking.customerId) {
+      alertCustomerPartnerAssigned({ customerId: booking.customerId, bookingId });
+    }
 
     await this.recordBookingAudit(
       'booking.partner_assigned',
