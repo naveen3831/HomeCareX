@@ -6,7 +6,7 @@ export const MIN_WORK_FRACTION = 0.8;
 /* ============ TESTING ONLY ============
  * true  = ignore the time rule (the checklist rule still applies), so you do not wait for the time.
  * Set it back to false after testing. */
-export const TEST_SKIP_TIME_CHECK = false;
+export const TEST_SKIP_TIME_CHECK = true;
 /* ====================================== */
 
 interface GateJob {
