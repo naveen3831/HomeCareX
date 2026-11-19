@@ -477,8 +477,13 @@ const BannerSlider: React.FC<BannerSliderProps> = ({
                     fetchPriority={isActive ? "high" : "low"}
                     decoding="async"
                     onError={(event) => {
-                      console.error("Banner image failed to load:", banner.image);
-                      event.currentTarget.style.display = "none";
+                      const img = event.currentTarget;
+                      if (!img.dataset.fallback) {
+                        img.dataset.fallback = "true";
+                        img.src = "/images/home-cleaning.webp";
+                      } else {
+                        img.style.display = "none";
+                      }
                     }}
                     className={`absolute inset-0 h-full w-full object-cover ${imageMotion} ${
                       isActive ? "scale-100" : "scale-105"

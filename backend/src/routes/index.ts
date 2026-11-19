@@ -55,6 +55,7 @@ import { chatRoutes } from "../modules/chat/chat.routes";
 import paymentRoutes from "../modules/payments/payments.routes";
 import { reviewsRoutes } from "../modules/reviews/reviews.routes";
 import walletRoutes from "../modules/wallet/wallet.routes";
+import { uploadRoutes } from "./upload.routes";
 import customerNotificationsRoutes from "../modules/notifications/customer-notifications.routes";
 import { notificationsRoutes } from "../modules/notifications/notifications.routes";
 import customerDashboardRoutes from "../modules/customer-dashboard/customer-dashboard.routes";
@@ -214,6 +215,8 @@ rootRouter.use("/banners", publicMarketingRoutes);
 rootRouter.use("/site-settings", publicSettingsRoutes);
 rootRouter.use("/serviceability", serviceabilityRoutes);
 rootRouter.use("/pricing", pricingRoutes);
+rootRouter.use("/uploads", uploadRoutes);
+rootRouter.use("/upload", uploadRoutes);
 rootRouter.use(leadsRoutes);
 
 // ---- Notifications ----

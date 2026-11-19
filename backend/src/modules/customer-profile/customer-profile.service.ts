@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/AppError';
 import { customerProfileRepository } from './customer-profile.repository';
+import { CloudinaryService } from '../../services/cloudinary.service';
 import {
   AVATAR_MAX_BYTES,
   DEFAULT_LANGUAGE,
@@ -123,7 +124,18 @@ export class CustomerProfileService {
       throw new AppError(415, 'AVATAR_UNSUPPORTED_TYPE', 'Only JPG, PNG and WebP images are allowed.');
     }
     await this.mustFind(userId); // cheap checks first: a bad upload never costs a database round trip
-    const avatar = `data:${actual};base64,${body.toString('base64')}`;
+    let avatar = `data:${actual};base64,${body.toString('base64')}`;
+    try {
+      if (CloudinaryService.isConfigured()) {
+        const upload = await CloudinaryService.uploadImage(body, 'homecarex/avatars', {
+          public_id: `avatar_${userId}`,
+          overwrite: true,
+        });
+        avatar = upload.secureUrl;
+      }
+    } catch (err) {
+      console.warn('[avatar] Cloudinary upload fallback to data URL:', err);
+    }
     const updated = await this.repo.update(userId, { $set: { avatar } });
     if (!updated) throw new AppError(404, 'CUSTOMER_NOT_FOUND', 'Your account was not found.');
     return toProfileView(updated);

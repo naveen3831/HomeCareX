@@ -109,15 +109,15 @@ const StatsStrip: React.FC = () => {
 
     const fetchStats = async () => {
       try {
-        const response = await fetch("/api/stats");
-        if (!response.ok) return;
+        const response = await fetch("/api/stats").catch(() => null);
+        if (!response || !response.ok) return;
 
         const data: StatItem[] = await response.json();
         if (active && Array.isArray(data) && data.length > 0) {
           setStats(data);
         }
-      } catch (error) {
-        console.log("Using initial statistics:", error);
+      } catch {
+        // Fallback to initial statistics
       }
     };
 

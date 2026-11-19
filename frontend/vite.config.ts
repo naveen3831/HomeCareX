@@ -9,10 +9,27 @@ const gzipPreview = () => ({
     server.middlewares.use(compression());
   },
 });
+
+const statsMock = () => ({
+  name: 'stats-mock',
+  configureServer(server: { middlewares: { use: (path: string, fn: (req: unknown, res: { setHeader: (k: string, v: string) => void; end: (c: string) => void }) => void) => void } }) {
+    server.middlewares.use('/api/stats', (_req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify([
+        { id: "STAT001", icon: "calendar", title: "Easy Booking", description: "Find and book the service you need with ease." },
+        { id: "STAT002", icon: "clock", title: "Flexible Scheduling", description: "Choose a convenient time for your service." },
+        { id: "STAT003", icon: "home", title: "Home Convenience", description: "Get the services you need at your doorstep." },
+        { id: "STAT004", icon: "sparkles", title: "Simple Experience", description: "Manage your home service journey in one place." },
+      ]));
+    });
+  },
+});
+
 export default defineConfig({
    plugins: [
     react(),
     gzipPreview(),
+    statsMock(),
   ],
 
   resolve: {

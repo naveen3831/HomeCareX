@@ -6,6 +6,7 @@ import { slugify, uniqueSlug } from '../../utils/slug';
 import { DEFAULT_CATEGORY_MEDIA, SEED_CATEGORIES } from './categories.constants';
 import { categoryCreateSchema, categoryReorderSchema, categoryUpdateSchema } from './categories.validation';
 import type { CategoryDto } from './categories.types';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 const CI = {
   collation: { locale: 'en', strength: 2 },
@@ -45,6 +46,39 @@ async function assertParent(parentId: string | null | undefined, selfId?: string
 /** Exactly one primary image (the first when none is flagged). */
 const normaliseImages = <T extends { isPrimary: boolean }>(images?: T[]) =>
   images?.map((img, i) => ({ ...img, isPrimary: images.some((x) => x.isPrimary) ? img.isPrimary && images.findIndex((x) => x.isPrimary) === i : i === 0 }));
+
+async function processCategoryImages(images?: Array<{ url: string; alt?: string; isPrimary: boolean }>) {
+  if (!images || images.length === 0) return images;
+  if (!CloudinaryService.isConfigured()) return normaliseImages(images);
+
+  const processed = await Promise.all(
+    images.map(async (img) => {
+      if (img.url && img.url.startsWith('data:image/')) {
+        try {
+          const res = await CloudinaryService.uploadImage(img.url, 'homecarex/categories');
+          return { ...img, url: res.secureUrl };
+        } catch (err) {
+          console.warn('[categories] Cloudinary image upload error:', err);
+          return img;
+        }
+      }
+      return img;
+    })
+  );
+  return normaliseImages(processed);
+}
+
+async function processCategoryIcon(iconUrl?: string | null) {
+  if (!iconUrl || !iconUrl.startsWith('data:image/')) return iconUrl;
+  if (!CloudinaryService.isConfigured()) return iconUrl;
+  try {
+    const res = await CloudinaryService.uploadImage(iconUrl, 'homecarex/categories/icons');
+    return res.secureUrl;
+  } catch (err) {
+    console.warn('[categories] Cloudinary icon upload error:', err);
+    return iconUrl;
+  }
+}
 
 /**
  * Inserts missing default categories.
@@ -162,10 +196,14 @@ export const categoriesService = {
 
     await assertParent(data.parentId);
 
+    const images = await processCategoryImages(data.images);
+    const iconUrl = await processCategoryIcon(data.iconUrl);
+
     return toDto(
       await CategoryModel.create({
         ...data,
-        images: normaliseImages(data.images),
+        images,
+        ...(iconUrl !== undefined ? { iconUrl } : {}),
         slug,
       }),
     );
@@ -204,8 +242,15 @@ export const categoriesService = {
 
     if (data.parentId !== undefined) await assertParent(data.parentId, id);
 
+    const images = data.images ? await processCategoryImages(data.images) : undefined;
+    const iconUrl = data.iconUrl !== undefined ? await processCategoryIcon(data.iconUrl) : undefined;
+
     // Keep the existing slug stable so existing links continue working.
-    existing.set({ ...data, ...(data.images ? { images: normaliseImages(data.images) } : {}) });
+    existing.set({
+      ...data,
+      ...(images ? { images } : {}),
+      ...(iconUrl !== undefined ? { iconUrl } : {}),
+    });
 
     await existing.save();
 

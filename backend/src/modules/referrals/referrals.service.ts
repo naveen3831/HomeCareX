@@ -233,7 +233,7 @@ export const referralsService = {
       "REFERRAL_UNAVAILABLE",
     );
   },
-  async resolve(code: string): Promise<string> {
+  async resolve(code: string, role: "customer" | "partner" = "customer"): Promise<string> {
     const trimmed = code.trim().toUpperCase();
     const withHyphen = trimmed.replace(/\s+/g, "-");
     const match = await ReferralCodeModel.findOne({
@@ -320,7 +320,11 @@ export const referralsService = {
    * Who a sign-up code belongs to and which offer it carries. An offer code (HCXNAME-WELCOME) is tied to
    * that offer; a plain customer code has programId null (the best offer then applies at booking time).
    */
-  async resolveInvite(code: string): Promise<{ referrerId: string; programId: string | null }> {
+  async resolveInvite(
+    code: string,
+    role: "customer" | "partner" = "customer",
+  ): Promise<{ referrerId: string; programId: string | null }> {
+    if (role === "partner") return { referrerId: await referralsService.resolve(code, "partner"), programId: null };
     const trimmed = code.trim().toUpperCase();
     const withHyphen = trimmed.replace(/\s+/g, "-");
     let offer = await ReferralOfferCodeModel.findOne({
@@ -370,7 +374,7 @@ export const referralsService = {
       }
     }
 
-    if (!offer) return { referrerId: await referralsService.resolve(code), programId: null };
+    if (!offer) return { referrerId: await referralsService.resolve(code, role), programId: null };
     const [referrerOk, program] = await Promise.all([
       UserModel.exists({ _id: offer.referrerId, role: "customer", status: "active" }),
       ReferralProgramModel.findById(offer.programId).lean<{
@@ -591,22 +595,54 @@ export const referralsService = {
         { new: true, session },
       );
       if (!claimed) return;
-      // 1. Credit Referrer Wallet
-      const referrerWallet = await WalletModel.findOneAndUpdate(
-        { userId: String(claimed.referrerId) },
-        { $inc: { balance: rewardPaise / 100 } },
-        { new: true, upsert: true, session, setDefaultsOnInsert: true },
+      const id = String(claimed._id);
+      const partner = audience === "PARTNER";
+      if (referrerDue) await creditReferralWallet(
+        audience,
+        String(claimed.referrerId),
+        referrerPaise / 100,
+        `referral:${id}`,
+        partner ? "Referral reward: the partner you referred completed their first job" : "Referral reward: your friend's first booking",
+        session,
       );
-      await WalletLedgerModel.create(
-        [
-          {
-            walletId: referrerWallet._id,
-            userId: String(claimed.referrerId),
-            type: "referral_reward",
-            amount: rewardPaise / 100,
-            balanceAfter: referrerWallet.balance,
-            description: "Referral reward: friend's first completed booking",
-            referenceId: `referral:${claimed._id}:referrer`,
+      if (friendDue) await creditReferralWallet(
+        audience,
+        refereeId,
+        refereePaise / 100,
+        `referral-friend:${id}`,
+        partner ? "Referral bonus: first job completed with a referral code" : "Referral bonus: your first booking with a referral code",
+        session,
+      );
+    });
+  },
+  /**
+   * Signup bonus: when a customer registers with a referral code, BOTH the new customer and the referrer get
+   * their wallet credit straight away (no booking needed). Safe to call twice: claimed once, and the wallet
+   * references are unique.
+   */
+  async creditRefereeSignupBonus(refereeId: string) {
+    const referral = await ReferralModel.findOne({
+      refereeId,
+      audience: { $ne: "PARTNER" as const },
+      refereeCreditedAt: null,
+    });
+    if (!referral) return;
+    const rewards = await referralProgramsService.rewardsFor(
+      referral.programId ? String(referral.programId) : null,
+      "CUSTOMER",
+    );
+    const paise = Math.round(rewards.refereeRupees * 100);
+    const referrerPaise = Math.round(rewards.referrerRupees * 100);
+    await mongoose.connection.transaction(async (session) => {
+      const now = new Date();
+      const claimed = await ReferralModel.findOneAndUpdate(
+        { _id: referral._id, refereeCreditedAt: null },
+        {
+          $set: {
+            refereeCreditedAt: now,
+            referrerCreditedAt: now,
+            refereeRewardPaise: paise,
+            rewardPaise: referrerPaise,
           },
         },
         { new: true, session },
@@ -628,30 +664,6 @@ export const referralsService = {
         "Welcome bonus: you joined with a referral code",
         session,
       );
-
-      // 2. Credit Referee (New Customer) Wallet
-      const refereeIdToCredit = claimed.refereeId ? String(claimed.refereeId) : refereeId;
-      if (refereeIdToCredit) {
-        const refereeWallet = await WalletModel.findOneAndUpdate(
-          { userId: refereeIdToCredit },
-          { $inc: { balance: rewardPaise / 100 } },
-          { new: true, upsert: true, session, setDefaultsOnInsert: true },
-        );
-        await WalletLedgerModel.create(
-          [
-            {
-              walletId: refereeWallet._id,
-              userId: refereeIdToCredit,
-              type: "referral_reward",
-              amount: rewardPaise / 100,
-              balanceAfter: refereeWallet.balance,
-              description: "Referral welcome bonus: first completed booking",
-              referenceId: `referral:${claimed._id}:referee`,
-            },
-          ],
-          { session },
-        );
-      }
     });
   },
   /** Partner side of the Referrals page: own code, current reward, and who joined with it. */

@@ -18,12 +18,8 @@ import { isBookingId } from "./bookingId";
 import { distanceKm, mapsDirectionsUrl } from "./geo";
 import { fetchNavigationJob } from "./navigation.api";
 import { useLocalPosition } from "./useLocalPosition";
-import JobStepPanel from "./components/JobStepPanel";
 import "./navigation.css";
 import "./navigationApp.css";
-
-/** How close (in metres) the partner must be to the customer to mark "arrived". Adjust to your rule. */
-const ARRIVAL_RADIUS_M = 200;
 
 function DemoJobNotice() {
   const go = useNavigate();
@@ -507,7 +503,12 @@ function NavigationContent({ id }: { id: string }) {
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
-          )}
+            <div className="nv-sheet-body">
+              <ChatPanel bookingId={id} viewerRole="partner" />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

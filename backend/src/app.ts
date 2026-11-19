@@ -55,6 +55,15 @@ app.get('/api/v1/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok' } });
 });
 
+app.get(['/api/stats', '/api/v1/stats'], (_req, res) => {
+  res.json([
+    { id: "STAT001", icon: "calendar", title: "Easy Booking", description: "Find and book the service you need with ease." },
+    { id: "STAT002", icon: "clock", title: "Flexible Scheduling", description: "Choose a convenient time for your service." },
+    { id: "STAT003", icon: "home", title: "Home Convenience", description: "Get the services you need at your doorstep." },
+    { id: "STAT004", icon: "sparkles", title: "Simple Experience", description: "Manage your home service journey in one place." },
+  ]);
+});
+
 app.use('/api/v1', rootRouter);
 app.use('/api', rootRouter);
 
