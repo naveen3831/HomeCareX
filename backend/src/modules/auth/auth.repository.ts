@@ -25,8 +25,17 @@ type CreateOtpData = {
 };
 
 export const authRepository = {
-  findByEmailWithPassword: (email: string) =>
-    UserModel.findOne({ email }).select('+passwordHash'),
+  findByEmailWithPassword: (identifier: string) => {
+    const raw = (identifier || '').trim();
+    const cleanPhone = raw.replace(/[\s()-]/g, '').replace(/^(\+91|91)/, '');
+    return UserModel.findOne({
+      $or: [
+        { email: raw.toLowerCase() },
+        { phone: raw },
+        ...(cleanPhone ? [{ phone: cleanPhone }] : []),
+      ],
+    }).select('+passwordHash');
+  },
 
   findByIdWithPassword: (id: string) =>
     UserModel.findById(id).select('+passwordHash'),
