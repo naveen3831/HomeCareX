@@ -5,6 +5,18 @@ import 'package:homecarex_mobile/core/models/service_model.dart';
 import 'package:homecarex_mobile/providers/booking_provider.dart';
 import 'package:homecarex_mobile/screens/bookings/book_service_flow_screen.dart';
 
+class FakeBookingProvider extends BookingProvider {
+  @override
+  Future<bool> createBooking({
+    required List<Map<String, dynamic>> items,
+    required String address,
+    required DateTime scheduledDate,
+    required double totalAmount,
+  }) async {
+    return true;
+  }
+}
+
 void main() {
   final testService = ServiceModel(
     id: 'srv_haircut_styling',
@@ -21,7 +33,7 @@ void main() {
   Widget createWidget({int initialStep = 1}) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => BookingProvider()),
+        ChangeNotifierProvider<BookingProvider>(create: (_) => FakeBookingProvider()),
       ],
       child: MaterialApp(
         theme: ThemeData(

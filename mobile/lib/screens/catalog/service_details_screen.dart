@@ -75,7 +75,9 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     if (s.contains('electr') || s.contains('plumb')) return 'Electrical & Plumbing';
     if (s.contains('paint')) return 'Painting & Waterproofing';
     if (s.contains('pest')) return 'Pest Control';
-    if (s.contains('carpent')) return 'Carpentry';
+    if (s.contains('carpent') || s.contains('shelf') || s.contains('curtain') || n.contains('shelf') || n.contains('furniture')) {
+      return 'Carpentry & Furniture Assembly';
+    }
     return 'Home Service';
   }
 
@@ -430,6 +432,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   child: Image.asset(
                     _photos[i],
                     fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: const Color(0xFFEEECFB),
+                      child: const Center(
+                        child: Icon(Icons.build_rounded, size: 20, color: AppColors.brand),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -508,34 +516,48 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         ),
         const SizedBox(height: 6),
 
-        // Rating, Reviews & Duration Row
+        // Rating, Reviews & Duration Row (Matches web: "New service • ⏱ 45 min" or "⭐ 4.9 · 128 reviews · ⏱ 45 min")
         Row(
           children: [
-            const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
-            const SizedBox(width: 4),
-            Text(
-              s.rating.toStringAsFixed(1),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1E1B2E),
-              ),
-            ),
-            const SizedBox(width: 4),
-            GestureDetector(
-              onTap: () => _scrollToSection(_reviewsKey, 'reviews'),
-              child: Text(
-                '· $ratingCountFormatted reviews',
+            if (s.reviewsCount > 0 && s.rating > 0) ...[
+              const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
+              const SizedBox(width: 4),
+              Text(
+                s.rating.toStringAsFixed(1),
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF64748B),
-                  decoration: TextDecoration.underline,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E1B2E),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            const Text('·', style: TextStyle(color: Color(0xFF94A3B8))),
-            const SizedBox(width: 8),
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => _scrollToSection(_reviewsKey, 'reviews'),
+                child: Text(
+                  '· $ratingCountFormatted reviews',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF64748B),
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('·', style: TextStyle(color: Color(0xFF94A3B8))),
+              const SizedBox(width: 8),
+            ] else ...[
+              const Text(
+                'New service',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Text('•', style: TextStyle(color: Color(0xFF94A3B8))),
+              const SizedBox(width: 8),
+            ],
             const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF64748B)),
             const SizedBox(width: 4),
             Text(
@@ -578,6 +600,15 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF14532D),
+                    ),
+                  ),
+                  SizedBox(height: 1),
+                  Text(
+                    'Earliest: Today',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xD914532D),
                     ),
                   ),
                 ],
@@ -1299,6 +1330,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                           child: Image.asset(
                             _photos[idx],
                             fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFEEECFB),
+                              child: const Center(
+                                child: Icon(Icons.build_rounded, size: 48, color: AppColors.brand),
+                              ),
+                            ),
                           ),
                         ),
                       );

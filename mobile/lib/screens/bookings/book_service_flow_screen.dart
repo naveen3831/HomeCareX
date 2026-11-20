@@ -683,27 +683,30 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No. of Persons',
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'No. of Persons',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Units to be serviced (up to 10)',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF64748B),
+                    SizedBox(height: 2),
+                    Text(
+                      'Units to be serviced (up to 10)',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -1092,23 +1095,25 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Select Date & Time',
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select Date & Time',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Choose when you want the service done.',
-                    style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
-                  ),
-                ],
+                    SizedBox(height: 2),
+                    Text(
+                      'Choose when you want the service done.',
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1116,7 +1121,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
 
           // Horizontal Date Scroller
           SizedBox(
-            height: 72,
+            height: 80,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
@@ -1136,7 +1141,8 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                 return GestureDetector(
                   onTap: () => setState(() => _selectedDate = d),
                   child: Container(
-                    width: 72,
+                    width: 76,
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
@@ -1146,20 +1152,25 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: isSelected ? Colors.white70 : const Color(0xFF64748B),
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           '${d.day} ${months[d.month - 1]}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
                             color: isSelected ? Colors.white : const Color(0xFF0F172A),
                           ),

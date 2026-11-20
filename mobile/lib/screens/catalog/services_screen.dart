@@ -7,7 +7,6 @@ import '../../core/utils/service_image_resolver.dart';
 import '../../providers/catalog_provider.dart';
 import 'categories_screen.dart';
 import 'service_details_screen.dart';
-import '../bookings/book_service_flow_screen.dart';
 
 class _CurvedUnderlinePainter extends CustomPainter {
   @override
@@ -1411,12 +1410,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                             ],
                                           ),
 
-                                          // Book Now Button
+                                          // Book Now Button -> Navigates to Service details
                                           GestureDetector(
                                             onTap: () {
                                               Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (_) => BookServiceFlowScreen(service: service),
+                                                  builder: (_) => ServiceDetailsScreen(service: service),
                                                 ),
                                               );
                                             },
