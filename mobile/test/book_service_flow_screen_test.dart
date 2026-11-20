@@ -295,5 +295,50 @@ void main() {
     await tester.ensureVisible(find.text('Save & select'));
     expect(find.text('Save & select'), findsOneWidget);
   });
+
+  testWidgets('BookServiceFlowScreen map supports real-time dragging, zoom controls, and locate reset',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(createWidget(initialStep: 2, initialAddingNewAddress: true));
+    await tester.pumpAndSettle();
+
+    // 1. Verify zoom control buttons exist
+    expect(find.byIcon(Icons.add_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
+
+    // 2. Tap zoom in (+) and unzoom (-) buttons
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.remove_rounded));
+    await tester.pumpAndSettle();
+
+    // Initial location is HITEC City
+    expect(find.text('HITEC City'), findsWidgets);
+
+    // 3. Drag the map canvas in real-time
+    final mapFinder = find.byWidgetPredicate(
+      (w) => w is GestureDetector && w.onScaleStart != null,
+    );
+
+    // Perform real-time pan/drag
+    await tester.drag(mapFinder, const Offset(-180, 0));
+    await tester.pumpAndSettle();
+
+    // Verify location updated in real-time
+    expect(find.text('HITEC City'), findsNothing);
+
+    // 4. Tap locate me button to reset
+    await tester.tap(find.byIcon(Icons.my_location_rounded));
+    await tester.pumpAndSettle();
+
+    // Verify reset to default HITEC City
+    expect(find.text('HITEC City'), findsWidgets);
+  });
 }
 

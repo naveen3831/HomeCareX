@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/address_model.dart';
@@ -34,6 +35,13 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   String _locationAddress =
       'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
   String _selectedLabel = 'Home'; // 'Home', 'Work', 'Other'
+
+  // Real-time interactive map state
+  Offset _mapPanOffset = Offset.zero;
+  double _mapZoom = 1.0;
+  double _startZoom = 1.0;
+  bool _isDraggingMap = false;
+
   final TextEditingController _mapSearchController = TextEditingController();
   final TextEditingController _houseController = TextEditingController();
   final TextEditingController _streetController = TextEditingController(text: 'Deepthisree Nagar');
@@ -150,6 +158,71 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
     }
   }
 
+  void _zoomIn() {
+    setState(() {
+      _mapZoom = (_mapZoom + 0.25).clamp(0.6, 3.5);
+    });
+  }
+
+  void _zoomOut() {
+    setState(() {
+      _mapZoom = (_mapZoom - 0.25).clamp(0.6, 3.5);
+    });
+  }
+
+  void _updateLocationFromPanOffset() {
+    final dx = _mapPanOffset.dx;
+    final dy = _mapPanOffset.dy;
+
+    if (dx < -120) {
+      _locationTitle = 'Deepthisree Nagar';
+      _locationAddress = 'Deepthisree Nagar, Madinaguda, Miyapur, Hyderabad, Telangana, 500049, India';
+      _streetController.text = 'Deepthisree Nagar';
+      _areaController.text = 'Madinaguda';
+      _pincodeController.text = '500049';
+    } else if (dx < -40 && dy < 20) {
+      _locationTitle = 'Kondapur';
+      _locationAddress = 'Raghavendra Colony, Kondapur Main Road, Hyderabad, Telangana, 500084, India';
+      _streetController.text = 'Raghavendra Colony, Kondapur Main Road';
+      _areaController.text = 'Kondapur';
+      _pincodeController.text = '500084';
+    } else if (dx > 40 && dy < -20) {
+      _locationTitle = 'Jubilee Hills';
+      _locationAddress = 'Road No. 36, Jubilee Hills, Hyderabad, Telangana, 500033, India';
+      _streetController.text = 'Road No. 36';
+      _areaController.text = 'Jubilee Hills';
+      _pincodeController.text = '500033';
+    } else if (dx > 40) {
+      _locationTitle = 'Madhapur';
+      _locationAddress = 'Near Ayyappa Society, 100 Feet Road, Madhapur, Hyderabad, Telangana, 500081, India';
+      _streetController.text = '100 Feet Road, Madhapur';
+      _areaController.text = 'Madhapur';
+      _pincodeController.text = '500081';
+    } else if (dy > 40 && dx < -30) {
+      _locationTitle = 'Financial District';
+      _locationAddress = 'ISB Road, Financial District, Nanakramguda, Hyderabad, Telangana, 500032, India';
+      _streetController.text = 'ISB Road';
+      _areaController.text = 'Financial District';
+      _pincodeController.text = '500032';
+    } else if (dy > 40) {
+      _locationTitle = 'Gachibowli';
+      _locationAddress = 'DLF Cyber City, Gachibowli, Hyderabad, Telangana, 500032, India';
+      _streetController.text = 'DLF Cyber City';
+      _areaController.text = 'Gachibowli';
+      _pincodeController.text = '500032';
+    } else {
+      _locationTitle = 'HITEC City';
+      _locationAddress = 'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+      _streetController.text = 'HITEC City - Kondapur Main Road';
+      _areaController.text = 'HITEC City';
+      _pincodeController.text = '500081';
+    }
+  }
+
+  void _finalizeLocationFromPanOffset() {
+    _updateLocationFromPanOffset();
+  }
+
   void _onSearchLocationChanged(String query) {
     final q = query.trim().toLowerCase();
     setState(() {
@@ -161,6 +234,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         _cityController.text = 'Hyderabad';
         _stateController.text = 'Telangana';
         _pincodeController.text = '500081';
+        _mapPanOffset = const Offset(80, 0);
       } else if (q.contains('kondapur')) {
         _locationTitle = 'Kondapur';
         _locationAddress = 'Raghavendra Colony, Kondapur Main Road, Hyderabad, Telangana, 500084, India';
@@ -169,6 +243,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         _cityController.text = 'Hyderabad';
         _stateController.text = 'Telangana';
         _pincodeController.text = '500084';
+        _mapPanOffset = const Offset(-80, -20);
       } else if (q.contains('gachibowli')) {
         _locationTitle = 'Gachibowli';
         _locationAddress = 'DLF Cyber City, Gachibowli, Hyderabad, Telangana, 500032, India';
@@ -177,6 +252,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         _cityController.text = 'Hyderabad';
         _stateController.text = 'Telangana';
         _pincodeController.text = '500032';
+        _mapPanOffset = const Offset(0, 80);
       } else if (q.contains('jubilee')) {
         _locationTitle = 'Jubilee Hills';
         _locationAddress = 'Road No. 36, Jubilee Hills, Hyderabad, Telangana, 500033, India';
@@ -185,6 +261,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         _cityController.text = 'Hyderabad';
         _stateController.text = 'Telangana';
         _pincodeController.text = '500033';
+        _mapPanOffset = const Offset(80, -60);
       } else if (q.isNotEmpty) {
         _locationTitle = query.trim();
         _locationAddress = '$query, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
@@ -198,6 +275,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         _cityController.text = 'Hyderabad';
         _stateController.text = 'Telangana';
         _pincodeController.text = '500081';
+        _mapPanOffset = Offset.zero;
       }
     });
   }
@@ -205,6 +283,8 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   void _resetToCurrentLocation() {
     _mapSearchController.clear();
     setState(() {
+      _mapPanOffset = Offset.zero;
+      _mapZoom = 1.0;
       _locationTitle = 'HITEC City';
       _locationAddress =
           'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
@@ -995,9 +1075,9 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
           ),
           const SizedBox(height: 8),
 
-          // 4. Map Container (height 180 matching mobile viewport)
+          // 4. Map Container (height 200 matching mobile viewport with real-time pan & zoom)
           Container(
-            height: 180,
+            height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
@@ -1007,10 +1087,49 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
             clipBehavior: Clip.antiAlias,
             child: Stack(
               children: [
-                // Stylized Realistic Map Canvas
+                // Stylized Interactive Real-Time Map Canvas with pan & scroll gestures
                 Positioned.fill(
-                  child: CustomPaint(
-                    painter: _MapCanvasPainter(),
+                  child: Listener(
+                    onPointerSignal: (pointerSignal) {
+                      if (pointerSignal is PointerScrollEvent) {
+                        if (pointerSignal.scrollDelta.dy < 0) {
+                          _zoomIn();
+                        } else if (pointerSignal.scrollDelta.dy > 0) {
+                          _zoomOut();
+                        }
+                      }
+                    },
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: (details) {
+                        _startZoom = _mapZoom;
+                        setState(() {
+                          _isDraggingMap = true;
+                        });
+                      },
+                      onScaleUpdate: (details) {
+                        setState(() {
+                          _mapPanOffset += details.focalPointDelta;
+                          if (details.scale != 1.0) {
+                            _mapZoom = (_startZoom * details.scale).clamp(0.6, 3.5);
+                          }
+                          _updateLocationFromPanOffset();
+                        });
+                      },
+                      onScaleEnd: (details) {
+                        setState(() {
+                          _isDraggingMap = false;
+                          _finalizeLocationFromPanOffset();
+                        });
+                      },
+                      onDoubleTap: _zoomIn,
+                      child: CustomPaint(
+                        painter: _MapCanvasPainter(
+                          panOffset: _mapPanOffset,
+                          zoom: _mapZoom,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
 
@@ -1052,6 +1171,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                         ),
                         if (_mapSearchController.text.isNotEmpty)
                           GestureDetector(
+                            behavior: HitTestBehavior.opaque,
                             onTap: _resetToCurrentLocation,
                             child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
                           ),
@@ -1060,9 +1180,56 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                   ),
                 ),
 
-                // Center Teardrop Pin Marker
-                const Center(
-                  child: _MapCenterPin(),
+                // Center Teardrop Pin Marker with Lift Animation on Drag
+                Center(
+                  child: IgnorePointer(
+                    child: _MapCenterPin(isDragging: _isDraggingMap),
+                  ),
+                ),
+
+                // Zoom Controls (+ and - buttons)
+                Positioned(
+                  bottom: 46,
+                  right: 8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _zoomIn,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.add_rounded, size: 16, color: Color(0xFF1E293B)),
+                          ),
+                        ),
+                        Container(width: 18, height: 1, color: const Color(0xFFE2E8F0)),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _zoomOut,
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.remove_rounded, size: 16, color: Color(0xFF1E293B)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
 
                 // Bottom-Right Crosshair / Locate Me Button
@@ -1070,6 +1237,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                   bottom: 8,
                   right: 8,
                   child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: _resetToCurrentLocation,
                     child: Container(
                       width: 30,
@@ -1100,18 +1268,20 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                 Positioned(
                   bottom: 0,
                   left: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      borderRadius: const BorderRadius.only(topRight: Radius.circular(5)),
-                    ),
-                    child: const Text(
-                      '© OpenStreetMap contributors',
-                      style: TextStyle(
-                        fontSize: 8.5,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w400,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        borderRadius: const BorderRadius.only(topRight: Radius.circular(5)),
+                      ),
+                      child: const Text(
+                        '© OpenStreetMap contributors',
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ),
                   ),
@@ -2049,28 +2219,60 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   }
 }
 
-// Center Pin Marker with ground shadow matching screenshot
+// Center Pin Marker with lift effect and ground shadow matching screenshot
 class _MapCenterPin extends StatelessWidget {
-  const _MapCenterPin();
+  final bool isDragging;
+
+  const _MapCenterPin({this.isDragging = false});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CustomPaint(
-          size: const Size(34, 44),
-          painter: _TeardropPinPainter(),
-        ),
-        Container(
-          width: 12,
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.22),
-            borderRadius: BorderRadius.circular(4),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      transform: Matrix4.translationValues(0, isDragging ? -10 : 0, 0),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isDragging) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Release to set location',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+          CustomPaint(
+            size: const Size(34, 44),
+            painter: _TeardropPinPainter(),
           ),
-        ),
-      ],
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: isDragging ? 8 : 12,
+            height: isDragging ? 3 : 4,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: isDragging ? 0.15 : 0.22),
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -2110,43 +2312,80 @@ class _TeardropPinPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Custom Painter for Map preview background on Step 2 (OpenStreetMap style)
+// Custom Painter for Map preview background on Step 2 (OpenStreetMap style with real-time Pan & Zoom)
 class _MapCanvasPainter extends CustomPainter {
+  final Offset panOffset;
+  final double zoom;
+
+  _MapCanvasPainter({
+    required this.panOffset,
+    required this.zoom,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Base land / background
+    // 1. Clip to container bounds
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height));
+
+    // 2. Base background
     final bgPaint = Paint()..color = const Color(0xFFF2EFE9);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // 2. City block buildings / plots (subtle off-white)
+    // 3. Apply Zoom and Pan around center
+    final center = Offset(size.width / 2, size.height / 2);
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(zoom);
+    canvas.translate(-center.dx + panOffset.dx, -center.dy + panOffset.dy);
+
+    // Extended bounding area for infinite feel
+    final left = -size.width * 1.5;
+    final top = -size.height * 1.5;
+    final right = size.width * 2.5;
+    final bottom = size.height * 2.5;
+
+    // 4. Repeated city blocks
     final blockPaint = Paint()..color = const Color(0xFFFAF8F5);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(10, 10, size.width * 0.28, size.height * 0.35), const Radius.circular(6)), blockPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.45, 10, size.width * 0.5, size.height * 0.3), const Radius.circular(6)), blockPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(14, size.height * 0.55, size.width * 0.35, size.height * 0.38), const Radius.circular(6)), blockPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.55, size.height * 0.48, size.width * 0.4, size.height * 0.45), const Radius.circular(6)), blockPaint);
-
-    // 3. Green park areas (OSM park green #CCE6BC)
     final parkPaint = Paint()..color = const Color(0xFFCCE6BC);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.08, size.height * 0.44, 75, 45), const Radius.circular(10)), parkPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.72, size.height * 0.12, 60, 40), const Radius.circular(8)), parkPaint);
-
-    // 4. Water body / canal (OSM water #AAD3DF)
     final waterPaint = Paint()..color = const Color(0xFFAAD3DF);
-    final waterPath = Path();
-    waterPath.moveTo(0, size.height * 0.25);
-    waterPath.quadraticBezierTo(size.width * 0.2, size.height * 0.2, size.width * 0.25, 0);
-    waterPath.lineTo(0, 0);
-    waterPath.close();
-    canvas.drawPath(waterPath, waterPaint);
 
-    // 5. Minor / Residential Streets
+    // Grid of blocks and parks
+    for (double x = left; x < right; x += 140) {
+      for (double y = top; y < bottom; y += 100) {
+        final isPark = (x.toInt() * 7 + y.toInt() * 13).abs() % 7 == 0;
+        final isWater = (x.toInt() * 3 + y.toInt() * 17).abs() % 11 == 0;
+
+        if (isWater) {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(Rect.fromLTWH(x + 10, y + 10, 110, 75), const Radius.circular(8)),
+            waterPaint,
+          );
+        } else if (isPark) {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(Rect.fromLTWH(x + 8, y + 8, 115, 80), const Radius.circular(10)),
+            parkPaint,
+          );
+        } else {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(Rect.fromLTWH(x + 10, y + 10, 110, 75), const Radius.circular(6)),
+            blockPaint,
+          );
+        }
+      }
+    }
+
+    // 5. Minor Residential Grid Streets
     final minorStreetPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(0, size.height * 0.7), Offset(size.width, size.height * 0.65), minorStreetPaint);
-    canvas.drawLine(Offset(size.width * 0.25, 0), Offset(size.width * 0.3, size.height), minorStreetPaint);
-    canvas.drawLine(Offset(size.width * 0.75, 0), Offset(size.width * 0.7, size.height), minorStreetPaint);
+
+    for (double x = left; x < right; x += 140) {
+      canvas.drawLine(Offset(x, top), Offset(x, bottom), minorStreetPaint);
+    }
+    for (double y = top; y < bottom; y += 100) {
+      canvas.drawLine(Offset(left, y), Offset(right, y), minorStreetPaint);
+    }
 
     // 6. Secondary Avenues (Border then fill)
     final avenueBorder = Paint()
@@ -2159,12 +2398,19 @@ class _MapCanvasPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final avePath = Path();
-    avePath.moveTo(0, size.height * 0.48);
-    avePath.cubicTo(size.width * 0.3, size.height * 0.52, size.width * 0.6, size.height * 0.44, size.width, size.height * 0.5);
+    avePath.moveTo(left, size.height * 0.48);
+    avePath.cubicTo(
+      size.width * 0.3,
+      size.height * 0.52,
+      size.width * 0.6,
+      size.height * 0.44,
+      right,
+      size.height * 0.5,
+    );
     canvas.drawPath(avePath, avenueBorder);
     canvas.drawPath(avePath, avenueFill);
 
-    // 7. Primary Highway / Main Road (Yellow/Orange #FDE047 with #EAB308 border)
+    // 7. Primary Highway (Yellow / Orange #FEF08A with #EAB308 border)
     final highwayBorder = Paint()
       ..color = const Color(0xFFEAB308)
       ..strokeWidth = 9
@@ -2175,12 +2421,19 @@ class _MapCanvasPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final hwPath = Path();
-    hwPath.moveTo(0, size.height * 0.32);
-    hwPath.cubicTo(size.width * 0.35, size.height * 0.38, size.width * 0.65, size.height * 0.55, size.width, size.height * 0.42);
+    hwPath.moveTo(left, size.height * 0.32);
+    hwPath.cubicTo(
+      size.width * 0.35,
+      size.height * 0.38,
+      size.width * 0.65,
+      size.height * 0.55,
+      right,
+      size.height * 0.42,
+    );
     canvas.drawPath(hwPath, highwayBorder);
     canvas.drawPath(hwPath, highwayFill);
 
-    // 8. Diagonal Arterial Road (connecting Kondapur & Madhapur through center)
+    // 8. Diagonal Arterial Road (connecting Kondapur & Madhapur)
     final arterialBorder = Paint()
       ..color = const Color(0xFF94A3B8)
       ..strokeWidth = 8
@@ -2191,13 +2444,52 @@ class _MapCanvasPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final artPath = Path();
-    artPath.moveTo(size.width * 0.35, 0);
-    artPath.cubicTo(size.width * 0.45, size.height * 0.45, size.width * 0.55, size.height * 0.65, size.width * 0.52, size.height);
+    artPath.moveTo(size.width * 0.35, top);
+    artPath.cubicTo(
+      size.width * 0.45,
+      size.height * 0.45,
+      size.width * 0.55,
+      size.height * 0.65,
+      size.width * 0.52,
+      bottom,
+    );
     canvas.drawPath(artPath, arterialBorder);
     canvas.drawPath(artPath, arterialFill);
+
+    // 9. Area labels on map canvas
+    _drawAreaLabel(canvas, 'Kondapur', Offset(size.width * 0.15, size.height * 0.25));
+    _drawAreaLabel(canvas, 'HITEC City', Offset(size.width * 0.5, size.height * 0.5));
+    _drawAreaLabel(canvas, 'Madhapur', Offset(size.width * 0.8, size.height * 0.65));
+    _drawAreaLabel(canvas, 'Gachibowli', Offset(size.width * 0.45, size.height * 0.85));
+    _drawAreaLabel(canvas, 'Jubilee Hills', Offset(size.width * 0.85, size.height * 0.2));
+
+    canvas.restore();
+  }
+
+  void _drawAreaLabel(Canvas canvas, String text, Offset position) {
+    final textSpan = TextSpan(
+      text: text,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF64748B),
+        letterSpacing: 0.5,
+      ),
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(position.dx - textPainter.width / 2, position.dy - textPainter.height / 2),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MapCanvasPainter oldDelegate) {
+    return oldDelegate.panOffset != panOffset || oldDelegate.zoom != zoom;
+  }
 }
 
