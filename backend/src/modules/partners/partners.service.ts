@@ -563,9 +563,9 @@ export class PartnersService {
         await profile.save();
       }
 
-      // Single-use set-password link. The login is blocked until the partner uses it.
+      // Single-use set-password link. If partner already has a password, don't block login.
       const rawToken = crypto.randomBytes(32).toString('hex');
-      user.passwordSetupRequired = true;
+      user.passwordSetupRequired = !user.passwordHash;
       (user as any).passwordResetTokenHash = sha256(rawToken);
       (user as any).passwordResetExpiresAt = new Date(Date.now() + APPROVAL_LINK_HOURS * 60 * 60 * 1000);
       await user.save();
@@ -1014,11 +1014,11 @@ export class PartnersService {
         { arrayFilters: [{ 'd.status': { $ne: 'verified' } }] },
       );
 
-      // Single-use set-password token (only its SHA-256 hash is stored). Login is blocked until it is used.
+      // Single-use set-password token (only its SHA-256 hash is stored).
       const rawToken = crypto.randomBytes(32).toString('hex');
       user.passwordResetTokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
       user.passwordResetExpiresAt = new Date(Date.now() + APPROVAL_LINK_HOURS * 3_600_000);
-      user.passwordSetupRequired = true;
+      user.passwordSetupRequired = !user.passwordHash;
       user.tokenVersion = (user.tokenVersion ?? 0) + 1; // drop any session opened before approval
       await user.save();
 

@@ -137,12 +137,13 @@ async function assertPartnerMayLogin(user: UserDoc): Promise<void> {
   const status = String(profile?.kyc?.status ?? 'not_started');
 
   if (status === 'approved') {
+    // If the partner entered their valid password (verified by bcrypt right before this check),
+    // clear passwordSetupRequired so they are not blocked from logging in.
     if (user.passwordSetupRequired) {
-      throw new HttpError(
-        403,
-        'Your KYC is approved. Open the email we sent you and set your new password, then log in.',
-        'PASSWORD_SETUP_REQUIRED',
-      );
+      user.passwordSetupRequired = false;
+      (user as any).passwordResetTokenHash = undefined;
+      (user as any).passwordResetExpiresAt = undefined;
+      await user.save();
     }
     return;
   }
