@@ -9,6 +9,7 @@ import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
 import '../support/my_tickets_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'account_security_screen.dart';
 import 'change_password_screen.dart';
 import 'legal_document_screen.dart';
 import 'notifications_settings_screen.dart';
@@ -119,7 +120,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   tintFg: const Color(0xFF7C3AED),
                   title: 'Account Security',
                   subtitle: 'Password, sessions & devices',
-                  onTap: () => _showSecuritySheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AccountSecurityScreen(
+                          userEmail: displayEmail,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildMenuItem(
@@ -1043,58 +1053,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showSecuritySheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Account Security',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.lock_outline_rounded, color: Color(0xFF7C3AED)),
-                title: const Text('Change Password'),
-                subtitle: const Text('Last changed 3 months ago'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final auth = context.read<AuthProvider>();
-                  final user = auth.user;
-                  final email = (user != null && user.email.trim().isNotEmpty) ? user.email.trim() : _defaultEmail;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChangePasswordScreen(initialEmail: email),
-                    ),
-                  );
-                },
-              ),
-              const Divider(),
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.devices_rounded, color: Color(0xFF7C3AED)),
-                title: Text('Active Sessions'),
-                subtitle: Text('motorola edge 50 fusion • Active now'),
-                trailing: Icon(Icons.chevron_right_rounded),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 

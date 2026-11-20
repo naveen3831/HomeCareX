@@ -75,6 +75,24 @@ class ApiService {
     }
   }
 
+  static Future<dynamic> delete(String endpoint) async {
+    final headers = await _headers();
+    try {
+      final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+      final response = await http.delete(uri, headers: headers).timeout(_timeout);
+      return _handleResponse(response);
+    } catch (_) {
+      try {
+        final fallbackUri = Uri.parse('${ApiConstants.fallbackBaseUrl}$endpoint');
+        final response = await http.delete(fallbackUri, headers: headers).timeout(_timeout);
+        return _handleResponse(response);
+      } catch (fallbackError) {
+        debugPrint('[ApiService] DELETE $endpoint offline/fallback failed: $fallbackError');
+        return null;
+      }
+    }
+  }
+
   static dynamic _handleResponse(http.Response response) {
     try {
       final body = jsonDecode(response.body);
