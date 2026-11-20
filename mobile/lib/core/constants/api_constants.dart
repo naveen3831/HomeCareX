@@ -33,4 +33,6 @@ class ApiConstants {
   static const String tickets = '/support/tickets';
   static const String banners = '/banners';
   static const String uploadImage = '/uploads/image';
+  static const String reviews = '/reviews';
+  static const String reviewsPending = '/reviews/pending';
 }

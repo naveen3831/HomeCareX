@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../bookings/bookings_screen.dart';
 import '../referrals/referrals_screen.dart';
+import '../reviews/reviews_screen.dart';
 import '../support/my_tickets_screen.dart';
 import 'legal_document_screen.dart';
 
@@ -142,7 +143,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   tintFg: const Color(0xFFE11D48),
                   title: 'Reviews',
                   subtitle: 'Your ratings & feedback',
-                  onTap: () => _showReviewsSheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ReviewsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -1145,45 +1153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showReviewsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'My Ratings & Reviews',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFE4E6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.star_rounded, color: Color(0xFFE11D48)),
-                ),
-                title: const Text('Kitchen Deep Cleaning', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('5.0 ★ "Outstanding service by the team!"'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 
