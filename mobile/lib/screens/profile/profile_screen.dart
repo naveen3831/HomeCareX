@@ -4,6 +4,7 @@ import '../../core/models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../bookings/bookings_screen.dart';
+import '../payments/payments_screen.dart';
 import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
 import '../support/my_tickets_screen.dart';
@@ -125,7 +126,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   tintFg: const Color(0xFF059669),
                   title: 'Payments',
                   subtitle: 'Payment methods & receipts',
-                  onTap: () => _showPaymentsSheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const PaymentsScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildMenuItem(
@@ -1046,54 +1054,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showPaymentsSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => const SafeArea(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Payment Methods',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-              ),
-              SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.account_balance_rounded, color: Color(0xFF059669)),
-                title: Text('UPI & Net Banking'),
-                subtitle: Text('Google Pay, PhonePe, Paytm'),
-                trailing: Icon(Icons.chevron_right_rounded),
-              ),
-              Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.credit_card_rounded, color: Color(0xFF059669)),
-                title: Text('Cards'),
-                subtitle: Text('Visa, MasterCard, RuPay'),
-                trailing: Icon(Icons.chevron_right_rounded),
-              ),
-              Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.payments_outlined, color: Color(0xFF059669)),
-                title: Text('Cash on Service'),
-                subtitle: Text('Pay directly after job completion'),
-                trailing: Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 

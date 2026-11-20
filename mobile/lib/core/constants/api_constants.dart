@@ -35,4 +35,5 @@ class ApiConstants {
   static const String uploadImage = '/uploads/image';
   static const String reviews = '/reviews';
   static const String reviewsPending = '/reviews/pending';
+  static const String payments = '/payments';
 }
