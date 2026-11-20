@@ -205,8 +205,13 @@ void main() {
     await tester.pumpWidget(createWidget(initialStep: 2, initialAddingNewAddress: true));
     await tester.pumpAndSettle();
 
-    // 1. Top Bar & Header
+    // 1. Top Bar, Pill Banner, Stepper Card & Header
     expect(find.text('Book Service'), findsOneWidget);
+    expect(find.text('Step 2 of 4'), findsOneWidget);
+    expect(find.text('Address Details'), findsOneWidget);
+    expect(find.text('Next: Schedule'), findsOneWidget);
+    expect(find.text('Choose Service Address'), findsOneWidget);
+    expect(find.text('Choose where you\'d like the service performed.'), findsOneWidget);
     expect(find.text('Add a new address'), findsOneWidget);
     expect(find.text('Saved addresses'), findsOneWidget);
 

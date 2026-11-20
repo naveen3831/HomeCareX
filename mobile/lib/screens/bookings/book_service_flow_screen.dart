@@ -453,17 +453,13 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Service Pill Banner (hidden in Add a new address view matching screenshot)
-                    if (!(_currentStep == 2 && _isAddingNewAddress)) ...[
-                      _buildServicePillBanner(),
-                      const SizedBox(height: 12),
-                    ],
+                    // 1. Service Pill Banner
+                    _buildServicePillBanner(),
+                    const SizedBox(height: 12),
 
-                    // 2. Stepper Card (hidden in Add a new address view matching screenshot)
-                    if (!(_currentStep == 2 && _isAddingNewAddress)) ...[
-                      _buildStepperCard(),
-                      const SizedBox(height: 14),
-                    ],
+                    // 2. Stepper Card
+                    _buildStepperCard(),
+                    const SizedBox(height: 14),
 
                     // 3. Step Content
                     if (_currentStep == 1) _buildStep1ServiceDetails(),
@@ -837,314 +833,361 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
 
   // View 1: Add a New Address with Interactive Map Picker (Matches User Screenshot)
   Widget _buildAddNewAddressView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title Bar: Add a new address + Saved addresses
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(
-              child: Text(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E1B2E).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header Row with Pin icon matching web screenshot
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Icon(Icons.location_on_outlined, color: Color(0xFF4F46E5), size: 18),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Choose Service Address',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Choose where you\'d like the service performed.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // 2. Section Heading: "Add a new address" + optional "Saved addresses"
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
                 'Add a new address',
                 style: TextStyle(
-                  fontSize: 16.5,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF0F172A),
                   letterSpacing: -0.2,
                 ),
               ),
-            ),
-            if (_savedAddresses.isNotEmpty)
-              TextButton.icon(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  visualDensity: VisualDensity.compact,
-                ),
-                onPressed: () => setState(() => _isAddingNewAddress = false),
-                icon: const Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF4F46E5)),
-                label: const Text(
-                  'Saved addresses',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF4F46E5),
+              if (_savedAddresses.isNotEmpty)
+                TextButton.icon(
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onPressed: () => setState(() => _isAddingNewAddress = false),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF4F46E5)),
+                  label: const Text(
+                    'Saved addresses',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF4F46E5),
+                    ),
                   ),
                 ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // White Card
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Pin your location',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
+          const SizedBox(height: 10),
+
+          // 3. Map Section Label
+          const Text(
+            'Pin your location',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 4. Map Container (height 180 matching mobile viewport)
+          Container(
+            height: 180,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              color: const Color(0xFFF2EFE9),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              children: [
+                // Stylized Realistic Map Canvas
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _MapCanvasPainter(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
 
-              // Map Container
-              Container(
-                height: 250,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  color: const Color(0xFFF2EFE9),
+                // Top Search Bar Overlay
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: TextField(
+                            controller: _mapSearchController,
+                            onChanged: _onSearchLocationChanged,
+                            style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E1B2E)),
+                            decoration: const InputDecoration(
+                              hintText: 'Search for area, street or landmark...',
+                              hintStyle: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ),
+                        if (_mapSearchController.text.isNotEmpty)
+                          GestureDetector(
+                            onTap: _resetToCurrentLocation,
+                            child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: Stack(
-                  children: [
-                    // Stylized Realistic Map Canvas
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _MapCanvasPainter(),
-                      ),
-                    ),
 
-                    // Top Search Bar Overlay
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      right: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: _mapSearchController,
-                                onChanged: _onSearchLocationChanged,
-                                style: const TextStyle(fontSize: 12, color: Color(0xFF1E1B2E)),
-                                decoration: const InputDecoration(
-                                  hintText: 'Search for area, street or landmark...',
-                                  hintStyle: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                              ),
-                            ),
-                            if (_mapSearchController.text.isNotEmpty)
-                              GestureDetector(
-                                onTap: _resetToCurrentLocation,
-                                child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Center Teardrop Pin Marker
-                    const Center(
-                      child: _MapCenterPin(),
-                    ),
-
-                    // Bottom-Right Crosshair / Locate Me Button
-                    Positioned(
-                      bottom: 12,
-                      right: 12,
-                      child: GestureDetector(
-                        onTap: _resetToCurrentLocation,
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.12),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.my_location_rounded,
-                              size: 17,
-                              color: Color(0xFF4F46E5),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Bottom-Left OSM Attribution
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.85),
-                          borderRadius: const BorderRadius.only(topRight: Radius.circular(6)),
-                        ),
-                        child: const Text(
-                          '© OpenStreetMap contributors',
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                // Center Teardrop Pin Marker
+                const Center(
+                  child: _MapCenterPin(),
                 ),
-              ),
-              const SizedBox(height: 12),
 
-              // Service Location Box matching screenshot
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.location_on_outlined, color: Color(0xFF4F46E5), size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'SERVICE LOCATION',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.6,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _locationTitle,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _locationAddress,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: Color(0xFF64748B),
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                // Bottom-Right Crosshair / Locate Me Button
+                Positioned(
+                  bottom: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: _resetToCurrentLocation,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.12),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.my_location_rounded,
+                          size: 15,
+                          color: Color(0xFF4F46E5),
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
 
-              // Helper Text matching screenshot
-              const Text(
-                'Drag the map or search. We\'ll fill in the details below. You can still edit them.',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF64748B),
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 18),
-
-              // Action Buttons Row: Cancel | Save & select
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      if (_savedAddresses.isNotEmpty) {
-                        setState(() => _isAddingNewAddress = false);
-                      } else {
-                        _handleBack();
-                      }
-                    },
+                // Bottom-Left OSM Attribution
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      borderRadius: const BorderRadius.only(topRight: Radius.circular(5)),
+                    ),
                     child: const Text(
-                      'Cancel',
+                      '© OpenStreetMap contributors',
                       style: TextStyle(
+                        fontSize: 8.5,
                         color: Color(0xFF64748B),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4338CA),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                      elevation: 0,
-                    ),
-                    onPressed: _saveAndSelectCurrentLocation,
-                    child: const Text(
-                      'Save & select',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Service Location Container matching web
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.location_on_outlined, color: Color(0xFF4F46E5), size: 18),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SERVICE LOCATION',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _locationTitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _locationAddress,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Helper Text matching screenshot
+          const Text(
+            'Drag the map or search. We\'ll fill in the details below. You can still edit them.',
+            style: TextStyle(
+              fontSize: 11,
+              color: Color(0xFF64748B),
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Action Buttons: Cancel on left, Save & select on right matching screenshot
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: () {
+                    if (_savedAddresses.isNotEmpty) {
+                      setState(() => _isAddingNewAddress = false);
+                    } else {
+                      _handleBack();
+                    }
+                  },
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 3,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                  ),
+                  onPressed: _saveAndSelectCurrentLocation,
+                  child: const Text(
+                    'Save & select',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
