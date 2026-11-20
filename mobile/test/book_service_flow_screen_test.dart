@@ -30,7 +30,7 @@ void main() {
     reviewsCount: 128,
   );
 
-  Widget createWidget({int initialStep = 1}) {
+  Widget createWidget({int initialStep = 1, bool initialAddingNewAddress = false}) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<BookingProvider>(create: (_) => FakeBookingProvider()),
@@ -43,6 +43,7 @@ void main() {
         home: BookServiceFlowScreen(
           service: testService,
           initialStep: initialStep,
+          initialAddingNewAddress: initialAddingNewAddress,
         ),
       ),
     );
@@ -190,6 +191,86 @@ void main() {
 
     expect(find.text('Booking Confirmed!'), findsOneWidget);
     expect(find.text('Track Booking'), findsOneWidget);
+  });
+
+  testWidgets('BookServiceFlowScreen Step 2 Add a new address map screen matches web screenshot',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(createWidget(initialStep: 2, initialAddingNewAddress: true));
+    await tester.pumpAndSettle();
+
+    // 1. Top Bar & Header
+    expect(find.text('Book Service'), findsOneWidget);
+    expect(find.text('Add a new address'), findsOneWidget);
+    expect(find.text('Saved addresses'), findsOneWidget);
+
+    // 2. Map Container & Search
+    expect(find.text('Pin your location'), findsOneWidget);
+    expect(find.text('Search for area, street or landmark...'), findsOneWidget);
+    expect(find.byIcon(Icons.my_location_rounded), findsOneWidget);
+    expect(find.text('© OpenStreetMap contributors'), findsOneWidget);
+
+    // 3. Service Location Container
+    expect(find.text('SERVICE LOCATION'), findsOneWidget);
+    expect(find.text('HITEC City'), findsOneWidget);
+    expect(
+      find.textContaining('HITEC City - Kondapur Main Road'),
+      findsOneWidget,
+    );
+
+    // 4. Helper Text & Action Buttons
+    expect(
+      find.text('Drag the map or search. We\'ll fill in the details below. You can still edit them.'),
+      findsOneWidget,
+    );
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Save & select'), findsOneWidget);
+
+    // 5. Test search query updating location
+    await tester.enterText(find.byType(TextField), 'Kondapur');
+    await tester.pumpAndSettle();
+    expect(find.text('Kondapur'), findsWidgets);
+    expect(find.textContaining('Raghavendra Colony'), findsOneWidget);
+
+    // 6. Tap Save & select -> Advances to Step 3 (Date & Time)
+    await tester.tap(find.text('Save & select'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Date & Time'), findsOneWidget);
+    expect(find.text('Select Date & Time'), findsOneWidget);
+  });
+
+  testWidgets('BookServiceFlowScreen toggles between Add a new address and Saved addresses',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    // Start on Map view
+    await tester.pumpWidget(createWidget(initialStep: 2, initialAddingNewAddress: true));
+    await tester.pumpAndSettle();
+    expect(find.text('Pin your location'), findsOneWidget);
+
+    // Tap "Saved addresses" button to switch to saved list view
+    await tester.tap(find.text('Saved addresses'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose Service Address'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+
+    // Tap "Add a new address" banner to switch back to Map view
+    await tester.tap(find.text('Add a new address'));
+    await tester.pumpAndSettle();
+    expect(find.text('Pin your location'), findsOneWidget);
+    expect(find.text('Save & select'), findsOneWidget);
   });
 }
 

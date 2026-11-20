@@ -9,11 +9,13 @@ import '../bookings/active_bookings_screen.dart';
 class BookServiceFlowScreen extends StatefulWidget {
   final ServiceModel service;
   final int initialStep;
+  final bool initialAddingNewAddress;
 
   const BookServiceFlowScreen({
     super.key,
     required this.service,
     this.initialStep = 1,
+    this.initialAddingNewAddress = true,
   });
 
   @override
@@ -27,7 +29,10 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   // Step 2: Address
   late List<CustomerAddress> _savedAddresses;
   CustomerAddress? _selectedAddress;
-  bool _isAddingNewAddress = false;
+  late bool _isAddingNewAddress;
+  String _locationTitle = 'HITEC City';
+  String _locationAddress =
+      'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
   final TextEditingController _mapSearchController = TextEditingController();
   final TextEditingController _houseController = TextEditingController();
   final TextEditingController _landmarkController = TextEditingController();
@@ -47,6 +52,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   void initState() {
     super.initState();
     _currentStep = widget.initialStep;
+    _isAddingNewAddress = widget.initialAddingNewAddress;
 
     // Default mock addresses matching web application
     _savedAddresses = [
@@ -126,11 +132,77 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   }
 
   void _handleBack() {
+    if (_currentStep == 2 && _isAddingNewAddress && _savedAddresses.isNotEmpty) {
+      setState(() => _isAddingNewAddress = false);
+      return;
+    }
     if (_currentStep > 1) {
       setState(() => _currentStep--);
     } else {
       Navigator.of(context).pop();
     }
+  }
+
+  void _onSearchLocationChanged(String query) {
+    final q = query.trim().toLowerCase();
+    setState(() {
+      if (q.contains('madhapur')) {
+        _locationTitle = 'Madhapur';
+        _locationAddress = 'Near Ayyappa Society, 100 Feet Road, Madhapur, Hyderabad, Telangana, 500081, India';
+      } else if (q.contains('kondapur')) {
+        _locationTitle = 'Kondapur';
+        _locationAddress = 'Raghavendra Colony, Kondapur Main Road, Hyderabad, Telangana, 500084, India';
+      } else if (q.contains('gachibowli')) {
+        _locationTitle = 'Gachibowli';
+        _locationAddress = 'DLF Cyber City, Gachibowli, Hyderabad, Telangana, 500032, India';
+      } else if (q.contains('jubilee')) {
+        _locationTitle = 'Jubilee Hills';
+        _locationAddress = 'Road No. 36, Jubilee Hills, Hyderabad, Telangana, 500033, India';
+      } else if (q.isNotEmpty) {
+        _locationTitle = query.trim();
+        _locationAddress = '$query, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+      } else {
+        _locationTitle = 'HITEC City';
+        _locationAddress = 'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+      }
+    });
+  }
+
+  void _resetToCurrentLocation() {
+    _mapSearchController.clear();
+    setState(() {
+      _locationTitle = 'HITEC City';
+      _locationAddress =
+          'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+    });
+  }
+
+  void _saveAndSelectCurrentLocation() {
+    final newAddress = CustomerAddress(
+      id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
+      label: _locationTitle,
+      house: _locationTitle,
+      street: _locationAddress,
+      city: 'Hyderabad',
+      state: 'Telangana',
+      pincode: '500081',
+      isDefault: true,
+    );
+
+    setState(() {
+      _savedAddresses.insert(0, newAddress);
+      _selectedAddress = newAddress;
+      _isAddingNewAddress = false;
+      _currentStep = 3;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Selected $_locationTitle for service delivery'),
+        backgroundColor: const Color(0xFF059669),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _handleNext() {
@@ -381,13 +453,17 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Service Pill Banner
-                    _buildServicePillBanner(),
-                    const SizedBox(height: 12),
+                    // 1. Service Pill Banner (hidden in Add a new address view matching screenshot)
+                    if (!(_currentStep == 2 && _isAddingNewAddress)) ...[
+                      _buildServicePillBanner(),
+                      const SizedBox(height: 12),
+                    ],
 
-                    // 2. Stepper Card (Matches Screenshot 2 & 3)
-                    _buildStepperCard(),
-                    const SizedBox(height: 14),
+                    // 2. Stepper Card (hidden in Add a new address view matching screenshot)
+                    if (!(_currentStep == 2 && _isAddingNewAddress)) ...[
+                      _buildStepperCard(),
+                      const SizedBox(height: 14),
+                    ],
 
                     // 3. Step Content
                     if (_currentStep == 1) _buildStep1ServiceDetails(),
@@ -750,9 +826,330 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   }
 
   // --------------------------------------------------------------------------
-  // STEP 2: ADDRESS DETAILS (Matches Screenshot 3)
+  // STEP 2: ADDRESS DETAILS
   // --------------------------------------------------------------------------
   Widget _buildStep2AddressDetails() {
+    if (_isAddingNewAddress) {
+      return _buildAddNewAddressView();
+    }
+    return _buildSavedAddressListView();
+  }
+
+  // View 1: Add a New Address with Interactive Map Picker (Matches User Screenshot)
+  Widget _buildAddNewAddressView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title Bar: Add a new address + Saved addresses
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Expanded(
+              child: Text(
+                'Add a new address',
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+            if (_savedAddresses.isNotEmpty)
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => setState(() => _isAddingNewAddress = false),
+                icon: const Icon(Icons.arrow_back_rounded, size: 14, color: Color(0xFF4F46E5)),
+                label: const Text(
+                  'Saved addresses',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4F46E5),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // White Card
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Pin your location',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Map Container
+              Container(
+                height: 250,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  color: const Color(0xFFF2EFE9),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Stack(
+                  children: [
+                    // Stylized Realistic Map Canvas
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _MapCanvasPainter(),
+                      ),
+                    ),
+
+                    // Top Search Bar Overlay
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.search_rounded, size: 16, color: Color(0xFF64748B)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _mapSearchController,
+                                onChanged: _onSearchLocationChanged,
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF1E1B2E)),
+                                decoration: const InputDecoration(
+                                  hintText: 'Search for area, street or landmark...',
+                                  hintStyle: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ),
+                            if (_mapSearchController.text.isNotEmpty)
+                              GestureDetector(
+                                onTap: _resetToCurrentLocation,
+                                child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF94A3B8)),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Center Teardrop Pin Marker
+                    const Center(
+                      child: _MapCenterPin(),
+                    ),
+
+                    // Bottom-Right Crosshair / Locate Me Button
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: GestureDetector(
+                        onTap: _resetToCurrentLocation,
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.my_location_rounded,
+                              size: 17,
+                              color: Color(0xFF4F46E5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Bottom-Left OSM Attribution
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          borderRadius: const BorderRadius.only(topRight: Radius.circular(6)),
+                        ),
+                        child: const Text(
+                          '© OpenStreetMap contributors',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Service Location Box matching screenshot
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.location_on_outlined, color: Color(0xFF4F46E5), size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'SERVICE LOCATION',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.6,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _locationTitle,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _locationAddress,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Helper Text matching screenshot
+              const Text(
+                'Drag the map or search. We\'ll fill in the details below. You can still edit them.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF64748B),
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Action Buttons Row: Cancel | Save & select
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      if (_savedAddresses.isNotEmpty) {
+                        setState(() => _isAddingNewAddress = false);
+                      } else {
+                        _handleBack();
+                      }
+                    },
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4338CA),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      elevation: 0,
+                    ),
+                    onPressed: _saveAndSelectCurrentLocation,
+                    child: const Text(
+                      'Save & select',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // View 2: List of Saved Addresses
+  Widget _buildSavedAddressListView() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -887,173 +1284,44 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
           const Divider(color: Color(0xFFE2E8F0)),
           const SizedBox(height: 10),
 
-          // Add a new address trigger / Map Card
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Add a new address',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              if (!_isAddingNewAddress)
-                TextButton(
-                  onPressed: () => setState(() => _isAddingNewAddress = true),
-                  child: const Text('+ New Address', style: TextStyle(color: Color(0xFF4F46E5), fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-            ],
-          ),
-
-          if (_isAddingNewAddress) ...[
-            const SizedBox(height: 8),
-            // Map Preview Box matching Screenshot 3
-            Container(
-              height: 180,
-              width: double.infinity,
+          // Add a new address trigger banner
+          GestureDetector(
+            onTap: () => setState(() => _isAddingNewAddress = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FE),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                color: const Color(0xFFF1F5F9),
+                border: Border.all(color: const Color(0xFFC7D2FE), style: BorderStyle.solid),
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Stack(
+              child: const Row(
                 children: [
-                  // Stylized Map Illustration Background
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _MapCanvasPainter(),
-                    ),
-                  ),
-
-                  // Search Box overlay
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    right: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.search, size: 16, color: Color(0xFF64748B)),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: TextField(
-                              controller: _mapSearchController,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF1E1B2E)),
-                              decoration: const InputDecoration(
-                                hintText: 'Search for area, street or landmark...',
-                                hintStyle: TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8)),
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.zero,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // Center Pin Icon
-                  const Center(
+                  Icon(Icons.add_location_alt_outlined, color: Color(0xFF4F46E5), size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.location_on_rounded, size: 38, color: Color(0xFF4F46E5)),
-                        SizedBox(height: 4),
+                        Text(
+                          'Add a new address',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          'Pin location on map or search landmark',
+                          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
                       ],
                     ),
                   ),
+                  Icon(Icons.chevron_right_rounded, color: Color(0xFF4F46E5), size: 18),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
-
-            // Address Input Fields
-            TextField(
-              controller: _houseController,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                labelText: 'House / Flat / Building No.',
-                labelStyle: const TextStyle(fontSize: 12),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            TextField(
-              controller: _landmarkController,
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                labelText: 'Street / Landmark',
-                labelStyle: const TextStyle(fontSize: 12),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => setState(() => _isAddingNewAddress = false),
-                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4338CA),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () {
-                    final house = _houseController.text.trim();
-                    final street = _landmarkController.text.trim();
-                    if (house.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please enter flat/house number')),
-                      );
-                      return;
-                    }
-                    final newAddr = CustomerAddress(
-                      id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
-                      label: 'New Address',
-                      house: house,
-                      street: street.isNotEmpty ? street : 'Hyderabad',
-                      city: _cityController.text.trim(),
-                      state: 'Telangana',
-                      pincode: _pincodeController.text.trim(),
-                    );
-                    setState(() {
-                      _savedAddresses.add(newAddr);
-                      _selectedAddress = newAddr;
-                      _isAddingNewAddress = false;
-                      _houseController.clear();
-                      _landmarkController.clear();
-                    });
-                  },
-                  child: const Text('Save & select', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ],
+          ),
         ],
       ),
     );
@@ -1404,6 +1672,10 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   // STICKY BOTTOM BAR (Matches Screenshot 2 & 3)
   // --------------------------------------------------------------------------
   Widget _buildStickyBottomBar() {
+    if (_currentStep == 2 && _isAddingNewAddress) {
+      return const SizedBox.shrink();
+    }
+
     final estimatePrice = _currentStep == 4 ? _grandTotal : _itemTotal;
     final buttonLabel = _currentStep == 4 ? 'Confirm Booking ✓' : 'Next Step →';
 
@@ -1480,35 +1752,152 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   }
 }
 
-// Custom Painter for Map preview background on Step 2
+// Center Pin Marker with ground shadow matching screenshot
+class _MapCenterPin extends StatelessWidget {
+  const _MapCenterPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CustomPaint(
+          size: const Size(34, 44),
+          painter: _TeardropPinPainter(),
+        ),
+        Container(
+          width: 12,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.22),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TeardropPinPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path();
+    final w = size.width;
+    final h = size.height;
+    final radius = w / 2;
+
+    path.moveTo(w / 2, h);
+    path.cubicTo(w * 0.15, h * 0.65, 0, radius * 1.1, 0, radius);
+    path.arcToPoint(
+      Offset(w, radius),
+      radius: Radius.circular(radius),
+      clockwise: true,
+    );
+    path.cubicTo(w, radius * 1.1, w * 0.85, h * 0.65, w / 2, h);
+    path.close();
+
+    // Pin body fill (deep purple #4F46E5)
+    final pinPaint = Paint()
+      ..color = const Color(0xFF4F46E5)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, pinPaint);
+
+    // Inner white circle dot
+    final innerCirclePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(w / 2, radius * 0.95), radius * 0.38, innerCirclePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Custom Painter for Map preview background on Step 2 (OpenStreetMap style)
 class _MapCanvasPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFFF1F5F9);
+    // 1. Base land / background
+    final bgPaint = Paint()..color = const Color(0xFFF2EFE9);
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    final roadPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+    // 2. City block buildings / plots (subtle off-white)
+    final blockPaint = Paint()..color = const Color(0xFFFAF8F5);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(10, 10, size.width * 0.28, size.height * 0.35), const Radius.circular(6)), blockPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.45, 10, size.width * 0.5, size.height * 0.3), const Radius.circular(6)), blockPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(14, size.height * 0.55, size.width * 0.35, size.height * 0.38), const Radius.circular(6)), blockPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.55, size.height * 0.48, size.width * 0.4, size.height * 0.45), const Radius.circular(6)), blockPaint);
+
+    // 3. Green park areas (OSM park green #CCE6BC)
+    final parkPaint = Paint()..color = const Color(0xFFCCE6BC);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.08, size.height * 0.44, 75, 45), const Radius.circular(10)), parkPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.72, size.height * 0.12, 60, 40), const Radius.circular(8)), parkPaint);
+
+    // 4. Water body / canal (OSM water #AAD3DF)
+    final waterPaint = Paint()..color = const Color(0xFFAAD3DF);
+    final waterPath = Path();
+    waterPath.moveTo(0, size.height * 0.25);
+    waterPath.quadraticBezierTo(size.width * 0.2, size.height * 0.2, size.width * 0.25, 0);
+    waterPath.lineTo(0, 0);
+    waterPath.close();
+    canvas.drawPath(waterPath, waterPaint);
+
+    // 5. Minor / Residential Streets
+    final minorStreetPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(0, size.height * 0.7), Offset(size.width, size.height * 0.65), minorStreetPaint);
+    canvas.drawLine(Offset(size.width * 0.25, 0), Offset(size.width * 0.3, size.height), minorStreetPaint);
+    canvas.drawLine(Offset(size.width * 0.75, 0), Offset(size.width * 0.7, size.height), minorStreetPaint);
+
+    // 6. Secondary Avenues (Border then fill)
+    final avenueBorder = Paint()
+      ..color = const Color(0xFFCBD5E1)
+      ..strokeWidth = 7
+      ..style = PaintingStyle.stroke;
+    final avenueFill = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke;
+
+    final avePath = Path();
+    avePath.moveTo(0, size.height * 0.48);
+    avePath.cubicTo(size.width * 0.3, size.height * 0.52, size.width * 0.6, size.height * 0.44, size.width, size.height * 0.5);
+    canvas.drawPath(avePath, avenueBorder);
+    canvas.drawPath(avePath, avenueFill);
+
+    // 7. Primary Highway / Main Road (Yellow/Orange #FDE047 with #EAB308 border)
+    final highwayBorder = Paint()
+      ..color = const Color(0xFFEAB308)
+      ..strokeWidth = 9
+      ..style = PaintingStyle.stroke;
+    final highwayFill = Paint()
+      ..color = const Color(0xFFFEF08A)
+      ..strokeWidth = 7
+      ..style = PaintingStyle.stroke;
+
+    final hwPath = Path();
+    hwPath.moveTo(0, size.height * 0.32);
+    hwPath.cubicTo(size.width * 0.35, size.height * 0.38, size.width * 0.65, size.height * 0.55, size.width, size.height * 0.42);
+    canvas.drawPath(hwPath, highwayBorder);
+    canvas.drawPath(hwPath, highwayFill);
+
+    // 8. Diagonal Arterial Road (connecting Kondapur & Madhapur through center)
+    final arterialBorder = Paint()
+      ..color = const Color(0xFF94A3B8)
+      ..strokeWidth = 8
+      ..style = PaintingStyle.stroke;
+    final arterialFill = Paint()
+      ..color = Colors.white
       ..strokeWidth = 6
       ..style = PaintingStyle.stroke;
 
-    final primaryRoadPaint = Paint()
-      ..color = const Color(0xFFCBD5E1)
-      ..strokeWidth = 10
-      ..style = PaintingStyle.stroke;
-
-    // Draw stylized roads
-    canvas.drawLine(Offset(0, size.height * 0.35), Offset(size.width, size.height * 0.4), primaryRoadPaint);
-    canvas.drawLine(Offset(0, size.height * 0.75), Offset(size.width, size.height * 0.7), roadPaint);
-    canvas.drawLine(Offset(size.width * 0.3, 0), Offset(size.width * 0.35, size.height), roadPaint);
-    canvas.drawLine(Offset(size.width * 0.65, 0), Offset(size.width * 0.6, size.height), primaryRoadPaint);
-
-    // Green park blob
-    final parkPaint = Paint()..color = const Color(0xFFDCFCE7);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.08, size.height * 0.45, 70, 45), const Radius.circular(12)),
-      parkPaint,
-    );
+    final artPath = Path();
+    artPath.moveTo(size.width * 0.35, 0);
+    artPath.cubicTo(size.width * 0.45, size.height * 0.45, size.width * 0.55, size.height * 0.65, size.width * 0.52, size.height);
+    canvas.drawPath(artPath, arterialBorder);
+    canvas.drawPath(artPath, arterialFill);
   }
 
   @override
