@@ -7,6 +7,7 @@ import '../bookings/bookings_screen.dart';
 import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
 import '../support/my_tickets_screen.dart';
+import '../wallet/wallet_screen.dart';
 import 'legal_document_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -134,7 +135,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Wallet',
                   subtitle: 'Balance & cashback',
                   badgeText: '₹250',
-                  onTap: () => _showWalletSheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const WalletScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildMenuItem(
@@ -1087,71 +1095,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showWalletSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('HomeCareX Wallet', style: TextStyle(color: Color(0xFF92400E), fontSize: 13)),
-                        SizedBox(height: 4),
-                        Text('₹250.00', style: TextStyle(color: Color(0xFF78350F), fontSize: 24, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Icon(Icons.account_balance_wallet_rounded, size: 36, color: Color(0xFFD97706)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Use wallet credits on any service booking for instant discounts.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Add cash to wallet.')),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4338CA),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Add Cash', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 
