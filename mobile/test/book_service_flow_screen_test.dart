@@ -229,21 +229,38 @@ void main() {
       findsOneWidget,
     );
 
-    // 4. Helper Text & Action Buttons
+    // 4. Helper Text, Form Fields & Action Buttons
     expect(
       find.text('Drag the map or search. We\'ll fill in the details below. You can still edit them.'),
       findsOneWidget,
     );
+    expect(find.text('Save as'), findsOneWidget);
+    expect(find.text('House / flat no.'), findsOneWidget);
+    expect(find.text('Street / road'), findsOneWidget);
+    expect(find.text('Area / locality (optional)'), findsOneWidget);
+    expect(find.text('Landmark (optional)'), findsOneWidget);
+    expect(find.text('City'), findsOneWidget);
+    expect(find.text('State'), findsOneWidget);
+    expect(find.text('Pincode'), findsOneWidget);
+    expect(find.text('We serve Hyderabad'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('Save & select'), findsOneWidget);
 
-    // 5. Test search query updating location
-    await tester.enterText(find.byType(TextField), 'Kondapur');
+    // 5. Test search query updating location and auto-filling fields
+    final searchField = find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.hintText == 'Search for area, street or landmark...',
+    );
+    await tester.enterText(searchField, 'Kondapur');
     await tester.pumpAndSettle();
     expect(find.text('Kondapur'), findsWidgets);
-    expect(find.textContaining('Raghavendra Colony'), findsOneWidget);
+    expect(find.textContaining('Raghavendra Colony'), findsWidgets);
 
-    // 6. Tap Save & select -> Advances to Step 3 (Date & Time)
+    // 6. Test toggling "Save as" option
+    await tester.tap(find.text('Work'));
+    await tester.pumpAndSettle();
+
+    // 7. Tap Save & select -> Advances to Step 3 (Date & Time)
+    await tester.ensureVisible(find.text('Save & select'));
     await tester.tap(find.text('Save & select'));
     await tester.pumpAndSettle();
 
@@ -275,6 +292,7 @@ void main() {
     await tester.tap(find.text('Add a new address'));
     await tester.pumpAndSettle();
     expect(find.text('Pin your location'), findsOneWidget);
+    await tester.ensureVisible(find.text('Save & select'));
     expect(find.text('Save & select'), findsOneWidget);
   });
 }

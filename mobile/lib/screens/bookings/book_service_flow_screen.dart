@@ -33,10 +33,14 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   String _locationTitle = 'HITEC City';
   String _locationAddress =
       'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+  String _selectedLabel = 'Home'; // 'Home', 'Work', 'Other'
   final TextEditingController _mapSearchController = TextEditingController();
   final TextEditingController _houseController = TextEditingController();
+  final TextEditingController _streetController = TextEditingController(text: 'Deepthisree Nagar');
+  final TextEditingController _areaController = TextEditingController(text: 'Deepthisree Nagar');
   final TextEditingController _landmarkController = TextEditingController();
   final TextEditingController _cityController = TextEditingController(text: 'Hyderabad');
+  final TextEditingController _stateController = TextEditingController(text: 'Telangana');
   final TextEditingController _pincodeController = TextEditingController(text: '500081');
 
   // Step 3: Schedule
@@ -88,8 +92,11 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   void dispose() {
     _mapSearchController.dispose();
     _houseController.dispose();
+    _streetController.dispose();
+    _areaController.dispose();
     _landmarkController.dispose();
     _cityController.dispose();
+    _stateController.dispose();
     _pincodeController.dispose();
     super.dispose();
   }
@@ -149,21 +156,48 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
       if (q.contains('madhapur')) {
         _locationTitle = 'Madhapur';
         _locationAddress = 'Near Ayyappa Society, 100 Feet Road, Madhapur, Hyderabad, Telangana, 500081, India';
+        _streetController.text = '100 Feet Road, Madhapur';
+        _areaController.text = 'Madhapur';
+        _cityController.text = 'Hyderabad';
+        _stateController.text = 'Telangana';
+        _pincodeController.text = '500081';
       } else if (q.contains('kondapur')) {
         _locationTitle = 'Kondapur';
         _locationAddress = 'Raghavendra Colony, Kondapur Main Road, Hyderabad, Telangana, 500084, India';
+        _streetController.text = 'Raghavendra Colony, Kondapur Main Road';
+        _areaController.text = 'Kondapur';
+        _cityController.text = 'Hyderabad';
+        _stateController.text = 'Telangana';
+        _pincodeController.text = '500084';
       } else if (q.contains('gachibowli')) {
         _locationTitle = 'Gachibowli';
         _locationAddress = 'DLF Cyber City, Gachibowli, Hyderabad, Telangana, 500032, India';
+        _streetController.text = 'DLF Cyber City';
+        _areaController.text = 'Gachibowli';
+        _cityController.text = 'Hyderabad';
+        _stateController.text = 'Telangana';
+        _pincodeController.text = '500032';
       } else if (q.contains('jubilee')) {
         _locationTitle = 'Jubilee Hills';
         _locationAddress = 'Road No. 36, Jubilee Hills, Hyderabad, Telangana, 500033, India';
+        _streetController.text = 'Road No. 36';
+        _areaController.text = 'Jubilee Hills';
+        _cityController.text = 'Hyderabad';
+        _stateController.text = 'Telangana';
+        _pincodeController.text = '500033';
       } else if (q.isNotEmpty) {
         _locationTitle = query.trim();
         _locationAddress = '$query, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+        _streetController.text = query.trim();
+        _areaController.text = query.trim();
       } else {
         _locationTitle = 'HITEC City';
         _locationAddress = 'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+        _streetController.text = 'Deepthisree Nagar';
+        _areaController.text = 'Deepthisree Nagar';
+        _cityController.text = 'Hyderabad';
+        _stateController.text = 'Telangana';
+        _pincodeController.text = '500081';
       }
     });
   }
@@ -174,18 +208,39 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
       _locationTitle = 'HITEC City';
       _locationAddress =
           'HITEC City - Kondapur Main Road, HITEC City, Ward 107 Madhapur, Greater Hyderabad Municipal Corporation, Telangana, 500081, India';
+      _streetController.text = 'Deepthisree Nagar';
+      _areaController.text = 'Deepthisree Nagar';
+      _cityController.text = 'Hyderabad';
+      _stateController.text = 'Telangana';
+      _pincodeController.text = '500081';
     });
   }
 
   void _saveAndSelectCurrentLocation() {
+    final house = _houseController.text.trim().isNotEmpty
+        ? _houseController.text.trim()
+        : 'Flat 302, Manjeera Trinity';
+    final area = _areaController.text.trim();
+    final baseStreet = _streetController.text.trim().isNotEmpty
+        ? _streetController.text.trim()
+        : _locationTitle;
+    final street = area.isNotEmpty && !baseStreet.contains(area)
+        ? '$baseStreet, $area'
+        : baseStreet;
+    final landmark = _landmarkController.text.trim();
+    final city = _cityController.text.trim().isNotEmpty ? _cityController.text.trim() : 'Hyderabad';
+    final state = _stateController.text.trim().isNotEmpty ? _stateController.text.trim() : 'Telangana';
+    final pincode = _pincodeController.text.trim().isNotEmpty ? _pincodeController.text.trim() : '500081';
+
     final newAddress = CustomerAddress(
       id: 'addr_${DateTime.now().millisecondsSinceEpoch}',
-      label: _locationTitle,
-      house: _locationTitle,
-      street: _locationAddress,
-      city: 'Hyderabad',
-      state: 'Telangana',
-      pincode: '500081',
+      label: _selectedLabel,
+      house: house,
+      street: street,
+      landmark: landmark.isNotEmpty ? landmark : null,
+      city: city,
+      state: state,
+      pincode: pincode,
       isDefault: true,
     );
 
@@ -198,7 +253,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Selected $_locationTitle for service delivery'),
+        content: Text('Selected $_selectedLabel ($street) for service delivery'),
         backgroundColor: const Color(0xFF059669),
         behavior: SnackBarBehavior.floating,
       ),
@@ -1133,7 +1188,86 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
               height: 1.35,
             ),
           ),
+          const SizedBox(height: 16),
+
+          // 1. Save as Selector matching screenshot
+          _buildSaveAsSelector(),
           const SizedBox(height: 14),
+
+          // 2. House / flat no.
+          _buildAddressField(
+            label: 'House / flat no.',
+            controller: _houseController,
+            hintText: 'Flat 302, Manjeera Trinity',
+          ),
+          const SizedBox(height: 14),
+
+          // 3. Street / road
+          _buildAddressField(
+            label: 'Street / road',
+            controller: _streetController,
+          ),
+          const SizedBox(height: 14),
+
+          // 4. Area / locality (optional)
+          _buildAddressField(
+            label: 'Area / locality (optional)',
+            controller: _areaController,
+          ),
+          const SizedBox(height: 14),
+
+          // 5. Landmark (optional)
+          _buildAddressField(
+            label: 'Landmark (optional)',
+            controller: _landmarkController,
+            hintText: 'e.g. Near Metro Station',
+          ),
+          const SizedBox(height: 14),
+
+          // 6. City
+          _buildAddressField(
+            label: 'City',
+            controller: _cityController,
+          ),
+          const SizedBox(height: 14),
+
+          // 7. State
+          _buildAddressField(
+            label: 'State',
+            controller: _stateController,
+          ),
+          const SizedBox(height: 14),
+
+          // 8. Pincode & Serviceability Status
+          _buildAddressField(
+            label: 'Pincode',
+            controller: _pincodeController,
+            keyboardType: TextInputType.number,
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECFDF5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle_rounded, size: 14, color: Color(0xFF059669)),
+                SizedBox(width: 6),
+                Text(
+                  'We serve Hyderabad',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF059669),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
 
           // Action Buttons: Cancel on left, Save & select on right matching screenshot
           Row(
@@ -1188,6 +1322,126 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // Address Form Helpers
+  // --------------------------------------------------------------------------
+  Widget _buildSaveAsSelector() {
+    final options = [
+      {'label': 'Home', 'icon': Icons.home_outlined},
+      {'label': 'Work', 'icon': Icons.business_center_outlined},
+      {'label': 'Other', 'icon': Icons.location_on_outlined},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Save as',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: options.map((opt) {
+            final label = opt['label'] as String;
+            final icon = opt['icon'] as IconData;
+            final isSelected = _selectedLabel == label;
+
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _selectedLabel = label),
+                child: Container(
+                  margin: EdgeInsets.only(right: opt != options.last ? 8 : 0),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFFE2E8F0),
+                      width: isSelected ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 16,
+                        color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          color: isSelected ? const Color(0xFF4F46E5) : const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddressField({
+    required String label,
+    required TextEditingController controller,
+    String? hintText,
+    TextInputType? keyboardType,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1E293B),
+            ),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF94A3B8),
+                fontWeight: FontWeight.normal,
+              ),
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
