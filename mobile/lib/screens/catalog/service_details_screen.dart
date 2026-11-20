@@ -4,9 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
-import '../cart/cart_screen.dart';
+import '../bookings/book_service_flow_screen.dart';
 
 class ServiceDetailsScreen extends StatefulWidget {
   final ServiceModel service;
@@ -1241,10 +1240,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
           // Book now Button
           ElevatedButton(
             onPressed: () {
-              final cart = context.read<CartProvider>();
-              cart.addItem(s);
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CartScreen()),
+                MaterialPageRoute(
+                  builder: (_) => BookServiceFlowScreen(service: s),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(

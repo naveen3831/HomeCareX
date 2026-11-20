@@ -5,10 +5,9 @@ import '../../core/models/category_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/catalog_provider.dart';
-import '../../providers/cart_provider.dart';
-import '../cart/cart_screen.dart';
 import 'categories_screen.dart';
 import 'service_details_screen.dart';
+import '../bookings/book_service_flow_screen.dart';
 
 class _CurvedUnderlinePainter extends CustomPainter {
   @override
@@ -704,7 +703,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
-    final cart = context.watch<CartProvider>();
     final categories = catalog.categories;
 
     // Filter services based on search, category, and active filters
@@ -1416,24 +1414,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                           // Book Now Button
                                           GestureDetector(
                                             onTap: () {
-                                              cart.addItem(service);
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Added "${service.name}" to cart!'),
-                                                  backgroundColor: AppColors.brand,
-                                                  duration: const Duration(seconds: 2),
-                                                  behavior: SnackBarBehavior.floating,
-                                                  action: SnackBarAction(
-                                                    label: 'VIEW CART',
-                                                    textColor: const Color(0xFFFF8A3D),
-                                                    onPressed: () {
-                                                      Navigator.of(context).push(
-                                                        MaterialPageRoute(
-                                                          builder: (_) => const CartScreen(),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) => BookServiceFlowScreen(service: service),
                                                 ),
                                               );
                                             },
