@@ -47,8 +47,12 @@ void main() {
     // Verify profile sections exist
     expect(find.text('BOOKINGS'), findsOneWidget);
     expect(find.text('ACCOUNT'), findsOneWidget);
-    expect(find.text('SUPPORT'), findsOneWidget);
-    expect(find.text('LEGAL'), findsOneWidget);
+
+    // Verify new options: Change password & Notifications
+    expect(find.text('Change password'), findsOneWidget);
+    expect(find.text('Keep your account secure'), findsOneWidget);
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(find.text('Choose alerts & your language'), findsOneWidget);
 
     // 2. Tap Reviews option
     final reviewsFinder = find.text('Reviews');

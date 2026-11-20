@@ -11,6 +11,7 @@ import '../support/my_tickets_screen.dart';
 import '../wallet/wallet_screen.dart';
 import 'change_password_screen.dart';
 import 'legal_document_screen.dart';
+import 'notifications_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -119,6 +120,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Account Security',
                   subtitle: 'Password, sessions & devices',
                   onTap: () => _showSecuritySheet(context),
+                ),
+                _buildDivider(),
+                _buildMenuItem(
+                  icon: Icons.lock_outline_rounded,
+                  tintBg: const Color(0xFFFFF7ED),
+                  tintFg: const Color(0xFFEA580C),
+                  title: 'Change password',
+                  subtitle: 'Keep your account secure',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChangePasswordScreen(
+                          initialEmail: displayEmail,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(),
+                _buildMenuItem(
+                  icon: Icons.notifications_none_rounded,
+                  tintBg: const Color(0xFFFFF1F2),
+                  tintFg: const Color(0xFFE11D48),
+                  title: 'Notifications',
+                  subtitle: 'Choose alerts & your language',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsSettingsScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildMenuItem(
