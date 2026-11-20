@@ -28,9 +28,10 @@ class _ActiveBookingsScreenState extends State<ActiveBookingsScreen> {
   @override
   void initState() {
     super.initState();
+    final initialActive = context.read<BookingProvider>().activeBookings;
     _bookings = widget.initialBookings != null
         ? List<BookingModel>.from(widget.initialBookings!)
-        : [];
+        : List<BookingModel>.from(initialActive);
 
     if (widget.autoFetch && widget.initialBookings == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -40,26 +41,38 @@ class _ActiveBookingsScreenState extends State<ActiveBookingsScreen> {
   }
 
   Future<void> _fetchActiveBookings() async {
+    final bookingProv = context.read<BookingProvider>();
+    if (bookingProv.bookings.isNotEmpty) {
+      final active = bookingProv.bookings.where((b) {
+        final s = b.status.toLowerCase().trim();
+        return s == 'assigned' ||
+            s == 'on_the_way' ||
+            s == 'en_route' ||
+            s == 'in_progress' ||
+            s == 'confirmed';
+      }).toList();
+      setState(() => _bookings = active);
+    }
+
     setState(() => _isLoading = true);
     try {
       final auth = context.read<AuthProvider>();
       if (auth.isAuthenticated) {
-        final bookingProv = context.read<BookingProvider>();
         await bookingProv.fetchBookings();
-        if (mounted) {
-          final allBookings = bookingProv.bookings;
-          final active = allBookings.where((b) {
-            final s = b.status.toLowerCase().trim();
-            return s == 'assigned' ||
-                s == 'on_the_way' ||
-                s == 'en_route' ||
-                s == 'in_progress' ||
-                s == 'confirmed';
-          }).toList();
-          setState(() {
-            _bookings = active;
-          });
-        }
+      }
+      if (mounted) {
+        final allBookings = bookingProv.bookings;
+        final active = allBookings.where((b) {
+          final s = b.status.toLowerCase().trim();
+          return s == 'assigned' ||
+              s == 'on_the_way' ||
+              s == 'en_route' ||
+              s == 'in_progress' ||
+              s == 'confirmed';
+        }).toList();
+        setState(() {
+          _bookings = active;
+        });
       }
     } catch (_) {
       // Fallback or keep empty

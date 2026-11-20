@@ -7,6 +7,7 @@ class StorageService {
   static const String _keyToken = 'auth_token';
   static const String _keyUser = 'auth_user';
   static const String _keyOnboarding = 'onboarding_completed';
+  static const String _keyBookings = 'cached_bookings';
 
   static final Map<String, dynamic> _memoryCache = {};
 
@@ -84,5 +85,33 @@ class StorageService {
     _memoryCache[_keyOnboarding] = completed;
     final prefs = await _getPrefs();
     await prefs?.setBool(_keyOnboarding, completed);
+  }
+
+  static Future<void> saveBookings(List<Map<String, dynamic>> bookings) async {
+    _memoryCache[_keyBookings] = bookings;
+    final prefs = await _getPrefs();
+    await prefs?.setString(_keyBookings, jsonEncode(bookings));
+  }
+
+  static Future<List<Map<String, dynamic>>> getBookings() async {
+    if (_memoryCache.containsKey(_keyBookings)) {
+      final cached = _memoryCache[_keyBookings];
+      if (cached is List) {
+        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getString(_keyBookings);
+    if (val != null) {
+      try {
+        final list = jsonDecode(val) as List;
+        final res = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _memoryCache[_keyBookings] = res;
+        return res;
+      } catch (e) {
+        debugPrint('[StorageService] parse bookings error: $e');
+      }
+    }
+    return [];
   }
 }

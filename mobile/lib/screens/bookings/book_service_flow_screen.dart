@@ -367,6 +367,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         ? '${_selectedAddress!.house}, ${_selectedAddress!.street ?? ''}, ${_selectedAddress!.city} - ${_selectedAddress!.pincode}'
         : 'Flat 402, Sri Sai Nilayam, Madhapur, Hyderabad - 500081';
 
+    String? createdBookingId;
     try {
       await bookingProvider.createBooking(
         items: [
@@ -381,16 +382,19 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         scheduledDate: _selectedDate,
         totalAmount: _grandTotal.toDouble(),
       );
+      if (bookingProvider.bookings.isNotEmpty) {
+        createdBookingId = bookingProvider.bookings.first.id;
+      }
     } catch (_) {}
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      _showBookingSuccessModal();
+      _showBookingSuccessModal(createdBookingId);
     }
   }
 
-  void _showBookingSuccessModal() {
-    final bookingId = 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+  void _showBookingSuccessModal([String? confirmedId]) {
+    final bookingId = confirmedId ?? 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
     showModalBottomSheet(
       context: context,
