@@ -53,16 +53,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          physics: const BouncingScrollPhysics(),
+        child: Column(
           children: [
-            // 1. TOP APP BAR: ← Profile
-            _buildTopAppBar(context),
-            const SizedBox(height: 16),
-
-            // 2. PROFILE HERO CARD (Soft Lavender with Brand Avatar, Details & Edit Profile)
-            _buildProfileHero(
+            // Sticky Top Header (← Profile)
+            Container(
+              color: const Color(0xFFFAFAFC),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              alignment: Alignment.centerLeft,
+              child: _buildTopAppBar(context),
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  // 2. PROFILE HERO CARD (Soft Lavender with Brand Avatar, Details & Edit Profile)
+                  _buildProfileHero(
               context: context,
               user: user,
               name: displayName,
@@ -442,6 +448,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 88),
+          ],
+        ),
+            ),
           ],
         ),
       ),

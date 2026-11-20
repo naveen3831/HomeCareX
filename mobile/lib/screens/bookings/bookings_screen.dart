@@ -263,51 +263,56 @@ class _BookingsScreenState extends State<BookingsScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => context.read<BookingProvider>().fetchBookings(),
-          color: AppColors.brand,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. TOP HEADER: ← My Bookings
-                GestureDetector(
-                  onTap: () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_back_rounded,
-                          size: 20,
+        child: Column(
+          children: [
+            // Sticky Top Header (← My Bookings)
+            Container(
+              color: const Color(0xFFFAFAFC),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.arrow_back_rounded,
+                        size: 20,
+                        color: Color(0xFF1E1B2E),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'My Bookings',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           color: Color(0xFF1E1B2E),
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          'My Bookings',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E1B2E),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 4),
-
-                // Subtitle
-                const Text(
-                  'Manage and track your service bookings',
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => context.read<BookingProvider>().fetchBookings(),
+                color: AppColors.brand,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Subtitle
+                      const Text(
+                        'Manage and track your service bookings',
                   style: TextStyle(
                     fontSize: 13,
                     color: Color(0xFF64748B),
@@ -636,6 +641,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
               ],
             ),
           ),
+        ),
+            ),
+          ],
         ),
       ),
     );

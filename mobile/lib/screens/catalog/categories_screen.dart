@@ -281,49 +281,54 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () => catalog.fetchCatalog(),
-          color: AppColors.brand,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. TOP APP BAR: ← Categories
-                GestureDetector(
-                  onTap: () {
-                    if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.arrow_back_rounded,
-                          size: 20,
+        child: Column(
+          children: [
+            // Sticky Top Header (← Categories)
+            Container(
+              color: const Color(0xFFFAFAFC),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              alignment: Alignment.centerLeft,
+              child: GestureDetector(
+                onTap: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.arrow_back_rounded,
+                        size: 20,
+                        color: Color(0xFF1E1B2E),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Categories',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                           color: Color(0xFF1E1B2E),
                         ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Categories',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E1B2E),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-
-                const SizedBox(height: 14),
-
-                // 2. HERO HEADLINE & SUBTITLE
+              ),
+            ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () => catalog.fetchCatalog(),
+                color: AppColors.brand,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 2. HERO HEADLINE & SUBTITLE
                 const Text(
                   'What do you need done today?',
                   style: TextStyle(
@@ -844,6 +849,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ],
             ),
           ),
+        ),
+            ),
+          ],
         ),
       ),
     );

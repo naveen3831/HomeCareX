@@ -213,6 +213,94 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Widget _buildTopLocationHeader(BuildContext context) {
+    return Container(
+      color: const Color(0xFFFAFAFC),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Location Picker
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEEECFB),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.location_on_rounded,
+                    color: AppColors.brand,
+                    size: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Deliver to ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                      Text(
+                        '• Add address',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.brand,
+                        ),
+                      ),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 16,
+                        color: AppColors.brand,
+                      ),
+                    ],
+                  ),
+                  Text(
+                    'Select where we should...',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          // Notification Bell
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3EB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFE5D3)),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.notifications_rounded,
+                color: Color(0xFFFF8A3D),
+                size: 20,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
@@ -221,111 +309,30 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            try {
-              await catalog.fetchCatalog();
-            } catch (e) {
-              debugPrint('[HomeScreen] Refresh error: $e');
-            }
-          },
-          color: AppColors.brand,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 28),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. TOP HEADER (Deliver to • Add address + Notification Bell)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          children: [
+            // Sticky Top Header (Deliver to • Add address + Notification Bell)
+            _buildTopLocationHeader(context),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  try {
+                    await catalog.fetchCatalog();
+                  } catch (e) {
+                    debugPrint('[HomeScreen] Refresh error: $e');
+                  }
+                },
+                color: AppColors.brand,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Location Picker
-                      Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEEECFB),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.location_on_rounded,
-                                color: AppColors.brand,
-                                size: 20,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'Deliver to ',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                  Text(
-                                    '• Add address',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.brand,
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.keyboard_arrow_down_rounded,
-                                    size: 16,
-                                    color: AppColors.brand,
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                'Select where we should...',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF9CA3AF),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 12),
 
-                      // Notification Bell
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3EB),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFFE5D3)),
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.notifications_rounded,
-                            color: Color(0xFFFF8A3D),
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // 2. GREETING SECTION (Good morning/afternoon/evening pill + Welcome header + subtitle)
-                _buildGreetingSection(context),
+                      // 2. GREETING SECTION (Good morning/afternoon/evening pill + Welcome header + subtitle)
+                      _buildGreetingSection(context),
 
                 const SizedBox(height: 16),
 
@@ -776,6 +783,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+        ),
+            ),
+          ],
         ),
       ),
     );
