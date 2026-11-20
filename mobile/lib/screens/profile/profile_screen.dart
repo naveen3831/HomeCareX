@@ -9,6 +9,7 @@ import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
 import '../support/my_tickets_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'change_password_screen.dart';
 import 'legal_document_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -1034,8 +1035,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password reset link sent to your email.')),
+                  final auth = context.read<AuthProvider>();
+                  final user = auth.user;
+                  final email = (user != null && user.email.trim().isNotEmpty) ? user.email.trim() : _defaultEmail;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChangePasswordScreen(initialEmail: email),
+                    ),
                   );
                 },
               ),
