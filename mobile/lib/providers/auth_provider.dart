@@ -247,6 +247,29 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      try {
+        await ApiService.delete(ApiConstants.profile);
+      } catch (e) {
+        debugPrint('[AuthProvider] deleteAccount API error: $e');
+      }
+      await logout();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     await StorageService.clearAuth();
     _user = defaultCustomer;

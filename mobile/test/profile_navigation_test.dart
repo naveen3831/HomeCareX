@@ -93,5 +93,27 @@ void main() {
 
     // Verify Privacy Policy opened
     expect(find.text('How we collect, use and protect your data.'), findsOneWidget);
+
+    // Go back to Profile
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded).last);
+    await tester.pumpAndSettle();
+
+    // 5. Verify Delete account card
+    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete account'), findsOneWidget);
+    expect(find.text('Permanently remove your data'), findsOneWidget);
+
+    await tester.tap(find.text('Delete account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete your account?'), findsOneWidget);
+    expect(find.text('Keep account'), findsOneWidget);
+    expect(find.text('Yes, delete'), findsOneWidget);
+
+    // Tap Keep account to dismiss
+    await tester.tap(find.text('Keep account'));
+    await tester.pumpAndSettle();
   });
 }
