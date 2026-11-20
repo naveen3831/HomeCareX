@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/screens/profile/edit_profile_screen.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
   testWidgets('EditProfileScreen displays all elements matching web screenshot',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
@@ -152,5 +156,50 @@ void main() {
     expect(find.text('Change Profile Photo'), findsOneWidget);
     expect(find.text('Take Photo'), findsOneWidget);
     expect(find.text('Choose from Gallery'), findsOneWidget);
+  });
+
+  testWidgets('EditProfileScreen Save changes saves and updates successfully',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final authProvider = AuthProvider();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: authProvider),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: InkRipple.splashFactory,
+          ),
+          home: const EditProfileScreen(
+            initialName: 'TATUKULA EDUKONDALU',
+            initialEmail: 'tatukulaedukondalu@gmail.com',
+            initialPhone: '8346167714',
+            autoSubmit: true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final textFields = find.byType(TextField);
+    await tester.enterText(textFields.at(0), 'TATUKULA UPDATED');
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Save changes'));
+    await tester.tap(find.text('Save changes'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(authProvider.user?.name, 'TATUKULA UPDATED');
   });
 }

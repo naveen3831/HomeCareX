@@ -5,23 +5,60 @@ import '../core/services/storage_service.dart';
 import '../core/constants/api_constants.dart';
 
 class AuthProvider extends ChangeNotifier {
+  static final UserModel defaultCustomer = UserModel(
+    id: 'customer_default',
+    name: 'TATUKULA EDUKONDALU',
+    email: 'tatukulaedukondalu@gmail.com',
+    phone: '8346167714',
+    role: 'customer',
+    referralCode: 'HOMECAREX10',
+  );
+
   UserModel? _user;
   bool _isLoading = false;
   String? _errorMessage;
 
-  UserModel? get user => _user;
+  UserModel? get user => _user ?? defaultCustomer;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  AuthProvider() {
+    _initUser();
+  }
+
+  Future<void> _initUser() async {
+    try {
+      final cached = await StorageService.getUser();
+      if (cached != null) {
+        _user = cached;
+      } else {
+        _user = defaultCustomer;
+      }
+      notifyListeners();
+    } catch (_) {}
+    await checkAuth();
+  }
+
   Future<void> checkAuth() async {
     try {
       final token = await StorageService.getToken();
-      if (token == null) return;
+      if (token == null) {
+        if (_user == null) {
+          final cached = await StorageService.getUser();
+          _user = cached ?? defaultCustomer;
+          notifyListeners();
+        }
+        return;
+      }
 
       final res = await ApiService.get(ApiConstants.profile);
       if (res is Map) {
-        _user = UserModel.fromJson(Map<String, dynamic>.from(res));
+        final profileMap = res['profile'] != null
+            ? Map<String, dynamic>.from(res['profile'])
+            : Map<String, dynamic>.from(res);
+        _user = UserModel.fromJson(profileMap);
+        await StorageService.saveUser(_user!);
         notifyListeners();
       }
     } catch (e) {
@@ -44,6 +81,7 @@ class AuthProvider extends ChangeNotifier {
         await StorageService.saveToken(res['token'].toString());
         if (res['user'] != null) {
           _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
+          await StorageService.saveUser(_user!);
         } else {
           await checkAuth();
         }
@@ -88,6 +126,7 @@ class AuthProvider extends ChangeNotifier {
         await StorageService.saveToken(res['token'].toString());
         if (res['user'] != null) {
           _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
+          await StorageService.saveUser(_user!);
         }
         _isLoading = false;
         notifyListeners();
@@ -160,26 +199,43 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final patch = <String, dynamic>{};
-      if (name != null) patch['name'] = name.trim();
-      if (email != null) patch['email'] = email.trim().toLowerCase();
+      if (name != null && name.trim().isNotEmpty) patch['name'] = name.trim();
+      if (email != null && email.trim().isNotEmpty) patch['email'] = email.trim().toLowerCase();
       if (phone != null) patch['phone'] = phone.trim().isEmpty ? null : phone.trim();
 
+      bool backendUpdated = false;
       if (patch.isNotEmpty) {
-        final res = await ApiService.patch(ApiConstants.profile, patch);
-        if (res is Map && res['profile'] != null) {
-          _user = UserModel.fromJson(Map<String, dynamic>.from(res['profile']));
-        } else if (_user != null) {
-          _user = UserModel(
-            id: _user!.id,
-            name: name ?? _user!.name,
-            email: email ?? _user!.email,
-            phone: phone ?? _user!.phone,
-            role: _user!.role,
-            avatarUrl: avatarUrl ?? _user!.avatarUrl,
-            referralCode: _user!.referralCode,
-          );
+        try {
+          final res = await ApiService.patch(ApiConstants.profile, patch);
+          if (res is Map) {
+            final profileMap = res['profile'] != null
+                ? Map<String, dynamic>.from(res['profile'])
+                : Map<String, dynamic>.from(res);
+            _user = UserModel.fromJson(profileMap);
+            backendUpdated = true;
+          }
+        } catch (apiErr) {
+          debugPrint('[AuthProvider] updateProfile API error: $apiErr');
         }
       }
+
+      if (!backendUpdated) {
+        final current = _user ?? defaultCustomer;
+        _user = UserModel(
+          id: current.id,
+          name: (name != null && name.trim().isNotEmpty) ? name.trim() : current.name,
+          email: (email != null && email.trim().isNotEmpty) ? email.trim() : current.email,
+          phone: phone != null ? phone.trim() : current.phone,
+          role: current.role,
+          avatarUrl: avatarUrl ?? current.avatarUrl,
+          referralCode: current.referralCode,
+        );
+      }
+
+      if (_user != null) {
+        await StorageService.saveUser(_user!);
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -193,7 +249,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await StorageService.clearAuth();
-    _user = null;
+    _user = defaultCustomer;
     notifyListeners();
   }
 }

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/user_model.dart';
 
 class StorageService {
   static const String _keyToken = 'auth_token';
@@ -31,6 +33,33 @@ class StorageService {
     final val = prefs?.getString(_keyToken);
     if (val != null) _memoryCache[_keyToken] = val;
     return val;
+  }
+
+  static Future<void> saveUser(UserModel user) async {
+    _memoryCache[_keyUser] = user.toJson();
+    final prefs = await _getPrefs();
+    await prefs?.setString(_keyUser, jsonEncode(user.toJson()));
+  }
+
+  static Future<UserModel?> getUser() async {
+    if (_memoryCache.containsKey(_keyUser)) {
+      final cached = _memoryCache[_keyUser];
+      if (cached is Map<String, dynamic>) {
+        return UserModel.fromJson(cached);
+      }
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getString(_keyUser);
+    if (val != null) {
+      try {
+        final map = jsonDecode(val) as Map<String, dynamic>;
+        _memoryCache[_keyUser] = map;
+        return UserModel.fromJson(map);
+      } catch (e) {
+        debugPrint('[StorageService] parse user error: $e');
+      }
+    }
+    return null;
   }
 
   static Future<void> clearAuth() async {

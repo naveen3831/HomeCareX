@@ -27,6 +27,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
 
+  late String _currentBaseName;
+  late String _currentBaseEmail;
+  late String _currentBasePhone;
+  String? _currentBaseAvatarUrl;
+
   String? _avatarUrl;
   bool _isSaving = false;
   String? _errorMessage;
@@ -35,10 +40,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialName ?? 'TATUKULA EDUKONDALU');
-    _emailController = TextEditingController(text: widget.initialEmail ?? 'tatukulaedukondalu@gmail.com');
-    _phoneController = TextEditingController(text: widget.initialPhone ?? '8346167714');
-    _avatarUrl = widget.initialAvatarUrl;
+    _currentBaseName = widget.initialName ?? 'TATUKULA EDUKONDALU';
+    _currentBaseEmail = widget.initialEmail ?? 'tatukulaedukondalu@gmail.com';
+    _currentBasePhone = widget.initialPhone ?? '8346167714';
+    _currentBaseAvatarUrl = widget.initialAvatarUrl;
+
+    _nameController = TextEditingController(text: _currentBaseName);
+    _emailController = TextEditingController(text: _currentBaseEmail);
+    _phoneController = TextEditingController(text: _currentBasePhone);
+    _avatarUrl = _currentBaseAvatarUrl;
 
     _nameController.addListener(_onFieldChanged);
     _emailController.addListener(_onFieldChanged);
@@ -58,14 +68,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   bool get _isDirty {
-    final origName = widget.initialName ?? 'TATUKULA EDUKONDALU';
-    final origEmail = widget.initialEmail ?? 'tatukulaedukondalu@gmail.com';
-    final origPhone = widget.initialPhone ?? '8346167714';
-
-    return _nameController.text.trim() != origName.trim() ||
-        _emailController.text.trim() != origEmail.trim() ||
-        _phoneController.text.trim() != origPhone.trim() ||
-        _avatarUrl != widget.initialAvatarUrl;
+    return _nameController.text.trim() != _currentBaseName.trim() ||
+        _emailController.text.trim() != _currentBaseEmail.trim() ||
+        _phoneController.text.trim() != _currentBasePhone.trim() ||
+        _avatarUrl != _currentBaseAvatarUrl;
   }
 
   String _getInitials(String name) {
@@ -80,10 +86,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   void _reset() {
     setState(() {
-      _nameController.text = widget.initialName ?? 'TATUKULA EDUKONDALU';
-      _emailController.text = widget.initialEmail ?? 'tatukulaedukondalu@gmail.com';
-      _phoneController.text = widget.initialPhone ?? '8346167714';
-      _avatarUrl = widget.initialAvatarUrl;
+      _nameController.text = _currentBaseName;
+      _emailController.text = _currentBaseEmail;
+      _phoneController.text = _currentBasePhone;
+      _avatarUrl = _currentBaseAvatarUrl;
       _errorMessage = null;
       _successMessage = null;
     });
@@ -179,7 +185,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _handleSave() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
+    final rawPhone = _phoneController.text.trim();
 
     setState(() {
       _errorMessage = null;
@@ -196,7 +202,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
-    if (phone.isNotEmpty && phone.replaceAll(RegExp(r'\D'), '').length != 10) {
+    // Clean phone number: remove non-digits, strip country code +91 / 91 if 12 digits
+    String cleanPhone = rawPhone.replaceAll(RegExp(r'\D'), '');
+    if (cleanPhone.startsWith('91') && cleanPhone.length == 12) {
+      cleanPhone = cleanPhone.substring(2);
+    }
+
+    if (cleanPhone.isNotEmpty && cleanPhone.length != 10) {
       setState(() => _errorMessage = 'Phone number must be a 10-digit mobile number.');
       return;
     }
@@ -209,7 +221,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final success = await auth.updateProfile(
           name: name,
           email: email,
-          phone: phone,
+          phone: cleanPhone,
           avatarUrl: _avatarUrl,
         );
         if (!success && auth.errorMessage != null) {
@@ -220,8 +232,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         setState(() {
           _isSaving = false;
+          _currentBaseName = name;
+          _currentBaseEmail = email;
+          _currentBasePhone = cleanPhone;
+          _currentBaseAvatarUrl = _avatarUrl;
+          _phoneController.text = cleanPhone;
           _successMessage = 'Profile updated successfully.';
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Text('Profile updated successfully'),
+              ],
+            ),
+            backgroundColor: Color(0xFF059669),
+            duration: Duration(milliseconds: 1800),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Auto-navigate back after 500ms so user immediately sees updated ProfileScreen
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.of(context).pop(true);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -245,7 +283,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1E1B2E), size: 22),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(true),
         ),
         titleSpacing: 0,
         title: const Text(

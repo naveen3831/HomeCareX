@@ -583,8 +583,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 // Edit profile pill button
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => EditProfileScreen(
@@ -595,6 +595,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                     );
+                    if (context.mounted) {
+                      setState(() {});
+                    }
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
