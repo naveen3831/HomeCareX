@@ -120,7 +120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   tintFg: const Color(0xFF0284C7),
                   title: 'Addresses',
                   subtitle: 'Where we should come',
-                  badgeText: '2 saved',
                   onTap: () {
                     Navigator.push(
                       context,

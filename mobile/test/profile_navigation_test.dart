@@ -48,6 +48,10 @@ void main() {
     expect(find.text('BOOKINGS'), findsOneWidget);
     expect(find.text('ACCOUNT'), findsOneWidget);
 
+    // Verify Addresses menu item has no '2 saved' badge
+    expect(find.text('Addresses'), findsOneWidget);
+    expect(find.text('2 saved'), findsNothing);
+
     // Verify new options: Change password & Notifications
     expect(find.text('Change password'), findsOneWidget);
     expect(find.text('Keep your account secure'), findsOneWidget);
