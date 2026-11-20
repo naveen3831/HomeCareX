@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
+import '../bookings/active_bookings_screen.dart';
 import '../bookings/bookings_screen.dart';
 import '../payments/payments_screen.dart';
 import '../referrals/referrals_screen.dart';
@@ -95,7 +96,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   subtitle: 'Track your partner live',
                   badgeText: '1 live',
                   badgeIsLive: true,
-                  onTap: () => _showActiveBookingSheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ActiveBookingsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -925,65 +933,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showActiveBookingSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Icon(Icons.near_me_outlined, color: Color(0xFFEA580C), size: 26),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Live Service Partner Tracking',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Partner Rajesh Kumar is on his way for Kitchen Deep Cleaning.\nEstimated arrival in 15 mins.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const BookingsScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.navigation_rounded, size: 18),
-                  label: const Text('View Booking Details'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4338CA),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 
