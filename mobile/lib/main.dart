@@ -98,6 +98,7 @@ class HomeCareXApp extends StatelessWidget {
         scrollBehavior: const AppScrollBehavior(),
         theme: ThemeData(
           useMaterial3: true,
+          splashFactory: InkRipple.splashFactory,
           scaffoldBackgroundColor: AppColors.canvas,
           primaryColor: AppColors.brand,
           colorScheme: ColorScheme.fromSeed(

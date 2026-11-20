@@ -114,11 +114,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isActive = _currentIndex == index;
 
     return Expanded(
-      child: InkWell(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: () => _onTabSelected(index),
-        borderRadius: BorderRadius.circular(12),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final TextEditingController _searchController;
   Timer? _heroTimer;
   Timer? _typingTimer;
+  Timer? _typingPauseTimer;
   int _heroPageIndex = 0;
   String _animatedHint = 'Search AC repair|';
   int _phraseIndex = 0;
@@ -117,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _heroTimer?.cancel();
     _typingTimer?.cancel();
+    _typingPauseTimer?.cancel();
     _heroPageController.dispose();
     _searchController.dispose();
     super.dispose();
@@ -141,7 +143,8 @@ class _HomeScreenState extends State<HomeScreen> {
         } else {
           _isTypingForward = false;
           _typingTimer?.cancel();
-          Future.delayed(const Duration(milliseconds: 1600), () {
+          _typingPauseTimer?.cancel();
+          _typingPauseTimer = Timer(const Duration(milliseconds: 1600), () {
             if (mounted) _startTypingAnimation();
           });
         }
@@ -155,7 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _isTypingForward = true;
           _phraseIndex = (_phraseIndex + 1) % _typingPhrases.length;
           _typingTimer?.cancel();
-          Future.delayed(const Duration(milliseconds: 300), () {
+          _typingPauseTimer?.cancel();
+          _typingPauseTimer = Timer(const Duration(milliseconds: 300), () {
             if (mounted) _startTypingAnimation();
           });
         }
@@ -355,66 +359,74 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildQuickActionItem(
-                          label: 'Book again',
-                          icon: Icons.refresh_rounded,
-                          color: const Color(0xFF94A3B8),
-                          bgGradient: null,
-                          bgColor: const Color(0xFFF1F5F9),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const ServicesScreen()),
-                            );
-                          },
-                        ),
-                        _buildQuickActionItem(
-                          label: 'Track order',
-                          icon: Icons.navigation_rounded,
-                          color: const Color(0xFF94A3B8),
-                          bgGradient: null,
-                          bgColor: const Color(0xFFF1F5F9),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const BookingsScreen()),
-                            );
-                          },
-                        ),
-                        _buildQuickActionItem(
-                          label: 'Refer & earn',
-                          icon: Icons.card_giftcard_rounded,
-                          color: Colors.white,
-                          bgGradient: const LinearGradient(
-                            colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                        Expanded(
+                          child: _buildQuickActionItem(
+                            label: 'Book again',
+                            icon: Icons.refresh_rounded,
+                            color: const Color(0xFF94A3B8),
+                            bgGradient: null,
+                            bgColor: const Color(0xFFF1F5F9),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                              );
+                            },
                           ),
-                          bgColor: const Color(0xFFDB2777),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ReferralsScreen(),
-                              ),
-                            );
-                          },
                         ),
-                        _buildQuickActionItem(
-                          label: 'Get support',
-                          icon: Icons.headset_mic_rounded,
-                          color: Colors.white,
-                          bgGradient: const LinearGradient(
-                            colors: [Color(0xFF34D399), Color(0xFF059669)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                        Expanded(
+                          child: _buildQuickActionItem(
+                            label: 'Track order',
+                            icon: Icons.navigation_rounded,
+                            color: const Color(0xFF94A3B8),
+                            bgGradient: null,
+                            bgColor: const Color(0xFFF1F5F9),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const BookingsScreen()),
+                              );
+                            },
                           ),
-                          bgColor: const Color(0xFF059669),
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Help Center: support@homecarex.com'),
-                                duration: Duration(seconds: 2),
-                              ),
-                            );
-                          },
+                        ),
+                        Expanded(
+                          child: _buildQuickActionItem(
+                            label: 'Refer & earn',
+                            icon: Icons.card_giftcard_rounded,
+                            color: Colors.white,
+                            bgGradient: const LinearGradient(
+                              colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            bgColor: const Color(0xFFDB2777),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ReferralsScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildQuickActionItem(
+                            label: 'Get support',
+                            icon: Icons.headset_mic_rounded,
+                            color: Colors.white,
+                            bgGradient: const LinearGradient(
+                              colors: [Color(0xFF34D399), Color(0xFF059669)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            bgColor: const Color(0xFF059669),
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Help Center: support@homecarex.com'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
