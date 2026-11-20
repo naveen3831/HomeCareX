@@ -13,6 +13,7 @@ import 'account_security_screen.dart';
 import 'change_password_screen.dart';
 import 'legal_document_screen.dart';
 import 'notifications_settings_screen.dart';
+import 'saved_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -111,7 +112,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Addresses',
                   subtitle: 'Where we should come',
                   badgeText: '2 saved',
-                  onTap: () => _showAddressesSheet(context),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SavedAddressesScreen(),
+                      ),
+                    );
+                  },
                 ),
                 _buildDivider(),
                 _buildMenuItem(
@@ -977,81 +985,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showAddressesSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Saved Addresses',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.home_outlined, color: Color(0xFF0284C7)),
-                ),
-                title: const Text('Home', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Flat 402, Green Valley Apartments, Bengaluru'),
-                trailing: const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981)),
-              ),
-              const Divider(),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.business_outlined, color: Color(0xFF64748B)),
-                ),
-                title: const Text('Office', style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Tower B, Indiranagar Tech Park, Bengaluru'),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Add address dialog opened.')),
-                    );
-                  },
-                  icon: const Icon(Icons.add_rounded, size: 20),
-                  label: const Text('Add New Address'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF4338CA),
-                    side: const BorderSide(color: Color(0xFF4338CA)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
 
 

@@ -41,4 +41,5 @@ class ApiConstants {
   static const String customerNotifications = '/customer/notifications';
   static const String sessions = '/auth/sessions';
   static const String logoutAll = '/auth/logout-all';
+  static const String addresses = '/addresses';
 }
