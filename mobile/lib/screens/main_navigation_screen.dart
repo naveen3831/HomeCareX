@@ -10,20 +10,25 @@ import 'profile/profile_screen.dart';
 import 'cart/cart_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+  final int initialIndex;
+
+  const MainNavigationScreen({
+    super.key,
+    this.initialIndex = 2,
+  });
 
   @override
   State<MainNavigationScreen> createState() => _MainNavigationScreenState();
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  // Center tab (Home) is index 2, active by default
-  int _currentIndex = 2;
+  late int _currentIndex;
   late final List<bool> _visited;
 
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.initialIndex;
     _visited = List.generate(5, (i) => i == _currentIndex);
   }
 

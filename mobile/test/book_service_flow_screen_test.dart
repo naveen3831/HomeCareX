@@ -79,11 +79,11 @@ void main() {
       find.text('Set the quantity and pick any extras for this visit.'),
       findsOneWidget,
     );
-    expect(find.text('₹600 per unit • ⏱ 45 min'), findsOneWidget);
+    expect(find.text('₹ 600 per unit • 45 min'), findsOneWidget);
 
     // 5. Quantity Stepper
     expect(find.text('No. of Persons'), findsOneWidget);
-    expect(find.text('Units to be serviced (up to 10)'), findsOneWidget);
+    expect(find.text('Units to be serviced (up to 20)'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
     expect(find.byIcon(Icons.remove_rounded), findsOneWidget);
     expect(find.byIcon(Icons.add_rounded), findsOneWidget);
@@ -144,7 +144,7 @@ void main() {
       find.text('Choose where you\'d like the service performed.'),
       findsOneWidget,
     );
-    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
     expect(find.text('Office'), findsOneWidget);
     expect(find.text('Add a new address'), findsOneWidget);
 
@@ -286,7 +286,7 @@ void main() {
     await tester.tap(find.text('Saved addresses'));
     await tester.pumpAndSettle();
     expect(find.text('Choose Service Address'), findsOneWidget);
-    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
 
     // Tap "Add a new address" banner to switch back to Map view
     await tester.tap(find.text('Add a new address'));
@@ -339,6 +339,74 @@ void main() {
 
     // Verify reset to default HITEC City
     expect(find.text('HITEC City'), findsWidgets);
+  });
+
+  testWidgets('BookServiceFlowScreen Step 1 matches Shelf & Curtain Rod reference screenshot',
+      (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final shelfService = ServiceModel(
+      id: 'srv_shelf_install',
+      name: 'Shelf & Curtain Rod Installation',
+      slug: 'custom-shelf-installation',
+      description: 'Drill-and-fix wall shelves, curtain rods and TV brackets.',
+      price: 349.0,
+      categoryId: 'cat_carpentry',
+      durationMinutes: 45,
+      rating: 4.8,
+      reviewsCount: 42,
+    );
+
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<BookingProvider>(create: (_) => FakeBookingProvider()),
+      ],
+      child: MaterialApp(
+        theme: ThemeData(
+          useMaterial3: true,
+          splashFactory: InkRipple.splashFactory,
+        ),
+        home: BookServiceFlowScreen(
+          service: shelfService,
+          initialStep: 1,
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 1. Top Bar
+    expect(find.text('Book Service'), findsOneWidget);
+
+    // 2. Service Pill
+    expect(find.text('Shelf & Curtain Rod Installation'), findsWidgets);
+
+    // 3. Stepper Card
+    expect(find.text('Step 1 of 4'), findsOneWidget);
+    expect(find.text('Service Details'), findsOneWidget);
+    expect(find.text('Next: Address'), findsOneWidget);
+
+    // 4. Content Card
+    expect(find.text('What do you need done?'), findsOneWidget);
+    expect(find.text('Carpentry & Furniture Assembly'), findsOneWidget);
+    expect(find.text('₹ 349 per unit • 45 min'), findsOneWidget);
+    expect(find.text('Units to be serviced (up to 20)'), findsOneWidget);
+
+    // 5. Sticky Bottom Bar
+    expect(find.text('Running Estimate'), findsOneWidget);
+    expect(find.text('₹349'), findsOneWidget);
+    expect(find.text('Next Step →'), findsOneWidget);
+
+    // 6. Persistent Bottom Nav Bar
+    expect(find.text('Categories'), findsOneWidget);
+    expect(find.text('Services'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('My Bookings'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
   });
 }
 

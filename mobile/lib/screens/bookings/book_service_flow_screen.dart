@@ -6,6 +6,7 @@ import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/booking_provider.dart';
 import '../bookings/active_bookings_screen.dart';
+import '../main_navigation_screen.dart';
 
 class BookServiceFlowScreen extends StatefulWidget {
   final ServiceModel service;
@@ -117,11 +118,21 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   IconData _getCategoryIcon() {
     final s = widget.service.slug.toLowerCase();
     final n = widget.service.name.toLowerCase();
+    final c = widget.service.categoryId.toLowerCase();
     if (s.contains('salon') || s.contains('spa') || n.contains('hair') || n.contains('massage')) {
       return Icons.content_cut_rounded;
     }
     if (s.contains('clean') || n.contains('clean')) {
       return Icons.auto_awesome_rounded;
+    }
+    if (s.contains('shelf') ||
+        s.contains('curtain') ||
+        s.contains('carpent') ||
+        s.contains('furnit') ||
+        n.contains('shelf') ||
+        n.contains('curtain') ||
+        c.contains('carpent')) {
+      return Icons.hardware_rounded;
     }
     if (s.contains('ac-') || s.contains('repair') || n.contains('appliance')) {
       return Icons.handyman_rounded;
@@ -135,10 +146,20 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   String _getCategoryName() {
     final s = widget.service.slug.toLowerCase();
     final n = widget.service.name.toLowerCase();
+    final c = widget.service.categoryId.toLowerCase();
     if (s.contains('salon') || s.contains('spa') || n.contains('hair') || n.contains('massage')) {
       return 'Salon & Spa';
     }
     if (s.contains('clean') || n.contains('clean')) return 'Home Cleaning';
+    if (s.contains('shelf') ||
+        s.contains('curtain') ||
+        s.contains('carpent') ||
+        s.contains('furnit') ||
+        n.contains('shelf') ||
+        n.contains('curtain') ||
+        c.contains('carpent')) {
+      return 'Carpentry & Furniture Assembly';
+    }
     if (s.contains('ac-') || s.contains('repair') || n.contains('appliance')) return 'Appliance Repair';
     if (s.contains('paint')) return 'Painting & Waterproofing';
     if (s.contains('plumb')) return 'Plumbing';
@@ -583,37 +604,50 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Service Pill Banner
-                    _buildServicePillBanner(),
-                    const SizedBox(height: 12),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Service Pill Banner
+              _buildServicePillBanner(),
+              const SizedBox(height: 12),
 
-                    // 2. Stepper Card
-                    _buildStepperCard(),
-                    const SizedBox(height: 14),
+              // 2. Stepper Card
+              _buildStepperCard(),
+              const SizedBox(height: 14),
 
-                    // 3. Step Content
-                    if (_currentStep == 1) _buildStep1ServiceDetails(),
-                    if (_currentStep == 2) _buildStep2AddressDetails(),
-                    if (_currentStep == 3) _buildStep3ScheduleDetails(),
-                    if (_currentStep == 4) _buildStep4ReviewAndPay(),
-                    const SizedBox(height: 20),
-                  ],
-                ),
-              ),
+              // 3. Step Content
+              if (_currentStep == 1) _buildStep1ServiceDetails(),
+              if (_currentStep == 2) _buildStep2AddressDetails(),
+              if (_currentStep == 3) _buildStep3ScheduleDetails(),
+              if (_currentStep == 4) _buildStep4ReviewAndPay(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              offset: const Offset(0, -3),
+              blurRadius: 12,
             ),
-
-            // 4. Sticky Bottom Bar
-            _buildStickyBottomBar(),
           ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildStickyBottomBar(),
+              _buildPersistentBottomNavBar(),
+            ],
+          ),
         ),
       ),
     );
@@ -697,44 +731,63 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_currentStep != 2)
-                    Text(
-                      'Step $_currentStep of 4',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF4F46E5),
-                      ),
-                    ),
+          if (_currentStep != 2) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Step $_currentStep of 4',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4F46E5),
+                  ),
+                ),
+                if (_currentStep < 4)
                   Text(
-                    stepTitle,
+                    'Next: $nextTitle',
                     style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.2,
+                      fontSize: 12,
+                      color: Color(0xFF94A3B8),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              stepTitle,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0F172A),
+                letterSpacing: -0.2,
               ),
-              if (_currentStep < 4)
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  stepTitle,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.2,
+                  ),
+                ),
                 Text(
                   'Next: $nextTitle',
                   style: const TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: Color(0xFF94A3B8),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-            ],
-          ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
 
           // 4-Segment Progress Bar matching reference
@@ -876,7 +929,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '₹${s.price.toInt()} per unit • ⏱ ${s.durationMinutes} min',
+                        '₹ ${s.price.toInt()} per unit • ${s.durationMinutes} min',
                         style: const TextStyle(
                           fontSize: 11.5,
                           color: Color(0xFF64748B),
@@ -908,7 +961,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Units to be serviced (up to 10)',
+                      'Units to be serviced (up to 20)',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: Color(0xFF64748B),
@@ -944,7 +997,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_rounded, size: 16),
-                      onPressed: _quantity < 10 ? () => setState(() => _quantity++) : null,
+                      onPressed: _quantity < 20 ? () => setState(() => _quantity++) : null,
                       color: const Color(0xFF1E1B2E),
                       disabledColor: const Color(0xFFCBD5E1),
                       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -2152,16 +2205,9 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
+        border: Border(top: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2218,6 +2264,71 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPersistentBottomNavBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFF1F5F9), width: 1)),
+      ),
+      height: 60,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildFlowNavItem(0, 'Categories', Icons.grid_view_outlined),
+          _buildFlowNavItem(1, 'Services', Icons.handyman_outlined),
+          _buildFlowNavItem(2, 'Home', Icons.home_rounded, isActive: true),
+          _buildFlowNavItem(3, 'My Bookings', Icons.calendar_month_outlined),
+          _buildFlowNavItem(4, 'Profile', Icons.person_outline_rounded),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFlowNavItem(int index, String label, IconData icon, {bool isActive = false}) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => MainNavigationScreen(initialIndex: index),
+            ),
+            (route) => false,
+          );
+        },
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: isActive ? 48 : 36,
+              height: 28,
+              decoration: BoxDecoration(
+                color: isActive ? const Color(0xFFEEECFB) : Colors.transparent,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                color: isActive ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
