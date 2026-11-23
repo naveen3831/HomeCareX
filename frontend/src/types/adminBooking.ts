@@ -1,4 +1,6 @@
 export type BookingStatus =
+  | "confirmed"
+  | "pending_payment"
   | "created"
   | "searching_for_partner"
   | "assigned"

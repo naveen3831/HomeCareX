@@ -62,7 +62,10 @@ export const bookingsController = {
 
   async createBooking(req: Request, res: Response) {
     const customerId = requireUserId(req);
-    const idempotencyKey = req.header('Idempotency-Key');
+    const idempotencyKey =
+      req.header('Idempotency-Key') ||
+      (req.body as CreateBookingInput)?.idempotencyKey ||
+      `mob_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
     const result = await BookingService.createBooking(
       customerId,

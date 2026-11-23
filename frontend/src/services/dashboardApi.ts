@@ -79,6 +79,11 @@ const keyOf = (f: DashboardFilters) => `${f.from}|${f.to}|${f.city}`;
 const summaryCache = new Map<string, Promise<ApiSummary>>();
 const trendsCache = new Map<string, Promise<ApiTrends>>();
 
+export function clearDashboardCache(): void {
+  summaryCache.clear();
+  trendsCache.clear();
+}
+
 function cached<T>(cache: Map<string, Promise<T>>, key: string, load: () => Promise<T>): Promise<T> {
   const hit = cache.get(key);
   if (hit) return hit;
@@ -169,4 +174,6 @@ export const dashboardApi = {
     widget<FunnelStep[]>('funnel', fail, async () =>
       (await getTrends(f)).funnel.map((x) => ({ label: x.label, value: x.count })),
     ),
+
+  clearCache: clearDashboardCache,
 };

@@ -119,16 +119,20 @@ class BookingProvider extends ChangeNotifier {
       try {
         final dateStr =
             "${scheduledDate.year}-${scheduledDate.month.toString().padLeft(2, '0')}-${scheduledDate.day.toString().padLeft(2, '0')}";
+        final idemKey = 'mob_${DateTime.now().millisecondsSinceEpoch}';
 
         final postData = {
           'serviceId': serviceId,
           'quantity': qty,
           'date': dateStr,
-          'slot': '10:00 - 11:00',
+          'slot': '10:00-12:00',
           'items': items,
           'address': address,
+          'customerName': 'TATUKULA EDUKONDALU',
+          'customerEmail': 'tatukulaedukondalu@gmail.com',
+          'customerPhone': '8346167714',
           'newAddress': {
-            'line1': address,
+            'line1': address.isNotEmpty ? address : 'Flat 402, Sri Sai Nilayam, Madhapur, Hyderabad - 500081',
             'city': 'Hyderabad',
             'state': 'Telangana',
             'pincode': '500081',
@@ -137,9 +141,14 @@ class BookingProvider extends ChangeNotifier {
           'scheduledAt': scheduledDate.toIso8601String(),
           'totalAmount': totalAmount,
           'expectedTotal': totalAmount.toInt(),
+          'idempotencyKey': idemKey,
         };
 
-        final res = await ApiService.post(ApiConstants.bookings, postData);
+        final res = await ApiService.post(
+          ApiConstants.bookings,
+          postData,
+          headers: {'Idempotency-Key': idemKey},
+        );
         if (res != null && res is Map) {
           final serverBooking = BookingModel.fromJson(Map<String, dynamic>.from(res));
           final idx = _bookings.indexWhere((b) => b.id == bookingId);

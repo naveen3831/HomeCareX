@@ -59,16 +59,32 @@ function useWidget<T>(loader: () => Promise<T>, deps: unknown[]) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
-    setState((s) => ({ ...s, loading: true, error: false }));
+    setState((s) => ({ ...s, loading: s.data === null, error: false }));
     loader()
       .then((data) => alive && setState({ data, loading: false, error: false }))
-      .catch(() => alive && setState({ data: null, loading: false, error: true }));
+      .catch(() => alive && setState((s) => ({ ...s, loading: false, error: s.data === null })));
+
+    // Auto-poll every 10 seconds to keep live metrics and active bookings in sync with customer bookings
+    const interval = setInterval(() => {
+      dashboardApi.clearCache();
+      loader()
+        .then((data) => alive && setState({ data, loading: false, error: false }))
+        .catch(() => {});
+    }, 10_000);
+
     return () => {
       alive = false;
+      clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, tick]);
-  return { ...state, reload: () => setTick((t) => t + 1) };
+  return {
+    ...state,
+    reload: () => {
+      dashboardApi.clearCache();
+      setTick((t) => t + 1);
+    },
+  };
 }
 type WidgetState<T> = ReturnType<typeof useWidget<T>>;
 
@@ -262,6 +278,7 @@ function SnapshotTile({ item }: { item: SnapshotItem }) {
 
 // ---------- active bookings (first 5, inside "Needs attention") ----------
 const ACTIVE_STATUSES: BookingStatus[] = [
+  'confirmed',
   'created',
   'searching_for_partner',
   'assigned',
@@ -281,6 +298,7 @@ const NO_FILTERS: BookingFilters = {
   paymentStatus: '',
 };
 const STATUS_LABEL: Record<string, string> = {
+  confirmed: 'Confirmed',
   created: 'Pending',
   searching_for_partner: 'Finding partner',
   assigned: 'Assigned',

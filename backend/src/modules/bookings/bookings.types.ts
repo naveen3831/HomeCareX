@@ -74,4 +74,12 @@ export interface CreateBookingInput {
   /** Client's last-seen total (from the running estimate). Server recomputes and 409s on drift
    *  past `PRICE_CHANGED_TOLERANCE` rather than trusting it. */
   expectedTotal?: number;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  address?: string;
+  items?: Array<Record<string, unknown>>;
+  idempotencyKey?: string;
+  scheduledAt?: string;
+  totalAmount?: number;
 }

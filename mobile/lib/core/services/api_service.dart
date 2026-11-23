@@ -5,7 +5,7 @@ import '../constants/api_constants.dart';
 import 'storage_service.dart';
 
 class ApiService {
-  static Future<Map<String, String>> _headers() async {
+  static Future<Map<String, String>> _headers([Map<String, String>? extra]) async {
     final token = await StorageService.getToken();
     final headers = {
       'Content-Type': 'application/json',
@@ -14,10 +14,13 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
+    if (extra != null) {
+      headers.addAll(extra);
+    }
     return headers;
   }
 
-  static const Duration _timeout = Duration(milliseconds: 1500);
+  static const Duration _timeout = Duration(seconds: 10);
 
   static Future<dynamic> get(String endpoint) async {
     final headers = await _headers();
@@ -37,17 +40,21 @@ class ApiService {
     }
   }
 
-  static Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
-    final headers = await _headers();
+  static Future<dynamic> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
+    final reqHeaders = await _headers(headers);
     final encoded = jsonEncode(body);
     try {
       final uri = Uri.parse('${ApiConstants.baseUrl}$endpoint');
-      final response = await http.post(uri, headers: headers, body: encoded).timeout(_timeout);
+      final response = await http.post(uri, headers: reqHeaders, body: encoded).timeout(_timeout);
       return _handleResponse(response);
     } catch (_) {
       try {
         final fallbackUri = Uri.parse('${ApiConstants.fallbackBaseUrl}$endpoint');
-        final response = await http.post(fallbackUri, headers: headers, body: encoded).timeout(_timeout);
+        final response = await http.post(fallbackUri, headers: reqHeaders, body: encoded).timeout(_timeout);
         return _handleResponse(response);
       } catch (fallbackError) {
         debugPrint('[ApiService] POST $endpoint offline/fallback failed: $fallbackError');
