@@ -189,6 +189,12 @@ class NotificationProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> addNotification(NotificationModel notification) async {
+    _notifications.insert(0, notification);
+    notifyListeners();
+    await _persistNotifications();
+  }
+
   Future<void> deleteAll() async {
     _notifications.clear();
     notifyListeners();

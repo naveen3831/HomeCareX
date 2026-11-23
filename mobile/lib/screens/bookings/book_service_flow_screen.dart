@@ -2,11 +2,14 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/address_model.dart';
+import '../../core/models/notification_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../bookings/active_bookings_screen.dart';
 import '../main_navigation_screen.dart';
+import '../payments/razorpay_test_checkout_sheet.dart';
 
 class BookServiceFlowScreen extends StatefulWidget {
   final ServiceModel service;
@@ -381,6 +384,48 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   }
 
   Future<void> _confirmBooking() async {
+    if (_paymentMethod == 'online') {
+      final result = await RazorpayTestCheckoutSheet.show(
+        context: context,
+        amount: _grandTotal.toDouble(),
+        serviceName: widget.service.name,
+      );
+
+      if (result == null || result.isCancelled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment cancelled. You can retry or change payment method.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (!result.success) {
+        if (mounted) {
+          _showPaymentFailedDialog();
+        }
+        return;
+      }
+
+      // Add payment successful notification
+      try {
+        final notifProvider = context.read<NotificationProvider>();
+        await notifProvider.addNotification(
+          NotificationModel(
+            id: 'notif_${DateTime.now().millisecondsSinceEpoch}',
+            type: 'payment.succeeded',
+            group: 'payment',
+            title: 'Payment successful',
+            message: 'Payment received via Razorpay Test Mode (${result.paymentId}). Your booking is confirmed.',
+            createdAt: DateTime.now(),
+          ),
+        );
+      } catch (_) {}
+    }
+
     setState(() => _isSubmitting = true);
 
     final bookingProvider = context.read<BookingProvider>();
@@ -412,6 +457,89 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
       setState(() => _isSubmitting = false);
       _showBookingSuccessModal(createdBookingId);
     }
+  }
+
+  void _showPaymentFailedDialog() {
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => Theme(
+        data: Theme.of(dlgCtx).copyWith(splashFactory: NoSplash.splashFactory),
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.all(24),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEF2F2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: Color(0xFFEF4444),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Payment Failed',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Your payment of ₹$_grandTotal was declined by the demo bank.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(dlgCtx).pop();
+                    _confirmBooking();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4F46E5),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Try Again', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(dlgCtx).pop();
+                    setState(() => _paymentMethod = 'cash');
+                    _confirmBooking();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Pay with Cash on Service', style: TextStyle(color: Color(0xFF334155))),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showBookingSuccessModal([String? confirmedId]) {
@@ -2048,7 +2176,15 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(widget.service.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  Expanded(
+                    child: Text(
+                      widget.service.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text('Qty: $_quantity', style: const TextStyle(color: Color(0xFF64748B), fontSize: 12.5)),
                 ],
               ),
@@ -2154,7 +2290,32 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 2,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                      if (id == 'online')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: const Color(0xFFF59E0B), width: 0.8),
+                          ),
+                          child: const Text(
+                            'RAZORPAY TEST',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFFB45309),
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                   Text(subtitle, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 ],
               ),
