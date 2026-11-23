@@ -7,16 +7,19 @@ import '../../core/models/category_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/models/booking_model.dart';
 import '../../core/utils/icon_3d.dart';
+import '../../core/utils/bell_3d_icon.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/booking_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../catalog/categories_screen.dart';
 import '../catalog/services_screen.dart';
 import '../catalog/service_details_screen.dart';
 import '../bookings/bookings_screen.dart';
 import '../bookings/booking_tracking_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../referrals/referrals_screen.dart';
 
 class _HeroSlideData {
@@ -119,6 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<BookingProvider>().fetchBookings();
+        try {
+          context.read<NotificationProvider>().fetchNotifications();
+        } catch (_) {}
       }
     });
   }
@@ -222,11 +228,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> tryFetchNotifications(BuildContext context) async {
+    try {
+      await context.read<NotificationProvider>().fetchNotifications();
+    } catch (_) {}
+  }
+
   Widget _buildTopLocationHeader(
     BuildContext context, {
     BookingModel? latestBooking,
     int activeCount = 0,
+    int unreadNotificationsCount = 0,
   }) {
+    final badgeCount = unreadNotificationsCount > 0 ? unreadNotificationsCount : activeCount;
+
     return Container(
       color: const Color(0xFFFAFAFC),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -301,51 +316,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(width: 10),
 
-          // Notification Bell
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3EB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFFE5D3)),
+          // 3D Clay Notification Bell with Red Badge matching web header (media_1795416363267_caff530d.png)
+          NotificationBellButton(
+            count: badgeCount,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen(),
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.notifications_rounded,
-                    color: Color(0xFFFF8A3D),
-                    size: 20,
-                  ),
-                ),
-              ),
-              if (activeCount > 0)
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                    child: Center(
-                      child: Text(
-                        '$activeCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          height: 1.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+              );
+            },
           ),
         ],
       ),
@@ -360,6 +340,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final activeBookings = bookingProvider.activeBookings;
     final latestBooking = activeBookings.isNotEmpty ? activeBookings.first : null;
 
+    int unreadNotifications = 0;
+    try {
+      final notifProvider = context.watch<NotificationProvider>();
+      unreadNotifications = notifProvider.unreadCount;
+    } catch (_) {}
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
@@ -370,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               latestBooking: latestBooking,
               activeCount: activeBookings.length,
+              unreadNotificationsCount: unreadNotifications,
             ),
             Expanded(
               child: RefreshIndicator(
@@ -378,6 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     await Future.wait([
                       catalog.fetchCatalog(),
                       context.read<BookingProvider>().fetchBookings(),
+                      tryFetchNotifications(context),
                     ]);
                   } catch (e) {
                     debugPrint('[HomeScreen] Refresh error: $e');

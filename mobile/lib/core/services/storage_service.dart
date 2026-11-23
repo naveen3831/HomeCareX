@@ -8,6 +8,7 @@ class StorageService {
   static const String _keyUser = 'auth_user';
   static const String _keyOnboarding = 'onboarding_completed';
   static const String _keyBookings = 'cached_bookings';
+  static const String _keyNotifications = 'cached_notifications';
 
   static final Map<String, dynamic> _memoryCache = {};
 
@@ -63,6 +64,10 @@ class StorageService {
     return null;
   }
 
+  static void clearCache() {
+    _memoryCache.clear();
+  }
+
   static Future<void> clearAuth() async {
     _memoryCache.remove(_keyToken);
     _memoryCache.remove(_keyUser);
@@ -110,6 +115,34 @@ class StorageService {
         return res;
       } catch (e) {
         debugPrint('[StorageService] parse bookings error: $e');
+      }
+    }
+    return [];
+  }
+
+  static Future<void> saveNotifications(List<Map<String, dynamic>> notifications) async {
+    _memoryCache[_keyNotifications] = notifications;
+    final prefs = await _getPrefs();
+    await prefs?.setString(_keyNotifications, jsonEncode(notifications));
+  }
+
+  static Future<List<Map<String, dynamic>>> getNotifications() async {
+    if (_memoryCache.containsKey(_keyNotifications)) {
+      final cached = _memoryCache[_keyNotifications];
+      if (cached is List) {
+        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getString(_keyNotifications);
+    if (val != null) {
+      try {
+        final list = jsonDecode(val) as List;
+        final res = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _memoryCache[_keyNotifications] = res;
+        return res;
+      } catch (e) {
+        debugPrint('[StorageService] parse notifications error: $e');
       }
     }
     return [];
