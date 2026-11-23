@@ -371,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(
       color: Colors.transparent,
       elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
@@ -939,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () => setState(() => _isLocationPickerOpen = false),
                         behavior: HitTestBehavior.opaque,
                         child: Container(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                         ),
                       ),
                     ),

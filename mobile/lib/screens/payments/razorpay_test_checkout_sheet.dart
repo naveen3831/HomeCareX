@@ -142,7 +142,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.6),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (dlgCtx) => Theme(
         data: Theme.of(dlgCtx).copyWith(splashFactory: NoSplash.splashFactory),
         child: Dialog(
@@ -516,7 +516,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.22),
+                  color: Colors.white.withValues(alpha: 0.22),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
@@ -546,7 +546,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.22),
+              color: Colors.white.withValues(alpha: 0.22),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -611,9 +611,9 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFCBD5E1)),
                   ),
-                  child: CustomPaint(
-                    size: const Size(74, 74),
-                    painter: const _AuthenticUpiQrPainter(),
+                  child: const CustomPaint(
+                    size: Size(74, 74),
+                    painter: _AuthenticUpiQrPainter(),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -667,7 +667,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: bg.withOpacity(0.25),
+            color: bg.withValues(alpha: 0.25),
             blurRadius: 3,
             offset: const Offset(0, 1),
           ),
@@ -718,7 +718,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                     margin: const EdgeInsets.only(right: 6),
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
-                      color: badgeColors[i].withOpacity(0.12),
+                      color: badgeColors[i].withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -776,7 +776,7 @@ class _RazorpayCheckoutScreenState extends State<RazorpayCheckoutScreen> {
                         margin: const EdgeInsets.only(right: 6),
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                         decoration: BoxDecoration(
-                          color: badgeColors[i].withOpacity(0.12),
+                          color: badgeColors[i].withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

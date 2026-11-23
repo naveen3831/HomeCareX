@@ -412,6 +412,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
 
       // Add payment successful notification
       try {
+        if (!mounted) return;
         final notifProvider = context.read<NotificationProvider>();
         await notifProvider.addNotification(
           NotificationModel(
@@ -426,6 +427,7 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
       } catch (_) {}
     }
 
+    if (!mounted) return;
     setState(() => _isSubmitting = true);
 
     final bookingProvider = context.read<BookingProvider>();
