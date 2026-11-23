@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../../core/models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
+import '../main_navigation_screen.dart';
 import '../bookings/active_bookings_screen.dart';
 import '../bookings/bookings_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../payments/payments_screen.dart';
 import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
@@ -43,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isAuthenticated = auth.isAuthenticated;
     final user = auth.user;
 
     final displayName = (user != null && user.name.trim().isNotEmpty) ? user.name.trim() : _defaultName;
@@ -68,15 +71,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 physics: const BouncingScrollPhysics(),
                 children: [
                   // 2. PROFILE HERO CARD (Soft Lavender with Brand Avatar, Details & Edit Profile)
-                  _buildProfileHero(
-              context: context,
-              user: user,
-              name: displayName,
-              email: displayEmail,
-              phone: displayPhone,
-              initials: initials,
-            ),
-            const SizedBox(height: 20),
+                  if (isAuthenticated)
+                    _buildProfileHero(
+                      context: context,
+                      user: user,
+                      name: displayName,
+                      email: displayEmail,
+                      phone: displayPhone,
+                      initials: initials,
+                    )
+                  else
+                    _buildGuestProfileHero(context),
+                  const SizedBox(height: 20),
 
             // 3. BOOKINGS SECTION
             _buildSectionHeader('BOOKINGS'),
@@ -288,6 +294,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   },
                 ),
+                _buildDivider(),
+                _buildMenuItem(
+                  icon: Icons.explore_outlined,
+                  tintBg: const Color(0xFFEEF2FF),
+                  tintFg: const Color(0xFF4338CA),
+                  title: 'App Tour & Onboarding',
+                  subtitle: 'Revisit feature highlights and guide',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OnboardingScreen(isRevisit: true),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -329,111 +350,164 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // 7. SIGN OUT CARD
-            _buildCardGroup(
-              children: [
-                InkWell(
-                  onTap: () => _handleLogout(context, auth),
-                  borderRadius: BorderRadius.circular(22),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEE2E2),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.logout_rounded,
-                              size: 20,
-                              color: Color(0xFFDC2626),
+            // 7. SIGN OUT / SIGN IN CARD
+            if (isAuthenticated) ...[
+              _buildCardGroup(
+                children: [
+                  InkWell(
+                    onTap: () => _handleLogout(context, auth),
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.logout_rounded,
+                                size: 20,
+                                color: Color(0xFFDC2626),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Text(
-                            'Log out',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFDC2626),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Text(
+                              'Log out',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFFDC2626),
+                              ),
                             ),
                           ),
-                        ),
-                        const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: Color(0xFFDC2626),
-                        ),
-                      ],
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: Color(0xFFDC2626),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-            // 8. DELETE ACCOUNT CARD
-            _buildCardGroup(
-              children: [
-                InkWell(
-                  onTap: () => _showDeleteAccountDialog(context, auth),
-                  borderRadius: BorderRadius.circular(22),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEF2F2),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.delete_outline_rounded,
-                              size: 22,
-                              color: Color(0xFFDC2626),
+              // 8. DELETE ACCOUNT CARD
+              _buildCardGroup(
+                children: [
+                  InkWell(
+                    onTap: () => _showDeleteAccountDialog(context, auth),
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.delete_outline_rounded,
+                                size: 22,
+                                color: Color(0xFFDC2626),
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Delete account',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFFDC2626),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Delete account',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFDC2626),
+                                  ),
                                 ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Permanently remove your data',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF64748B),
-                                  fontWeight: FontWeight.w400,
+                                SizedBox(height: 2),
+                                Text(
+                                  'Permanently remove your data',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                    fontWeight: FontWeight.w400,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ] else ...[
+              _buildCardGroup(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(22),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.login_rounded,
+                                size: 20,
+                                color: Color(0xFF4338CA),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Text(
+                              'Sign In / Register',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF4338CA),
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: Color(0xFF4338CA),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
 
             // 8. APP FOOTER
@@ -488,6 +562,106 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // --------------------------------------------------------------------------
+  // GUEST PROFILE HERO CARD (Prompt to sign in)
+  // --------------------------------------------------------------------------
+  Widget _buildGuestProfileHero(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9EBFF),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFD9DCF7), width: 1.2),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Guest avatar circle
+          Container(
+            width: 66,
+            height: 66,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4338CA),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4338CA).withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.person_rounded,
+                size: 34,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Welcome Guest',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1E1B2E),
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Sign in to manage bookings & addresses',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4338CA),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4338CA).withValues(alpha: 0.25),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      'Sign In / Register →',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -979,7 +1153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await auth.logout();
       if (context.mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen(initialIndex: 2)),
           (route) => false,
         );
       }

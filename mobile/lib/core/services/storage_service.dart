@@ -6,6 +6,7 @@ import '../models/user_model.dart';
 class StorageService {
   static const String _keyToken = 'auth_token';
   static const String _keyUser = 'auth_user';
+  static const String _keyLoggedOut = 'is_logged_out';
   static const String _keyOnboarding = 'onboarding_completed';
   static const String _keyBookings = 'cached_bookings';
   static const String _keyNotifications = 'cached_notifications';
@@ -78,14 +79,41 @@ class StorageService {
     await prefs?.remove(_keyUser);
   }
 
-  static Future<bool> isOnboardingCompleted() async {
-    if (_memoryCache.containsKey(_keyOnboarding)) {
-      return (_memoryCache[_keyOnboarding] as bool?) ?? true;
+  static Future<void> setLoggedOut(bool loggedOut) async {
+    _memoryCache[_keyLoggedOut] = loggedOut;
+    final prefs = await _getPrefs();
+    await prefs?.setBool(_keyLoggedOut, loggedOut);
+  }
+
+  static bool isLoggedOutSync() {
+    if (_memoryCache.containsKey(_keyLoggedOut)) {
+      return (_memoryCache[_keyLoggedOut] as bool?) ?? false;
+    }
+    return false;
+  }
+
+  static Future<bool> isLoggedOut() async {
+    if (_memoryCache.containsKey(_keyLoggedOut)) {
+      return (_memoryCache[_keyLoggedOut] as bool?) ?? false;
     }
     final prefs = await _getPrefs();
-    final val = prefs?.getBool(_keyOnboarding) ?? true;
+    final val = prefs?.getBool(_keyLoggedOut) ?? false;
+    _memoryCache[_keyLoggedOut] = val;
+    return val;
+  }
+
+  static Future<bool> isOnboardingCompleted() async {
+    if (_memoryCache.containsKey(_keyOnboarding)) {
+      return (_memoryCache[_keyOnboarding] as bool?) ?? false;
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getBool(_keyOnboarding) ?? false;
     _memoryCache[_keyOnboarding] = val;
     return val;
+  }
+
+  static Future<void> resetOnboarding() async {
+    await setOnboardingCompleted(false);
   }
 
   static Future<void> setOnboardingCompleted([bool completed = true]) async {

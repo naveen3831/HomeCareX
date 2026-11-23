@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:homecarex_mobile/core/services/storage_service.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/providers/catalog_provider.dart';
 import 'package:homecarex_mobile/providers/cart_provider.dart';
@@ -9,6 +11,11 @@ import 'package:homecarex_mobile/screens/main_navigation_screen.dart';
 import 'package:homecarex_mobile/screens/reviews/reviews_screen.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    StorageService.clearCache();
+  });
+
   testWidgets('Test clicking Profile tab and navigating options in MainNavigationScreen', (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -103,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 5. Verify Delete account card
-    await tester.drag(find.byType(ListView), const Offset(0, -600));
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
     await tester.pumpAndSettle();
 
     expect(find.text('Delete account'), findsOneWidget);

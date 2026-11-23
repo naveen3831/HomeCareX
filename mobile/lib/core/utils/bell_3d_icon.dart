@@ -58,7 +58,7 @@ class _Bell3DPainter extends CustomPainter {
 
     // 3. Highlight stroke arc
     final highlightPaint = Paint()
-      ..color = Colors.white.withOpacity(0.65)
+      ..color = Colors.white.withValues(alpha: 0.65)
       ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
@@ -132,7 +132,7 @@ class NotificationBellButton extends StatelessWidget {
                       border: Border.all(color: Colors.white, width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFEF4444).withOpacity(0.35),
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.35),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),

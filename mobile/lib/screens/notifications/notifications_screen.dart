@@ -425,16 +425,16 @@ class NotificationsScreen extends StatelessWidget {
                     GestureDetector(
                       onTap: () => provider.markAsRead(item.id),
                       behavior: HitTestBehavior.opaque,
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.check_rounded,
                             size: 14,
                             color: AppColors.brand,
                           ),
-                          const SizedBox(width: 4),
-                          const Text(
+                          SizedBox(width: 4),
+                          Text(
                             'Mark as read',
                             style: TextStyle(
                               fontSize: 12,

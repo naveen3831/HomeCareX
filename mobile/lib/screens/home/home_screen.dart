@@ -39,6 +39,24 @@ class _HeroSlideData {
   });
 }
 
+class _GuestHeroSlide {
+  final String tag;
+  final String title;
+  final String description;
+  final String buttonText;
+  final String imagePath;
+  final String categorySlug;
+
+  const _GuestHeroSlide({
+    required this.tag,
+    required this.title,
+    required this.description,
+    required this.buttonText,
+    required this.imagePath,
+    required this.categorySlug,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -49,17 +67,50 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _copiedCoupon = false;
   bool _isLocationPickerOpen = false;
+  bool _isCityPickerOpen = false;
+  String _selectedCity = 'Hyderabad';
 
   late final PageController _heroPageController;
+  late final PageController _guestPageController;
   late final TextEditingController _searchController;
   Timer? _heroTimer;
+  Timer? _guestHeroTimer;
   Timer? _typingTimer;
   Timer? _typingPauseTimer;
   int _heroPageIndex = 0;
+  int _guestPageIndex = 0;
+  bool _isGuestAutoplayPaused = false;
   String _animatedHint = 'Search AC repair|';
   int _phraseIndex = 0;
   int _charIndex = 0;
   bool _isTypingForward = true;
+
+  static const List<_GuestHeroSlide> _guestHeroSlides = [
+    _GuestHeroSlide(
+      tag: 'Home services',
+      title: 'Professional Home Services',
+      description: 'Book trusted professionals for your home',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/home-cleaning.webp',
+      categorySlug: 'home-cleaning',
+    ),
+    _GuestHeroSlide(
+      tag: 'Appliance repair',
+      title: 'Appliance repair at your doorstep',
+      description: 'Get your washing machine, fridge or AC working without hassle',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/appliance-repair.webp',
+      categorySlug: 'appliance-repair-service',
+    ),
+    _GuestHeroSlide(
+      tag: 'Electrical & Plumbing',
+      title: 'Safe, certified home repairs',
+      description: 'Quick fixes, safety checks, and emergency home care',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/electrical.jpg',
+      categorySlug: 'electrical-plumbing',
+    ),
+  ];
 
   static const List<_HeroSlideData> _heroSlides = [
     _HeroSlideData(
@@ -107,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _heroPageController = PageController();
+    _guestPageController = PageController();
     _searchController = TextEditingController();
 
     _heroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
@@ -114,6 +166,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_heroPageController.hasClients) {
         final next = (_heroPageIndex + 1) % _heroSlides.length;
         _heroPageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+
+    _guestHeroTimer = Timer.periodic(const Duration(milliseconds: 4500), (timer) {
+      if (!mounted) return;
+      if (!_isGuestAutoplayPaused && _guestPageController.hasClients) {
+        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
+        _guestPageController.animateToPage(
           next,
           duration: const Duration(milliseconds: 550),
           curve: Curves.easeInOutCubic,
@@ -137,9 +201,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _heroTimer?.cancel();
+    _guestHeroTimer?.cancel();
     _typingTimer?.cancel();
     _typingPauseTimer?.cancel();
     _heroPageController.dispose();
+    _guestPageController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -243,6 +309,261 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await context.read<AddressProvider>().fetchAddresses();
     } catch (_) {}
+  }
+
+  Widget _buildGuestHeader(BuildContext context) {
+    return Container(
+      color: const Color(0xFFFAFAFC),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // HomeCareX Brand Logo
+          Image.asset(
+            'assets/images/logo.png',
+            height: 28,
+            fit: BoxFit.contain,
+            semanticLabel: 'HOMECAREX',
+            errorBuilder: (_, __, ___) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF9548), Color(0xFFFF7A1A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.home_rounded,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                RichText(
+                  text: const TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'HOMECARE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      TextSpan(
+                        text: 'X',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Location pill in center/right: 📍 Hyderabad ˇ
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _isCityPickerOpen = !_isCityPickerOpen;
+              });
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.location_on_rounded,
+                    size: 14,
+                    color: Color(0xFFEF4444),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _selectedCity,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bell Icon (badge count: 0 for guest mode)
+          NotificationBellButton(
+            count: 0,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCityPickerDropdown(BuildContext context) {
+    const cities = [
+      {'name': 'Hyderabad', 'state': 'Telangana'},
+      {'name': 'Bengaluru', 'state': 'Karnataka'},
+      {'name': 'Mumbai', 'state': 'Maharashtra'},
+      {'name': 'Delhi NCR', 'state': 'Delhi'},
+      {'name': 'Chennai', 'state': 'Tamil Nadu'},
+      {'name': 'Pune', 'state': 'Maharashtra'},
+    ];
+
+    return Material(
+      color: Colors.transparent,
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.location_city_rounded, size: 18, color: AppColors.brand),
+                      SizedBox(width: 6),
+                      Text(
+                        'Select Service City',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _isCityPickerOpen = false),
+                    child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              itemCount: cities.length,
+              itemBuilder: (context, index) {
+                final c = cities[index];
+                final isSelected = c['name'] == _selectedCity;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    setState(() {
+                      _selectedCity = c['name']!;
+                      _isCityPickerOpen = false;
+                    });
+                  },
+                  child: Container(
+                    color: isSelected ? const Color(0xFFEEF2FF) : Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                              size: 16,
+                              color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  c['name']!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF1E293B),
+                                  ),
+                                ),
+                                Text(
+                                  c['state']!,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'Available',
+                            style: TextStyle(fontSize: 10, color: Color(0xFF10B981), fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildTopLocationHeader(
@@ -371,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Material(
       color: Colors.transparent,
       elevation: 8,
-      shadowColor: Colors.black.withOpacity(0.12),
+      shadowColor: Colors.black.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
@@ -529,6 +850,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isAuthenticated = auth.isAuthenticated;
     final catalog = context.watch<CatalogProvider>();
     final cart = context.watch<CartProvider>();
     final bookingProvider = context.watch<BookingProvider>();
@@ -551,20 +874,23 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (Deliver to • Add address + Notification Bell)
-            _buildTopLocationHeader(
-              context,
-              selectedAddress: selectedAddress,
-              latestBooking: latestBooking,
-              activeCount: activeBookings.length,
-              unreadNotificationsCount: unreadNotifications,
-              isPickerOpen: _isLocationPickerOpen,
-              onTogglePicker: () {
-                setState(() {
-                  _isLocationPickerOpen = !_isLocationPickerOpen;
-                });
-              },
-            ),
+            // Sticky Top Header (Guest HomeCareX logo vs Deliver to • Add address)
+            if (isAuthenticated)
+              _buildTopLocationHeader(
+                context,
+                selectedAddress: selectedAddress,
+                latestBooking: latestBooking,
+                activeCount: activeBookings.length,
+                unreadNotificationsCount: unreadNotifications,
+                isPickerOpen: _isLocationPickerOpen,
+                onTogglePicker: () {
+                  setState(() {
+                    _isLocationPickerOpen = !_isLocationPickerOpen;
+                  });
+                },
+              )
+            else
+              _buildGuestHeader(context),
             Expanded(
               child: Stack(
                 clipBehavior: Clip.none,
@@ -591,20 +917,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       const SizedBox(height: 12),
 
-                      // 2. GREETING SECTION (Good morning/afternoon/evening pill + Welcome header + subtitle)
-                      _buildGreetingSection(context),
+                      if (isAuthenticated) ...[
+                        // 2. GREETING SECTION (Good morning/afternoon/evening pill + Welcome header + subtitle)
+                        _buildGreetingSection(context),
 
-                const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                // 3. HERO CATEGORY CAROUSEL CARD (Photo + Indicators + Category Title)
-                _buildHeroCard(context),
+                        // 3. HERO CATEGORY CAROUSEL CARD (Photo + Indicators + Category Title)
+                        _buildHeroCard(context),
 
-                const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
-                // 4. SEARCH BAR (Search input + Mic + Orange search button)
-                _buildSearchBar(context),
+                        // 4. SEARCH BAR (Search input + Mic + Orange search button)
+                        _buildSearchBar(context),
 
-                const SizedBox(height: 18),
+                        const SizedBox(height: 18),
+                      ] else ...[
+                        // 2. GUEST GREETING SECTION (Good Afternoon, Welcome to HomeCareX...)
+                        _buildGuestGreetingSection(context),
+
+                        const SizedBox(height: 14),
+
+                        // 3. GUEST HERO CAROUSEL CARD (Explore services, progress bar, pause, chevrons)
+                        _buildGuestHeroCarousel(context),
+
+                        const SizedBox(height: 14),
+
+                        // 4. GUEST PROMO CARD (Appliance Repair Services + 30-Day Warranty + Technician)
+                        _buildGuestPromoCard(context),
+
+                        const SizedBox(height: 14),
+
+                        // 5. SEARCH BAR (Search input + Mic + Orange search button)
+                        _buildSearchBar(context),
+
+                        const SizedBox(height: 18),
+                      ],
 
                 // 5. QUICK ACTIONS ROW (Book again, Track order, Refer & earn, Get support)
                 Padding(
@@ -700,15 +1048,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                if (isAuthenticated) ...[
+                  const SizedBox(height: 16),
 
-                // 3. UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
-                if (activeBookings.isNotEmpty)
-                  _buildUpcomingSection(context, activeBookings.first)
-                else
-                  _buildWelcomeCustomerCard(context),
+                  // 3. UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
+                  if (activeBookings.isNotEmpty)
+                    _buildUpcomingSection(context, activeBookings.first)
+                  else
+                    _buildWelcomeCustomerCard(context),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
+                ] else ...[
+                  const SizedBox(height: 24),
+                ],
 
                 // 4. BROWSE CATEGORIES (2x2 Grid matching Image 2)
                 Padding(
@@ -932,14 +1284,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-                  // Location Picker Dropdown Menu Overlay
-                  if (_isLocationPickerOpen) ...[
+                  // Location Picker Dropdown Menu Overlay (when authenticated)
+                  if (isAuthenticated && _isLocationPickerOpen) ...[
                     Positioned.fill(
                       child: GestureDetector(
                         onTap: () => setState(() => _isLocationPickerOpen = false),
                         behavior: HitTestBehavior.opaque,
                         child: Container(
-                          color: Colors.black.withOpacity(0.08),
+                          color: Colors.black.withValues(alpha: 0.08),
                         ),
                       ),
                     ),
@@ -948,6 +1300,25 @@ class _HomeScreenState extends State<HomeScreen> {
                       left: 16,
                       right: 16,
                       child: _buildAddressPickerDropdown(context),
+                    ),
+                  ],
+
+                  // City Picker Dropdown Menu Overlay (when guest)
+                  if (!isAuthenticated && _isCityPickerOpen) ...[
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _isCityPickerOpen = false),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.08),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      left: 16,
+                      right: 16,
+                      child: _buildCityPickerDropdown(context),
                     ),
                   ],
                 ],
@@ -1879,6 +2250,485 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // GUEST GREETING SECTION (Good Afternoon, Welcome to HomeCareX...)
+  // ---------------------------------------------------------------------------
+  Widget _buildGuestGreetingSection(BuildContext context) {
+    final greeting = _greetingForNow();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$greeting,',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 2),
+          RichText(
+            text: const TextSpan(
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                color: Color(0xFF0F172A),
+              ),
+              children: [
+                TextSpan(text: 'Welcome to '),
+                TextSpan(
+                  text: 'HomeCareX',
+                  style: TextStyle(
+                    color: Color(0xFF2563EB),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Book trusted professionals for your home needs.',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF64748B),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // GUEST HERO CAROUSEL CARD (Explore services, progress bar, pause, chevrons)
+  // ---------------------------------------------------------------------------
+  Widget _buildGuestHeroCarousel(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // PageView of hero slides
+              PageView.builder(
+                controller: _guestPageController,
+                itemCount: _guestHeroSlides.length,
+                onPageChanged: (idx) {
+                  setState(() => _guestPageIndex = idx);
+                },
+                itemBuilder: (context, index) {
+                  final slide = _guestHeroSlides[index];
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Photo
+                      Image.asset(
+                        slide.imagePath,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF1E293B),
+                          child: const Center(
+                            child: Icon(Icons.handyman_rounded, color: Colors.white, size: 48),
+                          ),
+                        ),
+                      ),
+
+                      // Dark readability gradient
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.78),
+                              Colors.black.withValues(alpha: 0.45),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.65),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Slide text & CTA
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 44),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Category Tag Badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    slide.tag,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+
+                                // Title
+                                Text(
+                                  slide.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.2,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+
+                                // Subtitle
+                                Text(
+                                  slide.description,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.3,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+
+                            // Orange Explore services button
+                            GestureDetector(
+                              onTap: () {
+                                _openCategory(context, slide.categorySlug);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF8A3D),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF8A3D).withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      slide.buttonText,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              // Bottom control bar (progress segments + pause/play + prev/next chevrons)
+              Positioned(
+                bottom: 10,
+                left: 16,
+                right: 16,
+                child: Row(
+                  children: [
+                    // Progress line indicators
+                    Expanded(
+                      child: Row(
+                        children: List.generate(_guestHeroSlides.length, (i) {
+                          final isActive = i == _guestPageIndex;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                _guestPageController.animateToPage(
+                                  i,
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                              child: Container(
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? const Color(0xFFFF8A3D)
+                                      : Colors.white.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Pause / Play button
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isGuestAutoplayPaused = !_isGuestAutoplayPaused;
+                        });
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            _isGuestAutoplayPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+
+                    // Prev chevron <
+                    GestureDetector(
+                      onTap: () {
+                        final prev = (_guestPageIndex - 1 + _guestHeroSlides.length) % _guestHeroSlides.length;
+                        _guestPageController.animateToPage(
+                          prev,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Next chevron >
+                    GestureDetector(
+                      onTap: () {
+                        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
+                        _guestPageController.animateToPage(
+                          next,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // GUEST PROMO CARD (Appliance Repair Services + 30-Day Warranty + Technician)
+  // ---------------------------------------------------------------------------
+  Widget _buildGuestPromoCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () => _openCategory(context, 'appliance-repair-service'),
+        child: Container(
+          height: 105,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              children: [
+                // Right Technician Image
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  right: 0,
+                  width: 130,
+                  child: ShaderMask(
+                    shaderCallback: (rect) {
+                      return const LinearGradient(
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                        colors: [Colors.transparent, Colors.black],
+                        stops: [0.0, 0.35],
+                      ).createShader(rect);
+                    },
+                    blendMode: BlendMode.dstIn,
+                    child: Image.asset(
+                      'assets/images/appliance-technician.webp',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        'assets/images/appliance-repair.webp',
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Left Content: Tag + Title
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 🛡️ 30-Day Warranty Tag
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFBFDBFE)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.verified_user_rounded,
+                              size: 12,
+                              color: Color(0xFF2563EB),
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              '30-Day Warranty',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1D4ED8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Appliance Repair Services
+                      const Text(
+                        'Appliance Repair\nServices',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
