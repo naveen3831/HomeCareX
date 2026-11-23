@@ -9,6 +9,8 @@ class StorageService {
   static const String _keyOnboarding = 'onboarding_completed';
   static const String _keyBookings = 'cached_bookings';
   static const String _keyNotifications = 'cached_notifications';
+  static const String _keyAddresses = 'cached_addresses';
+  static const String _keySelectedAddressId = 'selected_address_id';
 
   static final Map<String, dynamic> _memoryCache = {};
 
@@ -146,5 +148,49 @@ class StorageService {
       }
     }
     return [];
+  }
+
+  static Future<void> saveAddresses(List<Map<String, dynamic>> addresses) async {
+    _memoryCache[_keyAddresses] = addresses;
+    final prefs = await _getPrefs();
+    await prefs?.setString(_keyAddresses, jsonEncode(addresses));
+  }
+
+  static Future<List<Map<String, dynamic>>> getAddresses() async {
+    if (_memoryCache.containsKey(_keyAddresses)) {
+      final cached = _memoryCache[_keyAddresses];
+      if (cached is List) {
+        return cached.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getString(_keyAddresses);
+    if (val != null) {
+      try {
+        final list = jsonDecode(val) as List;
+        final res = list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _memoryCache[_keyAddresses] = res;
+        return res;
+      } catch (e) {
+        debugPrint('[StorageService] parse addresses error: $e');
+      }
+    }
+    return [];
+  }
+
+  static Future<void> saveSelectedAddressId(String id) async {
+    _memoryCache[_keySelectedAddressId] = id;
+    final prefs = await _getPrefs();
+    await prefs?.setString(_keySelectedAddressId, id);
+  }
+
+  static Future<String?> getSelectedAddressId() async {
+    if (_memoryCache.containsKey(_keySelectedAddressId)) {
+      return _memoryCache[_keySelectedAddressId] as String?;
+    }
+    final prefs = await _getPrefs();
+    final val = prefs?.getString(_keySelectedAddressId);
+    if (val != null) _memoryCache[_keySelectedAddressId] = val;
+    return val;
   }
 }

@@ -7,6 +7,7 @@ import 'providers/catalog_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/notification_provider.dart';
+import 'providers/address_provider.dart';
 import 'screens/splash/splash_screen.dart';
 
 void main() async {
@@ -94,6 +95,9 @@ class HomeCareXApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AddressProvider(),
         ),
       ],
       child: MaterialApp(
