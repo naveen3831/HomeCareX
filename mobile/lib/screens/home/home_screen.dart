@@ -5,15 +5,18 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/service_model.dart';
+import '../../core/models/booking_model.dart';
 import '../../core/utils/icon_3d.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../catalog/categories_screen.dart';
 import '../catalog/services_screen.dart';
 import '../catalog/service_details_screen.dart';
 import '../bookings/bookings_screen.dart';
+import '../bookings/booking_tracking_screen.dart';
 import '../referrals/referrals_screen.dart';
 
 class _HeroSlideData {
@@ -112,6 +115,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     _startTypingAnimation();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<BookingProvider>().fetchBookings();
+      }
+    });
   }
 
   @override
@@ -213,7 +222,11 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Widget _buildTopLocationHeader(BuildContext context) {
+  Widget _buildTopLocationHeader(
+    BuildContext context, {
+    BookingModel? latestBooking,
+    int activeCount = 0,
+  }) {
     return Container(
       color: const Color(0xFFFAFAFC),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -221,80 +234,118 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Location Picker
-          Row(
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEEECFB),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.location_on_rounded,
+                      color: AppColors.brand,
+                      size: 20,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Deliver to ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                          Text(
+                            latestBooking != null ? '• Home' : '• Add address',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.brand,
+                            ),
+                          ),
+                          const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 16,
+                            color: AppColors.brand,
+                          ),
+                        ],
+                      ),
+                      Text(
+                        latestBooking != null && latestBooking.address.trim().isNotEmpty
+                            ? latestBooking.address
+                            : 'Select where we should...',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF9CA3AF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Notification Bell
+          Stack(
+            clipBehavior: Clip.none,
             children: [
               Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEEECFB),
-                  shape: BoxShape.circle,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3EB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFE5D3)),
                 ),
                 child: const Center(
                   child: Icon(
-                    Icons.location_on_rounded,
-                    color: AppColors.brand,
+                    Icons.notifications_rounded,
+                    color: Color(0xFFFF8A3D),
                     size: 20,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'Deliver to ',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      Text(
-                        '• Add address',
-                        style: TextStyle(
-                          fontSize: 12,
+              if (activeCount > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEF4444),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    child: Center(
+                      child: Text(
+                        '$activeCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.brand,
+                          height: 1.0,
                         ),
                       ),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: AppColors.brand,
-                      ),
-                    ],
-                  ),
-                  Text(
-                    'Select where we should...',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF9CA3AF),
                     ),
                   ),
-                ],
-              ),
+                ),
             ],
-          ),
-
-          // Notification Bell
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3EB),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFFE5D3)),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.notifications_rounded,
-                color: Color(0xFFFF8A3D),
-                size: 20,
-              ),
-            ),
           ),
         ],
       ),
@@ -305,6 +356,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
     final cart = context.watch<CartProvider>();
+    final bookingProvider = context.watch<BookingProvider>();
+    final activeBookings = bookingProvider.activeBookings;
+    final latestBooking = activeBookings.isNotEmpty ? activeBookings.first : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
@@ -312,12 +366,19 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             // Sticky Top Header (Deliver to • Add address + Notification Bell)
-            _buildTopLocationHeader(context),
+            _buildTopLocationHeader(
+              context,
+              latestBooking: latestBooking,
+              activeCount: activeBookings.length,
+            ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
                   try {
-                    await catalog.fetchCatalog();
+                    await Future.wait([
+                      catalog.fetchCatalog(),
+                      context.read<BookingProvider>().fetchBookings(),
+                    ]);
                   } catch (e) {
                     debugPrint('[HomeScreen] Refresh error: $e');
                   }
@@ -442,124 +503,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 16),
 
-                // 3. WELCOME TO HOMECAREX! (New Customer Card matching Image 1)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: AppColors.brand.withValues(alpha: 0.25),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // Party Popper Icon
-                        Image.asset(
-                          'assets/icons/3d/party.png',
-                          width: 68,
-                          height: 68,
-                          errorBuilder: (_, __, ___) => const Text('🎉', style: TextStyle(fontSize: 48)),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Welcome to HomeCareX!',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E1B2E),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          "You haven't booked a service yet. Pick a category below to get started.",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF64748B),
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // 3 Category shortcut tiles
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildWelcomeCategoryTile(
-                                label: 'Home Cleaning',
-                                iconPath: 'assets/icons/3d/broom.png',
-                                fallbackEmoji: '🧹',
-                                bgColor: const Color(0xFFEEECFB),
-                                onTap: () => _openCategory(context, 'home-cleaning'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildWelcomeCategoryTile(
-                                label: 'Appliance Repair',
-                                iconPath: 'assets/icons/3d/wrench.png',
-                                fallbackEmoji: '🔧',
-                                bgColor: const Color(0xFFFFF3EB),
-                                onTap: () => _openCategory(context, 'appliance-repair-service'),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildWelcomeCategoryTile(
-                                label: 'Salon & Spa',
-                                iconPath: 'assets/icons/3d/massage.png',
-                                fallbackEmoji: '💆',
-                                bgColor: const Color(0xFFE4F4EC),
-                                onTap: () => _openCategory(context, 'salon-spa'),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 20),
-
-                        // Big Purple "Browse all categories" button
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.brand,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: const Text(
-                              'Browse all categories',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                // 3. UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
+                if (activeBookings.isNotEmpty)
+                  _buildUpcomingSection(context, activeBookings.first)
+                else
+                  _buildWelcomeCustomerCard(context),
 
                 const SizedBox(height: 24),
 
@@ -836,6 +784,334 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  String _formatScheduledDate(DateTime dt) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final day = dt.day;
+    final month = months[(dt.month - 1).clamp(0, 11)];
+    final hour = dt.hour;
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    return '$day $month, $h12:$minute $period';
+  }
+
+  String _formatStatusBadge(String status, String? partnerName) {
+    final s = status.toLowerCase().trim();
+    if (s == 'in_progress' || s == 'ongoing') return 'In Progress';
+    if (s == 'completed') return 'Completed';
+    if (s == 'cancelled') return 'Cancelled';
+    if (partnerName != null && partnerName.isNotEmpty && partnerName.toLowerCase() != 'unassigned') {
+      return 'Partner Assigned';
+    }
+    if (s == 'confirmed' || s == 'assigned') return 'Partner Assigned';
+    return 'Pending';
+  }
+
+  Widget _buildUpcomingSection(BuildContext context, BookingModel booking) {
+    final imagePath = ServiceImageResolver.resolve('', booking.serviceTitle);
+    final focus = ServiceImageResolver.resolveFocus('', booking.serviceTitle);
+    final formattedDate = _formatScheduledDate(booking.scheduledAt);
+    final statusBadge = _formatStatusBadge(booking.status, booking.partnerName);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Upcoming',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E1B2E),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const BookingsScreen()),
+                  );
+                },
+                child: const Text(
+                  'View all',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.brand,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BookingTrackingScreen(booking: booking),
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
+                    blurRadius: 18,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Service Image Thumbnail
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: 54,
+                      height: 54,
+                      child: Image.asset(
+                        imagePath,
+                        fit: BoxFit.cover,
+                        alignment: focus,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFFEEECFB),
+                          child: const Icon(
+                            Icons.handyman_rounded,
+                            color: AppColors.brand,
+                            size: 28,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Title, Schedule Date/Time, Location
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.serviceTitle,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                            height: 1.25,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on_rounded,
+                              size: 13,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            const SizedBox(width: 2),
+                            Expanded(
+                              child: Text(
+                                booking.address.isNotEmpty
+                                    ? booking.address
+                                    : 'Select address',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+
+                  // Badge & Price
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEECFB),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          statusBadge,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.brand,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '₹${booking.amount.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeCustomerCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppColors.brand.withValues(alpha: 0.25),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Party Popper Icon
+            Image.asset(
+              'assets/icons/3d/party.png',
+              width: 68,
+              height: 68,
+              errorBuilder: (_, __, ___) => const Text('🎉', style: TextStyle(fontSize: 48)),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Welcome to HomeCareX!',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E1B2E),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              "You haven't booked a service yet. Pick a category below to get started.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // 3 Category shortcut tiles
+            Row(
+              children: [
+                Expanded(
+                  child: _buildWelcomeCategoryTile(
+                    label: 'Home Cleaning',
+                    iconPath: 'assets/icons/3d/broom.png',
+                    fallbackEmoji: '🧹',
+                    bgColor: const Color(0xFFEEECFB),
+                    onTap: () => _openCategory(context, 'home-cleaning'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildWelcomeCategoryTile(
+                    label: 'Appliance Repair',
+                    iconPath: 'assets/icons/3d/wrench.png',
+                    fallbackEmoji: '🔧',
+                    bgColor: const Color(0xFFFFF3EB),
+                    onTap: () => _openCategory(context, 'appliance-repair-service'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildWelcomeCategoryTile(
+                    label: 'Salon & Spa',
+                    iconPath: 'assets/icons/3d/massage.png',
+                    fallbackEmoji: '💆',
+                    bgColor: const Color(0xFFE4F4EC),
+                    onTap: () => _openCategory(context, 'salon-spa'),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Big Purple "Browse all categories" button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brand,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'Browse all categories',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -46,7 +46,15 @@ class BookingTrackingScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(booking.serviceTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Expanded(
+                        child: Text(
+                          booking.serviceTitle,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -78,13 +86,16 @@ class BookingTrackingScreen extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Service Start PIN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accentDark)),
-                            Text('Share this with partner upon arrival', style: TextStyle(fontSize: 11, color: AppColors.ink)),
-                          ],
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Service Start PIN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.accentDark)),
+                              Text('Share this with partner upon arrival', style: TextStyle(fontSize: 11, color: AppColors.ink)),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           booking.startOtp ?? '4821',
                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2, color: AppColors.accentDark),
