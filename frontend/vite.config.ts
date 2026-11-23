@@ -59,8 +59,7 @@ export default defineConfig({
     port: 3000,
     open: false,
     headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
-      'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*, focus-without-user-activation=*',
+      'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*',
     },
 
     proxy: {
@@ -74,7 +73,7 @@ export default defineConfig({
   preview: {
     port: 3000,
     headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*',
     },
 
     proxy: {

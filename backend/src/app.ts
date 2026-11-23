@@ -11,13 +11,14 @@ const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000,http:
 
 app.use(
   helmet({
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginOpenerPolicy: false,
+    contentSecurityPolicy: false,
   }),
 );
 
 // credentials: true so the httpOnly refresh cookie travels with /auth requests.
 app.use((_req, res, next) => {
-  res.setHeader('Permissions-Policy', 'accelerometer=*, gyroscope=*, magnetometer=*, focus-without-user-activation=*');
+  res.setHeader('Permissions-Policy', 'accelerometer=*, gyroscope=*, magnetometer=*');
   next();
 });
 

@@ -49,7 +49,7 @@ export default function CustomerLayout() {
         mainRef.current?.focus({ preventScroll: true });
       }
     } catch {
-      // Ignore Permissions-Policy violation: focus-without-user-activation in embedded iframes
+      // Ignore Permissions-Policy violation in embedded iframes
     }
   }, [pathname]);
   const [sidebarOpen, toggleSidebar] = useSidebarOpen();
