@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../bookings/active_bookings_screen.dart';
 import '../bookings/bookings_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import '../payments/payments_screen.dart';
 import '../referrals/referrals_screen.dart';
 import '../reviews/reviews_screen.dart';
@@ -284,6 +285,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const ReferralsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(),
+                _buildMenuItem(
+                  icon: Icons.explore_outlined,
+                  tintBg: const Color(0xFFEEF2FF),
+                  tintFg: const Color(0xFF4338CA),
+                  title: 'App Tour & Onboarding',
+                  subtitle: 'Revisit feature highlights and guide',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OnboardingScreen(isRevisit: true),
                       ),
                     );
                   },

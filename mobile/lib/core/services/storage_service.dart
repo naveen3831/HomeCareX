@@ -80,12 +80,16 @@ class StorageService {
 
   static Future<bool> isOnboardingCompleted() async {
     if (_memoryCache.containsKey(_keyOnboarding)) {
-      return (_memoryCache[_keyOnboarding] as bool?) ?? true;
+      return (_memoryCache[_keyOnboarding] as bool?) ?? false;
     }
     final prefs = await _getPrefs();
-    final val = prefs?.getBool(_keyOnboarding) ?? true;
+    final val = prefs?.getBool(_keyOnboarding) ?? false;
     _memoryCache[_keyOnboarding] = val;
     return val;
+  }
+
+  static Future<void> resetOnboarding() async {
+    await setOnboardingCompleted(false);
   }
 
   static Future<void> setOnboardingCompleted([bool completed = true]) async {
