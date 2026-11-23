@@ -18,8 +18,89 @@ void main() {
     StorageService.clearCache();
   });
 
-  group('RazorpayTestCheckoutSheet Unit & Widget tests', () {
-    testWidgets('renders Razorpay Test Mode header, amount and payment methods',
+  group('Razorpay Checkout Screen & Demo Bank Dialog tests (media_1795424344222_1a10f3fb.jpg & media_1795424348300_d5fbfdda.jpg)', () {
+    testWidgets('renders Razorpay mobile checkout screen matching media_1795424344222_1a10f3fb.jpg',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: const RazorpayCheckoutScreen(
+            amount: 742.0,
+            serviceName: 'Haircut & Styling',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Top Bar
+      expect(find.text('HomeCareX'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.person_rounded), findsOneWidget);
+
+      // 2. Section: Payment Options
+      expect(find.text('Payment Options'), findsOneWidget);
+
+      // 3. UPI QR Box
+      expect(find.text('UPI QR'), findsOneWidget);
+      expect(find.text('11:55'), findsOneWidget);
+      expect(find.text('Scan the QR using any UPI App'), findsOneWidget);
+
+      // 4. All Payment Options list
+      expect(find.text('All Payment Options'), findsOneWidget);
+      expect(find.text('UPI'), findsOneWidget);
+      expect(find.text('Cards'), findsOneWidget);
+      expect(find.text('EMI'), findsOneWidget);
+      expect(find.text('Netbanking'), findsOneWidget);
+      expect(find.text('Wallet'), findsOneWidget);
+
+      // 5. Sticky Bottom Bar
+      expect(find.text('₹742'), findsOneWidget);
+      expect(find.text('View Details'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
+    });
+
+    testWidgets('View Details modal opens when tapping View Details',
+        (WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: const RazorpayCheckoutScreen(
+            amount: 742.0,
+            serviceName: 'Haircut & Styling',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('View Details'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payment Details'), findsOneWidget);
+      expect(find.text('Haircut & Styling'), findsOneWidget);
+      expect(find.text('Total Payable'), findsOneWidget);
+    });
+
+    testWidgets('tapping Continue opens Demo Bank Dialog matching media_1795424348300_d5fbfdda.jpg and Success returns valid result',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -42,8 +123,8 @@ void main() {
                 onPressed: () async {
                   result = await RazorpayTestCheckoutSheet.show(
                     context: context,
-                    amount: 446.0,
-                    serviceName: 'Shelf & Curtain Rod Installation',
+                    amount: 742.0,
+                    serviceName: 'Haircut & Styling',
                   );
                 },
                 child: const Text('Open Razorpay Checkout'),
@@ -54,74 +135,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open checkout
+      // Launch screen
       await tester.tap(find.text('Open Razorpay Checkout'));
       await tester.pumpAndSettle();
 
-      // 1. Verify Header
-      expect(find.text('HomeCareX'), findsOneWidget);
-      expect(find.text('TEST MODE'), findsOneWidget);
-      expect(find.text('Payment for Shelf & Curtain Rod Installation'), findsOneWidget);
-      expect(find.text('₹446'), findsOneWidget);
-      expect(find.text('rzp_test_gateway'), findsOneWidget);
-
-      // 2. Verify Payment Methods
-      expect(find.text('PREFERRED PAYMENT METHODS'), findsOneWidget);
-      expect(find.text('UPI / QR'), findsOneWidget);
-      expect(find.text('Google Pay'), findsOneWidget);
-      expect(find.text('PhonePe'), findsOneWidget);
-      expect(find.text('Paytm'), findsOneWidget);
-      expect(find.text('Cards (Credit / Debit)'), findsOneWidget);
-      expect(find.text('Netbanking'), findsOneWidget);
-      expect(find.text('Wallets'), findsOneWidget);
-      expect(find.text('Pay ₹446'), findsOneWidget);
-      expect(find.text('Secured by Razorpay • Test Environment'), findsOneWidget);
-    });
-
-    testWidgets('transitions to Demo Bank Page and returns Success when Success button is tapped',
-        (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      RazorpayCheckoutResult? result;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData(
-            useMaterial3: true,
-            splashFactory: NoSplash.splashFactory,
-          ),
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () async {
-                  result = await RazorpayTestCheckoutSheet.show(
-                    context: context,
-                    amount: 446.0,
-                    serviceName: 'Shelf & Curtain Rod Installation',
-                  );
-                },
-                child: const Text('Open Checkout'),
-              ),
-            ),
-          ),
-        ),
-      );
+      // Tap Continue button
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open Checkout'));
-      await tester.pumpAndSettle();
-
-      // Tap Pay button to transition to demo bank
-      await tester.tap(find.text('Pay ₹446'));
-      await tester.pumpAndSettle();
-
-      // Verify Demo Bank view matches mobile responsive screenshot specification
-      expect(find.text('1'), findsOneWidget); // Big blue italic 1 glyph
+      // Verify Demo Bank Dialog (media_1795424348300_d5fbfdda.jpg)
+      expect(find.text('1'), findsOneWidget); // Blue italic 1 glyph
       expect(
         find.text('Welcome to Razorpay Software Private Ltd Bank'),
         findsOneWidget,
@@ -133,14 +156,9 @@ void main() {
       );
       expect(find.text('Success'), findsOneWidget);
       expect(find.text('Failure'), findsOneWidget);
-      expect(find.text('Back to methods'), findsOneWidget);
 
       // Tap Success
       await tester.tap(find.text('Success'));
-      await tester.pump();
-      expect(find.text('Authorizing payment…'), findsOneWidget);
-
-      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       expect(result, isNotNull);
@@ -149,7 +167,7 @@ void main() {
       expect(result!.paymentId, startsWith('pay_test_'));
     });
 
-    testWidgets('returns Failure outcome when Failure button is tapped in demo bank',
+    testWidgets('tapping Failure in Demo Bank Dialog returns Failure outcome',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -172,8 +190,8 @@ void main() {
                 onPressed: () async {
                   result = await RazorpayTestCheckoutSheet.show(
                     context: context,
-                    amount: 446.0,
-                    serviceName: 'Shelf & Curtain Rod Installation',
+                    amount: 742.0,
+                    serviceName: 'Haircut & Styling',
                   );
                 },
                 child: const Text('Open Checkout'),
@@ -187,16 +205,12 @@ void main() {
       await tester.tap(find.text('Open Checkout'));
       await tester.pumpAndSettle();
 
-      // Tap Pay button
-      await tester.tap(find.text('Pay ₹446'));
+      // Tap Continue button
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       // Tap Failure
       await tester.tap(find.text('Failure'));
-      await tester.pump();
-      expect(find.text('Declining payment…'), findsOneWidget);
-
-      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       expect(result, isNotNull);
@@ -244,7 +258,7 @@ void main() {
       );
     }
 
-    testWidgets('shows RAZORPAY TEST badge and opens Razorpay Test Mode when Online Payment is selected',
+    testWidgets('shows RAZORPAY TEST badge, opens Razorpay Checkout and confirms on Success',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -277,12 +291,12 @@ void main() {
       await tester.tap(find.text('Confirm Booking ✓'));
       await tester.pumpAndSettle();
 
-      // Razorpay Checkout sheet opens
-      expect(find.text('TEST MODE'), findsOneWidget);
-      expect(find.text('Pay ₹441'), findsOneWidget);
+      // Razorpay Checkout screen opens matching media_1795424344222_1a10f3fb.jpg
+      expect(find.text('Payment Options'), findsOneWidget);
+      expect(find.text('Continue'), findsOneWidget);
 
-      // Transition to Demo Bank
-      await tester.tap(find.text('Pay ₹441'));
+      // Tap Continue to open Demo Bank Dialog (media_1795424348300_d5fbfdda.jpg)
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       expect(
@@ -292,8 +306,6 @@ void main() {
 
       // Complete with Success
       await tester.tap(find.text('Success'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       // Verified booking confirmed!
@@ -302,7 +314,7 @@ void main() {
       expect(bookingProvider.bookings.length, 1);
     });
 
-    testWidgets('shows Payment Failed dialog when Failure is tapped in demo bank',
+    testWidgets('shows Payment Failed dialog when Failure is tapped and allows Cash on Service fallback',
         (WidgetTester tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
@@ -330,14 +342,12 @@ void main() {
       await tester.tap(find.text('Confirm Booking ✓'));
       await tester.pumpAndSettle();
 
-      // Transition to Demo Bank
-      await tester.tap(find.text('Pay ₹441'));
+      // Tap Continue
+      await tester.tap(find.text('Continue'));
       await tester.pumpAndSettle();
 
       // Tap Failure in Demo Bank
       await tester.tap(find.text('Failure'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
       // Payment Failed dialog appears with recovery options
@@ -351,8 +361,6 @@ void main() {
 
       // Tap "Pay with Cash on Service" recovery button
       await tester.tap(find.text('Pay with Cash on Service'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
       await tester.pumpAndSettle();
 
       // Booking confirmed with Cash on Service fallback
