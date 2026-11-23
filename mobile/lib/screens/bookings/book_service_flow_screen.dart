@@ -2,14 +2,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/models/address_model.dart';
+import '../../core/models/booking_model.dart';
 import '../../core/models/notification_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/notification_provider.dart';
-import '../bookings/active_bookings_screen.dart';
 import '../main_navigation_screen.dart';
 import '../payments/razorpay_test_checkout_sheet.dart';
+import 'booking_success_screen.dart';
 
 class BookServiceFlowScreen extends StatefulWidget {
   final ServiceModel service;
@@ -547,159 +548,34 @@ class _BookServiceFlowScreenState extends State<BookServiceFlowScreen> {
   void _showBookingSuccessModal([String? confirmedId]) {
     final bookingId = confirmedId ?? 'BK-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      builder: (modalCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
+    BookingModel? matchedBooking;
+    try {
+      final bookingProvider = context.read<BookingProvider>();
+      for (final b in bookingProvider.bookings) {
+        if (b.id == bookingId) {
+          matchedBooking = b;
+          break;
+        }
+      }
+    } catch (_) {}
 
-              // Celebratory Icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFA7F3D0), width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF059669).withValues(alpha: 0.15),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 36),
-                ),
-              ),
-              const SizedBox(height: 18),
+    final addressText = _selectedAddress != null
+        ? '${_selectedAddress!.house}, ${_selectedAddress!.street ?? ''}, ${_selectedAddress!.city} - ${_selectedAddress!.pincode}'
+        : '000000, Image Garden road, Ayyappa Society Colony, Hyderabad - 500081';
 
-              const Text(
-                'Booking Confirmed!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E1B2E),
-                  letterSpacing: -0.4,
-                ),
-              ),
-              const SizedBox(height: 6),
-
-              Text(
-                'Booking ID: #$bookingId',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF4F46E5),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.home_repair_service_rounded, size: 16, color: Color(0xFF4F46E5)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            widget.service.name,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E1B2E)),
-                          ),
-                        ),
-                        Text('Qty: $_quantity', style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                      ],
-                    ),
-                    const Divider(height: 18, color: Color(0xFFE2E8F0)),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF4F46E5)),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${_formatDate(_selectedDate)} • $_selectedSlot',
-                          style: const TextStyle(fontSize: 12.5, color: Color(0xFF475569), fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF4F46E5)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _selectedAddress?.formattedAddress ?? 'Home Address',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4338CA),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(modalCtx);
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const ActiveBookingsScreen()),
-                    );
-                  },
-                  child: const Text('Track Booking', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pop(modalCtx);
-                    Navigator.of(context).popUntil((r) => r.isFirst);
-                  },
-                  child: const Text('Back to Home', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
-                ),
-              ),
-            ],
-          ),
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => BookingSuccessScreen(
+          bookingId: bookingId,
+          booking: matchedBooking,
+          service: widget.service,
+          selectedAddress: _selectedAddress,
+          addressText: addressText,
+          selectedDate: _selectedDate,
+          selectedSlot: _selectedSlot,
+          paymentMethod: _paymentMethod == 'online' ? 'Net banking' : 'Cash on Service',
+          totalAmount: _grandTotal.toDouble(),
+          isCod: false,
         ),
       ),
     );
