@@ -15,25 +15,8 @@
     <link rel="shortcut icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-
-    <!-- Home only: start downloading the hero photo before JavaScript runs.
-         srcset/sizes match the <picture> in Home.tsx, so the browser reuses this download. -->
-    <script>
-      (function () {
-        if (location.pathname !== "/") return;
-        var l = document.createElement("link");
-        l.rel = "preload";
-        l.as = "image";
-        l.type = "image/webp";
-        l.setAttribute(
-          "imagesrcset",
-          "/images/background-800.webp 800w, /images/background-1280.webp 1280w, /images/background.webp 1672w"
-        );
-        l.setAttribute("imagesizes", "100vw");
-        l.setAttribute("fetchpriority", "high");
-        document.head.appendChild(l);
-      })();
-    </script>
+    <!-- Externalized preload & shell script for fast first paint without inline CSP violations -->
+    <script src="/preload.js"></script>
 
     <!-- Self-hosted fonts (made by scripts/self-host-fonts.mjs): same families as before, no third-party requests. -->
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/dm-sans-400-latin.woff2" />
@@ -93,19 +76,6 @@
       @keyframes boot-spin { to { transform: rotate(360deg); } }
     </style>
 
-       <!-- Services page only: the first card image is its LCP element. Other pages never show it. -->
-    <script>
-      (function () {
-        if (location.pathname !== "/services") return;
-        var l = document.createElement("link");
-        l.rel = "preload";
-        l.as = "image";
-        l.type = "image/webp";
-        l.href = "/images/appliance-repair.webp";
-        l.setAttribute("fetchpriority", "high");
-        document.head.appendChild(l);
-      })();
-    </script>
   </head>
 
   <body>
@@ -117,29 +87,6 @@
       </div>
       <noscript>HomeCareX needs JavaScript to run. Please enable it and reload.</noscript>
     </div>
-
-    <script>
-      /* Home page only: paint the hero photo from plain HTML, on top of the page.
-         Home.tsx removes it once React's own hero image has loaded. The timer is a safety net. */
-      (function () {
-        if (location.pathname !== "/") return;
-        document.body.insertAdjacentHTML(
-          "beforeend",
-          '<div id="hcx-shell" aria-hidden="true">' +
-            '<div class="sp"></div>' +
-            '<img src="/images/background.webp"' +
-            ' srcset="/images/background-800.webp 800w, /images/background-1280.webp 1280w, /images/background.webp 1672w"' +
-            ' sizes="100vw" width="1672" height="941" alt=""' +
-            ' fetchpriority="high" decoding="async" />' +
-            '<div class="ov"></div>' +
-            "</div>"
-        );
-        setTimeout(function () {
-          var s = document.getElementById("hcx-shell");
-          if (s) s.remove();
-        }, 8000);
-      })();
-    </script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>
