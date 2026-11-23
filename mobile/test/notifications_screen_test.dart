@@ -318,5 +318,49 @@ void main() {
       expect(find.text('Notifications'), findsOneWidget);
       expect(find.text('Payment successful'), findsOneWidget);
     });
+
+    testWidgets('HomeScreen bell does not display badge when unread notifications is 0 even if active bookings exist', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final bookingProvider = BookingProvider();
+      bookingProvider.syncRemote = false;
+      final notifProvider = NotificationProvider()..syncRemote = false;
+      // Mark all notifications as read so unreadCount becomes 0
+      await notifProvider.markAllRead();
+      expect(notifProvider.unreadCount, 0);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => AuthProvider()),
+            ChangeNotifierProvider(create: (_) => CartProvider()),
+            ChangeNotifierProvider(create: (_) => CatalogProvider()),
+            ChangeNotifierProvider.value(value: bookingProvider),
+            ChangeNotifierProvider.value(value: notifProvider),
+          ],
+          child: const MaterialApp(
+            home: HomeScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Verify NotificationBellButton and Bell3DIcon are displayed
+      expect(find.byType(NotificationBellButton), findsOneWidget);
+      expect(find.byType(Bell3DIcon), findsOneWidget);
+
+      // Verify no badge count is displayed (neither 0, 2, nor active bookings count like 3)
+      expect(find.text('0'), findsNothing);
+      expect(find.text('2'), findsNothing);
+      expect(find.text('3'), findsNothing);
+
+      final bellButton = tester.widget<NotificationBellButton>(find.byType(NotificationBellButton));
+      expect(bellButton.count, 0);
+    });
   });
 }

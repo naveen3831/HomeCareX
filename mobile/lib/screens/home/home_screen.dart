@@ -254,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isPickerOpen = false,
     VoidCallback? onTogglePicker,
   }) {
-    final badgeCount = unreadNotificationsCount > 0 ? unreadNotificationsCount : activeCount;
+    final badgeCount = unreadNotificationsCount;
     final label = selectedAddress != null
         ? selectedAddress.label
         : (latestBooking != null ? 'Home' : 'Add address');

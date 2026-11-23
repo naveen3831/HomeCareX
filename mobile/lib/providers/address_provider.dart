@@ -134,3 +134,4 @@ class AddressProvider extends ChangeNotifier {
     await _persistAddresses();
   }
 }
+

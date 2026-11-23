@@ -87,9 +87,8 @@ void main() {
     expect(find.text('₹446'), findsOneWidget);
     expect(find.textContaining('Sri Sai Nilayam'), findsWidgets);
 
-    // Verify Top Header updates with Home address and badge
+    // Verify Top Header updates with Home address
     expect(find.text('• Home'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget); // badge count
 
     // Verify Welcome card is NOT shown
     expect(find.text('Welcome to HomeCareX!'), findsNothing);
