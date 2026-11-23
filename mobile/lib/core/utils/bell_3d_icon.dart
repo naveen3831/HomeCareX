@@ -107,20 +107,9 @@ class NotificationBellButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      child: SizedBox(
+        width: 38,
+        height: 38,
         child: Center(
           child: Stack(
             clipBehavior: Clip.none,
@@ -169,3 +158,4 @@ class NotificationBellButton extends StatelessWidget {
     );
   }
 }
+
