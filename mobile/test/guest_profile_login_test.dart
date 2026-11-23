@@ -62,7 +62,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Confirm starting on Home tab
-    expect(find.text('HOMECAREX', findRichText: true), findsWidgets);
+    expect(find.byType(Image), findsWidgets);
 
     // Tap Profile tab (index 4)
     final profileTabFinder = find.text('Profile');

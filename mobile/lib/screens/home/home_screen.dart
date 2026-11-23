@@ -318,62 +318,61 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // HomeCareX Brand Logo matching Image 1
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFFF9548), Color(0xFFFF7A1A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+          // HomeCareX Brand Logo
+          Image.asset(
+            'assets/images/logo.png',
+            height: 28,
+            fit: BoxFit.contain,
+            semanticLabel: 'HOMECAREX',
+            errorBuilder: (_, __, ___) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF9548), Color(0xFFFF7A1A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(9),
                   ),
-                  borderRadius: BorderRadius.circular(9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF7A1A).withValues(alpha: 0.28),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+                  child: const Center(
+                    child: Icon(
+                      Icons.home_rounded,
+                      size: 20,
+                      color: Colors.white,
                     ),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.home_rounded,
-                    size: 20,
-                    color: Colors.white,
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              RichText(
-                text: const TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'HOMECARE',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF0F172A),
+                const SizedBox(width: 8),
+                RichText(
+                  text: const TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'HOMECARE',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: 'X',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF2563EB),
+                      TextSpan(
+                        text: 'X',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                          color: Color(0xFF2563EB),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           // Location pill in center/right: 📍 Hyderabad ˇ

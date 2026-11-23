@@ -171,53 +171,29 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 18),
 
-              // Brand Logo: Orange house icon + HOMECAREX
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF97316),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFF97316).withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
+              // Brand Logo: Official HomeCareX Logo
+              Center(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: 32,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'HomeCareX Logo',
+                  errorBuilder: (_, __, ___) => const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.home_rounded, color: Color(0xFFF97316), size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'HomeCareX',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
                         ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.home_rounded,
-                        color: Colors.white,
-                        size: 20,
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.4,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: 'HOMECARE',
-                          style: TextStyle(color: Color(0xFF0F172A)),
-                        ),
-                        TextSpan(
-                          text: 'X',
-                          style: TextStyle(color: Color(0xFF2563EB)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 12),
 

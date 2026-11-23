@@ -56,7 +56,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     // 1. Top Header: Brand logo, location pill, notification bell
-    expect(find.text('HOMECAREX', findRichText: true), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
     expect(find.text('Hyderabad'), findsOneWidget);
 
     // 2. Greeting section matching image

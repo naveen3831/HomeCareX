@@ -127,27 +127,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       onPressed: () => Navigator.of(context).pop(),
                     )
                   else
-                    // HomeCareX mini logo / pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.home_repair_service_rounded, size: 14, color: Color(0xFF4338CA)),
-                          SizedBox(width: 5),
-                          Text(
-                            'HomeCareX',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF4338CA),
+                    // HomeCareX Logo
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 24,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'HomeCareX Logo',
+                      errorBuilder: (_, __, ___) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.home_repair_service_rounded, size: 14, color: Color(0xFF4338CA)),
+                            SizedBox(width: 5),
+                            Text(
+                              'HomeCareX',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4338CA),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
 
