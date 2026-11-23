@@ -59,7 +59,7 @@ export default defineConfig({
     port: 3000,
     open: false,
     headers: {
-      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss:;",
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss:; frame-ancestors *;",
       'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*',
     },
 
@@ -74,7 +74,7 @@ export default defineConfig({
   preview: {
     port: 3000,
     headers: {
-      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss:;",
+      'Content-Security-Policy': "default-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob: ws: wss:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; style-src 'self' 'unsafe-inline' https:; font-src 'self' data: https:; img-src 'self' data: blob: https:; connect-src 'self' http: https: ws: wss:; frame-ancestors *;",
       'Permissions-Policy': 'accelerometer=*, gyroscope=*, magnetometer=*',
     },
 
