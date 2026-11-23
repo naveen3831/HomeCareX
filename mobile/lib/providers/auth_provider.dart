@@ -14,14 +14,19 @@ class AuthProvider extends ChangeNotifier {
     referralCode: 'HOMECAREX10',
   );
 
-  UserModel? _user;
+  UserModel? _user = StorageService.isLoggedOutSync() ? null : defaultCustomer;
   bool _isLoading = false;
   String? _errorMessage;
 
-  UserModel? get user => _user ?? defaultCustomer;
+  UserModel? get user => _user;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  void setUser(UserModel? user) {
+    _user = user;
+    notifyListeners();
+  }
 
   AuthProvider() {
     _initUser();
@@ -29,6 +34,13 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _initUser() async {
     try {
+      final loggedOut = await StorageService.isLoggedOut();
+      if (loggedOut) {
+        _user = null;
+        notifyListeners();
+        return;
+      }
+
       final cached = await StorageService.getUser();
       if (cached != null) {
         _user = cached;
@@ -45,8 +57,6 @@ class AuthProvider extends ChangeNotifier {
       final token = await StorageService.getToken();
       if (token == null) {
         if (_user == null) {
-          final cached = await StorageService.getUser();
-          _user = cached ?? defaultCustomer;
           notifyListeners();
         }
         return;
@@ -78,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
       });
 
       if (res is Map && res['token'] != null) {
+        await StorageService.setLoggedOut(false);
         await StorageService.saveToken(res['token'].toString());
         if (res['user'] != null) {
           _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
@@ -123,6 +134,7 @@ class AuthProvider extends ChangeNotifier {
 
       final res = await ApiService.post(ApiConstants.register, body);
       if (res is Map && res['token'] != null) {
+        await StorageService.setLoggedOut(false);
         await StorageService.saveToken(res['token'].toString());
         if (res['user'] != null) {
           _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
@@ -272,7 +284,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await StorageService.clearAuth();
-    _user = defaultCustomer;
+    await StorageService.setLoggedOut(true);
+    _user = null;
     notifyListeners();
   }
 }

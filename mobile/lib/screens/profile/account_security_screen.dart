@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../providers/auth_provider.dart';
-import '../auth/login_screen.dart';
+import '../main_navigation_screen.dart';
 import 'change_password_screen.dart';
 
 class UserSessionItem {
@@ -152,7 +152,7 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
         final nav = Navigator.of(context);
         await auth.logout();
         nav.pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen(initialIndex: 2)),
           (route) => false,
         );
         return;
@@ -211,7 +211,7 @@ class _AccountSecurityScreenState extends State<AccountSecurityScreen> {
     final nav = Navigator.of(context);
     await auth.logout();
     nav.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(builder: (_) => const MainNavigationScreen(initialIndex: 2)),
       (route) => false,
     );
   }

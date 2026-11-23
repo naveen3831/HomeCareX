@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:homecarex_mobile/core/services/storage_service.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/providers/booking_provider.dart';
 import 'package:homecarex_mobile/providers/cart_provider.dart';
@@ -11,13 +12,18 @@ import 'package:homecarex_mobile/screens/bookings/booking_tracking_screen.dart';
 
 void main() {
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'auth_token': 'mock_token',
+      'auth_user': '{"id":"customer_default","name":"TATUKULA EDUKONDALU","email":"tatukulaedukondalu@gmail.com","phone":"8346167714","role":"customer"}',
+    });
+    StorageService.clearCache();
   });
 
-  Widget createTestWidget(BookingProvider bookingProvider) {
+  Widget createTestWidget(BookingProvider bookingProvider, {AuthProvider? authProvider}) {
+    final auth = authProvider ?? (AuthProvider()..setUser(AuthProvider.defaultCustomer));
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider.value(value: auth),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => CatalogProvider()),
         ChangeNotifierProvider.value(value: bookingProvider),
