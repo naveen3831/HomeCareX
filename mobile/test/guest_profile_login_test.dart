@@ -74,9 +74,9 @@ void main() {
     // Verify LoginScreen is shown inside Profile tab in guest mode
     expect(find.byType(LoginScreen), findsOneWidget);
 
-    // 1. Top Bar: Back to Home & Secure Login
+    // 1. Top Bar: Back to Home (Secure Login removed)
     expect(find.text('Back to Home'), findsOneWidget);
-    expect(find.text('Secure Login'), findsOneWidget);
+    expect(find.text('Secure Login'), findsNothing);
 
     // 2. Brand header & titles
     expect(find.text('Welcome Back 👋'), findsOneWidget);

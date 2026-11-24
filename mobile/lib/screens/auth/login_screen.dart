@@ -108,76 +108,52 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Bar: < Back to Home ... • Secure Login
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _navigateBackToHome(context),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.chevron_left_rounded,
-                            size: 20,
-                            color: Color(0xFF64748B),
-                          ),
-                          SizedBox(width: 2),
-                          Text(
-                            'Back to Home',
-                            style: TextStyle(
-                              color: Color(0xFF475569),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight - 24,
+                ),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Top Bar: < Back to Home
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _navigateBackToHome(context),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.chevron_left_rounded,
+                                  size: 20,
+                                  color: Color(0xFF64748B),
+                                ),
+                                SizedBox(width: 2),
+                                Text(
+                                  'Back to Home',
+                                  style: TextStyle(
+                                    color: Color(0xFF475569),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      border: Border.all(color: const Color(0xFFBFDBFE)),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF10B981),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'Secure Login',
-                          style: TextStyle(
-                            color: Color(0xFF1D4ED8),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
 
-              // Brand Logo: Official HomeCareX Logo
+                      const Spacer(),
+
+                      // Brand Logo: Official HomeCareX Logo
               Center(
                 child: Image.asset(
                   'assets/images/logo.png',
@@ -690,10 +666,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              const Spacer(),
             ],
           ),
         ),
       ),
     );
+  },
+),
+),
+);
   }
 }
