@@ -24,6 +24,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingSlideData(
       imagePath: 'assets/images/hero-cleaner.png',
       imageFit: BoxFit.contain,
+      imageAlignment: Alignment.bottomCenter,
+      imagePadding: EdgeInsets.only(top: 10, bottom: 4),
       icon: Icons.cleaning_services_rounded,
       primaryColor: Color(0xFF4338CA),
       softBgColor: Color(0xFFEEF2FF),
@@ -42,6 +44,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingSlideData(
       imagePath: 'assets/images/quality-service.jpg',
       imageFit: BoxFit.cover,
+      imageAlignment: Alignment.topCenter,
       icon: Icons.verified_user_rounded,
       primaryColor: Color(0xFF059669),
       softBgColor: Color(0xFFECFDF5),
@@ -60,6 +63,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     OnboardingSlideData(
       imagePath: 'assets/images/hero-banner.png',
       imageFit: BoxFit.cover,
+      imageAlignment: Alignment.center,
       icon: Icons.track_changes_rounded,
       primaryColor: Color(0xFFD97706),
       softBgColor: Color(0xFFFEF3C7),
@@ -210,104 +214,116 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPageChanged: (idx) => setState(() => _currentPage = idx),
                 itemBuilder: (context, index) {
                   final slide = _slides[index];
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 8),
-                        // Hero Illustrated Image Card
-                        _buildHeroIllustration(slide),
-                        const SizedBox(height: 24),
-
-                        // Badge Pill
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: slide.softBgColor,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: slide.borderTint, width: 1.2),
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(slide.badgeIcon, size: 13, color: slide.primaryColor),
-                              const SizedBox(width: 5),
-                              Text(
-                                slide.badgeText,
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: slide.primaryColor,
-                                  letterSpacing: 0.7,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const SizedBox(height: 12),
+                                // Hero Illustrated Image Card
+                                _buildHeroIllustration(slide),
+                                const SizedBox(height: 24),
 
-                        // Headline Title
-                        Text(
-                          slide.title,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                            height: 1.25,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Subtitle
-                        Text(
-                          slide.subtitle,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            color: Color(0xFF64748B),
-                            height: 1.45,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-
-                        // Feature Highlights Capsule Row
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.center,
-                          children: slide.features.map((feat) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 1),
+                                // Badge Pill
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: slide.softBgColor,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: slide.borderTint, width: 1.2),
                                   ),
-                                ],
-                              ),
-                              child: Text(
-                                feat,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(slide.badgeIcon, size: 13, color: slide.primaryColor),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        slide.badgeText,
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: slide.primaryColor,
+                                          letterSpacing: 0.7,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                                const SizedBox(height: 14),
+
+                                // Headline Title
+                                Text(
+                                  slide.title,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                    height: 1.25,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Subtitle
+                                Text(
+                                  slide.subtitle,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 13.5,
+                                    color: Color(0xFF64748B),
+                                    height: 1.45,
+                                  ),
+                                ),
+                                const SizedBox(height: 18),
+
+                                // Feature Highlights Capsule Row
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  alignment: WrapAlignment.center,
+                                  children: slide.features.map((feat) {
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.02),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 1),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        feat,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF334155),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                                const SizedBox(height: 12),
+                              ],
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -402,64 +418,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   /// 3D Layered Hero Illustration with Image for each slide
   Widget _buildHeroIllustration(OnboardingSlideData slide) {
-    return SizedBox(
-      height: 200,
-      width: double.infinity,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.center,
-        children: [
-          // Ambient soft glow behind the card
-          Container(
-            width: 260,
-            height: 165,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(32),
-              color: slide.primaryColor.withValues(alpha: 0.10),
-              boxShadow: [
-                BoxShadow(
-                  color: slide.primaryColor.withValues(alpha: 0.18),
-                  blurRadius: 28,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-          ),
+    const cardWidth = 280.0;
+    const cardHeight = 175.0;
 
-          // Central Card Container with Image
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 320),
-            height: 185,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white,
-                  slide.softBgColor,
+    return Center(
+      child: SizedBox(
+        width: cardWidth,
+        height: cardHeight,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // Ambient soft glow behind the card
+            Container(
+              width: cardWidth - 20,
+              height: cardHeight - 20,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(32),
+                color: slide.primaryColor.withValues(alpha: 0.12),
+                boxShadow: [
+                  BoxShadow(
+                    color: slide.primaryColor.withValues(alpha: 0.22),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 8),
+                  ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: slide.borderTint, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-              ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(22.5),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Image
-                  Image.asset(
+
+            // Central Card Container with Image
+            Container(
+              width: cardWidth,
+              height: cardHeight,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white,
+                    slide.softBgColor,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: slide.borderTint, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22.5),
+                child: Padding(
+                  padding: slide.imagePadding ?? EdgeInsets.zero,
+                  child: Image.asset(
                     slide.imagePath,
                     fit: slide.imageFit,
+                    alignment: slide.imageAlignment,
                     errorBuilder: (_, __, ___) => Container(
                       color: slide.softBgColor,
                       child: Center(
@@ -471,83 +489,83 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
 
-          // Floating Top-Right Mini Badge
-          Positioned(
-            top: 2,
-            right: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(slide.topBadgeIcon, size: 12, color: slide.primaryColor),
-                  const SizedBox(width: 4),
-                  Text(
-                    slide.topBadgeText,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: slide.primaryColor,
+            // Floating Top-Right Mini Badge
+            Positioned(
+              top: -8,
+              right: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(slide.topBadgeIcon, size: 12, color: slide.primaryColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      slide.topBadgeText,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: slide.primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Floating Bottom-Left Mini Badge
-          Positioned(
-            bottom: 2,
-            left: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(slide.bottomBadgeIcon, size: 12, color: const Color(0xFFF59E0B)),
-                  const SizedBox(width: 4),
-                  Text(
-                    slide.bottomBadgeText,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+            // Floating Bottom-Left Mini Badge
+            Positioned(
+              bottom: -8,
+              left: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(slide.bottomBadgeIcon, size: 12, color: const Color(0xFFF59E0B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      slide.bottomBadgeText,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -556,6 +574,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 class OnboardingSlideData {
   final String imagePath;
   final BoxFit imageFit;
+  final Alignment imageAlignment;
+  final EdgeInsetsGeometry? imagePadding;
   final IconData icon;
   final Color primaryColor;
   final Color softBgColor;
@@ -573,6 +593,8 @@ class OnboardingSlideData {
   const OnboardingSlideData({
     required this.imagePath,
     this.imageFit = BoxFit.cover,
+    this.imageAlignment = Alignment.center,
+    this.imagePadding,
     required this.icon,
     required this.primaryColor,
     required this.softBgColor,
