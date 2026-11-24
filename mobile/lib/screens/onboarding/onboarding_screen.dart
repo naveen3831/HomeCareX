@@ -62,7 +62,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _completeOnboarding({bool toLogin = false}) async {
+  Future<void> _completeOnboarding({bool toLogin = true}) async {
     await StorageService.setOnboardingCompleted(true);
     if (!mounted) return;
 
@@ -89,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         curve: Curves.easeInOutCubic,
       );
     } else {
-      _completeOnboarding();
+      _completeOnboarding(toLogin: true);
     }
   }
 

@@ -8,7 +8,6 @@ import 'package:homecarex_mobile/providers/cart_provider.dart';
 import 'package:homecarex_mobile/providers/catalog_provider.dart';
 import 'package:homecarex_mobile/providers/notification_provider.dart';
 import 'package:homecarex_mobile/screens/auth/login_screen.dart';
-import 'package:homecarex_mobile/screens/main_navigation_screen.dart';
 import 'package:homecarex_mobile/screens/onboarding/onboarding_screen.dart';
 import 'package:homecarex_mobile/screens/splash/splash_screen.dart';
 import 'package:provider/provider.dart';
@@ -106,7 +105,7 @@ void main() {
     expect(find.text('Already have an account? Sign In'), findsOneWidget);
   });
 
-  testWidgets('Tapping Get Started completes onboarding and navigates to MainNavigationScreen',
+  testWidgets('Tapping Get Started completes onboarding and navigates to LoginScreen',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -130,10 +129,10 @@ void main() {
 
     final isCompleted = await StorageService.isOnboardingCompleted();
     expect(isCompleted, isTrue);
-    expect(find.byType(MainNavigationScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
-  testWidgets('Tapping Skip completes onboarding and navigates to MainNavigationScreen',
+  testWidgets('Tapping Skip completes onboarding and navigates to LoginScreen',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -150,7 +149,7 @@ void main() {
 
     final isCompleted = await StorageService.isOnboardingCompleted();
     expect(isCompleted, isTrue);
-    expect(find.byType(MainNavigationScreen), findsOneWidget);
+    expect(find.byType(LoginScreen), findsOneWidget);
   });
 
   testWidgets('Tapping Already have an account? Sign In navigates to LoginScreen',
