@@ -48,7 +48,9 @@ void main() {
     await tester.pumpWidget(createTestWidget(bookingProvider));
     await tester.pumpAndSettle();
 
-    // Verify Browse categories and Services for you are visible and Upcoming is not
+    // Verify Greeting, Hero banner, Browse categories and Services for you are visible and Upcoming is not
+    expect(find.text('Welcome, TATUKULA'), findsOneWidget);
+    expect(find.text('Appliance Repair & Service'), findsOneWidget);
     expect(find.text('Browse categories'), findsOneWidget);
     expect(find.text('Salon & Spa'), findsOneWidget);
     expect(find.text('Appliance Repair &\nService'), findsOneWidget);

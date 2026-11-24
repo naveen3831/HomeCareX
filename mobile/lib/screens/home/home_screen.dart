@@ -68,6 +68,18 @@ class _GuestHeroSlide {
   });
 }
 
+class _CustomerHeroSlide {
+  final String title;
+  final String imagePath;
+  final String slug;
+
+  const _CustomerHeroSlide({
+    required this.title,
+    required this.imagePath,
+    required this.slug,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -86,20 +98,56 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCity = 'Hyderabad';
 
   late final PageController _heroPageController;
+  late final PageController _customerHeroPageController;
   late final PageController _guestPageController;
   late final PageController _bottomPromoPageController;
   late final TextEditingController _searchController;
   Timer? _heroTimer;
+  Timer? _customerHeroTimer;
   Timer? _guestHeroTimer;
   Timer? _typingTimer;
   Timer? _typingPauseTimer;
   int _heroPageIndex = 0;
+  int _customerHeroIndex = 0;
   int _guestPageIndex = 0;
   bool _isGuestAutoplayPaused = false;
   String _animatedHint = 'Search AC repair|';
   int _phraseIndex = 0;
   int _charIndex = 0;
   bool _isTypingForward = true;
+
+  static const List<_CustomerHeroSlide> _customerHeroSlides = [
+    _CustomerHeroSlide(
+      title: 'Appliance Repair & Service',
+      imagePath: 'assets/images/quality-service.jpg',
+      slug: 'appliance-repair-service',
+    ),
+    _CustomerHeroSlide(
+      title: 'Home Cleaning',
+      imagePath: 'assets/images/home-cleaning.jpg',
+      slug: 'home-cleaning',
+    ),
+    _CustomerHeroSlide(
+      title: 'Salon & Spa',
+      imagePath: 'assets/images/Home-spa-women.webp',
+      slug: 'salon-spa',
+    ),
+    _CustomerHeroSlide(
+      title: 'Electrical & Plumbing',
+      imagePath: 'assets/images/electrical.jpg',
+      slug: 'electrical-plumbing',
+    ),
+    _CustomerHeroSlide(
+      title: 'Painting & Waterproofing',
+      imagePath: 'assets/images/painting-category.webp',
+      slug: 'painting-waterproofing',
+    ),
+    _CustomerHeroSlide(
+      title: 'Pest Control',
+      imagePath: 'assets/images/pest-control-clean.webp',
+      slug: 'pest-control',
+    ),
+  ];
 
   static const List<_GuestHeroSlide> _guestHeroSlides = [
     _GuestHeroSlide(
@@ -183,9 +231,22 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _heroPageController = PageController();
+    _customerHeroPageController = PageController();
     _guestPageController = PageController();
     _bottomPromoPageController = PageController();
     _searchController = TextEditingController();
+
+    _customerHeroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
+      if (!mounted) return;
+      if (_customerHeroPageController.hasClients) {
+        final next = (_customerHeroIndex + 1) % _customerHeroSlides.length;
+        _customerHeroPageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
 
     _heroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
       if (!mounted) return;
@@ -227,10 +288,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _heroTimer?.cancel();
+    _customerHeroTimer?.cancel();
     _guestHeroTimer?.cancel();
     _typingTimer?.cancel();
     _typingPauseTimer?.cancel();
     _heroPageController.dispose();
+    _customerHeroPageController.dispose();
     _guestPageController.dispose();
     _bottomPromoPageController.dispose();
     _searchController.dispose();
@@ -285,6 +348,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+
+  String _getUserFirstName(BuildContext context) {
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final name = auth.user?.name.trim();
+      if (name != null && name.isNotEmpty) {
+        return name.split(' ').first.toUpperCase();
+      }
+    } catch (_) {}
+    return 'TATUKULA';
   }
 
 
@@ -935,23 +1009,38 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
 
                       if (isAuthenticated) ...[
-                        // 1. ACTIVE BOOKING SECTION (when active bookings exist)
+                        // 1. GREETING SECTION (Live badge + Welcome, TATUKULA + subtitle)
+                        _buildGreetingSection(context),
+
+                        const SizedBox(height: 16),
+
+                        // 2. CATEGORY HERO BANNER CAROUSEL (Appliance Repair & Service photo + dots + title)
+                        _buildCustomerHeroBanner(context),
+
+                        const SizedBox(height: 14),
+
+                        // 3. SEARCH BAR (Search input + Mic + Orange search button)
+                        _buildSearchBar(context),
+
+                        const SizedBox(height: 20),
+
+                        // 4. ACTIVE BOOKING SECTION (when active bookings exist)
                         if (activeBookings.isNotEmpty) ...[
                           _buildUpcomingSection(context, activeBookings.first),
                           const SizedBox(height: 18),
                         ],
 
-                        // 2. BROWSE CATEGORIES (2x2 Photographic Grid matching reference)
+                        // 5. BROWSE CATEGORIES (2x2 Photographic Grid matching reference)
                         _buildCustomerBrowseCategoriesSection(context),
 
                         const SizedBox(height: 20),
 
-                        // 3. SERVICES FOR YOU (Horizontal Scrolling Service Cards matching reference)
+                        // 6. SERVICES FOR YOU (Horizontal Scrolling Service Cards matching reference)
                         _buildCustomerServicesForYouSection(context, catalog),
 
                         const SizedBox(height: 22),
 
-                        // 4. OFFERS FOR YOU (Discount & Referral Carousel Cards)
+                        // 7. OFFERS FOR YOU (Discount & Referral Carousel Cards)
                         _buildCustomerOffersSection(context),
 
                         const SizedBox(height: 36),
@@ -1274,6 +1363,211 @@ class _HomeScreenState extends State<HomeScreen> {
   // ---------------------------------------------------------------------------
   // AUTHENTICATED CUSTOMER HOME SECTIONS (matching localhost:3000/customer)
   // ---------------------------------------------------------------------------
+
+  Widget _buildGreetingSection(BuildContext context) {
+    final greeting = _greetingForNow();
+    final firstName = _getUserFirstName(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Live greeting badge: • Good afternoon
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFD9DCF7)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1E1B2E).withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF10B981), // Live Emerald
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  greeting,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E1B2E),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Welcome, TATUKULA
+          Text(
+            'Welcome, $firstName',
+            style: const TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1E1B2E),
+              letterSpacing: -0.6,
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Subtitle
+          const Text(
+            'Trusted professionals at your door. Transparent prices, no surprises.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomerHeroBanner(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Carousel photo box
+          SizedBox(
+            height: 180,
+            child: PageView.builder(
+              controller: _customerHeroPageController,
+              itemCount: _customerHeroSlides.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _customerHeroIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                final slide = _customerHeroSlides[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ServicesScreen(initialCategory: slide.slug),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(26),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1E1B2E).withValues(alpha: 0.10),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.asset(
+                            slide.imagePath,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: const Color(0xFFEEECFB),
+                              child: const Center(
+                                child: Icon(Icons.handyman_rounded, color: AppColors.brand, size: 48),
+                              ),
+                            ),
+                          ),
+                          // Subtle dark gradient overlay at bottom
+                          Positioned(
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            height: 60,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(alpha: 0.40),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Indicator dots at bottom right of photo matching web reference
+                          Positioned(
+                            bottom: 12,
+                            right: 14,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(_customerHeroSlides.length, (dotIdx) {
+                                final isActive = dotIdx == _customerHeroIndex;
+                                return AnimatedContainer(
+                                  duration: const Duration(milliseconds: 250),
+                                  margin: const EdgeInsets.only(left: 5),
+                                  width: isActive ? 22 : 6,
+                                  height: 6,
+                                  decoration: BoxDecoration(
+                                    color: isActive
+                                        ? Colors.white
+                                        : Colors.white.withValues(alpha: 0.55),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                );
+                              }),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Category name below photo
+          GestureDetector(
+            onTap: () {
+              final currentSlide = _customerHeroSlides[_customerHeroIndex];
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ServicesScreen(initialCategory: currentSlide.slug),
+                ),
+              );
+            },
+            child: Text(
+              _customerHeroSlides[_customerHeroIndex].title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1E1B2E),
+                letterSpacing: -0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildCustomerBrowseCategoriesSection(BuildContext context) {
     return Column(
