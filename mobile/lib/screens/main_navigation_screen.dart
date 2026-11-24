@@ -55,6 +55,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       case 2:
         return const HomeScreen();
       case 3:
+        final authBookings = context.watch<AuthProvider>();
+        if (!authBookings.isAuthenticated) {
+          return LoginScreen(
+            returnUrl: '/customer/bookings',
+            onBackToHome: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+          );
+        }
         return const BookingsScreen();
       case 4:
         final auth = context.watch<AuthProvider>();

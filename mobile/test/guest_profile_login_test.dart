@@ -12,6 +12,7 @@ import 'package:homecarex_mobile/providers/address_provider.dart';
 import 'package:homecarex_mobile/screens/main_navigation_screen.dart';
 import 'package:homecarex_mobile/screens/auth/login_screen.dart';
 import 'package:homecarex_mobile/screens/auth/forgot_password_screen.dart';
+import 'package:homecarex_mobile/screens/bookings/bookings_screen.dart';
 import 'package:homecarex_mobile/screens/profile/profile_screen.dart';
 
 void main() {
@@ -198,5 +199,48 @@ void main() {
     expect(find.byType(ProfileScreen), findsOneWidget);
     expect(find.text('BOOKINGS'), findsOneWidget);
     expect(find.text('ACCOUNT'), findsOneWidget);
+  });
+
+  testWidgets('In guest mode, tapping My Bookings tab opens LoginScreen, and logging in shows BookingsScreen', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await StorageService.setLoggedOut(true);
+    final auth = AuthProvider();
+    auth.setUser(null); // Guest mode
+
+    await tester.pumpWidget(createTestWidget(authProvider: auth));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Tap My Bookings tab (index 3)
+    final bookingsTabFinder = find.text('My Bookings');
+    expect(bookingsTabFinder, findsOneWidget);
+    await tester.tap(bookingsTabFinder);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify LoginScreen is shown inside My Bookings tab in guest mode
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Back to Home'), findsOneWidget);
+    expect(find.text('Welcome Back 👋'), findsOneWidget);
+
+    // Tap Back to Home returns to Home
+    await tester.tap(find.text('Back to Home'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Authenticate user and re-open My Bookings
+    auth.setUser(AuthProvider.defaultCustomer);
+    await tester.tap(find.text('My Bookings'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Now BookingsScreen is shown
+    expect(find.byType(BookingsScreen), findsOneWidget);
   });
 }
