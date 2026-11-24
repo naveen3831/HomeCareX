@@ -106,74 +106,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.isRevisit)
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
-                          onPressed: () => Navigator.of(context).pop(),
-                        )
-                      else ...[
-                        // Branded Logo Tile
-                        Container(
-                          width: 38,
-                          height: 38,
-                          padding: const EdgeInsets.all(7),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 6,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                  if (widget.isRevisit)
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+                      onPressed: () => Navigator.of(context).pop(),
+                    )
+                  else
+                    // HomeCareX Brand Logo
+                    Image.asset(
+                      'assets/images/logo.png',
+                      height: 28,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'HomeCareX Logo',
+                      errorBuilder: (_, __, ___) => const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.home_repair_service_rounded,
+                            size: 20,
+                            color: Color(0xFF8B6414),
                           ),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            fit: BoxFit.contain,
-                            semanticLabel: 'HomeCareX Logo',
-                            errorBuilder: (_, __, ___) => const Icon(
-                              Icons.home_repair_service_rounded,
-                              size: 20,
+                          SizedBox(width: 6),
+                          Text(
+                            'HomeCareX',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                               color: Color(0xFF8B6414),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'H O M E C A R E X',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF8B6414),
-                                letterSpacing: 2.2,
-                              ),
-                            ),
-                            SizedBox(height: 1),
-                            Text(
-                              'SERVICE WITH CONFIDENCE',
-                              style: TextStyle(
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF64748B),
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
+                        ],
+                      ),
+                    ),
 
                   // Skip Button
                   GestureDetector(
