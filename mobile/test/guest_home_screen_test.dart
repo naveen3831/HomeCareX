@@ -100,6 +100,28 @@ void main() {
     expect(find.text('Popular Services', findRichText: true), findsOneWidget);
     expect(find.text('AC Service'), findsOneWidget);
     expect(find.text('₹499'), findsOneWidget);
+
+    // 9. How HomeCareX Works 4-step stepper section
+    expect(find.text('SIMPLE 4-STEP PROCESS'), findsOneWidget);
+    expect(find.text('How HomeCareX Works', findRichText: true), findsOneWidget);
+    expect(find.text('Explore All'), findsOneWidget);
+    expect(find.text('Choose a Service'), findsOneWidget);
+    expect(find.text('50+ Services'), findsOneWidget);
+    expect(find.text('Schedule Date & Time'), findsOneWidget);
+    expect(find.text('Same-Day Slots'), findsOneWidget);
+    expect(find.text('Verified Expert Arrives'), findsOneWidget);
+    expect(find.text('100% Verified'), findsOneWidget);
+    expect(find.text('Inspect & Pay with Ease'), findsOneWidget);
+    expect(find.text('30-Day Guarantee'), findsOneWidget);
+    expect(find.text('Book a Service'), findsOneWidget);
+
+    // 10. What Customers Say (Testimonials) section
+    expect(find.text('TESTIMONIALS'), findsOneWidget);
+    expect(find.text('What Customers Say'), findsOneWidget);
+    expect(find.text('Lokesh D'), findsOneWidget);
+    expect(find.text('Microwave Oven Repair'), findsOneWidget);
+    expect(find.text('"Very good worker"'), findsOneWidget);
+    expect(find.text('Verified Customer Booking'), findsWidgets);
   });
 
   testWidgets('Guest Home Screen allows copying coupon code HOME20 and shows SnackBar', (tester) async {
@@ -154,16 +176,16 @@ void main() {
 
     // City dropdown opened
     expect(find.text('Select Service City'), findsOneWidget);
-    expect(find.text('Bengaluru'), findsOneWidget);
-    expect(find.text('Mumbai'), findsOneWidget);
+    expect(find.text('Bengaluru'), findsWidgets);
+    expect(find.text('Mumbai'), findsWidgets);
 
-    // Select Bengaluru
-    await tester.tap(find.text('Bengaluru'));
+    // Select Bengaluru from the dropdown menu
+    await tester.tap(find.text('Bengaluru').last);
     await tester.pump(const Duration(milliseconds: 100));
 
     // Dropdown closes and header updates
     expect(find.text('Select Service City'), findsNothing);
-    expect(find.text('Bengaluru'), findsOneWidget);
+    expect(find.text('Bengaluru'), findsWidgets);
   });
 
   testWidgets('Logging out from ProfileScreen navigates to MainNavigationScreen and displays guest view', (tester) async {

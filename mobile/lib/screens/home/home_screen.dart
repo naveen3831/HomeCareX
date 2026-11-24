@@ -78,6 +78,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _copiedCoupon = false;
   final Set<String> _favoriteServiceIds = {};
+  int? _expandedStepperStep;
   bool _isLocationPickerOpen = false;
   bool _isCityPickerOpen = false;
   String _selectedCity = 'Hyderabad';
@@ -1093,6 +1094,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // 8. POPULAR SERVICES (Horizontal Carousel)
                 _buildPopularServicesSection(context, catalog, cart),
+
+                const SizedBox(height: 22),
+
+                // 9. HOW HOMECAREX WORKS (4-Step Stepper Flow)
+                _buildHowItWorksSection(context),
+
+                const SizedBox(height: 22),
+
+                // 10. WHAT CUSTOMERS SAY (Testimonials)
+                _buildTestimonialsSection(context),
 
                 const SizedBox(height: 32),
               ],
@@ -2178,6 +2189,696 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ===========================================================================
+  // 4. HOW HOMECAREX WORKS (4-STEP STEPPER FLOW MATCHING WEB DESIGN)
+  // ===========================================================================
+  Widget _buildHowItWorksSection(BuildContext context) {
+    final steps = [
+      {
+        'number': '01',
+        'title': 'Choose a Service',
+        'desc': 'Explore verified cleaning, repair, and wellness services with 100% upfront pricing.',
+        'tag': '50+ Services',
+        'tagBg': const Color(0xFFEFF6FF),
+        'tagText': const Color(0xFF1D4ED8),
+        'tagBorder': const Color(0xFFDBEAFE),
+        'nodeColor': const Color(0xFF2563EB),
+      },
+      {
+        'number': '02',
+        'title': 'Schedule Date & Time',
+        'desc': 'Pick your preferred date, convenient 2-hour arrival window, and confirm your address.',
+        'tag': 'Same-Day Slots',
+        'tagBg': const Color(0xFFEEF2FF),
+        'tagText': const Color(0xFF4338CA),
+        'tagBorder': const Color(0xFFE0E7FF),
+        'nodeColor': const Color(0xFF4F46E5),
+      },
+      {
+        'number': '03',
+        'title': 'Verified Expert Arrives',
+        'desc': 'A background-checked professional arrives on time equipped with genuine tools & kit.',
+        'tag': '100% Verified',
+        'tagBg': const Color(0xFFFAF5FF),
+        'tagText': const Color(0xFF7E22CE),
+        'tagBorder': const Color(0xFFF3E8FF),
+        'nodeColor': const Color(0xFF9333EA),
+      },
+      {
+        'number': '04',
+        'title': 'Inspect & Pay with Ease',
+        'desc': 'Inspect the completed job, approve the work, and pay securely via cash, card, or UPI.',
+        'tag': '30-Day Guarantee',
+        'tagBg': const Color(0xFFFFF7ED),
+        'tagText': const Color(0xFFC2410C),
+        'tagBorder': const Color(0xFFFFEDD5),
+        'nodeColor': const Color(0xFFFF8A3D),
+      },
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Badge + Title + Action
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('⚡', style: TextStyle(fontSize: 10)),
+                        SizedBox(width: 4),
+                        Text(
+                          'SIMPLE 4-STEP PROCESS',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                            color: Color(0xFF2563EB),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                        color: Color(0xFF0F172A),
+                      ),
+                      children: [
+                        TextSpan(text: 'How HomeCareX '),
+                        TextSpan(
+                          text: 'Works',
+                          style: TextStyle(
+                            color: Color(0xFFFF7A1A),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Explore All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 13,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Stepper Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: steps.length,
+                  itemBuilder: (context, index) {
+                    final step = steps[index];
+                    final isLast = index == steps.length - 1;
+                    final isExpanded = _expandedStepperStep == index;
+
+                    return IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left Node & Vertical Connector Line
+                          SizedBox(
+                            width: 36,
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: step['nodeColor'] as Color,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (step['nodeColor'] as Color).withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      step['number'] as String,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                if (!isLast)
+                                  Expanded(
+                                    child: Container(
+                                      width: 2,
+                                      margin: const EdgeInsets.symmetric(vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFCBD5E1),
+                                        borderRadius: BorderRadius.circular(1),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(width: 12),
+
+                          // Right Step Details
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _expandedStepperStep = isExpanded ? null : index;
+                                  });
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 7),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            step['title'] as String,
+                                            style: const TextStyle(
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                          decoration: BoxDecoration(
+                                            color: step['tagBg'] as Color,
+                                            borderRadius: BorderRadius.circular(6),
+                                            border: Border.all(color: step['tagBorder'] as Color),
+                                          ),
+                                          child: Text(
+                                            step['tag'] as String,
+                                            style: TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: step['tagText'] as Color,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          isExpanded
+                                              ? Icons.expand_less_rounded
+                                              : Icons.expand_more_rounded,
+                                          size: 16,
+                                          color: const Color(0xFF94A3B8),
+                                        ),
+                                      ],
+                                    ),
+                                    if (isExpanded) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        step['desc'] as String,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF64748B),
+                                          height: 1.35,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 14),
+
+                // Stepper Footer CTA
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEFF6FF), Color(0xFFFFF7ED)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Ready for hassle-free service?',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4338CA),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4338CA).withValues(alpha: 0.3),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Book a Service',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 12,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 5. WHAT CUSTOMERS SAY (TESTIMONIALS MATCHING WEB DESIGN)
+  // ===========================================================================
+  Widget _buildTestimonialsSection(BuildContext context) {
+    final testimonials = [
+      {
+        'id': '1',
+        'name': 'Lokesh D',
+        'city': 'Bengaluru',
+        'initials': 'LD',
+        'service': 'Microwave Oven Repair',
+        'rating': 5,
+        'quote': 'Very good worker',
+      },
+      {
+        'id': '2',
+        'name': 'Test Customer',
+        'city': 'Mumbai',
+        'initials': 'TC',
+        'service': 'Home Care Services',
+        'rating': 5,
+        'quote': 'Verified Expert & On-Time Service',
+      },
+      {
+        'id': '3',
+        'name': 'Priya S',
+        'city': 'Hyderabad',
+        'initials': 'PS',
+        'service': 'Deep Home Cleaning',
+        'rating': 5,
+        'quote': 'Sparkling clean home and courteous team!',
+      },
+      {
+        'id': '4',
+        'name': 'Rahul V',
+        'city': 'Bengaluru',
+        'initials': 'RV',
+        'service': 'AC Service & Repair',
+        'rating': 5,
+        'quote': 'Fixed cooling issue quickly. Fair pricing.',
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Badge + Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFECFDF5),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF10B981),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Text(
+                          'TESTIMONIALS',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                            color: Color(0xFF047857),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    'What Customers Say',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.only(bottom: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'View All',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 13,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Horizontal Carousel of Testimonials
+        SizedBox(
+          height: 158,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: testimonials.length,
+            itemBuilder: (context, index) {
+              final t = testimonials[index];
+
+              return Container(
+                width: 265,
+                margin: EdgeInsets.only(right: index == testimonials.length - 1 ? 0 : 12),
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Author Info & Rating
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [Color(0xFF6366F1), Color(0xFF2563EB)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        t['initials'] as String,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          t['name'] as String,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        Text(
+                                          t['city'] as String,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: List.generate(
+                                t['rating'] as int,
+                                (_) => const Icon(
+                                  Icons.star_rounded,
+                                  size: 14,
+                                  color: Color(0xFFFBBF24),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        // Service Tag
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFFDBEAFE)),
+                          ),
+                          child: Text(
+                            t['service'] as String,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1D4ED8),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        // Quote
+                        Text(
+                          '"${t['quote']}"',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontStyle: FontStyle.italic,
+                            color: Color(0xFF475569),
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Verified Customer Footer
+                    Container(
+                      padding: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFF1F5F9)),
+                        ),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle_rounded,
+                            size: 13,
+                            color: Color(0xFF059669),
+                          ),
+                          SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Verified Customer Booking',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
