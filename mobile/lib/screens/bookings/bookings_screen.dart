@@ -6,10 +6,17 @@ import '../../core/utils/service_image_resolver.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../catalog/services_screen.dart';
+import '../auth/login_screen.dart';
+import '../main_navigation_screen.dart';
 import 'booking_tracking_screen.dart';
 
 class BookingsScreen extends StatefulWidget {
-  const BookingsScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const BookingsScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -256,6 +263,21 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (!auth.isAuthenticated) {
+      return LoginScreen(
+        returnUrl: '/customer/bookings',
+        onBackToHome: () {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+        },
+      );
+    }
+
+    final isGuest = !auth.isAuthenticated;
+    final showBackButton = !isGuest;
+
     final bookingProv = context.watch<BookingProvider>();
     final filteredBookings = _getFilteredBookings(bookingProv.bookings);
     final hasActiveFilter = _sortBy != 'soonest';
@@ -265,40 +287,59 @@ class _BookingsScreenState extends State<BookingsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (← My Bookings)
+            // Sticky Top Header (My Bookings)
             Container(
               color: const Color(0xFFFAFAFC),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        size: 20,
-                        color: Color(0xFF1E1B2E),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'My Bookings',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E1B2E),
+              child: showBackButton
+                  ? GestureDetector(
+                      onTap: () {
+                        if (widget.onBackToHome != null) {
+                          widget.onBackToHome!();
+                        } else if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_rounded,
+                              size: 22,
+                              color: Color(0xFF1E1B2E),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'My Bookings',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E1B2E),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    )
+                  : const Text(
+                      'My Bookings',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E1B2E),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
             ),
             Expanded(
               child: RefreshIndicator(

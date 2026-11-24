@@ -6,6 +6,7 @@ import '../../providers/booking_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 import '../bookings/bookings_screen.dart';
+import '../main_navigation_screen.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -35,6 +36,20 @@ class _CartScreenState extends State<CartScreen> {
       return Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                  ),
+                );
+              }
+            },
+          ),
           title: const Text('My Cart', style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.bold, fontSize: 16)),
           backgroundColor: AppColors.panel,
           elevation: 0,
@@ -73,6 +88,20 @@ class _CartScreenState extends State<CartScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.ink),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                ),
+              );
+            }
+          },
+        ),
         title: const Text('Cart & Checkout', style: TextStyle(color: AppColors.ink, fontWeight: FontWeight.bold, fontSize: 16)),
         backgroundColor: AppColors.panel,
         elevation: 0,

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/cart_provider.dart';
+import '../providers/auth_provider.dart';
 import 'home/home_screen.dart';
 import 'catalog/categories_screen.dart';
 import 'catalog/services_screen.dart';
 import 'bookings/bookings_screen.dart';
 import 'profile/profile_screen.dart';
 import 'cart/cart_screen.dart';
+import 'auth/login_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final int initialIndex;
@@ -47,15 +49,59 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
     switch (index) {
       case 0:
-        return const CategoriesScreen();
+        return CategoriesScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 1:
-        return const ServicesScreen();
+        return ServicesScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 2:
         return const HomeScreen();
       case 3:
-        return const BookingsScreen();
+        final authBookings = context.watch<AuthProvider>();
+        if (!authBookings.isAuthenticated) {
+          return LoginScreen(
+            returnUrl: '/customer/bookings',
+            onBackToHome: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+            onLoginSuccess: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+          );
+        }
+        return BookingsScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 4:
-        return const ProfileScreen();
+        final auth = context.watch<AuthProvider>();
+        if (!auth.isAuthenticated) {
+          return LoginScreen(
+            returnUrl: '/customer/profile',
+            onBackToHome: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+            onLoginSuccess: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+          );
+        }
+        return ProfileScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       default:
         return const SizedBox.shrink();
     }

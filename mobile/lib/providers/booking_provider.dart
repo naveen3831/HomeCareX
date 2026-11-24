@@ -47,6 +47,12 @@ class BookingProvider extends ChangeNotifier {
   }
 
   Future<void> fetchBookings() async {
+    if (!syncRemote) {
+      if (_bookings.isEmpty) {
+        await _loadCachedBookings();
+      }
+      return;
+    }
     _isLoading = true;
     notifyListeners();
 

@@ -24,7 +24,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
-          ChangeNotifierProvider(create: (_) => BookingProvider()),
+          ChangeNotifierProvider(create: (_) => BookingProvider()..syncRemote = false),
           ChangeNotifierProvider(create: (_) => CatalogProvider()),
           ChangeNotifierProvider(create: (_) => CartProvider()),
         ],
@@ -74,7 +74,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
-          ChangeNotifierProvider(create: (_) => BookingProvider()),
+          ChangeNotifierProvider(create: (_) => BookingProvider()..syncRemote = false),
           ChangeNotifierProvider(create: (_) => CatalogProvider()),
           ChangeNotifierProvider(create: (_) => CartProvider()),
         ],
@@ -111,7 +111,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
-          ChangeNotifierProvider(create: (_) => BookingProvider()),
+          ChangeNotifierProvider(create: (_) => BookingProvider()..syncRemote = false),
           ChangeNotifierProvider(create: (_) => CatalogProvider()),
           ChangeNotifierProvider(create: (_) => CartProvider()),
         ],
@@ -159,7 +159,7 @@ void main() {
       MultiProvider(
         providers: [
           ChangeNotifierProvider(create: (_) => AuthProvider()),
-          ChangeNotifierProvider(create: (_) => BookingProvider()),
+          ChangeNotifierProvider(create: (_) => BookingProvider()..syncRemote = false),
           ChangeNotifierProvider(create: (_) => CatalogProvider()),
           ChangeNotifierProvider(create: (_) => CartProvider()),
         ],

@@ -82,6 +82,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Center(
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      height: 32,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'HomeCareX Logo',
+                      errorBuilder: (_, __, ___) => const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.home_rounded, color: Color(0xFFF97316), size: 24),
+                          SizedBox(width: 8),
+                          Text(
+                            'HomeCareX',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   const Text(
                     'Create Account',
                     textAlign: TextAlign.center,

@@ -4,9 +4,11 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import 'categories_screen.dart';
 import 'service_details_screen.dart';
+import '../main_navigation_screen.dart';
 
 class _CurvedUnderlinePainter extends CustomPainter {
   @override
@@ -31,12 +33,14 @@ class ServicesScreen extends StatefulWidget {
   final String? initialCategory;
   final String? initialQuery;
   final int initialPage;
+  final VoidCallback? onBackToHome;
 
   const ServicesScreen({
     super.key,
     this.initialCategory,
     this.initialQuery,
     this.initialPage = 1,
+    this.onBackToHome,
   });
 
   @override
@@ -702,6 +706,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
+    AuthProvider? auth;
+    try {
+      auth = Provider.of<AuthProvider>(context, listen: true);
+    } catch (_) {}
+    final isGuest = auth != null ? !auth.isAuthenticated : false;
+    final showBackButton = !isGuest;
     final categories = catalog.categories;
 
     // Filter services based on search, category, and active filters
@@ -760,40 +770,59 @@ class _ServicesScreenState extends State<ServicesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (← Services)
+            // Sticky Top Header (Services)
             Container(
               color: const Color(0xFFFAFAFC),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        size: 20,
-                        color: Color(0xFF1E1B2E),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Services',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E1B2E),
+              child: showBackButton
+                  ? GestureDetector(
+                      onTap: () {
+                        if (widget.onBackToHome != null) {
+                          widget.onBackToHome!();
+                        } else if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_rounded,
+                              size: 22,
+                              color: Color(0xFF1E1B2E),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Services',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E1B2E),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    )
+                  : const Text(
+                      'Services',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E1B2E),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
             ),
             Expanded(
               child: RefreshIndicator(

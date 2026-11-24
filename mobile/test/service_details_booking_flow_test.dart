@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:homecarex_mobile/core/models/service_model.dart';
+import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/providers/booking_provider.dart';
 import 'package:homecarex_mobile/providers/catalog_provider.dart';
 import 'package:homecarex_mobile/screens/catalog/services_screen.dart';
@@ -43,6 +44,7 @@ void main() {
   Widget createWidget({Widget? home}) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<AuthProvider>(create: (_) => AuthProvider()),
         ChangeNotifierProvider<CatalogProvider>(create: (_) => FakeCatalogProvider()),
         ChangeNotifierProvider<BookingProvider>(create: (_) => FakeBookingProvider()),
       ],
