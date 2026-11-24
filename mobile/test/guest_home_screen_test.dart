@@ -39,7 +39,7 @@ void main() {
     );
   }
 
-  testWidgets('HomeScreen renders guest header, greeting, hero carousel, and promo card when logged out', (tester) async {
+  testWidgets('HomeScreen renders guest header, greeting, category hero, browse categories, services for you, and offers when logged out (no upcoming)', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -47,7 +47,6 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await StorageService.setLoggedOut(true);
     await StorageService.setLoggedOut(true);
     final authProvider = AuthProvider();
     authProvider.setUser(null); // Explicitly logged out guest
@@ -59,85 +58,42 @@ void main() {
     expect(find.byType(Image), findsWidgets);
     expect(find.text('Hyderabad'), findsOneWidget);
 
-    // 2. Greeting section matching image
+    // 2. Greeting section matching reference (guest mode: Welcome to HomeCareX)
+    expect(find.textContaining('Good ', findRichText: true), findsOneWidget);
     expect(find.text('Welcome to HomeCareX', findRichText: true), findsOneWidget);
-    expect(find.text('Book trusted professionals for your home needs.'), findsOneWidget);
+    expect(find.text('Trusted professionals at your door. Transparent prices, no surprises.'), findsOneWidget);
 
-    // 3. Top Guest Banner Slider matching web reference
-    expect(find.text('Home services'), findsOneWidget);
-    expect(find.text('Quality Services at Your\nDoorstep'), findsOneWidget);
-    expect(find.text('Explore services'), findsOneWidget);
+    // 3. Category Hero Banner Carousel (Appliance Repair & Service photo + dots + title)
+    expect(find.text('Appliance Repair & Service'), findsWidgets);
 
-    // 4. Hero Carousel matching reference
-    expect(find.text('Verified Professionals'), findsOneWidget);
-    expect(find.text('Home Cleaning\nServices'), findsOneWidget);
-    expect(find.text('Deep cleaning for a healthier and happier home.'), findsOneWidget);
-    expect(find.text('Book Now'), findsWidgets);
+    // 4. Search Bar (Search input + Mic + Orange search button)
+    expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.search_rounded), findsWidgets);
 
-    // 5. Authenticated elements and quick actions are NOT present in guest mode
+    // 5. Authenticated elements and upcoming booking section are STRICTLY NOT present in guest mode
+    expect(find.text('Upcoming'), findsNothing);
     expect(find.text('Welcome, TATUKULA'), findsNothing);
     expect(find.text('Deliver to '), findsNothing);
-    expect(find.text('Book again'), findsNothing);
-    expect(find.text('Track order'), findsNothing);
 
-    // 6. Service Categories 4x2 grid matching web mockup
-    expect(find.text('Service Categories'), findsOneWidget);
+    // 6. Browse Categories 2x2 photographic grid
+    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('View all'), findsWidgets);
+    expect(find.text('Salon & Spa'), findsWidgets);
     expect(find.text('Home Cleaning'), findsWidgets);
-    expect(find.text('Appliance Repair'), findsOneWidget);
-    expect(find.text('Salon & Spa'), findsOneWidget);
-    expect(find.text('Electrical & Plumbing'), findsOneWidget);
-    expect(find.text('Painting & Waterproofing'), findsOneWidget);
-    expect(find.text('Pest Control'), findsOneWidget);
-    expect(find.text('Carpentry & Assembly'), findsOneWidget);
-    expect(find.text('More Services'), findsOneWidget);
+    expect(find.text('Electrical & Plumbing'), findsWidgets);
 
-    // 7. Promo / Discount Banner
+    // 7. Services for you section
+    expect(find.text('Services for you'), findsOneWidget);
+
+    // 8. Offers for you section
+    expect(find.text('Offers for you'), findsOneWidget);
     expect(find.text('Flat 20% OFF'), findsOneWidget);
     expect(find.text('On Your First Booking'), findsOneWidget);
     expect(find.text('Use Code: HOME20'), findsOneWidget);
-
-    // 8. Popular Services horizontal section
-    expect(find.text('Popular Services', findRichText: true), findsOneWidget);
-    expect(find.text('AC Service'), findsOneWidget);
-    expect(find.text('₹499'), findsOneWidget);
-
-    // 9. How HomeCareX Works 4-step stepper section
-    expect(find.text('SIMPLE 4-STEP PROCESS'), findsOneWidget);
-    expect(find.text('How HomeCareX Works', findRichText: true), findsOneWidget);
-    expect(find.text('Explore All'), findsOneWidget);
-    expect(find.text('Choose a Service'), findsOneWidget);
-    expect(find.text('50+ Services'), findsOneWidget);
-    expect(find.text('Schedule Date & Time'), findsOneWidget);
-    expect(find.text('Same-Day Slots'), findsOneWidget);
-    expect(find.text('Verified Expert Arrives'), findsOneWidget);
-    expect(find.text('100% Verified'), findsOneWidget);
-    expect(find.text('Inspect & Pay with Ease'), findsOneWidget);
-    expect(find.text('30-Day Guarantee'), findsOneWidget);
-    expect(find.text('Book a Service'), findsOneWidget);
-
-    // 10. What Customers Say (Testimonials) section
-    expect(find.text('TESTIMONIALS'), findsOneWidget);
-    expect(find.text('What Customers Say'), findsOneWidget);
-    expect(find.text('Lokesh D'), findsOneWidget);
-    expect(find.text('Microwave Oven Repair'), findsOneWidget);
-    expect(find.text('"Very good worker"'), findsOneWidget);
-    expect(find.text('Verified Customer Booking'), findsWidgets);
-
-    // 11. Frequently Asked Questions Carousel
-    expect(find.text('GOT QUESTIONS?'), findsOneWidget);
-    expect(find.textContaining('Frequently Asked', findRichText: true), findsOneWidget);
-    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
-    expect(find.text('More FAQs'), findsOneWidget);
-    expect(find.text('Contact Support'), findsOneWidget);
-
-    // 12. Bottom Promo / Action Cards Carousel
-    expect(find.textContaining('Need help with your', findRichText: true), findsOneWidget);
-    expect(find.text('Find reliable home services and make home maintenance simple, quick, and convenient.'), findsOneWidget);
-    expect(find.text('Explore Services'), findsOneWidget);
-    expect(find.text('Contact Us'), findsOneWidget);
+    expect(find.text('Refer a friend, earn ₹50'), findsOneWidget);
   });
 
-  testWidgets('Guest FAQ carousel navigates questions and Bottom Promo carousel slides', (tester) async {
+  testWidgets('Guest category card in Browse categories navigates to ServicesScreen', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -152,44 +108,17 @@ void main() {
     await tester.pumpWidget(createGuestHomeTestWidget(authProvider: authProvider));
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Scroll down to FAQ section
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -1200));
+    // Browse categories is visible
+    expect(find.text('Browse categories'), findsOneWidget);
+
+    // Tap on Salon & Spa category card
+    final salonSpaFinder = find.text('Salon & Spa').first;
+    expect(salonSpaFinder, findsOneWidget);
+    await tester.tap(salonSpaFinder);
     await tester.pumpAndSettle();
 
-    // Verify initial FAQ question
-    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
-
-    // Tap right chevron to advance FAQ
-    final rightChevron = find.byKey(const Key('faq_next_chevron'));
-    expect(rightChevron, findsOneWidget);
-    await tester.tap(rightChevron);
-    await tester.pump();
-
-    // Verify next question is shown
-    expect(find.text('How can I book a service?'), findsOneWidget);
-
-    // Tap left chevron to go back
-    final leftChevron = find.byKey(const Key('faq_prev_chevron'));
-    expect(leftChevron, findsOneWidget);
-    await tester.tap(leftChevron);
-    await tester.pump();
-
-    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
-
-    // Scroll down to Bottom Promo card
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -500));
-    await tester.pumpAndSettle();
-
-    // Verify initial Promo card
-    expect(find.text('Explore Services'), findsOneWidget);
-    expect(find.text('Contact Us'), findsOneWidget);
-
-    // Swipe promo card to slide to Professional card
-    await tester.drag(find.text('Explore Services'), const Offset(-400, 0));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Are you a service', findRichText: true), findsOneWidget);
-    expect(find.text('Join as a Professional'), findsOneWidget);
+    // Verify navigated to ServicesScreen
+    expect(find.byType(HomeScreen), findsNothing);
   });
 
   testWidgets('Guest Home Screen allows copying coupon code HOME20 and shows SnackBar', (tester) async {
@@ -206,6 +135,10 @@ void main() {
 
     await tester.pumpWidget(createGuestHomeTestWidget(authProvider: authProvider));
     await tester.pump(const Duration(milliseconds: 200));
+
+    // Scroll down to Offers section
+    await tester.drag(find.byType(SingleChildScrollView).first, const Offset(0, -600));
+    await tester.pumpAndSettle();
 
     final couponFinder = find.text('Use Code: HOME20');
     expect(couponFinder, findsOneWidget);
@@ -318,8 +251,9 @@ void main() {
     // Verify navigated to MainNavigationScreen in guest mode
     expect(find.byType(MainNavigationScreen), findsOneWidget);
     expect(find.text('Welcome to HomeCareX', findRichText: true), findsOneWidget);
-    expect(find.text('Book trusted professionals for your home needs.'), findsOneWidget);
-    expect(find.text('Quality Services at Your\nDoorstep'), findsOneWidget);
-    expect(find.text('Verified Professionals'), findsOneWidget);
+    expect(find.text('Trusted professionals at your door. Transparent prices, no surprises.'), findsOneWidget);
+    expect(find.text('Appliance Repair & Service'), findsWidgets);
+    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('Upcoming'), findsNothing);
   });
 }
