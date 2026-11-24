@@ -287,16 +287,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Good evening';
   }
 
-  String _getUserFirstName(BuildContext context) {
-    try {
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      final name = auth.user?.name.trim();
-      if (name != null && name.isNotEmpty) {
-        return name.split(' ').first.toUpperCase();
-      }
-    } catch (_) {}
-    return 'TATUKULA';
-  }
 
   void _submitSearch(String query) {
     String q = query.trim();
@@ -945,20 +935,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 12),
 
                       if (isAuthenticated) ...[
-                        // 2. GREETING SECTION (Good morning/afternoon/evening pill + Welcome header + subtitle)
-                        _buildGreetingSection(context),
+                        // 1. ACTIVE BOOKING SECTION (when active bookings exist)
+                        if (activeBookings.isNotEmpty) ...[
+                          _buildUpcomingSection(context, activeBookings.first),
+                          const SizedBox(height: 18),
+                        ],
 
-                        const SizedBox(height: 16),
+                        // 2. BROWSE CATEGORIES (2x2 Photographic Grid matching reference)
+                        _buildCustomerBrowseCategoriesSection(context),
 
-                        // 3. HERO CATEGORY CAROUSEL CARD (Photo + Indicators + Category Title)
-                        _buildHeroCard(context),
+                        const SizedBox(height: 20),
 
-                        const SizedBox(height: 14),
+                        // 3. SERVICES FOR YOU (Horizontal Scrolling Service Cards matching reference)
+                        _buildCustomerServicesForYouSection(context, catalog),
 
-                        // 4. SEARCH BAR (Search input + Mic + Orange search button)
-                        _buildSearchBar(context),
+                        const SizedBox(height: 22),
 
-                        const SizedBox(height: 18),
+                        // 4. OFFERS FOR YOU (Discount & Referral Carousel Cards)
+                        _buildCustomerOffersSection(context),
+
+                        const SizedBox(height: 36),
                       ] else ...[
                         // 2. GUEST GREETING SECTION (Good Afternoon, Welcome to HomeCareX...)
                         _buildGuestGreetingSection(context),
@@ -979,148 +975,42 @@ class _HomeScreenState extends State<HomeScreen> {
                         _buildSearchBar(context),
 
                         const SizedBox(height: 18),
+
+                        // 6. SERVICE CATEGORIES (4x2 GRID)
+                        _buildServiceCategoriesSection(context),
+
+                        const SizedBox(height: 18),
+
+                        // 7. PROMO / DISCOUNT BANNER (Flat 20% OFF / Use Code: HOME20)
+                        _buildPromoDiscountBanner(context),
+
+                        const SizedBox(height: 22),
+
+                        // 8. POPULAR SERVICES (Horizontal Carousel)
+                        _buildPopularServicesSection(context, catalog, cart),
+
+                        const SizedBox(height: 22),
+
+                        // 9. HOW HOMECAREX WORKS (4-Step Stepper Flow)
+                        _buildHowItWorksSection(context),
+
+                        const SizedBox(height: 22),
+
+                        // 10. WHAT CUSTOMERS SAY (Testimonials)
+                        _buildTestimonialsSection(context),
+
+                        const SizedBox(height: 24),
+
+                        // 11. FREQUENTLY ASKED QUESTIONS CAROUSEL
+                        _buildFaqSection(context),
+
+                        const SizedBox(height: 24),
+
+                        // 12. BOTTOM PROMO / ACTION CARDS CAROUSEL
+                        _buildBottomPromoSection(context),
+
+                        const SizedBox(height: 36),
                       ],
-
-                if (isAuthenticated) ...[
-                  // 5. QUICK ACTIONS ROW (Book again, Track order, Refer & earn, Get support)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFF1F5F9)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-                            blurRadius: 18,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          Expanded(
-                            child: _buildQuickActionItem(
-                              label: 'Book again',
-                              icon: Icons.refresh_rounded,
-                              color: const Color(0xFF94A3B8),
-                              bgGradient: null,
-                              bgColor: const Color(0xFFF1F5F9),
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const ServicesScreen()),
-                                );
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildQuickActionItem(
-                              label: 'Track order',
-                              icon: Icons.navigation_rounded,
-                              color: const Color(0xFF94A3B8),
-                              bgGradient: null,
-                              bgColor: const Color(0xFFF1F5F9),
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const BookingsScreen()),
-                                );
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildQuickActionItem(
-                              label: 'Refer & earn',
-                              icon: Icons.card_giftcard_rounded,
-                              color: Colors.white,
-                              bgGradient: const LinearGradient(
-                                colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              bgColor: const Color(0xFFDB2777),
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const ReferralsScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildQuickActionItem(
-                              label: 'Get support',
-                              icon: Icons.headset_mic_rounded,
-                              color: Colors.white,
-                              bgGradient: const LinearGradient(
-                                colors: [Color(0xFF34D399), Color(0xFF059669)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              bgColor: const Color(0xFF059669),
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Help Center: support@homecarex.com'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
-                  if (activeBookings.isNotEmpty)
-                    _buildUpcomingSection(context, activeBookings.first)
-                  else
-                    _buildWelcomeCustomerCard(context),
-
-                  const SizedBox(height: 20),
-                ],
-
-                // 6. SERVICE CATEGORIES (4x2 GRID)
-                _buildServiceCategoriesSection(context),
-
-                const SizedBox(height: 18),
-
-                // 7. PROMO / DISCOUNT BANNER (Flat 20% OFF / Use Code: HOME20)
-                _buildPromoDiscountBanner(context),
-
-                const SizedBox(height: 22),
-
-                // 8. POPULAR SERVICES (Horizontal Carousel)
-                _buildPopularServicesSection(context, catalog, cart),
-
-                const SizedBox(height: 22),
-
-                // 9. HOW HOMECAREX WORKS (4-Step Stepper Flow)
-                _buildHowItWorksSection(context),
-
-                const SizedBox(height: 22),
-
-                // 10. WHAT CUSTOMERS SAY (Testimonials)
-                _buildTestimonialsSection(context),
-
-                const SizedBox(height: 24),
-
-                // 11. FREQUENTLY ASKED QUESTIONS CAROUSEL
-                _buildFaqSection(context),
-
-                const SizedBox(height: 24),
-
-                // 12. BOTTOM PROMO / ACTION CARDS CAROUSEL
-                _buildBottomPromoSection(context),
-
-                const SizedBox(height: 36),
               ],
             ),
           ),
@@ -1172,54 +1062,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Quick Action Icon Cell
-  Widget _buildQuickActionItem({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required Gradient? bgGradient,
-    required Color bgColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              gradient: bgGradient,
-              color: bgGradient == null ? bgColor : null,
-              shape: BoxShape.circle,
-              boxShadow: bgGradient != null
-                  ? [
-                      BoxShadow(
-                        color: bgColor.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Center(
-              child: Icon(icon, color: color, size: 22),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E1B2E),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   String _formatScheduledDate(DateTime dt) {
     const months = [
@@ -1429,119 +1271,427 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWelcomeCustomerCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: AppColors.brand.withValues(alpha: 0.25),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Party Popper Icon
-            Image.asset(
-              'assets/icons/3d/party.png',
-              width: 68,
-              height: 68,
-              errorBuilder: (_, __, ___) => const Text('🎉', style: TextStyle(fontSize: 48)),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Welcome to HomeCareX!',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1B2E),
+  // ---------------------------------------------------------------------------
+  // AUTHENTICATED CUSTOMER HOME SECTIONS (matching localhost:3000/customer)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCustomerBrowseCategoriesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Browse categories',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
+                ),
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              "You haven't booked a service yet. Pick a category below to get started.",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 18),
-
-            // 3 Category shortcut tiles
-            Row(
-              children: [
-                Expanded(
-                  child: _buildWelcomeCategoryTile(
-                    label: 'Home Cleaning',
-                    iconPath: 'assets/icons/3d/broom.png',
-                    fallbackEmoji: '🧹',
-                    bgColor: const Color(0xFFEEECFB),
-                    onTap: () => _openCategory(context, 'home-cleaning'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildWelcomeCategoryTile(
-                    label: 'Appliance Repair',
-                    iconPath: 'assets/icons/3d/wrench.png',
-                    fallbackEmoji: '🔧',
-                    bgColor: const Color(0xFFFFF3EB),
-                    onTap: () => _openCategory(context, 'appliance-repair-service'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildWelcomeCategoryTile(
-                    label: 'Salon & Spa',
-                    iconPath: 'assets/icons/3d/massage.png',
-                    fallbackEmoji: '💆',
-                    bgColor: const Color(0xFFE4F4EC),
-                    onTap: () => _openCategory(context, 'salon-spa'),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Big Purple "Browse all categories" button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
+              GestureDetector(
+                onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const CategoriesScreen()),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brand,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  elevation: 0,
-                ),
+                behavior: HitTestBehavior.opaque,
                 child: const Text(
-                  'Browse all categories',
+                  'View all',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.brand,
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 1.15,
+            children: [
+              _buildCustomerCategoryCard(
+                title: 'Salon & Spa',
+                subtitle: '6 services',
+                imagePath: 'assets/images/Home-spa-women.webp',
+                slug: 'salon-spa',
+              ),
+              _buildCustomerCategoryCard(
+                title: 'Appliance Repair &\nService',
+                subtitle: '6 services',
+                imagePath: 'assets/images/quality-service.jpg',
+                slug: 'appliance-repair-service',
+              ),
+              _buildCustomerCategoryCard(
+                title: 'Home Cleaning',
+                subtitle: '5 services',
+                imagePath: 'assets/images/home-cleaning.jpg',
+                slug: 'home-cleaning',
+              ),
+              _buildCustomerCategoryCard(
+                title: 'Electrical & Plumbing',
+                subtitle: '6 services',
+                imagePath: 'assets/images/electrical.jpg',
+                slug: 'electrical-plumbing',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomerCategoryCard({
+    required String title,
+    required String subtitle,
+    required String imagePath,
+    required String slug,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ServicesScreen(initialCategory: slug),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1E1B2E).withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Photo
+              Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFFEEECFB),
+                  child: const Center(
+                    child: Icon(Icons.home_repair_service_rounded, color: AppColors.brand, size: 36),
+                  ),
+                ),
+              ),
+
+              // Gradient Overlay (dark at bottom for high legibility)
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      const Color(0xFF141224).withValues(alpha: 0.45),
+                      const Color(0xFF141224).withValues(alpha: 0.88),
+                    ],
+                    stops: const [0.35, 0.65, 1.0],
+                  ),
+                ),
+              ),
+
+              // Top right white circle with arrow icon
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom-left title and subtitle
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 12,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.2,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomerServicesForYouSection(BuildContext context, CatalogProvider catalog) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Services for you',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _buildCustomerServiceCard(
+                context: context,
+                title: 'AC Service & Gas Refill',
+                imagePath: 'assets/images/quality-service.jpg',
+                categorySlug: 'appliance-repair-service',
+                rating: '4.8',
+                duration: '45 mins',
+                price: 499,
+              ),
+              _buildCustomerServiceCard(
+                context: context,
+                title: 'Deep Home Cleaning',
+                imagePath: 'assets/images/home-cleaning.jpg',
+                categorySlug: 'home-cleaning',
+                rating: '4.9',
+                duration: '120 mins',
+                price: 899,
+              ),
+              _buildCustomerServiceCard(
+                context: context,
+                title: 'At-Home Spa for Women',
+                imagePath: 'assets/images/Home-spa-women.webp',
+                categorySlug: 'salon-spa',
+                rating: '4.9',
+                duration: '75 mins',
+                price: 699,
+              ),
+              _buildCustomerServiceCard(
+                context: context,
+                title: 'Electrician Visit & Repair',
+                imagePath: 'assets/images/electrical.jpg',
+                categorySlug: 'electrical-plumbing',
+                rating: '4.7',
+                duration: '45 mins',
+                price: 199,
+              ),
+              _buildCustomerServiceCard(
+                context: context,
+                title: 'Tap Leak Repair & Fix',
+                imagePath: 'assets/images/plumbing-1200.webp',
+                categorySlug: 'electrical-plumbing',
+                rating: '4.8',
+                duration: '45 mins',
+                price: 249,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomerServiceCard({
+    required BuildContext context,
+    required String title,
+    required String imagePath,
+    required String categorySlug,
+    required String rating,
+    required String duration,
+    required int price,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ServicesScreen(initialCategory: categorySlug),
+          ),
+        );
+      },
+      child: Container(
+        width: 188,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFF1F5F9)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1E1B2E).withValues(alpha: 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox(
+                height: 110,
+                width: double.infinity,
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFFEEECFB),
+                    child: const Center(
+                      child: Icon(Icons.handyman_rounded, color: AppColors.brand, size: 30),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(
+                  Icons.star_rounded,
+                  size: 14,
+                  color: Color(0xFFF59E0B),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  rating,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const Text(
+                  ' · ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF94A3B8),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Icon(
+                  Icons.access_time_rounded,
+                  size: 12,
+                  color: Color(0xFF94A3B8),
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    duration,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '₹$price',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Text(
+                    'Book',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1549,47 +1699,185 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Welcome Category Shortcut Tile
-  Widget _buildWelcomeCategoryTile({
-    required String label,
-    required String iconPath,
-    required String fallbackEmoji,
-    required Color bgColor,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Image.asset(
-              iconPath,
-              width: 36,
-              height: 36,
-              errorBuilder: (_, __, ___) => Text(fallbackEmoji, style: const TextStyle(fontSize: 26)),
+  Widget _buildCustomerOffersSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Offers for you',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.3,
             ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1B2E),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              // Offer 1: Flat 20% OFF
+              GestureDetector(
+                onTap: () => _copyCouponCode('HOME20'),
+                child: Container(
+                  width: 260,
+                  margin: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFEEECFB), Color(0xFFF5F3FF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFDDD6FE)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4338CA).withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.brand,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'HOME20',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            _copiedCoupon ? Icons.check_circle_rounded : Icons.copy_rounded,
+                            size: 18,
+                            color: AppColors.brand,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Flat 20% OFF',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E1B2E),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'On your first booking with us',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              // Offer 2: Refer a friend, earn ₹50
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ReferralsScreen()),
+                  );
+                },
+                child: Container(
+                  width: 260,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB45309).withValues(alpha: 0.06),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'REFERRAL',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          const Icon(
+                            Icons.card_giftcard_rounded,
+                            size: 18,
+                            color: Color(0xFFB45309),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Refer a friend, earn ₹50',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E1B2E),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Both get wallet credit on 1st order',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
+
 
   // ===========================================================================
   // 1. SERVICE CATEGORIES (4x2 GRID MATCHING MOCKUP & WEB DESIGN)
@@ -3517,80 +3805,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildGreetingSection(BuildContext context) {
-    final greeting = _greetingForNow();
-    final firstName = _getUserFirstName(context);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Live greeting badge: • Good morning / afternoon / evening
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFD9DCF7)),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E1B2E).withValues(alpha: 0.03),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981), // Live Emerald
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  greeting,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E1B2E),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Welcome, TATUKULA
-          Text(
-            'Welcome, $firstName',
-            style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1E1B2E),
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Subtitle
-          const Text(
-            'Trusted professionals at your door. Transparent prices, no surprises.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildHeroCard(BuildContext context) {
     return Padding(

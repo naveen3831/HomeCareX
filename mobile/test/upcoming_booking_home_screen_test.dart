@@ -34,7 +34,7 @@ void main() {
     );
   }
 
-  testWidgets('HomeScreen displays Welcome card when no active bookings exist', (tester) async {
+  testWidgets('HomeScreen displays Browse categories and Services for you when logged in with no active bookings', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -48,9 +48,13 @@ void main() {
     await tester.pumpWidget(createTestWidget(bookingProvider));
     await tester.pumpAndSettle();
 
-    // Verify Welcome card is visible and Upcoming is not
-    expect(find.text('Welcome to HomeCareX!'), findsOneWidget);
-    expect(find.text("You haven't booked a service yet. Pick a category below to get started."), findsOneWidget);
+    // Verify Browse categories and Services for you are visible and Upcoming is not
+    expect(find.text('Browse categories'), findsOneWidget);
+    expect(find.text('Salon & Spa'), findsOneWidget);
+    expect(find.text('Appliance Repair &\nService'), findsOneWidget);
+    expect(find.text('Home Cleaning'), findsOneWidget);
+    expect(find.text('Electrical & Plumbing'), findsOneWidget);
+    expect(find.text('Services for you'), findsOneWidget);
     expect(find.text('• Add address'), findsOneWidget);
     expect(find.text('Upcoming'), findsNothing);
   });
