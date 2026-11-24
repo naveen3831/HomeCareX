@@ -82,25 +82,35 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final trimmed = email.trim();
+      final cleanPhone = trimmed.replaceAll(RegExp(r'[\s\(\)\-\+]'), '').replaceFirst(RegExp(r'^91'), '');
+      final isPhone = RegExp(r'^[6-9]\d{9}$').hasMatch(cleanPhone);
+      final identifierToSend = isPhone ? cleanPhone : trimmed.toLowerCase();
+
       final res = await ApiService.post(ApiConstants.login, {
-        'email': email.trim().toLowerCase(),
+        'email': identifierToSend,
         'password': password,
       });
 
-      if (res is Map && res['token'] != null) {
-        await StorageService.setLoggedOut(false);
-        await StorageService.saveToken(res['token'].toString());
-        if (res['user'] != null) {
-          _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
-          await StorageService.saveUser(_user!);
-        } else {
-          await checkAuth();
+      if (res is Map) {
+        final token = res['token'] ?? res['accessToken'];
+        if (token != null) {
+          await StorageService.setLoggedOut(false);
+          await StorageService.saveToken(token.toString());
+          if (res['user'] != null) {
+            _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
+            await StorageService.saveUser(_user!);
+          } else {
+            await checkAuth();
+          }
+          _isLoading = false;
+          notifyListeners();
+          return true;
         }
-        _isLoading = false;
-        notifyListeners();
-        return true;
       }
-      throw Exception('Invalid login response');
+
+      final err = ApiService.lastError ?? 'Invalid email/phone or password. Please try again.';
+      throw Exception(err);
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
@@ -133,16 +143,19 @@ class AuthProvider extends ChangeNotifier {
       }
 
       final res = await ApiService.post(ApiConstants.register, body);
-      if (res is Map && res['token'] != null) {
-        await StorageService.setLoggedOut(false);
-        await StorageService.saveToken(res['token'].toString());
-        if (res['user'] != null) {
-          _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
-          await StorageService.saveUser(_user!);
+      if (res is Map) {
+        final token = res['token'] ?? res['accessToken'];
+        if (token != null) {
+          await StorageService.setLoggedOut(false);
+          await StorageService.saveToken(token.toString());
+          if (res['user'] != null) {
+            _user = UserModel.fromJson(Map<String, dynamic>.from(res['user']));
+            await StorageService.saveUser(_user!);
+          }
+          _isLoading = false;
+          notifyListeners();
+          return true;
         }
-        _isLoading = false;
-        notifyListeners();
-        return true;
       }
       return await login(email, password);
     } catch (e) {

@@ -86,6 +86,12 @@ class _LoginScreenState extends State<LoginScreen> {
           widget.onLoginSuccess!();
         } else if (Navigator.canPop(context)) {
           Navigator.pop(context);
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const MainNavigationScreen(initialIndex: 4),
+            ),
+          );
         }
       } else {
         setState(() {
@@ -326,7 +332,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           return 'Please enter your email or phone number';
                         }
                         final isEmail = trimmed.contains('@') && trimmed.contains('.');
-                        final isPhone = RegExp(r'^[6-9]\d{9}$').hasMatch(trimmed);
+                        final cleanPhone = trimmed.replaceAll(RegExp(r'[\s\(\)\-\+]'), '').replaceFirst(RegExp(r'^91'), '');
+                        final isPhone = RegExp(r'^[6-9]\d{9}$').hasMatch(cleanPhone);
                         if (!isEmail && !isPhone) {
                           return 'Enter a valid email or 10-digit mobile number';
                         }
