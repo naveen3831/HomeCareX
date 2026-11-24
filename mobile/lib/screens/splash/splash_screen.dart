@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/services/storage_service.dart';
 import '../../providers/auth_provider.dart';
-import '../main_navigation_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -55,23 +53,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       final auth = context.read<AuthProvider>();
       auth.checkAuth(); // Non-blocking background call
 
-      final onboardingDone = await StorageService.isOnboardingCompleted();
       if (!mounted) return;
 
-      if (!onboardingDone) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
-        );
-      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      );
     } catch (e) {
       debugPrint('[SplashScreen] Bootstrap error: $e');
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+          MaterialPageRoute(builder: (_) => const OnboardingScreen()),
         );
       }
     }

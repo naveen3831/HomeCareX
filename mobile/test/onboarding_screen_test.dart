@@ -176,7 +176,7 @@ void main() {
     expect(find.byType(LoginScreen), findsOneWidget);
   });
 
-  testWidgets('SplashScreen navigates to OnboardingScreen when onboarding is pending',
+  testWidgets('SplashScreen navigates to OnboardingScreen when app opens',
       (WidgetTester tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
@@ -185,7 +185,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await StorageService.resetOnboarding();
+    await StorageService.setOnboardingCompleted(true);
 
     await tester.pumpWidget(
       createWidget(child: const SplashScreen()),
