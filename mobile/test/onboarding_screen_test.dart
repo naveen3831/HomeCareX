@@ -63,13 +63,13 @@ void main() {
 
     // Slide 1 elements
     expect(find.text('CONVENIENT & ON-DEMAND'), findsOneWidget);
-    expect(find.text('Expert Home Services\nAt Your Doorstep'), findsOneWidget);
+    expect(find.text('EXPERT HOME SERVICES\nAT YOUR DOORSTEP'), findsOneWidget);
     expect(find.textContaining('From AC repair and plumbing'), findsOneWidget);
-    expect(find.text('⚡ 60s Booking'), findsOneWidget);
-    expect(find.text('📍 Live Tracking'), findsOneWidget);
-    expect(find.text('🛡️ Certified Pros'), findsOneWidget);
+    expect(find.text('60s Fast Booking'), findsOneWidget);
+    expect(find.text('Live Tracking'), findsOneWidget);
+    expect(find.text('Certified Pros'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
-    expect(find.text('Next'), findsOneWidget);
+    expect(find.text('NEXT →'), findsOneWidget);
     expect(find.byType(Image), findsWidgets);
   });
 
@@ -86,23 +86,23 @@ void main() {
     await tester.pumpAndSettle();
 
     // Slide 1 -> Slide 2
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
 
     expect(find.text('SAFETY GUARANTEED'), findsOneWidget);
-    expect(find.text('Verified & Background\nChecked Pros'), findsOneWidget);
-    expect(find.text('✓ 5-Point KYC'), findsOneWidget);
-    expect(find.text('✓ Police Cleared'), findsOneWidget);
+    expect(find.text('VERIFIED & BACKGROUND\nCHECKED PROS'), findsOneWidget);
+    expect(find.text('5-Point KYC'), findsOneWidget);
+    expect(find.text('Police Cleared'), findsOneWidget);
 
     // Slide 2 -> Slide 3
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
 
     expect(find.text('TRANSPARENT & SECURE'), findsOneWidget);
-    expect(find.text('Live Tracking &\nSecure Start OTP'), findsOneWidget);
-    expect(find.text('🔒 4-Digit OTP'), findsOneWidget);
-    expect(find.text('💳 Razorpay & UPI'), findsOneWidget);
-    expect(find.text('Get Started'), findsOneWidget);
+    expect(find.text('LIVE TRACKING &\nSECURE START OTP'), findsOneWidget);
+    expect(find.text('4-Digit Start OTP'), findsOneWidget);
+    expect(find.text('Razorpay & UPI'), findsOneWidget);
+    expect(find.text('GET STARTED →'), findsOneWidget);
     expect(find.text('Already have an account? Sign In'), findsOneWidget);
   });
 
@@ -119,13 +119,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Advance to last slide
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
 
     // Tap Get Started
-    await tester.tap(find.text('Get Started'));
+    await tester.tap(find.text('GET STARTED →'));
     await tester.pumpAndSettle();
 
     final isCompleted = await StorageService.isOnboardingCompleted();
@@ -166,9 +166,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Advance to slide 3
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('NEXT →'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Already have an account? Sign In'));
