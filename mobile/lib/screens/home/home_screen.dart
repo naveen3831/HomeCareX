@@ -26,34 +26,30 @@ import '../profile/saved_addresses_screen.dart';
 import '../referrals/referrals_screen.dart';
 
 class _HeroSlideData {
-  final String title;
-  final String categoryId;
-  final String categorySlug;
-  final String imagePath;
-
-  const _HeroSlideData({
-    required this.title,
-    required this.categoryId,
-    required this.categorySlug,
-    required this.imagePath,
-  });
-}
-
-class _GuestHeroSlide {
   final String tag;
   final String title;
   final String description;
   final String buttonText;
   final String imagePath;
   final String categorySlug;
+  final List<Color> gradientColors;
+  final Color buttonColor;
+  final Color tagColor;
+  final Color tagBgColor;
+  final Color tagBorderColor;
 
-  const _GuestHeroSlide({
+  const _HeroSlideData({
     required this.tag,
     required this.title,
     required this.description,
     required this.buttonText,
     required this.imagePath,
     required this.categorySlug,
+    required this.gradientColors,
+    required this.buttonColor,
+    required this.tagColor,
+    this.tagBgColor = Colors.white,
+    required this.tagBorderColor,
   });
 }
 
@@ -71,77 +67,55 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCity = 'Hyderabad';
 
   late final PageController _heroPageController;
-  late final PageController _guestPageController;
   late final TextEditingController _searchController;
   Timer? _heroTimer;
-  Timer? _guestHeroTimer;
   Timer? _typingTimer;
   Timer? _typingPauseTimer;
   int _heroPageIndex = 0;
-  int _guestPageIndex = 0;
-  bool _isGuestAutoplayPaused = false;
   String _animatedHint = 'Search AC repair|';
   int _phraseIndex = 0;
   int _charIndex = 0;
   bool _isTypingForward = true;
 
-  static const List<_GuestHeroSlide> _guestHeroSlides = [
-    _GuestHeroSlide(
-      tag: 'Home services',
-      title: 'Professional Home Services',
-      description: 'Book trusted professionals for your home',
-      buttonText: 'Explore services',
-      imagePath: 'assets/images/home-cleaning.webp',
-      categorySlug: 'home-cleaning',
-    ),
-    _GuestHeroSlide(
-      tag: 'Appliance repair',
-      title: 'Appliance repair at your doorstep',
-      description: 'Get your washing machine, fridge or AC working without hassle',
-      buttonText: 'Explore services',
-      imagePath: 'assets/images/appliance-repair.webp',
-      categorySlug: 'appliance-repair-service',
-    ),
-    _GuestHeroSlide(
-      tag: 'Electrical & Plumbing',
-      title: 'Safe, certified home repairs',
-      description: 'Quick fixes, safety checks, and emergency home care',
-      buttonText: 'Explore services',
-      imagePath: 'assets/images/electrical.jpg',
-      categorySlug: 'electrical-plumbing',
-    ),
-  ];
-
   static const List<_HeroSlideData> _heroSlides = [
     _HeroSlideData(
-      title: 'Painting & Waterproofing',
-      categoryId: 'cat_painting',
-      categorySlug: 'painting-waterproofing',
-      imagePath: 'assets/images/painting-category.webp',
-    ),
-    _HeroSlideData(
-      title: 'Home Cleaning',
-      categoryId: 'cat_cleaning',
+      tag: 'Verified Professionals',
+      title: 'Home Cleaning\nServices',
+      description: 'Deep cleaning for a healthier and happier home.',
+      buttonText: 'Book Now',
+      imagePath: 'assets/images/sofa-clean.png',
       categorySlug: 'home-cleaning',
-      imagePath: 'assets/images/home-cleaning.webp',
+      gradientColors: [Color(0xFFEDF2F8), Color(0xFFEEF3F8), Color(0xFFF4F7FB)],
+      buttonColor: Color(0xFF2563EB),
+      tagColor: Color(0xFF1D4ED8),
+      tagBgColor: Colors.white,
+      tagBorderColor: Color(0xFFDBEAFE),
     ),
     _HeroSlideData(
-      title: 'Appliance Repair & Service',
-      categoryId: 'cat_appliances',
-      categorySlug: 'appliance-repair-service',
+      tag: '30-Day Warranty',
+      title: 'Appliance Repair\nServices',
+      description: 'Expert technician at your doorstep within 60 minutes.',
+      buttonText: 'Book Now',
       imagePath: 'assets/images/appliance-repair.webp',
+      categorySlug: 'appliance-repair-service',
+      gradientColors: [Color(0xFFEFF6FF), Color(0xFFF0F9FF), Color(0xFFE0E7FF)],
+      buttonColor: Color(0xFF2563EB),
+      tagColor: Color(0xFF1D4ED8),
+      tagBgColor: Colors.white,
+      tagBorderColor: Color(0xFFDBEAFE),
     ),
     _HeroSlideData(
-      title: 'Electrical & Plumbing',
-      categoryId: 'cat_electrical',
-      categorySlug: 'electrical-plumbing',
+      tag: 'Certified Experts',
+      title: 'Electrical &\nPlumbing Care',
+      description: 'Quick fixes, safety checks, and emergency home care.',
+      buttonText: 'Book Now',
       imagePath: 'assets/images/electrical.jpg',
-    ),
-    _HeroSlideData(
-      title: 'Salon & Spa',
-      categoryId: 'cat_salon',
-      categorySlug: 'salon-spa',
-      imagePath: 'assets/images/Home-spa-women-banner.jpg',
+      categorySlug: 'electrical-plumbing',
+      gradientColors: [Color(0xFFFFFBEB), Color(0xFFFFF7ED), Color(0xFFFEF3C7)],
+      buttonColor: Color(0xFFF97316),
+      tagColor: Color(0xFFB45309),
+      tagBgColor: Colors.white,
+      tagBorderColor: Color(0xFFFEF3C7),
     ),
   ];
 
@@ -158,7 +132,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _heroPageController = PageController();
-    _guestPageController = PageController();
     _searchController = TextEditingController();
 
     _heroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
@@ -166,18 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_heroPageController.hasClients) {
         final next = (_heroPageIndex + 1) % _heroSlides.length;
         _heroPageController.animateToPage(
-          next,
-          duration: const Duration(milliseconds: 550),
-          curve: Curves.easeInOutCubic,
-        );
-      }
-    });
-
-    _guestHeroTimer = Timer.periodic(const Duration(milliseconds: 4500), (timer) {
-      if (!mounted) return;
-      if (!_isGuestAutoplayPaused && _guestPageController.hasClients) {
-        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
-        _guestPageController.animateToPage(
           next,
           duration: const Duration(milliseconds: 550),
           curve: Curves.easeInOutCubic,
@@ -201,11 +162,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _heroTimer?.cancel();
-    _guestHeroTimer?.cancel();
     _typingTimer?.cancel();
     _typingPauseTimer?.cancel();
     _heroPageController.dispose();
-    _guestPageController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -938,17 +897,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 14),
 
-                        // 3. GUEST HERO CAROUSEL CARD (Explore services, progress bar, pause, chevrons)
-                        _buildGuestHeroCarousel(context),
+                        // 3. HERO CAROUSEL CARD (Verified Professionals / Home Cleaning, etc.)
+                        _buildHeroCard(context),
 
                         const SizedBox(height: 14),
 
-                        // 4. GUEST PROMO CARD (Appliance Repair Services + 30-Day Warranty + Technician)
-                        _buildGuestPromoCard(context),
-
-                        const SizedBox(height: 14),
-
-                        // 5. SEARCH BAR (Search input + Mic + Orange search button)
+                        // 4. SEARCH BAR (Search input + Mic + Orange search button)
                         _buildSearchBar(context),
 
                         const SizedBox(height: 18),
@@ -2136,118 +2090,236 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeroCard(BuildContext context) {
-    final currentSlide = _heroSlides[_heroPageIndex];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 1. Photo Carousel Container
+          // 1. Hero Card Container
           Container(
-            height: 185,
+            height: 165,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+                width: 1,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1E1B2E).withValues(alpha: 0.12),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(26),
-              child: Stack(
-                children: [
-                  PageView.builder(
-                    controller: _heroPageController,
-                    itemCount: _heroSlides.length,
-                    onPageChanged: (idx) {
-                      setState(() => _heroPageIndex = idx);
-                    },
-                    itemBuilder: (context, index) {
-                      final slide = _heroSlides[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => ServicesScreen(
-                                initialCategory: slide.categoryId,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Image.asset(
-                          slide.imagePath,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFFEEECFB),
-                            child: const Center(
-                              child: Icon(
-                                Icons.image_outlined,
-                                size: 40,
-                                color: AppColors.brand,
-                              ),
-                            ),
-                          ),
+              borderRadius: BorderRadius.circular(24),
+              child: PageView.builder(
+                controller: _heroPageController,
+                itemCount: _heroSlides.length,
+                onPageChanged: (idx) {
+                  setState(() => _heroPageIndex = idx);
+                },
+                itemBuilder: (context, index) {
+                  final slide = _heroSlides[index];
+                  return GestureDetector(
+                    onTap: () => _openCategory(context, slide.categorySlug),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: slide.gradientColors,
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
                         ),
-                      );
-                    },
-                  ),
-
-                  // Indicator dots on the bottom right of the photo (matching web phone preview!)
-                  Positioned(
-                    bottom: 12,
-                    right: 14,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: List.generate(_heroSlides.length, (i) {
-                        final isActive = i == _heroPageIndex;
-                        return AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 2.5),
-                          height: 6,
-                          width: isActive ? 24 : 6,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(3),
+                      ),
+                      child: Stack(
+                        children: [
+                          // Right Image with left soft gradient fade
+                          Positioned(
+                            top: 0,
+                            bottom: 0,
+                            right: 0,
+                            width: 162,
+                            child: ShaderMask(
+                              shaderCallback: (bounds) {
+                                return const LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black,
+                                  ],
+                                  stops: [0.0, 0.22],
+                                ).createShader(bounds);
+                              },
+                              blendMode: BlendMode.dstIn,
+                              child: Image.asset(
+                                slide.imagePath,
+                                fit: BoxFit.cover,
+                                alignment: Alignment.bottomRight,
+                                errorBuilder: (_, __, ___) => const SizedBox(),
+                              ),
+                            ),
                           ),
-                        );
-                      }),
+
+                          // Left Vector Content
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Badge: 🛡️ Verified Professionals
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: slide.tagBgColor.withValues(alpha: 0.95),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: slide.tagBorderColor.withValues(alpha: 0.8),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.03),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.verified_user_outlined,
+                                        size: 11,
+                                        color: slide.tagColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        slide.tag,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: slide.tagColor,
+                                          letterSpacing: -0.1,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+
+                                // Headline: Home Cleaning Services
+                                Text(
+                                  slide.title,
+                                  style: const TextStyle(
+                                    fontSize: 17.5,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                    height: 1.15,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 3.5),
+
+                                // Subtitle: Deep cleaning for a healthier and happier home.
+                                SizedBox(
+                                  width: 160,
+                                  child: Text(
+                                    slide.description,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF475569),
+                                      height: 1.25,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+
+                                const Spacer(),
+
+                                // Button: Book Now ->
+                                GestureDetector(
+                                  onTap: () => _openCategory(context, slide.categorySlug),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6.5),
+                                    decoration: BoxDecoration(
+                                      color: slide.buttonColor,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: slide.buttonColor.withValues(alpha: 0.35),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          slide.buttonText,
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 13,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // 2. Category Title Strip below photo
-          GestureDetector(
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ServicesScreen(
-                    initialCategory: currentSlide.categoryId,
+          // 2. Centered Carousel Indicator Dots below card
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_heroSlides.length, (idx) {
+              final isActive = idx == _heroPageIndex;
+              return GestureDetector(
+                onTap: () {
+                  _heroPageController.animateToPage(
+                    idx,
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  height: 5,
+                  width: isActive ? 22 : 5,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? const Color(0xFF2563EB)
+                        : const Color(0xFFBFDBFE),
+                    borderRadius: BorderRadius.circular(3),
                   ),
                 ),
               );
-            },
-            child: Text(
-              currentSlide.title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E1B2E),
-                letterSpacing: -0.4,
-              ),
-            ),
+            }),
           ),
         ],
       ),
@@ -2308,430 +2380,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // GUEST HERO CAROUSEL CARD (Explore services, progress bar, pause, chevrons)
-  // ---------------------------------------------------------------------------
-  Widget _buildGuestHeroCarousel(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.18),
-              blurRadius: 20,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // PageView of hero slides
-              PageView.builder(
-                controller: _guestPageController,
-                itemCount: _guestHeroSlides.length,
-                onPageChanged: (idx) {
-                  setState(() => _guestPageIndex = idx);
-                },
-                itemBuilder: (context, index) {
-                  final slide = _guestHeroSlides[index];
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Photo
-                      Image.asset(
-                        slide.imagePath,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: const Color(0xFF1E293B),
-                          child: const Center(
-                            child: Icon(Icons.handyman_rounded, color: Colors.white, size: 48),
-                          ),
-                        ),
-                      ),
 
-                      // Dark readability gradient
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.78),
-                              Colors.black.withValues(alpha: 0.45),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withValues(alpha: 0.65),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Slide text & CTA
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 44),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Category Tag Badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    slide.tag,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-
-                                // Title
-                                Text(
-                                  slide.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.2,
-                                    letterSpacing: -0.3,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-
-                                // Subtitle
-                                Text(
-                                  slide.description,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                    height: 1.3,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-
-                            // Orange Explore services button
-                            GestureDetector(
-                              onTap: () {
-                                _openCategory(context, slide.categorySlug);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF8A3D),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF8A3D).withValues(alpha: 0.4),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      slide.buttonText,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      size: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-
-              // Bottom control bar (progress segments + pause/play + prev/next chevrons)
-              Positioned(
-                bottom: 10,
-                left: 16,
-                right: 16,
-                child: Row(
-                  children: [
-                    // Progress line indicators
-                    Expanded(
-                      child: Row(
-                        children: List.generate(_guestHeroSlides.length, (i) {
-                          final isActive = i == _guestPageIndex;
-                          return Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                _guestPageController.animateToPage(
-                                  i,
-                                  duration: const Duration(milliseconds: 350),
-                                  curve: Curves.easeInOut,
-                                );
-                              },
-                              child: Container(
-                                height: 4,
-                                margin: const EdgeInsets.symmetric(horizontal: 2),
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? const Color(0xFFFF8A3D)
-                                      : Colors.white.withValues(alpha: 0.35),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Pause / Play button
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _isGuestAutoplayPaused = !_isGuestAutoplayPaused;
-                        });
-                      },
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(
-                            _isGuestAutoplayPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-
-                    // Prev chevron <
-                    GestureDetector(
-                      onTap: () {
-                        final prev = (_guestPageIndex - 1 + _guestHeroSlides.length) % _guestHeroSlides.length;
-                        _guestPageController.animateToPage(
-                          prev,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.chevron_left_rounded,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-
-                    // Next chevron >
-                    GestureDetector(
-                      onTap: () {
-                        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
-                        _guestPageController.animateToPage(
-                          next,
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                        );
-                      },
-                      child: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.chevron_right_rounded,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // GUEST PROMO CARD (Appliance Repair Services + 30-Day Warranty + Technician)
-  // ---------------------------------------------------------------------------
-  Widget _buildGuestPromoCard(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () => _openCategory(context, 'appliance-repair-service'),
-        child: Container(
-          height: 105,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: Stack(
-              children: [
-                // Right Technician Image
-                Positioned(
-                  top: 0,
-                  bottom: 0,
-                  right: 0,
-                  width: 130,
-                  child: ShaderMask(
-                    shaderCallback: (rect) {
-                      return const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [Colors.transparent, Colors.black],
-                        stops: [0.0, 0.35],
-                      ).createShader(rect);
-                    },
-                    blendMode: BlendMode.dstIn,
-                    child: Image.asset(
-                      'assets/images/appliance-technician.webp',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        'assets/images/appliance-repair.webp',
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Left Content: Tag + Title
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 🛡️ 30-Day Warranty Tag
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFBFDBFE)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.verified_user_rounded,
-                              size: 12,
-                              color: Color(0xFF2563EB),
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              '30-Day Warranty',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1D4ED8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Appliance Repair Services
-                      const Text(
-                        'Appliance Repair\nServices',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
-                          height: 1.15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildSearchBar(BuildContext context) {
     return Padding(
