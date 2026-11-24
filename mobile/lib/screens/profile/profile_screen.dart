@@ -20,7 +20,12 @@ import 'notifications_settings_screen.dart';
 import 'saved_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const ProfileScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -537,8 +542,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildTopAppBar(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final isGuest = !auth.isAuthenticated;
-    final canPop = Navigator.canPop(context);
-    final showBackButton = !isGuest && canPop;
+    final showBackButton = !isGuest;
 
     if (!showBackButton) {
       return const Text(
@@ -554,8 +558,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return GestureDetector(
       onTap: () {
-        if (Navigator.canPop(context)) {
+        if (widget.onBackToHome != null) {
+          widget.onBackToHome!();
+        } else if (Navigator.canPop(context)) {
           Navigator.pop(context);
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+            ),
+          );
         }
       },
       child: const Padding(

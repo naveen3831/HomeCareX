@@ -49,9 +49,13 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
     switch (index) {
       case 0:
-        return const CategoriesScreen();
+        return CategoriesScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 1:
-        return const ServicesScreen();
+        return ServicesScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 2:
         return const HomeScreen();
       case 3:
@@ -73,7 +77,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             },
           );
         }
-        return const BookingsScreen();
+        return BookingsScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       case 4:
         final auth = context.watch<AuthProvider>();
         if (!auth.isAuthenticated) {
@@ -93,7 +99,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             },
           );
         }
-        return const ProfileScreen();
+        return ProfileScreen(
+          onBackToHome: () => _onTabSelected(2),
+        );
       default:
         return const SizedBox.shrink();
     }

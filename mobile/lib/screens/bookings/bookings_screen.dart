@@ -7,10 +7,16 @@ import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../catalog/services_screen.dart';
 import '../auth/login_screen.dart';
+import '../main_navigation_screen.dart';
 import 'booking_tracking_screen.dart';
 
 class BookingsScreen extends StatefulWidget {
-  const BookingsScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const BookingsScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -270,8 +276,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
     }
 
     final isGuest = !auth.isAuthenticated;
-    final canPop = Navigator.canPop(context);
-    final showBackButton = !isGuest && canPop;
+    final showBackButton = !isGuest;
 
     final bookingProv = context.watch<BookingProvider>();
     final filteredBookings = _getFilteredBookings(bookingProv.bookings);
@@ -290,8 +295,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
               child: showBackButton
                   ? GestureDetector(
                       onTap: () {
-                        if (Navigator.canPop(context)) {
+                        if (widget.onBackToHome != null) {
+                          widget.onBackToHome!();
+                        } else if (Navigator.canPop(context)) {
                           Navigator.pop(context);
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                            ),
+                          );
                         }
                       },
                       child: const Padding(

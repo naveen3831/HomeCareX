@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import 'service_details_screen.dart';
 import 'services_screen.dart';
+import '../main_navigation_screen.dart';
 
 class _CategoryTheme {
   final String imagePath;
@@ -27,7 +28,12 @@ class _CategoryTheme {
 }
 
 class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const CategoriesScreen({
+    super.key,
+    this.onBackToHome,
+  });
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -257,8 +263,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       auth = Provider.of<AuthProvider>(context, listen: true);
     } catch (_) {}
     final isGuest = auth != null ? !auth.isAuthenticated : false;
-    final canPop = Navigator.canPop(context);
-    final showBackButton = !isGuest && canPop;
+    final showBackButton = !isGuest;
     final rawCategories = catalog.categories;
 
     // Deduplicate and sort by preferred mockup order
@@ -299,8 +304,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               child: showBackButton
                   ? GestureDetector(
                       onTap: () {
-                        if (Navigator.canPop(context)) {
+                        if (widget.onBackToHome != null) {
+                          widget.onBackToHome!();
+                        } else if (Navigator.canPop(context)) {
                           Navigator.pop(context);
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                            ),
+                          );
                         }
                       },
                       child: const Padding(

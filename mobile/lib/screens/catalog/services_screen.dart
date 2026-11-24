@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import 'categories_screen.dart';
 import 'service_details_screen.dart';
+import '../main_navigation_screen.dart';
 
 class _CurvedUnderlinePainter extends CustomPainter {
   @override
@@ -32,12 +33,14 @@ class ServicesScreen extends StatefulWidget {
   final String? initialCategory;
   final String? initialQuery;
   final int initialPage;
+  final VoidCallback? onBackToHome;
 
   const ServicesScreen({
     super.key,
     this.initialCategory,
     this.initialQuery,
     this.initialPage = 1,
+    this.onBackToHome,
   });
 
   @override
@@ -708,8 +711,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       auth = Provider.of<AuthProvider>(context, listen: true);
     } catch (_) {}
     final isGuest = auth != null ? !auth.isAuthenticated : false;
-    final canPop = Navigator.canPop(context);
-    final showBackButton = !isGuest && canPop;
+    final showBackButton = !isGuest;
     final categories = catalog.categories;
 
     // Filter services based on search, category, and active filters
@@ -776,8 +778,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
               child: showBackButton
                   ? GestureDetector(
                       onTap: () {
-                        if (Navigator.canPop(context)) {
+                        if (widget.onBackToHome != null) {
+                          widget.onBackToHome!();
+                        } else if (Navigator.canPop(context)) {
                           Navigator.pop(context);
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const MainNavigationScreen(initialIndex: 2),
+                            ),
+                          );
                         }
                       },
                       child: const Padding(
