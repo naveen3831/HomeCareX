@@ -74,9 +74,60 @@ void main() {
     expect(find.text('Deep cleaning for a healthier and happier home.'), findsOneWidget);
     expect(find.text('Book Now'), findsWidgets);
 
-    // 5. Authenticated elements are NOT present
+    // 5. Authenticated elements and quick actions are NOT present in guest mode
     expect(find.text('Welcome, TATUKULA'), findsNothing);
     expect(find.text('Deliver to '), findsNothing);
+    expect(find.text('Book again'), findsNothing);
+    expect(find.text('Track order'), findsNothing);
+
+    // 6. Service Categories 4x2 grid matching web mockup
+    expect(find.text('Service Categories'), findsOneWidget);
+    expect(find.text('Home Cleaning'), findsWidgets);
+    expect(find.text('Appliance Repair'), findsOneWidget);
+    expect(find.text('Salon & Spa'), findsOneWidget);
+    expect(find.text('Electrical & Plumbing'), findsOneWidget);
+    expect(find.text('Painting & Waterproofing'), findsOneWidget);
+    expect(find.text('Pest Control'), findsOneWidget);
+    expect(find.text('Carpentry & Assembly'), findsOneWidget);
+    expect(find.text('More Services'), findsOneWidget);
+
+    // 7. Promo / Discount Banner
+    expect(find.text('Flat 20% OFF'), findsOneWidget);
+    expect(find.text('On Your First Booking'), findsOneWidget);
+    expect(find.text('Use Code: HOME20'), findsOneWidget);
+
+    // 8. Popular Services horizontal section
+    expect(find.text('Popular Services', findRichText: true), findsOneWidget);
+    expect(find.text('AC Service'), findsOneWidget);
+    expect(find.text('₹499'), findsOneWidget);
+  });
+
+  testWidgets('Guest Home Screen allows copying coupon code HOME20 and shows SnackBar', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await StorageService.setLoggedOut(true);
+    final authProvider = AuthProvider();
+    authProvider.setUser(null);
+
+    await tester.pumpWidget(createGuestHomeTestWidget(authProvider: authProvider));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final couponFinder = find.text('Use Code: HOME20');
+    expect(couponFinder, findsOneWidget);
+
+    await tester.tap(couponFinder);
+    await tester.pump();
+
+    expect(find.text('Coupon code "HOME20" copied to clipboard!'), findsOneWidget);
+    expect(find.text('Copied! ✓'), findsOneWidget);
+
+    // Advance past the 2-second timer so no pending timers remain
+    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets('Guest location pill toggles city picker dropdown and selects city', (tester) async {

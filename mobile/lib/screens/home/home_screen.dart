@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/models/category_model.dart';
-import '../../core/models/service_model.dart';
 import '../../core/models/booking_model.dart';
 import '../../core/models/address_model.dart';
-import '../../core/utils/icon_3d.dart';
 import '../../core/utils/bell_3d_icon.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/auth_provider.dart';
@@ -80,6 +77,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _copiedCoupon = false;
+  final Set<String> _favoriteServiceIds = {};
   bool _isLocationPickerOpen = false;
   bool _isCityPickerOpen = false;
   String _selectedCity = 'Hyderabad';
@@ -977,331 +975,126 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 18),
                       ],
 
-                // 5. QUICK ACTIONS ROW (Book again, Track order, Refer & earn, Get support)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFF1F5F9)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-                          blurRadius: 18,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        Expanded(
-                          child: _buildQuickActionItem(
-                            label: 'Book again',
-                            icon: Icons.refresh_rounded,
-                            color: const Color(0xFF94A3B8),
-                            bgGradient: null,
-                            bgColor: const Color(0xFFF1F5F9),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const ServicesScreen()),
-                              );
-                            },
+                if (isAuthenticated) ...[
+                  // 5. QUICK ACTIONS ROW (Book again, Track order, Refer & earn, Get support)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFF1F5F9)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
+                            blurRadius: 18,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
-                        Expanded(
-                          child: _buildQuickActionItem(
-                            label: 'Track order',
-                            icon: Icons.navigation_rounded,
-                            color: const Color(0xFF94A3B8),
-                            bgGradient: null,
-                            bgColor: const Color(0xFFF1F5F9),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const BookingsScreen()),
-                              );
-                            },
-                          ),
-                        ),
-                        Expanded(
-                          child: _buildQuickActionItem(
-                            label: 'Refer & earn',
-                            icon: Icons.card_giftcard_rounded,
-                            color: Colors.white,
-                            bgGradient: const LinearGradient(
-                              colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionItem(
+                              label: 'Book again',
+                              icon: Icons.refresh_rounded,
+                              color: const Color(0xFF94A3B8),
+                              bgGradient: null,
+                              bgColor: const Color(0xFFF1F5F9),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                                );
+                              },
                             ),
-                            bgColor: const Color(0xFFDB2777),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ReferralsScreen(),
-                                ),
-                              );
-                            },
                           ),
-                        ),
-                        Expanded(
-                          child: _buildQuickActionItem(
-                            label: 'Get support',
-                            icon: Icons.headset_mic_rounded,
-                            color: Colors.white,
-                            bgGradient: const LinearGradient(
-                              colors: [Color(0xFF34D399), Color(0xFF059669)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                          Expanded(
+                            child: _buildQuickActionItem(
+                              label: 'Track order',
+                              icon: Icons.navigation_rounded,
+                              color: const Color(0xFF94A3B8),
+                              bgGradient: null,
+                              bgColor: const Color(0xFFF1F5F9),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const BookingsScreen()),
+                                );
+                              },
                             ),
-                            bgColor: const Color(0xFF059669),
-                            onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Help Center: support@homecarex.com'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            },
                           ),
-                        ),
-                      ],
+                          Expanded(
+                            child: _buildQuickActionItem(
+                              label: 'Refer & earn',
+                              icon: Icons.card_giftcard_rounded,
+                              color: Colors.white,
+                              bgGradient: const LinearGradient(
+                                colors: [Color(0xFFF472B6), Color(0xFFDB2777)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              bgColor: const Color(0xFFDB2777),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ReferralsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildQuickActionItem(
+                              label: 'Get support',
+                              icon: Icons.headset_mic_rounded,
+                              color: Colors.white,
+                              bgGradient: const LinearGradient(
+                                colors: [Color(0xFF34D399), Color(0xFF059669)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              bgColor: const Color(0xFF059669),
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Help Center: support@homecarex.com'),
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                if (isAuthenticated) ...[
                   const SizedBox(height: 16),
 
-                  // 3. UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
+                  // UPCOMING BOOKING SECTION (when active bookings exist) OR WELCOME TO HOMECAREX! (New Customer Card)
                   if (activeBookings.isNotEmpty)
                     _buildUpcomingSection(context, activeBookings.first)
                   else
                     _buildWelcomeCustomerCard(context),
 
-                  const SizedBox(height: 24),
-                ] else ...[
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                 ],
 
-                // 4. BROWSE CATEGORIES (2x2 Grid matching Image 2)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Browse categories',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E1B2E),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-                          );
-                        },
-                        child: const Text(
-                          'View all',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.brand,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // 6. SERVICE CATEGORIES (4x2 GRID)
+                _buildServiceCategoriesSection(context),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
 
-                // 2x2 Category Grid
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildCategoryGrid(catalog.categories),
-                ),
+                // 7. PROMO / DISCOUNT BANNER (Flat 20% OFF / Use Code: HOME20)
+                _buildPromoDiscountBanner(context),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 22),
 
-                // 5. SERVICES FOR YOU (Recommended Services matching Image 2 & 3)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Services for you',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E1B2E),
-                    ),
-                  ),
-                ),
+                // 8. POPULAR SERVICES (Horizontal Carousel)
+                _buildPopularServicesSection(context, catalog, cart),
 
-                const SizedBox(height: 12),
-
-                // Horizontal scrolling list of service cards
-                SizedBox(
-                  height: 250,
-                  child: catalog.services.isEmpty
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.brand))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: catalog.services.length.clamp(0, 8),
-                          itemBuilder: (context, index) {
-                            final service = catalog.services[index];
-                            final inCart = cart.hasItem(service.id);
-
-                            return _buildServiceCard(context, service, inCart, cart);
-                          },
-                        ),
-                ),
-
-                const SizedBox(height: 24),
-
-                // 6. OFFERS FOR YOU (Coupon card matching Image 3)
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Offers for you',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E1B2E),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEEF2FE), Color(0xFFEDF0FB)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFD9E1FA)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E1B2E).withValues(alpha: 0.05),
-                          blurRadius: 18,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Text & Code Box
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '20% off',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1E1B2E),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                '20% off up to ₹500 on orders above ₹799.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF475569),
-                                  height: 1.3,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-
-                              // Code tag + Orange Copy button
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: const Color(0xFFCBD5E1),
-                                        style: BorderStyle.solid,
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      'FESTIVE20',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.8,
-                                        color: Color(0xFF1E1B2E),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: () => _copyCouponCode('FESTIVE20'),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFF8A3D),
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFFFF8A3D).withValues(alpha: 0.35),
-                                            blurRadius: 8,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            _copiedCoupon ? Icons.check_rounded : Icons.copy_rounded,
-                                            size: 13,
-                                            color: Colors.white,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            _copiedCoupon ? 'Copied' : 'Copy',
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Right 3D Gift Box Icon
-                        Image.asset(
-                          'assets/icons/3d/gift.png',
-                          width: 58,
-                          height: 58,
-                          errorBuilder: (_, __, ___) => const Text('🎁', style: TextStyle(fontSize: 44)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -1772,289 +1565,302 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 2x2 Category Grid matching Image 2
-  Widget _buildCategoryGrid(List<CategoryModel> categories) {
-    final List<Map<String, String>> defaultCategories = [
+  // ===========================================================================
+  // 1. SERVICE CATEGORIES (4x2 GRID MATCHING MOCKUP & WEB DESIGN)
+  // ===========================================================================
+  Widget _buildServiceCategoriesSection(BuildContext context) {
+    final List<Map<String, dynamic>> categories = [
       {
+        'id': 'home-cleaning',
         'name': 'Home Cleaning',
+        'icon': Icons.cleaning_services_outlined,
+        'color': const Color(0xFF3B82F6),
         'slug': 'home-cleaning',
-        'image': 'assets/images/home-cleaning.webp',
-        'count': '5 services',
       },
       {
-        'name': 'Appliance Repair & Service',
+        'id': 'appliance-repair',
+        'name': 'Appliance Repair',
+        'icon': Icons.kitchen_outlined,
+        'color': const Color(0xFF0EA5E9),
         'slug': 'appliance-repair-service',
-        'image': 'assets/images/appliance-repair.webp',
-        'count': '5 services',
       },
       {
+        'id': 'salon-spa',
         'name': 'Salon & Spa',
+        'icon': Icons.spa_outlined,
+        'color': const Color(0xFFEC4899),
         'slug': 'salon-spa',
-        'image': 'assets/images/Home-spa-women-banner.jpg',
-        'count': '5 services',
       },
       {
+        'id': 'electrical-plumbing',
         'name': 'Electrical & Plumbing',
+        'icon': Icons.build_outlined,
+        'color': const Color(0xFFF97316),
         'slug': 'electrical-plumbing',
-        'image': 'assets/images/electrical.jpg',
-        'count': '5 services',
+      },
+      {
+        'id': 'painting-waterproofing',
+        'name': 'Painting & Waterproofing',
+        'icon': Icons.format_paint_outlined,
+        'color': const Color(0xFF10B981),
+        'slug': 'painting-waterproofing',
+      },
+      {
+        'id': 'pest-control',
+        'name': 'Pest Control',
+        'icon': Icons.pest_control_outlined,
+        'color': const Color(0xFFEF4444),
+        'slug': 'pest-control',
+      },
+      {
+        'id': 'carpentry-assembly',
+        'name': 'Carpentry & Assembly',
+        'icon': Icons.chair_outlined,
+        'color': const Color(0xFF8B5CF6),
+        'slug': 'carpentry-assembly',
+      },
+      {
+        'id': 'more-services',
+        'name': 'More Services',
+        'icon': Icons.grid_view_rounded,
+        'color': const Color(0xFF2563EB),
+        'slug': 'more-services',
       },
     ];
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 0.95,
-      ),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        final def = defaultCategories[index];
-        final cat = categories.length > index ? categories[index] : null;
-        final name = cat != null && cat.name.isNotEmpty ? cat.name : def['name']!;
-        final slug = cat != null && cat.slug.isNotEmpty ? cat.slug : def['slug']!;
-        final countText = cat != null && cat.servicesCount > 0 ? '${cat.servicesCount} services' : def['count']!;
-        final assetPath = def['image']!;
-
-        return GestureDetector(
-          onTap: () => _openCategory(context, slug),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E1B2E).withValues(alpha: 0.08),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: "Service Categories" + "View All →"
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Service Categories',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                  letterSpacing: -0.3,
                 ),
-              ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                  );
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 13,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // 4x2 Grid of Category Tiles
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 0.88,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: Stack(
-                fit: StackFit.expand,
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final cat = categories[index];
+              final name = cat['name'] as String;
+              final icon = cat['icon'] as IconData;
+              final iconColor = cat['color'] as Color;
+              final slug = cat['slug'] as String;
+
+              return GestureDetector(
+                onTap: () {
+                  if (slug == 'more-services') {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+                    );
+                  } else {
+                    _openCategory(context, slug);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFF1F5F9)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 32,
+                        child: Center(
+                          child: Icon(icon, color: iconColor, size: 24),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 2. PROMO / DISCOUNT BANNER (FLAT 20% OFF / USE CODE: HOME20)
+  // ===========================================================================
+  Widget _buildPromoDiscountBanner(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFEFF6FF), Color(0xFFF0F7FF), Color(0xFFE0F2FE)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFBFDBFE).withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2563EB).withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Blue Rounded Square % Icon
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.percent_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Text content
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Photo
-                  Image.asset(
-                    assetPath,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: const Color(0xFFEEECFB),
-                      child: const Center(
-                        child: Icon(Icons.home_repair_service_rounded, color: AppColors.brand, size: 36),
-                      ),
+                  Text(
+                    'Flat 20% OFF',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.2,
                     ),
                   ),
-
-                  // Dark Gradient Overlay
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.transparent, Color(0xCC141224)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        stops: [0.35, 1.0],
-                      ),
-                    ),
-                  ),
-
-                  // Circular arrow button in top-right
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.arrow_outward_rounded,
-                          size: 15,
-                          color: AppColors.brand,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Title & count at bottom
-                  Positioned(
-                    bottom: 12,
-                    left: 12,
-                    right: 12,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          countText,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.85),
-                          ),
-                        ),
-                      ],
+                  SizedBox(height: 2),
+                  Text(
+                    'On Your First Booking',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
 
-  // Recommended Service Card matching Image 2 & 3
-  Widget _buildServiceCard(
-    BuildContext context,
-    ServiceModel service,
-    bool inCart,
-    CartProvider cart,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => ServiceDetailsScreen(service: service)),
-        );
-      },
-      child: Container(
-        width: 178,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFF1F5F9)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1E1B2E).withValues(alpha: 0.06),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Service Photo
-            ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: SizedBox(
-                height: 112,
-                width: double.infinity,
-                child: service.imageUrl != null && service.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        service.imageUrl!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _serviceFallbackImage(service),
-                      )
-                    : _serviceFallbackImage(service),
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // Service Title
-            Text(
-              service.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E1B2E),
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Rating & Duration row
-            Row(
-              children: [
-                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
-                const SizedBox(width: 2),
-                Text(
-                  service.rating.toStringAsFixed(1),
+            // Coupon code pill button: Use Code: HOME20
+            GestureDetector(
+              onTap: () => _copyCouponCode('HOME20'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFF2563EB),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  _copiedCoupon ? 'Copied! ✓' : 'Use Code: HOME20',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E1B2E),
+                    color: Color(0xFF2563EB),
                   ),
                 ),
-                const SizedBox(width: 6),
-                const Text('·', style: TextStyle(color: Color(0xFF94A3B8))),
-                const SizedBox(width: 6),
-                Text(
-                  '${(service.durationMinutes / 60).toStringAsFixed(service.durationMinutes % 60 == 0 ? 0 : 1)} hrs',
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                ),
-              ],
-            ),
-
-            const Spacer(),
-
-            // Price & Book Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '₹${service.price.toInt()}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E1B2E),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    if (inCart) {
-                      cart.removeItem(service.id);
-                    } else {
-                      cart.addItem(service);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: inCart ? const Color(0xFFEF4444) : const Color(0xFFFF8A3D),
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (inCart ? const Color(0xFFEF4444) : const Color(0xFFFF8A3D))
-                              .withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      inCart ? 'Remove' : 'Book',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ),
@@ -2062,24 +1868,322 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _serviceFallbackImage(ServiceModel s) {
-    final asset = ServiceImageResolver.resolve(s.slug, s.name);
+  // ===========================================================================
+  // 3. POPULAR SERVICES (HORIZONTAL CAROUSEL MATCHING WEB DESIGN)
+  // ===========================================================================
+  Widget _buildPopularServicesSection(
+    BuildContext context,
+    CatalogProvider catalog,
+    CartProvider cart,
+  ) {
+    final List<Map<String, dynamic>> popularItems = [
+      {
+        'id': 'ac-service',
+        'title': 'AC Service',
+        'rating': 4.8,
+        'reviewsCount': '2.1K',
+        'price': 499,
+        'image': 'assets/images/home-maintenance.webp',
+        'slug': 'ac-service-gas-refill',
+      },
+      {
+        'id': 'home-cleaning',
+        'title': 'Home Cleaning',
+        'rating': 4.7,
+        'reviewsCount': '3.4K',
+        'price': 299,
+        'image': 'assets/images/home-cleaning.webp',
+        'slug': 'deep-home-cleaning',
+      },
+      {
+        'id': 'washing-machine-repair',
+        'title': 'Washing Machine Repair',
+        'rating': 4.6,
+        'reviewsCount': '1.8K',
+        'price': 399,
+        'image': 'assets/images/washing-machine-repair.webp',
+        'slug': 'washing-machine-repair',
+      },
+      {
+        'id': 'salon-at-home',
+        'title': 'Salon at Home',
+        'rating': 4.8,
+        'reviewsCount': '1.2K',
+        'price': 399,
+        'image': 'assets/images/Home-spa-women.webp',
+        'slug': 'salon-spa',
+      },
+    ];
 
-    return Image.asset(
-      asset,
-      fit: BoxFit.cover,
-      alignment: ServiceImageResolver.resolveFocus(s.slug, s.name),
-      errorBuilder: (_, __, ___) => Container(
-        color: const Color(0xFFEEECFB),
-        child: Center(
-          child: Image.asset(
-            Icon3DResolver.resolve([s.name, s.slug]),
-            width: 40,
-            height: 40,
-            errorBuilder: (_, __, ___) => const Icon(Icons.build_rounded, color: AppColors.brand),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Section Header: "Popular Services" + "View All →"
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              RichText(
+                text: const TextSpan(
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: Color(0xFF0F172A),
+                  ),
+                  children: [
+                    TextSpan(text: 'Popular '),
+                    TextSpan(
+                      text: 'Services',
+                      style: TextStyle(
+                        color: Color(0xFFFF7A1A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                  );
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2563EB),
+                      ),
+                    ),
+                    SizedBox(width: 3),
+                    Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 13,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-      ),
+
+        const SizedBox(height: 12),
+
+        // Horizontal Scroll List
+        SizedBox(
+          height: 225,
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            scrollDirection: Axis.horizontal,
+            itemCount: popularItems.length,
+            itemBuilder: (context, index) {
+              final item = popularItems[index];
+              final id = item['id'] as String;
+              final title = item['title'] as String;
+              final rating = item['rating'] as double;
+              final reviewsCount = item['reviewsCount'] as String;
+              final price = item['price'] as int;
+              final imagePath = item['image'] as String;
+              final slug = item['slug'] as String;
+              final isFav = _favoriteServiceIds.contains(id);
+
+              final catalogService = catalog.services.where((s) => s.slug == slug || s.id == id).firstOrNull;
+
+              return Container(
+                width: 162,
+                margin: EdgeInsets.only(right: index == popularItems.length - 1 ? 0 : 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: GestureDetector(
+                    onTap: () {
+                      if (catalogService != null) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ServiceDetailsScreen(service: catalogService),
+                          ),
+                        );
+                      } else {
+                        _openCategory(context, slug);
+                      }
+                    },
+                    behavior: HitTestBehavior.opaque,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Thumbnail image + Heart Button
+                        Stack(
+                          children: [
+                            SizedBox(
+                              height: 108,
+                              width: double.infinity,
+                              child: Image.asset(
+                                imagePath,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFFF1F5F9),
+                                  child: const Icon(
+                                    Icons.handyman_rounded,
+                                    color: Color(0xFF94A3B8),
+                                    size: 32,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    if (_favoriteServiceIds.contains(id)) {
+                                      _favoriteServiceIds.remove(id);
+                                    } else {
+                                      _favoriteServiceIds.add(id);
+                                    }
+                                  });
+                                },
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.92),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.08),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Center(
+                                    child: Icon(
+                                      isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                      size: 15,
+                                      color: isFav ? const Color(0xFFF43F5E) : const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // Card body
+                        Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+
+                              // Rating Row
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 14,
+                                    color: Color(0xFFFBBF24),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    rating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '($reviewsCount)',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: 8),
+
+                              // Divider line
+                              Container(
+                                height: 1,
+                                color: const Color(0xFFF1F5F9),
+                              ),
+
+                              const SizedBox(height: 6),
+
+                              // Price & Action Arrow Row
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '₹$price',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFEFF6FF),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 13,
+                                        color: Color(0xFF2563EB),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
