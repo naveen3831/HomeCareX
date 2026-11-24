@@ -110,4 +110,43 @@ void main() {
     expect(tester.widget<Checkbox>(termsCheckboxFinder).value, true);
     expect(find.text('Please agree to the Terms & Conditions and Privacy Policy to continue.'), findsNothing);
   });
+
+  testWidgets('LoginScreen displays Guest option in header on right side and calls onBackToHome when tapped', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final auth = AuthProvider();
+    bool backToHomeCalled = false;
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: auth),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: LoginScreen(
+            onBackToHome: () => backToHomeCalled = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Guest option is present in header
+    expect(find.text('Guest'), findsOneWidget);
+
+    // Tap Guest option
+    await tester.tap(find.text('Guest'));
+    await tester.pumpAndSettle();
+
+    expect(backToHomeCalled, isTrue);
+  });
 }

@@ -55,6 +55,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _continueAsGuest(BuildContext context) {
+    if (widget.onBackToHome != null) {
+      widget.onBackToHome!();
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const MainNavigationScreen(),
+        ),
+      );
+    }
+  }
+
   Future<void> _handleLogin() async {
     setState(() {
       _errorMessage = null;
@@ -126,37 +138,81 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Top Bar: < Back to Home
-                      if (showBackButton)
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: GestureDetector(
+                      // Top Bar: Back to Home (left) & Guest Option (right)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (showBackButton)
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _navigateBackToHome(context),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 6),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.chevron_left_rounded,
+                                      size: 20,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    SizedBox(width: 2),
+                                    Text(
+                                      'Back to Home',
+                                      style: TextStyle(
+                                        color: Color(0xFF475569),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+
+                          // Guest Option on Right Side of Header
+                          GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: () => _navigateBackToHome(context),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 6),
-                              child: Row(
+                            onTap: () => _continueAsGuest(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.chevron_left_rounded,
-                                    size: 20,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                  SizedBox(width: 2),
                                   Text(
-                                    'Back to Home',
+                                    'Guest',
                                     style: TextStyle(
-                                      color: Color(0xFF475569),
+                                      color: Color(0xFF334155),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                     ),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 14,
+                                    color: Color(0xFF64748B),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                        ),
+                        ],
+                      ),
 
                       const Spacer(),
 
