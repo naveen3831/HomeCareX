@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
-  bool _agreeTerms = true;
+  bool _agreeTerms = false;
   String? _errorMessage;
   String? _termsError;
 
@@ -59,6 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _termsError = null;
     });
 
+    final isValid = _formKey.currentState!.validate();
+
     if (!_agreeTerms) {
       setState(() {
         _termsError = 'Please agree to the Terms & Conditions and Privacy Policy to continue.';
@@ -66,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!isValid) return;
 
     final auth = context.read<AuthProvider>();
     final success = await auth.login(

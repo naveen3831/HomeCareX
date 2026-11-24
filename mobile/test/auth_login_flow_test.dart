@@ -91,12 +91,23 @@ void main() {
     expect(find.text('Enter a valid email or 10-digit mobile number'), findsOneWidget);
     expect(find.text('Password must be at least 6 characters'), findsOneWidget);
 
+    // Verify terms checkbox is unchecked by default
+    final termsCheckboxFinder = find.byType(Checkbox).last;
+    expect(tester.widget<Checkbox>(termsCheckboxFinder).value, false);
+
     // Enter valid 10-digit phone
     await tester.enterText(emailField, '9876543210');
     await tester.enterText(passField, 'Secret@123');
     await tester.tap(find.text('Sign In'));
-    await tester.pump();
-    // Validation passes (no format error shown)
+    await tester.pumpAndSettle();
+    // Validation passes (no format error shown) but terms warning appears
     expect(find.text('Enter a valid email or 10-digit mobile number'), findsNothing);
+    expect(find.text('Please agree to the Terms & Conditions and Privacy Policy to continue.'), findsOneWidget);
+
+    // Tap terms checkbox to accept
+    await tester.tap(termsCheckboxFinder);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Checkbox>(termsCheckboxFinder).value, true);
+    expect(find.text('Please agree to the Terms & Conditions and Privacy Policy to continue.'), findsNothing);
   });
 }
