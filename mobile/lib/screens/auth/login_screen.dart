@@ -10,12 +10,14 @@ class LoginScreen extends StatefulWidget {
   final String? returnUrl;
   final VoidCallback? onBackToHome;
   final VoidCallback? onLoginSuccess;
+  final bool? showBackButton;
 
   const LoginScreen({
     super.key,
     this.returnUrl,
     this.onBackToHome,
     this.onLoginSuccess,
+    this.showBackButton,
   });
 
   @override
@@ -106,6 +108,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final isGuest = !auth.isAuthenticated;
+    final showBackButton = widget.showBackButton ?? (!isGuest && Navigator.canPop(context));
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -123,35 +127,36 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Top Bar: < Back to Home
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => _navigateBackToHome(context),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.chevron_left_rounded,
-                                  size: 20,
-                                  color: Color(0xFF64748B),
-                                ),
-                                SizedBox(width: 2),
-                                Text(
-                                  'Back to Home',
-                                  style: TextStyle(
-                                    color: Color(0xFF475569),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
+                      if (showBackButton)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => _navigateBackToHome(context),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.chevron_left_rounded,
+                                    size: 20,
+                                    color: Color(0xFF64748B),
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: 2),
+                                  Text(
+                                    'Back to Home',
+                                    style: TextStyle(
+                                      color: Color(0xFF475569),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
 
                       const Spacer(),
 

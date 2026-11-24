@@ -75,8 +75,8 @@ void main() {
     // Verify LoginScreen is shown inside Profile tab in guest mode
     expect(find.byType(LoginScreen), findsOneWidget);
 
-    // 1. Top Bar: Back to Home (Secure Login removed)
-    expect(find.text('Back to Home'), findsOneWidget);
+    // 1. Top Bar: Back button removed in guest mode (Secure Login also removed)
+    expect(find.text('Back to Home'), findsNothing);
     expect(find.text('Secure Login'), findsNothing);
 
     // 2. Brand header & titles
@@ -104,7 +104,7 @@ void main() {
     expect(find.text('Create an Account'), findsOneWidget);
   });
 
-  testWidgets('Tapping Back to Home from LoginScreen returns to Home tab', (tester) async {
+  testWidgets('In guest mode, back button is removed from LoginScreen and tapping Home tab returns to Home', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -126,14 +126,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byType(LoginScreen), findsOneWidget);
 
-    // Tap < Back to Home
-    final backToHomeFinder = find.text('Back to Home');
-    expect(backToHomeFinder, findsOneWidget);
-    await tester.tap(backToHomeFinder);
+    // Verify back button is removed in guest mode
+    expect(find.text('Back to Home'), findsNothing);
+
+    // Tap Home tab in bottom navigation to return to Home
+    await tester.tap(find.text('Home'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify returned to Home tab
+    // Confirm returned to Home tab
     expect(find.text('Welcome to HomeCareX', findRichText: true), findsOneWidget);
   });
 
@@ -226,11 +227,11 @@ void main() {
 
     // Verify LoginScreen is shown inside My Bookings tab in guest mode
     expect(find.byType(LoginScreen), findsOneWidget);
-    expect(find.text('Back to Home'), findsOneWidget);
+    expect(find.text('Back to Home'), findsNothing);
     expect(find.text('Welcome Back 👋'), findsOneWidget);
 
-    // Tap Back to Home returns to Home
-    await tester.tap(find.text('Back to Home'));
+    // Tap Home tab returns to Home
+    await tester.tap(find.text('Home'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 

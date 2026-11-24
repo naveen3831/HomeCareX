@@ -532,9 +532,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // --------------------------------------------------------------------------
-  // TOP APP BAR (← Profile)
+  // TOP APP BAR (Profile)
   // --------------------------------------------------------------------------
   Widget _buildTopAppBar(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final isGuest = !auth.isAuthenticated;
+    final canPop = Navigator.canPop(context);
+    final showBackButton = !isGuest && canPop;
+
+    if (!showBackButton) {
+      return const Text(
+        'Profile',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF1E1B2E),
+          letterSpacing: -0.4,
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: () {
         if (Navigator.canPop(context)) {
@@ -548,16 +565,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(
               Icons.arrow_back_rounded,
-              size: 20,
+              size: 22,
               color: Color(0xFF1E1B2E),
             ),
             SizedBox(width: 8),
             Text(
               'Profile',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
                 color: Color(0xFF1E1B2E),
+                letterSpacing: -0.4,
               ),
             ),
           ],

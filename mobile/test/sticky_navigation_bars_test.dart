@@ -17,10 +17,10 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Widget createTestWidget(Widget child) {
+  Widget createTestWidget(Widget child, {AuthProvider? authProvider}) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider.value(value: authProvider ?? AuthProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => CatalogProvider()),
         ChangeNotifierProvider(create: (_) => BookingProvider()),
@@ -52,6 +52,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Categories'), findsOneWidget);
+    final categoriesText = tester.widget<Text>(find.text('Categories'));
+    expect(categoriesText.style?.fontSize, 22);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
 
     final scrollView = find.byType(SingleChildScrollView);
     expect(
@@ -65,6 +68,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Services'), findsOneWidget);
+    final servicesText = tester.widget<Text>(find.text('Services'));
+    expect(servicesText.style?.fontSize, 22);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
 
     final scrollView = find.byType(SingleChildScrollView);
     expect(
@@ -74,10 +80,14 @@ void main() {
   });
 
   testWidgets('BookingsScreen has sticky top bar outside SingleChildScrollView', (tester) async {
-    await tester.pumpWidget(createTestWidget(const BookingsScreen()));
+    final auth = AuthProvider()..setUser(AuthProvider.defaultCustomer);
+    await tester.pumpWidget(createTestWidget(const BookingsScreen(), authProvider: auth));
     await tester.pump();
 
     expect(find.text('My Bookings'), findsOneWidget);
+    final bookingsText = tester.widget<Text>(find.text('My Bookings'));
+    expect(bookingsText.style?.fontSize, 22);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
 
     final scrollView = find.byType(SingleChildScrollView);
     expect(
@@ -91,6 +101,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Profile'), findsOneWidget);
+    final profileText = tester.widget<Text>(find.text('Profile'));
+    expect(profileText.style?.fontSize, 22);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
 
     final listView = find.byType(ListView);
     expect(

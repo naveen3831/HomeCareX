@@ -269,6 +269,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
       );
     }
 
+    final isGuest = !auth.isAuthenticated;
+    final canPop = Navigator.canPop(context);
+    final showBackButton = !isGuest && canPop;
+
     final bookingProv = context.watch<BookingProvider>();
     final filteredBookings = _getFilteredBookings(bookingProv.bookings);
     final hasActiveFilter = _sortBy != 'soonest';
@@ -278,40 +282,51 @@ class _BookingsScreenState extends State<BookingsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (← My Bookings)
+            // Sticky Top Header (My Bookings)
             Container(
               color: const Color(0xFFFAFAFC),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        size: 20,
-                        color: Color(0xFF1E1B2E),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'My Bookings',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E1B2E),
+              child: showBackButton
+                  ? GestureDetector(
+                      onTap: () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_rounded,
+                              size: 22,
+                              color: Color(0xFF1E1B2E),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'My Bookings',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E1B2E),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    )
+                  : const Text(
+                      'My Bookings',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E1B2E),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
             ),
             Expanded(
               child: RefreshIndicator(

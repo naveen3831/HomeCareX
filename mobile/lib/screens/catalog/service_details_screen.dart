@@ -196,16 +196,17 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               children: [
                 Icon(
                   Icons.arrow_back_rounded,
-                  size: 20,
+                  size: 22,
                   color: Color(0xFF1E1B2E),
                 ),
                 SizedBox(width: 8),
                 Text(
                   'Service details',
                   style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                     color: Color(0xFF1E1B2E),
+                    letterSpacing: -0.4,
                   ),
                 ),
               ],

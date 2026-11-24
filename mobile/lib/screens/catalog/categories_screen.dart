@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/category_model.dart';
 import '../../core/models/service_model.dart';
 import '../../core/utils/service_image_resolver.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/catalog_provider.dart';
 import 'service_details_screen.dart';
 import 'services_screen.dart';
@@ -251,6 +252,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
+    AuthProvider? auth;
+    try {
+      auth = Provider.of<AuthProvider>(context, listen: true);
+    } catch (_) {}
+    final isGuest = auth != null ? !auth.isAuthenticated : false;
+    final canPop = Navigator.canPop(context);
+    final showBackButton = !isGuest && canPop;
     final rawCategories = catalog.categories;
 
     // Deduplicate and sort by preferred mockup order
@@ -283,40 +291,51 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (← Categories)
+            // Sticky Top Header (Categories)
             Container(
               color: const Color(0xFFFAFAFC),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               alignment: Alignment.centerLeft,
-              child: GestureDetector(
-                onTap: () {
-                  if (Navigator.canPop(context)) {
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.arrow_back_rounded,
-                        size: 20,
-                        color: Color(0xFF1E1B2E),
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Categories',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E1B2E),
+              child: showBackButton
+                  ? GestureDetector(
+                      onTap: () {
+                        if (Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_back_rounded,
+                              size: 22,
+                              color: Color(0xFF1E1B2E),
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Categories',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E1B2E),
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                    )
+                  : const Text(
+                      'Categories',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1E1B2E),
+                        letterSpacing: -0.4,
+                      ),
+                    ),
             ),
             Expanded(
               child: RefreshIndicator(
