@@ -79,12 +79,15 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _copiedCoupon = false;
   final Set<String> _favoriteServiceIds = {};
   int? _expandedStepperStep;
+  int _faqIndex = 0;
+  int _bottomPromoIndex = 0;
   bool _isLocationPickerOpen = false;
   bool _isCityPickerOpen = false;
   String _selectedCity = 'Hyderabad';
 
   late final PageController _heroPageController;
   late final PageController _guestPageController;
+  late final PageController _bottomPromoPageController;
   late final TextEditingController _searchController;
   Timer? _heroTimer;
   Timer? _guestHeroTimer;
@@ -181,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _heroPageController = PageController();
     _guestPageController = PageController();
+    _bottomPromoPageController = PageController();
     _searchController = TextEditingController();
 
     _heroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
@@ -228,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _typingPauseTimer?.cancel();
     _heroPageController.dispose();
     _guestPageController.dispose();
+    _bottomPromoPageController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -1105,7 +1110,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 // 10. WHAT CUSTOMERS SAY (Testimonials)
                 _buildTestimonialsSection(context),
 
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                // 11. FREQUENTLY ASKED QUESTIONS CAROUSEL
+                _buildFaqSection(context),
+
+                const SizedBox(height: 24),
+
+                // 12. BOTTOM PROMO / ACTION CARDS CAROUSEL
+                _buildBottomPromoSection(context),
+
+                const SizedBox(height: 36),
               ],
             ),
           ),
@@ -2885,6 +2900,620 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ===========================================================================
+  // 6. FREQUENTLY ASKED QUESTIONS CAROUSEL MATCHING WEB DESIGN
+  // ===========================================================================
+  static const List<Map<String, String>> _mobileFaqs = [
+    {
+      'question': 'What services does HomeCareX provide?',
+      'answer':
+          'HomeCareX provides home cleaning, plumbing, electrical repairs, appliance servicing, AC maintenance, painting, pest control, and salon at home.',
+    },
+    {
+      'question': 'How can I book a service?',
+      'answer':
+          'Browse our catalog, pick your preferred service, select a date and convenient time slot, and confirm your address.',
+    },
+    {
+      'question': 'Are the service professionals verified?',
+      'answer':
+          'Yes, 100% of our professionals undergo rigorous background verification, skill assessment, and document authentication.',
+    },
+    {
+      'question': "What if I'm not satisfied with the service?",
+      'answer':
+          "We offer a 30-day service warranty on most repairs and a satisfaction guarantee. We'll re-work or refund if not satisfied.",
+    },
+    {
+      'question': 'Can I cancel or reschedule my booking?',
+      'answer':
+          'Yes, you can cancel or reschedule easily anytime from the My Bookings tab without hidden penalty charges.',
+    },
+  ];
+
+  Widget _buildFaqSection(BuildContext context) {
+    final currentFaq = _mobileFaqs[_faqIndex];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Centered Badge: • GOT QUESTIONS?
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFEDD5)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFF8A3D),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const Text(
+                  'GOT QUESTIONS?',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                    color: Color(0xFFC2410C),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Centered Title: Frequently Asked Questions
+          RichText(
+            textAlign: TextAlign.center,
+            text: const TextSpan(
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
+                color: Color(0xFF1E1B4B),
+              ),
+              children: [
+                TextSpan(text: 'Frequently Asked '),
+                TextSpan(
+                  text: 'Questions',
+                  style: TextStyle(
+                    color: Color(0xFFFF7A1A),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Q&A Slider with Left/Right chevron arrows
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Left chevron <
+              GestureDetector(
+                key: const Key('faq_prev_chevron'),
+                onTap: () {
+                  setState(() {
+                    _faqIndex = (_faqIndex - 1 + _mobileFaqs.length) % _mobileFaqs.length;
+                  });
+                },
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(
+                    Icons.chevron_left_rounded,
+                    size: 24,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ),
+
+              // Question and Answer Text
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      currentFaq['question']!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                        height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      currentFaq['answer']!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Right chevron >
+              GestureDetector(
+                key: const Key('faq_next_chevron'),
+                onTap: () {
+                  setState(() {
+                    _faqIndex = (_faqIndex + 1) % _mobileFaqs.length;
+                  });
+                },
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 24,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Dot Indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_mobileFaqs.length, (idx) {
+              final isActive = idx == _faqIndex;
+              return GestureDetector(
+                onTap: () => setState(() => _faqIndex = idx),
+                child: Container(
+                  width: isActive ? 10 : 6,
+                  height: isActive ? 8 : 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  decoration: BoxDecoration(
+                    color: isActive ? const Color(0xFF4338CA) : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              );
+            }),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Bottom Action Links: More FAQs > • Contact Support >
+          Container(
+            padding: const EdgeInsets.only(top: 10),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                    );
+                  },
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'More FAQs',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF4338CA),
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF4338CA)),
+                    ],
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('•', style: TextStyle(color: Color(0xFFCBD5E1))),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Support: support@homecarex.com | +91 98765 43210'),
+                        duration: Duration(seconds: 2),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Contact Support',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFFF8A3D),
+                        ),
+                      ),
+                      SizedBox(width: 3),
+                      Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFFFF8A3D)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 7. BOTTOM PROMO / ACTION CARDS CAROUSEL MATCHING WEB DESIGN
+  // ===========================================================================
+  Widget _buildBottomPromoSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Container(
+            height: 180,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: PageView(
+                controller: _bottomPromoPageController,
+                onPageChanged: (idx) => setState(() => _bottomPromoIndex = idx),
+                children: [
+                  // Slide 1: Need help with your home?
+                  Container(
+                    color: const Color(0xFFEEF0FF),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4338CA),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4338CA).withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.home_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RichText(
+                                    text: const TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E1B6E),
+                                      ),
+                                      children: [
+                                        TextSpan(text: 'Need help with your '),
+                                        TextSpan(
+                                          text: 'home?',
+                                          style: TextStyle(
+                                            color: Color(0xFFFF7A1A),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Find reliable home services and make home maintenance simple, quick, and convenient.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF5B5B7A),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFF8A3D),
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFFF8A3D).withValues(alpha: 0.3),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'Explore Services',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Icon(
+                                            Icons.arrow_forward_rounded,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Contact: support@homecarex.com'),
+                                          duration: Duration(seconds: 2),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: Colors.transparent,
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: const Color(0xFF4338CA),
+                                          width: 1.2,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Contact Us',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF4338CA),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Slide 2: Are you a service professional?
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFFF7ED), Color(0xFFFFEDD5)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF8A3D),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF8A3D).withValues(alpha: 0.25),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.handyman_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  RichText(
+                                    text: const TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 14.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1E1B6E),
+                                      ),
+                                      children: [
+                                        TextSpan(text: 'Are you a service '),
+                                        TextSpan(
+                                          text: 'professional?',
+                                          style: TextStyle(
+                                            color: Color(0xFF4338CA),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Join HomeCareX and connect with customers. Get flexible hours, transparent rates & reliable payouts.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Join Partner: Visit partner.homecarex.com to register'),
+                                      duration: Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF4338CA),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF4338CA).withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Join as a Professional',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(width: 4),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // 2 Dots indicator
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  _bottomPromoPageController.animateToPage(
+                    0,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Container(
+                  width: _bottomPromoIndex == 0 ? 18 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  decoration: BoxDecoration(
+                    color: _bottomPromoIndex == 0 ? const Color(0xFF4338CA) : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _bottomPromoPageController.animateToPage(
+                    1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                },
+                child: Container(
+                  width: _bottomPromoIndex == 1 ? 18 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                  decoration: BoxDecoration(
+                    color: _bottomPromoIndex == 1 ? const Color(0xFF4338CA) : const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

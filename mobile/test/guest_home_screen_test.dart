@@ -122,6 +122,74 @@ void main() {
     expect(find.text('Microwave Oven Repair'), findsOneWidget);
     expect(find.text('"Very good worker"'), findsOneWidget);
     expect(find.text('Verified Customer Booking'), findsWidgets);
+
+    // 11. Frequently Asked Questions Carousel
+    expect(find.text('GOT QUESTIONS?'), findsOneWidget);
+    expect(find.textContaining('Frequently Asked', findRichText: true), findsOneWidget);
+    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
+    expect(find.text('More FAQs'), findsOneWidget);
+    expect(find.text('Contact Support'), findsOneWidget);
+
+    // 12. Bottom Promo / Action Cards Carousel
+    expect(find.textContaining('Need help with your', findRichText: true), findsOneWidget);
+    expect(find.text('Find reliable home services and make home maintenance simple, quick, and convenient.'), findsOneWidget);
+    expect(find.text('Explore Services'), findsOneWidget);
+    expect(find.text('Contact Us'), findsOneWidget);
+  });
+
+  testWidgets('Guest FAQ carousel navigates questions and Bottom Promo carousel slides', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await StorageService.setLoggedOut(true);
+    final authProvider = AuthProvider();
+    authProvider.setUser(null);
+
+    await tester.pumpWidget(createGuestHomeTestWidget(authProvider: authProvider));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // Scroll down to FAQ section
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -1200));
+    await tester.pumpAndSettle();
+
+    // Verify initial FAQ question
+    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
+
+    // Tap right chevron to advance FAQ
+    final rightChevron = find.byKey(const Key('faq_next_chevron'));
+    expect(rightChevron, findsOneWidget);
+    await tester.tap(rightChevron);
+    await tester.pump();
+
+    // Verify next question is shown
+    expect(find.text('How can I book a service?'), findsOneWidget);
+
+    // Tap left chevron to go back
+    final leftChevron = find.byKey(const Key('faq_prev_chevron'));
+    expect(leftChevron, findsOneWidget);
+    await tester.tap(leftChevron);
+    await tester.pump();
+
+    expect(find.text('What services does HomeCareX provide?'), findsOneWidget);
+
+    // Scroll down to Bottom Promo card
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    // Verify initial Promo card
+    expect(find.text('Explore Services'), findsOneWidget);
+    expect(find.text('Contact Us'), findsOneWidget);
+
+    // Swipe promo card to slide to Professional card
+    await tester.drag(find.text('Explore Services'), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Are you a service', findRichText: true), findsOneWidget);
+    expect(find.text('Join as a Professional'), findsOneWidget);
   });
 
   testWidgets('Guest Home Screen allows copying coupon code HOME20 and shows SnackBar', (tester) async {
