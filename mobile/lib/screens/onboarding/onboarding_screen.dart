@@ -22,6 +22,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   final List<OnboardingSlideData> _slides = const [
     OnboardingSlideData(
+      imagePath: 'assets/images/hero-cleaner.png',
+      imageFit: BoxFit.contain,
       icon: Icons.cleaning_services_rounded,
       primaryColor: Color(0xFF4338CA),
       softBgColor: Color(0xFFEEF2FF),
@@ -38,6 +40,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       bottomBadgeText: '4.8+ Rated',
     ),
     OnboardingSlideData(
+      imagePath: 'assets/images/quality-service.jpg',
+      imageFit: BoxFit.cover,
       icon: Icons.verified_user_rounded,
       primaryColor: Color(0xFF059669),
       softBgColor: Color(0xFFECFDF5),
@@ -54,6 +58,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       bottomBadgeText: '100% Safe',
     ),
     OnboardingSlideData(
+      imagePath: 'assets/images/hero-banner.png',
+      imageFit: BoxFit.cover,
       icon: Icons.track_changes_rounded,
       primaryColor: Color(0xFFD97706),
       softBgColor: Color(0xFFFEF3C7),
@@ -204,14 +210,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 onPageChanged: (idx) => setState(() => _currentPage = idx),
                 itemBuilder: (context, index) {
                   final slide = _slides[index];
-                  return Padding(
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Hero 3D Illustrated Card Container
+                        const SizedBox(height: 8),
+                        // Hero Illustrated Image Card
                         _buildHeroIllustration(slide),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 24),
 
                         // Badge Pill
                         Container(
@@ -238,7 +246,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 14),
 
                         // Headline Title
                         Text(
@@ -252,7 +260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             letterSpacing: -0.4,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
 
                         // Subtitle
                         Text(
@@ -264,7 +272,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             height: 1.45,
                           ),
                         ),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 18),
 
                         // Feature Highlights Capsule Row
                         Wrap(
@@ -297,6 +305,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             );
                           }).toList(),
                         ),
+                        const SizedBox(height: 8),
                       ],
                     ),
                   );
@@ -391,37 +400,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  /// 3D Layered Hero Illustration for each slide
+  /// 3D Layered Hero Illustration with Image for each slide
   Widget _buildHeroIllustration(OnboardingSlideData slide) {
     return SizedBox(
-      width: 170,
-      height: 170,
+      height: 200,
+      width: double.infinity,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          // Outer ambient glow ring
+          // Ambient soft glow behind the card
           Container(
-            width: 160,
-            height: 160,
+            width: 260,
+            height: 165,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: slide.primaryColor.withValues(alpha: 0.06),
-            ),
-          ),
-          Container(
-            width: 136,
-            height: 136,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: slide.primaryColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(32),
+              color: slide.primaryColor.withValues(alpha: 0.10),
+              boxShadow: [
+                BoxShadow(
+                  color: slide.primaryColor.withValues(alpha: 0.18),
+                  blurRadius: 28,
+                  spreadRadius: 2,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
           ),
 
-          // Central Clay Card
+          // Central Card Container with Image
           Container(
-            width: 112,
-            height: 112,
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 320),
+            height: 185,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
@@ -431,21 +441,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   slide.softBgColor,
                 ],
               ),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: slide.borderTint, width: 2),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: slide.borderTint, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: slide.primaryColor.withValues(alpha: 0.16),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
-            child: Center(
-              child: Icon(
-                slide.icon,
-                size: 56,
-                color: slide.primaryColor,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22.5),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Image
+                  Image.asset(
+                    slide.imagePath,
+                    fit: slide.imageFit,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: slide.softBgColor,
+                      child: Center(
+                        child: Icon(
+                          slide.icon,
+                          size: 56,
+                          color: slide.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -453,16 +479,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           // Floating Top-Right Mini Badge
           Positioned(
             top: 2,
-            right: 0,
+            right: 14,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -476,7 +502,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Text(
                     slide.topBadgeText,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
                       color: slide.primaryColor,
                     ),
@@ -488,17 +514,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
           // Floating Bottom-Left Mini Badge
           Positioned(
-            bottom: 4,
-            left: 2,
+            bottom: 2,
+            left: 14,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
+                    color: Colors.black.withValues(alpha: 0.08),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -512,7 +538,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   Text(
                     slide.bottomBadgeText,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF0F172A),
                     ),
@@ -528,6 +554,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 }
 
 class OnboardingSlideData {
+  final String imagePath;
+  final BoxFit imageFit;
   final IconData icon;
   final Color primaryColor;
   final Color softBgColor;
@@ -543,6 +571,8 @@ class OnboardingSlideData {
   final String bottomBadgeText;
 
   const OnboardingSlideData({
+    required this.imagePath,
+    this.imageFit = BoxFit.cover,
     required this.icon,
     required this.primaryColor,
     required this.softBgColor,

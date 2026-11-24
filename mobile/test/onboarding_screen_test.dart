@@ -70,6 +70,7 @@ void main() {
     expect(find.text('🛡️ Certified Pros'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
+    expect(find.byType(Image), findsWidgets);
   });
 
   testWidgets('OnboardingScreen advances through all 3 slides using Next button',
