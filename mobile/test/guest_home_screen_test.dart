@@ -162,9 +162,14 @@ void main() {
     await tester.tap(logoutFinder);
     await tester.pumpAndSettle();
 
-    // Confirm dialog
-    expect(find.text('Are you sure you want to log out of HomeCareX?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Log Out'));
+    // Confirm bottom sheet dialog matches web styling
+    expect(find.text('Log out of HomeCareX?'), findsOneWidget);
+    expect(find.text("You'll be signed out on this device"), findsOneWidget);
+    expect(find.text('Your bookings and saved addresses stay safe'), findsOneWidget);
+    expect(find.text('Sign in again anytime to book or track a service'), findsOneWidget);
+    expect(find.text('Stay signed in'), findsOneWidget);
+    expect(find.text('Yes, log out'), findsOneWidget);
+    await tester.tap(find.text('Yes, log out'));
     await tester.pumpAndSettle();
 
     // Verify navigated to MainNavigationScreen in guest mode
