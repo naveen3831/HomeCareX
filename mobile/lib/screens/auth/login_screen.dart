@@ -648,59 +648,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              const SizedBox(height: 16),
-
-              // Quick Test Credentials
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFED7AA)),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Quick Test Credentials',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFC2410C),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        _identifierController.text = 'naveenkumar970100@gmail.com';
-                        _passwordController.text = 'Admin@123';
-                        setState(() {
-                          _agreeTerms = true;
-                          _termsError = null;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFFDBA74)),
-                        ),
-                        child: const Text(
-                          'Tap to fill: naveenkumar970100@gmail.com / Admin@123',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: Color(0xFF1E293B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
 
               // Bottom Link: Don't have an account? Create an Account
               Wrap(
