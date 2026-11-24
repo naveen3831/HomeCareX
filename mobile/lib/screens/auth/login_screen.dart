@@ -100,13 +100,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
         if (widget.onLoginSuccess != null) {
           widget.onLoginSuccess!();
-        } else if (Navigator.canPop(context)) {
-          Navigator.pop(context);
         } else {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
-              builder: (_) => const MainNavigationScreen(initialIndex: 4),
+              builder: (_) => const MainNavigationScreen(initialIndex: 2),
             ),
+            (route) => false,
           );
         }
       } else {

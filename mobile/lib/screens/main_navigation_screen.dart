@@ -65,6 +65,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 _visited[2] = true;
               });
             },
+            onLoginSuccess: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
           );
         }
         return const BookingsScreen();
@@ -74,6 +80,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           return LoginScreen(
             returnUrl: '/customer/profile',
             onBackToHome: () {
+              setState(() {
+                _currentIndex = 2;
+                _visited[2] = true;
+              });
+            },
+            onLoginSuccess: () {
               setState(() {
                 _currentIndex = 2;
                 _visited[2] = true;

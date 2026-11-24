@@ -7,6 +7,14 @@ import 'package:homecarex_mobile/core/services/api_service.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/screens/auth/login_screen.dart';
 
+class _MockSuccessAuthProvider extends AuthProvider {
+  @override
+  Future<bool> login(String identifier, String password) async {
+    setUser(AuthProvider.defaultCustomer);
+    return true;
+  }
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -148,5 +156,49 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(backToHomeCalled, isTrue);
+  });
+
+  testWidgets('LoginScreen invokes onLoginSuccess upon successful sign in', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final AuthProvider auth = _MockSuccessAuthProvider();
+    bool loginSuccessCalled = false;
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: LoginScreen(
+            onLoginSuccess: () => loginSuccessCalled = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final emailField = find.byType(TextFormField).first;
+    final passField = find.byType(TextFormField).last;
+    final termsCheckboxFinder = find.byType(Checkbox).last;
+
+    await tester.enterText(emailField, 'customer@homecarex.com');
+    await tester.enterText(passField, 'password123');
+    await tester.tap(termsCheckboxFinder);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sign In'));
+    await tester.pumpAndSettle();
+
+    expect(loginSuccessCalled, isTrue);
   });
 }
