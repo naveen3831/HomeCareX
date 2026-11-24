@@ -63,7 +63,12 @@ void main() {
     expect(find.text('Welcome to HomeCareX', findRichText: true), findsOneWidget);
     expect(find.text('Book trusted professionals for your home needs.'), findsOneWidget);
 
-    // 3. Hero Carousel matching reference
+    // 3. Top Guest Banner Slider matching web reference
+    expect(find.text('Home services'), findsOneWidget);
+    expect(find.text('Quality Services at Your\nDoorstep'), findsOneWidget);
+    expect(find.text('Explore services'), findsOneWidget);
+
+    // 4. Hero Carousel matching reference
     expect(find.text('Verified Professionals'), findsOneWidget);
     expect(find.text('Home Cleaning\nServices'), findsOneWidget);
     expect(find.text('Deep cleaning for a healthier and happier home.'), findsOneWidget);
@@ -173,6 +178,7 @@ void main() {
     expect(find.byType(MainNavigationScreen), findsOneWidget);
     expect(find.text('Welcome to HomeCareX', findRichText: true), findsOneWidget);
     expect(find.text('Book trusted professionals for your home needs.'), findsOneWidget);
+    expect(find.text('Quality Services at Your\nDoorstep'), findsOneWidget);
     expect(find.text('Verified Professionals'), findsOneWidget);
   });
 }

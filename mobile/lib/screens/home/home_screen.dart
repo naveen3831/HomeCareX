@@ -53,6 +53,24 @@ class _HeroSlideData {
   });
 }
 
+class _GuestHeroSlide {
+  final String tag;
+  final String title;
+  final String description;
+  final String buttonText;
+  final String imagePath;
+  final String categorySlug;
+
+  const _GuestHeroSlide({
+    required this.tag,
+    required this.title,
+    required this.description,
+    required this.buttonText,
+    required this.imagePath,
+    required this.categorySlug,
+  });
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -67,15 +85,46 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCity = 'Hyderabad';
 
   late final PageController _heroPageController;
+  late final PageController _guestPageController;
   late final TextEditingController _searchController;
   Timer? _heroTimer;
+  Timer? _guestHeroTimer;
   Timer? _typingTimer;
   Timer? _typingPauseTimer;
   int _heroPageIndex = 0;
+  int _guestPageIndex = 0;
+  bool _isGuestAutoplayPaused = false;
   String _animatedHint = 'Search AC repair|';
   int _phraseIndex = 0;
   int _charIndex = 0;
   bool _isTypingForward = true;
+
+  static const List<_GuestHeroSlide> _guestHeroSlides = [
+    _GuestHeroSlide(
+      tag: 'Home services',
+      title: 'Quality Services at Your\nDoorstep',
+      description: 'Easy, reliable and clean run of home services.',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/quality-service.jpg',
+      categorySlug: 'services',
+    ),
+    _GuestHeroSlide(
+      tag: 'Appliance repair',
+      title: 'Appliance repair at your doorstep',
+      description: 'Get your washing machine, fridge or AC working without hassle',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/appliance-repair.webp',
+      categorySlug: 'appliance-repair-service',
+    ),
+    _GuestHeroSlide(
+      tag: 'Electrical & Plumbing',
+      title: 'Safe, certified home repairs',
+      description: 'Quick fixes, safety checks, and emergency home care',
+      buttonText: 'Explore services',
+      imagePath: 'assets/images/electrical.jpg',
+      categorySlug: 'electrical-plumbing',
+    ),
+  ];
 
   static const List<_HeroSlideData> _heroSlides = [
     _HeroSlideData(
@@ -132,6 +181,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _heroPageController = PageController();
+    _guestPageController = PageController();
     _searchController = TextEditingController();
 
     _heroTimer = Timer.periodic(const Duration(milliseconds: 5000), (timer) {
@@ -139,6 +189,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (_heroPageController.hasClients) {
         final next = (_heroPageIndex + 1) % _heroSlides.length;
         _heroPageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    });
+
+    _guestHeroTimer = Timer.periodic(const Duration(milliseconds: 4500), (timer) {
+      if (!mounted) return;
+      if (!_isGuestAutoplayPaused && _guestPageController.hasClients) {
+        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
+        _guestPageController.animateToPage(
           next,
           duration: const Duration(milliseconds: 550),
           curve: Curves.easeInOutCubic,
@@ -162,9 +224,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _heroTimer?.cancel();
+    _guestHeroTimer?.cancel();
     _typingTimer?.cancel();
     _typingPauseTimer?.cancel();
     _heroPageController.dispose();
+    _guestPageController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -897,12 +961,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         const SizedBox(height: 14),
 
-                        // 3. HERO CAROUSEL CARD (Verified Professionals / Home Cleaning, etc.)
+                        // 3. TOP GUEST HERO BANNER (Quality Services at Your Doorstep, explore, control bar)
+                        _buildGuestHeroCarousel(context),
+
+                        const SizedBox(height: 14),
+
+                        // 4. SERVICE CAROUSEL CARD (Verified Professionals / Home Cleaning, dots)
                         _buildHeroCard(context),
 
                         const SizedBox(height: 14),
 
-                        // 4. SEARCH BAR (Search input + Mic + Orange search button)
+                        // 5. SEARCH BAR (Search input + Mic + Orange search button)
                         _buildSearchBar(context),
 
                         const SizedBox(height: 18),
@@ -2381,6 +2450,324 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+
+  // ---------------------------------------------------------------------------
+  // GUEST TOP HERO BANNER (Quality Services at Your Doorstep, control bar)
+  // ---------------------------------------------------------------------------
+  Widget _buildGuestHeroCarousel(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        height: 215,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.18),
+              blurRadius: 20,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // PageView of hero slides
+              PageView.builder(
+                controller: _guestPageController,
+                itemCount: _guestHeroSlides.length,
+                onPageChanged: (idx) {
+                  setState(() => _guestPageIndex = idx);
+                },
+                itemBuilder: (context, index) {
+                  final slide = _guestHeroSlides[index];
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Photo
+                      Image.asset(
+                        slide.imagePath,
+                        fit: BoxFit.cover,
+                        alignment: Alignment.topCenter,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: const Color(0xFF1E293B),
+                          child: const Center(
+                            child: Icon(Icons.handyman_rounded, color: Colors.white, size: 48),
+                          ),
+                        ),
+                      ),
+
+                      // Dark readability gradients
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.8),
+                              Colors.black.withValues(alpha: 0.45),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.58, 1.0],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.65),
+                              Colors.transparent,
+                            ],
+                            stops: const [0.0, 0.38],
+                          ),
+                        ),
+                      ),
+
+                      // Slide text & CTA
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 42),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Category Tag Badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    slide.tag,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+
+                                // Title
+                                Text(
+                                  slide.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.2,
+                                    letterSpacing: -0.3,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+
+                                // Subtitle
+                                Text(
+                                  slide.description,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.3,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+
+                            // Orange Explore services button
+                            GestureDetector(
+                              onTap: () {
+                                if (slide.categorySlug == 'services') {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                                  );
+                                } else {
+                                  _openCategory(context, slide.categorySlug);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF8A3D),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFFF8A3D).withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      slide.buttonText,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+
+              // Bottom control bar (progress segments + pause/play + prev/next chevrons)
+              Positioned(
+                bottom: 10,
+                left: 16,
+                right: 16,
+                child: Row(
+                  children: [
+                    // Progress line indicators
+                    Expanded(
+                      child: Row(
+                        children: List.generate(_guestHeroSlides.length, (i) {
+                          final isActive = i == _guestPageIndex;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () {
+                                _guestPageController.animateToPage(
+                                  i,
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeInOut,
+                                );
+                              },
+                              child: Container(
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(horizontal: 2),
+                                decoration: BoxDecoration(
+                                  color: isActive
+                                      ? const Color(0xFFFF8A3D)
+                                      : Colors.white.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Pause / Play button
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isGuestAutoplayPaused = !_isGuestAutoplayPaused;
+                        });
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Icon(
+                            _isGuestAutoplayPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+
+                    // Prev chevron <
+                    GestureDetector(
+                      onTap: () {
+                        final prev = (_guestPageIndex - 1 + _guestHeroSlides.length) % _guestHeroSlides.length;
+                        _guestPageController.animateToPage(
+                          prev,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.chevron_left_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Next chevron >
+                    GestureDetector(
+                      onTap: () {
+                        final next = (_guestPageIndex + 1) % _guestHeroSlides.length;
+                        _guestPageController.animateToPage(
+                          next,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      },
+                      child: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildSearchBar(BuildContext context) {
     return Padding(
