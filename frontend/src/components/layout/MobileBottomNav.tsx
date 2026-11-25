@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, LayoutGrid, CalendarCheck, MessageCircle, User } from "lucide-react";
+import { Home, LayoutGrid, Wrench, CalendarCheck, User } from "lucide-react";
 
 export interface MobileBottomNavProps {
   className?: string;
@@ -12,28 +12,28 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ className = ""
 
   const navItems = [
     {
+      to: "/categories",
+      label: "Categories",
+      icon: LayoutGrid,
+      isActive: pathname.startsWith("/categories"),
+    },
+    {
+      to: "/services",
+      label: "Services",
+      icon: Wrench,
+      isActive: pathname.startsWith("/services"),
+    },
+    {
       to: "/",
       label: "Home",
       icon: Home,
       isActive: pathname === "/",
     },
     {
-      to: "/services",
-      label: "Services",
-      icon: LayoutGrid,
-      isActive: pathname.startsWith("/services"),
-    },
-    {
       to: "/customer/bookings",
-      label: "Bookings",
+      label: "My Bookings",
       icon: CalendarCheck,
       isActive: pathname.startsWith("/customer/bookings"),
-    },
-    {
-      to: "/contact",
-      label: "Support",
-      icon: MessageCircle,
-      isActive: pathname === "/contact" || pathname === "/support" || pathname.startsWith("/customer/support"),
     },
     {
       to: "/customer/profile",

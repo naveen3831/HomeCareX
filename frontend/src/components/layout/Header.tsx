@@ -404,25 +404,41 @@ const Header: React.FC = () => {
         }`}
       >
         <div
-          className="relative mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center px-5 sm:px-6 md:grid-cols-[1fr_auto_1fr]"
+          className="relative mx-auto flex items-center justify-between px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr]"
         >
-          {/* LOGO */}
-          <NavLink
-            to={pathname === "/" ? "/about" : "/"}
-            onClick={closeMenu}
-            aria-label={pathname === "/" ? "HomeCareX About" : "HomeCareX Home"}
-            className="flex items-center justify-self-start rounded-xl"
-          >
-            <img
-              src="/logo.webp"
-              alt="HomeCareX"
-              width={712}
-              height={166}
-              fetchPriority="high"
-              decoding="async"
-              className="h-8 sm:h-9 md:h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
-            />
-          </NavLink>
+          {/* LOGO & MOBILE LOCATION UNDER LOGO */}
+          <div className="flex flex-col items-start gap-1.5 md:block justify-self-start">
+            <NavLink
+              to={pathname === "/" ? "/about" : "/"}
+              onClick={closeMenu}
+              aria-label={pathname === "/" ? "HomeCareX About" : "HomeCareX Home"}
+              className="flex items-center rounded-xl"
+            >
+              <img
+                src="/logo.webp"
+                alt="HomeCareX"
+                width={712}
+                height={166}
+                fetchPriority="high"
+                decoding="async"
+                className="h-7 sm:h-8 md:h-10 w-auto object-contain transition-transform duration-300 hover:scale-105"
+              />
+            </NavLink>
+
+            {/* Location selector directly under logo on mobile view */}
+            <div className="flex md:hidden">
+              <button
+                type="button"
+                onClick={() => setIsCityModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-white px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-2xs transition-colors hover:bg-slate-50 active:scale-95"
+                aria-label={`Current location: ${selectedCity}. Tap to change city.`}
+              >
+                <MapPin className="h-3 w-3 text-red-500 shrink-0" />
+                <span className="truncate max-w-[100px]">{selectedCity}</span>
+                <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
+              </button>
+            </div>
+          </div>
 
           {/* DESKTOP NAVIGATION */}
           <nav
@@ -445,7 +461,7 @@ const Header: React.FC = () => {
             ))}
           </nav>
 
-          {/* LOGIN BUTTON */}
+          {/* LOGIN BUTTON (DESKTOP) */}
           <div className="hcx-header-drop hidden justify-self-end md:block">
             <NavLink
               to="/login"
@@ -461,21 +477,8 @@ const Header: React.FC = () => {
             </NavLink>
           </div>
 
-          {/* MOBILE CONTROLS: Location Pill & Notification Bell */}
-          <div className="flex md:hidden items-center justify-end gap-2">
-            {/* Location Selector Pill */}
-            <button
-              type="button"
-              onClick={() => setIsCityModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-slate-200/90 bg-slate-50/90 px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-2xs transition-colors hover:bg-slate-100 active:scale-95"
-              aria-label={`Current location: ${selectedCity}. Tap to change city.`}
-            >
-              <MapPin className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-              <span className="truncate max-w-[85px]">{selectedCity}</span>
-              <ChevronDown className="h-3 w-3 text-slate-500 shrink-0" />
-            </button>
-
-            {/* Notification Bell Button */}
+          {/* MOBILE CONTROLS: Notification Bell */}
+          <div className="flex md:hidden items-center justify-end">
             <button
               type="button"
               onClick={() => setIsNotificationOpen(true)}
