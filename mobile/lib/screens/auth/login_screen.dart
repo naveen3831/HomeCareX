@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../main_navigation_screen.dart';
 import '../profile/legal_document_screen.dart';
 import 'forgot_password_screen.dart';
+import 'partner_register_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -65,133 +66,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     }
-  }
-
-  void _showJoinAsPartnerSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF7ED),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFFFEDD5)),
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.handyman_rounded,
-                    color: Color(0xFFEA580C),
-                    size: 28,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Join as a Service Partner',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Grow your business with verified customer leads, zero onboarding fees, flexible schedule, and weekly direct bank payouts.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF64748B),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.verified_user_rounded,
-                      color: Color(0xFF10B981),
-                      size: 22,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        '100% verified professionals with weekly payouts & equipment support.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 22),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Partner registration: Visit partner.homecarex.in or call 9390212000'),
-                        backgroundColor: Color(0xFFEA580C),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEA580C),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Partner Support: 9390212000',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _handleLogin() async {
@@ -870,7 +744,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => _showJoinAsPartnerSheet(context),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PartnerRegisterScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
                       'Join as Partner →',
                       style: TextStyle(

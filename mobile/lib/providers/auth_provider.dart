@@ -166,6 +166,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> registerPartner(Map<String, dynamic> partnerData) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final body = Map<String, dynamic>.from(partnerData);
+      body['role'] = 'partner';
+      final res = await ApiService.post(ApiConstants.register, body);
+      _isLoading = false;
+      notifyListeners();
+      return res != null;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> forgotPassword(String email) async {
     _isLoading = true;
     _errorMessage = null;

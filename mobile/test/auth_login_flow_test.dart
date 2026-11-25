@@ -6,6 +6,7 @@ import 'package:homecarex_mobile/core/services/storage_service.dart';
 import 'package:homecarex_mobile/core/services/api_service.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
 import 'package:homecarex_mobile/screens/auth/login_screen.dart';
+import 'package:homecarex_mobile/screens/auth/partner_register_screen.dart';
 
 class _MockSuccessAuthProvider extends AuthProvider {
   @override
@@ -202,7 +203,7 @@ void main() {
     expect(loginSuccessCalled, isTrue);
   });
 
-  testWidgets('LoginScreen displays "Are you a service professional? Join as Partner →" and opens partner sheet on tap', (tester) async {
+  testWidgets('LoginScreen displays "Are you a service professional? Join as Partner →" and navigates to PartnerRegisterScreen on tap', (tester) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.0;
     addTearDown(() {
@@ -236,8 +237,17 @@ void main() {
     await tester.tap(find.text('Join as Partner →'));
     await tester.pumpAndSettle();
 
-    // Verify modal sheet opened
-    expect(find.text('Join as a Service Partner'), findsOneWidget);
-    expect(find.text('Partner Support: 9390212000'), findsOneWidget);
+    // Verify PartnerRegisterScreen opened with matching header and Section A
+    expect(find.byType(PartnerRegisterScreen), findsOneWidget);
+    expect(find.text('Become a HomeCareX Partner'), findsOneWidget);
+    expect(find.text('Section A: Personal Information'), findsOneWidget);
+    expect(find.text('Step 1 of 5'), findsWidgets);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Date of Birth'), findsOneWidget);
+    expect(find.text('Gender'), findsOneWidget);
+    expect(find.text('Mobile Number'), findsOneWidget);
+    expect(find.text('Email Address'), findsOneWidget);
+    expect(find.text('Create Password'), findsOneWidget);
+    expect(find.text('Confirm Password'), findsOneWidget);
   });
 }
