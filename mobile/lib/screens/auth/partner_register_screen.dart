@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../main_navigation_screen.dart';
+import 'login_screen.dart';
 
 class PartnerRegisterScreen extends StatefulWidget {
   const PartnerRegisterScreen({super.key});
@@ -138,6 +139,18 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => const MainNavigationScreen(initialIndex: 2),
+        ),
+      );
+    }
+  }
+
+  void _navigateToLogin() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(),
         ),
       );
     }
@@ -570,6 +583,94 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
                       ),
                     ),
                   ],
+                ),
+
+                const SizedBox(height: 18),
+
+                // Link: Already registered as a partner? Sign in here
+                Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text(
+                        'Already registered as a partner? ',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _navigateToLogin,
+                        child: const Text(
+                          'Sign in here',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Trust Badges
+                Container(
+                  padding: const EdgeInsets.only(top: 14),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Color(0xFFF1F5F9)),
+                    ),
+                  ),
+                  child: const Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified_user_outlined, size: 13, color: Color(0xFF10B981)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Verified Platform',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                        Text('•', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.flash_on_rounded, size: 13, color: Color(0xFF2563EB)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Fast Payouts',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                        Text('•', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 10)),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.workspace_premium_outlined, size: 13, color: Color(0xFF8B5CF6)),
+                            SizedBox(width: 4),
+                            Text(
+                              'Instant Bookings',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 24),

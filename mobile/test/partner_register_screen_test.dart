@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:homecarex_mobile/core/services/storage_service.dart';
 import 'package:homecarex_mobile/core/services/api_service.dart';
 import 'package:homecarex_mobile/providers/auth_provider.dart';
+import 'package:homecarex_mobile/screens/auth/login_screen.dart';
 import 'package:homecarex_mobile/screens/auth/partner_register_screen.dart';
 
 void main() {
@@ -127,5 +128,35 @@ void main() {
     // Verify back on Step 1
     expect(find.text('Section A: Personal Information'), findsOneWidget);
     expect(find.text('Continue to Step 2 →'), findsOneWidget);
+  });
+
+  testWidgets('PartnerRegisterScreen renders "Already registered as a partner? Sign in here" and navigates to LoginScreen', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final auth = AuthProvider();
+    await tester.pumpWidget(buildTestScreen(auth));
+    await tester.pumpAndSettle();
+
+    // Verify text
+    expect(find.text('Already registered as a partner? '), findsOneWidget);
+    expect(find.text('Sign in here'), findsOneWidget);
+
+    // Also verify trust badges
+    expect(find.text('Verified Platform'), findsOneWidget);
+    expect(find.text('Fast Payouts'), findsOneWidget);
+    expect(find.text('Instant Bookings'), findsOneWidget);
+
+    // Tap Sign in here
+    await tester.tap(find.text('Sign in here'));
+    await tester.pumpAndSettle();
+
+    // Verify LoginScreen is shown
+    expect(find.byType(LoginScreen), findsOneWidget);
+    expect(find.text('Sign in to manage your home care and book services'), findsOneWidget);
   });
 }
