@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/booking_model.dart';
-import '../../core/models/address_model.dart';
 import '../../core/utils/bell_3d_icon.dart';
 import '../../core/utils/service_image_resolver.dart';
 import '../../providers/auth_provider.dart';
@@ -17,7 +16,6 @@ import '../catalog/services_screen.dart';
 import '../bookings/bookings_screen.dart';
 import '../bookings/booking_tracking_screen.dart';
 import '../notifications/notifications_screen.dart';
-import '../profile/saved_addresses_screen.dart';
 import '../referrals/referrals_screen.dart';
 
 class _CustomerHeroSlide {
@@ -41,7 +39,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _copiedCoupon = false;
-  bool _isLocationPickerOpen = false;
   bool _isCityPickerOpen = false;
   String _selectedCity = 'Hyderabad';
 
@@ -241,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  Widget _buildGuestHeader(BuildContext context) {
+  Widget _buildTopHeader(BuildContext context, {int unreadCount = 0}) {
     return Container(
       color: const Color(0xFFFAFAFC),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -367,9 +364,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          // Bell Icon (badge count: 0 for guest mode)
+          // Bell Icon (badge count: unread notifications count)
           NotificationBellButton(
-            count: 0,
+            count: unreadCount,
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -508,288 +505,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildTopLocationHeader(
-    BuildContext context, {
-    CustomerAddress? selectedAddress,
-    BookingModel? latestBooking,
-    int activeCount = 0,
-    int unreadNotificationsCount = 0,
-    bool isPickerOpen = false,
-    VoidCallback? onTogglePicker,
-  }) {
-    final badgeCount = unreadNotificationsCount;
-    final label = selectedAddress != null
-        ? selectedAddress.label
-        : (latestBooking != null ? 'Home' : 'Add address');
-    final addressLine = selectedAddress != null
-        ? selectedAddress.fullAddressLine
-        : (latestBooking != null && latestBooking.address.trim().isNotEmpty
-            ? latestBooking.address
-            : 'Select where we should...');
-
-    return Container(
-      color: const Color(0xFFFAFAFC),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Location Picker
-          Expanded(
-            child: GestureDetector(
-              onTap: onTogglePicker,
-              behavior: HitTestBehavior.opaque,
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEEECFB),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.location_on_rounded,
-                        color: AppColors.brand,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Text(
-                              'Deliver to ',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                            Text(
-                              '• $label',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.brand,
-                              ),
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              isPickerOpen
-                                  ? Icons.keyboard_arrow_up_rounded
-                                  : Icons.keyboard_arrow_down_rounded,
-                              size: 16,
-                              color: AppColors.brand,
-                            ),
-                          ],
-                        ),
-                        Text(
-                          addressLine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // 3D Clay Notification Bell with Red Badge matching web header (media_1795416363267_caff530d.png)
-          NotificationBellButton(
-            count: badgeCount,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificationsScreen(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddressPickerDropdown(BuildContext context) {
-    AddressProvider? addressProvider;
-    try {
-      addressProvider = context.watch<AddressProvider>();
-    } catch (_) {}
-
-    final addresses = addressProvider?.addresses ?? [];
-    final current = addressProvider?.selectedAddress;
-
-    return Material(
-      color: Colors.transparent,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. + Add new address
-            GestureDetector(
-              onTap: () {
-                setState(() => _isLocationPickerOpen = false);
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const SavedAddressesScreen(),
-                  ),
-                );
-              },
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Color(0xFFF3F4F6), width: 1.5),
-                  ),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.add_rounded, size: 20, color: AppColors.brand),
-                    SizedBox(width: 8),
-                    Text(
-                      'Add new address',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.brand,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 2. Saved addresses title
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 6),
-              child: Text(
-                'Saved addresses',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-            ),
-
-            // 3. Saved addresses list
-            if (addresses.isEmpty)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Text(
-                  'No saved addresses yet.',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                ),
-              )
-            else
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 260),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.only(bottom: 8),
-                  itemCount: addresses.length,
-                  separatorBuilder: (_, __) => const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFF3F4F6),
-                    indent: 48,
-                    endIndent: 16,
-                  ),
-                  itemBuilder: (ctx, index) {
-                    final addr = addresses[index];
-                    final isSelected = addr.id == current?.id;
-                    return GestureDetector(
-                      onTap: () {
-                        addressProvider?.selectAddress(addr.id);
-                        setState(() => _isLocationPickerOpen = false);
-                      },
-                      behavior: HitTestBehavior.opaque,
-                      child: Container(
-                        color: isSelected ? const Color(0xFFF6F5FE) : Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                              _iconForAddressLabel(addr.label),
-                              size: 20,
-                              color: isSelected ? AppColors.brand : const Color(0xFF111827),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    addr.label,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF111827),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    addr.fullAddressLine,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF6B7280),
-                                      height: 1.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (isSelected) ...[
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.check_rounded,
-                                size: 18,
-                                color: AppColors.brand,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _iconForAddressLabel(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('home')) return Icons.home_outlined;
-    if (l.contains('office') || l.contains('work')) return Icons.work_outline_rounded;
-    return Icons.location_on_outlined;
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -797,7 +512,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final catalog = context.watch<CatalogProvider>();
     final bookingProvider = context.watch<BookingProvider>();
     final activeBookings = bookingProvider.activeBookings;
-    final latestBooking = activeBookings.isNotEmpty ? activeBookings.first : null;
 
     int unreadNotifications = 0;
     try {
@@ -805,33 +519,16 @@ class _HomeScreenState extends State<HomeScreen> {
       unreadNotifications = notifProvider.unreadCount;
     } catch (_) {}
 
-    CustomerAddress? selectedAddress;
-    try {
-      selectedAddress = context.watch<AddressProvider>().selectedAddress;
-    } catch (_) {}
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
       body: SafeArea(
         child: Column(
           children: [
-            // Sticky Top Header (Guest HomeCareX logo vs Deliver to • Add address)
-            if (isAuthenticated)
-              _buildTopLocationHeader(
-                context,
-                selectedAddress: selectedAddress,
-                latestBooking: latestBooking,
-                activeCount: activeBookings.length,
-                unreadNotificationsCount: unreadNotifications,
-                isPickerOpen: _isLocationPickerOpen,
-                onTogglePicker: () {
-                  setState(() {
-                    _isLocationPickerOpen = !_isLocationPickerOpen;
-                  });
-                },
-              )
-            else
-              _buildGuestHeader(context),
+            // Sticky Top Header (Brand logo + Location option under it + Notification bell)
+            _buildTopHeader(
+              context,
+              unreadCount: unreadNotifications,
+            ),
             Expanded(
               child: Stack(
                 clipBehavior: Clip.none,
@@ -898,27 +595,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-                  // Location Picker Dropdown Menu Overlay (when authenticated)
-                  if (isAuthenticated && _isLocationPickerOpen) ...[
-                    Positioned.fill(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isLocationPickerOpen = false),
-                        behavior: HitTestBehavior.opaque,
-                        child: Container(
-                          color: Colors.black.withValues(alpha: 0.08),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      left: 16,
-                      right: 16,
-                      child: _buildAddressPickerDropdown(context),
-                    ),
-                  ],
-
-                  // City Picker Dropdown Menu Overlay (when guest)
-                  if (!isAuthenticated && _isCityPickerOpen) ...[
+                  // City Picker Dropdown Menu Overlay
+                  if (_isCityPickerOpen) ...[
                     Positioned.fill(
                       child: GestureDetector(
                         onTap: () => setState(() => _isCityPickerOpen = false),

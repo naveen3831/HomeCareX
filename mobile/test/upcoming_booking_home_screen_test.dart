@@ -57,7 +57,7 @@ void main() {
     expect(find.text('Home Cleaning'), findsOneWidget);
     expect(find.text('Electrical & Plumbing'), findsOneWidget);
     expect(find.text('Services for you'), findsOneWidget);
-    expect(find.text('• Add address'), findsOneWidget);
+    expect(find.text('Hyderabad'), findsOneWidget);
     expect(find.text('Upcoming'), findsNothing);
   });
 
@@ -99,8 +99,8 @@ void main() {
     expect(find.text('₹446'), findsOneWidget);
     expect(find.textContaining('Sri Sai Nilayam'), findsWidgets);
 
-    // Verify Top Header updates with Home address
-    expect(find.text('• Home'), findsOneWidget);
+    // Verify Top Header has location pill
+    expect(find.text('Hyderabad'), findsOneWidget);
 
     // Verify Welcome card is NOT shown
     expect(find.text('Welcome to HomeCareX!'), findsNothing);

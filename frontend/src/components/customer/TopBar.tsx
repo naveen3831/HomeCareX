@@ -243,7 +243,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
   return (
     <header
       className={clsx(
-        "customer-topbar sticky top-0 z-30 flex h-[64px] items-center justify-between gap-3 bg-white/85 px-3 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:px-8",
+        "customer-topbar sticky top-0 z-30 flex min-h-[64px] items-center justify-between gap-3 bg-white/85 px-3 py-1.5 shadow-[0_6px_16px_-14px_rgba(30,27,46,.28)] backdrop-blur-xl md:h-[68px] md:py-0 md:px-8",
         isExcludedMobileTopBar && "hidden md:flex",
       )}
     >
@@ -326,18 +326,28 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             )}
           </>
         ) : (
-          <>
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-1 py-1 md:flex-row md:items-center md:py-0">
             <Link
               to={customerPath()}
               className={clsx(
-                "rounded-lg text-lg font-bold tracking-tight",
-                sidebarOpen ? "md:hidden" : "ml-2",
-                "hidden md:inline-flex",
+                "rounded-lg tracking-tight",
                 FOCUS_RING,
               )}
             >
-              <span className="text-accent">Home</span>
-              <span className="text-brand">CareX</span>
+              <img
+                src="/logo.webp"
+                alt="HomeCareX"
+                className="h-6 w-auto object-contain md:hidden"
+              />
+              <span
+                className={clsx(
+                  "hidden text-lg font-bold md:inline-flex",
+                  sidebarOpen ? "md:hidden" : "ml-2",
+                )}
+              >
+                <span className="text-accent">Home</span>
+                <span className="text-brand">CareX</span>
+              </span>
             </Link>
 
             <span
@@ -352,7 +362,7 @@ export default function TopBar({ sidebarOpen, onToggleSidebar }: TopBarProps) {
             <div className="min-w-0 flex-1 md:flex-none">
               <LocationPicker />
             </div>
-          </>
+          </div>
         )}
       </div>
 

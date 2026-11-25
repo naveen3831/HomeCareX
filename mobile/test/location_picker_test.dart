@@ -79,7 +79,7 @@ void main() {
       );
     }
 
-    testWidgets('Tapping location in header toggles dropdown with Saved addresses matching screenshot', (tester) async {
+    testWidgets('Tapping location in header toggles city picker dropdown with available cities', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(() {
@@ -92,69 +92,35 @@ void main() {
       await tester.pumpWidget(buildHomeScreen(addressProvider: addressProvider));
       await tester.pump();
 
-      // Verify initial header shows Deliver to • Home and down arrow
-      expect(find.text('Deliver to '), findsOneWidget);
-      expect(find.text('• Home'), findsOneWidget);
+      // Verify initial header shows Hyderabad and down arrow
+      expect(find.text('Hyderabad'), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsNothing);
 
       // Verify dropdown is not open yet
-      expect(find.text('Add new address'), findsNothing);
-      expect(find.text('Saved addresses'), findsNothing);
+      expect(find.text('Select Service City'), findsNothing);
 
-      // Tap location picker header
-      await tester.tap(find.text('• Home'));
+      // Tap location picker pill
+      await tester.tap(find.text('Hyderabad'));
       await tester.pump();
 
       // Verify chevron flips to up
       expect(find.byIcon(Icons.keyboard_arrow_up_rounded), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
 
-      // Verify dropdown card is open with Add new address, Saved addresses, Home row
-      expect(find.text('Add new address'), findsOneWidget);
-      expect(find.text('Saved addresses'), findsOneWidget);
-      expect(find.text('Home'), findsOneWidget);
-      expect(
-        find.text('000000, Image Garden Road, Ayyappa Society Colony, Hyderabad, 500081'),
-        findsNWidgets(2),
-      );
-      expect(find.byIcon(Icons.check_rounded), findsOneWidget);
+      // Verify dropdown card is open with Select Service City and cities list
+      expect(find.text('Select Service City'), findsOneWidget);
+      expect(find.text('Bengaluru'), findsOneWidget);
+      expect(find.text('Mumbai'), findsOneWidget);
 
-      // Tapping on the address row selects it and closes the dropdown
-      await tester.tap(find.text('Home'));
+      // Tapping on Bengaluru selects it and closes the dropdown
+      await tester.tap(find.text('Bengaluru'));
       await tester.pump();
 
-      // Dropdown is closed, chevron flips back to down
-      expect(find.text('Add new address'), findsNothing);
+      // Dropdown is closed, chevron flips back to down, header updated to Bengaluru
+      expect(find.text('Select Service City'), findsNothing);
+      expect(find.text('Bengaluru'), findsOneWidget);
       expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsOneWidget);
-    });
-
-    testWidgets('Tapping Add new address in dropdown opens SavedAddressesScreen', (tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final addressProvider = AddressProvider()..syncRemote = false;
-
-      await tester.pumpWidget(buildHomeScreen(addressProvider: addressProvider));
-      await tester.pump();
-
-      // Open dropdown
-      await tester.tap(find.text('• Home'));
-      await tester.pump();
-
-      expect(find.text('Add new address'), findsOneWidget);
-
-      // Tap Add new address
-      await tester.tap(find.text('Add new address'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      // Navigated to SavedAddressesScreen
-      expect(find.byType(SavedAddressesScreen), findsOneWidget);
     });
   });
 }

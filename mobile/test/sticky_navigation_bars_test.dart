@@ -36,14 +36,13 @@ void main() {
     await tester.pumpWidget(createTestWidget(const HomeScreen()));
     await tester.pump();
 
-    // Verify 'Deliver to ' and '• Add address' exist
-    expect(find.text('Deliver to '), findsOneWidget);
-    expect(find.text('• Add address'), findsOneWidget);
+    // Verify 'Hyderabad' exists
+    expect(find.text('Hyderabad'), findsOneWidget);
 
     // Verify it is not a descendant of SingleChildScrollView
     final scrollView = find.byType(SingleChildScrollView);
     expect(
-      find.descendant(of: scrollView, matching: find.text('Deliver to ')),
+      find.descendant(of: scrollView, matching: find.text('Hyderabad')),
       findsNothing,
     );
   });

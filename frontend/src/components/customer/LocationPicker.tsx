@@ -65,10 +65,25 @@ export default function LocationPicker() {
         aria-expanded={open}
         aria-controls="topbar-address-menu"
         aria-label={current ? `Service address: ${current.label}, ${line}. Change address` : "Choose a service address"}
-        className={clsx("location-picker-trigger flex min-w-0 max-w-[380px] items-center gap-2.5 rounded-full bg-white py-1 pl-1 pr-3.5 text-left transition-colors duration-200 hover:border-brand/30 hover:bg-brand-soft/40", FOCUS_RING)}
+        className={clsx(
+          "location-picker-trigger flex min-w-0 items-center rounded-full text-left transition-colors duration-200",
+          "border border-slate-200/90 bg-white px-2.5 py-0.5 shadow-2xs hover:bg-slate-50",
+          "md:max-w-[380px] md:gap-2.5 md:border-none md:bg-white md:py-1 md:pl-1 md:pr-3.5 md:shadow-none md:hover:border-brand/30 md:hover:bg-brand-soft/40",
+          FOCUS_RING,
+        )}
       >
-        <span className="location-picker-pin flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand"><Pin3D className="h-[22px] w-[22px]" /></span>
-        <span className="min-w-0 flex-1">
+        {/* Mobile: compact pill (Pin + City + Chevron) matching app Image 1 */}
+        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-700 md:hidden">
+          <MapPin className="h-3 w-3 text-red-500 fill-red-500 shrink-0" aria-hidden="true" />
+          <span className="truncate max-w-[120px]">{current?.city || "Hyderabad"}</span>
+          <ChevronDown className={clsx("h-3 w-3 text-slate-500 shrink-0 transition-transform", open && "rotate-180")} aria-hidden="true" />
+        </span>
+
+        {/* Desktop: Pin3D + Deliver to • Label + Address line */}
+        <span className="location-picker-pin hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand md:flex">
+          <Pin3D className="h-[22px] w-[22px]" />
+        </span>
+        <span className="hidden min-w-0 flex-1 md:block">
           <span className="mb-0.5 flex min-w-0 items-center gap-1 text-xs font-medium leading-tight text-muted">
             <span className="shrink-0">Deliver to</span>
             <span aria-hidden="true">•</span>
