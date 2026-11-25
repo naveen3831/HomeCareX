@@ -159,10 +159,17 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
 
   Future<void> _pickDocument({required bool isIdProof}) async {
     try {
-      final files = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
-      );
+      List<PlatformFile> files = [];
+
+      try {
+        files = await FilePicker.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+        );
+      } catch (_) {
+        // Fallback to FileType.any in case custom extension filtering is not supported by the system file manager
+        files = await FilePicker.pickFiles(type: FileType.any);
+      }
 
       if (files.isNotEmpty) {
         final file = files.first;
@@ -189,6 +196,18 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final isMissingPlugin = e.toString().contains('MissingPluginException');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isMissingPlugin
+                  ? 'Please restart the app (flutter run) to link native file picker.'
+                  : 'Could not open files: $e',
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+            duration: const Duration(seconds: 4),
+          ),
+        );
         setState(() {
           if (isIdProof) {
             _idProofFileName = 'id_document.pdf';
@@ -1397,6 +1416,7 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
   }) {
     if (fileName != null) {
       return Container(
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFEFF6FF),
@@ -1405,47 +1425,73 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
         ),
         child: Row(
           children: [
-            const Icon(Icons.description_rounded, color: Color(0xFF2563EB), size: 20),
+            const Icon(Icons.description_rounded, color: Color(0xFF2563EB), size: 22),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                fileName,
-                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Ready to upload',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF2563EB), fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
             ),
             GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: onRemove,
-              child: const Icon(Icons.close_rounded, color: Color(0xFFEF4444), size: 18),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                child: const Icon(Icons.close_rounded, color: Color(0xFFEF4444), size: 20),
+              ),
             ),
           ],
         ),
       );
     }
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
-        ),
-        child: const Center(
-          child: Column(
-            children: [
-              Icon(Icons.cloud_upload_outlined, color: Color(0xFF64748B), size: 28),
-              SizedBox(height: 6),
-              Text(
-                'Tap to select document (PDF, PNG, JPG)',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Maximum size: 5MB',
-                style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
-              ),
-            ],
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        splashColor: const Color(0xFFDBEAFE),
+        highlightColor: const Color(0xFFEFF6FF),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.cloud_upload_outlined, color: Color(0xFF2563EB), size: 30),
+                SizedBox(height: 6),
+                Text(
+                  'Tap to select document (PDF, PNG, JPG)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Maximum size: 5MB',
+                  style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
