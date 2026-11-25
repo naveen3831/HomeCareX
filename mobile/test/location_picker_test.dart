@@ -11,7 +11,6 @@ import 'package:homecarex_mobile/providers/catalog_provider.dart';
 import 'package:homecarex_mobile/providers/notification_provider.dart';
 import 'package:homecarex_mobile/providers/address_provider.dart';
 import 'package:homecarex_mobile/screens/home/home_screen.dart';
-import 'package:homecarex_mobile/screens/profile/saved_addresses_screen.dart';
 
 void main() {
   setUp(() {

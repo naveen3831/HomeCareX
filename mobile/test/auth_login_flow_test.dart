@@ -201,4 +201,43 @@ void main() {
 
     expect(loginSuccessCalled, isTrue);
   });
+
+  testWidgets('LoginScreen displays "Are you a service professional? Join as Partner →" and opens partner sheet on tap', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final auth = AuthProvider();
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: auth),
+        ],
+        child: MaterialApp(
+          theme: ThemeData(
+            useMaterial3: true,
+            splashFactory: NoSplash.splashFactory,
+          ),
+          home: const LoginScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify presence of Partner link
+    expect(find.text('Are you a service professional? '), findsOneWidget);
+    expect(find.text('Join as Partner →'), findsOneWidget);
+
+    // Tap Join as Partner →
+    await tester.tap(find.text('Join as Partner →'));
+    await tester.pumpAndSettle();
+
+    // Verify modal sheet opened
+    expect(find.text('Join as a Service Partner'), findsOneWidget);
+    expect(find.text('Partner Support: 9390212000'), findsOneWidget);
+  });
 }
