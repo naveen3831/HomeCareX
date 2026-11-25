@@ -209,7 +209,7 @@ const Footer: React.FC = () => {
   return (
     <footer
       ref={footerRef}
-      className={`hcx-ft relative isolate overflow-hidden bg-[#1e1b6e] text-white ${visible ? "ft-visible" : ""}`}
+      className={`hcx-ft relative isolate overflow-hidden bg-[#1e1b6e] text-white hidden md:block ${visible ? "ft-visible" : ""}`}
     >
       <style>{styles}</style>
 

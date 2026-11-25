@@ -53,8 +53,10 @@ const PublicLayout: React.FC = () => {
         </ErrorBoundary>
       </main>
 
-      {/* Footer */}
-      <Footer />
+      {/* Footer (hidden on mobile response to match mobile app experience) */}
+      <div className="hidden md:block">
+        <Footer />
+      </div>
       <MobileBottomNav />
     </div>
   );
