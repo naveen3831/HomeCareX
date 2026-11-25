@@ -119,6 +119,23 @@ void main() {
     // Verify Step 2 rendered
     expect(find.text('Section B: Identity Proof'), findsOneWidget);
     expect(find.text('Step 2 of 5'), findsWidgets);
+    expect(find.text('Upload ID Document (Optional)'), findsOneWidget);
+    expect(find.text('Tap to select document (PDF, PNG, JPG)'), findsOneWidget);
+    expect(find.text('Maximum size: 5MB'), findsOneWidget);
+
+    // Tap upload document box to select document files
+    await tester.tap(find.text('Tap to select document (PDF, PNG, JPG)'));
+    await tester.pumpAndSettle();
+
+    // Verify document file is loaded and remove icon is available
+    expect(find.text('id_document.pdf'), findsOneWidget);
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+
+    // Tap remove icon to clear file
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Tap to select document (PDF, PNG, JPG)'), findsOneWidget);
+
     expect(find.text('← Back'), findsOneWidget);
 
     // Tap Back

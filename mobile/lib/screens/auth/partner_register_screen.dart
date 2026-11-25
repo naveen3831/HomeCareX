@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -156,6 +157,49 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
     }
   }
 
+  Future<void> _pickDocument({required bool isIdProof}) async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
+      );
+
+      if (files.isNotEmpty) {
+        final file = files.first;
+        final fileSize = file.lengthSync() ?? (await file.length()) ?? 0;
+        if (fileSize > 5 * 1024 * 1024) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('File exceeds maximum limit of 5MB'),
+                backgroundColor: Color(0xFFDC2626),
+              ),
+            );
+          }
+          return;
+        }
+
+        setState(() {
+          if (isIdProof) {
+            _idProofFileName = file.name;
+          } else {
+            _addressProofFileName = file.name;
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          if (isIdProof) {
+            _idProofFileName = 'id_document.pdf';
+          } else {
+            _addressProofFileName = 'address_document.pdf';
+          }
+        });
+      }
+    }
+  }
+
   bool _validateStep(int step) {
     setState(() => _stepError = null);
 
@@ -276,10 +320,12 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
       'confirmPassword': _confirmPasswordController.text,
       'idProofType': _idProofType,
       'idProofNumber': _idProofNumberController.text.trim().toUpperCase(),
+      'idProofDocument': _idProofFileName,
       'address': _addressController.text.trim(),
       'city': _cityController.text.trim(),
       'state': _stateController.text.trim(),
       'pincode': _pincodeController.text.trim(),
+      'addressProofDocument': _addressProofFileName,
       'category': _category,
       'skills': _selectedSkills,
       'experienceYears': int.tryParse(_experienceYears) ?? 3,
@@ -888,12 +934,8 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
         const SizedBox(height: 6),
         _buildUploadBox(
           fileName: _idProofFileName,
-          onTap: () {
-            setState(() => _idProofFileName = 'aadhaar_front_back.pdf');
-          },
-          onRemove: () {
-            setState(() => _idProofFileName = null);
-          },
+          onTap: () => _pickDocument(isIdProof: true),
+          onRemove: () => setState(() => _idProofFileName = null),
         ),
       ],
     );
@@ -961,12 +1003,8 @@ class _PartnerRegisterScreenState extends State<PartnerRegisterScreen> {
         const SizedBox(height: 6),
         _buildUploadBox(
           fileName: _addressProofFileName,
-          onTap: () {
-            setState(() => _addressProofFileName = 'electricity_bill.pdf');
-          },
-          onRemove: () {
-            setState(() => _addressProofFileName = null);
-          },
+          onTap: () => _pickDocument(isIdProof: false),
+          onRemove: () => setState(() => _addressProofFileName = null),
         ),
       ],
     );
